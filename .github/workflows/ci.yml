@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Show Python version
+        run: python --version
+
+      - name: Run architecture guard
+        run: python -B tools/architecture_guard.py
+
+      - name: Compile Python sources
+        run: python -B -m compileall -q aaaat tests tools
+
+      - name: Run contract tests
+        run: python -B -m unittest discover -s tests
+
+      - name: Validate MCP descriptors
+        run: python -B -m aaaat.cli mcp-validate
