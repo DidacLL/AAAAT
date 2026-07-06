@@ -4,7 +4,7 @@ import sqlite3
 from typing import Any
 
 from .artifacts import list_artifacts
-from .db import list_applications, list_glossary, list_raw_intake, profile_variables
+from .db import list_applications, list_glossary, list_raw_intake, profile_variables, required_profile_variables
 
 
 def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> dict[str, Any]:
@@ -17,6 +17,7 @@ def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> di
         "applications": apps,
         "glossary": list_glossary(conn),
         "profile_variables": profile_variables(conn),
+        "missing_profile_variables": required_profile_variables(conn),
     }
 
 

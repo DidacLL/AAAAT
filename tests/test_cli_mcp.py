@@ -23,6 +23,10 @@ class CliMcpTests(unittest.TestCase):
             created = self.run_cli("--storage", tmp, "app", "create", "--company", "Demo Co", "--role", "Engineer")
             self.assertIn("Demo Co", created.stdout)
             app_id = json.loads(created.stdout)["id"]
+            updated = self.run_cli("--storage", tmp, "app", "update", app_id, "--next-action", "Call recruiter", "--keywords", "ATS, Python")
+            updated_data = json.loads(updated.stdout)
+            self.assertEqual(updated_data["next_action"], "Call recruiter")
+            self.assertEqual(updated_data["keywords"], ["ATS", "Python"])
 
             listed = self.run_cli("--storage", tmp, "app", "list")
             self.assertIn("Engineer", listed.stdout)
@@ -32,10 +36,17 @@ class CliMcpTests(unittest.TestCase):
             self.assertIn("Audit intake", intake.stdout)
             artifacts = self.run_cli("--storage", tmp, "artifact", "list", app_id)
             self.assertEqual(json.loads(artifacts.stdout), [])
+            glossary = self.run_cli("--storage", tmp, "glossary", "set", "Python", "--definition", "Programming language", "--category", "skill")
+            self.assertEqual(json.loads(glossary.stdout)["category"], "skill")
+
+            missing = self.run_cli("--storage", tmp, "profile", "missing")
+            self.assertIn("profile.display_name", missing.stdout)
 
             self.run_cli("--storage", tmp, "profile", "set", "display_name", "Audit Candidate")
             self.run_cli("--storage", tmp, "profile", "set", "email", "audit@example.invalid")
             self.run_cli("--storage", tmp, "profile", "set", "summary.default", "Audit summary")
+            missing = self.run_cli("--storage", tmp, "profile", "missing")
+            self.assertEqual(json.loads(missing.stdout), [])
             cv_path = str(Path(tmp) / "cv.tex")
             cv = self.run_cli("--storage", tmp, "render", "cv", "--output", cv_path)
             self.assertIn("cv", cv.stdout)
@@ -54,6 +65,11 @@ class CliMcpTests(unittest.TestCase):
             )
             self.assertIn("cover_letter", cover.stdout)
             self.assertIn("Audit body", Path(cover_path).read_text(encoding="utf-8"))
+            artifact_id = json.loads(cover.stdout)["id"]
+            state = self.run_cli("--storage", tmp, "artifact", "update-state", artifact_id, "--state", "submitted", "--notes", "Sent")
+            state_data = json.loads(state.stdout)
+            self.assertEqual(state_data["review_state"], "submitted")
+            self.assertEqual(state_data["notes"], "Sent")
 
             demo_path = str(Path(tmp) / "static-demo.html")
             demo = self.run_cli("export", "static-demo", demo_path)

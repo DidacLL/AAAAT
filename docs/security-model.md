@@ -4,7 +4,7 @@ AAAAT binds the local server to `127.0.0.1` by default and stores private data i
 
 Modes:
 - Full local: read/write controls and raw intake.
-- Read-only: same private data without write/raw intake controls.
+- Read-only: same private data without write/raw intake controls; write requests return `403`.
 - Static demo: fake data only, no backend, no write/raw intake controls.
 
 Generated private artifacts remain local. Destructive actions are outside the MVP.

@@ -6,8 +6,19 @@ from pathlib import Path
 
 from . import __version__
 from .agent_guides import agent_guide
-from .artifacts import list_artifacts, save_artifact
-from .db import add_raw_intake, connect, create_application, get_application, init_db, list_applications, set_profile_variable
+from .artifacts import list_artifacts, save_artifact, update_artifact_state
+from .db import (
+    add_raw_intake,
+    connect,
+    create_application,
+    get_application,
+    init_db,
+    list_applications,
+    required_profile_variables,
+    set_profile_variable,
+    update_application,
+    upsert_glossary_term,
+)
 from .mcp_server import mcp_descriptor, validate_descriptor
 from .server import launch
 from .static_export import export_static_demo
@@ -35,6 +46,32 @@ def build_parser() -> argparse.ArgumentParser:
     app.add_parser("list")
     app_show = app.add_parser("show")
     app_show.add_argument("id")
+    app_update = app.add_parser("update")
+    app_update.add_argument("id")
+    for field in (
+        "company",
+        "role",
+        "status",
+        "priority",
+        "source",
+        "source-url",
+        "location",
+        "remote-mode",
+        "next-action",
+        "notes",
+        "call-signals",
+        "technical-reading",
+        "pitch",
+        "smart-question",
+        "risks-to-avoid",
+        "prepare-first",
+        "prepare-later",
+        "offer-snapshot",
+        "company-research",
+        "form-answers",
+        "keywords",
+    ):
+        app_update.add_argument(f"--{field}")
 
     intake = sub.add_parser("intake").add_subparsers(dest="intake_command", required=True)
     intake_add = intake.add_parser("add")
@@ -50,6 +87,10 @@ def build_parser() -> argparse.ArgumentParser:
     artifact_save.add_argument("--type", required=True)
     artifact_save.add_argument("--path", required=True)
     artifact_save.add_argument("--label", required=True)
+    artifact_update = artifact.add_parser("update-state")
+    artifact_update.add_argument("artifact_id")
+    artifact_update.add_argument("--state", required=True, choices=["draft", "reviewed", "submitted", "archived"])
+    artifact_update.add_argument("--notes")
 
     render = sub.add_parser("render").add_subparsers(dest="render_command", required=True)
     render_cv = render.add_parser("cv")
@@ -63,6 +104,13 @@ def build_parser() -> argparse.ArgumentParser:
     profile_set = profile.add_parser("set")
     profile_set.add_argument("key")
     profile_set.add_argument("value")
+    profile.add_parser("missing")
+
+    glossary = sub.add_parser("glossary").add_subparsers(dest="glossary_command", required=True)
+    glossary_set = glossary.add_parser("set")
+    glossary_set.add_argument("term")
+    glossary_set.add_argument("--definition", required=True)
+    glossary_set.add_argument("--category", default="")
 
     export = sub.add_parser("export").add_subparsers(dest="export_command", required=True)
     static_demo = export.add_parser("static-demo")
@@ -97,6 +145,14 @@ def main(argv: list[str] | None = None) -> int:
     with connect(args.storage) as conn:
         if args.command == "app" and args.app_command == "create":
             print(json.dumps(create_application(conn, company=args.company, role=args.role, status=args.status, priority=args.priority), indent=2))
+        elif args.command == "app" and args.app_command == "update":
+            values = vars(args)
+            fields = {
+                key.replace("_", "-").replace("-", "_"): value
+                for key, value in values.items()
+                if key not in {"command", "app_command", "id", "storage"} and value is not None
+            }
+            print(json.dumps(update_application(conn, args.id, **fields), indent=2))
         elif args.command == "app" and args.app_command == "list":
             print(json.dumps(list_applications(conn), indent=2))
         elif args.command == "app" and args.app_command == "show":
@@ -107,6 +163,8 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(list_artifacts(conn, args.application_id), indent=2))
         elif args.command == "artifact" and args.artifact_command == "save":
             print(json.dumps(save_artifact(conn, args.application_id, args.type, args.path, args.label, source_context="cli"), indent=2))
+        elif args.command == "artifact" and args.artifact_command == "update-state":
+            print(json.dumps(update_artifact_state(conn, args.artifact_id, args.state, args.notes), indent=2))
         elif args.command == "render" and args.render_command == "cv":
             print(json.dumps(render_to_file(conn, "cv", args.output), indent=2))
         elif args.command == "render" and args.render_command == "cover-letter":
@@ -114,6 +172,10 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "profile" and args.profile_command == "set":
             set_profile_variable(conn, args.key, args.value)
             print("ok")
+        elif args.command == "profile" and args.profile_command == "missing":
+            print(json.dumps(required_profile_variables(conn), indent=2))
+        elif args.command == "glossary" and args.glossary_command == "set":
+            print(json.dumps(upsert_glossary_term(conn, args.term, args.definition, args.category), indent=2))
         elif args.command == "export" and args.export_command == "static-demo":
             print(export_static_demo(args.output))
         else:

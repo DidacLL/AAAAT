@@ -33,6 +33,16 @@ class ServerApiTests(unittest.TestCase):
         conn.close()
         return response.status, data
 
+    def request_form(self, server, path, body):
+        encoded = "&".join(f"{key}={value}" for key, value in body.items())
+        conn = http.client.HTTPConnection(server.server_address[0], server.server_address[1], timeout=5)
+        conn.request("POST", path, encoded, {"Content-Type": "application/x-www-form-urlencoded"})
+        response = conn.getresponse()
+        data = response.read().decode("utf-8")
+        location = response.getheader("Location")
+        conn.close()
+        return response.status, data, location
+
     def test_launch_binds_to_loopback_by_default(self):
         self.assertEqual(inspect.signature(launch).parameters["host"].default, "127.0.0.1")
 
@@ -71,6 +81,41 @@ class ServerApiTests(unittest.TestCase):
 
                 status, _ = self.request(server, "POST", f"/api/applications/{app['id']}/raw-intake", {"content": "blocked"})
                 self.assertEqual(status, 403)
+                status, _ = self.request(server, "PATCH", f"/api/applications/{app['id']}", {"next_action": "blocked"})
+                self.assertEqual(status, 403)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_full_mode_api_and_forms_create_update_manual_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            server, thread = self.start_server(tmp, Mode.FULL)
+            try:
+                status, body = self.request(server, "POST", "/api/applications", {"company": "Browser Co", "role": "Operator"})
+                self.assertEqual(status, 201)
+                app_id = json.loads(body)["id"]
+
+                status, body = self.request(server, "PATCH", f"/api/applications/{app_id}", {"next_action": "Call back", "keywords": "ATS, Python"})
+                updated = json.loads(body)
+                self.assertEqual(status, 200)
+                self.assertEqual(updated["next_action"], "Call back")
+                self.assertEqual(updated["keywords"], ["ATS", "Python"])
+
+                status, _, location = self.request_form(server, "/api/glossary", {"term": "Python", "definition": "Language", "category": "skill"})
+                self.assertEqual(status, 303)
+                self.assertEqual(location, "/")
+
+                status, _, location = self.request_form(server, "/api/profile/variables", {"_method": "PATCH", "key": "display_name", "value": "Manual User"})
+                self.assertEqual(status, 303)
+                self.assertEqual(location, "/")
+
+                status, body = self.request(server, "POST", "/api/artifacts", {"application_id": app_id, "artifact_type": "cover_letter", "path": "cover.pdf", "label": "Cover", "review_state": "draft"})
+                artifact_id = json.loads(body)["id"]
+                status, body = self.request(server, "PATCH", f"/api/artifacts/{artifact_id}", {"review_state": "reviewed", "notes": "Ready"})
+                self.assertEqual(status, 200)
+                self.assertEqual(json.loads(body)["review_state"], "reviewed")
             finally:
                 server.shutdown()
                 server.server_close()
