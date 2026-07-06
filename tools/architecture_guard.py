@@ -14,7 +14,7 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_PACKAGE = ROOT / "aaat"
+RUNTIME_PACKAGE = ROOT / "aaaat"
 PYPROJECT = ROOT / "pyproject.toml"
 
 BANNED_RUNTIME_IMPORT_PREFIXES = (
@@ -112,7 +112,7 @@ def repo_files() -> list[Path]:
 
 def runtime_python_files() -> list[Path]:
     if not RUNTIME_PACKAGE.exists():
-        fail("runtime package directory aaat/ is missing")
+        fail("runtime package directory aaaat/ is missing")
     return sorted(path for path in repo_files() if path.suffix == ".py" and RUNTIME_PACKAGE in path.parents)
 
 
