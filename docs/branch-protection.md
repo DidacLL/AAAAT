@@ -10,7 +10,7 @@ Recommended protection for `main` after merging the CI workflow:
 6. Do not allow deletions.
 7. Keep administrator bypass disabled unless emergency maintenance requires it.
 
-This policy is intentionally small. It protects the accepted AAAAT MVP contract without adding release gates, coverage thresholds, code owners, deployment environments, or provider-specific checks.
+This policy is intentionally small. It protects the accepted AAAAT contract without adding release gates, coverage thresholds, code owners, deployment environments, provider-specific checks, or permanent architecture bans.
 
 The `contract` check runs:
 
@@ -21,12 +21,11 @@ python -B -m unittest discover -s tests
 python -B -m aaaat.cli mcp-validate
 ```
 
-The architecture guard checks durable invariants only:
+The contract guard checks durable invariants only:
 
-- no runtime dependencies in `pyproject.toml`;
-- no provider SDK, cloud SDK, web framework, or external HTTP client imports in `aaaat/`;
+- the runtime package exists;
 - no committed private SQLite/database storage;
-- no frontend package/framework files;
-- no runtime Git binding.
 
-It deliberately does not check exact CSS, exact dashboard wording, fake company names, temporary branch names, or implementation-coupled UI details.
+Dependencies, frontend assets, HTTP clients, and web frameworks are allowed when they are justified by the product direction and documented in the relevant implementation notes. The `contract` check is contract verification, not architecture freezing.
+
+It deliberately does not check exact CSS, exact dashboard wording, fake company names, dependency count, framework choice, temporary branch names, or implementation-coupled UI details.

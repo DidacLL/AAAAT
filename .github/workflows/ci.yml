@@ -33,7 +33,7 @@ jobs:
       - name: Show Python version
         run: python --version
 
-      - name: Run architecture guard
+      - name: Run contract guard
         run: python -B tools/architecture_guard.py
 
       - name: Compile Python sources
