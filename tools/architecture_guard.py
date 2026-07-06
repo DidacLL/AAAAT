@@ -8,6 +8,7 @@ other trivial implementation details.
 from __future__ import annotations
 
 import ast
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -58,6 +59,13 @@ BANNED_RUNTIME_TEXT = (
     "git.exe",
 )
 
+SKIPPED_FALLBACK_DIRS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    "__pycache__",
+}
+
 
 def fail(message: str) -> None:
     print(f"architecture guard failed: {message}", file=sys.stderr)
@@ -68,10 +76,44 @@ def dotted_name_is_banned(name: str) -> bool:
     return any(name == banned or name.startswith(f"{banned}.") for banned in BANNED_RUNTIME_IMPORT_PREFIXES)
 
 
+def repo_files() -> list[Path]:
+    """Return tracked repository files, falling back to a hidden-dir-safe walk.
+
+    The guard is a CI/development tool, not AAAAT runtime code. Using Git here
+    prevents false positives from checkout internals such as `.git/` while the
+    product itself remains free of any runtime Git dependency.
+    """
+
+    try:
+        result = subprocess.run(
+            ["git", "ls-files"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        files: list[Path] = []
+        for path in ROOT.rglob("*"):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(ROOT)
+            if any(part in SKIPPED_FALLBACK_DIRS for part in relative.parts):
+                continue
+            files.append(path)
+        return sorted(files)
+
+    files = []
+    for line in result.stdout.splitlines():
+        if line.strip():
+            files.append(ROOT / line.strip())
+    return sorted(files)
+
+
 def runtime_python_files() -> list[Path]:
     if not RUNTIME_PACKAGE.exists():
         fail("runtime package directory aaat/ is missing")
-    return sorted(RUNTIME_PACKAGE.rglob("*.py"))
+    return sorted(path for path in repo_files() if path.suffix == ".py" and RUNTIME_PACKAGE in path.parents)
 
 
 def check_pyproject_has_no_runtime_dependencies() -> None:
@@ -105,8 +147,8 @@ def check_no_runtime_git_binding() -> None:
         source = path.read_text(encoding="utf-8").lower()
         if any(pattern in source for pattern in BANNED_RUNTIME_TEXT):
             hits.append(str(path.relative_to(ROOT)))
-        # Treat literal shell-style git execution as a runtime coupling, but do
-        # not fail documentation or ordinary words such as "digital".
+        # Treat literal shell-style git execution in runtime code as coupling,
+        # but do not fail documentation or ordinary words such as "digital".
         if '"git ' in source or "'git " in source:
             hits.append(str(path.relative_to(ROOT)))
     if hits:
@@ -116,8 +158,8 @@ def check_no_runtime_git_binding() -> None:
 def check_no_frontend_or_lock_files() -> None:
     hits = sorted(
         str(path.relative_to(ROOT))
-        for path in ROOT.rglob("*")
-        if path.is_file() and path.name in BANNED_FRONTEND_OR_LOCK_FILES
+        for path in repo_files()
+        if path.name in BANNED_FRONTEND_OR_LOCK_FILES
     )
     if hits:
         fail("frontend framework/package lock files are out of MVP scope: " + ", ".join(hits))
@@ -125,9 +167,7 @@ def check_no_frontend_or_lock_files() -> None:
 
 def check_no_private_storage_committed() -> None:
     hits: list[str] = []
-    for path in ROOT.rglob("*"):
-        if not path.is_file():
-            continue
+    for path in repo_files():
         relative = path.relative_to(ROOT)
         if any(part in BANNED_PRIVATE_PATH_PARTS for part in relative.parts):
             hits.append(str(relative))
