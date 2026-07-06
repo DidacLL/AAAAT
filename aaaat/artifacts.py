@@ -5,6 +5,8 @@ from typing import Any
 
 from .db import new_id, row_to_dict, utc_now
 
+ARTIFACT_REVIEW_STATES = {"draft", "reviewed", "submitted", "archived"}
+
 
 def save_artifact(
     conn: sqlite3.Connection,
@@ -19,6 +21,8 @@ def save_artifact(
     review_state: str = "draft",
     notes: str = "",
 ) -> dict[str, Any]:
+    if review_state not in ARTIFACT_REVIEW_STATES:
+        raise ValueError(f"Invalid artifact review state: {review_state}")
     item = {
         "id": new_id("artifact"),
         "application_id": application_id,
@@ -50,9 +54,44 @@ def save_artifact(
 def list_artifacts(conn: sqlite3.Connection, application_id: str | None = None) -> list[dict[str, Any]]:
     if application_id:
         rows = conn.execute(
-            "SELECT * FROM generated_artifacts WHERE application_id = ? ORDER BY review_state = 'reviewed' DESC, created_at DESC",
+            """SELECT * FROM generated_artifacts WHERE application_id = ?
+            ORDER BY CASE review_state
+              WHEN 'submitted' THEN 0
+              WHEN 'reviewed' THEN 1
+              WHEN 'draft' THEN 2
+              WHEN 'archived' THEN 3
+              ELSE 2
+            END, created_at DESC""",
             (application_id,),
         ).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM generated_artifacts ORDER BY created_at DESC").fetchall()
+        rows = conn.execute(
+            """SELECT * FROM generated_artifacts
+            ORDER BY CASE review_state
+              WHEN 'submitted' THEN 0
+              WHEN 'reviewed' THEN 1
+              WHEN 'draft' THEN 2
+              WHEN 'archived' THEN 3
+              ELSE 2
+            END, created_at DESC"""
+        ).fetchall()
     return [row_to_dict(row) for row in rows]
+
+
+def update_artifact_state(
+    conn: sqlite3.Connection,
+    artifact_id: str,
+    review_state: str,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    if review_state not in ARTIFACT_REVIEW_STATES:
+        raise ValueError(f"Invalid artifact review state: {review_state}")
+    if notes is None:
+        conn.execute("UPDATE generated_artifacts SET review_state = ? WHERE id = ?", (review_state, artifact_id))
+    else:
+        conn.execute("UPDATE generated_artifacts SET review_state = ?, notes = ? WHERE id = ?", (review_state, notes, artifact_id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM generated_artifacts WHERE id = ?", (artifact_id,)).fetchone()
+    if row is None:
+        raise KeyError(f"Artifact not found: {artifact_id}")
+    return row_to_dict(row)

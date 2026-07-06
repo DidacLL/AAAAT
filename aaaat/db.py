@@ -9,6 +9,28 @@ from typing import Any
 
 
 DEFAULT_PRIVATE_DIR = ".private"
+APPLICATION_UPDATE_FIELDS = {
+    "company",
+    "role",
+    "status",
+    "priority",
+    "source",
+    "source_url",
+    "location",
+    "remote_mode",
+    "next_action",
+    "notes",
+    "call_signals",
+    "technical_reading",
+    "pitch",
+    "smart_question",
+    "risks_to_avoid",
+    "prepare_first",
+    "prepare_later",
+    "offer_snapshot",
+    "company_research",
+    "form_answers",
+}
 
 
 class AAAATConnection(sqlite3.Connection):
@@ -146,6 +168,30 @@ def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
     return get_application(conn, app_id)
 
 
+def update_application(conn: sqlite3.Connection, app_id: str, **fields: Any) -> dict[str, Any]:
+    updates = {key: fields[key] for key in APPLICATION_UPDATE_FIELDS if key in fields}
+    if updates:
+        updates["updated_at"] = utc_now()
+        assignments = ", ".join(f"{key} = :{key}" for key in updates)
+        updates["id"] = app_id
+        conn.execute(f"UPDATE applications SET {assignments} WHERE id = :id", updates)
+    if "keywords" in fields:
+        set_application_keywords(conn, app_id, fields["keywords"])
+    conn.commit()
+    return get_application(conn, app_id)
+
+
+def set_application_keywords(conn: sqlite3.Connection, app_id: str, keywords: Any) -> None:
+    if isinstance(keywords, str):
+        terms = [term.strip() for term in keywords.split(",") if term.strip()]
+    else:
+        terms = [str(term).strip() for term in (keywords or []) if str(term).strip()]
+    conn.execute("DELETE FROM application_keywords WHERE application_id = ?", (app_id,))
+    for term in terms:
+        conn.execute("INSERT OR IGNORE INTO glossary_terms(term, definition, category) VALUES (?, ?, ?)", (term, "", ""))
+        conn.execute("INSERT OR IGNORE INTO application_keywords(application_id, term) VALUES (?, ?)", (app_id, term))
+
+
 def list_applications(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     rows = conn.execute("SELECT * FROM applications ORDER BY updated_at DESC").fetchall()
     apps = [row_to_dict(row) for row in rows]
@@ -200,6 +246,20 @@ def list_glossary(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return [row_to_dict(row) for row in rows]
 
 
+def upsert_glossary_term(conn: sqlite3.Connection, term: str, definition: str, category: str = "") -> dict[str, Any]:
+    cleaned = term.strip()
+    if not cleaned:
+        raise ValueError("Glossary term is required")
+    conn.execute(
+        """INSERT INTO glossary_terms(term, definition, category) VALUES (?, ?, ?)
+        ON CONFLICT(term) DO UPDATE SET definition=excluded.definition, category=excluded.category""",
+        (cleaned, definition, category),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM glossary_terms WHERE term = ?", (cleaned,)).fetchone()
+    return row_to_dict(row)
+
+
 def set_profile_variable(conn: sqlite3.Connection, key: str, value: str) -> None:
     conn.execute(
         "INSERT INTO profile_variables(key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
@@ -211,6 +271,22 @@ def set_profile_variable(conn: sqlite3.Connection, key: str, value: str) -> None
 def profile_variables(conn: sqlite3.Connection) -> dict[str, str]:
     rows = conn.execute("SELECT key, value FROM profile_variables ORDER BY key").fetchall()
     return {row["key"]: row["value"] for row in rows}
+
+
+def required_profile_variables(conn: sqlite3.Connection) -> list[str]:
+    existing = profile_variables(conn)
+    required: set[str] = set()
+    rows = conn.execute("SELECT required_variables FROM templates").fetchall()
+    for row in rows:
+        for key in json.loads(row["required_variables"]):
+            if key.startswith("profile."):
+                required.add(key)
+    missing = []
+    for key in sorted(required):
+        short_key = key.removeprefix("profile.")
+        if not existing.get(short_key) and not existing.get(key):
+            missing.append(key)
+    return missing
 
 
 def get_template(conn: sqlite3.Connection, name: str) -> dict[str, Any]:

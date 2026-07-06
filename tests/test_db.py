@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 
-from aaaat.artifacts import list_artifacts, save_artifact
+from aaaat.artifacts import list_artifacts, save_artifact, update_artifact_state
 from aaaat.db import add_raw_intake, connect, create_application, init_db, list_raw_intake
 
 
@@ -43,6 +43,26 @@ class DbTests(unittest.TestCase):
                 self.assertEqual(stored["source_context"], "application-context")
                 self.assertEqual(stored["review_state"], "reviewed")
                 self.assertEqual(stored["notes"], "")
+
+    def test_artifact_review_state_changes_and_archived_sorts_secondary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                app = create_application(conn, company="Demo Co", role="Engineer")
+                archived = save_artifact(conn, app["id"], "cover_letter", "archived.pdf", "Archived", review_state="archived")
+                draft = save_artifact(conn, app["id"], "cover_letter", "draft.pdf", "Draft", review_state="draft")
+                reviewed = save_artifact(conn, app["id"], "cover_letter", "reviewed.pdf", "Reviewed", review_state="reviewed")
+                submitted = save_artifact(conn, app["id"], "cover_letter", "submitted.pdf", "Submitted", review_state="submitted")
+
+                updated = update_artifact_state(conn, draft["id"], "archived", "Old draft")
+                self.assertEqual(updated["review_state"], "archived")
+                self.assertEqual(updated["notes"], "Old draft")
+
+                ordered = list_artifacts(conn, app["id"])
+
+        self.assertEqual([item["id"] for item in ordered[:2]], [submitted["id"], reviewed["id"]])
+        self.assertEqual(ordered[-1]["id"], draft["id"])
+        self.assertIn(archived["id"], [item["id"] for item in ordered[-2:]])
 
 
 if __name__ == "__main__":

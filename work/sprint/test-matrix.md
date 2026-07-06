@@ -27,6 +27,18 @@ Acceptance hardening pass run on 2026-07-06 in `V:\SCVRI\Documents\GitHub\AAAAT`
 - Dependency and Git policy: `tests/test_dependency_policy.py`
 - MCP descriptor-only behavior: `tests/test_cli_mcp.py::CliMcpTests.test_mcp_descriptor_is_capability_only_no_llm_calls`
 
+## Sprint 2 Manual Workflow Coverage
+
+- Full-mode API/dashboard can create and update application data: `tests/test_server_api.py::ServerApiTests.test_full_mode_api_and_forms_create_update_manual_data`
+- Full-mode dashboard shows write forms: `tests/test_dashboard_modes.py::DashboardModeTests.test_payload_and_mode_controls`
+- Read-only mode hides controls and rejects writes: `tests/test_server_api.py::ServerApiTests.test_read_only_mode_removes_write_and_raw_intake_controls`
+- Static demo remains fake and write-free: `tests/test_static_export.py::StaticExportTests.test_static_demo_uses_fake_payload_without_write_controls`
+- Sparse applications render cleanly: `tests/test_dashboard_modes.py::DashboardModeTests.test_sparse_application_renders_cleanly`
+- Profile setup reports and clears missing render variables: `tests/test_templates.py::TemplateTests.test_profile_missing_reports_and_clears_required_variables`
+- Artifact review-state changes persist and archived artifacts sort secondary: `tests/test_db.py::DbTests.test_artifact_review_state_changes_and_archived_sorts_secondary`
+- CLI parity commands work: `tests/test_cli_mcp.py::CliMcpTests.test_cli_basic_commands_work`
+- Manual browser/API smoke: temporary full-mode and read-only servers on `127.0.0.1`, with application/profile/glossary/raw-intake/artifact writes in full mode, read-only write rejection, and static demo privacy check.
+
 ## Verification Commands
 
 ```powershell

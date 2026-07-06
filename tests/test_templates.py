@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aaaat.db import connect, create_application, init_db, set_profile_variable
+from aaaat.db import connect, create_application, init_db, required_profile_variables, set_profile_variable
 from aaaat.templates import TemplateVariableError, render_named_template
 
 
@@ -44,6 +44,20 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("Demo Co", rendered)
         self.assertIn("Engineer", rendered)
         self.assertIn("Audit body.", rendered)
+
+    def test_profile_missing_reports_and_clears_required_variables(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                missing = required_profile_variables(conn)
+                self.assertIn("profile.display_name", missing)
+                self.assertIn("profile.email", missing)
+                self.assertIn("profile.summary.default", missing)
+
+                set_profile_variable(conn, "display_name", "Demo Candidate")
+                set_profile_variable(conn, "email", "demo@example.invalid")
+                set_profile_variable(conn, "summary.default", "Builds local tools.")
+                self.assertEqual(required_profile_variables(conn), [])
 
     def test_missing_required_template_variables_fail_clearly(self):
         with tempfile.TemporaryDirectory() as tmp:

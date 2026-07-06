@@ -27,6 +27,29 @@ class DashboardModeTests(unittest.TestCase):
         self.assertNotIn("Raw intake", read_only)
         self.assertNotIn("data-write-control", read_only)
 
+    def test_sparse_application_renders_cleanly(self):
+        payload = {
+            "applications": [
+                {
+                    "id": "app_sparse",
+                    "company": "Sparse Co",
+                    "role": "Sparse Role",
+                    "status": "draft",
+                    "priority": "normal",
+                    "next_action": "",
+                    "keywords": [],
+                    "artifacts": [],
+                }
+            ],
+            "glossary": [],
+            "profile_variables": {},
+            "missing_profile_variables": ["profile.display_name"],
+        }
+        html = render_dashboard(payload, Mode.FULL)
+        self.assertIn("Sparse Co", html)
+        self.assertIn("No current artifacts", html)
+        self.assertIn("profile.display_name", html)
+
 
 if __name__ == "__main__":
     unittest.main()
