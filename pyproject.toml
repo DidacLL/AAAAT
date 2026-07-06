@@ -1,0 +1,12 @@
+[project]
+name = "aaaat"
+version = "0.1.0"
+description = "Local-first job application tracker and artifact generator."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+aaaat = "aaaat.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
