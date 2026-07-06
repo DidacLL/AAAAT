@@ -24,7 +24,7 @@ python -B -m aaaat.cli mcp-validate
 The architecture guard checks durable invariants only:
 
 - no runtime dependencies in `pyproject.toml`;
-- no provider SDK, cloud SDK, web framework, or external HTTP client imports in `aaat/`;
+- no provider SDK, cloud SDK, web framework, or external HTTP client imports in `aaaat/`;
 - no committed private SQLite/database storage;
 - no frontend package/framework files;
 - no runtime Git binding.
