@@ -32,8 +32,17 @@ class DbTests(unittest.TestCase):
                 )
                 stored = list_artifacts(conn, app["id"])[0]
                 self.assertEqual(stored["id"], artifact["id"])
+                self.assertEqual(stored["application_id"], app["id"])
+                self.assertEqual(stored["artifact_type"], "cover_letter")
+                self.assertEqual(stored["path"], "local/cover.pdf")
+                self.assertEqual(stored["label"], "Cover letter")
+                self.assertTrue(stored["created_at"])
                 self.assertEqual(stored["agent_name"], "TestAgent")
+                self.assertEqual(stored["agent_runtime"], "codex")
+                self.assertEqual(stored["model_provider"], "optional-provider")
                 self.assertEqual(stored["source_context"], "application-context")
+                self.assertEqual(stored["review_state"], "reviewed")
+                self.assertEqual(stored["notes"], "")
 
 
 if __name__ == "__main__":

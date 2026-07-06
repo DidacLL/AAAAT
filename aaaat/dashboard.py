@@ -12,7 +12,8 @@ def render_dashboard(payload: dict[str, Any], mode: Mode | str = Mode.FULL) -> s
     apps = payload.get("applications", [])
     glossary = payload.get("glossary", [])
     selected = apps[0] if apps else {}
-    selected_term = selected.get("keywords", [glossary[0]["term"] if glossary else ""])[0] if (selected or glossary) else ""
+    selected_keywords = selected.get("keywords") or []
+    selected_term = selected_keywords[0] if selected_keywords else (glossary[0]["term"] if glossary else "")
     term_data = next((term for term in glossary if term.get("term") == selected_term), glossary[0] if glossary else {})
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for app in apps:
