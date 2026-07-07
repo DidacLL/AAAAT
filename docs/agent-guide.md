@@ -10,4 +10,6 @@ Durable tasks are the preferred agent boundary. Agents should list/show tasks, r
 
 Variable values in agent context are privacy-filtered. Unless a variable explicitly permits raw exposure, agents should expect placeholders, redacted values, summaries, or denied fields.
 
+Search uses SQLite FTS5 lazily through the search service. Normal database initialization does not require FTS5, but search calls should report `SQLite FTS5 is required` clearly if the local SQLite build does not provide it.
+
 The core rule is simple: public demo data is fake, private data stays in `.private/`, and templates use variables instead of hardcoded identity values.

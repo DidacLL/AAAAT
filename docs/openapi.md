@@ -11,3 +11,5 @@ Minimal local endpoints:
 - `POST /api/export/static-demo`
 
 The server binds to `127.0.0.1` by default.
+
+The production shell uses FastAPI behind the stable `aaaat launch` command. The compatibility routes above must preserve the previous JSON/form behavior, including `303` redirects for form submissions and server-side `403` write rejection in read-only mode.

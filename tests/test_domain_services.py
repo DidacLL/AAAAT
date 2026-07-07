@@ -5,8 +5,8 @@ from aaaat.candidatures import create_candidature, get_candidature
 from aaaat.db import connect, create_application, init_db, set_profile_variable
 from aaaat.keywords import add_keyword_alias, create_keyword_note, list_keywords
 from aaaat.notes import create_note, list_notes
-from aaaat.privacy import get_variable, resolve_variables
-from aaaat.search import SearchUnavailable, rebuild_index, search
+from aaaat.privacy import get_variable, resolve_variables, set_variable
+from aaaat.search import SearchUnavailable, rebuild_index, safe_match_query, search
 from aaaat.tasks import apply_task_result, complete_task, create_task, ensure_initial_tasks, list_tasks
 from aaaat.text_blobs import create_text_blob, list_text_blobs
 from aaaat.todos import create_todo, list_todos, update_todo
@@ -39,6 +39,28 @@ class DomainServiceTests(unittest.TestCase):
                 self.assertEqual(item["value"], "Local Candidate")
                 legacy = conn.execute("SELECT value FROM profile_variables WHERE key = 'display_name'").fetchone()
                 self.assertEqual(legacy["value"], "Local Candidate")
+
+    def test_privacy_exposure_modes_are_scope_specific(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                set_variable(conn, "raw_value", "secret", exposure="raw")
+                set_variable(conn, "redacted_value", "secret", exposure="redacted")
+                set_variable(conn, "summary_value", "secret", exposure="summarized", summary="safe summary")
+                set_variable(conn, "placeholder_value", "secret", exposure="placeholder")
+                set_variable(conn, "denied_value", "secret", exposure="denied")
+
+                agent = resolve_variables(conn, "agent")
+                local = resolve_variables(conn, "local_render")
+                static = resolve_variables(conn, "static_demo")
+
+        self.assertEqual(agent["profile.raw_value"], "secret")
+        self.assertEqual(agent["profile.redacted_value"], "[redacted]")
+        self.assertEqual(agent["profile.summary_value"], "safe summary")
+        self.assertEqual(agent["profile.placeholder_value"], "{{ profile.placeholder_value }}")
+        self.assertNotIn("profile.denied_value", agent)
+        self.assertEqual(local["profile.denied_value"], "secret")
+        self.assertEqual(static, {})
 
     def test_candidature_related_services_and_idempotent_initial_tasks(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -120,6 +142,21 @@ class DomainServiceTests(unittest.TestCase):
 
         self.assertTrue(result["available"])
         self.assertTrue(any(item["entity_type"] == "candidature" for item in result["results"]))
+
+    def test_search_query_is_sanitized_before_fts_match(self):
+        self.assertEqual(safe_match_query(""), "")
+        self.assertEqual(safe_match_query("C++ / Python!!!"), '"C" "Python"')
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                create_candidature(conn, company="Syntax Co", role="Python Engineer", raw_offer="C++ and Python role.")
+                try:
+                    rebuild_index(conn)
+                    result = search(conn, 'C++ / Python!!! "unterminated')
+                except SearchUnavailable as exc:
+                    self.fail(str(exc))
+
+        self.assertTrue(result["available"])
 
 
 if __name__ == "__main__":

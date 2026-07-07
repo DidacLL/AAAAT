@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import re
 from typing import Any
 
 from .db import application_keywords, list_applications, list_raw_intake, row_to_dict
@@ -11,6 +12,9 @@ from .todos import list_todos
 
 class SearchUnavailable(RuntimeError):
     pass
+
+
+TOKEN_RE = re.compile(r"[\w]+", re.UNICODE)
 
 
 def ensure_fts(conn: sqlite3.Connection) -> None:
@@ -112,8 +116,8 @@ def add_index_row(
 
 def search(conn: sqlite3.Connection, query: str, *, limit: int = 20) -> dict[str, Any]:
     ensure_fts(conn)
-    cleaned = query.strip()
-    if not cleaned:
+    match_query = safe_match_query(query)
+    if not match_query:
         return {"available": True, "results": []}
     rows = conn.execute(
         """SELECT entity_type, entity_id, application_id, title, snippet(search_fts, 4, '[', ']', '...', 8) AS snippet
@@ -121,7 +125,7 @@ def search(conn: sqlite3.Connection, query: str, *, limit: int = 20) -> dict[str
         WHERE search_fts MATCH ?
         ORDER BY rank
         LIMIT ?""",
-        (cleaned, limit),
+        (match_query, limit),
     ).fetchall()
     return {"available": True, "results": [row_to_dict(row) for row in rows]}
 
@@ -132,3 +136,8 @@ def search_status(conn: sqlite3.Connection) -> dict[str, Any]:
     except SearchUnavailable as exc:
         return {"available": False, "error": str(exc)}
     return {"available": True, "error": ""}
+
+
+def safe_match_query(query: str) -> str:
+    tokens = [token for token in TOKEN_RE.findall(query.strip()) if token]
+    return " ".join(f'"{token}"' for token in tokens)

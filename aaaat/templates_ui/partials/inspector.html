@@ -1,0 +1,40 @@
+<aside class="surface" aria-label="Inspector">
+  <h2>Inspector</h2>
+  <div class="body">
+    {% if view == "welcomeView" %}
+      <h3>Tasks</h3>
+      {% for item in queue[:5] %}
+        <div class="queue-item" data-review-queue-item>{{ item.priority }} / {{ item.category }} / {{ item.field }}</div>
+      {% else %}
+        <p class="empty">No review queue items.</p>
+      {% endfor %}
+    {% elif view == "smartView" %}
+      <h3>Keywords</h3>
+      {% for keyword in selected.keywords or [] %}
+        <a class="chip" data-keyword="{{ keyword }}" href="/?view=smartView&application_id={{ selected.id }}&keyword={{ keyword }}">{{ keyword }}</a>
+      {% else %}
+        <p class="empty">No keywords yet.</p>
+      {% endfor %}
+    {% elif view == "detailedView" %}
+      <h3>Panels</h3>
+      {% for tab in ["keyword", "company", "notes", "queue", "artifacts"] %}
+        <a class="chip" data-inspector-tab="{{ tab }}" href="/?view=detailedView&application_id={{ selected.id }}&tab={{ tab }}">{{ tab }}</a>
+      {% endfor %}
+      {% if can_show_raw_intake(mode) %}
+        <a class="chip" data-inspector-tab="raw" href="/?view=detailedView&application_id={{ selected.id }}&tab=raw">raw</a>
+      {% endif %}
+    {% else %}
+      <h3>User view</h3>
+      <p>This preset reuses candidature data without storing a fork.</p>
+    {% endif %}
+    {% if can_write(mode) %}
+      <details class="field">
+        <summary>New candidature</summary>
+        <form method="post" action="/api/raw-offer-intake" data-write-control="new-candidature">
+          <textarea name="content" required></textarea>
+          <button>Create</button>
+        </form>
+      </details>
+    {% endif %}
+  </div>
+</aside>

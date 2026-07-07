@@ -3,7 +3,15 @@ name = "aaaat"
 version = "0.1.0"
 description = "Local-first job application tracker and artifact generator."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "python-multipart",
+]
+
+[project.optional-dependencies]
+test = ["httpx"]
 
 [project.scripts]
 aaaat = "aaaat.cli:main"

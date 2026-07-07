@@ -1,0 +1,39 @@
+<section class="surface" data-selected-app>
+  {% if selected %}
+    <h2>{{ selected.company or "Selected candidature" }}</h2>
+    <div class="body">
+      <p><strong>{{ selected.role }}</strong></p>
+      <p class="meta">
+        <span>Status: {{ selected.status }}</span>
+        <span>Priority: {{ selected.priority }}</span>
+      </p>
+      {% if view == "smartView" %}
+        <p>{{ selected.pitch or selected.smart_question or selected.next_action or "No call-card notes yet." }}</p>
+      {% elif view == "detailedView" %}
+        {% for field in ["next_action", "pitch", "risks_to_avoid", "smart_question", "company_research"] %}
+          <div class="field">
+            <span class="label">{{ field }}</span>
+            <div>{{ selected.get(field) or "Add " ~ field }}</div>
+            {% if can_write(mode) %}
+              <details class="inline-edit" data-inline-field="{{ field }}">
+                <summary>Edit</summary>
+                <form method="post" action="/api/applications/{{ selected.id }}" data-write-control="inline-field">
+                  <input type="hidden" name="_method" value="PATCH">
+                  <textarea name="{{ field }}">{{ selected.get(field) or "" }}</textarea>
+                  <button>Save</button>
+                </form>
+              </details>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% elif view == "userView" %}
+        <p>{{ selected.pitch or "User-facing summary pending." }}</p>
+      {% else %}
+        <p>{{ selected.next_action or "No immediate action." }}</p>
+      {% endif %}
+    </div>
+  {% else %}
+    <h2>Selected candidature</h2>
+    <p class="body empty">No candidatures yet.</p>
+  {% endif %}
+</section>
