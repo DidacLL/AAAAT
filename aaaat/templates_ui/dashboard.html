@@ -28,7 +28,7 @@
   <nav class="command" aria-label="Dashboard views">
     <div class="views">
       {% for item in ["welcomeView", "smartView", "detailedView", "userView"] %}
-        <a href="/?view={{ item }}{% if selected %}&application_id={{ selected.id }}{% endif %}" data-dashboard-view-link="{{ item }}" {% if view == item %}aria-current="page"{% endif %}>{{ item }}</a>
+        <a href="/?view={{ item }}{% if selected %}&application_id={{ selected.id }}{% endif %}" data-dashboard-view-link="{{ item }}" hx-get="/dashboard/fragments/selected-card?view={{ item }}{% if selected %}&application_id={{ selected.id }}{% endif %}" hx-target="[data-selected-app]" hx-swap="outerHTML" {% if view == item %}aria-current="page"{% endif %}>{{ item }}</a>
       {% endfor %}
     </div>
     {% if can_write(mode) %}

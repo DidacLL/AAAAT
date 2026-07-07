@@ -3,25 +3,59 @@
   <div class="body">
     {% if view == "welcomeView" %}
       <h3>Tasks</h3>
-      {% for item in queue[:5] %}
-        <div class="queue-item" data-review-queue-item>{{ item.priority }} / {{ item.category }} / {{ item.field }}</div>
+      {% for item in open_tasks[:5] %}
+        <div class="queue-item" data-task-item>{{ item.priority }} / {{ item.state }} / {{ item.title }}</div>
       {% else %}
-        <p class="empty">No review queue items.</p>
+        <p class="empty">No pending tasks.</p>
+      {% endfor %}
+      <h3>Next actions</h3>
+      {% for app in applications[:5] %}
+        {% if app.next_action %}
+          <div class="todo-item">{{ app.company }} / {{ app.next_action }}</div>
+        {% endif %}
       {% endfor %}
     {% elif view == "smartView" %}
       <h3>Keywords</h3>
       {% for keyword in selected.keywords or [] %}
-        <a class="chip" data-keyword="{{ keyword }}" href="/?view=smartView&application_id={{ selected.id }}&keyword={{ keyword }}">{{ keyword }}</a>
+        <a class="chip" data-keyword="{{ keyword }}" href="/?view=smartView&application_id={{ selected.id }}&keyword={{ keyword }}" hx-get="/dashboard/fragments/inspector?view=smartView&application_id={{ selected.id }}&keyword={{ keyword }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">{{ keyword }}</a>
       {% else %}
         <p class="empty">No keywords yet.</p>
       {% endfor %}
+      <div class="field" data-keyword-panel>
+        <span class="label">{{ selected_keyword or "Keyword" }}</span>
+        <p>{{ selected_keyword_item.definition or "No definition yet." }}</p>
+        {% for alias in selected_keyword_item.aliases or [] %}
+          <span class="chip">{{ alias }}</span>
+        {% endfor %}
+        {% for note in selected_keyword_item.notes or [] %}
+          <p>{{ note.body }}</p>
+        {% endfor %}
+      </div>
     {% elif view == "detailedView" %}
       <h3>Panels</h3>
-      {% for tab in ["keyword", "company", "notes", "queue", "artifacts"] %}
+      {% for tab in ["keyword", "company", "notes", "queue", "artifacts", "tasks", "todos", "blobs"] %}
         <a class="chip" data-inspector-tab="{{ tab }}" href="/?view=detailedView&application_id={{ selected.id }}&tab={{ tab }}">{{ tab }}</a>
       {% endfor %}
       {% if can_show_raw_intake(mode) %}
         <a class="chip" data-inspector-tab="raw" href="/?view=detailedView&application_id={{ selected.id }}&tab=raw">raw</a>
+      {% endif %}
+      <div class="field">
+        <span class="label">Artifacts</span>
+        {% for artifact in selected.artifacts %}
+          <p>{{ artifact.review_state }} / {{ artifact.label }}</p>
+        {% else %}
+          <p class="empty">No artifacts yet.</p>
+        {% endfor %}
+      </div>
+      {% if can_show_raw_intake(mode) %}
+        <div class="field" data-inspector-tab="raw">
+          <span class="label">Raw intake</span>
+          {% for intake in selected.raw_intake %}
+            <p>{{ intake.content }}</p>
+          {% else %}
+            <p class="empty">No raw intake yet.</p>
+          {% endfor %}
+        </div>
       {% endif %}
     {% else %}
       <h3>User view</h3>
@@ -30,8 +64,15 @@
     {% if can_write(mode) %}
       <details class="field">
         <summary>New candidature</summary>
-        <form method="post" action="/api/raw-offer-intake" data-write-control="new-candidature">
-          <textarea name="content" required></textarea>
+        <form method="post" action="/api/raw-offer-intake" data-write-control="new-candidature" hx-post="/api/raw-offer-intake" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
+          <textarea name="content" required placeholder="Paste raw offer"></textarea>
+          <input name="company" placeholder="Company">
+          <input name="role" placeholder="Role">
+          <input name="status" placeholder="Status" value="intake">
+          <input name="priority" placeholder="Priority" value="normal">
+          <label><input type="checkbox" name="include_cv_task" value="1"> CV task</label>
+          <label><input type="checkbox" name="include_cover_letter_task" value="1"> Cover-letter task</label>
+          <label><input type="checkbox" name="include_form_responses_task" value="1"> Form-response task</label>
           <button>Create</button>
         </form>
       </details>

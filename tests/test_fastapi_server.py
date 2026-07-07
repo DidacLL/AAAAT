@@ -119,6 +119,139 @@ class FastApiServerTests(unittest.TestCase):
             self.assertIn('version:"2.0.4"', response.text)
             self.assertIn("htmx", response.text[:200])
 
+    def test_jinja_dashboard_is_default_and_legacy_renderer_is_available(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                create_application(conn, company="Renderer Co", role="Dashboard Engineer")
+            client = self.client(tmp)
+
+            active = client.get("/")
+            self.assertEqual(active.status_code, 200)
+            self.assertIn('data-dashboard-view="welcomeView"', active.text)
+            self.assertIn("data-dashboard-view-link", active.text)
+
+            fragment = client.get("/dashboard/fragments/selected-card?view=smartView")
+            self.assertEqual(fragment.status_code, 200)
+            self.assertIn("data-selected-app", fragment.text)
+
+            legacy = client.get("/legacy")
+            self.assertEqual(legacy.status_code, 200)
+            self.assertIn("Applications", legacy.text)
+            self.assertNotIn("data-dashboard-view-link", legacy.text)
+
+            query_legacy = client.get("/?renderer=legacy")
+            self.assertEqual(query_legacy.status_code, 200)
+            self.assertIn("Applications", query_legacy.text)
+
+    def test_product_routes_search_and_agent_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            client = self.client(tmp)
+
+            created = client.post(
+                "/api/candidatures",
+                json={
+                    "company": "Route Co",
+                    "role": "Python Engineer",
+                    "keywords": "Python, ATS",
+                    "raw_offer": "Python backend role",
+                    "include_cover_letter_task": True,
+                },
+            )
+            self.assertEqual(created.status_code, 201)
+            app_id = created.json()["id"]
+
+            self.assertTrue(client.get("/api/candidatures").json()["candidatures"])
+            self.assertEqual(client.get(f"/api/candidatures/{app_id}").json()["domain_type"], "Candidature")
+            patched = client.patch(f"/api/candidatures/{app_id}", json={"pitch": "Approved pitch"})
+            self.assertEqual(patched.status_code, 200)
+
+            todo = client.post("/api/todos", json={"application_id": app_id, "title": "Call recruiter", "pinned": True})
+            self.assertEqual(todo.status_code, 201)
+            self.assertTrue(client.get(f"/api/todos?application_id={app_id}").json()["todos"])
+
+            note = client.post("/api/notes", json={"application_id": app_id, "body": "Screening note"})
+            self.assertEqual(note.status_code, 201)
+            blob = client.post("/api/text-blobs", json={"application_id": app_id, "blob_type": "questions", "body": "Question draft"})
+            self.assertEqual(blob.status_code, 201)
+            updated_blob = client.patch(f"/api/text-blobs/{blob.json()['id']}", json={"review_state": "reviewed"})
+            self.assertEqual(updated_blob.status_code, 200)
+
+            keyword = client.post("/api/keywords", json={"term": "Python", "definition": "Language", "category": "skill"})
+            self.assertEqual(keyword.status_code, 201)
+            alias = client.post("/api/keywords/Python/aliases", json={"alias": "Py"})
+            self.assertEqual(alias.status_code, 201)
+            keyword_note = client.post("/api/keywords/Python/notes", json={"body": "Important keyword"})
+            self.assertEqual(keyword_note.status_code, 201)
+            self.assertTrue(client.get("/api/keywords").json()["keywords"])
+
+            search = client.get("/api/search?q=Python")
+            self.assertEqual(search.status_code, 200)
+            self.assertTrue(search.json()["available"])
+            self.assertTrue(search.json()["results"])
+
+            variable = client.put("/api/variables/display_name", json={"value": "Private User", "exposure": "placeholder"})
+            self.assertEqual(variable.status_code, 200)
+            self.assertEqual(client.get("/api/variables/profile.display_name").json()["resolved_value"], "{{ profile.display_name }}")
+
+            task = client.post(
+                "/api/tasks",
+                json={"application_id": app_id, "task_type": "pitch_draft", "title": "Draft pitch", "context_hint": "field:pitch"},
+            )
+            self.assertEqual(task.status_code, 201)
+            task_id = task.json()["id"]
+            context = client.get(f"/api/agent/tasks/{task_id}/context").json()
+            self.assertIn("complete", context["write_back"])
+            self.assertNotIn("Private User", json.dumps(context))
+
+            completed = client.post(f"/api/tasks/{task_id}/complete", json={"result_body": "Suggested pitch", "agent_name": "Agent"})
+            self.assertEqual(completed.status_code, 200)
+            applied = client.post(f"/api/tasks/{task_id}/apply", json={})
+            self.assertEqual(applied.status_code, 200)
+            loaded = client.get(f"/api/candidatures/{app_id}").json()
+            self.assertEqual(loaded["pitch"], "Approved pitch")
+            self.assertTrue(any(item["body"] == "Suggested pitch" for item in loaded["text_blobs"]))
+
+    def test_raw_offer_intake_creates_candidature_and_idempotent_initial_tasks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            client = self.client(tmp)
+
+            created = client.post(
+                "/api/raw-offer-intake",
+                json={
+                    "content": "Python role with ATS keywords",
+                    "keywords": "Python, NewKeyword",
+                    "include_cv_task": True,
+                    "include_form_responses_task": True,
+                },
+            )
+            self.assertEqual(created.status_code, 201)
+            app_id = created.json()["id"]
+            task_types = {task["task_type"] for task in client.get(f"/api/tasks?application_id={app_id}").json()["tasks"]}
+            self.assertIn("field_inference", task_types)
+            self.assertIn("company_research", task_types)
+            self.assertIn("keyword_definition", task_types)
+            self.assertIn("draft_cv", task_types)
+            self.assertIn("draft_form_responses", task_types)
+            self.assertNotIn("draft_cover_letter", task_types)
+
+    def test_read_only_blocks_new_write_route_families(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                app = create_application(conn, company="Blocked Co", role="Reviewer")
+            client = self.client(tmp, Mode.READ_ONLY)
+
+            self.assertEqual(client.post("/api/candidatures", json={"company": "Nope"}).status_code, 403)
+            self.assertEqual(client.post("/api/tasks", json={"application_id": app["id"], "title": "Nope"}).status_code, 403)
+            self.assertEqual(client.post("/api/todos", json={"title": "Nope"}).status_code, 403)
+            self.assertEqual(client.post("/api/notes", json={"body": "Nope"}).status_code, 403)
+            self.assertEqual(client.post("/api/text-blobs", json={"body": "Nope"}).status_code, 403)
+            self.assertEqual(client.post("/api/keywords", json={"term": "Nope"}).status_code, 403)
+            self.assertEqual(client.put("/api/variables/display_name", json={"value": "Nope"}).status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()
