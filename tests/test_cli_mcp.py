@@ -86,6 +86,7 @@ class CliMcpTests(unittest.TestCase):
 
             guide = self.run_cli("agent-guide")
             self.assertIn("AAAAT", guide.stdout)
+            self.assertIn("capability-scoped operations", guide.stdout)
 
     def test_agent_cli_protocol_commands_work(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -157,6 +158,36 @@ class CliMcpTests(unittest.TestCase):
         for tool in descriptor["tools"]:
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("properties", tool["inputSchema"])
+        self.assertEqual(self.run_cli("mcp-validate").stdout.strip(), "ok")
+
+    def test_generated_agent_contract_is_capability_scoped_and_not_broad_crud(self):
+        guide = self.run_cli("agent-guide").stdout.lower()
+        self.assertIn("capability-scoped operations", guide)
+        self.assertIn("implemented capability", guide)
+        self.assertNotIn("task-scoped context", guide)
+
+        descriptor_text = json.dumps(mcp_descriptor(), sort_keys=True).lower()
+        self.assertIn("capability-scoped", descriptor_text)
+        forbidden_contract_terms = (
+            "list_applications",
+            "dashboard-payload",
+            "dashboard_payload",
+            "application/context",
+            "candidatures",
+            "arbitrary_search",
+            "search_applications",
+            "profile_dump",
+            "dump_profile",
+            "profile/facts",
+            "profile_context",
+            "variable_dump",
+            "dump_variables",
+            "aaaat://variables",
+            "generic_crud",
+        )
+        combined_contract = guide + "\n" + descriptor_text
+        for term in forbidden_contract_terms:
+            self.assertNotIn(term, combined_contract)
 
     def test_mcp_descriptor_is_capability_only_no_llm_calls(self):
         root = Path(__file__).resolve().parent.parent
