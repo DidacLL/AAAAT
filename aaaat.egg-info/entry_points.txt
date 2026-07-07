@@ -1,2 +1,0 @@
-[console_scripts]
-aaaat = aaaat.cli:main
