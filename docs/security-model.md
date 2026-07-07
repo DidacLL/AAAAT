@@ -8,3 +8,5 @@ Modes:
 - Static demo: fake data only, no backend, no write/raw intake controls.
 
 Generated private artifacts remain local. Destructive actions are outside the MVP.
+
+Private reusable values are stored as variables with stable placeholders. Profile inputs such as `display_name` are canonicalized to `profile.display_name` and represented as `{{ profile.display_name }}` for agent work. Local rendering can resolve real values; agent contexts resolve according to each variable exposure policy (`raw`, `redacted`, `summarized`, `placeholder`, or `denied`); static demos never resolve real values.

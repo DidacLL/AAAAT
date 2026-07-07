@@ -7,6 +7,13 @@ from pathlib import Path
 from . import __version__
 from .agent_guides import agent_guide
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
+from .keywords import add_keyword_alias, create_keyword_note
+from .notes import create_note, list_notes
+from .privacy import list_variables, set_variable
+from .search import SearchUnavailable, rebuild_index, search
+from .tasks import apply_task_result, complete_task, create_task, get_task, list_tasks
+from .text_blobs import create_text_blob, list_text_blobs
+from .todos import create_todo, list_todos, update_todo
 from .db import (
     add_raw_intake,
     connect,
@@ -117,6 +124,80 @@ def build_parser() -> argparse.ArgumentParser:
     glossary_set.add_argument("--definition", required=True)
     glossary_set.add_argument("--category", default="")
 
+    keyword = sub.add_parser("keyword").add_subparsers(dest="keyword_command", required=True)
+    keyword_alias = keyword.add_parser("alias")
+    keyword_alias.add_argument("term")
+    keyword_alias.add_argument("alias")
+    keyword_note = keyword.add_parser("note")
+    keyword_note.add_argument("term")
+    keyword_note.add_argument("--body", required=True)
+    keyword_note.add_argument("--created-by", default="user")
+
+    task = sub.add_parser("task").add_subparsers(dest="task_command", required=True)
+    task_create = task.add_parser("create")
+    task_create.add_argument("--application-id")
+    task_create.add_argument("--type", required=True)
+    task_create.add_argument("--title", required=True)
+    task_create.add_argument("--instructions", default="")
+    task_create.add_argument("--priority", default="normal")
+    task_create.add_argument("--context-hint", default="")
+    task.add_parser("list")
+    task_show = task.add_parser("show")
+    task_show.add_argument("id")
+    task_complete = task.add_parser("complete")
+    task_complete.add_argument("id")
+    task_complete.add_argument("--result-body", default="")
+    task_complete.add_argument("--result-title", default="")
+    task_complete.add_argument("--agent-name", default="")
+    task_complete.add_argument("--agent-runtime", default="")
+    task_apply = task.add_parser("apply")
+    task_apply.add_argument("id")
+
+    todo = sub.add_parser("todo").add_subparsers(dest="todo_command", required=True)
+    todo_create = todo.add_parser("create")
+    todo_create.add_argument("--application-id")
+    todo_create.add_argument("--title", required=True)
+    todo_create.add_argument("--body", default="")
+    todo_create.add_argument("--pinned", action="store_true")
+    todo_list = todo.add_parser("list")
+    todo_list.add_argument("--application-id")
+    todo_update = todo.add_parser("update")
+    todo_update.add_argument("id")
+    todo_update.add_argument("--state", choices=["open", "done", "dismissed"])
+    todo_update.add_argument("--title")
+    todo_update.add_argument("--body")
+    todo_update.add_argument("--pinned", action="store_true")
+
+    note = sub.add_parser("note").add_subparsers(dest="note_command", required=True)
+    note_add = note.add_parser("add")
+    note_add.add_argument("--application-id")
+    note_add.add_argument("--body", required=True)
+    note_add.add_argument("--type", default="general")
+    note_add.add_argument("--created-by", default="user")
+    note_list = note.add_parser("list")
+    note_list.add_argument("--application-id")
+
+    blob = sub.add_parser("blob").add_subparsers(dest="blob_command", required=True)
+    blob_add = blob.add_parser("add")
+    blob_add.add_argument("--application-id")
+    blob_add.add_argument("--type", required=True)
+    blob_add.add_argument("--title", default="")
+    blob_add.add_argument("--body", required=True)
+    blob_add.add_argument("--review-state", default="draft")
+    blob_list = blob.add_parser("list")
+    blob_list.add_argument("--application-id")
+
+    variable = sub.add_parser("variable").add_subparsers(dest="variable_command", required=True)
+    variable_set = variable.add_parser("set")
+    variable_set.add_argument("key")
+    variable_set.add_argument("value")
+    variable_set.add_argument("--exposure", default="placeholder", choices=["raw", "redacted", "summarized", "placeholder", "denied"])
+    variable_set.add_argument("--summary", default="")
+    variable.add_parser("list")
+
+    search_p = sub.add_parser("search")
+    search_p.add_argument("query")
+
     export = sub.add_parser("export").add_subparsers(dest="export_command", required=True)
     static_demo = export.add_parser("static-demo")
     static_demo.add_argument("output", nargs="?", default="outputs/static-demo.html")
@@ -186,6 +267,84 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(required_profile_variables(conn), indent=2))
         elif args.command == "glossary" and args.glossary_command == "set":
             print(json.dumps(upsert_glossary_term(conn, args.term, args.definition, args.category), indent=2))
+        elif args.command == "keyword" and args.keyword_command == "alias":
+            print(json.dumps(add_keyword_alias(conn, args.term, args.alias), indent=2))
+        elif args.command == "keyword" and args.keyword_command == "note":
+            print(json.dumps(create_keyword_note(conn, args.term, args.body, created_by=args.created_by), indent=2))
+        elif args.command == "task" and args.task_command == "create":
+            print(
+                json.dumps(
+                    create_task(
+                        conn,
+                        args.type,
+                        args.title,
+                        application_id=args.application_id,
+                        instructions=args.instructions,
+                        priority=args.priority,
+                        context_hint=args.context_hint,
+                        created_by="cli",
+                    ),
+                    indent=2,
+                )
+            )
+        elif args.command == "task" and args.task_command == "list":
+            print(json.dumps(list_tasks(conn), indent=2))
+        elif args.command == "task" and args.task_command == "show":
+            print(json.dumps(get_task(conn, args.id), indent=2))
+        elif args.command == "task" and args.task_command == "complete":
+            print(
+                json.dumps(
+                    complete_task(
+                        conn,
+                        args.id,
+                        result_body=args.result_body,
+                        result_title=args.result_title,
+                        agent_name=args.agent_name,
+                        agent_runtime=args.agent_runtime,
+                    ),
+                    indent=2,
+                )
+            )
+        elif args.command == "task" and args.task_command == "apply":
+            print(json.dumps(apply_task_result(conn, args.id), indent=2))
+        elif args.command == "todo" and args.todo_command == "create":
+            print(json.dumps(create_todo(conn, args.title, application_id=args.application_id, body=args.body, pinned=args.pinned), indent=2))
+        elif args.command == "todo" and args.todo_command == "list":
+            print(json.dumps(list_todos(conn, args.application_id), indent=2))
+        elif args.command == "todo" and args.todo_command == "update":
+            fields = {key: value for key, value in vars(args).items() if key in {"state", "title", "body", "pinned"} and value not in (None, False)}
+            print(json.dumps(update_todo(conn, args.id, **fields), indent=2))
+        elif args.command == "note" and args.note_command == "add":
+            print(json.dumps(create_note(conn, args.body, application_id=args.application_id, note_type=args.type, created_by=args.created_by), indent=2))
+        elif args.command == "note" and args.note_command == "list":
+            print(json.dumps(list_notes(conn, args.application_id), indent=2))
+        elif args.command == "blob" and args.blob_command == "add":
+            print(
+                json.dumps(
+                    create_text_blob(
+                        conn,
+                        args.type,
+                        args.body,
+                        application_id=args.application_id,
+                        title=args.title,
+                        review_state=args.review_state,
+                        created_by="cli",
+                    ),
+                    indent=2,
+                )
+            )
+        elif args.command == "blob" and args.blob_command == "list":
+            print(json.dumps(list_text_blobs(conn, args.application_id), indent=2))
+        elif args.command == "variable" and args.variable_command == "set":
+            print(json.dumps(set_variable(conn, args.key, args.value, exposure=args.exposure, summary=args.summary), indent=2))
+        elif args.command == "variable" and args.variable_command == "list":
+            print(json.dumps(list_variables(conn), indent=2))
+        elif args.command == "search":
+            try:
+                rebuild_index(conn)
+                print(json.dumps(search(conn, args.query), indent=2))
+            except SearchUnavailable as exc:
+                print(json.dumps({"available": False, "error": str(exc), "results": []}, indent=2))
         elif args.command == "export" and args.export_command == "static-demo":
             print(export_static_demo(args.output))
         elif args.command == "review-queue":
