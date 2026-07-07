@@ -109,6 +109,16 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(context["variables"]["profile.display_name"], "{{ profile.display_name }}")
             self.assertNotIn("Private User", json.dumps(context))
 
+    def test_static_htmx_asset_is_served(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            client = self.client(tmp)
+
+            response = client.get("/static/htmx.min.js")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('version:"2.0.4"', response.text)
+            self.assertIn("htmx", response.text[:200])
+
 
 if __name__ == "__main__":
     unittest.main()

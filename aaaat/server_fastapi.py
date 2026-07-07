@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from .artifacts import save_artifact, update_artifact_state
@@ -21,21 +22,23 @@ from .security import Mode
 from .static_export import export_static_demo
 
 
-def _require_fastapi() -> tuple[Any, Any, Any, Any, Any, Any]:
+def _require_fastapi() -> tuple[Any, Any, Any, Any, Any, Any, Any, Any]:
     try:
         from fastapi import Depends, FastAPI, HTTPException, Request
         from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+        from fastapi.staticfiles import StaticFiles
     except ModuleNotFoundError as exc:  # pragma: no cover - exercised only without installed deps
         raise RuntimeError("FastAPI dependencies are not installed. Install AAAAT with its runtime dependencies.") from exc
-    return Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse
+    return Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse, StaticFiles
 
 
 def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
-    Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse = _require_fastapi()
+    Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse, StaticFiles = _require_fastapi()
     selected_mode = Mode(mode)
     app = FastAPI(title="AAAAT", version="0.1.0")
     app.state.storage_path = storage
     app.state.mode = selected_mode
+    app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
 
     def writable() -> None:
         if app.state.mode != Mode.FULL:
@@ -208,7 +211,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
 
 def launch(storage: str = ".private", read_only: bool = False, host: str = "127.0.0.1", port: int = 8765) -> None:
     init_db(storage)
-    _, _, _, _, _, _, _ = _require_fastapi()
+    _, _, _, _, _, _, _, _ = _require_fastapi()
     import uvicorn
 
     mode = Mode.READ_ONLY if read_only else Mode.FULL
