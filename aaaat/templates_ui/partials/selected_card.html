@@ -86,7 +86,7 @@
         {% if can_write(mode) %}
           <div class="action-card">
             <span class="label">Quick annotation</span>
-            <form method="post" action="/api/notes">
+            <form method="post" action="/dashboard/actions/notes">
               <input type="hidden" name="application_id" value="{{ selected.id }}">
               <input type="hidden" name="note_type" value="call">
               <textarea name="body" required placeholder="Call note"></textarea>
@@ -95,7 +95,7 @@
           </div>
           <div class="action-card">
             <span class="label">Meeting / follow-up</span>
-            <form method="post" action="/api/todos">
+            <form method="post" action="/dashboard/actions/todos">
               <input type="hidden" name="application_id" value="{{ selected.id }}">
               <input name="title" required placeholder="Meeting or follow-up">
               <input name="due_at" placeholder="Date/time">
@@ -105,7 +105,7 @@
           </div>
           <div class="action-card">
             <span class="label">Ask an agent</span>
-            <form method="post" action="/api/tasks">
+            <form method="post" action="/dashboard/actions/tasks">
               <input type="hidden" name="application_id" value="{{ selected.id }}">
               <input type="hidden" name="task_type" value="recruiter_call_support">
               <input type="hidden" name="priority" value="high">
@@ -170,7 +170,7 @@
           {% if can_write(mode) %}
             <details class="inline-edit">
               <summary>Edit</summary>
-              <form method="post" action="/api/applications/{{ selected.id }}">
+              <form method="post" action="/dashboard/actions/applications/{{ selected.id }}">
                 <input type="hidden" name="_method" value="PATCH">
                 <textarea name="{{ field }}">{{ selected.get(field) or "" }}</textarea>
                 <button>Save</button>
@@ -192,7 +192,7 @@
           {% if can_write(mode) %}
             <details class="inline-edit">
               <summary>Edit</summary>
-              <form method="post" action="/api/candidatures/{{ selected.id }}">
+              <form method="post" action="/dashboard/actions/candidatures/{{ selected.id }}">
                 <input type="hidden" name="_method" value="PATCH">
                 <textarea name="{{ field }}">{{ selected.details.get(field) or "" }}</textarea>
                 <button>Save</button>
@@ -204,13 +204,13 @@
       {% if can_write(mode) %}
         <h3 class="section-title">Document actions</h3>
         <div class="quick-grid" data-document-actions>
-          <form class="action-card" method="post" action="/api/render/cv">
+          <form class="action-card" method="post" action="/dashboard/actions/render/cv">
             <span class="label">CV</span>
             <input type="hidden" name="application_id" value="{{ selected.id }}">
             <label><input type="checkbox" name="compile_pdf" value="1"> Compile PDF if pdflatex is available</label>
             <button>Render local template</button>
           </form>
-          <form class="action-card" method="post" action="/api/tasks">
+          <form class="action-card" method="post" action="/dashboard/actions/tasks">
             <span class="label">CV</span>
             <input type="hidden" name="application_id" value="{{ selected.id }}">
             <input type="hidden" name="task_type" value="draft_cv">
@@ -219,14 +219,14 @@
             <input type="hidden" name="created_by" value="dashboard">
             <button>Queue agent draft</button>
           </form>
-          <form class="action-card" method="post" action="/api/render/cover-letter">
+          <form class="action-card" method="post" action="/dashboard/actions/render/cover-letter">
             <span class="label">Cover letter</span>
             <input type="hidden" name="application_id" value="{{ selected.id }}">
             <textarea name="body" placeholder="Optional local cover-letter body">I am applying for the {{ selected.role }} role at {{ selected.company }}.</textarea>
             <label><input type="checkbox" name="compile_pdf" value="1"> Compile PDF if pdflatex is available</label>
             <button>Render local template</button>
           </form>
-          <form class="action-card" method="post" action="/api/tasks">
+          <form class="action-card" method="post" action="/dashboard/actions/tasks">
             <span class="label">Cover letter</span>
             <input type="hidden" name="application_id" value="{{ selected.id }}">
             <input type="hidden" name="task_type" value="draft_cover_letter">
@@ -244,7 +244,7 @@
             ("draft_form_responses", "Draft form responses", "blob:form_responses"),
             ("keyword_definition", "Define missing keywords", "keyword:auto")
           ] %}
-            <form class="action-card" method="post" action="/api/tasks">
+            <form class="action-card" method="post" action="/dashboard/actions/tasks">
               <input type="hidden" name="application_id" value="{{ selected.id }}">
               <input type="hidden" name="task_type" value="{{ task_type }}">
               <input type="hidden" name="context_hint" value="{{ hint }}">
@@ -261,7 +261,7 @@
           <strong>{{ task.title }}</strong>
           <p class="meta"><span>{{ task.task_type }}</span><span>{{ task.context_hint }}</span></p>
           {% if can_write(mode) %}
-            <form method="post" action="/api/tasks/{{ task.id }}/apply">
+            <form method="post" action="/dashboard/actions/tasks/{{ task.id }}/apply">
               <button>Apply result</button>
             </form>
           {% endif %}
@@ -279,7 +279,7 @@
         <p>{{ selected_user_view.body or selected.pitch or "No customized user view yet." }}</p>
       </div>
       {% if can_write(mode) %}
-        <form method="post" action="/dashboard/user-view">
+        <form method="post" action="/dashboard/actions/user-view">
           <input type="hidden" name="application_id" value="{{ selected.id }}">
           <input name="title" value="{{ selected_user_view.title or 'User view' }}">
           <textarea name="body" placeholder="Editable summary, positioning, notes, and preparation text">{{ selected_user_view.body or selected.pitch or "" }}</textarea>

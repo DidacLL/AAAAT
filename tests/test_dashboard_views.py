@@ -120,7 +120,7 @@ class DashboardViewRenderTests(unittest.TestCase):
 
         self.assertIn('data-inline-field="company"', html)
         self.assertIn('data-detail-field="description"', html)
-        self.assertIn("/api/candidatures/", html)
+        self.assertIn("/dashboard/actions/candidatures/", html)
         self.assertIn("data-generative-actions", html)
         self.assertIn("data-document-actions", html)
         self.assertIn("Render local template", html)
@@ -161,7 +161,7 @@ class DashboardViewRenderTests(unittest.TestCase):
             html = render_dashboard_view(payload, Mode.FULL, view_model=model)
 
         self.assertIn("data-user-view-editor", html)
-        self.assertIn("/dashboard/user-view", html)
+        self.assertIn("/dashboard/actions/user-view", html)
         self.assertIn("data-profile-cv-panel", html)
         self.assertIn("visibility-professional", html)
         self.assertIn("exposure-summarized", html)

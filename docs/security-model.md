@@ -6,6 +6,13 @@ Modes:
 - Full local: normal local working dashboard with viewing, annotations, queue inspection, contextual edits, and raw-offer intake.
 - Read-only: same private data without write/raw intake controls; write requests return `403`.
 - Static demo: fake data only, no backend, no write/raw intake controls.
+- Agent API: task-only HTTP adapter exposing `/api/health` and `/api/agent/*`.
+
+Agent access is task-scoped. Agents receive task envelopes and task-specific context from `aaaat.agent_access`; they do not receive all candidatures, dashboard payloads, arbitrary search, variable dumps, profile fact lists, or generic CRUD endpoints.
+
+The dashboard is server-rendered from SQLite through Python. Browser actions use narrow form/htmx routes under `/dashboard/actions/*` and are local human UI internals, not an agent API.
+
+Aggregate candidature lists are private behavioral data.
 
 Generated private artifacts remain local. Destructive actions are outside the MVP.
 
@@ -20,3 +27,5 @@ AAAAT separates two profile data layers:
 Profile facts carry editable `visibility`, `exposure`, and usage flags. Local dashboard contexts may show raw facts, but agent and market contexts must respect exposure. Market research should prefer anonymized or summarized profile facts and must not rely on raw sensitive facts by default.
 
 Static demos must omit real profile facts or use fake profile facts only.
+
+AAAAT cannot fully protect private data from an agent with direct `.private/` filesystem access, shell access sufficient to inspect the database, arbitrary localhost access to a running dashboard, or code modification ability. The task protocol reduces accidental over-exposure through the supported adapters.

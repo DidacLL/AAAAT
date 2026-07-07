@@ -1,24 +1,25 @@
 # Agent Guide
 
-Inspect safe context through the CLI or local API, draft outside AAAAT, then save outputs back as suggestions or artifacts. AAAAT owns storage, validation, rendering, and privacy boundaries.
+Agents interact with AAAAT through task envelopes, task-specific context, and task result submission. Agents must not browse, list, search, or patch the user's candidature database.
 
-Use `python -m aaaat.cli review-queue` or `GET /api/review-queue` to find deterministic missing-work items. The queue is derived from local stored data only; it does not call an LLM or depend on a provider runtime.
+Use the task protocol:
 
-When a raw offer is pasted through `intake raw-offer` or `/api/raw-offer-intake`, AAAAT creates a placeholder application and queues extraction work for company, role, source, location, keywords, timing hints, and recommendations.
+```bash
+python -m aaaat.cli agent tasks --state queued
+python -m aaaat.cli agent context <task_id>
+python -m aaaat.cli agent submit <task_id> --result-file result.json
+python -m aaaat.cli agent claim <task_id>
+python -m aaaat.cli agent release <task_id>
+```
 
-Durable tasks are the preferred agent boundary. Agents should list/show tasks, retrieve scoped candidature context, and save output back as a task result, suggestion, text blob, artifact, or keyword proposal. Agent-generated output must not directly overwrite user-approved candidature fields.
+The optional HTTP adapter exposes the same protocol under `/api/agent/*`. `aaaat launch --agent-api` starts a task-only HTTP surface with `/api/health` and `/api/agent/*` routes.
 
-Task result apply is conservative. Structured field inference fills empty supported fields and records skipped conflicts; company research, keyword definitions, and form answers update empty destinations only unless an explicit replace intent is present. Plain text or conflicting results remain reviewable text blobs.
+Task contexts are minimized by `aaaat.agent_access`. They include a sanitized task envelope, task-specific context, privacy notes, and task-scoped write-back links. They do not include dashboard payloads, all candidatures, arbitrary search results, raw variable dumps, raw profile fact lists, or unrelated notes/artifacts/text blobs.
 
-Variable values in agent context are privacy-filtered. Unless a variable explicitly permits raw exposure, agents should expect placeholders, redacted values, summaries, or denied fields.
+Submit results back to the task. AAAAT stores provenance and deterministic apply/review remains owned by AAAAT. Agent output must not directly overwrite approved candidature, application, or profile fields.
 
-Search uses SQLite FTS5 lazily through the search service. Normal database initialization does not require FTS5, but search calls should report `SQLite FTS5 is required` clearly if the local SQLite build does not provide it.
+The browser dashboard is a local human UI. Its action routes are form/htmx-oriented internals and are not an agent contract.
 
-The core rule is simple: public demo data is fake, private data stays in `.private/`, and templates use variables instead of hardcoded identity values.
-# Profile / CV Context
+Docs do not enforce security by themselves. Route absence, narrow service functions, and the task-only adapters reduce accidental over-exposure. If an agent has direct `.private/`, shell, code modification, or arbitrary localhost access while the dashboard server is running, AAAAT cannot fully constrain it.
 
-Use `GET /api/profile/context?purpose=...` when a task needs candidate-side context. Supported purposes are `cv_generation`, `cover_letter`, `candidature_fit`, `market_research`, `recruiter_call`, and `form_answers`.
-
-Do not ask for raw private CV/profile data ad hoc when a purpose-filtered profile context is available. REST profile context is agent-scoped; local/dashboard scopes are internal-only. Respect each fact's exposure value. For market research, use anonymized or summarized facts by default.
-
-Agents may produce suggestions, task results, notes, or text blobs. They must not directly overwrite approved candidature fields or raw profile facts.
+Aggregate candidature lists are private behavioral data.

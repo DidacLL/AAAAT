@@ -165,7 +165,13 @@ class AAAATHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def launch(storage: str = ".private", read_only: bool = False, host: str = "127.0.0.1", port: int = 8765) -> None:
+def launch(
+    storage: str = ".private",
+    read_only: bool = False,
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    agent_api: bool = False,
+) -> None:
     from .server_fastapi import launch as launch_fastapi
 
-    launch_fastapi(storage, read_only, host=host, port=port)
+    launch_fastapi(storage, read_only, host=host, port=port, agent_api=agent_api)

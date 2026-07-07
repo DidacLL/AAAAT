@@ -87,6 +87,59 @@ class CliMcpTests(unittest.TestCase):
             guide = self.run_cli("agent-guide")
             self.assertIn("AAAAT", guide.stdout)
 
+    def test_agent_cli_protocol_commands_work(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.run_cli("--storage", tmp, "init")
+            created = self.run_cli("--storage", tmp, "app", "create", "--company", "CLI Co", "--role", "Backend Engineer")
+            app_id = json.loads(created.stdout)["id"]
+            self.run_cli(
+                "--storage",
+                tmp,
+                "task",
+                "create",
+                "--application-id",
+                app_id,
+                "--type",
+                "company_research",
+                "--title",
+                "Research CLI Co",
+                "--context-hint",
+                "candidature:company_research",
+            )
+            tasks = json.loads(self.run_cli("--storage", tmp, "agent", "tasks", "--state", "queued").stdout)
+            self.assertTrue(tasks)
+            task_id = tasks[0]["id"]
+            self.assertIn("allowed_actions", tasks[0])
+            self.assertNotIn("raw_intake", json.dumps(tasks))
+
+            context = json.loads(self.run_cli("--storage", tmp, "agent", "context", task_id).stdout)
+            self.assertEqual(context["task"]["id"], task_id)
+            self.assertNotIn("/api/tasks/", json.dumps(context))
+
+            claimed = json.loads(self.run_cli("--storage", tmp, "agent", "claim", task_id, "--agent-name", "CLI Agent").stdout)
+            self.assertEqual(claimed["state"], "claimed")
+            released = json.loads(self.run_cli("--storage", tmp, "agent", "release", task_id).stdout)
+            self.assertEqual(released["state"], "queued")
+            result_path = Path(tmp) / "result.txt"
+            result_path.write_text('{"company": "CLI Co"}', encoding="utf-8")
+            submitted = json.loads(
+                self.run_cli(
+                    "--storage",
+                    tmp,
+                    "agent",
+                    "submit",
+                    task_id,
+                    "--result-file",
+                    str(result_path),
+                    "--agent-name",
+                    "CLI Agent",
+                    "--model-provider",
+                    "local",
+                ).stdout
+            )
+            self.assertEqual(submitted["state"], "completed")
+            self.assertEqual(submitted["application_id"], app_id)
+
     def test_mcp_descriptor_validates(self):
         descriptor = mcp_descriptor()
         self.assertTrue(validate_descriptor(descriptor))
@@ -94,8 +147,13 @@ class CliMcpTests(unittest.TestCase):
         self.assertTrue(descriptor["resources"])
         self.assertTrue(descriptor["tools"])
         self.assertTrue(descriptor["prompts"])
-        self.assertIn("aaaat://review-queue", {resource["uri"] for resource in descriptor["resources"]})
-        self.assertIn("get_review_queue", {tool["name"] for tool in descriptor["tools"]})
+        resources = {resource["uri"] for resource in descriptor["resources"]}
+        tools = {tool["name"] for tool in descriptor["tools"]}
+        self.assertIn("aaaat://agent/tasks", resources)
+        self.assertIn("aaaat://agent/tasks/{task_id}/context", resources)
+        self.assertIn("submit_agent_task_result", tools)
+        self.assertNotIn("aaaat://dashboard-payload", resources)
+        self.assertNotIn("list_applications", tools)
         for tool in descriptor["tools"]:
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("properties", tool["inputSchema"])

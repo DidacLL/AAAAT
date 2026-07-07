@@ -242,7 +242,7 @@ def render_field_editor(selected: dict[str, Any], field: str, value: str, label:
     html = [
         f"<details class='inline-edit' data-inline-field='{escape(field)}'>",
         f"<summary>{'Edit' if value else 'Add'}</summary>",
-        f"<form method='post' action='/api/applications/{app_id}' data-write-control='inline-field'>",
+        f"<form method='post' action='/dashboard/actions/applications/{app_id}' data-write-control='inline-field'>",
         "<input type='hidden' name='_method' value='PATCH'>",
     ]
     if field in TEXTAREA_FIELDS:
@@ -259,7 +259,7 @@ def render_keywords_inline(selected: dict[str, Any]) -> str:
     return (
         "<details class='inline-edit' data-inline-field='keywords'>"
         "<summary>Edit keywords</summary>"
-        f"<form method='post' action='/api/applications/{app_id}' data-write-control='inline-field'>"
+        f"<form method='post' action='/dashboard/actions/applications/{app_id}' data-write-control='inline-field'>"
         "<input type='hidden' name='_method' value='PATCH'>"
         f"<input name='keywords' aria-label='Keywords' value='{value}' placeholder='keyword, stack, system'>"
         "<button>Save</button></form></details>"
@@ -283,7 +283,7 @@ def render_keyword_panel(
     if can_write(mode):
         html.append(
             "<details class='compact-form'><summary>Update keyword definition</summary>"
-            "<form data-write-control='glossary' method='post' action='/api/glossary'>"
+            "<form data-write-control='glossary' method='post' action='/dashboard/actions/glossary'>"
             f"<input name='term' placeholder='Term' required value='{escape(selected_term)}'>"
             f"<textarea name='definition' placeholder='Definition'>{escape(term_data.get('definition', ''))}</textarea>"
             f"<input name='category' placeholder='Category' value='{escape(term_data.get('category', ''))}'>"
@@ -304,7 +304,7 @@ def render_company_panel(selected: dict[str, Any], payload: dict[str, Any], mode
     if can_write(mode):
         html.append(
             "<details class='compact-form'><summary>Set profile variable</summary>"
-            "<form data-write-control='profile' method='post' action='/api/profile/variables'>"
+            "<form data-write-control='profile' method='post' action='/dashboard/actions/profile/variables'>"
             "<input type='hidden' name='_method' value='PATCH'>"
             "<input name='key' placeholder='display_name' required>"
             "<textarea name='value' placeholder='Value'></textarea>"
@@ -362,7 +362,7 @@ def render_raw_panel(selected: dict[str, Any], mode: Mode) -> str:
         html.append("<p class='empty'>No raw intake for this application.</p>")
     if can_write(mode) and selected:
         html.append(
-            f"<details class='compact-form'><summary>Add raw intake note</summary><form data-write-control='raw-intake' method='post' action='/api/applications/{app_id}/raw-intake'>"
+            f"<details class='compact-form'><summary>Add raw intake note</summary><form data-write-control='raw-intake' method='post' action='/dashboard/actions/applications/{app_id}/raw-intake'>"
             "<textarea name='content' required></textarea><button>Add intake</button></form></details>"
         )
     html.append("</section>")
@@ -384,7 +384,7 @@ def render_artifact_form(selected: dict[str, Any]) -> str:
     app_id = escape(selected.get("id", ""))
     return (
         "<details class='compact-form'><summary>Save artifact record</summary>"
-        "<form data-write-control='artifact' method='post' action='/api/artifacts'>"
+        "<form data-write-control='artifact' method='post' action='/dashboard/actions/artifacts'>"
         f"<input type='hidden' name='application_id' value='{app_id}'>"
         "<input name='artifact_type' placeholder='cover_letter' required>"
         "<input name='path' placeholder='local path' required>"
@@ -404,7 +404,7 @@ def render_artifact(artifact: dict[str, Any], writable: bool, archived: bool = F
         escape(artifact.get("path", "")),
     ]
     if writable and artifact_id:
-        html.append(f"<details class='compact-form'><summary>Change review state</summary><form data-write-control='artifact-state' method='post' action='/api/artifacts/{artifact_id}'>")
+        html.append(f"<details class='compact-form'><summary>Change review state</summary><form data-write-control='artifact-state' method='post' action='/dashboard/actions/artifacts/{artifact_id}'>")
         html.append("<input type='hidden' name='_method' value='PATCH'>")
         html.append("<select name='review_state'><option>draft</option><option>reviewed</option><option>submitted</option><option>archived</option></select>")
         html.append("<input name='notes' placeholder='State notes'>")
@@ -422,7 +422,7 @@ def render_raw_offer_intake_page(mode: Mode | str) -> str:
         "<p><a href='/'>Back to dashboard</a></p></header><main><section class='panel'>",
     ]
     if can_write(mode):
-        html.append("<form data-write-control='raw-offer-intake' method='post' action='/api/raw-offer-intake'><label for='content'>Paste raw offer text</label><textarea id='content' name='content' required></textarea><button>Create intake application</button></form>")
+        html.append("<form data-write-control='raw-offer-intake' method='post' action='/dashboard/actions/raw-offer-intake'><label for='content'>Paste raw offer text</label><textarea id='content' name='content' required></textarea><button>Create intake application</button></form>")
     else:
         html.append("<p>Read-only mode does not allow intake writes.</p>")
     html.append("</section></main></body></html>")

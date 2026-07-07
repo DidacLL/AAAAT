@@ -179,6 +179,7 @@ def complete_task(
     artifact_id: str | None = None,
     agent_name: str = "",
     agent_runtime: str = "",
+    model_provider: str = "",
 ) -> dict[str, Any]:
     task = get_task(conn, task_id)
     result_blob_id = task.get("result_blob_id")
@@ -194,6 +195,7 @@ def complete_task(
             created_by="agent" if agent_name or agent_runtime else "user",
             agent_name=agent_name,
             agent_runtime=agent_runtime,
+            model_provider=model_provider,
         )
         result_blob_id = blob["id"]
     return update_task(

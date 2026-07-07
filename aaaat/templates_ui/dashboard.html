@@ -52,7 +52,7 @@
     {% if can_write(mode) %}
       <details class="new-candidature" data-write-control="new-candidature-panel">
         <summary data-raw-offer-entry>New candidature</summary>
-        <form method="post" action="/api/raw-offer-intake">
+        <form method="post" action="/dashboard/actions/raw-offer-intake">
           <textarea name="content" required placeholder="Paste raw offer text"></textarea>
           <input name="company" placeholder="Company">
           <input name="role" placeholder="Role">

@@ -5,6 +5,13 @@ from typing import Any
 
 from fastapi import Request
 
+from .agent_access import (
+    build_agent_task_context,
+    claim_agent_task,
+    list_agent_task_envelopes,
+    release_agent_task,
+    submit_agent_task_result,
+)
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
 from .candidatures import create_candidature, get_candidature, list_candidatures, update_candidature
 from .dashboard import render_dashboard as render_legacy_dashboard
@@ -52,13 +59,23 @@ def _require_fastapi() -> tuple[Any, Any, Any, Any, Any, Any, Any, Any]:
     return Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse, StaticFiles
 
 
-def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
+def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface: str = "dashboard") -> Any:
     Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse, StaticFiles = _require_fastapi()
     selected_mode = Mode(mode)
-    app = FastAPI(title="AAAAT", version="0.1.0")
+    if surface not in {"dashboard", "agent"}:
+        raise ValueError(f"Invalid surface: {surface}")
+    app = FastAPI(
+        title="AAAAT",
+        version="0.1.0",
+        docs_url=None if surface == "dashboard" else "/docs",
+        redoc_url=None,
+        openapi_url=None if surface == "dashboard" else "/openapi.json",
+    )
     app.state.storage_path = storage
     app.state.mode = selected_mode
-    app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
+    app.state.surface = surface
+    if surface == "dashboard":
+        app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
 
     def writable() -> None:
         if app.state.mode != Mode.FULL:
@@ -75,6 +92,8 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         return await request.json(), False
 
     def respond(payload: dict[str, Any], status: int, is_form: bool, redirect_to: str) -> Any:
+        if app.state.surface == "dashboard" and redirect_to:
+            return RedirectResponse(redirect_to, status_code=303)
         if is_form:
             return RedirectResponse(redirect_to, status_code=303)
         return JSONResponse(payload, status_code=status)
@@ -109,6 +128,76 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         if scope != "agent":
             raise HTTPException(status_code=400, detail="REST API profile scopes are limited to agent")
 
+    def register_agent_routes() -> None:
+        @app.get("/api/health")
+        def agent_health() -> dict[str, Any]:
+            return {"ok": True, "mode": app.state.mode.value, "surface": app.state.surface}
+
+        @app.get("/api/agent/tasks")
+        def agent_tasks(state: str | None = None, limit: int | None = None) -> dict[str, Any]:
+            with connect(app.state.storage_path) as conn:
+                return {"tasks": list_agent_task_envelopes(conn, state=state, limit=limit)}
+
+        @app.get("/api/agent/tasks/{task_id}/context")
+        def agent_task_context(task_id: str) -> dict[str, Any]:
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return build_agent_task_context(conn, task_id)
+            except Exception as exc:
+                handle_error(exc)
+
+        @app.post("/api/agent/tasks/{task_id}/claim", dependencies=[Depends(writable)])
+        async def agent_claim_task(task_id: str, request: Request) -> Any:
+            data, _ = await request_data(request)
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return claim_agent_task(
+                        conn,
+                        task_id,
+                        agent_name=data.get("agent_name", ""),
+                        agent_runtime=data.get("agent_runtime", ""),
+                    )
+            except Exception as exc:
+                handle_error(exc)
+
+        @app.post("/api/agent/tasks/{task_id}/result", dependencies=[Depends(writable)])
+        async def agent_submit_result(task_id: str, request: Request) -> Any:
+            data, _ = await request_data(request)
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return submit_agent_task_result(
+                        conn,
+                        task_id,
+                        data.get("result_body", ""),
+                        result_title=data.get("result_title", ""),
+                        agent_name=data.get("agent_name", ""),
+                        agent_runtime=data.get("agent_runtime", ""),
+                        model_provider=data.get("model_provider", ""),
+                        artifact_id=data.get("artifact_id") or None,
+                    )
+            except Exception as exc:
+                handle_error(exc)
+
+        @app.post("/api/agent/tasks/{task_id}/release", dependencies=[Depends(writable)])
+        async def agent_release_task(task_id: str) -> dict[str, Any]:
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return release_agent_task(conn, task_id)
+            except Exception as exc:
+                handle_error(exc)
+
+    if surface == "agent":
+        register_agent_routes()
+        return app
+    register_agent_routes()
+
+    @app.middleware("http")
+    async def block_dashboard_private_api(request: Request, call_next: Any) -> Any:
+        path = request.url.path
+        if path.startswith("/api/") and not (path == "/api/health" or path.startswith("/api/agent/")):
+            return JSONResponse({"detail": "not found"}, status_code=404)
+        return await call_next(request)
+
     def make_view_model(
         conn: Any,
         *,
@@ -129,49 +218,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         )
 
     def task_agent_context(conn: Any, task_id: str) -> dict[str, Any]:
-        task = get_task(conn, task_id)
-        candidature = get_candidature(conn, task["application_id"], include_related=True) if task.get("application_id") else {}
-        allowed_fields = {
-            key: candidature.get(key, "")
-            for key in (
-                "id",
-                "company",
-                "role",
-                "status",
-                "priority",
-                "source",
-                "source_url",
-                "location",
-                "remote_mode",
-                "next_action",
-                "pitch",
-                "smart_question",
-                "risks_to_avoid",
-                "prepare_first",
-                "prepare_later",
-                "offer_snapshot",
-                "company_research",
-            )
-            if key in candidature
-        }
-        return {
-            "task": task,
-            "candidature": allowed_fields,
-            "variables": resolve_variables(conn, "agent"),
-            "profile_context": profile_context(conn, "candidature_fit", scope="agent"),
-            "source_hints": {
-                "context_hint": task.get("context_hint", ""),
-                "raw_intake_count": len(candidature.get("raw_intake", [])) if candidature else 0,
-            },
-            "artifacts": candidature.get("artifacts", []) if candidature else [],
-            "text_blobs": candidature.get("text_blobs", []) if candidature else [],
-            "write_back": {
-                "complete": f"/api/tasks/{task_id}/complete",
-                "apply": f"/api/tasks/{task_id}/apply",
-                "text_blobs": "/api/text-blobs",
-            },
-            "instructions": "Return suggestions through task completion or text blobs. Do not overwrite approved candidature fields directly.",
-        }
+        return build_agent_task_context(conn, task_id)
 
     @app.get("/", response_class=HTMLResponse)
     def index(
@@ -218,7 +265,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
 
-    @app.post("/dashboard/user-view", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/user-view", dependencies=[Depends(writable)])
     async def dashboard_user_view(request: Request) -> Any:
         data, is_form = await request_data(request)
         application_id = data.get("application_id", "")
@@ -283,7 +330,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         with connect(app.state.storage_path) as conn:
             return {"applications": list_applications(conn)}
 
-    @app.post("/api/applications", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/applications", dependencies=[Depends(writable)])
     async def api_create_application(request: Request) -> Any:
         data, is_form = await request_data(request)
         if "keywords" in data:
@@ -292,14 +339,14 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             item = create_application(conn, **data)
         return respond(item, 201, is_form, f"/?application_id={item['id']}")
 
-    @app.patch("/api/applications/{application_id}", dependencies=[Depends(writable)])
+    @app.patch("/dashboard/actions/applications/{application_id}", dependencies=[Depends(writable)])
     async def api_patch_application(application_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             item = update_application(conn, application_id, **data)
         return respond(item, 200, is_form, f"/?application_id={application_id}")
 
-    @app.post("/api/applications/{application_id}", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/applications/{application_id}", dependencies=[Depends(writable)])
     async def api_form_patch_application(application_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         if data.get("_method", "").upper() != "PATCH":
@@ -311,7 +358,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
                 return HTMLResponse(render_dashboard_fragment("selected-card", model))
         return respond(item, 200, is_form, f"/?application_id={application_id}")
 
-    @app.post("/api/applications/{application_id}/raw-intake", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/applications/{application_id}/raw-intake", dependencies=[Depends(writable)])
     async def api_raw_intake(application_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
@@ -328,7 +375,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         with connect(app.state.storage_path) as conn:
             return {"candidatures": list_candidatures(conn)}
 
-    @app.post("/api/candidatures", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/candidatures", dependencies=[Depends(writable)])
     async def api_create_candidature(request: Request) -> Any:
         data, is_form = await request_data(request)
         fields = clean_fields(
@@ -373,7 +420,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
 
-    @app.patch("/api/candidatures/{candidature_id}", dependencies=[Depends(writable)])
+    @app.patch("/dashboard/actions/candidatures/{candidature_id}", dependencies=[Depends(writable)])
     async def api_patch_candidature(candidature_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -383,7 +430,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 200, is_form, f"/?application_id={candidature_id}")
 
-    @app.post("/api/candidatures/{candidature_id}", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/candidatures/{candidature_id}", dependencies=[Depends(writable)])
     async def api_form_patch_candidature(candidature_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         if data.get("_method", "").upper() != "PATCH":
@@ -408,7 +455,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         with connect(app.state.storage_path) as conn:
             return {"tasks": list_tasks(conn, application_id=application_id, state=state)}
 
-    @app.post("/api/tasks", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/tasks", dependencies=[Depends(writable)])
     async def api_create_task(request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -437,7 +484,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
 
-    @app.patch("/api/tasks/{task_id}", dependencies=[Depends(writable)])
+    @app.patch("/dashboard/actions/tasks/{task_id}", dependencies=[Depends(writable)])
     async def api_patch_task(task_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -447,7 +494,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-    @app.post("/api/tasks/{task_id}/complete", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/tasks/{task_id}/complete", dependencies=[Depends(writable)])
     async def api_complete_task(task_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -465,7 +512,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-    @app.post("/api/tasks/{task_id}/apply", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/tasks/{task_id}/apply", dependencies=[Depends(writable)])
     async def api_apply_task(task_id: str, request: Request) -> Any:
         _, is_form = await request_data(request)
         try:
@@ -475,7 +522,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-    @app.post("/api/render/cv", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/render/cv", dependencies=[Depends(writable)])
     async def api_render_cv(request: Request) -> Any:
         data, is_form = await request_data(request)
         application_id = data.get("application_id", "")
@@ -494,7 +541,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 200, is_form, f"/?view=detailedView&application_id={application_id}")
 
-    @app.post("/api/render/cover-letter", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/render/cover-letter", dependencies=[Depends(writable)])
     async def api_render_cover_letter(request: Request) -> Any:
         data, is_form = await request_data(request)
         application_id = data.get("application_id", "")
@@ -522,7 +569,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         with connect(app.state.storage_path) as conn:
             return {"todos": list_todos(conn, application_id)}
 
-    @app.post("/api/todos", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/todos", dependencies=[Depends(writable)])
     async def api_create_todo(request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -540,7 +587,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-    @app.patch("/api/todos/{todo_id}", dependencies=[Depends(writable)])
+    @app.patch("/dashboard/actions/todos/{todo_id}", dependencies=[Depends(writable)])
     async def api_patch_todo(todo_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         if "pinned" in data:
@@ -557,7 +604,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         with connect(app.state.storage_path) as conn:
             return {"notes": list_notes(conn, application_id)}
 
-    @app.post("/api/notes", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/notes", dependencies=[Depends(writable)])
     async def api_create_note(request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -578,7 +625,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         with connect(app.state.storage_path) as conn:
             return {"text_blobs": list_text_blobs(conn, application_id)}
 
-    @app.post("/api/text-blobs", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/text-blobs", dependencies=[Depends(writable)])
     async def api_create_text_blob(request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -601,7 +648,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-    @app.patch("/api/text-blobs/{blob_id}", dependencies=[Depends(writable)])
+    @app.patch("/dashboard/actions/text-blobs/{blob_id}", dependencies=[Depends(writable)])
     async def api_patch_text_blob(blob_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -616,7 +663,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         with connect(app.state.storage_path) as conn:
             return {"keywords": list_keywords(conn)}
 
-    @app.post("/api/keywords", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/keywords", dependencies=[Depends(writable)])
     async def api_upsert_keyword(request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -626,7 +673,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 201, is_form, "/")
 
-    @app.post("/api/keywords/{term}/aliases", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/keywords/{term}/aliases", dependencies=[Depends(writable)])
     async def api_keyword_alias(term: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -636,7 +683,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 201, is_form, "/")
 
-    @app.post("/api/keywords/{term}/notes", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/keywords/{term}/notes", dependencies=[Depends(writable)])
     async def api_keyword_note(term: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -670,7 +717,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
 
-    @app.put("/api/variables/{key}", dependencies=[Depends(writable)])
+    @app.put("/dashboard/actions/variables/{key}", dependencies=[Depends(writable)])
     async def api_put_variable(key: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -698,9 +745,9 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
                 return {"available": False, "error": str(exc), "results": []}
 
     @app.get("/api/agent/tasks")
-    def api_agent_tasks(application_id: str | None = None, state: str | None = None) -> dict[str, Any]:
+    def api_agent_tasks(state: str | None = None, limit: int | None = None) -> dict[str, Any]:
         with connect(app.state.storage_path) as conn:
-            return {"tasks": list_tasks(conn, application_id=application_id, state=state)}
+            return {"tasks": list_agent_task_envelopes(conn, state=state, limit=limit)}
 
     @app.get("/api/agent/tasks/{task_id}/context")
     def api_agent_task_context(task_id: str) -> dict[str, Any]:
@@ -710,21 +757,21 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
 
-    @app.post("/api/glossary", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/glossary", dependencies=[Depends(writable)])
     async def api_glossary(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             item = upsert_glossary_term(conn, data.get("term", ""), data.get("definition", ""), data.get("category", ""))
         return respond(item, 201, is_form, "/")
 
-    @app.patch("/api/profile/variables", dependencies=[Depends(writable)])
+    @app.patch("/dashboard/actions/profile/variables", dependencies=[Depends(writable)])
     async def api_patch_profile_variable(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             set_profile_variable(conn, data.get("key", ""), data.get("value", ""))
         return respond({"ok": True, "key": data.get("key", "")}, 200, is_form, "/")
 
-    @app.post("/api/profile/variables", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/profile/variables", dependencies=[Depends(writable)])
     async def api_form_patch_profile_variable(request: Request) -> Any:
         data, is_form = await request_data(request)
         if data.get("_method", "").upper() != "PATCH":
@@ -765,7 +812,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         with connect(app.state.storage_path) as conn:
             return {"profile_facts": list_profile_facts(conn, fact_type=fact_type, include_archived=include_archived)}
 
-    @app.post("/api/profile/facts", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/profile/facts", dependencies=[Depends(writable)])
     async def api_create_profile_fact(request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -786,7 +833,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
 
-    @app.patch("/api/profile/facts/{fact_id}", dependencies=[Depends(writable)])
+    @app.patch("/dashboard/actions/profile/facts/{fact_id}", dependencies=[Depends(writable)])
     async def api_patch_profile_fact(fact_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         try:
@@ -799,7 +846,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 200, is_form, "/")
 
-    @app.post("/api/profile/facts/{fact_id}", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/profile/facts/{fact_id}", dependencies=[Depends(writable)])
     async def api_form_patch_profile_fact(fact_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         if data.get("_method", "").upper() != "PATCH":
@@ -814,7 +861,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 200, is_form, "/")
 
-    @app.post("/api/profile/facts/{fact_id}/archive", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/profile/facts/{fact_id}/archive", dependencies=[Depends(writable)])
     async def api_archive_profile_fact(fact_id: str, request: Request) -> Any:
         _, is_form = await request_data(request)
         try:
@@ -836,7 +883,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
 
-    @app.post("/api/artifacts", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/artifacts", dependencies=[Depends(writable)])
     async def api_artifacts(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
@@ -855,7 +902,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             )
         return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-    @app.patch("/api/artifacts/{artifact_id}", dependencies=[Depends(writable)])
+    @app.patch("/dashboard/actions/artifacts/{artifact_id}", dependencies=[Depends(writable)])
     async def api_patch_artifact(artifact_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
@@ -867,7 +914,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             )
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-    @app.post("/api/artifacts/{artifact_id}", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/artifacts/{artifact_id}", dependencies=[Depends(writable)])
     async def api_form_patch_artifact(artifact_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         if data.get("_method", "").upper() != "PATCH":
@@ -881,7 +928,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             )
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-    @app.post("/api/raw-offer-intake", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/raw-offer-intake", dependencies=[Depends(writable)])
     async def api_raw_offer_intake(request: Request) -> Any:
         data, is_form = await request_data(request)
         fields = {
@@ -911,7 +958,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
                 return HTMLResponse(render_dashboard_fragment("inspector", model))
         return respond(item, 201, is_form, f"/?application_id={item['id']}&tab=raw")
 
-    @app.post("/api/export/static-demo", dependencies=[Depends(writable)])
+    @app.post("/dashboard/actions/export/static-demo", dependencies=[Depends(writable)])
     async def api_export_static_demo(request: Request) -> Any:
         data, is_form = await request_data(request)
         output = data.get("output_path", "outputs/static-demo.html")
@@ -921,12 +968,19 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
     return app
 
 
-def launch(storage: str = ".private", read_only: bool = False, host: str = "127.0.0.1", port: int = 8765) -> None:
+def launch(
+    storage: str = ".private",
+    read_only: bool = False,
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    agent_api: bool = False,
+) -> None:
     init_db(storage)
     _, _, _, _, _, _, _, _ = _require_fastapi()
     import uvicorn
 
     mode = Mode.READ_ONLY if read_only else Mode.FULL
-    app = create_app(storage, mode)
-    print(f"AAAAT listening on http://{host}:{port}")
+    surface = "agent" if agent_api else "dashboard"
+    app = create_app(storage, mode, surface=surface)
+    print(f"AAAAT {surface} listening on http://{host}:{port}")
     uvicorn.run(app, host=host, port=port)

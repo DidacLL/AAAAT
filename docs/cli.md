@@ -24,6 +24,7 @@ Stable MVP commands:
 python -m aaaat.cli init
 python -m aaaat.cli launch
 python -m aaaat.cli launch --read-only
+python -m aaaat.cli launch --agent-api
 python -m aaaat.cli app create --company "Example Co" --role "Backend Engineer"
 python -m aaaat.cli app update <id> --next-action "Call recruiter" --keywords "ATS, Python"
 python -m aaaat.cli app list
@@ -43,6 +44,19 @@ python -m aaaat.cli render cover-letter <id>
 python -m aaaat.cli export static-demo outputs/static-demo.html
 python -m aaaat.cli agent-guide
 ```
+
+Agent-facing commands:
+
+```bash
+python -m aaaat.cli agent tasks --state queued
+python -m aaaat.cli agent context <task_id>
+python -m aaaat.cli agent submit <task_id> --result-body "..."
+python -m aaaat.cli agent submit <task_id> --result-file result.json
+python -m aaaat.cli agent claim <task_id>
+python -m aaaat.cli agent release <task_id>
+```
+
+Agents should use the `agent` subcommands. Broad local CLI commands remain available for human/admin maintenance, but they are not the agent contract.
 
 `intake raw-offer` creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue then tells an agent what to extract.
 

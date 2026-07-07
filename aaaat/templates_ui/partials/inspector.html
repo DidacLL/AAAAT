@@ -64,7 +64,7 @@
     {% if can_write(mode) %}
       <details class="field">
         <summary>New candidature</summary>
-        <form method="post" action="/api/raw-offer-intake" data-write-control="new-candidature" hx-post="/api/raw-offer-intake" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
+        <form method="post" action="/dashboard/actions/raw-offer-intake" data-write-control="new-candidature" hx-post="/dashboard/actions/raw-offer-intake" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
           <textarea name="content" required placeholder="Paste raw offer"></textarea>
           <input name="company" placeholder="Company">
           <input name="role" placeholder="Role">
@@ -101,7 +101,7 @@
             {% if can_write(mode) %}
               <details class="inline-edit" data-write-control="profile-fact-edit">
                 <summary>Edit</summary>
-                <form method="post" action="/api/profile/facts/{{ fact.id }}" hx-post="/api/profile/facts/{{ fact.id }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
+                <form method="post" action="/dashboard/actions/profile/facts/{{ fact.id }}" hx-post="/dashboard/actions/profile/facts/{{ fact.id }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
                   <input type="hidden" name="_method" value="PATCH">
                   <input name="title" value="{{ fact.title }}" placeholder="Title">
                   <textarea name="body">{{ fact.body }}</textarea>
@@ -133,7 +133,7 @@
       {% if can_write(mode) %}
         <details class="inline-edit" data-write-control="profile-fact-add">
           <summary>Add profile fact</summary>
-          <form method="post" action="/api/profile/facts" hx-post="/api/profile/facts" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
+          <form method="post" action="/dashboard/actions/profile/facts" hx-post="/dashboard/actions/profile/facts" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
             <select name="fact_type">
               {% for item in ["target_role", "skill", "experience", "project", "education", "certification", "language", "achievement", "preference", "constraint", "salary_expectation", "cv_summary", "role_positioning_note"] %}
                 <option value="{{ item }}">{{ item }}</option>
