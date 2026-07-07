@@ -16,5 +16,17 @@ test = ["httpx"]
 [project.scripts]
 aaaat = "aaaat.cli:main"
 
+[tool.setuptools]
+packages = ["aaaat"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+aaaat = [
+    "schema.sql",
+    "static/*",
+    "templates_ui/*.html",
+    "templates_ui/partials/*.html",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
