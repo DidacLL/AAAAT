@@ -119,7 +119,23 @@ class DashboardViewRenderTests(unittest.TestCase):
         self.assertIn('data-detail-field="description"', html)
         self.assertIn("/api/candidatures/", html)
         self.assertIn("data-generative-actions", html)
-        self.assertIn("Draft adapted CV", html)
+        self.assertIn("data-document-actions", html)
+        self.assertIn("Render local template", html)
+        self.assertIn("Queue agent draft", html)
+
+    def test_dashboard_creation_panel_includes_all_task_toggles(self):
+        payload, app = self.payload()
+        html = render_dashboard_view(payload, Mode.FULL, view="welcomeView", selected_application_id=app["id"])
+
+        for name in (
+            "include_field_inference_task",
+            "include_company_research_task",
+            "include_keyword_detection_task",
+            "include_cv_task",
+            "include_cover_letter_task",
+            "include_form_responses_task",
+        ):
+            self.assertIn(name, html)
 
     def test_user_view_and_profile_panel_are_editable_in_full_mode(self):
         tmp = tempfile.TemporaryDirectory()

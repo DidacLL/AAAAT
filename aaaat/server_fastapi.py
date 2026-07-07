@@ -38,6 +38,7 @@ from .security import Mode
 from .static_export import export_static_demo
 from .tasks import apply_task_result, complete_task, create_task, get_task, list_tasks, update_task
 from .text_blobs import create_text_blob, list_text_blobs, update_text_blob
+from .templates import render_document_artifact
 from .todos import create_todo, list_todos, update_todo
 
 
@@ -83,6 +84,11 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
 
     def bool_field(data: dict[str, Any], key: str) -> bool:
         return str(data.get(key, "")).lower() in {"1", "true", "yes", "on"}
+
+    def bool_field_default(data: dict[str, Any], key: str, default: bool) -> bool:
+        if key not in data:
+            return default
+        return bool_field(data, key)
 
     def clean_fields(data: dict[str, Any], *keys: str) -> dict[str, Any]:
         return {key: data[key] for key in keys if key in data and str(data[key]).strip()}
@@ -343,6 +349,9 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         fields["include_cv_task"] = bool_field(data, "include_cv_task")
         fields["include_cover_letter_task"] = bool_field(data, "include_cover_letter_task")
         fields["include_form_responses_task"] = bool_field(data, "include_form_responses_task")
+        fields["include_field_inference_task"] = bool_field_default(data, "include_field_inference_task", True)
+        fields["include_company_research_task"] = bool_field_default(data, "include_company_research_task", True)
+        fields["include_keyword_detection_task"] = bool_field_default(data, "include_keyword_detection_task", True)
         if "keywords" in data:
             fields["keywords"] = keyword_list(data["keywords"])
         try:
@@ -461,6 +470,50 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
+
+    def default_render_output(application_id: str, name: str) -> str:
+        base = Path(app.state.storage_path)
+        if base.suffix:
+            base = base.parent
+        return str(base / "artifacts" / application_id / f"{name}.tex")
+
+    @app.post("/api/render/cv", dependencies=[Depends(writable)])
+    async def api_render_cv(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        application_id = data.get("application_id", "")
+        output = data.get("output_path") or default_render_output(application_id, "cv")
+        try:
+            with connect(app.state.storage_path) as conn:
+                item = render_document_artifact(
+                    conn,
+                    "cv",
+                    output,
+                    application_id,
+                    compile_pdf=bool_field(data, "compile_pdf"),
+                )
+        except Exception as exc:
+            handle_error(exc)
+        return respond(item, 200, is_form, f"/?view=detailedView&application_id={application_id}")
+
+    @app.post("/api/render/cover-letter", dependencies=[Depends(writable)])
+    async def api_render_cover_letter(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        application_id = data.get("application_id", "")
+        output = data.get("output_path") or default_render_output(application_id, "cover-letter")
+        extra = {"artifact.cover_letter.body": data.get("body", "Draft body pending review.")}
+        try:
+            with connect(app.state.storage_path) as conn:
+                item = render_document_artifact(
+                    conn,
+                    "cover-letter",
+                    output,
+                    application_id,
+                    extra,
+                    compile_pdf=bool_field(data, "compile_pdf"),
+                )
+        except Exception as exc:
+            handle_error(exc)
+        return respond(item, 200, is_form, f"/?view=detailedView&application_id={application_id}")
 
     @app.get("/api/todos")
     def api_todos(application_id: str | None = None) -> dict[str, Any]:
@@ -842,6 +895,9 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             "include_cv_task": bool_field(data, "include_cv_task"),
             "include_cover_letter_task": bool_field(data, "include_cover_letter_task"),
             "include_form_responses_task": bool_field(data, "include_form_responses_task"),
+            "include_field_inference_task": bool_field_default(data, "include_field_inference_task", True),
+            "include_company_research_task": bool_field_default(data, "include_company_research_task", True),
+            "include_keyword_detection_task": bool_field_default(data, "include_keyword_detection_task", True),
         }
         for key in ("source", "source_url", "location"):
             if data.get(key):

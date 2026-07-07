@@ -103,28 +103,79 @@ def seed_defaults(conn: sqlite3.Connection) -> None:
 
 
 def default_cv_template() -> str:
-    return r"""\documentclass{article}
+    return r"""\documentclass[a4paper,10pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage[a4paper,top=1.25cm,bottom=1.25cm,left=1.35cm,right=1.35cm]{geometry}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,urlcolor=blue]{hyperref}
+\definecolor{ink}{HTML}{111827}
+\definecolor{muted}{HTML}{4B5563}
+\definecolor{line}{HTML}{D1D5DB}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.35em}
+\setlist[itemize]{leftmargin=1.15em,itemsep=0.05em,topsep=0.05em}
+\newcommand{\sectionrule}[1]{\vspace{0.5em}{\large\bfseries #1}\par{\color{line}\hrule}\vspace{0.35em}}
 \begin{document}
-\section*{ {{ profile.display_name }} }
-Email: {{ profile.email }}
-
-\section*{Summary}
+\color{ink}
+{\Huge\bfseries {{ profile.display_name }}}\par
+{\small {{ profile.email }}}\par
+\vspace{0.45em}
+\sectionrule{Target role}
+{{ application.role }} at {{ application.company }}
+\sectionrule{Profile}
 {{ profile.summary.default }}
+\sectionrule{Application alignment}
+\begin{tabularx}{\linewidth}{>{\bfseries\color{muted}}p{3.2cm} X}
+Company & {{ application.company }}\\
+Role & {{ application.role }}\\
+Keywords & {{ application.keywords }}\\
+Pitch & {{ application.pitch }}\\
+Preparation & {{ application.prepare_first }}\\
+\end{tabularx}
+\sectionrule{Notes}
+{{ application.notes }}
 \end{document}
 """
 
 
 def default_cover_letter_template() -> str:
-    return r"""\documentclass{letter}
+    return r"""\documentclass[a4paper,10pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage[a4paper,top=1.35cm,bottom=1.35cm,left=1.55cm,right=1.55cm]{geometry}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage[colorlinks=true,urlcolor=blue]{hyperref}
+\definecolor{ink}{HTML}{111827}
+\definecolor{muted}{HTML}{4B5563}
+\definecolor{line}{HTML}{D1D5DB}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.58em}
+\newcommand{\lettersection}[1]{\vspace{0.55em}{\large\bfseries #1}\par{\color{line}\hrule}\vspace{0.35em}}
 \begin{document}
-\begin{letter}{ {{ application.company }} }
-\opening{Dear hiring team,}
-I am applying for the {{ application.role }} role.
+\color{ink}
+{\Huge\bfseries {{ profile.display_name }}}\par
+{\small {{ profile.email }}}\par
+\vspace{0.65em}
+\begin{tabularx}{\linewidth}{>{\bfseries\color{muted}}p{2.75cm} X}
+To & {{ application.company }}\\
+Role & {{ application.role }}\\
+Date & \today\\
+\end{tabularx}
+\lettersection{Cover letter}
+Dear hiring team,
 
 {{ artifact.cover_letter.body }}
 
-\closing{Sincerely,\\{{ profile.display_name }}}
-\end{letter}
+Sincerely,\\
+{{ profile.display_name }}
 \end{document}
 """
 

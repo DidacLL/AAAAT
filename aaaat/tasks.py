@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from typing import Any
 
-from .db import application_keywords, get_application, new_id, row_to_dict, utc_now
-from .text_blobs import create_text_blob, update_text_blob
+from .artifacts import update_artifact_state
+from .db import application_keywords, get_application, new_id, row_to_dict, upsert_glossary_term, utc_now
+from .text_blobs import create_text_blob, get_text_blob, update_text_blob
 
 
 TASK_STATES = {"queued", "claimed", "in_progress", "blocked", "completed", "cancelled"}
@@ -209,34 +211,113 @@ def complete_task(
 def apply_task_result(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
     task = get_task(conn, task_id)
     result_blob_id = task.get("result_blob_id")
-    if not result_blob_id:
+    artifact_id = task.get("artifact_id")
+    if not result_blob_id and not artifact_id:
         raise ValueError("Task has no result blob to apply")
-    update_text_blob(conn, result_blob_id, review_state="applied")
+    result_body = ""
+    if result_blob_id:
+        result_body = str(get_text_blob(conn, result_blob_id).get("body") or "")
+    task_type = task.get("task_type", "")
+    application_id = task.get("application_id")
+
+    if application_id and task_type == "field_inference":
+        apply_field_inference(conn, application_id, result_body)
+    elif application_id and task_type == "company_research":
+        from .candidatures import update_candidature
+
+        update_candidature(conn, application_id, company_research=result_body)
+    elif task_type == "keyword_definition":
+        term = keyword_from_context(task.get("context_hint", ""))
+        if not term:
+            raise ValueError("Keyword definition task requires context_hint=keyword:{term}")
+        upsert_glossary_term(conn, term, result_body)
+    elif application_id and task_type == "draft_form_responses":
+        from .candidatures import update_candidature
+
+        update_candidature(conn, application_id, form_answers=result_body)
+    elif artifact_id and task_type in {"draft_cv", "draft_cover_letter"}:
+        update_artifact_state(conn, artifact_id, "reviewed", "Applied from completed task result.")
+
+    if result_blob_id:
+        update_text_blob(conn, result_blob_id, review_state="applied")
     return get_task(conn, task_id)
+
+
+def apply_field_inference(conn: sqlite3.Connection, application_id: str, result_body: str) -> None:
+    from .candidatures import update_candidature
+
+    try:
+        fields = json.loads(result_body)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Field inference task result must be a JSON object") from exc
+    if not isinstance(fields, dict):
+        raise ValueError("Field inference task result must be a JSON object")
+    allowed = {
+        "company",
+        "role",
+        "status",
+        "priority",
+        "source",
+        "source_url",
+        "location",
+        "remote_mode",
+        "next_action",
+        "notes",
+        "call_signals",
+        "technical_reading",
+        "pitch",
+        "smart_question",
+        "risks_to_avoid",
+        "prepare_first",
+        "prepare_later",
+        "offer_snapshot",
+        "company_research",
+        "form_answers",
+        "description",
+        "salary_expectation",
+        "publication_date",
+        "application_date",
+        "raw_application_form",
+        "strengths",
+        "questions_to_ask",
+        "tech_stack",
+        "valuation",
+        "keywords",
+    }
+    update_candidature(conn, application_id, **{key: value for key, value in fields.items() if key in allowed})
+
+
+def keyword_from_context(context_hint: str) -> str:
+    prefix = "keyword:"
+    return context_hint[len(prefix) :].strip() if context_hint.startswith(prefix) else ""
 
 
 def ensure_initial_tasks(
     conn: sqlite3.Connection,
     application_id: str,
     *,
+    include_field_inference: bool = True,
+    include_company_research: bool = True,
+    include_keyword_detection: bool = True,
     include_cv: bool = False,
     include_cover_letter: bool = False,
     include_form_responses: bool = False,
 ) -> list[dict[str, Any]]:
     app = get_application(conn, application_id)
     created: list[dict[str, Any]] = []
-    created.append(
-        create_task(
-            conn,
-            "field_inference",
-            "Infer candidature fields",
-            application_id=application_id,
-            instructions="Extract structured candidature fields from raw offer and form intake.",
-            priority="high",
-            context_hint="candidature:field_inference",
+    if include_field_inference:
+        created.append(
+            create_task(
+                conn,
+                "field_inference",
+                "Infer candidature fields",
+                application_id=application_id,
+                instructions="Extract structured candidature fields from raw offer and form intake.",
+                priority="high",
+                context_hint="candidature:field_inference",
+            )
         )
-    )
-    if not str(app.get("company_research") or "").strip():
+    if include_company_research and not str(app.get("company_research") or "").strip():
         created.append(
             create_task(
                 conn,
@@ -252,19 +333,20 @@ def ensure_initial_tasks(
         row["term"]: row["definition"]
         for row in conn.execute("SELECT term, definition FROM glossary_terms").fetchall()
     }
-    for keyword in application_keywords(conn, application_id):
-        if not str(glossary.get(keyword) or "").strip():
-            created.append(
-                create_task(
-                    conn,
-                    "keyword_definition",
-                    f"Define keyword: {keyword}",
-                    application_id=application_id,
-                    instructions=f"Define {keyword} for this candidature context.",
-                    priority="medium",
-                    context_hint=f"keyword:{keyword}",
+    if include_keyword_detection:
+        for keyword in application_keywords(conn, application_id):
+            if not str(glossary.get(keyword) or "").strip():
+                created.append(
+                    create_task(
+                        conn,
+                        "keyword_definition",
+                        f"Define keyword: {keyword}",
+                        application_id=application_id,
+                        instructions=f"Define {keyword} for this candidature context.",
+                        priority="medium",
+                        context_hint=f"keyword:{keyword}",
+                    )
                 )
-            )
     optional = {
         "cv": include_cv,
         "cover_letter": include_cover_letter,

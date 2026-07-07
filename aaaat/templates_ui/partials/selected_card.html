@@ -202,13 +202,45 @@
         </div>
       {% endfor %}
       {% if can_write(mode) %}
-        <h3 class="section-title">Generative actions queue tasks</h3>
+        <h3 class="section-title">Document actions</h3>
+        <div class="quick-grid" data-document-actions>
+          <form class="action-card" method="post" action="/api/render/cv">
+            <span class="label">CV</span>
+            <input type="hidden" name="application_id" value="{{ selected.id }}">
+            <label><input type="checkbox" name="compile_pdf" value="1"> Compile PDF if pdflatex is available</label>
+            <button>Render local template</button>
+          </form>
+          <form class="action-card" method="post" action="/api/tasks">
+            <span class="label">CV</span>
+            <input type="hidden" name="application_id" value="{{ selected.id }}">
+            <input type="hidden" name="task_type" value="draft_cv">
+            <input type="hidden" name="context_hint" value="artifact:cv">
+            <input type="hidden" name="title" value="Draft adapted CV">
+            <input type="hidden" name="created_by" value="dashboard">
+            <button>Queue agent draft</button>
+          </form>
+          <form class="action-card" method="post" action="/api/render/cover-letter">
+            <span class="label">Cover letter</span>
+            <input type="hidden" name="application_id" value="{{ selected.id }}">
+            <textarea name="body" placeholder="Optional local cover-letter body">I am applying for the {{ selected.role }} role at {{ selected.company }}.</textarea>
+            <label><input type="checkbox" name="compile_pdf" value="1"> Compile PDF if pdflatex is available</label>
+            <button>Render local template</button>
+          </form>
+          <form class="action-card" method="post" action="/api/tasks">
+            <span class="label">Cover letter</span>
+            <input type="hidden" name="application_id" value="{{ selected.id }}">
+            <input type="hidden" name="task_type" value="draft_cover_letter">
+            <input type="hidden" name="context_hint" value="artifact:cover_letter">
+            <input type="hidden" name="title" value="Draft cover letter">
+            <input type="hidden" name="created_by" value="dashboard">
+            <button>Queue agent draft</button>
+          </form>
+        </div>
+        <h3 class="section-title">Generative tasks</h3>
         <div class="quick-grid" data-generative-actions>
           {% for task_type, title, hint in [
             ("field_inference", "Infer missing fields", "candidature:field_inference"),
             ("company_research", "Research company", "candidature:company_research"),
-            ("draft_cv", "Draft adapted CV", "artifact:cv"),
-            ("draft_cover_letter", "Draft cover letter", "artifact:cover_letter"),
             ("draft_form_responses", "Draft form responses", "blob:form_responses"),
             ("keyword_definition", "Define missing keywords", "keyword:auto")
           ] %}
@@ -223,6 +255,20 @@
           {% endfor %}
         </div>
       {% endif %}
+      <h3 class="section-title">Completed task results</h3>
+      {% for task in selected.tasks if task.state == "completed" and (task.result_blob_id or task.artifact_id) %}
+        <div class="field" data-completed-task>
+          <strong>{{ task.title }}</strong>
+          <p class="meta"><span>{{ task.task_type }}</span><span>{{ task.context_hint }}</span></p>
+          {% if can_write(mode) %}
+            <form method="post" action="/api/tasks/{{ task.id }}/apply">
+              <button>Apply result</button>
+            </form>
+          {% endif %}
+        </div>
+      {% else %}
+        <p class="empty">No completed task results waiting to apply.</p>
+      {% endfor %}
     </div>
   {% else %}
     <h2>User customized view</h2>

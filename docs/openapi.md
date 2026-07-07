@@ -23,6 +23,8 @@ M3 product endpoints:
 - `PATCH /api/tasks/{id}`
 - `POST /api/tasks/{id}/complete`
 - `POST /api/tasks/{id}/apply`
+- `POST /api/render/cv`
+- `POST /api/render/cover-letter`
 - `GET /api/todos`
 - `POST /api/todos`
 - `PATCH /api/todos/{id}`
@@ -60,3 +62,5 @@ Implementation status:
 - Agent task contexts resolve variables with the agent privacy scope. Suggestions must be written back through task completion or text blobs, not by directly overwriting approved candidature fields.
 - `variables` are scalar template placeholders; `profile_facts` are structured professional/CV facts with editable visibility, exposure, and usage flags.
 - Profile context routes filter facts by purpose. Market research should use anonymized or summarized facts by default.
+- Local render routes resolve variables with the local render scope, write `.tex`, optionally compile with `pdflatex` when available and requested, and save artifact records with template provenance.
+- Task result apply supports field inference, company research, keyword definitions, form answers, and CV/cover-letter artifact provenance; unknown task types keep the safe text-blob apply fallback.

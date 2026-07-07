@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -74,4 +76,48 @@ def render_to_file(
         f"{name} render",
         source_context=f"template:{name}",
         review_state="draft",
+    )
+
+
+def render_document_artifact(
+    conn: sqlite3.Connection,
+    name: str,
+    output_path: str | Path,
+    application_id: str | None = None,
+    extra: dict[str, Any] | None = None,
+    *,
+    compile_pdf: bool = False,
+) -> dict[str, Any]:
+    rendered = render_named_template(conn, name, application_id, extra)
+    tex_path = Path(output_path)
+    tex_path.parent.mkdir(parents=True, exist_ok=True)
+    tex_path.write_text(rendered, encoding="utf-8")
+    artifact_path = tex_path
+    notes = "Rendered local TeX template."
+    if compile_pdf:
+        if shutil.which("pdflatex"):
+            result = subprocess.run(
+                ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", tex_path.name],
+                cwd=tex_path.parent,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            pdf_path = tex_path.with_suffix(".pdf")
+            if result.returncode == 0 and pdf_path.exists():
+                artifact_path = pdf_path
+                notes = "Rendered local TeX template and compiled with pdflatex."
+            else:
+                notes = "Rendered local TeX template; pdflatex failed, keeping TeX artifact."
+        else:
+            notes = "Rendered local TeX template; pdflatex unavailable, keeping TeX artifact."
+    return artifacts.save_artifact(
+        conn,
+        application_id,
+        "cv" if name == "cv" else "cover_letter",
+        str(artifact_path),
+        f"{name} local render",
+        source_context=f"template:{name}",
+        review_state="draft",
+        notes=notes,
     )

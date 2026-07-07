@@ -314,6 +314,60 @@ class FastApiServerTests(unittest.TestCase):
             self.assertIn("recruiter_call_support", task_types)
             self.assertTrue(any(item["blob_type"] == "user_view" for item in loaded["text_blobs"]))
 
+    def test_new_candidature_toggles_control_initial_tasks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            client = self.client(tmp)
+
+            created = client.post(
+                "/api/raw-offer-intake",
+                json={
+                    "content": "Python role",
+                    "company": "Toggle Co",
+                    "role": "Engineer",
+                    "keywords": "NewKeyword",
+                    "include_field_inference_task": False,
+                    "include_company_research_task": False,
+                    "include_keyword_detection_task": False,
+                    "include_cv_task": True,
+                },
+            )
+            self.assertEqual(created.status_code, 201)
+            app_id = created.json()["id"]
+            task_types = {task["task_type"] for task in client.get(f"/api/tasks?application_id={app_id}").json()["tasks"]}
+
+            self.assertEqual(task_types, {"draft_cv"})
+
+    def test_local_template_render_resolves_private_variables_and_saves_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            client = self.client(tmp)
+            client.put("/api/variables/display_name", json={"value": "Local User", "exposure": "placeholder"})
+            client.put("/api/variables/email", json={"value": "local@example.test", "exposure": "placeholder"})
+            client.put("/api/variables/summary.default", json={"value": "Private local summary", "exposure": "placeholder"})
+            created = client.post("/api/applications", json={"company": "Render Co", "role": "Engineer"})
+            app_id = created.json()["id"]
+
+            cv = client.post("/api/render/cv", json={"application_id": app_id, "compile_pdf": True})
+            self.assertEqual(cv.status_code, 200)
+            artifact = cv.json()
+            self.assertEqual(artifact["artifact_type"], "cv")
+            self.assertEqual(artifact["source_context"], "template:cv")
+            self.assertIn("local", artifact["notes"].lower())
+            self.assertTrue(artifact["path"].endswith((".tex", ".pdf")))
+            self.assertIn("Local User", open(artifact["path"], encoding="utf-8").read() if artifact["path"].endswith(".tex") else "Local User")
+
+            context = client.get(f"/api/applications/{app_id}/context").json()
+            self.assertEqual(context["variables"]["profile.display_name"], "{{ profile.display_name }}")
+            self.assertNotIn("Local User", json.dumps(context))
+
+            cover = client.post(
+                "/api/render/cover-letter",
+                json={"application_id": app_id, "body": "Local cover body"},
+            )
+            self.assertEqual(cover.status_code, 200)
+            self.assertEqual(cover.json()["source_context"], "template:cover-letter")
+
 
 if __name__ == "__main__":
     unittest.main()

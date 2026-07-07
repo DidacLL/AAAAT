@@ -50,6 +50,9 @@ def create_candidature(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
     ensure_initial_tasks(
         conn,
         app["id"],
+        include_field_inference=fields.get("include_field_inference_task", True),
+        include_company_research=fields.get("include_company_research_task", True),
+        include_keyword_detection=fields.get("include_keyword_detection_task", True),
         include_cv=bool(fields.get("include_cv_task")),
         include_cover_letter=bool(fields.get("include_cover_letter_task")),
         include_form_responses=bool(fields.get("include_form_responses_task")),
