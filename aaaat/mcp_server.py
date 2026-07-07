@@ -11,14 +11,14 @@ def mcp_descriptor() -> dict[str, Any]:
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {"resources": {}, "tools": {}, "prompts": {}},
         "resources": [
-            {"uri": "aaaat://agent/tasks", "name": "agent-tasks", "title": "Agent Task Envelopes", "mimeType": "application/json"},
+            {"uri": "aaaat://agent/tasks", "name": "agent-tasks", "title": "Capability-Scoped Agent Task Envelopes", "mimeType": "application/json"},
             {
                 "uri": "aaaat://agent/tasks/{task_id}/context",
                 "name": "agent-task-context",
-                "title": "Agent Task Context",
+                "title": "Capability-Scoped Agent Task Context",
                 "mimeType": "application/json",
             },
-            {"uri": "aaaat://agent-guide", "name": "agent-guide", "title": "Agent Guide", "mimeType": "text/markdown"},
+            {"uri": "aaaat://agent-guide", "name": "agent-guide", "title": "Capability-Scoped Agent Guide", "mimeType": "text/markdown"},
         ],
         "tools": [
             tool("list_agent_tasks", {"state": "string", "limit": "integer"}, []),
@@ -42,7 +42,7 @@ def tool(name: str, properties: dict[str, str], required: list[str]) -> dict[str
     return {
         "name": name,
         "title": name.replace("_", " ").title(),
-        "description": f"AAAAT local tool: {name.replace('_', ' ')}.",
+        "description": f"Capability-scoped AAAAT operation: {name.replace('_', ' ')}.",
         "inputSchema": {
             "type": "object",
             "properties": {key: {"type": kind} for key, kind in properties.items()},
@@ -55,7 +55,7 @@ def prompt(name: str, args: list[str]) -> dict[str, Any]:
     return {
         "name": name,
         "title": name.replace("_", " ").title(),
-        "description": f"Prompt template for {name.replace('_', ' ')}.",
+        "description": f"Capability-oriented prompt template for {name.replace('_', ' ')}.",
         "arguments": [{"name": arg, "required": True} for arg in args],
     }
 
