@@ -1,7 +1,8 @@
 # Annex B — HTTP and CLI Surface
 
 ## CLI: primary practical adapter
-Add:
+
+Implemented task capability:
 
 ```bash
 python -m aaaat.cli agent tasks [--state queued]
@@ -12,10 +13,19 @@ python -m aaaat.cli agent claim <task_id>
 python -m aaaat.cli agent release <task_id>
 ```
 
-The existing broad CLI commands may remain for human/local use. The new `agent` subcommands are the recommended agent contract.
+Planned intake/proposal capability:
 
-## HTTP: task-only adapter
-Add or complete:
+```bash
+python -m aaaat.cli agent intake raw-offer --content "..."
+python -m aaaat.cli agent intake raw-offer --file offer.txt
+python -m aaaat.cli agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json
+```
+
+The existing broad CLI commands may remain for human/local use. The `agent` subcommands are the recommended agent contract. They must be capability-scoped, schema-bound, and non-CRUD.
+
+## HTTP: capability-scoped adapter
+
+Implemented task routes:
 
 ```text
 GET  /api/health
@@ -26,9 +36,17 @@ POST /api/agent/tasks/{task_id}/result
 POST /api/agent/tasks/{task_id}/release
 ```
 
-All these routes must call `aaaat.agent_access` functions.
+Planned intake/proposal routes may be added under `/api/agent/*`:
+
+```text
+POST /api/agent/intake/raw-offer
+POST /api/agent/intake/{intake_id}/extraction
+```
+
+All agent routes must call narrow service-layer functions. Do not expose generic object routes.
 
 ## Agent-only app/surface
+
 Refactor app construction minimally:
 
 ```python
@@ -38,7 +56,7 @@ create_app(storage='.private', mode=Mode.FULL, surface='dashboard')
 Allowed values:
 
 - `surface='dashboard'`: current human dashboard behavior.
-- `surface='agent'`: only `/api/health` and `/api/agent/*` routes.
+- `surface='agent'`: only `/api/health` and capability-scoped `/api/agent/*` routes.
 
 In `surface='agent'`, the following must not be mounted:
 
@@ -76,6 +94,7 @@ In `surface='agent'`, the following must not be mounted:
 ```
 
 ## CLI launch
+
 Add:
 
 ```bash
