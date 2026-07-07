@@ -31,6 +31,8 @@ def run_git(root: Path, *args: str) -> None:
 
 class RepoGuardTests(unittest.TestCase):
     def test_current_repository_satisfies_guard(self):
+        if not shutil.which("git"):
+            self.skipTest("git is required for repository guard tests")
         self.assertEqual(repo_guard.collect_findings(ROOT), [])
 
     def test_clean_temporary_repository_passes_guard(self):
