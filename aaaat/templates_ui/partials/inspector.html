@@ -70,6 +70,8 @@
           <input name="role" placeholder="Role">
           <input name="status" placeholder="Status" value="intake">
           <input name="priority" placeholder="Priority" value="normal">
+          <input name="source_url" placeholder="Source URL">
+          <input name="keywords" placeholder="Keywords, comma separated">
           <label><input type="checkbox" name="include_cv_task" value="1"> CV task</label>
           <label><input type="checkbox" name="include_cover_letter_task" value="1"> Cover-letter task</label>
           <label><input type="checkbox" name="include_form_responses_task" value="1"> Form-response task</label>
@@ -85,12 +87,12 @@
             <strong>{{ fact.fact_type }} / {{ fact.title or "Untitled fact" }}</strong>
             <p>{{ fact.body }}</p>
             <p class="meta">
-              <span>{{ fact.visibility }}</span>
-              <span>{{ fact.exposure }}</span>
-              {% if fact.use_for_cv %}<span>CV</span>{% endif %}
-              {% if fact.use_for_cover_letter %}<span>Cover letter</span>{% endif %}
-              {% if fact.use_for_agent_context %}<span>Agent</span>{% endif %}
-              {% if fact.use_for_market_research %}<span>Market</span>{% endif %}
+              <span class="badge visibility-{{ fact.visibility }}">{{ fact.visibility }}</span>
+              <span class="badge exposure-{{ fact.exposure }}">{{ fact.exposure }}</span>
+              {% if fact.use_for_cv %}<span class="badge">CV</span>{% endif %}
+              {% if fact.use_for_cover_letter %}<span class="badge">Cover letter</span>{% endif %}
+              {% if fact.use_for_agent_context %}<span class="badge">Agent</span>{% endif %}
+              {% if fact.use_for_market_research %}<span class="badge">Market</span>{% endif %}
               {% if fact.tags %}<span>{{ fact.tags|join(", ") }}</span>{% endif %}
             </p>
             {% if can_write(mode) %}

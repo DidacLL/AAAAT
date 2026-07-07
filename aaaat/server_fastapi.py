@@ -208,6 +208,47 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
 
+    @app.post("/dashboard/user-view", dependencies=[Depends(writable)])
+    async def dashboard_user_view(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        application_id = data.get("application_id", "")
+        source_context = f"candidature:{application_id}:user_view"
+        try:
+            with connect(app.state.storage_path) as conn:
+                existing = next(
+                    (
+                        blob
+                        for blob in list_text_blobs(conn, application_id)
+                        if blob.get("blob_type") == "user_view" and blob.get("source_context") == source_context
+                    ),
+                    None,
+                )
+                if existing:
+                    item = update_text_blob(
+                        conn,
+                        existing["id"],
+                        title=data.get("title", "User view"),
+                        body=data.get("body", ""),
+                        review_state="draft",
+                    )
+                else:
+                    item = create_text_blob(
+                        conn,
+                        "user_view",
+                        data.get("body", ""),
+                        application_id=application_id,
+                        title=data.get("title", "User view"),
+                        source_context=source_context,
+                        review_state="draft",
+                        created_by="user",
+                    )
+                if wants_fragment(request):
+                    model = make_view_model(conn, view="userView", application_id=application_id)
+                    return HTMLResponse(render_dashboard_fragment("selected-card", model))
+        except Exception as exc:
+            handle_error(exc)
+        return respond(item, 200, is_form, f"/?view=userView&application_id={application_id}")
+
     @app.get("/intake", response_class=HTMLResponse)
     def intake() -> Any:
         return HTMLResponse(render_raw_offer_intake_page(app.state.mode))
@@ -295,6 +336,9 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             "strengths",
             "questions_to_ask",
             "tech_stack",
+            "source",
+            "source_url",
+            "location",
         )
         fields["include_cv_task"] = bool_field(data, "include_cv_task")
         fields["include_cover_letter_task"] = bool_field(data, "include_cover_letter_task")
@@ -325,6 +369,21 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         except Exception as exc:
             handle_error(exc)
         return respond(item, 200, is_form, f"/?application_id={candidature_id}")
+
+    @app.post("/api/candidatures/{candidature_id}", dependencies=[Depends(writable)])
+    async def api_form_patch_candidature(candidature_id: str, request: Request) -> Any:
+        data, is_form = await request_data(request)
+        if data.get("_method", "").upper() != "PATCH":
+            raise HTTPException(status_code=405, detail="method not allowed")
+        try:
+            with connect(app.state.storage_path) as conn:
+                item = update_candidature(conn, candidature_id, **data)
+                if wants_fragment(request):
+                    model = make_view_model(conn, view=data.get("view") or "detailedView", application_id=candidature_id)
+                    return HTMLResponse(render_dashboard_fragment("selected-card", model))
+        except Exception as exc:
+            handle_error(exc)
+        return respond(item, 200, is_form, f"/?view=detailedView&application_id={candidature_id}")
 
     @app.get("/api/candidatures/{candidature_id}/context")
     def api_candidature_context(candidature_id: str) -> dict[str, Any]:
@@ -784,6 +843,9 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             "include_cover_letter_task": bool_field(data, "include_cover_letter_task"),
             "include_form_responses_task": bool_field(data, "include_form_responses_task"),
         }
+        for key in ("source", "source_url", "location"):
+            if data.get(key):
+                fields[key] = data[key]
         if data.get("keywords"):
             fields["keywords"] = keyword_list(data["keywords"])
         with connect(app.state.storage_path) as conn:

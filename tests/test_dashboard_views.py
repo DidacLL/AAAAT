@@ -6,8 +6,11 @@ from aaaat.dashboard_views import dashboard_view_model, normalize_view, render_d
 from aaaat.db import connect, create_application, init_db
 from aaaat.notes import create_note
 from aaaat.payload import dashboard_payload
+from aaaat.profile_facts import create_profile_fact
 from aaaat.search import rebuild_index
 from aaaat.security import Mode
+from aaaat.tasks import create_task
+from aaaat.todos import create_todo
 
 
 JINJA_AVAILABLE = importlib.util.find_spec("jinja2") is not None
@@ -83,6 +86,81 @@ class DashboardViewRenderTests(unittest.TestCase):
         self.assertIn('data-keyword="Python"', html)
         self.assertIn("data-search-results", html)
         self.assertIn("Search View Co", html)
+
+    def test_welcome_view_surfaces_todos_tasks_and_important_candidatures(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        init_db(tmp.name)
+        with connect(tmp.name) as conn:
+            app = create_application(conn, company="Welcome Co", role="Engineer", priority="high", next_action="Call today")
+            create_todo(conn, "Prepare call", application_id=app["id"], pinned=True)
+            create_task(conn, "company_research", "Research Welcome Co", application_id=app["id"], priority="high")
+            payload = dashboard_payload(conn)
+            model = dashboard_view_model(payload, Mode.FULL, view="welcomeView", selected_application_id=app["id"], conn=conn)
+            html = render_dashboard_view(payload, Mode.FULL, view_model=model)
+
+        self.assertIn("Open todos", html)
+        self.assertIn("Prepare call", html)
+        self.assertIn("Pending agent tasks", html)
+        self.assertIn("Research Welcome Co", html)
+        self.assertIn("Welcome Co", html)
+
+    def test_detailed_view_exposes_core_and_detail_edit_controls(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        init_db(tmp.name)
+        with connect(tmp.name) as conn:
+            app = create_application(conn, company="Detail Co", role="Engineer")
+            payload = dashboard_payload(conn)
+            model = dashboard_view_model(payload, Mode.FULL, view="detailedView", selected_application_id=app["id"], conn=conn)
+            html = render_dashboard_view(payload, Mode.FULL, view_model=model)
+
+        self.assertIn('data-inline-field="company"', html)
+        self.assertIn('data-detail-field="description"', html)
+        self.assertIn("/api/candidatures/", html)
+        self.assertIn("data-generative-actions", html)
+        self.assertIn("Draft adapted CV", html)
+
+    def test_user_view_and_profile_panel_are_editable_in_full_mode(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        init_db(tmp.name)
+        with connect(tmp.name) as conn:
+            app = create_application(conn, company="User Co", role="Engineer", pitch="User pitch")
+            create_profile_fact(
+                conn,
+                fact_type="skill",
+                title="Python",
+                body="Backend APIs",
+                visibility="professional",
+                exposure="summarized",
+                use_for_cv=True,
+                use_for_dashboard=True,
+            )
+            payload = dashboard_payload(conn)
+            model = dashboard_view_model(payload, Mode.FULL, view="userView", selected_application_id=app["id"], conn=conn)
+            html = render_dashboard_view(payload, Mode.FULL, view_model=model)
+
+        self.assertIn("data-user-view-editor", html)
+        self.assertIn("/dashboard/user-view", html)
+        self.assertIn("data-profile-cv-panel", html)
+        self.assertIn("visibility-professional", html)
+        self.assertIn("exposure-summarized", html)
+
+    def test_profile_panel_hides_write_controls_in_read_only_mode(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        init_db(tmp.name)
+        with connect(tmp.name) as conn:
+            app = create_application(conn, company="Safe Co", role="Engineer")
+            create_profile_fact(conn, fact_type="skill", title="Python", body="Backend APIs", use_for_dashboard=True)
+            payload = dashboard_payload(conn)
+            model = dashboard_view_model(payload, Mode.READ_ONLY, view="smartView", selected_application_id=app["id"], conn=conn)
+            html = render_dashboard_view(payload, Mode.READ_ONLY, view_model=model)
+
+        self.assertIn("data-profile-cv-panel", html)
+        self.assertNotIn("profile-fact-add", html)
+        self.assertNotIn("profile-fact-edit", html)
 
 
 if __name__ == "__main__":

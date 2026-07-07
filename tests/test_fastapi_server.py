@@ -252,6 +252,68 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(client.post("/api/keywords", json={"term": "Nope"}).status_code, 403)
             self.assertEqual(client.put("/api/variables/display_name", json={"value": "Nope"}).status_code, 403)
 
+    def test_dashboard_workflow_forms_create_and_queue_user_actions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            client = self.client(tmp)
+
+            created = client.post(
+                "/api/raw-offer-intake",
+                data={
+                    "content": "Python platform role with screening call",
+                    "company": "Cockpit Co",
+                    "role": "Platform Engineer",
+                    "source_url": "https://example.test/job",
+                    "keywords": "Python, Platform",
+                    "include_cv_task": "1",
+                    "include_cover_letter_task": "1",
+                },
+                follow_redirects=False,
+            )
+            self.assertEqual(created.status_code, 303)
+            app_id = created.headers["location"].split("application_id=", 1)[1].split("&", 1)[0]
+
+            detail = client.post(
+                f"/api/candidatures/{app_id}",
+                data={"_method": "PATCH", "description": "Detailed offer summary", "questions_to_ask": "Ask about roadmap"},
+                follow_redirects=False,
+            )
+            self.assertEqual(detail.status_code, 303)
+
+            note = client.post("/api/notes", data={"application_id": app_id, "note_type": "call", "body": "Recruiter called unexpectedly"})
+            self.assertEqual(note.status_code, 200 if note.history else 200)
+
+            todo = client.post("/api/todos", json={"application_id": app_id, "title": "Meeting with recruiter", "due_at": "2026-07-08"})
+            self.assertEqual(todo.status_code, 201)
+            task = client.post(
+                "/api/tasks",
+                json={
+                    "application_id": app_id,
+                    "task_type": "recruiter_call_support",
+                    "title": "Prepare follow-up",
+                    "context_hint": "call:follow_up",
+                },
+            )
+            self.assertEqual(task.status_code, 201)
+
+            user_view = client.post(
+                "/dashboard/user-view",
+                data={"application_id": app_id, "title": "My prep", "body": "Use this positioning during calls."},
+                follow_redirects=False,
+            )
+            self.assertEqual(user_view.status_code, 303)
+
+            loaded = client.get(f"/api/candidatures/{app_id}").json()
+            task_types = {item["task_type"] for item in loaded["tasks"]}
+            self.assertEqual(loaded["source_url"], "https://example.test/job")
+            self.assertEqual(loaded["details"]["description"], "Detailed offer summary")
+            self.assertTrue(any(item["body"] == "Recruiter called unexpectedly" for item in loaded["notes_records"]))
+            self.assertTrue(any(item["title"] == "Meeting with recruiter" for item in loaded["todos"]))
+            self.assertIn("draft_cv", task_types)
+            self.assertIn("draft_cover_letter", task_types)
+            self.assertIn("recruiter_call_support", task_types)
+            self.assertTrue(any(item["blob_type"] == "user_view" for item in loaded["text_blobs"]))
+
 
 if __name__ == "__main__":
     unittest.main()
