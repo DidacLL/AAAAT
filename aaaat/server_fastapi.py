@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from fastapi import Request
+
 from .artifacts import save_artifact, update_artifact_state
 from .dashboard import render_dashboard, render_raw_offer_intake_page
 from .db import (
@@ -44,7 +46,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         if app.state.mode != Mode.FULL:
             raise HTTPException(status_code=403, detail="read only")
 
-    async def request_data(request: Any) -> tuple[dict[str, Any], bool]:
+    async def request_data(request: Request) -> tuple[dict[str, Any], bool]:
         content_type = request.headers.get("content-type", "")
         if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
             form = await request.form()
@@ -90,21 +92,21 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             return {"applications": list_applications(conn)}
 
     @app.post("/api/applications", dependencies=[Depends(writable)])
-    async def api_create_application(request: Any) -> Any:
+    async def api_create_application(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             item = create_application(conn, **data)
         return respond(item, 201, is_form, f"/?application_id={item['id']}")
 
     @app.patch("/api/applications/{application_id}", dependencies=[Depends(writable)])
-    async def api_patch_application(application_id: str, request: Any) -> Any:
+    async def api_patch_application(application_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             item = update_application(conn, application_id, **data)
         return respond(item, 200, is_form, f"/?application_id={application_id}")
 
     @app.post("/api/applications/{application_id}", dependencies=[Depends(writable)])
-    async def api_form_patch_application(application_id: str, request: Any) -> Any:
+    async def api_form_patch_application(application_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         if data.get("_method", "").upper() != "PATCH":
             raise HTTPException(status_code=405, detail="method not allowed")
@@ -113,7 +115,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         return respond(item, 200, is_form, f"/?application_id={application_id}")
 
     @app.post("/api/applications/{application_id}/raw-intake", dependencies=[Depends(writable)])
-    async def api_raw_intake(application_id: str, request: Any) -> Any:
+    async def api_raw_intake(application_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             item = add_raw_intake(conn, application_id, data.get("content", ""), data.get("created_by", "agent"))
@@ -125,21 +127,21 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             return application_context(conn, application_id)
 
     @app.post("/api/glossary", dependencies=[Depends(writable)])
-    async def api_glossary(request: Any) -> Any:
+    async def api_glossary(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             item = upsert_glossary_term(conn, data.get("term", ""), data.get("definition", ""), data.get("category", ""))
         return respond(item, 201, is_form, "/")
 
     @app.patch("/api/profile/variables", dependencies=[Depends(writable)])
-    async def api_patch_profile_variable(request: Any) -> Any:
+    async def api_patch_profile_variable(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             set_profile_variable(conn, data.get("key", ""), data.get("value", ""))
         return respond({"ok": True, "key": data.get("key", "")}, 200, is_form, "/")
 
     @app.post("/api/profile/variables", dependencies=[Depends(writable)])
-    async def api_form_patch_profile_variable(request: Any) -> Any:
+    async def api_form_patch_profile_variable(request: Request) -> Any:
         data, is_form = await request_data(request)
         if data.get("_method", "").upper() != "PATCH":
             raise HTTPException(status_code=405, detail="method not allowed")
@@ -148,7 +150,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         return respond({"ok": True, "key": data.get("key", "")}, 200, is_form, "/")
 
     @app.post("/api/artifacts", dependencies=[Depends(writable)])
-    async def api_artifacts(request: Any) -> Any:
+    async def api_artifacts(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             item = save_artifact(
@@ -167,7 +169,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
     @app.patch("/api/artifacts/{artifact_id}", dependencies=[Depends(writable)])
-    async def api_patch_artifact(artifact_id: str, request: Any) -> Any:
+    async def api_patch_artifact(artifact_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             item = update_artifact_state(
@@ -179,7 +181,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
 
     @app.post("/api/artifacts/{artifact_id}", dependencies=[Depends(writable)])
-    async def api_form_patch_artifact(artifact_id: str, request: Any) -> Any:
+    async def api_form_patch_artifact(artifact_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         if data.get("_method", "").upper() != "PATCH":
             raise HTTPException(status_code=405, detail="method not allowed")
@@ -193,14 +195,14 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
 
     @app.post("/api/raw-offer-intake", dependencies=[Depends(writable)])
-    async def api_raw_offer_intake(request: Any) -> Any:
+    async def api_raw_offer_intake(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
             item = create_raw_offer_intake(conn, data.get("content", ""), data.get("created_by", "user") or "user")
         return respond(item, 201, is_form, f"/?application_id={item['id']}&tab=raw")
 
     @app.post("/api/export/static-demo", dependencies=[Depends(writable)])
-    async def api_export_static_demo(request: Any) -> Any:
+    async def api_export_static_demo(request: Request) -> Any:
         data, is_form = await request_data(request)
         output = data.get("output_path", "outputs/static-demo.html")
         item = {"path": str(export_static_demo(output))}
