@@ -6,9 +6,11 @@ Modes:
 - Full local: normal local working dashboard with viewing, annotations, queue inspection, contextual edits, and raw-offer intake.
 - Read-only: same private data without write/raw intake controls; write requests return `403`.
 - Static demo: fake data only, no backend, no write/raw intake controls.
-- Agent API: task-only HTTP adapter exposing `/api/health` and `/api/agent/*`.
+- Agent API: capability-scoped HTTP adapter exposing `/api/health` and `/api/agent/*`.
 
-Agent access is task-scoped. Agents receive task envelopes and task-specific context from `aaaat.agent_access`; they do not receive all candidatures, dashboard payloads, arbitrary search, variable dumps, profile fact lists, or generic CRUD endpoints.
+Agent access is capability-scoped. The implemented capability is the task protocol: agents receive task envelopes and task-specific context from `aaaat.agent_access`; they submit task results with provenance. Agents do not receive all candidatures, dashboard payloads, arbitrary search, variable dumps, profile fact lists, or generic CRUD endpoints.
+
+Future agent capabilities may include raw-offer intake and structured extraction/proposal submission. They are acceptable only when they are schema-bound, return narrow acknowledgements/envelopes, and route generated output through reviewable task results or deterministic apply logic. They must not become broad application/candidature CRUD under another name.
 
 The dashboard is server-rendered from SQLite through Python. Browser actions use narrow form/htmx routes under `/dashboard/actions/*` and are local human UI internals, not an agent API.
 
@@ -17,6 +19,7 @@ Aggregate candidature lists are private behavioral data.
 Generated private artifacts remain local. Destructive actions are outside the MVP.
 
 Private reusable values are stored as variables with stable placeholders. Profile inputs such as `display_name` are canonicalized to `profile.display_name` and represented as `{{ profile.display_name }}` for agent work. Local rendering can resolve real values; agent contexts resolve according to each variable exposure policy (`raw`, `redacted`, `summarized`, `placeholder`, or `denied`); static demos never resolve real values.
+
 # Profile Facts
 
 AAAAT separates two profile data layers:
@@ -28,4 +31,4 @@ Profile facts carry editable `visibility`, `exposure`, and usage flags. Local da
 
 Static demos must omit real profile facts or use fake profile facts only.
 
-AAAAT cannot fully protect private data from an agent with direct `.private/` filesystem access, shell access sufficient to inspect the database, arbitrary localhost access to a running dashboard, or code modification ability. The task protocol reduces accidental over-exposure through the supported adapters.
+AAAAT cannot fully protect private data from an agent with direct `.private/` filesystem access, shell access sufficient to inspect the database, arbitrary localhost access to a running dashboard, or code modification ability. The capability-scoped protocol reduces accidental over-exposure through the supported adapters.
