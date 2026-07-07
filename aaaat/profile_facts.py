@@ -215,11 +215,11 @@ def public_fact_metadata(item: dict[str, Any], denied: bool = False) -> dict[str
 
 
 def summarized_body(item: dict[str, Any]) -> str:
-    title = str(item.get("title") or "").strip()
-    body = str(item.get("body") or "").strip()
-    if title and body:
-        return f"{title}: {body[:240]}"
-    return title or body[:240]
+    fact_type = str(item.get("fact_type") or "profile fact").replace("_", " ")
+    title = str(item.get("title") or fact_type).strip()
+    tags = ", ".join(item.get("tags") or [])
+    suffix = f" Tags: {tags}." if tags else ""
+    return f"{fact_type}: {title}.{suffix}"
 
 
 def anonymized_body(item: dict[str, Any]) -> str:
