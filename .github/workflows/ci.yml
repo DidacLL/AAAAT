@@ -27,17 +27,11 @@ jobs:
       - name: Show Python version
         run: python --version
 
-      - name: Block private and generated files
-        run: |
-          bad_files=$(git ls-files | grep -E '(^\.private/|\.sqlite3?$|\.db$|/__pycache__/|\.py[co]$)' || true)
-          if [ -n "$bad_files" ]; then
-            echo "Forbidden files are tracked:"
-            echo "$bad_files"
-            exit 1
-          fi
+      - name: Check repository guardrails
+        run: python -B tools/repo_guard.py --ci
 
       - name: Compile Python sources
-        run: python -B -m compileall -q aaaat tests
+        run: python -B -m compileall -q aaaat tests tools
 
       - name: Run contract tests
         run: python -B -m unittest discover -s tests
