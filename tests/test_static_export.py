@@ -14,7 +14,7 @@ class StaticExportTests(unittest.TestCase):
             html = output.read_text(encoding="utf-8")
 
         self.assertIn("Northstar Systems", html)
-        self.assertIn("Fake demo application", html)
+        self.assertIn("Demo company with fake data", html)
         self.assertNotIn("Raw intake", html)
         self.assertNotIn("data-write-control", html)
         self.assertNotIn(".private", html)

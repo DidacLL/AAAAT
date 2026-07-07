@@ -233,6 +233,20 @@ def add_raw_intake(conn: sqlite3.Connection, application_id: str, content: str, 
     return item
 
 
+def create_raw_offer_intake(conn: sqlite3.Connection, content: str, created_by: str = "user") -> dict[str, Any]:
+    app = create_application(
+        conn,
+        company="Pending extraction",
+        role="Pending role",
+        status="intake",
+        priority="normal",
+        next_action="Extract raw offer details",
+    )
+    intake = add_raw_intake(conn, app["id"], content, created_by)
+    app["raw_intake"] = [intake]
+    return app
+
+
 def list_raw_intake(conn: sqlite3.Connection, application_id: str) -> list[dict[str, Any]]:
     rows = conn.execute(
         "SELECT * FROM raw_intake WHERE application_id = ? ORDER BY created_at DESC",

@@ -39,6 +39,19 @@ Acceptance hardening pass run on 2026-07-06 in `V:\SCVRI\Documents\GitHub\AAAAT`
 - CLI parity commands work: `tests/test_cli_mcp.py::CliMcpTests.test_cli_basic_commands_work`
 - Manual browser/API smoke: temporary full-mode and read-only servers on `127.0.0.1`, with application/profile/glossary/raw-intake/artifact writes in full mode, read-only write rejection, and static demo privacy check.
 
+## Sprint 3 Dashboard IA And Review Queue Coverage
+
+- Application list and focused view identity: `tests/test_dashboard_modes.py::DashboardModeTests.test_application_list_focused_view_keyword_and_tabs_are_structured`
+- Keyword drilldown context: `tests/test_dashboard_modes.py::DashboardModeTests.test_application_list_focused_view_keyword_and_tabs_are_structured`
+- Tabs and raw/full-mode behavior: `tests/test_dashboard_modes.py::DashboardModeTests.test_application_list_focused_view_keyword_and_tabs_are_structured`
+- Main dashboard has no always-visible create form: `tests/test_dashboard_modes.py::DashboardModeTests.test_sparse_application_renders_cleanly`
+- Sparse application rendering: `tests/test_dashboard_modes.py::DashboardModeTests.test_sparse_application_renders_cleanly`
+- Deterministic review queue generation and shrink behavior: `tests/test_review_queue.py::ReviewQueueTests.test_review_queue_includes_missing_fields_and_keyword_definitions_then_shrinks`
+- Raw offer intake placeholder and queue behavior: `tests/test_review_queue.py::ReviewQueueTests.test_raw_offer_intake_creates_placeholder_app_raw_intake_and_queue_item`
+- CLI review queue and raw-offer intake: `tests/test_cli_mcp.py::CliMcpTests.test_cli_basic_commands_work`
+- API review queue and raw-offer intake: `tests/test_server_api.py::ServerApiTests.test_health_and_dashboard_payload_include_applications_and_glossary`, `tests/test_server_api.py::ServerApiTests.test_full_mode_api_and_forms_create_update_manual_data`
+- MCP review queue discovery: `tests/test_cli_mcp.py::CliMcpTests.test_mcp_descriptor_validates`
+
 ## Verification Commands
 
 ```powershell

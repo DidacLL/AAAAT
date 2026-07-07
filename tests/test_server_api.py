@@ -50,7 +50,7 @@ class ServerApiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                create_application(conn, company="API Demo Co", role="API Engineer", keywords=["ATS"])
+                app = create_application(conn, company="API Demo Co", role="API Engineer", keywords=["ATS"])
             server, thread = self.start_server(tmp, Mode.FULL)
             try:
                 status, body = self.request(server, "GET", "/api/health")
@@ -62,6 +62,17 @@ class ServerApiTests(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertTrue(payload["applications"])
                 self.assertTrue(payload["glossary"])
+
+                status, body = self.request(server, "GET", "/api/review-queue")
+                queue = json.loads(body)["review_queue"]
+                self.assertEqual(status, 200)
+                self.assertTrue(queue)
+
+                status, body = self.request(server, "GET", f"/api/review-queue?application_id={app['id']}")
+                filtered = json.loads(body)["review_queue"]
+                self.assertEqual(status, 200)
+                self.assertTrue(filtered)
+                self.assertTrue(all(item["application_id"] == app["id"] for item in filtered))
             finally:
                 server.shutdown()
                 server.server_close()
@@ -96,6 +107,12 @@ class ServerApiTests(unittest.TestCase):
                 status, body = self.request(server, "POST", "/api/applications", {"company": "Browser Co", "role": "Operator"})
                 self.assertEqual(status, 201)
                 app_id = json.loads(body)["id"]
+
+                status, body = self.request(server, "POST", "/api/raw-offer-intake", {"content": "Raw offer text"})
+                intake_app = json.loads(body)
+                self.assertEqual(status, 201)
+                self.assertEqual(intake_app["company"], "Pending extraction")
+                self.assertEqual(intake_app["status"], "intake")
 
                 status, body = self.request(server, "PATCH", f"/api/applications/{app_id}", {"next_action": "Call back", "keywords": "ATS, Python"})
                 updated = json.loads(body)

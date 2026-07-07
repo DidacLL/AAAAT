@@ -5,20 +5,27 @@ from typing import Any
 
 from .artifacts import list_artifacts
 from .db import list_applications, list_glossary, list_raw_intake, profile_variables, required_profile_variables
+from .review_queue import next_action_date, review_queue, sorted_applications
 
 
 def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> dict[str, Any]:
-    apps = list_applications(conn)
+    glossary = list_glossary(conn)
+    apps = sorted_applications(list_applications(conn), glossary)
     for app in apps:
         app["artifacts"] = list_artifacts(conn, app["id"])
+        app["last_activity"] = app.get("updated_at") or app.get("created_at") or ""
+        app["next_action_date"] = next_action_date(app)
+        app["call_probability_label"] = "Call probability: pending signal model"
         if include_raw:
             app["raw_intake"] = list_raw_intake(conn, app["id"])
-    return {
+    payload = {
         "applications": apps,
-        "glossary": list_glossary(conn),
+        "glossary": glossary,
         "profile_variables": profile_variables(conn),
         "missing_profile_variables": required_profile_variables(conn),
     }
+    payload["review_queue"] = review_queue(payload)
+    return payload
 
 
 def application_context(conn: sqlite3.Connection, application_id: str) -> dict[str, Any]:

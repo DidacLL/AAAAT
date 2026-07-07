@@ -7,8 +7,10 @@ Use:
 - `python -m aaaat.cli app show <id>`
 - `python -m aaaat.cli app update <id> --next-action "..."`
 - `python -m aaaat.cli intake add <id> --content "..."`
+- `python -m aaaat.cli intake raw-offer --content "..."`
 - `python -m aaaat.cli glossary set <term> --definition "..."`
 - `python -m aaaat.cli profile missing`
+- `python -m aaaat.cli review-queue`
 - `python -m aaaat.cli artifact update-state <artifact_id> --state reviewed`
 - `python -m aaaat.cli render cover-letter <id>`
 - `python -m aaaat.cli export static-demo outputs/static-demo.html`

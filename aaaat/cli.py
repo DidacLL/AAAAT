@@ -11,6 +11,7 @@ from .db import (
     add_raw_intake,
     connect,
     create_application,
+    create_raw_offer_intake,
     get_application,
     init_db,
     list_applications,
@@ -20,6 +21,8 @@ from .db import (
     upsert_glossary_term,
 )
 from .mcp_server import mcp_descriptor, validate_descriptor
+from .payload import dashboard_payload
+from .review_queue import review_queue
 from .server import launch
 from .static_export import export_static_demo
 from .templates import render_to_file
@@ -78,6 +81,8 @@ def build_parser() -> argparse.ArgumentParser:
     intake_add.add_argument("application_id")
     intake_add.add_argument("--content", required=True)
     intake_add.add_argument("--created-by", default="agent")
+    intake_raw = intake.add_parser("raw-offer")
+    intake_raw.add_argument("--content", required=True)
 
     artifact = sub.add_parser("artifact").add_subparsers(dest="artifact_command", required=True)
     artifact_list = artifact.add_parser("list")
@@ -115,6 +120,9 @@ def build_parser() -> argparse.ArgumentParser:
     export = sub.add_parser("export").add_subparsers(dest="export_command", required=True)
     static_demo = export.add_parser("static-demo")
     static_demo.add_argument("output", nargs="?", default="outputs/static-demo.html")
+
+    review_queue_p = sub.add_parser("review-queue")
+    review_queue_p.add_argument("application_id", nargs="?")
 
     sub.add_parser("agent-guide")
     sub.add_parser("mcp-descriptor")
@@ -159,6 +167,8 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(get_application(conn, args.id), indent=2))
         elif args.command == "intake" and args.intake_command == "add":
             print(json.dumps(add_raw_intake(conn, args.application_id, args.content, args.created_by), indent=2))
+        elif args.command == "intake" and args.intake_command == "raw-offer":
+            print(json.dumps(create_raw_offer_intake(conn, args.content, "user"), indent=2))
         elif args.command == "artifact" and args.artifact_command == "list":
             print(json.dumps(list_artifacts(conn, args.application_id), indent=2))
         elif args.command == "artifact" and args.artifact_command == "save":
@@ -178,6 +188,8 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(upsert_glossary_term(conn, args.term, args.definition, args.category), indent=2))
         elif args.command == "export" and args.export_command == "static-demo":
             print(export_static_demo(args.output))
+        elif args.command == "review-queue":
+            print(json.dumps(review_queue(dashboard_payload(conn), args.application_id), indent=2))
         else:
             raise SystemExit(f"Unhandled command: {args.command}")
     return 0
