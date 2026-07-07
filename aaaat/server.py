@@ -166,8 +166,6 @@ class AAAATHandler(BaseHTTPRequestHandler):
 
 
 def launch(storage: str = ".private", read_only: bool = False, host: str = "127.0.0.1", port: int = 8765) -> None:
-    init_db(storage)
-    handler = type("ConfiguredAAAATHandler", (AAAATHandler,), {"storage_path": storage, "mode": Mode.READ_ONLY if read_only else Mode.FULL})
-    server = ThreadingHTTPServer((host, port), handler)
-    print(f"AAAAT listening on http://{host}:{port}")
-    server.serve_forever()
+    from .server_fastapi import launch as launch_fastapi
+
+    launch_fastapi(storage, read_only, host=host, port=port)

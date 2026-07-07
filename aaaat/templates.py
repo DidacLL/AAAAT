@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from . import artifacts
-from .db import get_application, get_template, profile_variables
+from .db import get_application, get_template
+from .privacy import resolve_variables
 
 
 VARIABLE_RE = re.compile(r"{{\s*([a-zA-Z0-9_.-]+)\s*}}")
@@ -31,10 +32,7 @@ def render_string(template: str, values: dict[str, Any], required: list[str] | N
 
 def context_for_application(conn: sqlite3.Connection, application_id: str | None = None, extra: dict[str, Any] | None = None) -> dict[str, Any]:
     values: dict[str, Any] = {}
-    for key, value in profile_variables(conn).items():
-        values[f"profile.{key}"] = value
-        if key.startswith("profile."):
-            values[key] = value
+    values.update(resolve_variables(conn, "local_render"))
     if application_id:
         app = get_application(conn, application_id)
         for key, value in app.items():

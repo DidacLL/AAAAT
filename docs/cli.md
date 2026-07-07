@@ -27,3 +27,26 @@ python -m aaaat.cli agent-guide
 ```
 
 `intake raw-offer` creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue then tells an agent what to extract.
+
+Durable production-sprint commands:
+
+```bash
+python -m aaaat.cli task create --application-id <id> --type company_research --title "Research company"
+python -m aaaat.cli task list
+python -m aaaat.cli task show <task_id>
+python -m aaaat.cli task complete <task_id> --result-body "..."
+python -m aaaat.cli task apply <task_id>
+python -m aaaat.cli todo create --application-id <id> --title "Follow up"
+python -m aaaat.cli todo list
+python -m aaaat.cli note add --application-id <id> --body "..."
+python -m aaaat.cli note list --application-id <id>
+python -m aaaat.cli blob add --application-id <id> --type company_research --body "..."
+python -m aaaat.cli blob list --application-id <id>
+python -m aaaat.cli keyword alias ATS "Applicant tracker"
+python -m aaaat.cli keyword note ATS --body "..."
+python -m aaaat.cli variable set display_name "Local User"
+python -m aaaat.cli variable list
+python -m aaaat.cli search "Python"
+```
+
+`profile set` is still supported, but new variable storage canonicalizes profile keys such as `display_name` and `summary.default` to stable placeholders such as `{{ profile.display_name }}` and `{{ profile.summary.default }}`.

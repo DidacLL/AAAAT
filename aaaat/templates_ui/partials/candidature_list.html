@@ -1,0 +1,20 @@
+<section class="surface" aria-label="Candidatures">
+  <h2>Candidatures</h2>
+  {% if applications %}
+    {% for app in applications %}
+      <a class="app-row" data-app-row href="/?view={{ view }}&application_id={{ app.id }}" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
+        <strong>{{ app.company or "Add company" }}</strong><br>
+        <span>{{ app.role or "Add role" }}</span>
+        <span class="meta">
+          <span>{{ app.status or "draft" }}</span>
+          {% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}
+        </span>
+        {% for keyword in app.keywords or [] %}
+          <span class="chip" data-keyword="{{ keyword }}">{{ keyword }}</span>
+        {% endfor %}
+      </a>
+    {% endfor %}
+  {% else %}
+    <p class="body empty">No candidatures yet.</p>
+  {% endif %}
+</section>

@@ -61,7 +61,10 @@ def list_artifacts(conn: sqlite3.Connection, application_id: str | None = None) 
               WHEN 'draft' THEN 2
               WHEN 'archived' THEN 3
               ELSE 2
-            END, created_at DESC""",
+            END,
+            CASE WHEN review_state = 'archived' THEN created_at END ASC,
+            CASE WHEN review_state != 'archived' THEN created_at END DESC,
+            rowid ASC""",
             (application_id,),
         ).fetchall()
     else:
@@ -73,7 +76,10 @@ def list_artifacts(conn: sqlite3.Connection, application_id: str | None = None) 
               WHEN 'draft' THEN 2
               WHEN 'archived' THEN 3
               ELSE 2
-            END, created_at DESC"""
+            END,
+            CASE WHEN review_state = 'archived' THEN created_at END ASC,
+            CASE WHEN review_state != 'archived' THEN created_at END DESC,
+            rowid ASC"""
         ).fetchall()
     return [row_to_dict(row) for row in rows]
 

@@ -97,6 +97,9 @@ def seed_defaults(conn: sqlite3.Connection) -> None:
             ),
         ],
     )
+    from .privacy import migrate_profile_variables
+
+    migrate_profile_variables(conn)
 
 
 def default_cv_template() -> str:
@@ -275,32 +278,27 @@ def upsert_glossary_term(conn: sqlite3.Connection, term: str, definition: str, c
 
 
 def set_profile_variable(conn: sqlite3.Connection, key: str, value: str) -> None:
-    conn.execute(
-        "INSERT INTO profile_variables(key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-        (key, value, utc_now()),
-    )
-    conn.commit()
+    from .privacy import set_variable
+
+    set_variable(conn, key, value, mirror_profile=True)
 
 
 def profile_variables(conn: sqlite3.Connection) -> dict[str, str]:
-    rows = conn.execute("SELECT key, value FROM profile_variables ORDER BY key").fetchall()
-    return {row["key"]: row["value"] for row in rows}
+    from .privacy import profile_variables_compat
+
+    return profile_variables_compat(conn)
 
 
 def required_profile_variables(conn: sqlite3.Connection) -> list[str]:
-    existing = profile_variables(conn)
     required: set[str] = set()
     rows = conn.execute("SELECT required_variables FROM templates").fetchall()
     for row in rows:
         for key in json.loads(row["required_variables"]):
             if key.startswith("profile."):
                 required.add(key)
-    missing = []
-    for key in sorted(required):
-        short_key = key.removeprefix("profile.")
-        if not existing.get(short_key) and not existing.get(key):
-            missing.append(key)
-    return missing
+    from .privacy import required_profile_variables as missing_profile_variables
+
+    return missing_profile_variables(conn, required)
 
 
 def get_template(conn: sqlite3.Connection, name: str) -> dict[str, Any]:
