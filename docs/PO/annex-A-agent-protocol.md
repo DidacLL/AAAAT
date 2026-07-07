@@ -1,9 +1,16 @@
-# Annex A — Agent Protocol Contract
+# Annex A — Agent Capability Protocol Contract
 
-## Canonical operations
-The task protocol is the canonical agent contract. Every adapter must implement the same conceptual operations.
+## Canonical rule
 
-Required operations:
+The agent contract is capability-scoped, not generic CRUD.
+
+The implemented capability is task work. Future capabilities may include raw-offer intake and structured extraction/proposal submission, but only if they use explicit input/output schemas and narrow reviewable write paths.
+
+Agents must never receive broad candidature/application lists, dashboard payloads, arbitrary search, raw variable dumps, raw profile fact lists, generic object retrieval, or generic patch/update routes.
+
+## Implemented task capability
+
+Required task operations:
 
 ```text
 list_agent_task_envelopes(conn, *, state=None, limit=None) -> list[dict]
@@ -16,6 +23,7 @@ release_agent_task(conn, task_id) -> dict
 Suggested module: `aaaat/agent_access.py`.
 
 ## Task envelope shape
+
 Task list responses must return envelopes only.
 
 Allowed fields:
@@ -38,7 +46,28 @@ Do not include full candidature/application objects, notes, raw intake, full com
 
 If an opaque correlation key is needed, include `application_id`, but do not treat that as permission to include application details in the task list.
 
+## Planned raw-offer intake capability
+
+Agents should be able to start from a copied job offer without first listing existing records.
+
+Planned operations:
+
+```text
+agent_intake_raw_offer(content, *, source_url='', agent_name='', agent_runtime='') -> dict
+agent_submit_structured_extraction(correlation_id, fields_json, *, agent_name='', agent_runtime='', model_provider='') -> dict
+```
+
+Expected behavior:
+
+- raw-offer intake creates a placeholder candidature and extraction/enrichment tasks;
+- the response returns only a narrow acknowledgement, an opaque correlation id, and created task envelopes;
+- structured extraction accepts only a documented finite JSON schema;
+- existing approved/non-empty fields are not overwritten except through deterministic apply rules;
+- conflicts are stored as reviewable task results or text blobs;
+- no generic candidature CRUD is exposed.
+
 ## Result submission
+
 Agent result submission must:
 
 - create or update a task result/text blob with provenance;
@@ -48,4 +77,5 @@ Agent result submission must:
 - leave deterministic apply/review to AAAAT service logic.
 
 ## Apply boundary
-`apply_task_result` remains the deterministic mutation boundary. Agent adapters call submit/complete, not arbitrary update/patch routes.
+
+`apply_task_result` remains the deterministic mutation boundary. Agent adapters call schema-bound capability operations and submit/complete operations, not arbitrary update/patch routes.
