@@ -17,6 +17,8 @@ class StaticExportTests(unittest.TestCase):
         self.assertIn("Demo company with fake data", html)
         self.assertNotIn("Raw intake", html)
         self.assertNotIn("data-write-control", html)
+        self.assertNotIn("Render local template", html)
+        self.assertNotIn("Queue agent draft", html)
         self.assertNotIn(".private", html)
         self.assertNotIn("{{", html)
         self.assertNotRegex(html, re.compile(r"[\w.+-]+@[\w.-]+"))

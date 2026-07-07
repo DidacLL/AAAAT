@@ -8,6 +8,8 @@ When a raw offer is pasted through `intake raw-offer` or `/api/raw-offer-intake`
 
 Durable tasks are the preferred agent boundary. Agents should list/show tasks, retrieve scoped candidature context, and save output back as a task result, suggestion, text blob, artifact, or keyword proposal. Agent-generated output must not directly overwrite user-approved candidature fields.
 
+Task result apply is conservative. Structured field inference fills empty supported fields and records skipped conflicts; company research, keyword definitions, and form answers update empty destinations only unless an explicit replace intent is present. Plain text or conflicting results remain reviewable text blobs.
+
 Variable values in agent context are privacy-filtered. Unless a variable explicitly permits raw exposure, agents should expect placeholders, redacted values, summaries, or denied fields.
 
 Search uses SQLite FTS5 lazily through the search service. Normal database initialization does not require FTS5, but search calls should report `SQLite FTS5 is required` clearly if the local SQLite build does not provide it.
@@ -17,6 +19,6 @@ The core rule is simple: public demo data is fake, private data stays in `.priva
 
 Use `GET /api/profile/context?purpose=...` when a task needs candidate-side context. Supported purposes are `cv_generation`, `cover_letter`, `candidature_fit`, `market_research`, `recruiter_call`, and `form_answers`.
 
-Do not ask for raw private CV/profile data ad hoc when a purpose-filtered profile context is available. Respect each fact's exposure value. For market research, use anonymized or summarized facts by default.
+Do not ask for raw private CV/profile data ad hoc when a purpose-filtered profile context is available. REST profile context is agent-scoped; local/dashboard scopes are internal-only. Respect each fact's exposure value. For market research, use anonymized or summarized facts by default.
 
 Agents may produce suggestions, task results, notes, or text blobs. They must not directly overwrite approved candidature fields or raw profile facts.

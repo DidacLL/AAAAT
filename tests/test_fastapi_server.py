@@ -3,8 +3,10 @@ import inspect
 import json
 import tempfile
 import unittest
+from pathlib import Path
 
 from aaaat.db import connect, create_application, init_db
+from aaaat.profile_facts import create_profile_fact
 from aaaat.security import Mode
 from aaaat.server import launch
 
@@ -251,6 +253,8 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(client.post("/api/text-blobs", json={"body": "Nope"}).status_code, 403)
             self.assertEqual(client.post("/api/keywords", json={"term": "Nope"}).status_code, 403)
             self.assertEqual(client.put("/api/variables/display_name", json={"value": "Nope"}).status_code, 403)
+            self.assertEqual(client.post("/api/render/cv", json={"application_id": app["id"]}).status_code, 403)
+            self.assertEqual(client.post("/api/render/cover-letter", json={"application_id": app["id"]}).status_code, 403)
 
     def test_dashboard_workflow_forms_create_and_queue_user_actions(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -350,12 +354,16 @@ class FastApiServerTests(unittest.TestCase):
 
             cv = client.post("/api/render/cv", json={"application_id": app_id, "compile_pdf": True})
             self.assertEqual(cv.status_code, 200)
-            artifact = cv.json()
+            result = cv.json()
+            artifact = result["artifact"]
             self.assertEqual(artifact["artifact_type"], "cv")
             self.assertEqual(artifact["source_context"], "template:cv")
             self.assertIn("local", artifact["notes"].lower())
             self.assertTrue(artifact["path"].endswith((".tex", ".pdf")))
-            self.assertIn("Local User", open(artifact["path"], encoding="utf-8").read() if artifact["path"].endswith(".tex") else "Local User")
+            self.assertEqual(result["artifact_id"], artifact["id"])
+            self.assertIn(result["pdf_status"], {"not_requested", "unavailable", "success", "failed", "timeout"})
+            self.assertTrue(result["tex_path"].endswith(".tex"))
+            self.assertIn("Local User", Path(result["tex_path"]).read_text(encoding="utf-8"))
 
             context = client.get(f"/api/applications/{app_id}/context").json()
             self.assertEqual(context["variables"]["profile.display_name"], "{{ profile.display_name }}")
@@ -366,7 +374,73 @@ class FastApiServerTests(unittest.TestCase):
                 json={"application_id": app_id, "body": "Local cover body"},
             )
             self.assertEqual(cover.status_code, 200)
-            self.assertEqual(cover.json()["source_context"], "template:cover-letter")
+            self.assertEqual(cover.json()["artifact"]["source_context"], "template:cover-letter")
+
+            repeated = client.post("/api/render/cover-letter", json={"application_id": app_id, "body": "Local cover body"})
+            self.assertEqual(repeated.status_code, 200)
+            self.assertEqual(repeated.json()["artifact_id"], cover.json()["artifact_id"])
+
+            outside = client.post("/api/render/cv", json={"application_id": app_id, "output_path": str(Path(tmp).parent / "escape.tex")})
+            self.assertEqual(outside.status_code, 400)
+
+            form = client.post("/api/render/cv", data={"application_id": app_id}, follow_redirects=False)
+            self.assertEqual(form.status_code, 303)
+
+    def test_api_rejects_local_scope_privacy_escalation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                app = create_application(conn, company="Scope Co", role="Engineer")
+                for exposure, body in (
+                    ("placeholder", "PRIVATE PLACEHOLDER FACT"),
+                    ("summarized", "PRIVATE SUMMARIZED FACT"),
+                    ("redacted", "PRIVATE REDACTED FACT"),
+                    ("denied", "PRIVATE DENIED FACT"),
+                ):
+                    create_profile_fact(
+                        conn,
+                        fact_type="skill",
+                        title=f"{exposure} skill",
+                        body=body,
+                        exposure=exposure,
+                        use_for_agent_context=True,
+                        use_for_cv=True,
+                    )
+            client = self.client(tmp)
+            client.put("/api/variables/display_name", json={"value": "PRIVATE VARIABLE", "exposure": "placeholder"})
+            client.put("/api/variables/redacted_value", json={"value": "PRIVATE REDACTED VARIABLE", "exposure": "redacted"})
+            client.put(
+                "/api/variables/summary_value",
+                json={"value": "PRIVATE SUMMARIZED VARIABLE", "exposure": "summarized", "summary": "safe summary"},
+            )
+            client.put("/api/variables/denied_value", json={"value": "PRIVATE DENIED VARIABLE", "exposure": "denied"})
+
+            for url in (
+                "/api/variables?scope=local_dashboard",
+                "/api/variables/profile.display_name?scope=read_only_dashboard",
+                "/api/profile/context?purpose=candidature_fit&scope=local_render",
+                "/api/profile/context?purpose=candidature_fit&scope=dashboard",
+            ):
+                self.assertEqual(client.get(url).status_code, 400)
+
+            variables = client.get("/api/variables").json()
+            self.assertEqual(variables["variables"]["profile.display_name"], "{{ profile.display_name }}")
+            self.assertNotIn("PRIVATE VARIABLE", json.dumps(variables))
+            self.assertNotIn("PRIVATE REDACTED VARIABLE", json.dumps(variables))
+            self.assertNotIn("PRIVATE SUMMARIZED VARIABLE", json.dumps(variables))
+            self.assertNotIn("PRIVATE DENIED VARIABLE", json.dumps(variables))
+
+            profile_context = client.get("/api/profile/context?purpose=candidature_fit").json()
+            for secret in (
+                "PRIVATE PLACEHOLDER FACT",
+                "PRIVATE SUMMARIZED FACT",
+                "PRIVATE REDACTED FACT",
+                "PRIVATE DENIED FACT",
+            ):
+                self.assertNotIn(secret, json.dumps(profile_context))
+
+            app_context = client.get(f"/api/applications/{app['id']}/context").json()
+            self.assertNotIn("PRIVATE VARIABLE", json.dumps(app_context))
 
 
 if __name__ == "__main__":

@@ -219,39 +219,84 @@ def apply_task_result(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
         result_body = str(get_text_blob(conn, result_blob_id).get("body") or "")
     task_type = task.get("task_type", "")
     application_id = task.get("application_id")
+    applied = False
+    notes: list[str] = []
 
     if application_id and task_type == "field_inference":
-        apply_field_inference(conn, application_id, result_body)
+        applied, notes = apply_field_inference(conn, application_id, result_body)
     elif application_id and task_type == "company_research":
-        from .candidatures import update_candidature
-
-        update_candidature(conn, application_id, company_research=result_body)
+        applied, notes = apply_single_field_result(
+            conn,
+            application_id,
+            "company_research",
+            result_body,
+            default_title="Company research result",
+        )
     elif task_type == "keyword_definition":
         term = keyword_from_context(task.get("context_hint", ""))
         if not term:
             raise ValueError("Keyword definition task requires context_hint=keyword:{term}")
-        upsert_glossary_term(conn, term, result_body)
+        applied, notes = apply_keyword_definition(conn, term, result_body)
     elif application_id and task_type == "draft_form_responses":
-        from .candidatures import update_candidature
-
-        update_candidature(conn, application_id, form_answers=result_body)
+        applied, notes = apply_single_field_result(
+            conn,
+            application_id,
+            "form_answers",
+            result_body,
+            default_title="Form response draft",
+        )
     elif artifact_id and task_type in {"draft_cv", "draft_cover_letter"}:
         update_artifact_state(conn, artifact_id, "reviewed", "Applied from completed task result.")
+        applied = True
+        notes = [f"Reviewed artifact {artifact_id}; not marked submitted."]
 
     if result_blob_id:
-        update_text_blob(conn, result_blob_id, review_state="applied")
+        update_text_blob(conn, result_blob_id, review_state="applied" if applied else "reviewed")
+    if notes:
+        existing_notes = str(task.get("notes") or "").strip()
+        suffix = "Apply notes: " + "; ".join(notes)
+        update_task(conn, task_id, notes=(existing_notes + "\n" + suffix).strip())
     return get_task(conn, task_id)
 
 
-def apply_field_inference(conn: sqlite3.Connection, application_id: str, result_body: str) -> None:
+def parse_task_result(result_body: str) -> tuple[Any, bool]:
+    try:
+        parsed = json.loads(result_body)
+    except json.JSONDecodeError:
+        return result_body, False
+    if isinstance(parsed, dict):
+        replace = bool(parsed.get("replace_existing") or parsed.get("replace"))
+        if "fields" in parsed and isinstance(parsed["fields"], dict):
+            return parsed["fields"], replace
+        if "result" in parsed:
+            return parsed["result"], replace
+        return parsed, replace
+    return parsed, False
+
+
+def result_text(parsed: Any, fallback: str, *keys: str) -> str:
+    if isinstance(parsed, dict):
+        for key in keys:
+            if key in parsed:
+                return str(parsed.get(key) or "")
+    return str(parsed if isinstance(parsed, str) else fallback)
+
+
+def is_empty_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, list):
+        return len(value) == 0
+    return not str(value).strip()
+
+
+def apply_field_inference(conn: sqlite3.Connection, application_id: str, result_body: str) -> tuple[bool, list[str]]:
     from .candidatures import update_candidature
 
-    try:
-        fields = json.loads(result_body)
-    except json.JSONDecodeError as exc:
-        raise ValueError("Field inference task result must be a JSON object") from exc
+    parsed, replace = parse_task_result(result_body)
+    fields = parsed
     if not isinstance(fields, dict):
-        raise ValueError("Field inference task result must be a JSON object")
+        return False, ["Plain text field inference result kept as reviewable text blob."]
     allowed = {
         "company",
         "role",
@@ -284,7 +329,80 @@ def apply_field_inference(conn: sqlite3.Connection, application_id: str, result_
         "valuation",
         "keywords",
     }
-    update_candidature(conn, application_id, **{key: value for key, value in fields.items() if key in allowed})
+    current = get_candidature_for_apply(conn, application_id)
+    updates: dict[str, Any] = {}
+    skipped: list[str] = []
+    for key, value in fields.items():
+        if key not in allowed:
+            continue
+        existing = current.get(key)
+        if replace or is_empty_value(existing):
+            updates[key] = value
+        else:
+            skipped.append(key)
+    if updates:
+        update_candidature(conn, application_id, **updates)
+    notes = []
+    if updates:
+        notes.append("Filled empty fields: " + ", ".join(sorted(updates)))
+    if skipped:
+        notes.append("Skipped non-empty fields: " + ", ".join(sorted(skipped)))
+    if not updates and not skipped:
+        notes.append("No supported field inference fields found.")
+    return bool(updates), notes
+
+
+def get_candidature_for_apply(conn: sqlite3.Connection, application_id: str) -> dict[str, Any]:
+    from .candidatures import get_candidature
+
+    loaded = get_candidature(conn, application_id, include_related=False)
+    current = dict(loaded)
+    current.update(loaded.get("details", {}))
+    return current
+
+
+def apply_single_field_result(
+    conn: sqlite3.Connection,
+    application_id: str,
+    field_name: str,
+    result_body: str,
+    *,
+    default_title: str,
+) -> tuple[bool, list[str]]:
+    from .candidatures import update_candidature
+
+    parsed, replace = parse_task_result(result_body)
+    value = result_text(parsed, result_body, field_name, "body", "text", "content", "answer")
+    current = get_candidature_for_apply(conn, application_id)
+    if replace or is_empty_value(current.get(field_name)):
+        update_candidature(conn, application_id, **{field_name: value})
+        return True, [f"Filled {field_name}."]
+    create_text_blob(
+        conn,
+        field_name,
+        value,
+        application_id=application_id,
+        title=default_title,
+        source_context=f"conflict:{field_name}",
+        review_state="suggested",
+        created_by="agent",
+        notes=f"Kept as suggestion because {field_name} already had content.",
+    )
+    return False, [f"Skipped non-empty {field_name}; saved suggestion text blob."]
+
+
+def apply_keyword_definition(conn: sqlite3.Connection, term: str, result_body: str) -> tuple[bool, list[str]]:
+    parsed, replace = parse_task_result(result_body)
+    definition = result_text(parsed, result_body, "definition", "body", "text", "content")
+    row = conn.execute("SELECT definition, category FROM glossary_terms WHERE term = ?", (term,)).fetchone()
+    current = row_to_dict(row) if row else {}
+    if replace or is_empty_value(current.get("definition")):
+        category = str(current.get("category") or "")
+        if isinstance(parsed, dict) and parsed.get("category"):
+            category = str(parsed["category"])
+        upsert_glossary_term(conn, term, definition, category)
+        return True, [f"Saved keyword definition for {term}."]
+    return False, [f"Skipped existing keyword definition for {term}."]
 
 
 def keyword_from_context(context_hint: str) -> str:

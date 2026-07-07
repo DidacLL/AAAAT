@@ -54,6 +54,9 @@ class DashboardViewRenderTests(unittest.TestCase):
         self.assertNotIn("data-write-control", html)
         self.assertNotIn('data-inspector-tab="raw"', html)
         self.assertNotIn("data-raw-offer-entry", html)
+        self.assertNotIn("data-document-actions", html)
+        self.assertNotIn("Render local template", html)
+        self.assertNotIn("Queue agent draft", html)
 
     def test_user_view_is_a_preset_not_a_duplicate_record(self):
         payload, app = self.payload()

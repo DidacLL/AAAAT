@@ -38,7 +38,7 @@ from .security import Mode
 from .static_export import export_static_demo
 from .tasks import apply_task_result, complete_task, create_task, get_task, list_tasks, update_task
 from .text_blobs import create_text_blob, list_text_blobs, update_text_blob
-from .templates import render_document_artifact
+from .templates import render_document_artifact, safe_artifact_output_path
 from .todos import create_todo, list_todos, update_todo
 
 
@@ -104,6 +104,10 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         if isinstance(exc, ValueError):
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         raise exc
+
+    def reject_rest_local_scope(scope: str) -> None:
+        if scope != "agent":
+            raise HTTPException(status_code=400, detail="REST API profile scopes are limited to agent")
 
     def make_view_model(
         conn: Any,
@@ -471,18 +475,12 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             handle_error(exc)
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-    def default_render_output(application_id: str, name: str) -> str:
-        base = Path(app.state.storage_path)
-        if base.suffix:
-            base = base.parent
-        return str(base / "artifacts" / application_id / f"{name}.tex")
-
     @app.post("/api/render/cv", dependencies=[Depends(writable)])
     async def api_render_cv(request: Request) -> Any:
         data, is_form = await request_data(request)
         application_id = data.get("application_id", "")
-        output = data.get("output_path") or default_render_output(application_id, "cv")
         try:
+            output = safe_artifact_output_path(app.state.storage_path, application_id, "cv", data.get("output_path") or None)
             with connect(app.state.storage_path) as conn:
                 item = render_document_artifact(
                     conn,
@@ -490,6 +488,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
                     output,
                     application_id,
                     compile_pdf=bool_field(data, "compile_pdf"),
+                    save_version=bool_field(data, "save_version"),
                 )
         except Exception as exc:
             handle_error(exc)
@@ -499,9 +498,11 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
     async def api_render_cover_letter(request: Request) -> Any:
         data, is_form = await request_data(request)
         application_id = data.get("application_id", "")
-        output = data.get("output_path") or default_render_output(application_id, "cover-letter")
         extra = {"artifact.cover_letter.body": data.get("body", "Draft body pending review.")}
+        if data.get("body_tex"):
+            extra["artifact.cover_letter.body_tex"] = data["body_tex"]
         try:
+            output = safe_artifact_output_path(app.state.storage_path, application_id, "cover-letter", data.get("output_path") or None)
             with connect(app.state.storage_path) as conn:
                 item = render_document_artifact(
                     conn,
@@ -510,6 +511,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
                     application_id,
                     extra,
                     compile_pdf=bool_field(data, "compile_pdf"),
+                    save_version=bool_field(data, "save_version"),
                 )
         except Exception as exc:
             handle_error(exc)
@@ -646,26 +648,23 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
 
     @app.get("/api/variables")
     def api_variables(scope: str = "agent") -> dict[str, Any]:
+        reject_rest_local_scope(scope)
         with connect(app.state.storage_path) as conn:
-            if scope in {"local_dashboard", "read_only_dashboard"}:
-                resolved = resolve_variables(conn, scope)
-            else:
-                resolved = resolve_variables(conn, "agent")
-            return {"variables": resolved}
+            return {"variables": resolve_variables(conn, "agent")}
 
     @app.get("/api/variables/{key}")
     def api_get_variable(key: str, scope: str = "agent") -> dict[str, Any]:
+        reject_rest_local_scope(scope)
         try:
             with connect(app.state.storage_path) as conn:
                 item = get_variable(conn, key)
-                selected_scope = scope if scope in {"agent", "local_dashboard", "read_only_dashboard"} else "agent"
                 return {
                     "key": item["key"],
                     "placeholder": item["placeholder"],
                     "is_sensitive": item["is_sensitive"],
                     "exposure": item["exposure"],
                     "summary": item["summary"],
-                    "resolved_value": resolve_variable_value(item, selected_scope),
+                    "resolved_value": resolve_variable_value(item, "agent"),
                     "updated_at": item["updated_at"],
                 }
         except Exception as exc:
@@ -830,9 +829,10 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
 
     @app.get("/api/profile/context")
     def api_profile_context(purpose: str = "cv_generation", scope: str = "agent") -> dict[str, Any]:
+        reject_rest_local_scope(scope)
         try:
             with connect(app.state.storage_path) as conn:
-                return profile_context(conn, purpose, scope=scope)
+                return profile_context(conn, purpose, scope="agent")
         except Exception as exc:
             handle_error(exc)
 

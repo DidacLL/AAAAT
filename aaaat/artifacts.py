@@ -51,6 +51,92 @@ def save_artifact(
     return item
 
 
+def get_artifact(conn: sqlite3.Connection, artifact_id: str) -> dict[str, Any]:
+    row = conn.execute("SELECT * FROM generated_artifacts WHERE id = ?", (artifact_id,)).fetchone()
+    if row is None:
+        raise KeyError(f"Artifact not found: {artifact_id}")
+    return row_to_dict(row)
+
+
+def find_current_draft_artifact(
+    conn: sqlite3.Connection,
+    application_id: str | None,
+    artifact_type: str,
+    source_context: str,
+) -> dict[str, Any] | None:
+    if application_id is None:
+        row = conn.execute(
+            """SELECT * FROM generated_artifacts
+            WHERE application_id IS NULL AND artifact_type = ? AND source_context = ?
+              AND review_state = 'draft'
+            ORDER BY created_at DESC, rowid DESC LIMIT 1""",
+            (artifact_type, source_context),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            """SELECT * FROM generated_artifacts
+            WHERE application_id = ? AND artifact_type = ? AND source_context = ?
+              AND review_state = 'draft'
+            ORDER BY created_at DESC, rowid DESC LIMIT 1""",
+            (application_id, artifact_type, source_context),
+        ).fetchone()
+    return row_to_dict(row) if row else None
+
+
+def save_or_update_draft_artifact(
+    conn: sqlite3.Connection,
+    application_id: str | None,
+    artifact_type: str,
+    path: str,
+    label: str,
+    *,
+    source_context: str,
+    agent_name: str = "",
+    agent_runtime: str = "",
+    model_provider: str = "",
+    notes: str = "",
+    save_version: bool = False,
+) -> dict[str, Any]:
+    if save_version:
+        return save_artifact(
+            conn,
+            application_id,
+            artifact_type,
+            path,
+            label,
+            source_context=source_context,
+            agent_name=agent_name,
+            agent_runtime=agent_runtime,
+            model_provider=model_provider,
+            review_state="draft",
+            notes=notes,
+        )
+    existing = find_current_draft_artifact(conn, application_id, artifact_type, source_context)
+    if existing is None:
+        return save_artifact(
+            conn,
+            application_id,
+            artifact_type,
+            path,
+            label,
+            source_context=source_context,
+            agent_name=agent_name,
+            agent_runtime=agent_runtime,
+            model_provider=model_provider,
+            review_state="draft",
+            notes=notes,
+        )
+    conn.execute(
+        """UPDATE generated_artifacts SET
+          path = ?, label = ?, agent_name = ?, agent_runtime = ?,
+          model_provider = ?, notes = ?
+        WHERE id = ?""",
+        (path, label, agent_name, agent_runtime, model_provider, notes, existing["id"]),
+    )
+    conn.commit()
+    return get_artifact(conn, existing["id"])
+
+
 def list_artifacts(conn: sqlite3.Connection, application_id: str | None = None) -> list[dict[str, Any]]:
     if application_id:
         rows = conn.execute(
@@ -97,7 +183,4 @@ def update_artifact_state(
     else:
         conn.execute("UPDATE generated_artifacts SET review_state = ?, notes = ? WHERE id = ?", (review_state, notes, artifact_id))
     conn.commit()
-    row = conn.execute("SELECT * FROM generated_artifacts WHERE id = ?", (artifact_id,)).fetchone()
-    if row is None:
-        raise KeyError(f"Artifact not found: {artifact_id}")
-    return row_to_dict(row)
+    return get_artifact(conn, artifact_id)
