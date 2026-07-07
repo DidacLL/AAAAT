@@ -5,11 +5,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from .artifacts import save_artifact, update_artifact_state
-from .dashboard import render_dashboard
+from .dashboard import render_dashboard, render_raw_offer_intake_page
 from .db import (
     add_raw_intake,
     connect,
     create_application,
+    create_raw_offer_intake,
     init_db,
     list_applications,
     set_profile_variable,
@@ -17,6 +18,7 @@ from .db import (
     upsert_glossary_term,
 )
 from .payload import application_context, dashboard_payload
+from .review_queue import review_queue
 from .security import Mode
 from .static_export import export_static_demo
 
@@ -30,12 +32,22 @@ class AAAATHandler(BaseHTTPRequestHandler):
         with connect(self.storage_path) as conn:
             if parsed.path == "/":
                 payload = dashboard_payload(conn, include_raw=self.mode == Mode.FULL)
-                selected_id = parse_qs(parsed.query).get("application_id", [None])[0]
-                self.send_html(render_dashboard(payload, self.mode, selected_id))
+                query = parse_qs(parsed.query)
+                selected_id = query.get("application_id", [None])[0]
+                selected_keyword = query.get("keyword", [None])[0]
+                active_tab = query.get("tab", ["company"])[0]
+                self.send_html(render_dashboard(payload, self.mode, selected_id, selected_keyword, active_tab))
+            elif parsed.path == "/intake":
+                self.send_html(render_raw_offer_intake_page(self.mode))
             elif parsed.path == "/api/health":
                 self.send_json({"ok": True, "mode": self.mode.value})
             elif parsed.path == "/api/dashboard-payload":
                 self.send_json(dashboard_payload(conn, include_raw=self.mode == Mode.FULL))
+            elif parsed.path == "/api/review-queue":
+                query = parse_qs(parsed.query)
+                application_id = query.get("application_id", [None])[0]
+                payload = dashboard_payload(conn, include_raw=False)
+                self.send_json({"review_queue": review_queue(payload, application_id)})
             elif parsed.path == "/api/applications":
                 self.send_json({"applications": list_applications(conn)})
             elif parsed.path.startswith("/api/applications/") and parsed.path.endswith("/context"):
@@ -64,6 +76,9 @@ class AAAATHandler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/glossary":
                 term = upsert_glossary_term(conn, data.get("term", ""), data.get("definition", ""), data.get("category", ""))
                 self.respond(term, 201, is_form, "/")
+            elif parsed.path == "/api/raw-offer-intake":
+                app = create_raw_offer_intake(conn, data.get("content", ""), data.get("created_by", "user") or "user")
+                self.respond(app, 201, is_form, f"/?application_id={app['id']}&tab=raw")
             elif parsed.path == "/api/artifacts":
                 artifact = save_artifact(
                     conn,
