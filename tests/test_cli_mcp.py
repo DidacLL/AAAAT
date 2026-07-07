@@ -34,6 +34,10 @@ class CliMcpTests(unittest.TestCase):
             self.assertIn(app_id, shown.stdout)
             intake = self.run_cli("--storage", tmp, "intake", "add", app_id, "--content", "Audit intake")
             self.assertIn("Audit intake", intake.stdout)
+            raw_offer = self.run_cli("--storage", tmp, "intake", "raw-offer", "--content", "Raw offer text")
+            raw_offer_data = json.loads(raw_offer.stdout)
+            self.assertEqual(raw_offer_data["company"], "Pending extraction")
+            self.assertEqual(raw_offer_data["status"], "intake")
             artifacts = self.run_cli("--storage", tmp, "artifact", "list", app_id)
             self.assertEqual(json.loads(artifacts.stdout), [])
             glossary = self.run_cli("--storage", tmp, "glossary", "set", "Python", "--definition", "Programming language", "--category", "skill")
@@ -41,6 +45,10 @@ class CliMcpTests(unittest.TestCase):
 
             missing = self.run_cli("--storage", tmp, "profile", "missing")
             self.assertIn("profile.display_name", missing.stdout)
+            review_queue = self.run_cli("--storage", tmp, "review-queue")
+            self.assertIn("pitch", review_queue.stdout)
+            app_review_queue = self.run_cli("--storage", tmp, "review-queue", app_id)
+            self.assertIn(app_id, app_review_queue.stdout)
 
             self.run_cli("--storage", tmp, "profile", "set", "display_name", "Audit Candidate")
             self.run_cli("--storage", tmp, "profile", "set", "email", "audit@example.invalid")
@@ -86,6 +94,8 @@ class CliMcpTests(unittest.TestCase):
         self.assertTrue(descriptor["resources"])
         self.assertTrue(descriptor["tools"])
         self.assertTrue(descriptor["prompts"])
+        self.assertIn("aaaat://review-queue", {resource["uri"] for resource in descriptor["resources"]})
+        self.assertIn("get_review_queue", {tool["name"] for tool in descriptor["tools"]})
         for tool in descriptor["tools"]:
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("properties", tool["inputSchema"])

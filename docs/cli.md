@@ -11,9 +11,12 @@ python -m aaaat.cli app update <id> --next-action "Call recruiter" --keywords "A
 python -m aaaat.cli app list
 python -m aaaat.cli app show <id>
 python -m aaaat.cli intake add <id> --content "..."
+python -m aaaat.cli intake raw-offer --content "Paste raw offer text here"
 python -m aaaat.cli glossary set ATS --definition "Applicant tracking system" --category recruiting
 python -m aaaat.cli profile missing
 python -m aaaat.cli profile set display_name "Local User"
+python -m aaaat.cli review-queue
+python -m aaaat.cli review-queue <application_id>
 python -m aaaat.cli artifact list <id>
 python -m aaaat.cli artifact save --application-id <id> --type cover_letter --path local/cover.pdf --label "Cover letter"
 python -m aaaat.cli artifact update-state <artifact_id> --state reviewed --notes "Ready"
@@ -22,3 +25,5 @@ python -m aaaat.cli render cover-letter <id>
 python -m aaaat.cli export static-demo outputs/static-demo.html
 python -m aaaat.cli agent-guide
 ```
+
+`intake raw-offer` creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue then tells an agent what to extract.
