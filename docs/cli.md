@@ -45,7 +45,7 @@ python -m aaaat.cli export static-demo outputs/static-demo.html
 python -m aaaat.cli agent-guide
 ```
 
-Agent-facing commands:
+Agent-facing commands use capability-scoped `agent` subcommands. The implemented capability is task work:
 
 ```bash
 python -m aaaat.cli agent tasks --state queued
@@ -56,7 +56,17 @@ python -m aaaat.cli agent claim <task_id>
 python -m aaaat.cli agent release <task_id>
 ```
 
-Agents should use the `agent` subcommands. Broad local CLI commands remain available for human/admin maintenance, but they are not the agent contract.
+Planned agent intake/proposal commands may include:
+
+```bash
+python -m aaaat.cli agent intake raw-offer --content "Paste raw offer text here"
+python -m aaaat.cli agent intake raw-offer --file offer.txt
+python -m aaaat.cli agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json
+```
+
+These future commands should create or update only through documented schemas and reviewable results. They must not expose broad `app list`, `app show`, `search`, raw profile, raw variable, or generic patch behavior as agent capabilities.
+
+Broad local CLI commands remain available for human/admin maintenance, but they are not the agent contract.
 
 `intake raw-offer` creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue then tells an agent what to extract.
 
