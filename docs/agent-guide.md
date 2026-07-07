@@ -13,3 +13,10 @@ Variable values in agent context are privacy-filtered. Unless a variable explici
 Search uses SQLite FTS5 lazily through the search service. Normal database initialization does not require FTS5, but search calls should report `SQLite FTS5 is required` clearly if the local SQLite build does not provide it.
 
 The core rule is simple: public demo data is fake, private data stays in `.private/`, and templates use variables instead of hardcoded identity values.
+# Profile / CV Context
+
+Use `GET /api/profile/context?purpose=...` when a task needs candidate-side context. Supported purposes are `cv_generation`, `cover_letter`, `candidature_fit`, `market_research`, `recruiter_call`, and `form_answers`.
+
+Do not ask for raw private CV/profile data ad hoc when a purpose-filtered profile context is available. Respect each fact's exposure value. For market research, use anonymized or summarized facts by default.
+
+Agents may produce suggestions, task results, notes, or text blobs. They must not directly overwrite approved candidature fields or raw profile facts.

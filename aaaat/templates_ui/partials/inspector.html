@@ -77,5 +77,89 @@
         </form>
       </details>
     {% endif %}
+    <details class="field" data-profile-cv-panel>
+      <summary>Profile / CV data</summary>
+      {% for fact in profile_facts %}
+        {% if fact.use_for_dashboard %}
+          <div class="blob-item" data-profile-fact="{{ fact.id }}">
+            <strong>{{ fact.fact_type }} / {{ fact.title or "Untitled fact" }}</strong>
+            <p>{{ fact.body }}</p>
+            <p class="meta">
+              <span>{{ fact.visibility }}</span>
+              <span>{{ fact.exposure }}</span>
+              {% if fact.use_for_cv %}<span>CV</span>{% endif %}
+              {% if fact.use_for_cover_letter %}<span>Cover letter</span>{% endif %}
+              {% if fact.use_for_agent_context %}<span>Agent</span>{% endif %}
+              {% if fact.use_for_market_research %}<span>Market</span>{% endif %}
+              {% if fact.tags %}<span>{{ fact.tags|join(", ") }}</span>{% endif %}
+            </p>
+            {% if can_write(mode) %}
+              <details class="inline-edit" data-write-control="profile-fact-edit">
+                <summary>Edit</summary>
+                <form method="post" action="/api/profile/facts/{{ fact.id }}" hx-post="/api/profile/facts/{{ fact.id }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
+                  <input type="hidden" name="_method" value="PATCH">
+                  <input name="title" value="{{ fact.title }}" placeholder="Title">
+                  <textarea name="body">{{ fact.body }}</textarea>
+                  <input name="tags" value="{{ fact.tags|join(', ') }}" placeholder="tags">
+                  <select name="visibility">
+                    {% for item in ["public", "professional", "private", "sensitive"] %}
+                      <option value="{{ item }}" {% if fact.visibility == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="exposure">
+                    {% for item in ["raw", "anonymized", "summarized", "placeholder", "redacted", "denied"] %}
+                      <option value="{{ item }}" {% if fact.exposure == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="hidden" name="use_for_cv" value="0"><label><input type="checkbox" name="use_for_cv" value="1" {% if fact.use_for_cv %}checked{% endif %}> CV</label>
+                  <input type="hidden" name="use_for_cover_letter" value="0"><label><input type="checkbox" name="use_for_cover_letter" value="1" {% if fact.use_for_cover_letter %}checked{% endif %}> Cover letter</label>
+                  <input type="hidden" name="use_for_agent_context" value="0"><label><input type="checkbox" name="use_for_agent_context" value="1" {% if fact.use_for_agent_context %}checked{% endif %}> Agent</label>
+                  <input type="hidden" name="use_for_market_research" value="0"><label><input type="checkbox" name="use_for_market_research" value="1" {% if fact.use_for_market_research %}checked{% endif %}> Market</label>
+                  <input type="hidden" name="use_for_dashboard" value="0"><label><input type="checkbox" name="use_for_dashboard" value="1" {% if fact.use_for_dashboard %}checked{% endif %}> Dashboard</label>
+                  <button>Save fact</button>
+                </form>
+              </details>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% else %}
+        <p class="empty">No profile facts yet.</p>
+      {% endfor %}
+      {% if can_write(mode) %}
+        <details class="inline-edit" data-write-control="profile-fact-add">
+          <summary>Add profile fact</summary>
+          <form method="post" action="/api/profile/facts" hx-post="/api/profile/facts" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
+            <select name="fact_type">
+              {% for item in ["target_role", "skill", "experience", "project", "education", "certification", "language", "achievement", "preference", "constraint", "salary_expectation", "cv_summary", "role_positioning_note"] %}
+                <option value="{{ item }}">{{ item }}</option>
+              {% endfor %}
+            </select>
+            <input name="title" placeholder="Title">
+            <textarea name="body" placeholder="Professional/CV fact"></textarea>
+            <input name="tags" placeholder="python, backend">
+            <select name="visibility">
+              <option>private</option>
+              <option>professional</option>
+              <option>public</option>
+              <option>sensitive</option>
+            </select>
+            <select name="exposure">
+              <option>summarized</option>
+              <option>placeholder</option>
+              <option>anonymized</option>
+              <option>redacted</option>
+              <option>denied</option>
+              <option>raw</option>
+            </select>
+            <input type="hidden" name="use_for_cv" value="0"><label><input type="checkbox" name="use_for_cv" value="1"> CV</label>
+            <input type="hidden" name="use_for_cover_letter" value="0"><label><input type="checkbox" name="use_for_cover_letter" value="1"> Cover letter</label>
+            <input type="hidden" name="use_for_agent_context" value="0"><label><input type="checkbox" name="use_for_agent_context" value="1"> Agent</label>
+            <input type="hidden" name="use_for_market_research" value="0"><label><input type="checkbox" name="use_for_market_research" value="1"> Market</label>
+            <input type="hidden" name="use_for_dashboard" value="0"><label><input type="checkbox" name="use_for_dashboard" value="1" checked> Dashboard</label>
+            <button>Add fact</button>
+          </form>
+        </details>
+      {% endif %}
+    </details>
   </div>
 </aside>

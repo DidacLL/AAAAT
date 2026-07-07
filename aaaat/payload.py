@@ -6,6 +6,7 @@ from typing import Any
 from .artifacts import list_artifacts
 from .db import list_applications, list_glossary, list_raw_intake, profile_variables, required_profile_variables
 from .privacy import resolve_variables
+from .profile_facts import profile_context
 from .review_queue import next_action_date, review_queue, sorted_applications
 
 
@@ -36,5 +37,6 @@ def application_context(conn: sqlite3.Connection, application_id: str) -> dict[s
         "application": selected,
         "glossary": payload["glossary"],
         "variables": resolve_variables(conn, "agent"),
+        "profile_context": profile_context(conn, "candidature_fit", scope="agent"),
         "artifact_slots": ["cover_letter", "cv_variant", "interview_guide", "form_answer"],
     }

@@ -6,6 +6,7 @@ from typing import Any
 
 from .db import application_keywords, list_applications, list_raw_intake, row_to_dict
 from .notes import list_notes
+from .profile_facts import list_profile_facts
 from .text_blobs import list_text_blobs
 from .todos import list_todos
 
@@ -82,6 +83,16 @@ def rebuild_index(conn: sqlite3.Connection) -> None:
         add_index_row(conn, "text_blob", blob["id"], blob.get("application_id"), blob["title"], blob["body"], blob["blob_type"])
     for todo in list_todos(conn):
         add_index_row(conn, "todo", todo["id"], todo.get("application_id"), todo["title"], todo["body"], todo["state"])
+    for fact in list_profile_facts(conn):
+        add_index_row(
+            conn,
+            "profile_fact",
+            fact["id"],
+            None,
+            f"{fact['fact_type']} {fact['title']}".strip(),
+            fact["body"],
+            ", ".join(fact.get("tags", [])),
+        )
     for keyword in conn.execute("SELECT term, definition, category FROM glossary_terms").fetchall():
         aliases = conn.execute("SELECT alias FROM keyword_aliases WHERE keyword = ?", (keyword["term"],)).fetchall()
         notes = conn.execute("SELECT body FROM keyword_notes WHERE keyword = ?", (keyword["term"],)).fetchall()

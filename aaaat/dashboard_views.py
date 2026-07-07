@@ -5,6 +5,7 @@ from typing import Any
 
 from .candidatures import get_candidature
 from .keywords import list_keywords
+from .profile_facts import list_profile_facts
 from .search import SearchUnavailable, rebuild_index, search
 from .security import Mode, can_show_raw_intake, can_write
 from .tasks import OPEN_TASK_STATES, list_tasks
@@ -100,6 +101,7 @@ def dashboard_view_model(
     open_todos = [item for item in all_todos if item.get("state") == "open"]
     pinned_todos = [item for item in open_todos if item.get("pinned")]
     glossary = list_keywords(conn) if conn is not None else payload.get("glossary", [])
+    profile_facts = list_profile_facts(conn) if conn is not None else payload.get("profile_facts", [])
     selected_keyword_item = next((item for item in glossary if item.get("term") == selected_term), {})
     search_result = {"available": True, "results": []}
     if conn is not None and search_query:
@@ -122,6 +124,7 @@ def dashboard_view_model(
         "open_todos": open_todos,
         "pinned_todos": pinned_todos,
         "keywords": glossary,
+        "profile_facts": profile_facts,
         "selected_keyword_item": selected_keyword_item,
         "search_query": search_query or "",
         "search_result": search_result,

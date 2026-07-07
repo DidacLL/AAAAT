@@ -24,6 +24,14 @@ from .keywords import add_keyword_alias, create_keyword_note, list_keywords, ups
 from .notes import create_note, list_notes
 from .payload import application_context, dashboard_payload
 from .privacy import get_variable, list_variables, resolve_variable_value, resolve_variables, set_variable
+from .profile_facts import (
+    archive_profile_fact,
+    create_profile_fact,
+    get_profile_fact,
+    list_profile_facts,
+    profile_context,
+    update_profile_fact,
+)
 from .review_queue import review_queue
 from .search import SearchUnavailable, rebuild_index, search
 from .security import Mode
@@ -140,6 +148,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
             "task": task,
             "candidature": allowed_fields,
             "variables": resolve_variables(conn, "agent"),
+            "profile_context": profile_context(conn, "candidature_fit", scope="agent"),
             "source_hints": {
                 "context_hint": task.get("context_hint", ""),
                 "raw_intake_count": len(candidature.get("raw_intake", [])) if candidature else 0,
@@ -612,6 +621,108 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
         with connect(app.state.storage_path) as conn:
             set_profile_variable(conn, data.get("key", ""), data.get("value", ""))
         return respond({"ok": True, "key": data.get("key", "")}, 200, is_form, "/")
+
+    def profile_fact_fields(data: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
+        keys = {
+            "fact_type",
+            "title",
+            "body",
+            "tags",
+            "visibility",
+            "exposure",
+            "source",
+            "review_state",
+            "notes",
+        }
+        fields = {key: data[key] for key in keys if key in data}
+        if "type" in data:
+            fields["fact_type"] = data["type"]
+        bool_keys = {
+            "use_for_cv",
+            "use_for_cover_letter",
+            "use_for_agent_context",
+            "use_for_market_research",
+            "use_for_dashboard",
+        }
+        for key in bool_keys:
+            if key in data or not partial:
+                fields[key] = bool_field(data, key)
+        return fields
+
+    @app.get("/api/profile/facts")
+    def api_profile_facts(fact_type: str | None = None, include_archived: bool = False) -> dict[str, Any]:
+        with connect(app.state.storage_path) as conn:
+            return {"profile_facts": list_profile_facts(conn, fact_type=fact_type, include_archived=include_archived)}
+
+    @app.post("/api/profile/facts", dependencies=[Depends(writable)])
+    async def api_create_profile_fact(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        try:
+            with connect(app.state.storage_path) as conn:
+                item = create_profile_fact(conn, **profile_fact_fields(data))
+                if wants_fragment(request):
+                    model = make_view_model(conn)
+                    return HTMLResponse(render_dashboard_fragment("inspector", model))
+        except Exception as exc:
+            handle_error(exc)
+        return respond(item, 201, is_form, "/")
+
+    @app.get("/api/profile/facts/{fact_id}")
+    def api_get_profile_fact(fact_id: str) -> dict[str, Any]:
+        try:
+            with connect(app.state.storage_path) as conn:
+                return get_profile_fact(conn, fact_id)
+        except Exception as exc:
+            handle_error(exc)
+
+    @app.patch("/api/profile/facts/{fact_id}", dependencies=[Depends(writable)])
+    async def api_patch_profile_fact(fact_id: str, request: Request) -> Any:
+        data, is_form = await request_data(request)
+        try:
+            with connect(app.state.storage_path) as conn:
+                item = update_profile_fact(conn, fact_id, **profile_fact_fields(data, partial=True))
+                if wants_fragment(request):
+                    model = make_view_model(conn)
+                    return HTMLResponse(render_dashboard_fragment("inspector", model))
+        except Exception as exc:
+            handle_error(exc)
+        return respond(item, 200, is_form, "/")
+
+    @app.post("/api/profile/facts/{fact_id}", dependencies=[Depends(writable)])
+    async def api_form_patch_profile_fact(fact_id: str, request: Request) -> Any:
+        data, is_form = await request_data(request)
+        if data.get("_method", "").upper() != "PATCH":
+            raise HTTPException(status_code=405, detail="method not allowed")
+        try:
+            with connect(app.state.storage_path) as conn:
+                item = update_profile_fact(conn, fact_id, **profile_fact_fields(data, partial=True))
+                if wants_fragment(request):
+                    model = make_view_model(conn)
+                    return HTMLResponse(render_dashboard_fragment("inspector", model))
+        except Exception as exc:
+            handle_error(exc)
+        return respond(item, 200, is_form, "/")
+
+    @app.post("/api/profile/facts/{fact_id}/archive", dependencies=[Depends(writable)])
+    async def api_archive_profile_fact(fact_id: str, request: Request) -> Any:
+        _, is_form = await request_data(request)
+        try:
+            with connect(app.state.storage_path) as conn:
+                item = archive_profile_fact(conn, fact_id)
+                if wants_fragment(request):
+                    model = make_view_model(conn)
+                    return HTMLResponse(render_dashboard_fragment("inspector", model))
+        except Exception as exc:
+            handle_error(exc)
+        return respond(item, 200, is_form, "/")
+
+    @app.get("/api/profile/context")
+    def api_profile_context(purpose: str = "cv_generation", scope: str = "agent") -> dict[str, Any]:
+        try:
+            with connect(app.state.storage_path) as conn:
+                return profile_context(conn, purpose, scope=scope)
+        except Exception as exc:
+            handle_error(exc)
 
     @app.post("/api/artifacts", dependencies=[Depends(writable)])
     async def api_artifacts(request: Request) -> Any:

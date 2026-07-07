@@ -10,6 +10,14 @@ from .artifacts import list_artifacts, save_artifact, update_artifact_state
 from .keywords import add_keyword_alias, create_keyword_note
 from .notes import create_note, list_notes
 from .privacy import list_variables, set_variable
+from .profile_facts import (
+    archive_profile_fact,
+    create_profile_fact,
+    get_profile_fact,
+    list_profile_facts,
+    profile_context,
+    update_profile_fact,
+)
 from .search import SearchUnavailable, rebuild_index, search
 from .tasks import apply_task_result, complete_task, create_task, get_task, list_tasks
 from .text_blobs import create_text_blob, list_text_blobs
@@ -117,6 +125,44 @@ def build_parser() -> argparse.ArgumentParser:
     profile_set.add_argument("key")
     profile_set.add_argument("value")
     profile.add_parser("missing")
+    profile_fact = profile.add_parser("fact").add_subparsers(dest="fact_command", required=True)
+    profile_fact_add = profile_fact.add_parser("add")
+    profile_fact_add.add_argument("--type", dest="fact_type", required=True)
+    profile_fact_add.add_argument("--title", default="")
+    profile_fact_add.add_argument("--body", default="")
+    profile_fact_add.add_argument("--tags", default="")
+    profile_fact_add.add_argument("--visibility", default="private", choices=["public", "professional", "private", "sensitive"])
+    profile_fact_add.add_argument(
+        "--exposure",
+        default="summarized",
+        choices=["raw", "anonymized", "summarized", "placeholder", "redacted", "denied"],
+    )
+    profile_fact_add.add_argument("--use-for-cv", action="store_true")
+    profile_fact_add.add_argument("--use-for-cover-letter", action="store_true")
+    profile_fact_add.add_argument("--use-for-agent-context", action="store_true")
+    profile_fact_add.add_argument("--use-for-market-research", action="store_true")
+    profile_fact_add.add_argument("--no-dashboard", action="store_true")
+    profile_fact.add_parser("list")
+    profile_fact_show = profile_fact.add_parser("show")
+    profile_fact_show.add_argument("id")
+    profile_fact_update = profile_fact.add_parser("update")
+    profile_fact_update.add_argument("id")
+    profile_fact_update.add_argument("--type", dest="fact_type")
+    profile_fact_update.add_argument("--title")
+    profile_fact_update.add_argument("--body")
+    profile_fact_update.add_argument("--tags")
+    profile_fact_update.add_argument("--visibility", choices=["public", "professional", "private", "sensitive"])
+    profile_fact_update.add_argument("--exposure", choices=["raw", "anonymized", "summarized", "placeholder", "redacted", "denied"])
+    profile_fact_update.add_argument("--use-for-cv", action=argparse.BooleanOptionalAction, default=None)
+    profile_fact_update.add_argument("--use-for-cover-letter", action=argparse.BooleanOptionalAction, default=None)
+    profile_fact_update.add_argument("--use-for-agent-context", action=argparse.BooleanOptionalAction, default=None)
+    profile_fact_update.add_argument("--use-for-market-research", action=argparse.BooleanOptionalAction, default=None)
+    profile_fact_update.add_argument("--use-for-dashboard", action=argparse.BooleanOptionalAction, default=None)
+    profile_fact_archive = profile_fact.add_parser("archive")
+    profile_fact_archive.add_argument("id")
+    profile_context_p = profile.add_parser("context")
+    profile_context_p.add_argument("--purpose", required=True)
+    profile_context_p.add_argument("--scope", default="agent")
 
     glossary = sub.add_parser("glossary").add_subparsers(dest="glossary_command", required=True)
     glossary_set = glossary.add_parser("set")
@@ -265,6 +311,56 @@ def main(argv: list[str] | None = None) -> int:
             print("ok")
         elif args.command == "profile" and args.profile_command == "missing":
             print(json.dumps(required_profile_variables(conn), indent=2))
+        elif args.command == "profile" and args.profile_command == "fact" and args.fact_command == "add":
+            print(
+                json.dumps(
+                    create_profile_fact(
+                        conn,
+                        fact_type=args.fact_type,
+                        title=args.title,
+                        body=args.body,
+                        tags=args.tags,
+                        visibility=args.visibility,
+                        exposure=args.exposure,
+                        use_for_cv=args.use_for_cv,
+                        use_for_cover_letter=args.use_for_cover_letter,
+                        use_for_agent_context=args.use_for_agent_context,
+                        use_for_market_research=args.use_for_market_research,
+                        use_for_dashboard=not args.no_dashboard,
+                        source="cli",
+                    ),
+                    indent=2,
+                )
+            )
+        elif args.command == "profile" and args.profile_command == "fact" and args.fact_command == "list":
+            print(json.dumps(list_profile_facts(conn), indent=2))
+        elif args.command == "profile" and args.profile_command == "fact" and args.fact_command == "show":
+            print(json.dumps(get_profile_fact(conn, args.id), indent=2))
+        elif args.command == "profile" and args.profile_command == "fact" and args.fact_command == "update":
+            fields = {
+                key: value
+                for key, value in vars(args).items()
+                if key
+                in {
+                    "fact_type",
+                    "title",
+                    "body",
+                    "tags",
+                    "visibility",
+                    "exposure",
+                    "use_for_cv",
+                    "use_for_cover_letter",
+                    "use_for_agent_context",
+                    "use_for_market_research",
+                    "use_for_dashboard",
+                }
+                and value is not None
+            }
+            print(json.dumps(update_profile_fact(conn, args.id, **fields), indent=2))
+        elif args.command == "profile" and args.profile_command == "fact" and args.fact_command == "archive":
+            print(json.dumps(archive_profile_fact(conn, args.id), indent=2))
+        elif args.command == "profile" and args.profile_command == "context":
+            print(json.dumps(profile_context(conn, args.purpose, scope=args.scope), indent=2))
         elif args.command == "glossary" and args.glossary_command == "set":
             print(json.dumps(upsert_glossary_term(conn, args.term, args.definition, args.category), indent=2))
         elif args.command == "keyword" and args.keyword_command == "alias":

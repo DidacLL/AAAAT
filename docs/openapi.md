@@ -38,6 +38,12 @@ M3 product endpoints:
 - `GET /api/variables`
 - `GET /api/variables/{key}`
 - `PUT /api/variables/{key}`
+- `GET /api/profile/facts`
+- `POST /api/profile/facts`
+- `GET /api/profile/facts/{id}`
+- `PATCH /api/profile/facts/{id}`
+- `POST /api/profile/facts/{id}/archive`
+- `GET /api/profile/context?purpose=cv_generation`
 - `GET /api/search?q=...`
 - `GET /api/agent/tasks`
 - `GET /api/agent/tasks/{id}/context`
@@ -52,3 +58,5 @@ Implementation status:
 - Legacy rollback remains available through `GET /legacy` or `GET /?renderer=legacy`.
 - FastAPI mounts `/static` for vendored browser assets, including the real pinned htmx build at `/static/htmx.min.js`.
 - Agent task contexts resolve variables with the agent privacy scope. Suggestions must be written back through task completion or text blobs, not by directly overwriting approved candidature fields.
+- `variables` are scalar template placeholders; `profile_facts` are structured professional/CV facts with editable visibility, exposure, and usage flags.
+- Profile context routes filter facts by purpose. Market research should use anonymized or summarized facts by default.
