@@ -15,4 +15,6 @@ Use:
 - `python -m aaaat.cli render cover-letter <id>`
 - `python -m aaaat.cli export static-demo outputs/static-demo.html`
 
+The browser dashboard is a compact local working surface: select an application, inspect queue/keyword/company/notes/artifacts/raw context, and make small contextual updates in full mode. Add new opportunities through raw-offer intake instead of treating the main dashboard as a creation form.
+
 Do not place private values in public demos, source templates, docs, or examples.
