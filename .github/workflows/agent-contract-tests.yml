@@ -1,0 +1,27 @@
+name: Agent Contract Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  agent-contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install package with test dependencies
+        run: python -m pip install -e .[test]
+      - name: Run focused contract tests
+        run: |
+          python -B -m unittest tests.test_agent_access
+          python -B -m unittest tests.test_fastapi_server
+          python -B -m unittest tests.test_domain_services
+          python -B -m unittest tests.test_profile_facts
+          python -B -m unittest tests.test_templates
+          python -B -m unittest tests.test_dashboard_views
+          python -B -m unittest tests.test_static_export
+          python -B -m aaaat.cli mcp-validate
+          python -B -m unittest discover -s tests

@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 
+from aaaat.artifacts import save_artifact
 from aaaat.candidatures import create_candidature, get_candidature
 from aaaat.db import connect, create_application, init_db, set_profile_variable
 from aaaat.keywords import add_keyword_alias, create_keyword_note, list_keywords
@@ -106,7 +107,85 @@ class DomainServiceTests(unittest.TestCase):
 
         self.assertEqual(loaded["pitch"], "Approved pitch")
         self.assertEqual(blobs[0]["body"], "Suggested pitch")
-        self.assertEqual(blobs[0]["review_state"], "applied")
+        self.assertEqual(blobs[0]["review_state"], "reviewed")
+
+    def test_supported_task_results_apply_to_product_destinations(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                app = create_application(conn, company="Apply Co", role="Engineer", pitch="Old pitch", keywords=["NewTerm"])
+                inference = create_task(conn, "field_inference", "Infer", application_id=app["id"], context_hint="candidature:field_inference")
+                complete_task(conn, inference["id"], result_body='{"pitch": "Inferred pitch", "next_action": "Follow up", "unknown": "ignored"}')
+                applied_inference = apply_task_result(conn, inference["id"])
+
+                research = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
+                complete_task(conn, research["id"], result_body="Company research result")
+                apply_task_result(conn, research["id"])
+
+                keyword = create_task(conn, "keyword_definition", "Define", application_id=app["id"], context_hint="keyword:NewTerm")
+                complete_task(conn, keyword["id"], result_body="New term definition")
+                apply_task_result(conn, keyword["id"])
+
+                forms = create_task(conn, "draft_form_responses", "Forms", application_id=app["id"], context_hint="blob:form_responses")
+                complete_task(conn, forms["id"], result_body="Form answer result")
+                apply_task_result(conn, forms["id"])
+
+                artifact = save_artifact(conn, app["id"], "cv", "draft.tex", "Draft CV", source_context="task:test")
+                cv_task = create_task(conn, "draft_cv", "Draft CV", application_id=app["id"], context_hint="artifact:cv")
+                complete_task(conn, cv_task["id"], artifact_id=artifact["id"])
+                apply_task_result(conn, cv_task["id"])
+
+                loaded = get_candidature(conn, app["id"])
+                glossary = {item["term"]: item["definition"] for item in list_keywords(conn)}
+
+        self.assertEqual(loaded["pitch"], "Old pitch")
+        self.assertEqual(loaded["next_action"], "Follow up")
+        self.assertIn("Skipped non-empty fields: pitch", applied_inference["notes"])
+        self.assertEqual(loaded["company_research"], "Company research result")
+        self.assertEqual(loaded["form_answers"], "Form answer result")
+        self.assertEqual(glossary["NewTerm"], "New term definition")
+        self.assertEqual(next(item for item in loaded["artifacts"] if item["id"] == artifact["id"])["review_state"], "reviewed")
+
+    def test_task_apply_keeps_conflicts_reviewable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                app = create_application(
+                    conn,
+                    company="Conflict Co",
+                    role="Engineer",
+                    company_research="Human research",
+                    form_answers="Human answers",
+                    keywords=["KnownTerm"],
+                )
+                conn.execute(
+                    "INSERT INTO glossary_terms(term, definition, category) VALUES ('KnownTerm', 'Human definition', 'skill') "
+                    "ON CONFLICT(term) DO UPDATE SET definition='Human definition', category='skill'"
+                )
+                conn.commit()
+
+                research = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
+                complete_task(conn, research["id"], result_body="Agent research")
+                apply_task_result(conn, research["id"])
+
+                forms = create_task(conn, "draft_form_responses", "Forms", application_id=app["id"], context_hint="blob:form_responses")
+                complete_task(conn, forms["id"], result_body="Agent answers")
+                apply_task_result(conn, forms["id"])
+
+                keyword = create_task(conn, "keyword_definition", "Define", application_id=app["id"], context_hint="keyword:KnownTerm")
+                complete_task(conn, keyword["id"], result_body="Agent definition")
+                keyword_applied = apply_task_result(conn, keyword["id"])
+
+                loaded = get_candidature(conn, app["id"])
+                blobs = list_text_blobs(conn, app["id"])
+                glossary = {item["term"]: item["definition"] for item in list_keywords(conn)}
+
+        self.assertEqual(loaded["company_research"], "Human research")
+        self.assertEqual(loaded["form_answers"], "Human answers")
+        self.assertEqual(glossary["KnownTerm"], "Human definition")
+        self.assertTrue(any(item["body"] == "Agent research" and item["blob_type"] == "company_research" for item in blobs))
+        self.assertTrue(any(item["body"] == "Agent answers" and item["blob_type"] == "form_answers" for item in blobs))
+        self.assertIn("Skipped existing keyword definition", keyword_applied["notes"])
 
     def test_todos_notes_text_blobs_and_keywords_are_durable(self):
         with tempfile.TemporaryDirectory() as tmp:

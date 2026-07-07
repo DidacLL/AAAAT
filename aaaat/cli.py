@@ -5,6 +5,13 @@ import json
 from pathlib import Path
 
 from . import __version__
+from .agent_access import (
+    build_agent_task_context,
+    claim_agent_task,
+    list_agent_task_envelopes,
+    release_agent_task,
+    submit_agent_task_result,
+)
 from .agent_guides import agent_guide
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
 from .keywords import add_keyword_alias, create_keyword_note
@@ -53,7 +60,31 @@ def build_parser() -> argparse.ArgumentParser:
 
     launch_p = sub.add_parser("launch")
     launch_p.add_argument("--read-only", action="store_true")
+    launch_p.add_argument("--agent-api", action="store_true")
     launch_p.add_argument("--port", type=int, default=8765)
+
+    agent = sub.add_parser("agent").add_subparsers(dest="agent_command", required=True)
+    agent_tasks = agent.add_parser("tasks")
+    agent_tasks.add_argument("--state")
+    agent_tasks.add_argument("--limit", type=int)
+    agent_context = agent.add_parser("context")
+    agent_context.add_argument("task_id")
+    agent_submit = agent.add_parser("submit")
+    agent_submit.add_argument("task_id")
+    result_group = agent_submit.add_mutually_exclusive_group(required=True)
+    result_group.add_argument("--result-body")
+    result_group.add_argument("--result-file")
+    agent_submit.add_argument("--result-title", default="")
+    agent_submit.add_argument("--agent-name", default="")
+    agent_submit.add_argument("--agent-runtime", default="")
+    agent_submit.add_argument("--model-provider", default="")
+    agent_submit.add_argument("--artifact-id")
+    agent_claim = agent.add_parser("claim")
+    agent_claim.add_argument("task_id")
+    agent_claim.add_argument("--agent-name", default="")
+    agent_claim.add_argument("--agent-runtime", default="")
+    agent_release = agent.add_parser("release")
+    agent_release.add_argument("task_id")
 
     app = sub.add_parser("app").add_subparsers(dest="app_command", required=True)
     app_create = app.add_parser("create")
@@ -263,7 +294,7 @@ def main(argv: list[str] | None = None) -> int:
         print(init_db(args.storage))
         return 0
     if args.command == "launch":
-        launch(args.storage, args.read_only, port=args.port)
+        launch(args.storage, args.read_only, port=args.port, agent_api=args.agent_api)
         return 0
     if args.command == "agent-guide":
         print(agent_guide())
@@ -278,7 +309,32 @@ def main(argv: list[str] | None = None) -> int:
 
     init_db(args.storage)
     with connect(args.storage) as conn:
-        if args.command == "app" and args.app_command == "create":
+        if args.command == "agent" and args.agent_command == "tasks":
+            print(json.dumps(list_agent_task_envelopes(conn, state=args.state, limit=args.limit), indent=2))
+        elif args.command == "agent" and args.agent_command == "context":
+            print(json.dumps(build_agent_task_context(conn, args.task_id), indent=2))
+        elif args.command == "agent" and args.agent_command == "submit":
+            result_body = Path(args.result_file).read_text(encoding="utf-8") if args.result_file else args.result_body
+            print(
+                json.dumps(
+                    submit_agent_task_result(
+                        conn,
+                        args.task_id,
+                        result_body,
+                        result_title=args.result_title,
+                        agent_name=args.agent_name,
+                        agent_runtime=args.agent_runtime,
+                        model_provider=args.model_provider,
+                        artifact_id=args.artifact_id,
+                    ),
+                    indent=2,
+                )
+            )
+        elif args.command == "agent" and args.agent_command == "claim":
+            print(json.dumps(claim_agent_task(conn, args.task_id, agent_name=args.agent_name, agent_runtime=args.agent_runtime), indent=2))
+        elif args.command == "agent" and args.agent_command == "release":
+            print(json.dumps(release_agent_task(conn, args.task_id), indent=2))
+        elif args.command == "app" and args.app_command == "create":
             print(json.dumps(create_application(conn, company=args.company, role=args.role, status=args.status, priority=args.priority), indent=2))
         elif args.command == "app" and args.app_command == "update":
             values = vars(args)

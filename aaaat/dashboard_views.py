@@ -92,6 +92,25 @@ def dashboard_view_model(
     selected = next((app for app in apps if app.get("id") == selected_application_id), apps[0] if apps else {})
     if conn is not None and selected:
         selected = get_candidature(conn, selected["id"], include_related=True)
+    if selected:
+        selected.setdefault("details", {})
+        selected.setdefault("tasks", [])
+        selected.setdefault("todos", [])
+        selected.setdefault("notes_records", [])
+        selected.setdefault("text_blobs", [])
+        selected.setdefault("artifacts", [])
+        selected.setdefault("raw_intake", [])
+    selected_user_view = {}
+    if selected:
+        selected_user_view = next(
+            (
+                blob
+                for blob in selected.get("text_blobs", [])
+                if blob.get("blob_type") == "user_view"
+                and blob.get("source_context") == f"candidature:{selected.get('id')}:user_view"
+            ),
+            {},
+        )
     keywords = selected.get("keywords", []) if selected else []
     selected_term = selected_keyword or (keywords[0] if keywords else "")
     queue = payload.get("review_queue", [])
@@ -102,6 +121,9 @@ def dashboard_view_model(
     pinned_todos = [item for item in open_todos if item.get("pinned")]
     glossary = list_keywords(conn) if conn is not None else payload.get("glossary", [])
     profile_facts = list_profile_facts(conn) if conn is not None else payload.get("profile_facts", [])
+    grouped_profile_facts: dict[str, list[dict[str, Any]]] = {}
+    for fact in profile_facts:
+        grouped_profile_facts.setdefault(fact.get("fact_type", "other"), []).append(fact)
     selected_keyword_item = next((item for item in glossary if item.get("term") == selected_term), {})
     search_result = {"available": True, "results": []}
     if conn is not None and search_query:
@@ -116,7 +138,9 @@ def dashboard_view_model(
         "view": normalize_view(view),
         "view_modes": sorted(VIEW_MODES),
         "applications": apps,
+        "important_applications": important_applications(apps),
         "selected": selected,
+        "selected_user_view": selected_user_view,
         "selected_keyword": selected_term,
         "queue": queue,
         "selected_queue": [item for item in queue if selected and item.get("application_id") == selected.get("id")],
@@ -125,7 +149,20 @@ def dashboard_view_model(
         "pinned_todos": pinned_todos,
         "keywords": glossary,
         "profile_facts": profile_facts,
+        "grouped_profile_facts": grouped_profile_facts,
         "selected_keyword_item": selected_keyword_item,
         "search_query": search_query or "",
         "search_result": search_result,
     }
+
+
+def important_applications(apps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    priority_order = {"high": 0, "normal": 1, "low": 2}
+    return sorted(
+        apps,
+        key=lambda item: (
+            priority_order.get(str(item.get("priority") or "normal"), 1),
+            0 if item.get("next_action") else 1,
+            str(item.get("updated_at") or item.get("created_at") or ""),
+        ),
+    )[:6]

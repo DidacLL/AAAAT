@@ -1,22 +1,58 @@
 # Agent Guide
 
-Inspect safe context through the CLI or local API, draft outside AAAAT, then save outputs back as suggestions or artifacts. AAAAT owns storage, validation, rendering, and privacy boundaries.
+Agents interact with AAAAT through capability-scoped operations, not generic CRUD. A task is the primary implemented capability, but the contract also allows future narrow capabilities such as raw-offer intake and structured extraction proposals.
 
-Use `python -m aaaat.cli review-queue` or `GET /api/review-queue` to find deterministic missing-work items. The queue is derived from local stored data only; it does not call an LLM or depend on a provider runtime.
+Agents must not browse, list, search, or patch the user's candidature database.
 
-When a raw offer is pasted through `intake raw-offer` or `/api/raw-offer-intake`, AAAAT creates a placeholder application and queues extraction work for company, role, source, location, keywords, timing hints, and recommendations.
+## Implemented task capability
 
-Durable tasks are the preferred agent boundary. Agents should list/show tasks, retrieve scoped candidature context, and save output back as a task result, suggestion, text blob, artifact, or keyword proposal. Agent-generated output must not directly overwrite user-approved candidature fields.
+```bash
+python -m aaaat.cli agent tasks --state queued
+python -m aaaat.cli agent context <task_id>
+python -m aaaat.cli agent submit <task_id> --result-file result.json
+python -m aaaat.cli agent claim <task_id>
+python -m aaaat.cli agent release <task_id>
+```
 
-Variable values in agent context are privacy-filtered. Unless a variable explicitly permits raw exposure, agents should expect placeholders, redacted values, summaries, or denied fields.
+The optional HTTP adapter exposes equivalent task operations under `/api/agent/*`. `aaaat launch --agent-api` starts an agent HTTP surface with `/api/health` and capability-scoped `/api/agent/*` routes.
 
-Search uses SQLite FTS5 lazily through the search service. Normal database initialization does not require FTS5, but search calls should report `SQLite FTS5 is required` clearly if the local SQLite build does not provide it.
+Task contexts are minimized by `aaaat.agent_access`. They include a sanitized task envelope, task-specific context, privacy notes, and task-scoped write-back links. They do not include dashboard payloads, all candidatures, arbitrary search results, raw variable dumps, raw profile fact lists, or unrelated notes/artifacts/text blobs.
 
-The core rule is simple: public demo data is fake, private data stays in `.private/`, and templates use variables instead of hardcoded identity values.
-# Profile / CV Context
+Submit results back to the task. AAAAT stores provenance and deterministic apply/review remains owned by AAAAT. Agent output must not directly overwrite approved candidature, application, or profile fields.
 
-Use `GET /api/profile/context?purpose=...` when a task needs candidate-side context. Supported purposes are `cv_generation`, `cover_letter`, `candidature_fit`, `market_research`, `recruiter_call`, and `form_answers`.
+## Planned intake/proposal capability
 
-Do not ask for raw private CV/profile data ad hoc when a purpose-filtered profile context is available. Respect each fact's exposure value. For market research, use anonymized or summarized facts by default.
+Agent-side raw-offer workflows are valid if implemented as narrow capabilities, not CRUD. The intended shape is:
 
-Agents may produce suggestions, task results, notes, or text blobs. They must not directly overwrite approved candidature fields or raw profile facts.
+```bash
+python -m aaaat.cli agent intake raw-offer --content "..."
+python -m aaaat.cli agent intake raw-offer --file offer.txt
+python -m aaaat.cli agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json
+```
+
+Expected behavior:
+
+- raw-offer intake creates a placeholder candidature and extraction/enrichment tasks;
+- the response returns only a narrow acknowledgement, opaque correlation id, and created task envelopes;
+- structured extraction accepts only a documented finite JSON schema;
+- existing approved/non-empty fields are not overwritten except through deterministic apply rules;
+- conflicts are stored as reviewable task results or text blobs.
+
+The same capability may later be mirrored under `/api/agent/intake/*`.
+
+## Forbidden agent access
+
+Do not expose or use these as agent operations:
+
+- broad application/candidature list or show commands;
+- arbitrary search;
+- raw profile fact or variable dumps;
+- dashboard payloads;
+- generic PATCH/PUT object routes;
+- direct database paths.
+
+The browser dashboard is a local human UI. Its action routes are form/htmx-oriented internals and are not an agent contract.
+
+Docs do not enforce security by themselves. Route absence, narrow service functions, and capability-scoped adapters reduce accidental over-exposure. If an agent has direct `.private/`, shell, code modification, or arbitrary localhost access while the dashboard server is running, AAAAT cannot fully constrain it.
+
+Aggregate candidature lists are private behavioral data.

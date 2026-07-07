@@ -27,6 +27,9 @@ jobs:
       - name: Show Python version
         run: python --version
 
+      - name: Install package with test dependencies
+        run: python -m pip install -e .[test]
+
       - name: Check repository guardrails
         run: python -B tools/repo_guard.py --ci
 
