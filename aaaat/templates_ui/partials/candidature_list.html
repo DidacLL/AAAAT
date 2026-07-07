@@ -1,8 +1,11 @@
 <section class="surface" aria-label="Candidatures">
   <h2>Candidatures</h2>
+  {% if search_query and search_result.available %}
+    <div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>
+  {% endif %}
   {% if applications %}
     {% for app in applications %}
-      <a class="app-row" data-app-row href="/?view={{ view }}&application_id={{ app.id }}" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
+      <a class="app-row" data-app-row href="/?view={{ view }}&application_id={{ app.id }}" hx-get="/dashboard/fragments/selected-card?view={{ view }}&application_id={{ app.id }}" hx-target="[data-selected-app]" hx-swap="outerHTML" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
         <strong>{{ app.company or "Add company" }}</strong><br>
         <span>{{ app.role or "Add role" }}</span>
         <span class="meta">

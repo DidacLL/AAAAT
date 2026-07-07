@@ -111,6 +111,26 @@ CREATE TABLE IF NOT EXISTS variables (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS profile_facts (
+  id TEXT PRIMARY KEY,
+  fact_type TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  body TEXT NOT NULL DEFAULT '',
+  tags TEXT NOT NULL DEFAULT '[]',
+  visibility TEXT NOT NULL DEFAULT 'private',
+  exposure TEXT NOT NULL DEFAULT 'summarized',
+  use_for_cv INTEGER NOT NULL DEFAULT 0,
+  use_for_cover_letter INTEGER NOT NULL DEFAULT 0,
+  use_for_agent_context INTEGER NOT NULL DEFAULT 0,
+  use_for_market_research INTEGER NOT NULL DEFAULT 0,
+  use_for_dashboard INTEGER NOT NULL DEFAULT 1,
+  source TEXT NOT NULL DEFAULT 'user',
+  review_state TEXT NOT NULL DEFAULT 'active',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS text_blobs (
   id TEXT PRIMARY KEY,
   application_id TEXT REFERENCES applications(id) ON DELETE SET NULL,

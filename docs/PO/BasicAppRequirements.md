@@ -98,3 +98,7 @@ For the new candidature input we won't dedicate a view but a panel/popup expanda
 ### Document Generators:
 
 They are a LaTeX template filled programatically with the dedicated data. A function converts stored data into the latex file to compile (or directly filled through latex compile? use the most basic latex config that is pdflatex). The user sensible data would be managed through global environment variables that will be replaced only in the latest local step posible, for LLM related jobs it would be always a variable or anonymized holder. That privacy layer is applied at the db level too, so the db do not store the real value but the variable/spaceholder. Only in final artifacts and dashboard render will show the actual variable value. 
+
+## User data 
+
+To create the CV valorate the offers, offer job market prospections etc... we need to know wome user data, specially those setted on the CV. Not all this data is private so the role or past experience could be used in searches for reports or similar, in those case we anonimize where possible. That private/public classification of data should be transparent and editable, so we need to add a similar expandable section like candidature input but for user profile and CV data. CV in the future would add the option to be addapted for different type of candiodatures offering the agents the option to chose when generating a dedicated CV through LaTeX template filling.

@@ -1,5 +1,23 @@
 # CLI
 
+## Profile / CV Data
+
+`variables` store scalar placeholders such as `profile.display_name` or `profile.email`.
+`profile_facts` store structured professional/CV facts for future CV adaptation, cover letters, fit reasoning, recruiter prep, form answers, and market context.
+
+Examples:
+
+```powershell
+aaaat profile fact add --type skill --title Python --body "Backend APIs and automation." --visibility professional --exposure summarized --use-for-cv --use-for-agent-context
+aaaat profile fact list
+aaaat profile fact show fact_123
+aaaat profile fact update fact_123 --exposure placeholder --no-use-for-market-research
+aaaat profile fact archive fact_123
+aaaat profile context --purpose cv_generation
+```
+
+Each fact has editable visibility, exposure, and usage flags for CV, cover letter, agent context, market research, and dashboard use.
+
 Stable MVP commands:
 
 ```bash

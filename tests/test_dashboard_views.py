@@ -2,9 +2,11 @@ import importlib.util
 import tempfile
 import unittest
 
-from aaaat.dashboard_views import normalize_view, render_dashboard_view
+from aaaat.dashboard_views import dashboard_view_model, normalize_view, render_dashboard_view
 from aaaat.db import connect, create_application, init_db
+from aaaat.notes import create_note
 from aaaat.payload import dashboard_payload
+from aaaat.search import rebuild_index
 from aaaat.security import Mode
 
 
@@ -56,6 +58,31 @@ class DashboardViewRenderTests(unittest.TestCase):
 
         self.assertIn('data-dashboard-view="userView"', html)
         self.assertIn("without storing a fork", html)
+
+    def test_smart_view_shows_selected_keyword_and_search_results(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        init_db(tmp.name)
+        with connect(tmp.name) as conn:
+            app = create_application(conn, company="Search View Co", role="Python Engineer", keywords=["Python"], pitch="Call pitch")
+            create_note(conn, "Python screening note", application_id=app["id"])
+            rebuild_index(conn)
+            payload = dashboard_payload(conn)
+            model = dashboard_view_model(
+                payload,
+                Mode.FULL,
+                view="smartView",
+                selected_application_id=app["id"],
+                selected_keyword="Python",
+                search_query="Python",
+                conn=conn,
+            )
+            html = render_dashboard_view(payload, Mode.FULL, view_model=model)
+
+        self.assertIn('data-dashboard-view="smartView"', html)
+        self.assertIn('data-keyword="Python"', html)
+        self.assertIn("data-search-results", html)
+        self.assertIn("Search View Co", html)
 
 
 if __name__ == "__main__":

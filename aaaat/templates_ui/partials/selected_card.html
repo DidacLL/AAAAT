@@ -8,16 +8,44 @@
         <span>Priority: {{ selected.priority }}</span>
       </p>
       {% if view == "smartView" %}
-        <p>{{ selected.pitch or selected.smart_question or selected.next_action or "No call-card notes yet." }}</p>
+        <form method="get" action="/" hx-get="/dashboard/fragments/candidature-list" hx-target="[aria-label='Candidatures']" hx-swap="outerHTML">
+          <input type="hidden" name="view" value="smartView">
+          <input name="q" value="{{ search_query }}" placeholder="Search candidatures, notes, tasks">
+          <button>Search</button>
+        </form>
+        {% if search_query %}
+          <div class="field" data-search-results>
+            <span class="label">Search results</span>
+            {% if search_result.available %}
+              {% for result in search_result.results %}
+                <p><a href="/?view=smartView&application_id={{ result.application_id or result.entity_id }}">{{ result.title or result.entity_type }}</a><br><span class="meta">{{ result.entity_type }} / {{ result.snippet }}</span></p>
+              {% else %}
+                <p class="empty">No matches.</p>
+              {% endfor %}
+            {% else %}
+              <p class="empty">{{ search_result.error }}</p>
+            {% endif %}
+          </div>
+        {% endif %}
+        <div class="field">
+          <span class="label">Call card</span>
+          <p>{{ selected.pitch or selected.smart_question or selected.next_action or "No call-card notes yet." }}</p>
+          <p>{{ selected.risks_to_avoid or "No risks captured yet." }}</p>
+          <p>{{ selected.smart_question or "No recruiter questions captured yet." }}</p>
+        </div>
+        <div class="field">
+          <span class="label">Artifacts and notes</span>
+          <p>{{ selected.artifacts|length }} artifacts / {{ selected.notes_records|length }} notes</p>
+        </div>
       {% elif view == "detailedView" %}
-        {% for field in ["next_action", "pitch", "risks_to_avoid", "smart_question", "company_research"] %}
+        {% for field in ["company", "role", "status", "priority", "source", "source_url", "location", "remote_mode", "next_action", "pitch", "risks_to_avoid", "smart_question", "company_research", "notes"] %}
           <div class="field">
             <span class="label">{{ field }}</span>
             <div>{{ selected.get(field) or "Add " ~ field }}</div>
             {% if can_write(mode) %}
               <details class="inline-edit" data-inline-field="{{ field }}">
                 <summary>Edit</summary>
-                <form method="post" action="/api/applications/{{ selected.id }}" data-write-control="inline-field">
+                <form method="post" action="/api/applications/{{ selected.id }}" data-write-control="inline-field" hx-post="/api/applications/{{ selected.id }}" hx-target="[data-selected-app]" hx-swap="outerHTML">
                   <input type="hidden" name="_method" value="PATCH">
                   <textarea name="{{ field }}">{{ selected.get(field) or "" }}</textarea>
                   <button>Save</button>
@@ -26,10 +54,59 @@
             {% endif %}
           </div>
         {% endfor %}
+        <div class="field" data-related-panel="tasks">
+          <span class="label">Tasks</span>
+          {% for task in selected.tasks %}
+            <p>{{ task.priority }} / {{ task.state }} / {{ task.title }}</p>
+          {% else %}
+            <p class="empty">No tasks yet.</p>
+          {% endfor %}
+        </div>
+        <div class="field" data-related-panel="todos">
+          <span class="label">Todos</span>
+          {% for todo in selected.todos %}
+            <p>{{ todo.state }} / {{ todo.title }}</p>
+          {% else %}
+            <p class="empty">No todos yet.</p>
+          {% endfor %}
+        </div>
+        <div class="field" data-related-panel="notes">
+          <span class="label">Notes</span>
+          {% for note in selected.notes_records %}
+            <p>{{ note.note_type }} / {{ note.body }}</p>
+          {% else %}
+            <p class="empty">No notes yet.</p>
+          {% endfor %}
+        </div>
+        <div class="field" data-related-panel="text-blobs">
+          <span class="label">Text blobs</span>
+          {% for blob in selected.text_blobs %}
+            <p>{{ blob.blob_type }} / {{ blob.review_state }} / {{ blob.title or blob.body }}</p>
+          {% else %}
+            <p class="empty">No text blobs yet.</p>
+          {% endfor %}
+        </div>
       {% elif view == "userView" %}
         <p>{{ selected.pitch or "User-facing summary pending." }}</p>
+        <p>This preset reuses candidature data without storing a fork.</p>
       {% else %}
         <p>{{ selected.next_action or "No immediate action." }}</p>
+        <div class="field">
+          <span class="label">Pinned todos</span>
+          {% for todo in pinned_todos[:5] %}
+            <p>{{ todo.title }}</p>
+          {% else %}
+            <p class="empty">No pinned todos.</p>
+          {% endfor %}
+        </div>
+        <div class="field">
+          <span class="label">Pending tasks</span>
+          {% for task in open_tasks[:5] %}
+            <p>{{ task.priority }} / {{ task.title }}</p>
+          {% else %}
+            <p class="empty">No pending tasks.</p>
+          {% endfor %}
+        </div>
       {% endif %}
     </div>
   {% else %}
