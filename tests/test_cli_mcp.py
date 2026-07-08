@@ -60,46 +60,70 @@ class CliMcpTests(unittest.TestCase):
             self.assertIn("Dashboard runtime", guide.stdout)
             self.assertIn("Agent runtime", guide.stdout)
 
-    def test_agent_cli_task_context_and_submit_work_by_task_handle(self):
+    def test_agent_cli_task_context_and_submit_work_by_opaque_task_handle(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.run_cli("--storage", tmp, "init")
             created = self.run_cli("--storage", tmp, "app", "create", "--company", "CLI Co", "--role", "Backend Engineer")
             app_id = json.loads(created.stdout)["id"]
-            self.run_cli(
-                "--storage",
-                tmp,
-                "task",
-                "create",
-                "--application-id",
-                app_id,
-                "--type",
-                "company_research",
-                "--title",
-                "Research CLI Co",
-                "--context-hint",
-                "candidature:company_research",
+            local_task = json.loads(
+                self.run_cli(
+                    "--storage",
+                    tmp,
+                    "task",
+                    "create",
+                    "--application-id",
+                    app_id,
+                    "--type",
+                    "company_research",
+                    "--title",
+                    "Research CLI Co",
+                    "--context-hint",
+                    "candidature:company_research",
+                ).stdout
             )
             next_task = json.loads(self.run_cli("--storage", tmp, "agent", "next").stdout)["task"]
             tasks = json.loads(self.run_cli("--storage", tmp, "agent", "tasks", "--state", "queued").stdout)
             self.assertTrue(tasks)
             task_handle = next_task["task_handle"]
+            self.assertTrue(task_handle.startswith("taskh_"))
+            self.assertNotEqual(task_handle, local_task["id"])
             self.assertEqual(tasks[0]["task_handle"], task_handle)
             self.assertEqual(tasks[0]["allowed_actions"], ["context", "submit"])
             self.assertNotIn("id", tasks[0])
+            self.assertNotIn(local_task["id"], json.dumps(tasks))
             self.assertNotIn("application_id", json.dumps(tasks))
 
             context = json.loads(self.run_cli("--storage", tmp, "agent", "context", task_handle).stdout)
             self.assertEqual(context["task"]["task_handle"], task_handle)
+            self.assertEqual(context["purpose"], "market_research")
+            self.assertIn("instructions", context)
+            self.assertIn("response_format", context)
             self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task_handle}/result"})
             self.assertNotIn("application_id", json.dumps(context))
+            self.assertNotIn(local_task["id"], json.dumps(context))
+
+            raw_id_context = subprocess.run(
+                [sys.executable, "-B", "-m", "aaaat.cli", "--storage", tmp, "agent", "context", local_task["id"]],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(raw_id_context.returncode, 0)
 
             packet = json.loads(self.run_cli("--storage", tmp, "agent", "packet", task_handle).stdout)
-            self.assertEqual(packet["task"]["task_handle"], task_handle)
-            self.assertNotIn("id", packet["task"])
+            self.assertEqual(packet["task_handle"], task_handle)
+            self.assertEqual(packet["task_type"], "company_research")
+            self.assertEqual(packet["purpose"], "market_research")
+            self.assertIn("input_context", packet)
+            self.assertIn("output_contract", packet)
+            self.assertIn("response_format", packet)
+            self.assertIn("privacy_notes", packet)
+            self.assertNotIn("id", packet)
             self.assertNotIn("task_id", json.dumps(packet).lower())
+            self.assertNotIn(local_task["id"], json.dumps(packet))
 
             result_path = Path(tmp) / "result.json"
-            result_path.write_text('{"company": "CLI Co"}', encoding="utf-8")
+            result_path.write_text('{"company_research": "CLI research"}', encoding="utf-8")
             submitted = json.loads(
                 self.run_cli(
                     "--storage",
@@ -117,6 +141,7 @@ class CliMcpTests(unittest.TestCase):
             )
             self.assertEqual(set(submitted), {"status", "task", "next"})
             self.assertEqual(submitted["task"], {"task_handle": task_handle, "state": "completed"})
+            self.assertNotIn(local_task["id"], json.dumps(submitted))
             self.assertNotIn("application_id", json.dumps(submitted))
             self.assertNotIn("artifact_id", json.dumps(submitted))
 
@@ -196,6 +221,8 @@ class CliMcpTests(unittest.TestCase):
         self.assertIn("get_agent_context_bundle", tools)
         self.assertIn("submit_agent_action", tools)
         self.assertIn("task_handle", descriptor_text)
+        self.assertIn("response_format", descriptor_text)
+        self.assertIn("output_contract", descriptor_text)
         self.assertNotIn("task_id", descriptor_text)
         for tool in descriptor["tools"]:
             self.assertEqual(tool["inputSchema"]["type"], "object")
@@ -209,6 +236,8 @@ class CliMcpTests(unittest.TestCase):
         self.assertIn("dashboard runtime", guide)
         self.assertIn("agent runtime", guide)
         self.assertIn("task handle", guide)
+        self.assertIn("opaque", guide)
+        self.assertIn("response format", guide)
         self.assertIn("bounded", guide)
         self.assertTrue({"get_next_agent_task", "get_agent_task_context", "submit_agent_task_result", "get_agent_context_bundle", "submit_agent_action"}.issubset(tool_names))
 
