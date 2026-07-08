@@ -1,10 +1,14 @@
 # AAAAT
 
+<p align="center">
+  <img src="aaaat/templates_ui/assets/AAAATlogo.png" alt="AAAAT logo" width="240">
+</p>
+
 AAAAT is a local-first job application tracker and artifact generator for a single user. It helps you keep job opportunities, raw offer text, application notes, preparation material, tasks, generated artifacts, and reusable profile data in one private local workspace.
 
 The production target is personal local production: one user, one local machine, private storage, a dashboard bound to localhost by default, and optional bounded agent-compatible task surfaces. It is not a SaaS product and it is not designed for public network hosting.
 
-Product visual assets belong in [`aaaat/templates-ui/assets/`](aaaat/templates-ui/assets/). Keep only private-safe logo and screenshot assets there. Release screenshots should be generated from fake/demo data, not from a real `.private/` workspace.
+This README embeds the committed logo at `aaaat/templates_ui/assets/AAAATlogo.png`. Use only private-safe committed screenshots or images from `aaaat/templates_ui/assets/`; release screenshots should be generated from fake/demo data, not from a real `.private/` workspace.
 
 ## What AAAAT is
 
