@@ -37,6 +37,7 @@ The action-session protocol is not CRUD. An agent first requests a purpose-scope
 LLM-originated work starts in the LLM app. AAAAT should not create extraction or duplicate drafting tasks for work already supplied by the LLM. If `company_research`, `form_answers`, `cover_letter_body` plus cover-letter rendering, `cv_positioning`, or CV rendering is already supplied, skip the matching requested follow-up task. AAAAT should not treat the agent as the user, should not ask the agent to write human notes, and should not accept final artifact files from the agent. AAAAT renders local templates for cover letters and CVs from stored data.
 
 Agent HTTP routes:
+- `GET /api/health`
 - `GET /api/agent/tasks/next`
 - `GET /api/agent/tasks/{task_handle}/context`
 - `POST /api/agent/tasks/{task_handle}/result`
