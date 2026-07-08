@@ -1,9 +1,10 @@
 # CLI
 
-## Profile / CV Data
+AAAAT CLI commands fall into two groups: local human/admin commands and agent-facing capability commands. Broad local commands remain useful for the user and for maintenance, but they are not the agent contract.
 
-`variables` store scalar placeholders such as `profile.display_name` or `profile.email`.
-`profile_facts` store structured professional/CV facts for future CV adaptation, cover letters, fit reasoning, recruiter prep, form answers, and market context.
+## Local human/admin commands
+
+`variables` store scalar placeholders such as `profile.display_name` or `profile.email`. `profile_facts` store structured professional/CV facts for future CV adaptation, cover letters, fit reasoning, recruiter prep, form answers, and market context.
 
 Examples:
 
@@ -18,7 +19,7 @@ aaaat profile context --purpose cv_generation
 
 Each fact has editable visibility, exposure, and usage flags for CV, cover letter, agent context, market research, and dashboard use.
 
-Stable MVP commands:
+Stable local commands include:
 
 ```bash
 python -m aaaat.cli init
@@ -45,61 +46,34 @@ python -m aaaat.cli export static-demo outputs/static-demo.html
 python -m aaaat.cli agent-guide
 ```
 
-Broad local CLI commands remain available for human/admin maintenance, but they are not the agent contract.
+`intake raw-offer` is a human/local AAAAT-originated flow. It creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue can then ask an agent to work on bounded tasks.
 
-`intake raw-offer` is a human/local AAAAT-originated flow. It creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue can then ask an agent what to extract.
+Durable production-sprint local commands may also include task, todo, note, blob, keyword, variable, and search commands. These local commands can use internal IDs because they are user/admin tools, not agent authority.
 
-Agent-facing commands use capability-scoped `agent` subcommands. The implemented capability is task work:
+## Agent-facing CLI contract
 
-```bash
-python -m aaaat.cli agent tasks --state queued
-python -m aaaat.cli agent context <task_id>
-python -m aaaat.cli agent packet <task_id>
-python -m aaaat.cli agent dispatch <task_id> --backend manual
-python -m aaaat.cli agent dispatch <task_id> --backend command --cmd "..."
-python -m aaaat.cli agent submit <task_id> --result-body "..."
-python -m aaaat.cli agent submit <task_id> --result-file result.json
-python -m aaaat.cli agent claim <task_id>
-python -m aaaat.cli agent release <task_id>
-```
-
-The agent action-session capability supports LLM-app-originated work, not raw-offer upload or object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
-
-Action-session commands:
+Agent-facing CLI commands should mirror the agent runtime capabilities rather than local CRUD. The intended shape is:
 
 ```bash
+python -m aaaat.cli agent next
+python -m aaaat.cli agent context <task_handle>
+python -m aaaat.cli agent submit <task_handle> --result-file result.json
+python -m aaaat.cli agent submit <task_handle> --result-body '{"result":"..."}'
 python -m aaaat.cli agent context-bundle --purpose cover_letter
 python -m aaaat.cli agent action submit --input-file action.json
 python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'
 ```
 
-The LLM-app-originated action may carry already-inferred candidature fields, company research, form answers, or cover-letter body text. AAAAT stores those values in local fields or render inputs. It does not create extraction or drafting tasks for work already supplied in the action.
+A task handle is not an internal entity ID. It may only be used to fetch bounded context and submit a JSON result for that task. AAAAT owns applying the result to internal records.
 
-Action acknowledgements are narrow and do not return internal AAAAT object identifiers.
+The agent action-session capability supports LLM-app-originated work, not raw-offer upload, dashboard actions, or object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
+
+The `create_candidature` action may carry already-inferred candidature fields, source material, company research, form answers, cover-letter body text, render requests, and requested future tasks. AAAAT stores those values locally, renders local templates when requested, and queues future bounded work only through AAAAT-owned task creation.
+
+Action acknowledgements are narrow and do not return internal AAAAT object identifiers, storage paths, or entity mutation handles.
 
 For cover letters and CVs, the agent supplies data used by AAAAT templates. AAAAT renders generated files locally. The agent contract should not ask the LLM to submit final `.tex` or `.pdf` artifacts.
 
-The agent is not the user. Agent-written text should land in explicit fields, task results, form answers, research/preparation fields, or render inputs, not in human note commands.
-
-Durable production-sprint commands:
-
-```bash
-python -m aaaat.cli task create --application-id <id> --type company_research --title "Research company"
-python -m aaaat.cli task list
-python -m aaaat.cli task show <task_id>
-python -m aaaat.cli task complete <task_id> --result-body "..."
-python -m aaaat.cli task apply <task_id>
-python -m aaaat.cli todo create --application-id <id> --title "Follow up"
-python -m aaaat.cli todo list
-python -m aaaat.cli note add --application-id <id> --body "..."
-python -m aaaat.cli note list --application-id <id>
-python -m aaaat.cli blob add --application-id <id> --type company_research --body "..."
-python -m aaaat.cli blob list --application-id <id>
-python -m aaaat.cli keyword alias ATS "Applicant tracker"
-python -m aaaat.cli keyword note ATS --body "..."
-python -m aaaat.cli variable set display_name "Local User"
-python -m aaaat.cli variable list
-python -m aaaat.cli search "Python"
-```
+The agent is not the user. Agent-written text should land in explicit fields, task results, form answers, research/preparation fields, render inputs, or requested future tasks, not in human note commands.
 
 `profile set` is still supported, but new variable storage canonicalizes profile keys such as `display_name` and `summary.default` to stable placeholders such as `{{ profile.display_name }}` and `{{ profile.summary.default }}`.
