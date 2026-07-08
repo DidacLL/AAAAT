@@ -1,6 +1,6 @@
 # MCP descriptor compatibility
 
-AAAAT currently implements MCP-compatible descriptor and tool-schema metadata for its local agent adapter. It does not implement a full MCP server transport.
+AAAAT currently implements descriptor/tool-schema compatibility through MCP-compatible descriptor and tool-schema metadata for its local agent adapter. It does not implement a full MCP server transport.
 
 ## What is implemented
 
