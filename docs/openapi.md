@@ -26,11 +26,13 @@ The agent runtime must not mount dashboard HTML, static dashboard assets, dashbo
 
 `task_handle` is a bounded task handle for obtaining context and submitting one JSON result. In the MVP it may equal the local task row identifier, but it is still handle-scoped and accepted only by the task routes above. It is not generic authority over local records. AAAAT owns applying task results to internal records.
 
-`POST /api/agent/context-bundle` returns purpose-scoped user/career/writing context using exposure policy. Agent-scoped profile facts expose `fact_ref` labels and non-ID placeholders, not profile-fact row IDs.
+`POST /api/agent/context-bundle` returns purpose-scoped user/career/writing context using exposure policy. Agent-scoped profile facts expose `fact_ref` labels and non-ID placeholders, not profile-fact row IDs. Career plans appear only in these bundles under `career_plans`, with `plan_ref` labels and no career-plan row IDs.
+
+Supported context-bundle purposes include `cover_letter`, `cv_generation`, `candidature_fit`, `market_research`, `recruiter_call`, `form_answers`, and `career_plan_review`.
 
 `POST /api/agent/actions` accepts one bounded action packet containing source material and derived outputs. The first action is `create_candidature`.
 
-Agent-facing task acknowledgements contain only status, task handle/state, and next hints. Agent-facing action acknowledgements must remain narrow. Neither acknowledgement shape may return application, candidature, profile-fact, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles.
+Agent-facing task acknowledgements contain only status, task handle/state, and next hints. Agent-facing action acknowledgements must remain narrow. Neither acknowledgement shape may return application, candidature, profile-fact, career-plan, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles.
 
 ## Dashboard runtime
 
