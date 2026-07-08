@@ -4,6 +4,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+try:  # FastAPI resolves postponed handler annotations from module globals.
+    from fastapi import Request
+except ModuleNotFoundError:  # pragma: no cover - _require_fastapi raises the user-facing error.
+    Request = Any  # type: ignore[misc, assignment]
+
 from .agent_actions import get_agent_context_bundle, submit_agent_action
 from .agent_access import build_agent_task_context, next_agent_task_envelope, submit_agent_task_result, task_result_ack
 from .candidatures import create_candidature, update_candidature
@@ -101,7 +106,7 @@ def _profile_fact_fields(data: dict[str, Any], *, partial: bool = False) -> dict
 
 
 def create_agent_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
-    Depends, FastAPI, HTTPException, Request, _, _, _, _ = _require_fastapi()
+    Depends, FastAPI, HTTPException, _, _, _, _, _ = _require_fastapi()
     app = _configure_app(
         FastAPI(title="AAAAT Agent Runtime", version="0.1.0", docs_url="/docs", redoc_url=None, openapi_url="/openapi.json"),
         storage,
@@ -181,7 +186,7 @@ def create_agent_app(storage: str = ".private", mode: Mode | str = Mode.FULL) ->
 
 
 def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
-    Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse, StaticFiles = _require_fastapi()
+    Depends, FastAPI, HTTPException, _, HTMLResponse, JSONResponse, RedirectResponse, StaticFiles = _require_fastapi()
     app = _configure_app(
         FastAPI(title="AAAAT Dashboard Runtime", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None),
         storage,
@@ -207,24 +212,9 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
     def handle_error(exc: Exception) -> None:
         _handle_error(exc, HTTPException)
 
-    def make_view_model(
-        conn: Any,
-        *,
-        view: str | None = None,
-        application_id: str | None = None,
-        keyword: str | None = None,
-        q: str | None = None,
-    ) -> dict[str, Any]:
+    def make_view_model(conn: Any, *, view: str | None = None, application_id: str | None = None, keyword: str | None = None, q: str | None = None) -> dict[str, Any]:
         payload = dashboard_payload(conn, include_raw=app.state.mode == Mode.FULL)
-        return dashboard_view_model(
-            payload,
-            app.state.mode,
-            view=view,
-            selected_application_id=application_id,
-            selected_keyword=keyword,
-            search_query=q,
-            conn=conn,
-        )
+        return dashboard_view_model(payload, app.state.mode, view=view, selected_application_id=application_id, selected_keyword=keyword, search_query=q, conn=conn)
 
     app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
 
@@ -233,27 +223,12 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         return {"ok": True, "mode": app.state.mode.value, "runtime": "dashboard", "surface": "dashboard"}
 
     @app.get("/", response_class=HTMLResponse)
-    def index(
-        application_id: str | None = None,
-        keyword: str | None = None,
-        tab: str = "company",
-        view: str | None = None,
-        renderer: str | None = None,
-        q: str | None = None,
-    ) -> Any:
+    def index(application_id: str | None = None, keyword: str | None = None, tab: str = "company", view: str | None = None, renderer: str | None = None, q: str | None = None) -> Any:
         with connect(app.state.storage_path) as conn:
             payload = dashboard_payload(conn, include_raw=app.state.mode == Mode.FULL)
             if renderer == "legacy":
                 return HTMLResponse(render_legacy_dashboard(payload, app.state.mode, application_id, keyword, tab))
-            model = dashboard_view_model(
-                payload,
-                app.state.mode,
-                view=view,
-                selected_application_id=application_id,
-                selected_keyword=keyword,
-                search_query=q,
-                conn=conn,
-            )
+            model = dashboard_view_model(payload, app.state.mode, view=view, selected_application_id=application_id, selected_keyword=keyword, search_query=q, conn=conn)
         return HTMLResponse(render_dashboard_view(payload, app.state.mode, view_model=model))
 
     @app.get("/legacy", response_class=HTMLResponse)
@@ -324,11 +299,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         data, is_form = await request_data(request)
         if data.get("_method", "").upper() != "PATCH":
             raise HTTPException(status_code=405, detail="method not allowed")
-        update_fields = {
-            key: data[key]
-            for key in {"description", "salary_expectation", "publication_date", "application_date", "raw_application_form", "strengths", "questions_to_ask", "tech_stack", "valuation"}
-            if key in data
-        }
+        update_fields = {key: data[key] for key in {"description", "salary_expectation", "publication_date", "application_date", "raw_application_form", "strengths", "questions_to_ask", "tech_stack", "valuation"} if key in data}
         with connect(app.state.storage_path) as conn:
             item = update_candidature(conn, candidature_id, **update_fields)
             if wants_fragment(request):
@@ -354,18 +325,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
     async def dashboard_create_task(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
-            item = create_task(
-                conn,
-                data.get("task_type", "manual"),
-                data.get("title", "Task"),
-                application_id=data.get("application_id") or None,
-                instructions=data.get("instructions", ""),
-                state=data.get("state", "queued"),
-                priority=data.get("priority", "normal"),
-                context_hint=data.get("context_hint", ""),
-                created_by=data.get("created_by", "user"),
-                notes=data.get("notes", ""),
-            )
+            item = create_task(conn, data.get("task_type", "manual"), data.get("title", "Task"), application_id=data.get("application_id") or None, instructions=data.get("instructions", ""), state=data.get("state", "queued"), priority=data.get("priority", "normal"), context_hint=data.get("context_hint", ""), created_by=data.get("created_by", "user"), notes=data.get("notes", ""))
         return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
     @app.post("/dashboard/actions/tasks/{task_id}/complete", dependencies=[Depends(writable)])
@@ -448,20 +408,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
     async def dashboard_create_text_blob(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
-            item = create_text_blob(
-                conn,
-                data.get("blob_type", "note"),
-                data.get("body", ""),
-                application_id=data.get("application_id") or None,
-                title=data.get("title", ""),
-                source_context=data.get("source_context", ""),
-                review_state=data.get("review_state", "draft"),
-                created_by=data.get("created_by", "user"),
-                agent_name=data.get("agent_name", ""),
-                agent_runtime=data.get("agent_runtime", ""),
-                model_provider=data.get("model_provider", ""),
-                notes=data.get("notes", ""),
-            )
+            item = create_text_blob(conn, data.get("blob_type", "note"), data.get("body", ""), application_id=data.get("application_id") or None, title=data.get("title", ""), source_context=data.get("source_context", ""), review_state=data.get("review_state", "draft"), created_by=data.get("created_by", "user"), agent_name=data.get("agent_name", ""), agent_runtime=data.get("agent_runtime", ""), model_provider=data.get("model_provider", ""), notes=data.get("notes", ""))
         return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
     @app.post("/dashboard/actions/user-view", dependencies=[Depends(writable)])
@@ -472,7 +419,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         with connect(app.state.storage_path) as conn:
             existing = next((blob for blob in list_text_blobs(conn, application_id) if blob.get("blob_type") == "user_view" and blob.get("source_context") == source_context), None)
             if existing:
-                item = update_text_blob(existing["id"], title=data.get("title", "User view"), body=data.get("body", ""), review_state="draft")
+                item = update_text_blob(conn, existing["id"], title=data.get("title", "User view"), body=data.get("body", ""), review_state="draft")
             else:
                 item = create_text_blob(conn, "user_view", data.get("body", ""), application_id=application_id, title=data.get("title", "User view"), source_context=source_context, review_state="draft", created_by="user")
             if wants_fragment(request):
