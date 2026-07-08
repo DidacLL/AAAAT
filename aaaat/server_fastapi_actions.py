@@ -59,11 +59,12 @@ def register_agent_action_routes(app: Any) -> None:
         if app.state.mode != Mode.FULL:
             raise HTTPException(status_code=403, detail="read only")
         data = await request_json(request)
+        action = {key: data[key] for key in ("action", "payload") if key in data}
         try:
             with connect(app.state.storage_path) as conn:
                 return submit_agent_action(
                     conn,
-                    data,
+                    action,
                     agent_name=data.get("agent_name", ""),
                     agent_runtime=data.get("agent_runtime", ""),
                     model_provider=data.get("model_provider", ""),
