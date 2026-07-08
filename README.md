@@ -72,6 +72,19 @@ You can also run AAAAT as a module:
 python -m aaaat.cli --version
 ```
 
+Private data defaults to `.private/`. Static demos use `examples/demo_payload.json` only.
+
+## Local data and backup
+
+AAAAT stores its local SQLite database at `.private/aaaat.sqlite3` by default and generated artifacts under `.private/artifacts/`. New and existing databases are initialized idempotently and include lightweight schema metadata with `schema_version`.
+
+Create a local backup before upgrades or risky maintenance:
+
+```bash
+python -m aaaat.cli backup
+```
+
+The backup command creates a timestamped zip under `.private/backups/` containing the SQLite database and artifact files. See `docs/local-data.md` for restore notes and custom backup output behavior.
 ## Quick start
 
 Initialize local storage, add one opportunity, and open the dashboard:

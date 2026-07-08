@@ -9,6 +9,7 @@ from typing import Any
 
 
 DEFAULT_PRIVATE_DIR = ".private"
+SCHEMA_VERSION = "1"
 APPLICATION_UPDATE_FIELDS = {
     "company",
     "role",
@@ -70,8 +71,31 @@ def init_db(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
     target = db_path(path)
     with connect(path) as conn:
         conn.executescript(Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"))
+        ensure_schema_version(conn)
         seed_defaults(conn)
+        check_schema_version(conn)
     return target
+
+
+def ensure_schema_version(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        "INSERT OR IGNORE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
+        (SCHEMA_VERSION,),
+    )
+    conn.commit()
+
+
+def get_schema_version(conn: sqlite3.Connection) -> str:
+    row = conn.execute("SELECT value FROM schema_meta WHERE key = 'schema_version'").fetchone()
+    if row is None:
+        raise RuntimeError("Database schema metadata is missing schema_version")
+    return str(row["value"])
+
+
+def check_schema_version(conn: sqlite3.Connection) -> None:
+    version = get_schema_version(conn)
+    if version != SCHEMA_VERSION:
+        raise RuntimeError(f"Unsupported AAAAT schema version {version}; expected {SCHEMA_VERSION}")
 
 
 def seed_defaults(conn: sqlite3.Connection) -> None:
