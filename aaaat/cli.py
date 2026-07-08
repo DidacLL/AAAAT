@@ -29,6 +29,7 @@ from .dispatch.command import dispatch_command
 from .dispatch.manual import dispatch_manual
 from .dispatch.packet import build_task_packet
 from .keywords import add_keyword_alias, create_keyword_note
+from .local_data import create_local_backup
 from .notes import create_note, list_notes
 from .privacy import list_variables, set_variable
 from .profile_facts import (
@@ -71,6 +72,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("init")
+
+    backup_p = sub.add_parser("backup")
+    backup_p.add_argument("--output")
+    backup_p.add_argument("--force", action="store_true")
 
     launch_p = sub.add_parser("launch")
     launch_p.add_argument("--read-only", action="store_true")
@@ -349,6 +354,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "init":
         print(init_db(args.storage))
+        return 0
+    if args.command == "backup":
+        print(create_local_backup(args.storage, args.output, force=args.force))
         return 0
     if args.command == "launch":
         launch(args.storage, args.read_only, port=args.port, agent_api=args.agent_api)
