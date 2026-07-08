@@ -24,9 +24,11 @@ Agent access is capability-scoped. A task handle is valid only for fetching boun
 
 The agent runtime must not expose dashboard HTML, static assets, fragments, dashboard actions, broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, career-plan CRUD, or entity-ID mutation routes.
 
-The action-session protocol is not CRUD. The agent may request a purpose-scoped context bundle and submit one bounded action, such as creating a new candidature from already-inferred fields, storing form answers, storing cover-letter body text as render input, or requesting local rendering.
+The action-session protocol is not CRUD. The agent may request a purpose-scoped context bundle and submit one bounded action, such as creating a new candidature from already-inferred fields, storing form answers, storing cover-letter body text as render input, requesting local rendering, or requesting bounded future work through `requested_tasks`.
 
-Agent contexts and acknowledgements should be narrow and should not return application, candidature, profile-fact, career-plan, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles. Agent-scoped profile facts use `fact_ref` and non-ID placeholders rather than profile-fact row IDs. Agent-scoped career plans use `plan_ref` rather than career-plan row IDs.
+`requested_tasks` is accepted only inside `create_candidature`. AAAAT validates the requested task type, binds accepted tasks internally to the new candidature, stores the reason as task instructions/notes, and returns only `queued.count`. It does not return task IDs, application IDs, candidature IDs, artifact IDs, blob IDs, file paths, storage paths, or database row IDs in the acknowledgement.
+
+Agent contexts and acknowledgements should be narrow and should not return application, candidature, profile-fact, career-plan, artifact, storage, file-path, note, todo, task, or blob identifiers as mutation handles. Agent-scoped profile facts use `fact_ref` and non-ID placeholders rather than profile-fact row IDs. Agent-scoped career plans use `plan_ref` rather than career-plan row IDs.
 
 Generated private artifacts remain local. AAAAT renders artifacts from local templates, profile/application data, and explicit render inputs. Agents may provide template data such as cover-letter body text, but they do not provide final generated artifact files as authoritative artifact output.
 
