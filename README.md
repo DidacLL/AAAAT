@@ -1,7 +1,7 @@
 # AAAAT
 
 <p align="center">
-  <img src="aaaat/templates_ui/assets/AAAATlogo.png" alt="AAAAT logo" width="240">
+  <img src="aaaat/templates_ui/assets/AAAATbanner.png" alt="AAAAT logo" width="720">
 </p>
 
 AAAAT is a local-first job application workspace. It helps you track opportunities, prepare recruiter conversations, keep reusable profile material, and generate per-application artifacts such as CV variants and cover-letter drafts from your own local data.
