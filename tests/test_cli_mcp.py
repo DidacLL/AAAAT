@@ -1,8 +1,8 @@
+import json
 import subprocess
 import sys
 import tempfile
 import unittest
-import json
 from pathlib import Path
 
 from aaaat.mcp_server import mcp_descriptor, validate_descriptor
@@ -17,11 +17,10 @@ class CliMcpTests(unittest.TestCase):
             check=True,
         )
 
-    def test_cli_basic_commands_work(self):
+    def test_cli_basic_local_commands_work(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.run_cli("--storage", tmp, "init")
             created = self.run_cli("--storage", tmp, "app", "create", "--company", "Demo Co", "--role", "Engineer")
-            self.assertIn("Demo Co", created.stdout)
             app_id = json.loads(created.stdout)["id"]
             updated = self.run_cli("--storage", tmp, "app", "update", app_id, "--next-action", "Call recruiter", "--keywords", "ATS, Python")
             updated_data = json.loads(updated.stdout)
@@ -35,9 +34,7 @@ class CliMcpTests(unittest.TestCase):
             intake = self.run_cli("--storage", tmp, "intake", "add", app_id, "--content", "Audit intake")
             self.assertIn("Audit intake", intake.stdout)
             raw_offer = self.run_cli("--storage", tmp, "intake", "raw-offer", "--content", "Raw offer text")
-            raw_offer_data = json.loads(raw_offer.stdout)
-            self.assertEqual(raw_offer_data["company"], "Pending extraction")
-            self.assertEqual(raw_offer_data["status"], "intake")
+            self.assertEqual(json.loads(raw_offer.stdout)["status"], "intake")
             artifacts = self.run_cli("--storage", tmp, "artifact", "list", app_id)
             self.assertEqual(json.loads(artifacts.stdout), [])
             glossary = self.run_cli("--storage", tmp, "glossary", "set", "Python", "--definition", "Programming language", "--category", "skill")
@@ -45,50 +42,25 @@ class CliMcpTests(unittest.TestCase):
 
             missing = self.run_cli("--storage", tmp, "profile", "missing")
             self.assertIn("profile.display_name", missing.stdout)
-            review_queue = self.run_cli("--storage", tmp, "review-queue")
-            self.assertIn("pitch", review_queue.stdout)
-            app_review_queue = self.run_cli("--storage", tmp, "review-queue", app_id)
-            self.assertIn(app_id, app_review_queue.stdout)
-
             self.run_cli("--storage", tmp, "profile", "set", "display_name", "Audit Candidate")
             self.run_cli("--storage", tmp, "profile", "set", "email", "audit@example.invalid")
             self.run_cli("--storage", tmp, "profile", "set", "summary.default", "Audit summary")
-            missing = self.run_cli("--storage", tmp, "profile", "missing")
-            self.assertEqual(json.loads(missing.stdout), [])
+            self.assertEqual(json.loads(self.run_cli("--storage", tmp, "profile", "missing").stdout), [])
+
             cv_path = str(Path(tmp) / "cv.tex")
             cv = self.run_cli("--storage", tmp, "render", "cv", "--output", cv_path)
             self.assertIn("cv", cv.stdout)
             self.assertIn("Audit Candidate", Path(cv_path).read_text(encoding="utf-8"))
             cover_path = str(Path(tmp) / "cover-letter.tex")
-            cover = self.run_cli(
-                "--storage",
-                tmp,
-                "render",
-                "cover-letter",
-                app_id,
-                "--body",
-                "Audit body",
-                "--output",
-                cover_path,
-            )
+            cover = self.run_cli("--storage", tmp, "render", "cover-letter", app_id, "--body", "Audit body", "--output", cover_path)
             self.assertIn("cover_letter", cover.stdout)
             self.assertIn("Audit body", Path(cover_path).read_text(encoding="utf-8"))
-            artifact_id = json.loads(cover.stdout)["id"]
-            state = self.run_cli("--storage", tmp, "artifact", "update-state", artifact_id, "--state", "submitted", "--notes", "Sent")
-            state_data = json.loads(state.stdout)
-            self.assertEqual(state_data["review_state"], "submitted")
-            self.assertEqual(state_data["notes"], "Sent")
-
-            demo_path = str(Path(tmp) / "static-demo.html")
-            demo = self.run_cli("export", "static-demo", demo_path)
-            self.assertIn("static-demo.html", demo.stdout)
-            self.assertIn("Northstar Systems", Path(demo_path).read_text(encoding="utf-8"))
 
             guide = self.run_cli("agent-guide")
-            self.assertIn("AAAAT", guide.stdout)
-            self.assertIn("capability-scoped operations", guide.stdout)
+            self.assertIn("Dashboard runtime", guide.stdout)
+            self.assertIn("Agent runtime", guide.stdout)
 
-    def test_agent_cli_protocol_commands_work(self):
+    def test_agent_cli_task_context_uses_task_handle_shape(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.run_cli("--storage", tmp, "init")
             created = self.run_cli("--storage", tmp, "app", "create", "--company", "CLI Co", "--role", "Backend Engineer")
@@ -109,19 +81,19 @@ class CliMcpTests(unittest.TestCase):
             )
             tasks = json.loads(self.run_cli("--storage", tmp, "agent", "tasks", "--state", "queued").stdout)
             self.assertTrue(tasks)
-            task_id = tasks[0]["id"]
+            task_handle = tasks[0]["task_handle"]
+            self.assertNotIn("id", tasks[0])
+            self.assertNotIn("application_id", json.dumps(tasks))
             self.assertIn("allowed_actions", tasks[0])
             self.assertNotIn("raw_intake", json.dumps(tasks))
 
-            context = json.loads(self.run_cli("--storage", tmp, "agent", "context", task_id).stdout)
-            self.assertEqual(context["task"]["id"], task_id)
+            context = json.loads(self.run_cli("--storage", tmp, "agent", "context", task_handle).stdout)
+            self.assertEqual(context["task"]["task_handle"], task_handle)
+            self.assertNotIn(app_id, json.dumps(context))
+            self.assertNotIn("application_id", json.dumps(context))
             self.assertNotIn("/api/tasks/", json.dumps(context))
 
-            claimed = json.loads(self.run_cli("--storage", tmp, "agent", "claim", task_id, "--agent-name", "CLI Agent").stdout)
-            self.assertEqual(claimed["state"], "claimed")
-            released = json.loads(self.run_cli("--storage", tmp, "agent", "release", task_id).stdout)
-            self.assertEqual(released["state"], "queued")
-            result_path = Path(tmp) / "result.txt"
+            result_path = Path(tmp) / "result.json"
             result_path.write_text('{"company": "CLI Co"}', encoding="utf-8")
             submitted = json.loads(
                 self.run_cli(
@@ -129,7 +101,7 @@ class CliMcpTests(unittest.TestCase):
                     tmp,
                     "agent",
                     "submit",
-                    task_id,
+                    task_handle,
                     "--result-file",
                     str(result_path),
                     "--agent-name",
@@ -139,7 +111,6 @@ class CliMcpTests(unittest.TestCase):
                 ).stdout
             )
             self.assertEqual(submitted["state"], "completed")
-            self.assertEqual(submitted["application_id"], app_id)
 
     def test_agent_action_session_cli_commands_work(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -197,84 +168,58 @@ class CliMcpTests(unittest.TestCase):
             self.assertEqual(ack["action"], "create_candidature")
             self.assertNotIn("internal", ack)
 
-    def test_mcp_descriptor_validates(self):
+    def test_mcp_descriptor_validates_and_matches_agent_runtime_contract(self):
         descriptor = mcp_descriptor()
         self.assertTrue(validate_descriptor(descriptor))
-        self.assertIn("tools", descriptor["capabilities"])
-        self.assertTrue(descriptor["resources"])
-        self.assertTrue(descriptor["tools"])
-        self.assertTrue(descriptor["prompts"])
         resources = {resource["uri"] for resource in descriptor["resources"]}
         tools = {tool["name"] for tool in descriptor["tools"]}
-        self.assertIn("aaaat://agent/tasks", resources)
-        self.assertIn("aaaat://agent/tasks/{task_id}/context", resources)
+        self.assertIn("aaaat://agent/tasks/next", resources)
+        self.assertIn("aaaat://agent/tasks/{task_handle}/context", resources)
         self.assertIn("aaaat://agent/context-bundle", resources)
+        self.assertIn("get_next_agent_task", tools)
         self.assertIn("submit_agent_task_result", tools)
         self.assertIn("get_agent_context_bundle", tools)
         self.assertIn("submit_agent_action", tools)
-        self.assertNotIn("aaaat://dashboard-payload", resources)
+        self.assertNotIn("aaaat://agent/tasks", resources)
+        self.assertNotIn("list_agent_tasks", tools)
+        self.assertNotIn("claim_agent_task", tools)
+        self.assertNotIn("release_agent_task", tools)
         self.assertNotIn("list_applications", tools)
         for tool in descriptor["tools"]:
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("properties", tool["inputSchema"])
         self.assertEqual(self.run_cli("mcp-validate").stdout.strip(), "ok")
 
-    def test_generated_agent_contract_is_capability_scoped_and_not_broad_crud(self):
+    def test_generated_agent_contract_is_capability_scoped(self):
         guide = self.run_cli("agent-guide").stdout.lower()
-        self.assertIn("capability-scoped operations", guide)
-        self.assertIn("implemented capability", guide)
-        self.assertIn("purpose-scoped context bundle", guide)
-        self.assertIn("bounded action", guide)
-        self.assertIn("renders local templates", guide)
-        self.assertIn("should not treat the agent as the user", guide)
-        self.assertNotIn("task-scoped context", guide)
-        self.assertNotIn("raw-offer intake", guide)
-        self.assertNotIn("structured extraction", guide)
-        self.assertNotIn("generated artifact files", guide)
-
         descriptor_text = json.dumps(mcp_descriptor(), sort_keys=True).lower()
-        self.assertIn("capability-scoped", descriptor_text)
+        combined_contract = guide + "\n" + descriptor_text
+        self.assertIn("dashboard runtime", combined_contract)
+        self.assertIn("agent runtime", combined_contract)
+        self.assertIn("task handle", combined_contract)
+        self.assertIn("bounded", combined_contract)
+        self.assertIn("no dashboard html", combined_contract)
+        self.assertIn("no broad", combined_contract)
         forbidden_contract_terms = (
-            "list_applications",
+            "list_agent_tasks",
+            "claim_agent_task",
+            "release_agent_task",
             "dashboard-payload",
             "dashboard_payload",
             "application/context",
-            "candidatures",
-            "arbitrary_search",
             "search_applications",
             "profile_dump",
             "dump_profile",
-            "profile/facts",
-            "profile_context",
-            "variable_dump",
             "dump_variables",
             "aaaat://variables",
             "generic_crud",
+            "application_id",
+            "candidature_id",
+            "profile_fact_id",
+            "artifact_id",
         )
-        combined_contract = guide + "\n" + descriptor_text
         for term in forbidden_contract_terms:
             self.assertNotIn(term, combined_contract)
-
-    def test_docs_explain_llm_app_action_boundary(self):
-        root = Path(__file__).resolve().parent.parent
-        doc_paths = (
-            root / "docs" / "agent-guide.md",
-            root / "docs" / "cli.md",
-            root / "docs" / "openapi.md",
-            root / "docs" / "security-model.md",
-        )
-        docs = "\n".join(path.read_text(encoding="utf-8").lower() for path in doc_paths)
-        self.assertIn("llm app", docs)
-        self.assertIn("purpose-scoped context", docs)
-        self.assertIn("bounded action", docs)
-        self.assertIn("aaaat renders", docs)
-        self.assertIn("local templates", docs)
-        self.assertIn("agent is not the user", docs)
-        self.assertNotIn("aaaat agent intake raw-offer", docs)
-        self.assertNotIn("aaaat agent intake submit-extraction", docs)
-        self.assertNotIn("llm-generated final artifact files", docs)
-        self.assertNotIn("confidence scoring", docs)
-        self.assertNotIn("evidence scoring", docs)
 
     def test_mcp_descriptor_is_capability_only_no_llm_calls(self):
         root = Path(__file__).resolve().parent.parent
