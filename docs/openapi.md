@@ -24,13 +24,13 @@ POST /api/agent/actions
 
 The agent runtime must not mount dashboard HTML, static dashboard assets, dashboard fragments, dashboard actions, broad CRUD/list/search/profile/candidature APIs, note/todo/blob APIs, artifact APIs, or entity-ID mutation routes.
 
-`task_handle` is a bounded task handle for obtaining context and submitting one JSON result. It is not generic authority over local records. AAAAT owns applying task results to internal records.
+`task_handle` is a bounded task handle for obtaining context and submitting one JSON result. In the MVP it may equal the local task row identifier, but it is still handle-scoped and accepted only by the task routes above. It is not generic authority over local records. AAAAT owns applying task results to internal records.
 
-`POST /api/agent/context-bundle` returns purpose-scoped user/career/writing context using exposure policy.
+`POST /api/agent/context-bundle` returns purpose-scoped user/career/writing context using exposure policy. Agent-scoped profile facts expose `fact_ref` labels and non-ID placeholders, not profile-fact row IDs.
 
 `POST /api/agent/actions` accepts one bounded action packet containing source material and derived outputs. The first action is `create_candidature`.
 
-Agent-facing acknowledgements must remain narrow and must not return application, candidature, profile-fact, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles.
+Agent-facing task acknowledgements contain only status, task handle/state, and next hints. Agent-facing action acknowledgements must remain narrow. Neither acknowledgement shape may return application, candidature, profile-fact, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles.
 
 ## Dashboard runtime
 
