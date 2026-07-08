@@ -4,7 +4,7 @@ import json
 import tempfile
 import unittest
 
-from aaaat.candidatures import get_candidature
+from aaaat.candidatures import get_candidature, list_candidatures
 from aaaat.db import connect, create_application, init_db, set_profile_variable
 from aaaat.profile_facts import create_profile_fact
 from aaaat.security import Mode
@@ -55,9 +55,12 @@ class FastApiServerTests(unittest.TestCase):
                 "/api/text-blobs",
                 "/api/keywords",
                 "/api/artifacts",
+                "/api/agent/tasks",
             ]
             for path in blocked:
                 self.assertEqual(client.get(path).status_code, 404, path)
+            self.assertEqual(client.post("/api/agent/context-bundle", json={"purpose": "cover_letter"}).status_code, 404)
+            self.assertEqual(client.post("/api/agent/actions", json={"action": "create_candidature", "payload": {}}).status_code, 404)
             self.assertEqual(client.post("/api/render/cv", json={}).status_code, 404)
             self.assertEqual(client.post("/api/applications", json={"company": "Nope"}).status_code, 404)
 
@@ -110,7 +113,7 @@ class FastApiServerTests(unittest.TestCase):
             self.assertTrue(any(item["title"] == "Follow up" for item in loaded["todos"]))
             self.assertTrue(any(item["artifact_type"] == "cv" for item in loaded["artifacts"]))
 
-    def test_agent_surface_is_task_only_and_minimized(self):
+    def test_agent_surface_is_capability_only_and_minimized(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -123,6 +126,8 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(client.get("/api/health").json()["surface"], "agent")
             openapi_paths = set(client.get("/openapi.json").json()["paths"])
             self.assertIn("/api/agent/tasks", openapi_paths)
+            self.assertIn("/api/agent/context-bundle", openapi_paths)
+            self.assertIn("/api/agent/actions", openapi_paths)
             self.assertTrue(all(path == "/api/health" or path.startswith("/api/agent/") for path in openapi_paths))
             self.assertEqual(client.get("/api/applications").status_code, 404)
             self.assertEqual(client.get("/api/candidatures").status_code, 404)
@@ -138,6 +143,51 @@ class FastApiServerTests(unittest.TestCase):
             self.assertIn("context", context)
             self.assertNotIn("dashboard", serialized.lower())
             self.assertNotIn("/api/tasks/", serialized)
+
+    def test_agent_surface_context_bundle_and_action_session(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                create_profile_fact(
+                    conn,
+                    fact_type="skill",
+                    title="Python",
+                    body="Private Python detail",
+                    exposure="placeholder",
+                    use_for_agent_context=True,
+                )
+            client = self.client(tmp, surface="agent")
+
+            bundle = client.post("/api/agent/context-bundle", json={"purpose": "candidature_fit"})
+            self.assertEqual(bundle.status_code, 200)
+            self.assertEqual(bundle.json()["scope"], "agent")
+            self.assertIn("{{ profile_fact.", json.dumps(bundle.json()))
+            self.assertNotIn("Private Python detail", json.dumps(bundle.json()))
+
+            submitted = client.post(
+                "/api/agent/actions",
+                json={
+                    "action": "create_candidature",
+                    "agent_name": "HTTP Agent",
+                    "payload": {
+                        "source_material": {"offer_text": "HTTP raw offer", "application_form_text": "HTTP raw form"},
+                        "candidature": {"company": "HTTP Co", "role": "Platform Engineer"},
+                        "outputs": {"form_answers": "HTTP form answers"},
+                    },
+                    "expose_internal_ids": True,
+                },
+            )
+            self.assertEqual(submitted.status_code, 200)
+            ack = submitted.json()
+            self.assertEqual(ack["status"], "accepted")
+            self.assertNotIn("internal", ack)
+
+            with connect(tmp) as conn:
+                loaded = list_candidatures(conn, include_related=True)[0]
+            self.assertEqual(loaded["company"], "HTTP Co")
+            self.assertEqual(loaded["details"]["raw_application_form"], "HTTP raw form")
+            self.assertEqual(loaded["form_answers"], "HTTP form answers")
+            self.assertEqual(loaded["raw_intake"][0]["content"], "HTTP raw offer")
 
     def test_agent_surface_submit_claim_release(self):
         with tempfile.TemporaryDirectory() as tmp:

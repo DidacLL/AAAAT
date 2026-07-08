@@ -1,6 +1,6 @@
 # Agent Guide
 
-Agents interact with AAAAT through capability-scoped operations, not generic CRUD. A task is the primary implemented capability.
+Agents interact with AAAAT through capability-scoped operations, not generic CRUD. The implemented capabilities are task work and LLM-app action sessions.
 
 The contract has two directions and they must not be confused.
 
@@ -26,7 +26,7 @@ Task contexts are minimized by `aaaat.agent_access`. They include a sanitized ta
 
 When work starts in the LLM app, the LLM has already read the offer, interpreted the conversation, and produced the useful data before calling AAAAT. In this direction AAAAT should not create extraction tasks for the same completed work.
 
-The correct future capability is an action-session protocol:
+The implemented action-session protocol is:
 
 ```bash
 python -m aaaat.cli agent context-bundle --purpose cover_letter
@@ -35,16 +35,15 @@ python -m aaaat.cli agent action submit --input-file action.json
 
 First, the LLM asks AAAAT for a purpose-scoped context bundle. Supported purposes should map to existing profile-context purposes such as `cv_generation`, `cover_letter`, `candidature_fit`, `recruiter_call`, and `form_answers`. AAAAT returns only the context allowed for that purpose and exposure policy.
 
-Then the LLM submits one bounded action. Examples of bounded actions are:
+Then the LLM submits one bounded action packet containing source material and derived outputs. The first implemented action is `create_candidature`; it can:
 
 - create a candidature from fields the LLM has already inferred;
 - store company-research or preparation fields the LLM has already written;
 - store form answers the LLM has already written;
 - store a cover-letter body as render input for the local template;
-- request local rendering from AAAAT templates;
-- submit the result for an existing AAAAT task.
+- request local rendering from AAAAT templates.
 
-AAAAT should acknowledge the action and perform local storage/rendering. The agent contract should not depend on internal AAAAT object identifiers.
+AAAAT acknowledges the action and performs local storage/rendering. The agent contract does not return internal AAAAT object identifiers.
 
 ## Artifact boundary
 

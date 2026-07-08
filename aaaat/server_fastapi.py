@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import Request
 
+from .agent_actions import get_agent_context_bundle, submit_agent_action
 from .agent_access import (
     build_agent_task_context,
     claim_agent_task,
@@ -146,6 +147,32 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
             except Exception as exc:
                 handle_error(exc)
 
+        @app.post("/api/agent/context-bundle")
+        async def agent_context_bundle(request: Request) -> dict[str, Any]:
+            data, _ = await request_data(request)
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return get_agent_context_bundle(conn, data.get("purpose", ""))
+            except Exception as exc:
+                handle_error(exc)
+
+        @app.post("/api/agent/actions", dependencies=[Depends(writable)])
+        async def agent_submit_action(request: Request) -> dict[str, Any]:
+            data, _ = await request_data(request)
+            packet = {"action": data.get("action"), "payload": data.get("payload", {})}
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return submit_agent_action(
+                        conn,
+                        packet,
+                        agent_name=data.get("agent_name", ""),
+                        agent_runtime=data.get("agent_runtime", ""),
+                        model_provider=data.get("model_provider", ""),
+                        storage_path=app.state.storage_path,
+                    )
+            except Exception as exc:
+                handle_error(exc)
+
         @app.post("/api/agent/tasks/{task_id}/claim", dependencies=[Depends(writable)])
         async def agent_claim_task(task_id: str, request: Request) -> Any:
             data, _ = await request_data(request)
@@ -189,7 +216,6 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
     if surface == "agent":
         register_agent_routes()
         return app
-    register_agent_routes()
 
     @app.middleware("http")
     async def block_dashboard_private_api(request: Request, call_next: Any) -> Any:
@@ -216,9 +242,6 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
             search_query=q,
             conn=conn,
         )
-
-    def task_agent_context(conn: Any, task_id: str) -> dict[str, Any]:
-        return build_agent_task_context(conn, task_id)
 
     @app.get("/", response_class=HTMLResponse)
     def index(
@@ -743,19 +766,6 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
                 return search(conn, q, limit=limit)
             except SearchUnavailable as exc:
                 return {"available": False, "error": str(exc), "results": []}
-
-    @app.get("/api/agent/tasks")
-    def api_agent_tasks(state: str | None = None, limit: int | None = None) -> dict[str, Any]:
-        with connect(app.state.storage_path) as conn:
-            return {"tasks": list_agent_task_envelopes(conn, state=state, limit=limit)}
-
-    @app.get("/api/agent/tasks/{task_id}/context")
-    def api_agent_task_context(task_id: str) -> dict[str, Any]:
-        try:
-            with connect(app.state.storage_path) as conn:
-                return task_agent_context(conn, task_id)
-        except Exception as exc:
-            handle_error(exc)
 
     @app.post("/dashboard/actions/glossary", dependencies=[Depends(writable)])
     async def api_glossary(request: Request) -> Any:

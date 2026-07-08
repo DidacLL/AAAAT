@@ -10,3 +10,5 @@ python -m aaaat.cli mcp-validate
 ```
 
 The descriptor exposes capabilities only. It does not call an LLM and does not bypass AAAAT privacy scopes.
+
+Implemented agent tools include task operations plus `get_agent_context_bundle` and `submit_agent_action`. These are action-session commands, not object CRUD; acknowledgements do not return internal AAAAT object identifiers.

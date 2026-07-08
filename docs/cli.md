@@ -63,9 +63,9 @@ python -m aaaat.cli agent claim <task_id>
 python -m aaaat.cli agent release <task_id>
 ```
 
-The next agent capability should support an LLM-app-originated action session, not raw-offer upload or object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
+The agent action-session capability supports LLM-app-originated work, not raw-offer upload or object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
 
-Planned shape:
+Action-session commands:
 
 ```bash
 python -m aaaat.cli agent context-bundle --purpose cover_letter
@@ -74,6 +74,8 @@ python -m aaaat.cli agent action submit --input-body '{"action":"create_candidat
 ```
 
 The LLM-app-originated action may carry already-inferred candidature fields, company research, form answers, or cover-letter body text. AAAAT stores those values in local fields or render inputs. It does not create extraction or drafting tasks for work already supplied in the action.
+
+Action acknowledgements are narrow and do not return internal AAAAT object identifiers.
 
 For cover letters and CVs, the agent supplies data used by AAAAT templates. AAAAT renders generated files locally. The agent contract should not ask the LLM to submit final `.tex` or `.pdf` artifacts.
 

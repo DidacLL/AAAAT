@@ -141,6 +141,62 @@ class CliMcpTests(unittest.TestCase):
             self.assertEqual(submitted["state"], "completed")
             self.assertEqual(submitted["application_id"], app_id)
 
+    def test_agent_action_session_cli_commands_work(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.run_cli("--storage", tmp, "init")
+            self.run_cli(
+                "--storage",
+                tmp,
+                "profile",
+                "fact",
+                "add",
+                "--type",
+                "skill",
+                "--title",
+                "Python",
+                "--body",
+                "Private Python detail",
+                "--exposure",
+                "placeholder",
+                "--use-for-agent-context",
+            )
+            bundle = json.loads(self.run_cli("--storage", tmp, "agent", "context-bundle", "--purpose", "candidature_fit").stdout)
+            self.assertEqual(bundle["purpose"], "candidature_fit")
+            self.assertEqual(bundle["scope"], "agent")
+            self.assertIn("{{ profile_fact.", json.dumps(bundle))
+            self.assertNotIn("Private Python detail", json.dumps(bundle))
+
+            action_path = Path(tmp) / "action.json"
+            action_path.write_text(
+                json.dumps(
+                    {
+                        "action": "create_candidature",
+                        "payload": {
+                            "source_material": {"offer_text": "Raw CLI offer", "application_form_text": "Raw CLI form"},
+                            "candidature": {"company": "Action CLI Co", "role": "Backend Engineer"},
+                            "outputs": {"form_answers": "CLI form answers", "cover_letter_body": "CLI cover body"},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            ack = json.loads(
+                self.run_cli(
+                    "--storage",
+                    tmp,
+                    "agent",
+                    "action",
+                    "submit",
+                    "--input-file",
+                    str(action_path),
+                    "--agent-name",
+                    "CLI Agent",
+                ).stdout
+            )
+            self.assertEqual(ack["status"], "accepted")
+            self.assertEqual(ack["action"], "create_candidature")
+            self.assertNotIn("internal", ack)
+
     def test_mcp_descriptor_validates(self):
         descriptor = mcp_descriptor()
         self.assertTrue(validate_descriptor(descriptor))
@@ -152,7 +208,10 @@ class CliMcpTests(unittest.TestCase):
         tools = {tool["name"] for tool in descriptor["tools"]}
         self.assertIn("aaaat://agent/tasks", resources)
         self.assertIn("aaaat://agent/tasks/{task_id}/context", resources)
+        self.assertIn("aaaat://agent/context-bundle", resources)
         self.assertIn("submit_agent_task_result", tools)
+        self.assertIn("get_agent_context_bundle", tools)
+        self.assertIn("submit_agent_action", tools)
         self.assertNotIn("aaaat://dashboard-payload", resources)
         self.assertNotIn("list_applications", tools)
         for tool in descriptor["tools"]:

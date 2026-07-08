@@ -21,12 +21,12 @@ Implemented task routes:
 
 Task list responses return sanitized envelopes only. Task contexts are built by `aaaat.agent_access` and contain task-specific data, privacy notes, allowed actions, and task-scoped write-back links.
 
-Future LLM-app integration should use an action-session shape under `/api/agent/*`:
+LLM-app integration uses an action-session shape under `/api/agent/*`:
 
-- context bundle route: the agent requests purpose-scoped user/career/writing context using the existing profile exposure model;
-- action submit route: the agent submits one bounded action, such as creating a candidature from already-inferred fields, storing form answers, storing a cover-letter body as local render input, requesting local rendering, or submitting an existing task result.
+- `POST /api/agent/context-bundle`: the agent requests purpose-scoped user/career/writing context using the existing profile exposure model.
+- `POST /api/agent/actions`: the agent submits one bounded action packet containing source material and derived outputs.
 
-This action-session surface is not object CRUD. The contract should not require the LLM to know internal AAAAT object identifiers. Responses should be narrow acknowledgements and human-facing next-action hints.
+This action-session surface is not object CRUD. The contract does not require the LLM to know internal AAAAT object identifiers. Responses are narrow acknowledgements and human-facing next-action hints; they do not return internal object identifiers.
 
 Agents do not submit generated cover-letter or CV files. AAAAT renders local artifacts from templates, application/profile data, and explicit render inputs.
 
