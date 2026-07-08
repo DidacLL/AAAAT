@@ -79,14 +79,24 @@ class CliMcpTests(unittest.TestCase):
                 "--context-hint",
                 "candidature:company_research",
             )
+            next_task = json.loads(self.run_cli("--storage", tmp, "agent", "next").stdout)["task"]
             tasks = json.loads(self.run_cli("--storage", tmp, "agent", "tasks", "--state", "queued").stdout)
             self.assertTrue(tasks)
-            task_handle = tasks[0]["task_handle"]
+            task_handle = next_task["task_handle"]
+            self.assertEqual(tasks[0]["task_handle"], task_handle)
             self.assertEqual(tasks[0]["allowed_actions"], ["context", "submit"])
+            self.assertNotIn("id", tasks[0])
+            self.assertNotIn("application_id", json.dumps(tasks))
 
             context = json.loads(self.run_cli("--storage", tmp, "agent", "context", task_handle).stdout)
             self.assertEqual(context["task"]["task_handle"], task_handle)
             self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task_handle}/result"})
+            self.assertNotIn("application_id", json.dumps(context))
+
+            packet = json.loads(self.run_cli("--storage", tmp, "agent", "packet", task_handle).stdout)
+            self.assertEqual(packet["task"]["task_handle"], task_handle)
+            self.assertNotIn("id", packet["task"])
+            self.assertNotIn("task_id", json.dumps(packet).lower())
 
             result_path = Path(tmp) / "result.json"
             result_path.write_text('{"company": "CLI Co"}', encoding="utf-8")
@@ -105,7 +115,16 @@ class CliMcpTests(unittest.TestCase):
                     "local",
                 ).stdout
             )
-            self.assertEqual(submitted["state"], "completed")
+            self.assertEqual(set(submitted), {"status", "task", "next"})
+            self.assertEqual(submitted["task"], {"task_handle": task_handle, "state": "completed"})
+            self.assertNotIn("application_id", json.dumps(submitted))
+            self.assertNotIn("artifact_id", json.dumps(submitted))
+
+            context_help = self.run_cli("agent", "context", "--help").stdout
+            submit_help = self.run_cli("agent", "submit", "--help").stdout
+            self.assertIn("task_handle", context_help)
+            self.assertIn("task_handle", submit_help)
+            self.assertNotIn("artifact-id", submit_help)
 
     def test_agent_action_session_cli_commands_work(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -129,7 +148,8 @@ class CliMcpTests(unittest.TestCase):
             bundle = json.loads(self.run_cli("--storage", tmp, "agent", "context-bundle", "--purpose", "candidature_fit").stdout)
             self.assertEqual(bundle["purpose"], "candidature_fit")
             self.assertEqual(bundle["scope"], "agent")
-            self.assertIn("{{ profile_fact.", json.dumps(bundle))
+            self.assertIn("{{ profile_fact.skill.python }}", json.dumps(bundle))
+            self.assertNotIn("fact_", json.dumps(bundle))
 
             action_path = Path(tmp) / "action.json"
             action_path.write_text(
@@ -165,6 +185,7 @@ class CliMcpTests(unittest.TestCase):
     def test_mcp_descriptor_validates_capability_contract(self):
         descriptor = mcp_descriptor()
         self.assertTrue(validate_descriptor(descriptor))
+        descriptor_text = json.dumps(descriptor).lower()
         resources = {resource["uri"] for resource in descriptor["resources"]}
         tools = {tool["name"] for tool in descriptor["tools"]}
         self.assertIn("aaaat://agent/tasks/next", resources)
@@ -174,6 +195,8 @@ class CliMcpTests(unittest.TestCase):
         self.assertIn("submit_agent_task_result", tools)
         self.assertIn("get_agent_context_bundle", tools)
         self.assertIn("submit_agent_action", tools)
+        self.assertIn("task_handle", descriptor_text)
+        self.assertNotIn("task_id", descriptor_text)
         for tool in descriptor["tools"]:
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("properties", tool["inputSchema"])
