@@ -10,8 +10,13 @@ Implemented agent capability:
 - `python -m aaaat.cli agent claim <task_id>`
 - `python -m aaaat.cli agent release <task_id>`
 
-Planned agent capabilities may include narrow raw-offer intake and structured extraction/proposal submission. These are allowed only as schema-bound `aaaat agent ...` operations or `/api/agent/*` routes that return narrow acknowledgements/envelopes, not as generic CRUD/list/search access.
+Implemented agent intake capability:
+- `python -m aaaat.cli agent intake raw-offer --content "..."`
+- `python -m aaaat.cli agent intake raw-offer --file offer.txt`
+- `python -m aaaat.cli agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json`
 
-The browser dashboard is a compact local human working surface. Its routes are not an agent contract. Add new opportunities through dashboard raw-offer intake, user-directed local CLI use, or future capability-scoped agent intake; never by agents enumerating private data.
+Agent intake is allowed only as schema-bound `aaaat agent ...` operations or `/api/agent/*` routes that return narrow acknowledgements/envelopes, opaque correlation ids, task envelopes, and next allowed actions, not as generic CRUD/list/search access.
+
+The browser dashboard is a compact local human working surface. Its routes are not an agent contract. Add new opportunities through dashboard raw-offer intake, user-directed local CLI use, or capability-scoped agent intake; never by agents enumerating private data.
 
 Do not place private values in public demos, source templates, docs, or examples.

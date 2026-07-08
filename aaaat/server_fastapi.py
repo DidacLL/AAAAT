@@ -12,6 +12,7 @@ from .agent_access import (
     release_agent_task,
     submit_agent_task_result,
 )
+from .agent_intake import agent_intake_raw_offer, agent_submit_structured_extraction
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
 from .candidatures import create_candidature, get_candidature, list_candidatures, update_candidature
 from .dashboard import render_dashboard as render_legacy_dashboard
@@ -186,15 +187,49 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
             except Exception as exc:
                 handle_error(exc)
 
+        @app.post("/api/agent/intake/raw-offer", dependencies=[Depends(writable)])
+        async def agent_raw_offer_intake(request: Request) -> Any:
+            data, _ = await request_data(request)
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return agent_intake_raw_offer(
+                        conn,
+                        data.get("content", ""),
+                        source_url=data.get("source_url", ""),
+                        agent_name=data.get("agent_name", ""),
+                        agent_runtime=data.get("agent_runtime", ""),
+                    )
+            except Exception as exc:
+                handle_error(exc)
+
+        @app.post("/api/agent/intake/{correlation_id}/extraction", dependencies=[Depends(writable)])
+        async def agent_submit_extraction(correlation_id: str, request: Request) -> Any:
+            data, _ = await request_data(request)
+            unknown = set(data) - {"fields", "notes", "agent_name", "agent_runtime", "model_provider"}
+            if unknown:
+                raise HTTPException(status_code=400, detail=f"Unsupported extraction keys: {', '.join(sorted(unknown))}")
+            extraction_payload = {key: data[key] for key in ("fields", "notes") if key in data}
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return agent_submit_structured_extraction(
+                        conn,
+                        correlation_id,
+                        extraction_payload,
+                        agent_name=data.get("agent_name", ""),
+                        agent_runtime=data.get("agent_runtime", ""),
+                        model_provider=data.get("model_provider", ""),
+                    )
+            except Exception as exc:
+                handle_error(exc)
+
     if surface == "agent":
         register_agent_routes()
         return app
-    register_agent_routes()
 
     @app.middleware("http")
     async def block_dashboard_private_api(request: Request, call_next: Any) -> Any:
         path = request.url.path
-        if path.startswith("/api/") and not (path == "/api/health" or path.startswith("/api/agent/")):
+        if path.startswith("/api/") and path != "/api/health":
             return JSONResponse({"detail": "not found"}, status_code=404)
         return await call_next(request)
 
@@ -216,9 +251,6 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
             search_query=q,
             conn=conn,
         )
-
-    def task_agent_context(conn: Any, task_id: str) -> dict[str, Any]:
-        return build_agent_task_context(conn, task_id)
 
     @app.get("/", response_class=HTMLResponse)
     def index(
@@ -743,19 +775,6 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
                 return search(conn, q, limit=limit)
             except SearchUnavailable as exc:
                 return {"available": False, "error": str(exc), "results": []}
-
-    @app.get("/api/agent/tasks")
-    def api_agent_tasks(state: str | None = None, limit: int | None = None) -> dict[str, Any]:
-        with connect(app.state.storage_path) as conn:
-            return {"tasks": list_agent_task_envelopes(conn, state=state, limit=limit)}
-
-    @app.get("/api/agent/tasks/{task_id}/context")
-    def api_agent_task_context(task_id: str) -> dict[str, Any]:
-        try:
-            with connect(app.state.storage_path) as conn:
-                return task_agent_context(conn, task_id)
-        except Exception as exc:
-            handle_error(exc)
 
     @app.post("/dashboard/actions/glossary", dependencies=[Depends(writable)])
     async def api_glossary(request: Request) -> Any:

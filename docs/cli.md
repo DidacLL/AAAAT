@@ -56,7 +56,7 @@ python -m aaaat.cli agent claim <task_id>
 python -m aaaat.cli agent release <task_id>
 ```
 
-Planned agent intake/proposal commands may include:
+Agent intake/proposal commands:
 
 ```bash
 python -m aaaat.cli agent intake raw-offer --content "Paste raw offer text here"
@@ -64,7 +64,9 @@ python -m aaaat.cli agent intake raw-offer --file offer.txt
 python -m aaaat.cli agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json
 ```
 
-These future commands should create or update only through documented schemas and reviewable results. They must not expose broad `app list`, `app show`, `search`, raw profile, raw variable, or generic patch behavior as agent capabilities.
+These commands create or update only through documented schemas and reviewable results. They must not expose broad `app list`, `app show`, `search`, raw profile, raw variable, or generic patch behavior as agent capabilities.
+
+`aaaat agent intake raw-offer` returns only `ok`, `capability`, an opaque `correlation_id`, created task envelopes, and `next_allowed_actions`. `aaaat agent intake submit-extraction` accepts only `{"fields": {...}, "notes": "..."?}` where fields are finite field-inference proposal keys; it stores a provenance-preserving task result or reviewable text blob without directly patching candidature fields.
 
 Broad local CLI commands remain available for human/admin maintenance, but they are not the agent contract.
 

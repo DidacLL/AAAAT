@@ -13,6 +13,7 @@ from .agent_access import (
     submit_agent_task_result,
 )
 from .agent_guides import agent_guide
+from .agent_intake import agent_intake_raw_offer, agent_submit_structured_extraction
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
 from .dispatch.manual import dispatch_manual
 from .dispatch.packet import build_task_packet
@@ -92,6 +93,20 @@ def build_parser() -> argparse.ArgumentParser:
     agent_claim.add_argument("--agent-runtime", default="")
     agent_release = agent.add_parser("release")
     agent_release.add_argument("task_id")
+    agent_intake = agent.add_parser("intake").add_subparsers(dest="agent_intake_command", required=True)
+    agent_intake_raw = agent_intake.add_parser("raw-offer")
+    agent_raw_source = agent_intake_raw.add_mutually_exclusive_group(required=True)
+    agent_raw_source.add_argument("--content")
+    agent_raw_source.add_argument("--file")
+    agent_intake_raw.add_argument("--source-url", default="")
+    agent_intake_raw.add_argument("--agent-name", default="")
+    agent_intake_raw.add_argument("--agent-runtime", default="")
+    agent_intake_submit = agent_intake.add_parser("submit-extraction")
+    agent_intake_submit.add_argument("correlation_id")
+    agent_intake_submit.add_argument("--result-file", required=True)
+    agent_intake_submit.add_argument("--agent-name", default="")
+    agent_intake_submit.add_argument("--agent-runtime", default="")
+    agent_intake_submit.add_argument("--model-provider", default="")
 
     app = sub.add_parser("app").add_subparsers(dest="app_command", required=True)
     app_create = app.add_parser("create")
@@ -345,6 +360,34 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(claim_agent_task(conn, args.task_id, agent_name=args.agent_name, agent_runtime=args.agent_runtime), indent=2))
         elif args.command == "agent" and args.agent_command == "release":
             print(json.dumps(release_agent_task(conn, args.task_id), indent=2))
+        elif args.command == "agent" and args.agent_command == "intake" and args.agent_intake_command == "raw-offer":
+            content = Path(args.file).read_text(encoding="utf-8") if args.file else args.content
+            print(
+                json.dumps(
+                    agent_intake_raw_offer(
+                        conn,
+                        content,
+                        source_url=args.source_url,
+                        agent_name=args.agent_name,
+                        agent_runtime=args.agent_runtime,
+                    ),
+                    indent=2,
+                )
+            )
+        elif args.command == "agent" and args.agent_command == "intake" and args.agent_intake_command == "submit-extraction":
+            print(
+                json.dumps(
+                    agent_submit_structured_extraction(
+                        conn,
+                        args.correlation_id,
+                        Path(args.result_file).read_text(encoding="utf-8"),
+                        agent_name=args.agent_name,
+                        agent_runtime=args.agent_runtime,
+                        model_provider=args.model_provider,
+                    ),
+                    indent=2,
+                )
+            )
         elif args.command == "app" and args.app_command == "create":
             print(json.dumps(create_application(conn, company=args.company, role=args.role, status=args.status, priority=args.priority), indent=2))
         elif args.command == "app" and args.app_command == "update":

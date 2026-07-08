@@ -1,6 +1,6 @@
 # Agent Guide
 
-Agents interact with AAAAT through capability-scoped operations, not generic CRUD. A task is the primary implemented capability, but the contract also allows future narrow capabilities such as raw-offer intake and structured extraction proposals.
+Agents interact with AAAAT through capability-scoped operations, not generic CRUD. The implemented capabilities are task work plus raw-offer intake and structured extraction proposals.
 
 Agents must not browse, list, search, or patch the user's candidature database.
 
@@ -20,9 +20,9 @@ Task contexts are minimized by `aaaat.agent_access`. They include a sanitized ta
 
 Submit results back to the task. AAAAT stores provenance and deterministic apply/review remains owned by AAAAT. Agent output must not directly overwrite approved candidature, application, or profile fields.
 
-## Planned intake/proposal capability
+## Intake/proposal capability
 
-Agent-side raw-offer workflows are valid if implemented as narrow capabilities, not CRUD. The intended shape is:
+Agent-side raw-offer workflows are implemented as narrow capabilities, not CRUD:
 
 ```bash
 python -m aaaat.cli agent intake raw-offer --content "..."
@@ -30,15 +30,15 @@ python -m aaaat.cli agent intake raw-offer --file offer.txt
 python -m aaaat.cli agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json
 ```
 
-Expected behavior:
+Behavior:
 
 - raw-offer intake creates a placeholder candidature and extraction/enrichment tasks;
 - the response returns only a narrow acknowledgement, opaque correlation id, and created task envelopes;
-- structured extraction accepts only a documented finite JSON schema;
+- structured extraction accepts only the documented finite JSON schema `{"fields": {...}, "notes": "..."?}`;
 - existing approved/non-empty fields are not overwritten except through deterministic apply rules;
 - conflicts are stored as reviewable task results or text blobs.
 
-The same capability may later be mirrored under `/api/agent/intake/*`.
+The same capability is mirrored under `/api/agent/intake/*` when `aaaat launch --agent-api` starts the agent HTTP surface.
 
 ## Forbidden agent access
 

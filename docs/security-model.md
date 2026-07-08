@@ -8,9 +8,9 @@ Modes:
 - Static demo: fake data only, no backend, no write/raw intake controls.
 - Agent API: capability-scoped HTTP adapter exposing `/api/health` and `/api/agent/*`.
 
-Agent access is capability-scoped. The implemented capability is the task protocol: agents receive task envelopes and task-specific context from `aaaat.agent_access`; they submit task results with provenance. Agents do not receive all candidatures, dashboard payloads, arbitrary search, variable dumps, profile fact lists, or generic CRUD endpoints.
+Agent access is capability-scoped. The implemented capabilities are the task protocol and schema-bound intake/proposal protocol. Agents receive task envelopes and task-specific context from `aaaat.agent_access`; they submit task results with provenance. Agents can also submit copied raw offer text and structured extraction proposals through narrow acknowledgement-style operations. Agents do not receive all candidatures, dashboard payloads, arbitrary search, variable dumps, profile fact lists, or generic CRUD endpoints.
 
-Future agent capabilities may include raw-offer intake and structured extraction/proposal submission. They are acceptable only when they are schema-bound, return narrow acknowledgements/envelopes, and route generated output through reviewable task results or deterministic apply logic. They must not become broad application/candidature CRUD under another name.
+Raw-offer intake and structured extraction/proposal submission are schema-bound, return narrow acknowledgements/envelopes, and route generated output through reviewable task results or deterministic apply logic. They must not become broad application/candidature CRUD under another name.
 
 The dashboard is server-rendered from SQLite through Python. Browser actions use narrow form/htmx routes under `/dashboard/actions/*` and are local human UI internals, not an agent API.
 

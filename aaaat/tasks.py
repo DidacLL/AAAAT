@@ -26,6 +26,38 @@ INITIAL_OPTIONAL_TASKS = {
         "blob:form_responses",
     ),
 }
+FIELD_INFERENCE_FIELDS = {
+    "company",
+    "role",
+    "status",
+    "priority",
+    "source",
+    "source_url",
+    "location",
+    "remote_mode",
+    "next_action",
+    "notes",
+    "call_signals",
+    "technical_reading",
+    "pitch",
+    "smart_question",
+    "risks_to_avoid",
+    "prepare_first",
+    "prepare_later",
+    "offer_snapshot",
+    "company_research",
+    "form_answers",
+    "description",
+    "salary_expectation",
+    "publication_date",
+    "application_date",
+    "raw_application_form",
+    "strengths",
+    "questions_to_ask",
+    "tech_stack",
+    "valuation",
+    "keywords",
+}
 
 
 def create_task(
@@ -299,43 +331,11 @@ def apply_field_inference(conn: sqlite3.Connection, application_id: str, result_
     fields = parsed
     if not isinstance(fields, dict):
         return False, ["Plain text field inference result kept as reviewable text blob."]
-    allowed = {
-        "company",
-        "role",
-        "status",
-        "priority",
-        "source",
-        "source_url",
-        "location",
-        "remote_mode",
-        "next_action",
-        "notes",
-        "call_signals",
-        "technical_reading",
-        "pitch",
-        "smart_question",
-        "risks_to_avoid",
-        "prepare_first",
-        "prepare_later",
-        "offer_snapshot",
-        "company_research",
-        "form_answers",
-        "description",
-        "salary_expectation",
-        "publication_date",
-        "application_date",
-        "raw_application_form",
-        "strengths",
-        "questions_to_ask",
-        "tech_stack",
-        "valuation",
-        "keywords",
-    }
     current = get_candidature_for_apply(conn, application_id)
     updates: dict[str, Any] = {}
     skipped: list[str] = []
     for key, value in fields.items():
-        if key not in allowed:
+        if key not in FIELD_INFERENCE_FIELDS:
             continue
         existing = current.get(key)
         if replace or is_empty_value(existing):

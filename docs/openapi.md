@@ -19,9 +19,14 @@ Implemented task routes:
 - `POST /api/agent/tasks/{task_id}/result`
 - `POST /api/agent/tasks/{task_id}/release`
 
+Implemented intake/proposal routes:
+
+- `POST /api/agent/intake/raw-offer`
+- `POST /api/agent/intake/{correlation_id}/extraction`
+
 Task list responses return sanitized envelopes only. Task contexts are built by `aaaat.agent_access` and contain task-specific data, privacy notes, allowed actions, and task-scoped write-back links.
 
-Future agent intake/proposal routes may be added under `/api/agent/*` when they are schema-bound capabilities. Raw-offer intake may create a placeholder candidature and extraction/enrichment tasks, but responses must be narrow acknowledgements plus opaque correlation ids/task envelopes. Structured extraction must accept finite documented JSON fields and route output through reviewable task results or deterministic apply logic. It must not become generic candidature CRUD.
+Agent intake/proposal routes are schema-bound capabilities. Raw-offer intake creates a placeholder candidature and extraction/enrichment tasks, but responses are narrow acknowledgements plus opaque correlation ids/task envelopes. Structured extraction accepts finite documented JSON fields and routes output through reviewable task results or deterministic apply logic. It is not generic candidature CRUD.
 
 Agent-facing HTTP does not expose all candidatures, dashboard payloads, review queues, arbitrary search, variables, profile facts, render routes, generic CRUD, notes, artifacts, todos, text blobs, or keyword collections.
 
