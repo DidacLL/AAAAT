@@ -15,6 +15,22 @@ aaaat app list
 
 Expected result: install succeeds, the CLI runs, storage initializes, and the example candidature appears in `app list`.
 
+## Local launchers
+
+```bash
+sh launchers/open-aaaat.sh
+sh launchers/open-aaaat-read-only.sh
+```
+
+Windows:
+
+```cmd
+launchers\Open AAAAT.cmd
+launchers\Open AAAAT Read Only.cmd
+```
+
+Expected result: launchers run the local Python module through `python -m aaaat.cli launch`, do not require Git, and pass extra flags through to the launch command.
+
 ## Dashboard modes
 
 ```bash
@@ -52,6 +68,17 @@ aaaat mcp-validate
 ```
 
 Expected result: agent commands expose bounded task/context capabilities only. They should not be documented or treated as broad CRUD over private local data.
+
+## Package data
+
+Verify the package includes runtime assets:
+
+```bash
+python -m pip install -e .
+python -m pytest tests/test_release_polish.py
+```
+
+Expected result: package metadata includes `schema.sql`, dashboard static files, dashboard templates, dashboard partials, and dashboard assets.
 
 ## Repository hygiene
 

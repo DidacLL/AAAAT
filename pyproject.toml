@@ -26,6 +26,7 @@ aaaat = [
     "static/*",
     "templates_ui/*.html",
     "templates_ui/partials/*.html",
+    "templates_ui/assets/*",
 ]
 
 [tool.pytest.ini_options]
