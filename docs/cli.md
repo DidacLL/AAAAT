@@ -60,6 +60,7 @@ Agent-facing runtime capabilities are task-handle and action-session scoped:
 ```bash
 python -m aaaat.cli agent next
 python -m aaaat.cli agent context <task_handle>
+python -m aaaat.cli agent packet <task_handle>
 python -m aaaat.cli agent submit <task_handle> --result-body '{"result":"..."}'
 python -m aaaat.cli agent submit <task_handle> --result-file result.json
 python -m aaaat.cli agent context-bundle --purpose cover_letter
@@ -68,7 +69,9 @@ python -m aaaat.cli agent action submit --input-file action.json
 python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'
 ```
 
-`task_handle` is a task endpoint handle only. It may equal a local task row identifier in the MVP, but agent-facing commands must not treat it as authority to access or mutate arbitrary local records. Agent submit acknowledgements return only status, task handle/state, and next hints.
+`task_handle` is an opaque task endpoint handle only. It must not equal or be treated as a local task row ID, application ID, candidature ID, profile fact ID, artifact ID, or other entity mutation authority. Agent submit acknowledgements return only status, task handle/state, and next hints.
+
+Task packets and task contexts are self-contained for supported AAAAT task types. They include `task_handle`, `task_type`, `title`, `instructions`, `purpose`, `input_context`, `output_contract`, `response_format`, `allowed_actions`, and `privacy_notes`. Supported task types are `field_inference`, `company_research`, `keyword_definition`, `draft_form_responses`, `draft_cv`, `draft_cover_letter`, and `career_plan_review`.
 
 Agent context bundles may include active career plans for `cover_letter`, `cv_generation`, `candidature_fit`, `market_research`, `recruiter_call`, `form_answers`, and `career_plan_review`. They expose `plan_ref`, not career-plan row IDs.
 
