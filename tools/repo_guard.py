@@ -67,7 +67,7 @@ def direct_main_write_risk() -> list[str]:
     return []
 
 
-def collect_findings(root: Path = ROOT, ci: bool = False) -> list[str]:
+def collect_findings(root: Path = ROOT) -> list[str]:
     findings: list[str] = []
     bad = forbidden_tracked(tracked_files(root))
     if bad:
@@ -77,16 +77,25 @@ def collect_findings(root: Path = ROOT, ci: bool = False) -> list[str]:
     if missing:
         findings.append("Missing required .gitignore rules:")
         findings.extend(f"  - {item}" for item in missing)
-    if ci:
-        risk = direct_main_write_risk()
-        if risk:
-            findings.append("Branch protection warning:")
-            findings.extend(f"  - {item}" for item in risk)
     return findings
 
 
+def collect_warnings(ci: bool = False) -> list[str]:
+    warnings: list[str] = []
+    if ci:
+        risk = direct_main_write_risk()
+        if risk:
+            warnings.append("Branch protection warning:")
+            warnings.extend(f"  - {item}" for item in risk)
+    return warnings
+
+
 def run(root: Path = ROOT, ci: bool = False) -> int:
-    findings = collect_findings(root, ci=ci)
+    findings = collect_findings(root)
+    warnings = collect_warnings(ci=ci)
+    if warnings:
+        print("Repository guard warnings:")
+        print("\n".join(warnings))
     if findings:
         print("Repository guard failed:")
         print("\n".join(findings))
