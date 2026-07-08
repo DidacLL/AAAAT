@@ -3,7 +3,9 @@ import inspect
 import json
 import tempfile
 import unittest
+from typing import Any
 
+from aaaat.agent_access import FORBIDDEN_AGENT_CONTEXT_KEYS
 from aaaat.candidatures import list_candidatures
 from aaaat.db import connect, create_application, init_db
 from aaaat.profile_facts import create_profile_fact
@@ -13,6 +15,18 @@ from aaaat.tasks import create_task, list_tasks
 
 
 FASTAPI_AVAILABLE = importlib.util.find_spec("fastapi") is not None and importlib.util.find_spec("httpx") is not None
+
+
+def object_keys(value: Any) -> set[str]:
+    keys: set[str] = set()
+    if isinstance(value, dict):
+        keys.update(value)
+        for item in value.values():
+            keys.update(object_keys(item))
+    elif isinstance(value, list):
+        for item in value:
+            keys.update(object_keys(item))
+    return keys
 
 
 @unittest.skipUnless(FASTAPI_AVAILABLE, "FastAPI/httpx test dependencies are not installed")
@@ -94,6 +108,8 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(next_response.status_code, 200)
             task = next_response.json()["task"]
             self.assertIn("task_handle", task)
+            self.assertNotIn("id", task)
+            self.assertNotIn("application_id", task)
             self.assertEqual(task["task_type"], "company_research")
             self.assertEqual(task["allowed_actions"], ["context", "submit"])
 
@@ -107,8 +123,10 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(context_response.status_code, 200)
             context = context_response.json()
             self.assertEqual(context["task"]["task_handle"], task["id"])
+            self.assertNotIn("id", context["task"])
             self.assertIn("company", context["context"])
             self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task['id']}/result"})
+            self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(context)))
 
     def test_agent_runtime_submit_result_returns_narrow_ack(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -123,9 +141,10 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(submitted.status_code, 200, submitted.text)
             ack = submitted.json()
             self.assertEqual(ack.get("status"), "accepted")
-            self.assertLessEqual(set(ack), {"status", "task", "next"})
-            self.assertEqual(ack.get("task", {}).get("state"), "completed")
-            self.assertIn("task_handle", ack.get("task", {}))
+            self.assertEqual(set(ack), {"status", "task", "next"})
+            self.assertEqual(set(ack["task"]), {"task_handle", "state"})
+            self.assertEqual(ack["task"]["state"], "completed")
+            self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(ack)))
 
             with connect(tmp) as conn:
                 task_row = next(item for item in list_tasks(conn) if item["id"] == task["id"])
@@ -135,7 +154,7 @@ class FastApiServerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                create_profile_fact(
+                fact = create_profile_fact(
                     conn,
                     fact_type="skill",
                     title="Python",
@@ -148,7 +167,8 @@ class FastApiServerTests(unittest.TestCase):
             bundle = client.post("/api/agent/context-bundle", json={"purpose": "candidature_fit"})
             self.assertEqual(bundle.status_code, 200)
             self.assertEqual(bundle.json()["scope"], "agent")
-            self.assertIn("{{ profile_fact.", json.dumps(bundle.json()))
+            self.assertIn("{{ profile_fact.skill.python }}", json.dumps(bundle.json()))
+            self.assertNotIn(fact["id"], json.dumps(bundle.json()))
 
             submitted = client.post(
                 "/api/agent/actions",
