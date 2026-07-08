@@ -17,6 +17,14 @@ from .agent_access import (
 )
 from .agent_guides import agent_guide
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
+from .career_plans import (
+    archive_career_plan,
+    career_plan_context,
+    create_career_plan,
+    get_career_plan,
+    list_career_plans,
+    update_career_plan,
+)
 from .dispatch.command import dispatch_command
 from .dispatch.manual import dispatch_manual
 from .dispatch.packet import build_task_packet
@@ -216,6 +224,33 @@ def build_parser() -> argparse.ArgumentParser:
     profile_context_p = profile.add_parser("context")
     profile_context_p.add_argument("--purpose", required=True)
     profile_context_p.add_argument("--scope", default="agent")
+
+    career_plan = sub.add_parser("career-plan").add_subparsers(dest="career_plan_command", required=True)
+    career_plan_add = career_plan.add_parser("add")
+    career_plan_add.add_argument("--body", default="")
+    career_plan_add.add_argument("--objectives", default="")
+    career_plan_add.add_argument("--constraints", default="")
+    career_plan_add.add_argument("--target-markets", default="")
+    career_plan_add.add_argument("--target-roles", default="")
+    career_plan_add.add_argument("--source", default="user")
+    career_plan_list = career_plan.add_parser("list")
+    career_plan_list.add_argument("--include-archived", action="store_true")
+    career_plan_show = career_plan.add_parser("show")
+    career_plan_show.add_argument("id")
+    career_plan_update = career_plan.add_parser("update")
+    career_plan_update.add_argument("id")
+    career_plan_update.add_argument("--body")
+    career_plan_update.add_argument("--objectives")
+    career_plan_update.add_argument("--constraints")
+    career_plan_update.add_argument("--target-markets")
+    career_plan_update.add_argument("--target-roles")
+    career_plan_update.add_argument("--source")
+    career_plan_update.add_argument("--review-state", choices=["active", "archived"])
+    career_plan_archive = career_plan.add_parser("archive")
+    career_plan_archive.add_argument("id")
+    career_plan_context_p = career_plan.add_parser("context")
+    career_plan_context_p.add_argument("--purpose", required=True)
+    career_plan_context_p.add_argument("--scope", default="agent")
 
     glossary = sub.add_parser("glossary").add_subparsers(dest="glossary_command", required=True)
     glossary_set = glossary.add_parser("set")
@@ -460,6 +495,36 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(archive_profile_fact(conn, args.id), indent=2))
         elif args.command == "profile" and args.profile_command == "context":
             print(json.dumps(profile_context(conn, args.purpose, scope=args.scope), indent=2))
+        elif args.command == "career-plan" and args.career_plan_command == "add":
+            print(
+                json.dumps(
+                    create_career_plan(
+                        conn,
+                        body=args.body,
+                        objectives=args.objectives,
+                        constraints=args.constraints,
+                        target_markets=args.target_markets,
+                        target_roles=args.target_roles,
+                        source=args.source,
+                    ),
+                    indent=2,
+                )
+            )
+        elif args.command == "career-plan" and args.career_plan_command == "list":
+            print(json.dumps(list_career_plans(conn, include_archived=args.include_archived), indent=2))
+        elif args.command == "career-plan" and args.career_plan_command == "show":
+            print(json.dumps(get_career_plan(conn, args.id), indent=2))
+        elif args.command == "career-plan" and args.career_plan_command == "update":
+            fields = {
+                key: value
+                for key, value in vars(args).items()
+                if key in {"body", "objectives", "constraints", "target_markets", "target_roles", "source", "review_state"} and value is not None
+            }
+            print(json.dumps(update_career_plan(conn, args.id, **fields), indent=2))
+        elif args.command == "career-plan" and args.career_plan_command == "archive":
+            print(json.dumps(archive_career_plan(conn, args.id), indent=2))
+        elif args.command == "career-plan" and args.career_plan_command == "context":
+            print(json.dumps(career_plan_context(conn, args.purpose, scope=args.scope), indent=2))
         elif args.command == "glossary" and args.glossary_command == "set":
             print(json.dumps(upsert_glossary_term(conn, args.term, args.definition, args.category), indent=2))
         elif args.command == "keyword" and args.keyword_command == "alias":
