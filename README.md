@@ -85,6 +85,7 @@ python -m aaaat.cli backup
 ```
 
 The backup command creates a timestamped zip under `.private/backups/` containing the SQLite database and artifact files. See `docs/local-data.md` for restore notes and custom backup output behavior.
+
 ## Quick start
 
 Initialize local storage, add one opportunity, and open the dashboard:
@@ -127,6 +128,26 @@ aaaat launch --read-only
 ```
 
 Use this for recruiter calls or review sessions when you want to inspect data without changing it.
+
+## Local launchers
+
+The `launchers/` directory contains small convenience wrappers. They run the installed or local Python module and do not require Git.
+
+Unix:
+
+```bash
+sh launchers/open-aaaat.sh
+sh launchers/open-aaaat-read-only.sh
+```
+
+Windows:
+
+```cmd
+launchers\Open AAAAT.cmd
+launchers\Open AAAAT Read Only.cmd
+```
+
+The launchers accept extra CLI flags after the script name, such as `--storage /path/to/private-aaaat` or `--port 8766`.
 
 ## Agent mode
 

@@ -68,6 +68,30 @@ http://127.0.0.1:8765
 
 Stop the server with `Ctrl+C` in the terminal that launched it.
 
+## Optional local launchers
+
+The `launchers/` directory contains thin wrappers around `python -m aaaat.cli`. They do not require Git and can be used from a local checkout after dependencies are installed.
+
+Unix:
+
+```bash
+sh launchers/open-aaaat.sh
+sh launchers/open-aaaat-read-only.sh
+```
+
+Windows Command Prompt:
+
+```cmd
+launchers\Open AAAAT.cmd
+launchers\Open AAAAT Read Only.cmd
+```
+
+Extra CLI flags are passed through to `aaaat launch`, for example:
+
+```bash
+sh launchers/open-aaaat.sh --storage /path/to/private-aaaat --port 8766
+```
+
 ## Optional test install
 
 For development or release checks:
