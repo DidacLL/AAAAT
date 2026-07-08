@@ -16,8 +16,20 @@ jobs:
         run: python -m pip install -e .[test]
       - name: Agent access contract tests
         run: python -B -m unittest tests.test_agent_access
-      - name: FastAPI runtime split tests
-        run: python -B -m unittest tests.test_fastapi_server
+      - name: FastAPI builder smoke test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_explicit_runtime_builders_create_distinct_apps
+      - name: FastAPI dashboard UI test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_dashboard_runtime_renders_human_ui_and_dashboard_actions
+      - name: FastAPI dashboard workflow test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_dashboard_actions_preserve_human_workflows
+      - name: FastAPI agent capability routes test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_exposes_capability_operations
+      - name: FastAPI agent task flow test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_next_context_and_result_use_task_handle
+      - name: FastAPI agent action flow test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_context_bundle_and_action_session
+      - name: FastAPI read-only dashboard test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_read_only_dashboard_blocks_dashboard_actions
       - name: Domain service tests
         run: python -B -m unittest tests.test_domain_services
       - name: Profile fact tests
