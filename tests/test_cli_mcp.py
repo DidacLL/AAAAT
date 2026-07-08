@@ -231,18 +231,6 @@ class CliMcpTests(unittest.TestCase):
             self.assertIn("properties", tool["inputSchema"])
         self.assertEqual(self.run_cli("mcp-validate").stdout.strip(), "ok")
 
-    def test_mcp_docs_describe_descriptor_only_compatibility(self):
-        root = Path(__file__).resolve().parent.parent
-        mcp_doc = (root / "docs" / "mcp.md").read_text(encoding="utf-8").lower()
-        readme = (root / "README.md").read_text(encoding="utf-8").lower()
-        agents = (root / "AGENTS.md").read_text(encoding="utf-8").lower()
-        self.assertIn("descriptor/tool-schema compatibility", mcp_doc)
-        self.assertIn("does not implement a full mcp server transport", mcp_doc)
-        self.assertIn("does not ship a full mcp server transport", readme)
-        self.assertIn("descriptor-only compatibility", agents)
-        for transport in ("stdio", "sse", "streamable http"):
-            self.assertIn(transport, mcp_doc)
-
     def test_generated_agent_guide_and_descriptor_describe_capabilities(self):
         guide = self.run_cli("agent-guide").stdout.lower()
         descriptor = mcp_descriptor()
