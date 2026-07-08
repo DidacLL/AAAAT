@@ -95,6 +95,42 @@ class DispatchCommandTests(unittest.TestCase):
             self.assertEqual(shown["state"], "queued")
             self.assertFalse(shown["result_blob_id"])
 
+    def test_command_backend_empty_stdout_does_not_submit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.run_cli("--storage", tmp, "init")
+            app = json.loads(self.run_cli("--storage", tmp, "app", "create", "--company", "Quiet Co", "--role", "Engineer").stdout)
+            task = json.loads(
+                self.run_cli(
+                    "--storage",
+                    tmp,
+                    "task",
+                    "create",
+                    "--application-id",
+                    app["id"],
+                    "--type",
+                    "company_research",
+                    "--title",
+                    "Research Quiet Co",
+                ).stdout
+            )
+            code = "import sys; sys.stderr.write('no stdout\\n')"
+            cmd = f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
+
+            dispatch = json.loads(
+                self.run_cli("--storage", tmp, "agent", "dispatch", task["id"], "--backend", "command", "--cmd", cmd).stdout
+            )
+            self.assertEqual(dispatch["backend"], "command")
+            self.assertEqual(dispatch["exit_code"], 0)
+            self.assertEqual(dispatch["stderr"], "no stdout\n")
+            self.assertEqual(dispatch["error"], "empty_stdout")
+            self.assertFalse(dispatch["submitted"])
+            self.assertNotIn("task", dispatch)
+            shown = json.loads(self.run_cli("--storage", tmp, "task", "show", task["id"]).stdout)
+            self.assertEqual(shown["state"], "queued")
+            self.assertFalse(shown["result_blob_id"])
+            blobs = json.loads(self.run_cli("--storage", tmp, "blob", "list", "--application-id", app["id"]).stdout)
+            self.assertEqual(blobs, [])
+
 
 if __name__ == "__main__":
     unittest.main()
