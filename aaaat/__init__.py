@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.abc
 import sys
+from importlib.machinery import PathFinder
 
 __all__ = ["__version__"]
 __version__ = "0.1.0"
@@ -34,20 +35,12 @@ class _ServerFastApiPatchFinder(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):  # type: ignore[no-untyped-def]
         if fullname != f"{__name__}.server_fastapi":
             return None
-        for finder in sys.meta_path:
-            if finder is self:
-                continue
-            find_spec = getattr(finder, "find_spec", None)
-            if find_spec is None:
-                continue
-            spec = find_spec(fullname, path, target)
-            if spec is None or spec.loader is None:
-                continue
-            if isinstance(spec.loader, _ServerFastApiPatchLoader):
-                return spec
+        spec = PathFinder.find_spec(fullname, path)
+        if spec is None or spec.loader is None:
+            return None
+        if not isinstance(spec.loader, _ServerFastApiPatchLoader):
             spec.loader = _ServerFastApiPatchLoader(spec.loader)  # type: ignore[arg-type]
-            return spec
-        return None
+        return spec
 
 
 def _install_server_fastapi_patch() -> None:
