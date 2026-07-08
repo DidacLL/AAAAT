@@ -23,9 +23,9 @@ POST /api/agent/context-bundle
 POST /api/agent/actions
 ```
 
-A task handle is allowed only as an agent-session handle for fetching bounded task context and submitting that task result. The current MVP may use the local task row identifier as the transitional `task_handle`, but the handle is accepted only by task endpoints. It is not authority to mutate arbitrary local state. AAAAT owns mapping task results back to local records through internal task binding.
+A task handle is an opaque agent-session callback handle for fetching bounded task context and submitting that task result. It is not the local task row identifier and is not authority to mutate arbitrary local state. AAAAT owns mapping task results back to local records through internal task binding.
 
-Agent task contexts and acknowledgements must not expose application IDs, candidature IDs, artifact IDs, profile fact IDs, note IDs, todo IDs, blob IDs, file paths, or storage paths as mutation handles. Agent-scoped profile facts use `fact_ref` labels and placeholders such as `{{ profile_fact.skill.python }}`, not profile-fact row IDs.
+Agent task contexts, packets, and acknowledgements must not expose application IDs, candidature IDs, artifact IDs, profile fact IDs, note IDs, todo IDs, blob IDs, file paths, or storage paths as mutation handles. Agent-scoped profile facts use `fact_ref` labels and placeholders such as `{{ profile_fact.skill.python }}`, not profile-fact row IDs.
 
 Career plans are local first-class records. Agents receive career plan material only through bounded context bundles, under `career_plans`, using non-ID `plan_ref` labels. Agents must not receive career plan row IDs or a career-plan CRUD surface.
 
@@ -33,7 +33,19 @@ Career plans are local first-class records. Agents receive career plan material 
 
 When work starts inside AAAAT, AAAAT creates or selects a pending task. The agent obtains the next pending task, receives bounded task context, completes reasoning externally, and submits a JSON result. AAAAT stores provenance and applies results only through deterministic local ownership and review/apply flows.
 
-Task contexts are minimized by `aaaat.agent_access`. They include a task handle, sanitized task envelope, task-specific context, privacy notes, and task-scoped write-back links. They do not include dashboard payloads or private database browsing surfaces.
+Task contexts are minimized by `aaaat.agent_access`. They include `task_handle`, `task_type`, `title`, `instructions`, `purpose`, `input_context`, `output_contract`, `response_format`, `allowed_actions`, and `privacy_notes`. They do not include dashboard payloads or private database browsing surfaces.
+
+Supported task types include:
+
+- `field_inference`
+- `company_research`
+- `keyword_definition`
+- `draft_form_responses`
+- `draft_cv`
+- `draft_cover_letter`
+- `career_plan_review`
+
+The response format is part of the task context or packet. The agent should submit JSON matching that response format and should not include internal entity IDs. AAAAT applies the result internally using the task binding.
 
 ## LLM-app-originated work
 
