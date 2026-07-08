@@ -6,6 +6,13 @@ from typing import Any
 PROTOCOL_VERSION = "2025-06-18"
 
 
+CONTRACT_DESCRIPTION = (
+    "Capability-scoped AAAAT operation. No dashboard HTML, broad CRUD, or entity-ID mutation authority. "
+    "Task contexts and packets include task_handle, task_type, title, instructions, purpose, input_context, "
+    "output_contract, response_format, allowed_actions, and privacy_notes."
+)
+
+
 def mcp_descriptor() -> dict[str, Any]:
     return {
         "protocolVersion": PROTOCOL_VERSION,
@@ -20,7 +27,7 @@ def mcp_descriptor() -> dict[str, Any]:
             {
                 "uri": "aaaat://agent/tasks/{task_handle}/context",
                 "name": "agent-task-context",
-                "title": "Bounded Agent Task Context",
+                "title": "Bounded Agent Task Context With Response Format",
                 "mimeType": "application/json",
             },
             {
@@ -57,7 +64,7 @@ def tool(name: str, properties: dict[str, str], required: list[str]) -> dict[str
     return {
         "name": name,
         "title": name.replace("_", " ").title(),
-        "description": f"Capability-scoped AAAAT operation: {name.replace('_', ' ')}. No dashboard HTML, broad CRUD, or entity-ID mutation authority.",
+        "description": f"{CONTRACT_DESCRIPTION} Operation: {name.replace('_', ' ')}.",
         "inputSchema": {
             "type": "object",
             "properties": {key: {"type": kind} for key, kind in properties.items()},
@@ -70,7 +77,7 @@ def prompt(name: str, args: list[str]) -> dict[str, Any]:
     return {
         "name": name,
         "title": name.replace("_", " ").title(),
-        "description": f"Capability-oriented prompt template for {name.replace('_', ' ')}.",
+        "description": f"Capability-oriented prompt template for {name.replace('_', ' ')} using the bounded task response format.",
         "arguments": [{"name": arg, "required": True} for arg in args],
     }
 

@@ -157,53 +157,72 @@ class FastApiServerTests(unittest.TestCase):
     def test_agent_runtime_next_task_uses_task_handle(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
-            self.create_agent_task(tmp)
+            local_task = self.create_agent_task(tmp)
             client = self.agent_client(tmp)
 
             next_response = client.get("/api/agent/tasks/next")
             self.assertEqual(next_response.status_code, 200)
             task = next_response.json()["task"]
             self.assertIn("task_handle", task)
+            self.assertTrue(task["task_handle"].startswith("taskh_"))
+            self.assertNotEqual(task["task_handle"], local_task["id"])
             self.assertNotIn("id", task)
             self.assertNotIn("application_id", task)
             self.assertEqual(task["task_type"], "company_research")
+            self.assertEqual(task["purpose"], "market_research")
             self.assertEqual(task["allowed_actions"], ["context", "submit"])
 
     def test_agent_runtime_task_context_is_handle_scoped(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
-            task = self.create_agent_task(tmp)
+            local_task = self.create_agent_task(tmp)
             client = self.agent_client(tmp)
+            handle = client.get("/api/agent/tasks/next").json()["task"]["task_handle"]
 
-            context_response = client.get(f"/api/agent/tasks/{task['id']}/context")
+            raw_id_response = client.get(f"/api/agent/tasks/{local_task['id']}/context")
+            self.assertEqual(raw_id_response.status_code, 404)
+
+            context_response = client.get(f"/api/agent/tasks/{handle}/context")
             self.assertEqual(context_response.status_code, 200)
             context = context_response.json()
-            self.assertEqual(context["task"]["task_handle"], task["id"])
+            self.assertEqual(context["task"]["task_handle"], handle)
+            self.assertNotEqual(context["task"]["task_handle"], local_task["id"])
             self.assertNotIn("id", context["task"])
-            self.assertIn("company", context["context"])
-            self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task['id']}/result"})
+            self.assertIn("company", context["input_context"])
+            self.assertIn("instructions", context)
+            self.assertIn("output_contract", context)
+            self.assertIn("response_format", context)
+            self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{handle}/result"})
+            self.assertNotIn(local_task["id"], json.dumps(context))
             self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(context)))
 
     def test_agent_runtime_submit_result_returns_narrow_ack(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
-            task = self.create_agent_task(tmp)
+            local_task = self.create_agent_task(tmp)
             client = self.agent_client(tmp)
+            handle = client.get("/api/agent/tasks/next").json()["task"]["task_handle"]
+
+            raw_id_submit = client.post(
+                f"/api/agent/tasks/{local_task['id']}/result",
+                json={"result_json": {"company_research": "Agent research"}},
+            )
+            self.assertEqual(raw_id_submit.status_code, 404)
 
             submitted = client.post(
-                f"/api/agent/tasks/{task['id']}/result",
-                json={"result_json": {"summary": "Agent research"}, "agent_name": "Agent", "agent_runtime": "http", "model_provider": "local"},
+                f"/api/agent/tasks/{handle}/result",
+                json={"result_json": {"company_research": "Agent research"}, "agent_name": "Agent", "agent_runtime": "http", "model_provider": "local"},
             )
             self.assertEqual(submitted.status_code, 200, submitted.text)
             ack = submitted.json()
             self.assertEqual(ack.get("status"), "accepted")
             self.assertEqual(set(ack), {"status", "task", "next"})
-            self.assertEqual(set(ack["task"]), {"task_handle", "state"})
-            self.assertEqual(ack["task"]["state"], "completed")
+            self.assertEqual(ack["task"], {"task_handle": handle, "state": "completed"})
+            self.assertNotIn(local_task["id"], json.dumps(ack))
             self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(ack)))
 
             with connect(tmp) as conn:
-                task_row = next(item for item in list_tasks(conn) if item["id"] == task["id"])
+                task_row = next(item for item in list_tasks(conn) if item["id"] == local_task["id"])
             self.assertEqual(task_row["state"], "completed")
 
     def test_agent_runtime_context_bundle_and_action_session(self):

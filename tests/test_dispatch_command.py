@@ -15,6 +15,9 @@ class DispatchCommandTests(unittest.TestCase):
             check=check,
         )
 
+    def next_task_handle(self, storage: str) -> str:
+        return json.loads(self.run_cli("--storage", storage, "agent", "next").stdout)["task"]["task_handle"]
+
     def test_command_backend_submits_stdout_without_auto_apply(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.run_cli("--storage", tmp, "init")
@@ -39,22 +42,26 @@ class DispatchCommandTests(unittest.TestCase):
                     "candidature:company_research",
                 ).stdout
             )
-            code = "import json, sys; packet=json.load(sys.stdin); print('RESULT:' + packet['task']['title'])"
+            task_handle = self.next_task_handle(tmp)
+            self.assertTrue(task_handle.startswith("taskh_"))
+            self.assertNotEqual(task_handle, task["id"])
+            code = "import json, sys; packet=json.load(sys.stdin); print('RESULT:' + packet['title'])"
             cmd = f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
 
             dispatch = json.loads(
-                self.run_cli("--storage", tmp, "agent", "dispatch", task["id"], "--backend", "command", "--cmd", cmd).stdout
+                self.run_cli("--storage", tmp, "agent", "dispatch", task_handle, "--backend", "command", "--cmd", cmd).stdout
             )
             self.assertEqual(dispatch["backend"], "command")
-            self.assertEqual(dispatch["task_handle"], task["id"])
+            self.assertEqual(dispatch["task_handle"], task_handle)
             self.assertNotIn("task_id", dispatch)
             self.assertEqual(dispatch["exit_code"], 0)
             self.assertEqual(dispatch["stderr"], "")
             self.assertTrue(dispatch["submitted"])
             self.assertNotIn("stdout", dispatch)
             self.assertNotIn("RESULT:Research Command Co", json.dumps(dispatch))
-            self.assertEqual(dispatch["task"], {"task_handle": task["id"], "state": "completed"})
+            self.assertEqual(dispatch["task"], {"task_handle": task_handle, "state": "completed"})
             self.assertEqual(dispatch["next"], ["open_dashboard"])
+            self.assertNotIn(task["id"], json.dumps(dispatch))
             self.assertNotIn("result_blob_id", json.dumps(dispatch))
             self.assertNotIn("application_id", json.dumps(dispatch))
 
@@ -82,18 +89,21 @@ class DispatchCommandTests(unittest.TestCase):
                     "Research Fail Co",
                 ).stdout
             )
+            task_handle = self.next_task_handle(tmp)
+            self.assertNotEqual(task_handle, task["id"])
             code = "import sys; sys.stderr.write('runner failed\\n'); sys.exit(7)"
             cmd = f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
 
             dispatch = json.loads(
-                self.run_cli("--storage", tmp, "agent", "dispatch", task["id"], "--backend", "command", "--cmd", cmd).stdout
+                self.run_cli("--storage", tmp, "agent", "dispatch", task_handle, "--backend", "command", "--cmd", cmd).stdout
             )
             self.assertEqual(dispatch["backend"], "command")
-            self.assertEqual(dispatch["task_handle"], task["id"])
+            self.assertEqual(dispatch["task_handle"], task_handle)
             self.assertEqual(dispatch["exit_code"], 7)
             self.assertEqual(dispatch["stderr"], "runner failed\n")
             self.assertFalse(dispatch["submitted"])
             self.assertNotIn("task", dispatch)
+            self.assertNotIn(task["id"], json.dumps(dispatch))
             shown = json.loads(self.run_cli("--storage", tmp, "task", "show", task["id"]).stdout)
             self.assertEqual(shown["state"], "queued")
             self.assertFalse(shown["result_blob_id"])
@@ -116,19 +126,22 @@ class DispatchCommandTests(unittest.TestCase):
                     "Research Quiet Co",
                 ).stdout
             )
+            task_handle = self.next_task_handle(tmp)
+            self.assertNotEqual(task_handle, task["id"])
             code = "import sys; sys.stderr.write('no stdout\\n')"
             cmd = f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
 
             dispatch = json.loads(
-                self.run_cli("--storage", tmp, "agent", "dispatch", task["id"], "--backend", "command", "--cmd", cmd).stdout
+                self.run_cli("--storage", tmp, "agent", "dispatch", task_handle, "--backend", "command", "--cmd", cmd).stdout
             )
             self.assertEqual(dispatch["backend"], "command")
-            self.assertEqual(dispatch["task_handle"], task["id"])
+            self.assertEqual(dispatch["task_handle"], task_handle)
             self.assertEqual(dispatch["exit_code"], 0)
             self.assertEqual(dispatch["stderr"], "no stdout\n")
             self.assertEqual(dispatch["error"], "empty_stdout")
             self.assertFalse(dispatch["submitted"])
             self.assertNotIn("task", dispatch)
+            self.assertNotIn(task["id"], json.dumps(dispatch))
             shown = json.loads(self.run_cli("--storage", tmp, "task", "show", task["id"]).stdout)
             self.assertEqual(shown["state"], "queued")
             self.assertFalse(shown["result_blob_id"])

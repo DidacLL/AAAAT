@@ -18,13 +18,17 @@ Agent runtime:
 
 The agent runtime exposes only bounded capabilities:
 
-1. get the next pending task and task handle;
+1. get the next pending task and opaque task handle;
 2. fetch bounded task context by task handle;
 3. submit one JSON result for that task handle;
 4. request a bounded context bundle;
 5. submit one bounded action packet.
 
-A task handle is valid only for task context and result submission. In the MVP it may equal AAAAT's local task row identifier, but it is accepted only as a task endpoint handle. AAAAT owns applying results to internal records. Agents must not receive application IDs, candidature IDs, profile fact IDs, career plan IDs, artifact IDs, note IDs, todo IDs, blob IDs, task row IDs, file paths, or storage paths as mutation authority.
+A task handle is valid only for task context and result submission. It is an opaque callback handle, not AAAAT's local task row identifier. AAAAT owns applying results to internal records. Agents must not receive application IDs, candidature IDs, profile fact IDs, career plan IDs, artifact IDs, note IDs, todo IDs, blob IDs, task row IDs, file paths, or storage paths as mutation authority.
+
+Each agent task context/packet is self-contained for supported AAAAT task types. It includes `task_handle`, `task_type`, `title`, `instructions`, `purpose`, `input_context`, `output_contract`, `response_format`, `allowed_actions`, and `privacy_notes`. The agent should return JSON matching the response format and should not include internal entity IDs.
+
+Supported production-local task types are `field_inference`, `company_research`, `keyword_definition`, `draft_form_responses`, `draft_cv`, `draft_cover_letter`, and `career_plan_review`.
 
 Agent-scoped profile facts use non-ID fact references such as `fact_ref: skill.python` and placeholders such as `{{ profile_fact.skill.python }}`. Do not treat those labels as profile CRUD handles.
 

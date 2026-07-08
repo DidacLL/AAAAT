@@ -20,7 +20,9 @@ POST /api/agent/context-bundle
 POST /api/agent/actions
 ```
 
-Agent access is capability-scoped. A task handle is valid only for fetching bounded context and submitting a JSON result for that task. In the MVP the task handle may be the local task row identifier, but it is still a handle-scoped callback token and not generic entity authority. AAAAT owns applying task results to internal records.
+Agent access is capability-scoped. A task handle is valid only for fetching bounded context and submitting a JSON result for that task. It is an opaque callback handle, not the local task row identifier and not generic entity authority. AAAAT owns applying task results to internal records.
+
+Agent task context is self-contained for supported task types. It carries instructions, purpose, input context, output contract, response format, allowed actions, and privacy notes. Agent output should match the response format and must not include entity IDs as mutation authority.
 
 The agent runtime must not expose dashboard HTML, static assets, fragments, dashboard actions, generated API docs, OpenAPI JSON, broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, career-plan CRUD, or entity-ID mutation routes.
 
