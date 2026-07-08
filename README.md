@@ -6,7 +6,7 @@
 
 AAAAT is a local-first job application tracker and artifact generator for a single user. It helps you keep job opportunities, raw offer text, application notes, preparation material, tasks, generated artifacts, and reusable profile data in one private local workspace.
 
-The production target is personal local production: one user, one local machine, private storage, a dashboard bound to localhost by default, and optional bounded agent-compatible task surfaces. It is not a SaaS product and it is not designed for public network hosting.
+AAAAT is designed for personal local use: one user, one local machine, private storage, a dashboard bound to localhost by default, and optional bounded agent-compatible task surfaces. It is not a SaaS product and it is not designed for public network hosting.
 
 This README embeds the committed logo at `aaaat/templates_ui/assets/AAAATlogo.png`. Use only private-safe committed screenshots or images from `aaaat/templates_ui/assets/`; release screenshots should be generated from fake/demo data, not from a real `.private/` workspace.
 
@@ -31,7 +31,7 @@ AAAAT is not:
 - a CRM clone;
 - a replacement for reviewing applications before submission.
 
-Do not expose AAAAT to a public network. The supported production shape is local single-user use.
+Do not expose AAAAT to a public network. The supported operating shape is local single-user use.
 
 ## Local-first privacy
 
@@ -208,22 +208,23 @@ Current backup flow is manual and local:
 
 More detail: [docs/local-data.md](docs/local-data.md).
 
-## Release checklist
+## Local validation checks
 
-Before calling a local release ready, verify:
+Useful smoke checks after install or before publishing a tagged release:
 
-- fresh install works on Python 3.11+;
-- `aaaat init` is idempotent;
-- dashboard launches at `127.0.0.1:8765`;
-- read-only mode blocks writes;
-- agent mode exposes only bounded task/context/action surfaces;
-- static demo export uses fake data only;
-- `.private/`, database files, artifacts, backups, and generated outputs are not committed;
-- generated artifacts render locally and are reviewed before use;
-- docs do not imply SaaS, multi-user, public-network, or provider-specific behavior;
-- test suite and repository guard pass.
+```bash
+aaaat init
+aaaat app create --company "Example Co" --role "Backend Engineer"
+aaaat app list
+aaaat export static-demo outputs/static-demo.html
+aaaat mcp-validate
+python -m pytest
+python tools/repo_guard.py
+```
 
-Full checklist: [docs/release-checklist.md](docs/release-checklist.md).
+Keep real `.private/` data, databases, generated artifacts, and backups out of commits.
+
+More detail: [docs/release-checklist.md](docs/release-checklist.md).
 
 ## Known limitations
 
@@ -241,7 +242,7 @@ Full checklist: [docs/release-checklist.md](docs/release-checklist.md).
 - [Install](docs/install.md)
 - [Local data and backup](docs/local-data.md)
 - [Agent workflow](docs/agent-workflow.md)
-- [Release checklist](docs/release-checklist.md)
+- [Local validation checklist](docs/release-checklist.md)
 - [CLI reference](docs/cli.md)
 - [Security model](docs/security-model.md)
 - [MCP descriptor notes](docs/mcp.md)
