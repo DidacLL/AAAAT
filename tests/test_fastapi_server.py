@@ -34,6 +34,12 @@ class FastApiServerTests(unittest.TestCase):
     def route_paths(self, client):
         return {getattr(route, "path", "") for route in client.app.routes}
 
+    def create_agent_task(self, storage):
+        with connect(storage) as conn:
+            app = create_application(conn, company="Agent Co", role="Engineer")
+            task = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
+        return task
+
     def test_launch_binds_to_loopback_by_default_and_supports_agent_api(self):
         self.assertEqual(inspect.signature(launch).parameters["host"].default, "127.0.0.1")
         self.assertIn("agent_api", inspect.signature(launch).parameters)
@@ -89,40 +95,50 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(client.get("/static/htmx.min.js").status_code, 404)
             self.assertEqual(client.post("/dashboard/actions/notes", json={}).status_code, 404)
 
-    def test_agent_runtime_next_context_and_result_use_task_handle(self):
+    def test_agent_runtime_next_task_uses_task_handle(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
-            with connect(tmp) as conn:
-                app = create_application(conn, company="Agent Co", role="Engineer")
-                create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
+            self.create_agent_task(tmp)
             client = self.agent_client(tmp)
 
             next_response = client.get("/api/agent/tasks/next")
             self.assertEqual(next_response.status_code, 200)
             task = next_response.json()["task"]
-            task_handle = task["task_handle"]
+            self.assertIn("task_handle", task)
             self.assertEqual(task["task_type"], "company_research")
             self.assertEqual(task["allowed_actions"], ["context", "submit"])
 
-            context_response = client.get(f"/api/agent/tasks/{task_handle}/context")
+    def test_agent_runtime_task_context_is_handle_scoped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            task = self.create_agent_task(tmp)
+            client = self.agent_client(tmp)
+
+            context_response = client.get(f"/api/agent/tasks/{task['id']}/context")
             self.assertEqual(context_response.status_code, 200)
             context = context_response.json()
-            self.assertEqual(context["task"]["task_handle"], task_handle)
+            self.assertEqual(context["task"]["task_handle"], task["id"])
             self.assertIn("company", context["context"])
-            self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task_handle}/result"})
+            self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task['id']}/result"})
+
+    def test_agent_runtime_submit_result_returns_narrow_ack(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            task = self.create_agent_task(tmp)
+            client = self.agent_client(tmp)
 
             submitted = client.post(
-                f"/api/agent/tasks/{task_handle}/result",
+                f"/api/agent/tasks/{task['id']}/result",
                 json={"result_json": {"summary": "Agent research"}, "agent_name": "Agent", "agent_runtime": "http", "model_provider": "local"},
             )
             self.assertEqual(submitted.status_code, 200)
             ack = submitted.json()
             self.assertEqual(ack["status"], "accepted")
-            self.assertEqual(ack["task"], {"task_handle": task_handle, "state": "completed"})
+            self.assertEqual(ack["task"], {"task_handle": task["id"], "state": "completed"})
             self.assertEqual(set(ack), {"status", "task", "next"})
 
             with connect(tmp) as conn:
-                task_row = next(item for item in list_tasks(conn) if item["id"] == task_handle)
+                task_row = next(item for item in list_tasks(conn) if item["id"] == task["id"])
             self.assertEqual(task_row["state"], "completed")
 
     def test_agent_runtime_context_bundle_and_action_session(self):
