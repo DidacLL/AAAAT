@@ -136,7 +136,7 @@ Start the bounded machine-facing runtime:
 aaaat launch --agent-api
 ```
 
-Agent mode is optional. It is for external tools that work through AAAAT task handles, task context, result submission, and purpose-scoped context bundles.
+Agent mode is optional. It is for external tools that work through AAAAT task handles, task context, result submission, bounded action packets, and purpose-scoped context bundles.
 
 Useful commands:
 
@@ -150,12 +150,14 @@ aaaat agent context-bundle --purpose cover_letter
 aaaat agent action submit --input-file action.json
 ```
 
-Descriptor commands:
+MCP-compatible descriptor commands:
 
 ```bash
 aaaat mcp-descriptor
 aaaat mcp-validate
 ```
+
+AAAAT currently provides descriptor/tool-schema compatibility only. It does not ship a full MCP server transport. External adapters can use the descriptor and map its tools/resources to the CLI commands above or to the local agent HTTP routes in `docs/openapi.md`.
 
 ## Artifact generation
 
@@ -208,4 +210,4 @@ Restore by stopping AAAAT and copying the backup back to `.private/`, or by laun
 - [Agent workflow](docs/agent-workflow.md)
 - [CLI reference](docs/cli.md)
 - [Security model](docs/security-model.md)
-- [MCP descriptor notes](docs/mcp.md)
+- [MCP descriptor compatibility](docs/mcp.md)
