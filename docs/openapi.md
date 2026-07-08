@@ -22,7 +22,7 @@ POST /api/agent/context-bundle
 POST /api/agent/actions
 ```
 
-The agent runtime must not mount dashboard HTML, static dashboard assets, dashboard fragments, dashboard actions, broad CRUD/list/search/profile/candidature APIs, note/todo/blob APIs, artifact APIs, or entity-ID mutation routes.
+The agent runtime must not mount dashboard HTML, static dashboard assets, dashboard fragments, dashboard actions, generated API docs, OpenAPI JSON, broad CRUD/list/search/profile/candidature APIs, note/todo/blob APIs, artifact APIs, or entity-ID mutation routes.
 
 `task_handle` is a bounded task handle for obtaining context and submitting one JSON result. In the MVP it may equal the local task row identifier, but it is still handle-scoped and accepted only by the task routes above. It is not generic authority over local records. AAAAT owns applying task results to internal records.
 
