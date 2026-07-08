@@ -32,7 +32,24 @@ Supported context-bundle purposes include `cover_letter`, `cv_generation`, `cand
 
 `POST /api/agent/actions` accepts one bounded action packet containing source material and derived outputs. The first action is `create_candidature`.
 
-Agent-facing task acknowledgements contain only status, task handle/state, and next hints. Agent-facing action acknowledgements must remain narrow. Neither acknowledgement shape may return application, candidature, profile-fact, career-plan, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles.
+`create_candidature.payload` supports these sections only: `source_material`, `candidature`, `outputs`, `render`, and optional `requested_tasks`.
+
+`requested_tasks` is a list of small objects. Supported `task_type` values are `company_research`, `form_answers` or `draft_form_responses`, `cover_letter` or `draft_cover_letter`, `cv` or `draft_cv`, and `keyword_definition` with a `keyword`. AAAAT creates and binds accepted tasks internally to the new candidature. It skips follow-up tasks for outputs already supplied in the same action.
+
+Example acknowledgement:
+
+```json
+{
+  "status": "accepted",
+  "action": "create_candidature",
+  "created": true,
+  "rendered": {"cover_letter": true},
+  "queued": {"count": 1},
+  "next": ["open_dashboard"]
+}
+```
+
+Agent-facing task acknowledgements contain only status, task handle/state, and next hints. Agent-facing action acknowledgements must remain narrow. Neither acknowledgement shape may return application, candidature, profile-fact, career-plan, artifact, storage, file-path, note, todo, blob, or task row identifiers as mutation handles.
 
 ## Dashboard runtime
 
