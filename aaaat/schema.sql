@@ -1,3 +1,10 @@
+CREATE TABLE IF NOT EXISTS schema_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO schema_meta(key, value) VALUES ('schema_version', '1');
+
 CREATE TABLE IF NOT EXISTS applications (
   id TEXT PRIMARY KEY,
   company TEXT NOT NULL,
