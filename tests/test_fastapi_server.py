@@ -66,7 +66,7 @@ class FastApiServerTests(unittest.TestCase):
             self.assertTrue(any(path.startswith("/dashboard/fragments/") for path in registered))
             self.assertTrue(any(path.startswith("/dashboard/actions/") for path in registered))
 
-    def test_dashboard_form_action_writes_local_human_note(self):
+    def test_dashboard_action_writes_local_human_note(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -75,10 +75,10 @@ class FastApiServerTests(unittest.TestCase):
 
             note = client.post(
                 "/dashboard/actions/notes",
-                data={"application_id": app["id"], "note_type": "call", "body": "Call note"},
+                json={"application_id": app["id"], "note_type": "call", "body": "Call note"},
                 follow_redirects=False,
             )
-            self.assertEqual(note.status_code, 303)
+            self.assertEqual(note.status_code, 201)
 
             with connect(tmp) as conn:
                 loaded = get_candidature(conn, app["id"])
@@ -198,9 +198,9 @@ class FastApiServerTests(unittest.TestCase):
             client = self.dashboard_client(tmp, Mode.READ_ONLY)
 
             self.assertNotIn("data-write-control", client.get("/").text)
-            self.assertEqual(client.post("/dashboard/actions/notes", data={"application_id": app["id"], "body": "Nope"}).status_code, 403)
-            self.assertEqual(client.post(f"/dashboard/actions/applications/{app['id']}", data={"_method": "PATCH", "next_action": "Nope"}).status_code, 403)
-            self.assertEqual(client.post("/dashboard/actions/render/cv", data={"application_id": app["id"]}).status_code, 403)
+            self.assertEqual(client.post("/dashboard/actions/notes", json={"application_id": app["id"], "body": "Nope"}).status_code, 403)
+            self.assertEqual(client.post(f"/dashboard/actions/applications/{app['id']}", json={"_method": "PATCH", "next_action": "Nope"}).status_code, 403)
+            self.assertEqual(client.post("/dashboard/actions/render/cv", json={"application_id": app["id"]}).status_code, 403)
 
 
 if __name__ == "__main__":
