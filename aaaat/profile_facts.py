@@ -33,6 +33,7 @@ PURPOSE_FLAGS = {
     "market_research": "use_for_market_research",
     "recruiter_call": "use_for_agent_context",
     "form_answers": "use_for_agent_context",
+    "career_plan_review": "use_for_agent_context",
 }
 LOCAL_SCOPES = {"local_render", "local_dashboard", "dashboard", "read_only_dashboard"}
 BOOL_FIELDS = {

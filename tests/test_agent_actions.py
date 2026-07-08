@@ -4,12 +4,13 @@ import unittest
 
 from aaaat.agent_actions import get_agent_context_bundle, submit_agent_action
 from aaaat.candidatures import list_candidatures
+from aaaat.career_plans import create_career_plan
 from aaaat.db import connect, init_db, set_profile_variable
 from aaaat.profile_facts import create_profile_fact
 
 
 class AgentActionTests(unittest.TestCase):
-    def test_context_bundle_uses_agent_profile_exposure(self):
+    def test_context_bundle_uses_agent_profile_exposure_and_career_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -21,12 +22,23 @@ class AgentActionTests(unittest.TestCase):
                     exposure="placeholder",
                     use_for_cover_letter=True,
                 )
+                plan = create_career_plan(
+                    conn,
+                    body="Target local-first backend tooling roles.",
+                    objectives=["senior backend"],
+                    constraints=["remote-friendly"],
+                    target_markets=["EU"],
+                    target_roles=["Backend Engineer"],
+                )
                 bundle = get_agent_context_bundle(conn, "cover_letter")
 
         serialized = json.dumps(bundle)
         self.assertEqual(bundle["purpose"], "cover_letter")
         self.assertEqual(bundle["scope"], "agent")
         self.assertIn("{{ profile_fact.", serialized)
+        self.assertIn("career_plans", bundle)
+        self.assertEqual(bundle["career_plans"][0]["body"], "Target local-first backend tooling roles.")
+        self.assertNotIn(plan["id"], serialized)
         self.assertNotIn("PRIVATE PYTHON DETAIL", serialized)
 
     def test_create_candidature_preserves_source_outputs_and_renders_locally(self):

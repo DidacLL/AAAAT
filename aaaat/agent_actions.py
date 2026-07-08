@@ -5,7 +5,10 @@ import sqlite3
 from typing import Any
 
 from .candidatures import CANDIDATURE_DETAIL_FIELDS, create_candidature
+from .career_plans import CONTEXT_PURPOSES as CAREER_PLAN_PURPOSES
+from .career_plans import career_plan_context
 from .db import APPLICATION_UPDATE_FIELDS
+from .profile_facts import PURPOSE_FLAGS as PROFILE_CONTEXT_PURPOSES
 from .profile_facts import profile_context
 from .templates import render_document_artifact, safe_artifact_output_path
 from .text_blobs import create_text_blob
@@ -69,7 +72,14 @@ RENDER_FIELDS = {"cover_letter", "cv"}
 
 
 def get_agent_context_bundle(conn: sqlite3.Connection, purpose: str) -> dict[str, Any]:
-    return profile_context(conn, purpose, scope="agent")
+    if purpose not in CAREER_PLAN_PURPOSES:
+        raise ValueError(f"Unsupported agent context purpose: {purpose}")
+    if purpose in PROFILE_CONTEXT_PURPOSES:
+        bundle = profile_context(conn, purpose, scope="agent")
+    else:
+        bundle = {"purpose": purpose, "scope": "agent", "facts": []}
+    bundle["career_plans"] = career_plan_context(conn, purpose, scope="agent")["career_plans"]
+    return bundle
 
 
 def submit_agent_action(
