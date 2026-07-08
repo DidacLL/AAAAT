@@ -34,6 +34,9 @@ def dispatch_command(conn: sqlite3.Connection, task_id: str, cmd: str) -> dict[s
     }
     if completed.returncode != 0:
         return acknowledgement
+    if not completed.stdout.strip():
+        acknowledgement["error"] = "empty_stdout"
+        return acknowledgement
 
     acknowledgement["submitted"] = True
     acknowledgement["task"] = submit_agent_task_result(
