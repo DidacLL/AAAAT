@@ -17,7 +17,7 @@ from .candidatures import create_candidature, update_candidature
 from .dashboard import render_dashboard as render_legacy_dashboard
 from .dashboard import render_raw_offer_intake_page
 from .dashboard_views import dashboard_view_model, render_dashboard_fragment, render_dashboard_view
-from .db import connect, init_db, set_profile_variable
+from .db import connect, init_db, set_profile_variable, update_application
 from .notes import create_note
 from .payload import dashboard_payload
 from .profile_facts import archive_profile_fact, create_profile_fact, update_profile_fact
@@ -312,6 +312,20 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
                     model = make_view_model(conn, view="detailedView", application_id=item["id"])
                     return HTMLResponse(render_dashboard_fragment("inspector", model))
             return respond(item, 201, is_form, f"/?application_id={item['id']}&tab=raw")
+
+        @app.post("/dashboard/actions/applications/{application_id}", dependencies=[Depends(writable)])
+        async def dashboard_patch_application(application_id: str, request: Request) -> Any:
+            data, is_form = await request_data(request)
+            if data.get("_method", "").upper() != "PATCH":
+                raise HTTPException(status_code=405, detail="method not allowed")
+            if "keywords" in data:
+                data["keywords"] = keyword_list(data["keywords"])
+            with connect(app.state.storage_path) as conn:
+                item = update_application(conn, application_id, **data)
+                if wants_fragment(request):
+                    model = make_view_model(conn, view=data.get("view") or "detailedView", application_id=application_id)
+                    return HTMLResponse(render_dashboard_fragment("selected-card", model))
+            return respond(item, 200, is_form, f"/?application_id={application_id}")
 
         @app.post("/dashboard/actions/candidatures/{candidature_id}", dependencies=[Depends(writable)])
         async def dashboard_patch_candidature(candidature_id: str, request: Request) -> Any:
