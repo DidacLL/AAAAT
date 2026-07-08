@@ -4,9 +4,9 @@
 
 The agent contract is capability-scoped, not generic CRUD.
 
-The implemented capability is task work. Future capabilities may include raw-offer intake and structured extraction/proposal submission, but only if they use explicit input/output schemas and narrow reviewable write paths.
+The implemented capability is task work. The next valid capability is an action-session protocol for LLM-app-originated work.
 
-Agents must never receive broad candidature/application lists, dashboard payloads, arbitrary search, raw variable dumps, raw profile fact lists, generic object retrieval, or generic patch/update routes.
+Agents must not receive broad database browsing, dashboard payloads, arbitrary search, raw variable dumps, raw profile fact lists, generic object retrieval, or generic patch/update routes.
 
 ## Implemented task capability
 
@@ -44,27 +44,45 @@ Allowed fields:
 
 Do not include full candidature/application objects, notes, raw intake, full company/role collections, profile facts, variables, artifacts, text blobs, dashboard payload, search results, or unrelated candidature data.
 
-If an opaque correlation key is needed, include `application_id`, but do not treat that as permission to include application details in the task list.
+Task ids are part of the task protocol only. Do not generalize task ids into permission for generic object access.
 
-## Planned raw-offer intake capability
+## Planned action-session capability
 
-Agents should be able to start from a copied job offer without first listing existing records.
+LLM-app-originated work has a different direction from AAAAT-originated task work.
+
+When work starts in the LLM app, the LLM already has the user conversation and raw offer context. It may ask AAAAT for the user's purpose-scoped writing/career context, then submit one bounded action. AAAAT stores data and renders locally; it does not create extraction tasks for work already completed by the LLM.
 
 Planned operations:
 
 ```text
-agent_intake_raw_offer(content, *, source_url='', agent_name='', agent_runtime='') -> dict
-agent_submit_structured_extraction(correlation_id, fields_json, *, agent_name='', agent_runtime='', model_provider='') -> dict
+get_agent_context_bundle(purpose) -> dict
+submit_agent_action(action, payload, *, agent_name='', agent_runtime='', model_provider='') -> dict
 ```
 
-Expected behavior:
+Context bundle behavior:
 
-- raw-offer intake creates a placeholder candidature and extraction/enrichment tasks;
-- the response returns only a narrow acknowledgement, an opaque correlation id, and created task envelopes;
-- structured extraction accepts only a documented finite JSON schema;
-- existing approved/non-empty fields are not overwritten except through deterministic apply rules;
-- conflicts are stored as reviewable task results or text blobs;
-- no generic candidature CRUD is exposed.
+- map `purpose` to the existing `profile_context` purposes;
+- return only purpose-scoped context under the existing exposure policy;
+- do not return application/candidature collections.
+
+Bounded action behavior:
+
+- actions are selected from an explicit allowlist;
+- examples include creating a candidature from already-inferred fields, storing company research/preparation fields, storing form answers, storing cover-letter body text as render input, requesting local rendering, or submitting an existing task result;
+- responses are narrow acknowledgements and human-facing next steps;
+- the contract should not depend on internal AAAAT object identifiers.
+
+## Artifact boundary
+
+Agents do not create final artifact files for AAAAT.
+
+AAAAT owns local rendering:
+
+```text
+stored profile/application/render data -> local template -> TeX -> optional PDF -> generated artifact record
+```
+
+Agents may provide the data that fills templates, such as cover-letter body text. AAAAT renders and records the generated artifact locally.
 
 ## Result submission
 
@@ -78,4 +96,4 @@ Agent result submission must:
 
 ## Apply boundary
 
-`apply_task_result` remains the deterministic mutation boundary. Agent adapters call schema-bound capability operations and submit/complete operations, not arbitrary update/patch routes.
+`apply_task_result` remains the deterministic mutation boundary for AAAAT-originated tasks. Agent adapters call capability operations and submit/complete operations, not arbitrary update/patch routes.
