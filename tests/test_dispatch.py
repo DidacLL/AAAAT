@@ -111,10 +111,15 @@ class DispatchTests(unittest.TestCase):
             )
             outbox_path = Path(dispatch["packet_path"])
             self.assertEqual(dispatch["backend"], "manual")
+            self.assertEqual(dispatch["task_id"], task["id"])
+            self.assertEqual(dispatch["packet_version"], packet["packet_version"])
+            self.assertNotIn("packet", dispatch)
+            dispatch_text = json.dumps(dispatch, sort_keys=True)
+            self.assertNotIn("Target Co", dispatch_text)
+            self.assertNotIn("Write a concise draft for review.", dispatch_text)
             self.assertEqual(outbox_path, Path(tmp) / "agent_outbox" / f"{task['id']}.packet.json")
             self.assertTrue(outbox_path.exists())
-            self.assertEqual(json.loads(outbox_path.read_text(encoding="utf-8")), dispatch["packet"])
-            self.assertEqual(dispatch["packet"], packet)
+            self.assertEqual(json.loads(outbox_path.read_text(encoding="utf-8")), packet)
 
 
 if __name__ == "__main__":
