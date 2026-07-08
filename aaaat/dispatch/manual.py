@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from .packet import build_task_packet
+from .packet import PACKET_VERSION, build_task_packet
 
 
 def dispatch_manual(conn: sqlite3.Connection, storage: str | Path, task_id: str) -> dict[str, Any]:
@@ -18,7 +18,7 @@ def dispatch_manual(conn: sqlite3.Connection, storage: str | Path, task_id: str)
         "backend": "manual",
         "packet_path": str(path),
         "task_id": task_id,
-        "packet": packet,
+        "packet_version": PACKET_VERSION,
     }
 
 
