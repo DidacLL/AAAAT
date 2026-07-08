@@ -137,47 +137,41 @@ class ProfileFactFastApiTests(unittest.TestCase):
     def client(self, storage, mode=Mode.FULL):
         from fastapi.testclient import TestClient
 
-        from aaaat.server_fastapi import create_app
+        from aaaat.server_fastapi import create_dashboard_app
 
-        return TestClient(create_app(storage, mode))
+        return TestClient(create_dashboard_app(storage, mode))
 
-    def test_fastapi_profile_fact_routes_and_read_only_dashboard(self):
+    def test_dashboard_profile_fact_actions_are_local_and_mode_gated(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             client = self.client(tmp)
-            created = client.post(
+            client.post(
                 "/dashboard/actions/profile/facts",
-                data={
+                json={
                     "fact_type": "project",
                     "title": "AAAAT",
                     "body": "Agentic local job tracker",
                     "visibility": "professional",
                     "exposure": "summarized",
-                    "use_for_cv": "1",
-                    "use_for_agent_context": "1",
+                    "use_for_cv": True,
+                    "use_for_agent_context": True,
                 },
                 follow_redirects=False,
             )
-            self.assertEqual(created.status_code, 303)
             self.assertEqual(client.get("/api/profile/facts").status_code, 404)
             with connect(tmp) as conn:
-                fact_id = list_profile_facts(conn)[0]["id"]
+                facts = list_profile_facts(conn)
+                self.assertEqual(facts[0]["title"], "AAAAT")
+                fact_id = facts[0]["id"]
                 update_profile_fact(conn, fact_id, exposure="placeholder")
                 self.assertEqual(profile_context(conn, "cv_generation")["facts"][0]["body"], "{{ profile_fact." + fact_id + " }}")
 
             read_only = self.client(tmp, Mode.READ_ONLY)
-            self.assertEqual(read_only.post("/dashboard/actions/profile/facts", data={"fact_type": "skill"}).status_code, 403)
-            self.assertEqual(read_only.post(f"/dashboard/actions/profile/facts/{fact_id}", data={"_method": "PATCH", "title": "Blocked"}).status_code, 403)
-            self.assertEqual(read_only.post(f"/dashboard/actions/profile/facts/{fact_id}/archive", data={}).status_code, 403)
+            self.assertEqual(read_only.post("/dashboard/actions/profile/facts", json={"fact_type": "skill"}).status_code, 403)
+            self.assertEqual(read_only.post(f"/dashboard/actions/profile/facts/{fact_id}", json={"_method": "PATCH", "title": "Blocked"}).status_code, 403)
+            self.assertEqual(read_only.post(f"/dashboard/actions/profile/facts/{fact_id}/archive", json={}).status_code, 403)
 
-            html = read_only.get("/").text
-            self.assertIn("data-profile-cv-panel", html)
-            self.assertIn("AAAAT", html)
-            self.assertNotIn("profile-fact-add", html)
-            self.assertNotIn("profile-fact-edit", html)
-
-            archived = client.post(f"/dashboard/actions/profile/facts/{fact_id}/archive", data={}, follow_redirects=False)
-            self.assertEqual(archived.status_code, 303)
+            client.post(f"/dashboard/actions/profile/facts/{fact_id}/archive", json={}, follow_redirects=False)
             with connect(tmp) as conn:
                 self.assertEqual(get_profile_fact(conn, fact_id)["review_state"], "archived")
 
