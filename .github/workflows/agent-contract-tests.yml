@@ -20,8 +20,8 @@ jobs:
         run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_explicit_runtime_builders_create_distinct_apps
       - name: FastAPI dashboard UI test
         run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_dashboard_runtime_renders_human_ui_and_dashboard_actions
-      - name: FastAPI dashboard form action test
-        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_dashboard_form_action_writes_local_human_note
+      - name: FastAPI dashboard action test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_dashboard_action_writes_local_human_note
       - name: FastAPI agent capability routes test
         run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_exposes_capability_operations
       - name: FastAPI agent task flow test
