@@ -15,6 +15,7 @@ from .agent_access import (
 from .agent_guides import agent_guide
 from .agent_intake import agent_intake_raw_offer, agent_submit_structured_extraction
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
+from .dispatch.command import dispatch_command
 from .dispatch.manual import dispatch_manual
 from .dispatch.packet import build_task_packet
 from .keywords import add_keyword_alias, create_keyword_note
@@ -76,7 +77,8 @@ def build_parser() -> argparse.ArgumentParser:
     agent_packet.add_argument("task_id")
     agent_dispatch = agent.add_parser("dispatch")
     agent_dispatch.add_argument("task_id")
-    agent_dispatch.add_argument("--backend", required=True, choices=["manual"])
+    agent_dispatch.add_argument("--backend", required=True, choices=["manual", "command"])
+    agent_dispatch.add_argument("--cmd", default="")
     agent_submit = agent.add_parser("submit")
     agent_submit.add_argument("task_id")
     result_group = agent_submit.add_mutually_exclusive_group(required=True)
@@ -338,7 +340,10 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "agent" and args.agent_command == "packet":
             print(json.dumps(build_task_packet(conn, args.task_id), indent=2))
         elif args.command == "agent" and args.agent_command == "dispatch":
-            print(json.dumps(dispatch_manual(conn, args.storage, args.task_id), indent=2))
+            if args.backend == "manual":
+                print(json.dumps(dispatch_manual(conn, args.storage, args.task_id), indent=2))
+            elif args.backend == "command":
+                print(json.dumps(dispatch_command(conn, args.task_id, args.cmd), indent=2))
         elif args.command == "agent" and args.agent_command == "submit":
             result_body = Path(args.result_file).read_text(encoding="utf-8") if args.result_file else args.result_body
             print(
