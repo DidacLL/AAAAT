@@ -1,82 +1,78 @@
-# Release checklist
+# Local validation checklist
 
-Use this checklist to decide whether AAAAT is ready for its intended scope: single-user, local-first, provider-agnostic production use.
-
-Do not evaluate this release as SaaS, multi-user infrastructure, or a public network service.
-
-## Scope
-
-- [ ] Release notes clearly say AAAAT is single-user and local-first.
-- [ ] Docs do not imply SaaS, remote hosting, multi-user accounts, or enterprise auth.
-- [ ] Docs do not claim provider-specific behavior.
-- [ ] Docs do not claim AAAAT calls an LLM internally.
-- [ ] MCP wording matches the implemented descriptor/schema surface.
+Use this as a short smoke-check list after installation changes, packaging changes, or before tagging a local release. It is not a product manifesto and it is not a substitute for issue-level acceptance criteria.
 
 ## Install and launch
 
-- [ ] Fresh checkout installs with Python 3.11+.
-- [ ] `python -m pip install -e .` succeeds.
-- [ ] `aaaat --version` works.
-- [ ] `python -m aaaat.cli --version` works.
-- [ ] `aaaat init` creates local private storage.
-- [ ] `aaaat init` is safe to run more than once.
-- [ ] `aaaat launch` starts the dashboard.
-- [ ] Dashboard binds to `127.0.0.1` by default.
-- [ ] `aaaat launch --read-only` starts read-only dashboard mode.
-- [ ] `aaaat launch --agent-api` starts the bounded agent runtime.
+```bash
+python -m pip install -e .
+aaaat --version
+python -m aaaat.cli --version
+aaaat init
+aaaat app create --company "Example Co" --role "Backend Engineer"
+aaaat app list
+```
 
-## Local data and privacy
+Expected result: install succeeds, the CLI runs, storage initializes, and the example candidature appears in `app list`.
 
-- [ ] `.private/` is ignored.
-- [ ] SQLite database files are ignored.
-- [ ] Generated outputs and local artifacts are ignored unless intentionally committed as fake examples.
-- [ ] No real CV data, recruiter messages, offers, notes, rendered letters, or backups are committed.
-- [ ] Static demo export uses `examples/demo_payload.json` or another explicitly fake payload.
-- [ ] Visual assets under `aaaat/templates_ui/assets/` are private-safe.
-- [ ] Manual backup/restore procedure is documented.
+## Dashboard modes
 
-## Dashboard behavior
+```bash
+aaaat launch
+aaaat launch --read-only
+aaaat launch --agent-api
+```
 
-- [ ] Dashboard displays candidatures, selected details, tasks, profile context, and artifacts without requiring external services.
-- [ ] Full local mode supports intended write actions.
-- [ ] Read-only mode removes or blocks write controls.
-- [ ] Read-only write attempts return a forbidden response.
-- [ ] Dashboard routes are not documented as agent APIs.
-
-## Agent-compatible behavior
-
-- [ ] Agent runtime exposes only bounded task/context/action routes.
-- [ ] Agent runtime does not expose dashboard HTML, fragments, form actions, OpenAPI docs, broad lists, broad search, or CRUD surfaces.
-- [ ] Task context is scoped to one task handle.
-- [ ] Task packets include enough instruction and response-shape material for external processing.
-- [ ] Task result submission writes only to the bound task.
-- [ ] Action acknowledgements are narrow and avoid returning internal object identifiers as mutation authority.
-- [ ] Context bundles expose only purpose-scoped profile/career material.
-- [ ] Agent flow remains optional; manual dashboard/CLI use still works.
-
-## Artifact generation
-
-- [ ] `aaaat render cv` produces a local output file.
-- [ ] `aaaat render cover-letter <application_id>` produces a local output file.
-- [ ] Artifact records can be saved and listed.
-- [ ] Artifact state can be updated to `draft`, `reviewed`, `submitted`, or `archived`.
-- [ ] Generated artifacts remain local and require human review before submission.
+Expected result: the dashboard starts on `127.0.0.1`, read-only mode blocks write actions, and agent mode starts the bounded agent runtime instead of the dashboard UI.
 
 ## Static demo
 
-- [ ] `aaaat export static-demo outputs/static-demo.html` succeeds.
-- [ ] Static demo contains fake data only.
-- [ ] Static demo has no backend write controls.
-- [ ] Static demo does not read `.private/`.
+```bash
+aaaat export static-demo outputs/static-demo.html
+```
+
+Expected result: the output is generated from fake demo data and does not read `.private/`.
+
+## Artifact rendering
+
+```bash
+aaaat render cv --output .private/artifacts/cv.tex
+aaaat render cover-letter <application_id> --body "Draft body pending review." --output .private/artifacts/cover-letter.tex
+```
+
+Expected result: local files are written under private storage or another explicit local output path. Review generated content before using it externally.
+
+## Agent-compatible commands
+
+```bash
+aaaat agent tasks --state queued
+aaaat agent next
+aaaat mcp-descriptor
+aaaat mcp-validate
+```
+
+Expected result: agent commands expose bounded task/context capabilities only. They should not be documented or treated as broad CRUD over private local data.
+
+## Repository hygiene
+
+Before committing, verify that these are not staged:
+
+- `.private/`
+- SQLite database files
+- real raw offers
+- real CV/profile data
+- recruiter messages
+- generated private artifacts
+- local backups
+- generated `outputs/` content unless intentionally adding a fake demo artifact
+
+Visual assets under `aaaat/templates_ui/assets/` must be private-safe.
 
 ## Tests and guardrails
 
-- [ ] `python -m pytest` passes.
-- [ ] `python tools/repo_guard.py` passes.
-- [ ] Dependency policy remains lightweight.
-- [ ] Package data includes required templates and static assets.
-- [ ] No heavy documentation site, migration framework, frontend framework, or provider SDK dependency was added without a concrete reason.
+```bash
+python -m pytest
+python tools/repo_guard.py
+```
 
-## Release decision
-
-AAAAT can be called production-ready for this project when it reliably works as a local single-user application that stores private data locally, renders the local dashboard, supports read-only inspection, exposes bounded optional agent-compatible surfaces, generates local artifacts, exports fake static demos, and documents local data/backup limits clearly.
+Expected result: tests and repository guard pass without adding heavy dependencies, generated private data, or provider-specific requirements.
