@@ -22,8 +22,12 @@ jobs:
         run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_dashboard_runtime_renders_human_ui_and_dashboard_actions
       - name: FastAPI agent capability routes test
         run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_exposes_capability_operations
-      - name: FastAPI agent task flow test
-        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_next_context_and_result_use_task_handle
+      - name: FastAPI agent next task test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_next_task_uses_task_handle
+      - name: FastAPI agent context test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_task_context_is_handle_scoped
+      - name: FastAPI agent result test
+        run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_submit_result_returns_narrow_ack
       - name: FastAPI agent action flow test
         run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_agent_runtime_context_bundle_and_action_session
       - name: FastAPI read-only dashboard test
