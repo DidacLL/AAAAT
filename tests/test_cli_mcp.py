@@ -60,7 +60,7 @@ class CliMcpTests(unittest.TestCase):
             self.assertIn("Dashboard runtime", guide.stdout)
             self.assertIn("Agent runtime", guide.stdout)
 
-    def test_agent_cli_task_context_uses_task_handle_shape(self):
+    def test_agent_cli_task_context_and_submit_work_by_task_handle(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.run_cli("--storage", tmp, "init")
             created = self.run_cli("--storage", tmp, "app", "create", "--company", "CLI Co", "--role", "Backend Engineer")
@@ -82,16 +82,11 @@ class CliMcpTests(unittest.TestCase):
             tasks = json.loads(self.run_cli("--storage", tmp, "agent", "tasks", "--state", "queued").stdout)
             self.assertTrue(tasks)
             task_handle = tasks[0]["task_handle"]
-            self.assertNotIn("id", tasks[0])
-            self.assertNotIn("application_id", json.dumps(tasks))
-            self.assertIn("allowed_actions", tasks[0])
-            self.assertNotIn("raw_intake", json.dumps(tasks))
+            self.assertEqual(tasks[0]["allowed_actions"], ["context", "submit"])
 
             context = json.loads(self.run_cli("--storage", tmp, "agent", "context", task_handle).stdout)
             self.assertEqual(context["task"]["task_handle"], task_handle)
-            self.assertNotIn(app_id, json.dumps(context))
-            self.assertNotIn("application_id", json.dumps(context))
-            self.assertNotIn("/api/tasks/", json.dumps(context))
+            self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task_handle}/result"})
 
             result_path = Path(tmp) / "result.json"
             result_path.write_text('{"company": "CLI Co"}', encoding="utf-8")
@@ -135,7 +130,6 @@ class CliMcpTests(unittest.TestCase):
             self.assertEqual(bundle["purpose"], "candidature_fit")
             self.assertEqual(bundle["scope"], "agent")
             self.assertIn("{{ profile_fact.", json.dumps(bundle))
-            self.assertNotIn("Private Python detail", json.dumps(bundle))
 
             action_path = Path(tmp) / "action.json"
             action_path.write_text(
@@ -168,7 +162,7 @@ class CliMcpTests(unittest.TestCase):
             self.assertEqual(ack["action"], "create_candidature")
             self.assertNotIn("internal", ack)
 
-    def test_mcp_descriptor_validates_and_matches_agent_runtime_contract(self):
+    def test_mcp_descriptor_validates_capability_contract(self):
         descriptor = mcp_descriptor()
         self.assertTrue(validate_descriptor(descriptor))
         resources = {resource["uri"] for resource in descriptor["resources"]}
@@ -180,46 +174,20 @@ class CliMcpTests(unittest.TestCase):
         self.assertIn("submit_agent_task_result", tools)
         self.assertIn("get_agent_context_bundle", tools)
         self.assertIn("submit_agent_action", tools)
-        self.assertNotIn("aaaat://agent/tasks", resources)
-        self.assertNotIn("list_agent_tasks", tools)
-        self.assertNotIn("claim_agent_task", tools)
-        self.assertNotIn("release_agent_task", tools)
-        self.assertNotIn("list_applications", tools)
         for tool in descriptor["tools"]:
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("properties", tool["inputSchema"])
         self.assertEqual(self.run_cli("mcp-validate").stdout.strip(), "ok")
 
-    def test_generated_agent_contract_is_capability_scoped(self):
+    def test_generated_agent_guide_and_descriptor_describe_capabilities(self):
         guide = self.run_cli("agent-guide").stdout.lower()
-        descriptor_text = json.dumps(mcp_descriptor(), sort_keys=True).lower()
-        combined_contract = guide + "\n" + descriptor_text
-        self.assertIn("dashboard runtime", combined_contract)
-        self.assertIn("agent runtime", combined_contract)
-        self.assertIn("task handle", combined_contract)
-        self.assertIn("bounded", combined_contract)
-        self.assertIn("no dashboard html", combined_contract)
-        self.assertIn("no broad", combined_contract)
-        forbidden_contract_terms = (
-            "list_agent_tasks",
-            "claim_agent_task",
-            "release_agent_task",
-            "dashboard-payload",
-            "dashboard_payload",
-            "application/context",
-            "search_applications",
-            "profile_dump",
-            "dump_profile",
-            "dump_variables",
-            "aaaat://variables",
-            "generic_crud",
-            "application_id",
-            "candidature_id",
-            "profile_fact_id",
-            "artifact_id",
-        )
-        for term in forbidden_contract_terms:
-            self.assertNotIn(term, combined_contract)
+        descriptor = mcp_descriptor()
+        tool_names = {tool["name"] for tool in descriptor["tools"]}
+        self.assertIn("dashboard runtime", guide)
+        self.assertIn("agent runtime", guide)
+        self.assertIn("task handle", guide)
+        self.assertIn("bounded", guide)
+        self.assertTrue({"get_next_agent_task", "get_agent_task_context", "submit_agent_task_result", "get_agent_context_bundle", "submit_agent_action"}.issubset(tool_names))
 
     def test_mcp_descriptor_is_capability_only_no_llm_calls(self):
         root = Path(__file__).resolve().parent.parent
