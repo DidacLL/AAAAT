@@ -13,7 +13,7 @@ from .agent_access import (
     release_agent_task,
     submit_agent_task_result,
 )
-from .candidatures import create_candidature
+from .candidatures import create_candidature, update_candidature
 from .dashboard import render_dashboard as render_legacy_dashboard
 from .dashboard import render_raw_offer_intake_page
 from .dashboard_views import dashboard_view_model, render_dashboard_fragment, render_dashboard_view
@@ -317,7 +317,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
             data, is_form = await request_data(request)
             if data.get("_method", "").upper() != "PATCH":
                 raise HTTPException(status_code=405, detail="method not allowed")
-            detail_fields = {
+            update_fields = {
                 key: data[key]
                 for key in {
                     "description",
@@ -332,23 +332,12 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
                 }
                 if key in data
             }
-            if detail_fields:
-                with connect(app.state.storage_path) as conn:
-                    existing = dashboard_payload(conn, include_raw=True)
-                    current = next(item for item in existing["applications"] if item["id"] == candidature_id)
-                    fields = {
-                        "company": current["company"],
-                        "role": current["role"],
-                        "status": current["status"],
-                        "priority": current["priority"],
-                        **detail_fields,
-                        "include_field_inference_task": False,
-                        "include_company_research_task": False,
-                        "include_keyword_detection_task": False,
-                    }
-                    item = create_candidature(conn, **fields)
-                    _ = item
-            return RedirectResponse(f"/?view=detailedView&application_id={candidature_id}", status_code=303)
+            with connect(app.state.storage_path) as conn:
+                item = update_candidature(conn, candidature_id, **update_fields)
+                if wants_fragment(request):
+                    model = make_view_model(conn, view=data.get("view") or "detailedView", application_id=candidature_id)
+                    return HTMLResponse(render_dashboard_fragment("selected-card", model))
+            return respond(item, 200, is_form, f"/?view=detailedView&application_id={candidature_id}")
 
         @app.post("/dashboard/actions/notes", dependencies=[Depends(writable)])
         async def dashboard_create_note(request: Request) -> Any:
