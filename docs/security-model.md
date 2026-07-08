@@ -22,7 +22,7 @@ POST /api/agent/actions
 
 Agent access is capability-scoped. A task handle is valid only for fetching bounded context and submitting a JSON result for that task. In the MVP the task handle may be the local task row identifier, but it is still a handle-scoped callback token and not generic entity authority. AAAAT owns applying task results to internal records.
 
-The agent runtime must not expose dashboard HTML, static assets, fragments, dashboard actions, broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, career-plan CRUD, or entity-ID mutation routes.
+The agent runtime must not expose dashboard HTML, static assets, fragments, dashboard actions, generated API docs, OpenAPI JSON, broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, career-plan CRUD, or entity-ID mutation routes.
 
 The action-session protocol is not CRUD. The agent may request a purpose-scoped context bundle and submit one bounded action, such as creating a new candidature from already-inferred fields, storing form answers, storing cover-letter body text as render input, requesting local rendering, or requesting bounded future work through `requested_tasks`.
 
