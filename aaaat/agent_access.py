@@ -11,6 +11,17 @@ from .tasks import complete_task, get_task, keyword_from_context, list_tasks, up
 
 ENVELOPE_FIELDS = {"task_type", "title", "state", "priority", "context_hint", "created_at", "updated_at"}
 SAFE_CONTEXT_PREFIXES = ("field:", "keyword:", "candidature:", "artifact:", "blob:", "call:")
+FORBIDDEN_AGENT_CONTEXT_KEYS = {
+    "application_id",
+    "candidature_id",
+    "artifact_id",
+    "profile_fact_id",
+    "note_id",
+    "todo_id",
+    "blob_id",
+    "file_path",
+    "storage_path",
+}
 
 
 def safe_context_hint(value: str | None) -> str:
@@ -27,9 +38,19 @@ def allowed_actions(task: dict[str, Any]) -> list[str]:
     return actions
 
 
+def task_handle(task: dict[str, Any]) -> str:
+    """Return the transitional handle for one task.
+
+    For the MVP the handle is the task row identifier. Agent-facing code must still
+    treat it only as a task endpoint handle, never as generic entity authority.
+    """
+
+    return str(task.get("id", ""))
+
+
 def task_envelope(task: dict[str, Any]) -> dict[str, Any]:
     envelope = {key: task.get(key, "") for key in ENVELOPE_FIELDS if key != "context_hint"}
-    envelope["task_handle"] = task.get("id", "")
+    envelope["task_handle"] = task_handle(task)
     envelope["context_hint"] = safe_context_hint(task.get("context_hint"))
     envelope["allowed_actions"] = allowed_actions(task)
     return envelope
@@ -54,18 +75,22 @@ def next_agent_task_envelope(conn: sqlite3.Connection) -> dict[str, Any] | None:
 def task_result_ack(task: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": "accepted",
-        "task": {"task_handle": task.get("id", ""), "state": task.get("state", "")},
+        "task": {"task_handle": task_handle(task), "state": task.get("state", "")},
         "next": ["open_dashboard"],
     }
 
 
-def build_agent_task_context(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
-    task = get_task(conn, task_id)
+def build_agent_task_context(conn: sqlite3.Connection, task_handle: str) -> dict[str, Any]:
+    task = get_task(conn, task_handle)
     envelope = task_envelope(task)
     task_type = task.get("task_type", "")
     application_id = task.get("application_id")
     context: dict[str, Any] = {}
-    privacy_notes = ["agent-scoped task context", "broad candidature collections are not exposed"]
+    privacy_notes = [
+        "agent-scoped task context",
+        "broad candidature collections are not exposed",
+        "task_handle is a task endpoint handle, not entity mutation authority",
+    ]
 
     if application_id:
         app = get_application(conn, application_id)
@@ -157,50 +182,60 @@ def build_agent_task_context(conn: sqlite3.Connection, task_id: str) -> dict[str
     elif task_type == "keyword_definition":
         context = {"keyword": keyword_from_context(task.get("context_hint", ""))}
 
-    task_handle = envelope["task_handle"]
-    return {
+    result = {
         "task": envelope,
-        "context": context,
+        "context": scrub_forbidden_agent_context(context),
         "privacy": {"scope": "agent", "notes": privacy_notes},
         "allowed_actions": envelope["allowed_actions"],
         "write_back": {
-            "submit": f"/api/agent/tasks/{task_handle}/result",
+            "submit": f"/api/agent/tasks/{envelope['task_handle']}/result",
         },
     }
+    return scrub_forbidden_agent_context(result)
+
+
+def scrub_forbidden_agent_context(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: scrub_forbidden_agent_context(item)
+            for key, item in value.items()
+            if key not in FORBIDDEN_AGENT_CONTEXT_KEYS
+        }
+    if isinstance(value, list):
+        return [scrub_forbidden_agent_context(item) for item in value]
+    return value
 
 
 def submit_agent_task_result(
     conn: sqlite3.Connection,
-    task_id: str,
+    task_handle: str,
     result_body: str,
     *,
     result_title: str = "",
     agent_name: str = "",
     agent_runtime: str = "",
     model_provider: str = "",
-    artifact_id: str | None = None,
 ) -> dict[str, Any]:
     return complete_task(
         conn,
-        task_id,
+        task_handle,
         result_body=result_body,
         result_title=result_title,
-        artifact_id=artifact_id,
         agent_name=agent_name,
         agent_runtime=agent_runtime,
         model_provider=model_provider,
     )
 
 
-def claim_agent_task(conn: sqlite3.Connection, task_id: str, *, agent_name: str = "", agent_runtime: str = "") -> dict[str, Any]:
-    task = get_task(conn, task_id)
+def claim_agent_task(conn: sqlite3.Connection, task_handle: str, *, agent_name: str = "", agent_runtime: str = "") -> dict[str, Any]:
+    task = get_task(conn, task_handle)
     if task.get("state") not in {"queued", "blocked"}:
         raise ValueError("Only queued or blocked tasks can be claimed")
-    return update_task(conn, task_id, state="claimed", agent_name=agent_name, agent_runtime=agent_runtime)
+    return task_envelope(update_task(conn, task_handle, state="claimed", agent_name=agent_name, agent_runtime=agent_runtime))
 
 
-def release_agent_task(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
-    task = get_task(conn, task_id)
+def release_agent_task(conn: sqlite3.Connection, task_handle: str) -> dict[str, Any]:
+    task = get_task(conn, task_handle)
     if task.get("state") not in {"claimed", "in_progress", "blocked"}:
         raise ValueError("Only claimed, in-progress, or blocked tasks can be released")
-    return update_task(conn, task_id, state="queued", agent_name="", agent_runtime="")
+    return task_envelope(update_task(conn, task_handle, state="queued", agent_name="", agent_runtime=""))
