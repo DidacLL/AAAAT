@@ -24,6 +24,9 @@ class FastApiServerTests(unittest.TestCase):
 
         return TestClient(create_app(storage, mode, surface=surface))
 
+    def route_paths(self, client):
+        return {getattr(route, "path", "") for route in client.app.routes}
+
     def test_launch_binds_to_loopback_by_default_and_supports_agent_api(self):
         self.assertEqual(inspect.signature(launch).parameters["host"].default, "127.0.0.1")
         self.assertIn("agent_api", inspect.signature(launch).parameters)
@@ -39,6 +42,35 @@ class FastApiServerTests(unittest.TestCase):
             self.assertIn('data-dashboard-view="welcomeView"', html)
             self.assertEqual(client.get("/static/htmx.min.js").status_code, 200)
             self.assertEqual(client.get("/openapi.json").status_code, 404)
+
+            unmounted = {
+                "/api/dashboard-payload",
+                "/api/review-queue",
+                "/api/applications",
+                "/api/applications/{application_id}/context",
+                "/api/candidatures",
+                "/api/candidatures/{candidature_id}",
+                "/api/candidatures/{candidature_id}/context",
+                "/api/search",
+                "/api/variables",
+                "/api/variables/{key}",
+                "/api/profile/facts",
+                "/api/profile/facts/{fact_id}",
+                "/api/profile/context",
+                "/api/tasks",
+                "/api/tasks/{task_id}",
+                "/api/todos",
+                "/api/notes",
+                "/api/text-blobs",
+                "/api/keywords",
+                "/api/agent/tasks",
+                "/api/agent/context-bundle",
+                "/api/agent/actions",
+            }
+            registered = self.route_paths(client)
+            self.assertTrue(unmounted.isdisjoint(registered))
+            self.assertIn("/dashboard/actions/raw-offer-intake", registered)
+            self.assertIn("/dashboard/actions/candidatures/{candidature_id}", registered)
 
             blocked = [
                 "/api/dashboard-payload",
@@ -241,6 +273,8 @@ class FastApiServerTests(unittest.TestCase):
                 follow_redirects=False,
             )
             self.assertEqual(created.status_code, 303)
+            self.assertNotIn("/api/profile/facts", self.route_paths(client))
+            self.assertNotIn("/api/profile/context", self.route_paths(client))
             self.assertEqual(client.get("/api/profile/facts").status_code, 404)
             self.assertEqual(client.get("/api/profile/context?purpose=cv_generation").status_code, 404)
 
