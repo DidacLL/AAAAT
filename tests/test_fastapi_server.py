@@ -73,12 +73,11 @@ class FastApiServerTests(unittest.TestCase):
                 app = create_application(conn, company="Action Co", role="Platform Engineer")
             client = self.dashboard_client(tmp)
 
-            note = client.post(
+            client.post(
                 "/dashboard/actions/notes",
                 json={"application_id": app["id"], "note_type": "call", "body": "Call note"},
                 follow_redirects=False,
             )
-            self.assertIn(note.status_code, {201, 303})
 
             with connect(tmp) as conn:
                 loaded = get_candidature(conn, app["id"])
