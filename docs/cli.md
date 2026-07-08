@@ -16,7 +16,7 @@ aaaat profile fact archive fact_123
 aaaat profile context --purpose cv_generation
 ```
 
-Each fact has editable visibility, exposure, and usage flags for CV, cover letter, agent context, market research, and dashboard use.
+Each fact has editable visibility, exposure, and usage flags for CV, cover letter, agent context, market research, and dashboard use. Local/admin profile fact commands use internal IDs. Agent-scoped context uses non-ID `fact_ref` labels and placeholders.
 
 Stable local commands:
 
@@ -52,6 +52,7 @@ Broad local CLI commands remain available for human/admin maintenance, but they 
 Agent-facing runtime capabilities are task-handle and action-session scoped:
 
 ```bash
+python -m aaaat.cli agent next
 python -m aaaat.cli agent context <task_handle>
 python -m aaaat.cli agent submit <task_handle> --result-body '{"result":"..."}'
 python -m aaaat.cli agent submit <task_handle> --result-file result.json
@@ -59,6 +60,8 @@ python -m aaaat.cli agent context-bundle --purpose cover_letter
 python -m aaaat.cli agent action submit --input-file action.json
 python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'
 ```
+
+`task_handle` is a task endpoint handle only. It may equal a local task row identifier in the MVP, but agent-facing commands must not treat it as authority to access or mutate arbitrary local records. Agent submit acknowledgements return only status, task handle/state, and next hints.
 
 The HTTP agent runtime exposes the stricter machine-facing route set:
 
