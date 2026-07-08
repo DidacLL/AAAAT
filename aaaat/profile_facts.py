@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from typing import Any
 
@@ -154,6 +155,7 @@ def profile_context(conn: sqlite3.Connection, purpose: str, scope: str = "agent"
     if purpose not in PURPOSE_FLAGS:
         raise ValueError(f"Unsupported profile context purpose: {purpose}")
     flag = PURPOSE_FLAGS[purpose]
+    include_internal_id = scope in LOCAL_SCOPES
     rows = list_profile_facts(conn)
     facts = []
     for item in rows:
@@ -163,9 +165,9 @@ def profile_context(conn: sqlite3.Connection, purpose: str, scope: str = "agent"
             continue
         resolved = resolve_fact_body(item, purpose, scope)
         if resolved is None:
-            facts.append(public_fact_metadata(item, denied=True))
+            facts.append(public_fact_metadata(item, denied=True, include_id=include_internal_id))
             continue
-        fact = public_fact_metadata(item)
+        fact = public_fact_metadata(item, include_id=include_internal_id)
         fact["body"] = resolved
         facts.append(fact)
     return {"purpose": purpose, "scope": scope, "facts": facts}
@@ -186,7 +188,7 @@ def resolve_fact_body(item: dict[str, Any], purpose: str, scope: str) -> str | N
     if exposure == "summarized":
         return summarized_body(item)
     if exposure == "placeholder":
-        return "{{ profile_fact." + str(item.get("id", "")) + " }}"
+        return "{{ profile_fact." + profile_fact_reference(item) + " }}"
     if exposure == "redacted":
         return "[redacted]"
     if exposure == "denied":
@@ -194,9 +196,9 @@ def resolve_fact_body(item: dict[str, Any], purpose: str, scope: str) -> str | N
     raise ValueError(f"Invalid profile fact exposure: {exposure}")
 
 
-def public_fact_metadata(item: dict[str, Any], denied: bool = False) -> dict[str, Any]:
-    return {
-        "id": item["id"],
+def public_fact_metadata(item: dict[str, Any], denied: bool = False, include_id: bool = True) -> dict[str, Any]:
+    metadata = {
+        "fact_ref": profile_fact_reference(item),
         "fact_type": item["fact_type"],
         "title": item["title"],
         "tags": item.get("tags", []),
@@ -212,6 +214,20 @@ def public_fact_metadata(item: dict[str, Any], denied: bool = False) -> dict[str
             "dashboard": bool(item.get("use_for_dashboard")),
         },
     }
+    if include_id:
+        metadata["id"] = item["id"]
+    return metadata
+
+
+def profile_fact_reference(item: dict[str, Any]) -> str:
+    fact_type = slug(str(item.get("fact_type") or "fact")) or "fact"
+    title = slug(str(item.get("title") or fact_type)) or fact_type
+    return f"{fact_type}.{title}"
+
+
+def slug(value: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "_", value.strip().lower())
+    return cleaned.strip("_")
 
 
 def summarized_body(item: dict[str, Any]) -> str:
