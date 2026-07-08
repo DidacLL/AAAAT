@@ -91,7 +91,7 @@ class DispatchCommandTests(unittest.TestCase):
             )
             task_handle = self.next_task_handle(tmp)
             self.assertNotEqual(task_handle, task["id"])
-            code = "import sys; sys.stderr.write('runner failed\n'); sys.exit(7)"
+            code = "import sys; sys.stderr.write('runner failed\\n'); sys.exit(7)"
             cmd = f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
 
             dispatch = json.loads(
@@ -128,7 +128,7 @@ class DispatchCommandTests(unittest.TestCase):
             )
             task_handle = self.next_task_handle(tmp)
             self.assertNotEqual(task_handle, task["id"])
-            code = "import sys; sys.stderr.write('no stdout\n')"
+            code = "import sys; sys.stderr.write('no stdout\\n')"
             cmd = f"{shlex.quote(sys.executable)} -c {shlex.quote(code)}"
 
             dispatch = json.loads(
