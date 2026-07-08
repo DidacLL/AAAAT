@@ -9,6 +9,7 @@ Suggested files:
 ```text
 tests/test_agent_access.py
 tests/test_agent_capability_contract.py
+tests/test_agent_actions.py
 ```
 
 Required tests:
@@ -27,26 +28,43 @@ Required tests:
 ### Capability contract
 
 - Agent-facing docs use capability-scoped wording.
-- Tests allow future schema-bound raw-offer intake and structured extraction/proposal capabilities under `aaaat agent ...` and `/api/agent/*`.
+- Docs distinguish AAAAT-originated task work from LLM-app-originated bounded actions.
+- Docs state that LLM apps first request purpose-scoped context, then submit one bounded action.
+- Docs state that AAAAT renders generated artifacts locally from templates/data.
+- Docs state that the LLM supplies render data, not final artifact files.
+- Docs state that the agent is not the user and should not write human notes.
 - Tests still forbid broad CRUD, list-all, arbitrary search, profile dumps, variable dumps, and dashboard payload exposure.
-- Future raw-offer intake tests should assert narrow response shape: acknowledgement, opaque correlation id, created task envelopes, and next allowed actions only.
-- Future structured extraction tests should assert finite documented JSON fields, conflict preservation, and no direct overwrite outside deterministic apply rules.
+
+### Future action-session capability
+
+Future tests should assert:
+
+- `context-bundle` returns only purpose-scoped profile/career/writing context through existing exposure policy;
+- bounded action submission accepts explicit action names only;
+- create-candidature action stores already-inferred fields without requiring the LLM to use internal object ids;
+- supplied research/form-answer/cover-letter body data is stored directly;
+- AAAAT does not create duplicate tasks for work already supplied by the LLM;
+- cover-letter body is treated as local render input and AAAAT performs the render;
+- responses are narrow acknowledgements.
 
 ### CLI
 
 - `aaaat agent tasks` works.
 - `aaaat agent context <id>` works.
+- `aaaat agent packet <id>` works.
+- `aaaat agent dispatch <id> --backend manual` works.
+- `aaaat agent dispatch <id> --backend command --cmd ...` works.
 - `aaaat agent submit <id> --result-body ...` works.
 - `aaaat agent submit <id> --result-file ...` works.
-- Future `aaaat agent intake raw-offer ...` works without broad list/show/search behavior.
-- Future `aaaat agent intake submit-extraction ...` accepts only the documented schema.
+- Future `aaaat agent context-bundle --purpose ...` returns purpose-scoped context.
+- Future `aaaat agent action submit ...` accepts bounded actions only.
 
 ### HTTP agent surface
 
 - `surface='agent'` exposes `/api/agent/tasks`.
 - `surface='agent'` exposes `/api/agent/tasks/{id}/context`.
 - `surface='agent'` exposes `/api/agent/tasks/{id}/result`.
-- Future `surface='agent'` may expose schema-bound `/api/agent/intake/*` routes.
+- Future `surface='agent'` may expose action-session routes under `/api/agent/*`.
 - `surface='agent'` does not expose dashboard/private CRUD/search/profile/render routes listed in Annex B.
 
 ### Regression
@@ -61,7 +79,7 @@ Required tests:
 
 ```bash
 python -B -m unittest tests.test_agent_access
-python -B -m unittest tests.test_agent_capability_contract
+python -B -m unittest tests.test_cli_mcp
 python -B -m unittest tests.test_fastapi_server
 python -B -m unittest tests.test_domain_services
 python -B -m unittest tests.test_profile_facts
@@ -79,7 +97,8 @@ python -B -m unittest discover -s tests
 - Agent task list is envelope-only.
 - Agent task context is minimal and task-specific.
 - Agent result submission is provenance-preserving and non-destructive.
-- Future agent intake/proposal capabilities are allowed only as schema-bound non-CRUD operations.
+- Future action-session capabilities are allowed only as schema-bound non-CRUD operations.
+- Future action-session capabilities use purpose-scoped context before bounded actions.
 - Agent-only HTTP surface does not mount broad private routes.
 - Current dashboard remains usable.
 - No heavy dependency or provider-specific assumption is introduced.

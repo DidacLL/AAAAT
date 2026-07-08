@@ -164,7 +164,14 @@ class CliMcpTests(unittest.TestCase):
         guide = self.run_cli("agent-guide").stdout.lower()
         self.assertIn("capability-scoped operations", guide)
         self.assertIn("implemented capability", guide)
+        self.assertIn("purpose-scoped context bundle", guide)
+        self.assertIn("bounded action", guide)
+        self.assertIn("renders local templates", guide)
+        self.assertIn("should not treat the agent as the user", guide)
         self.assertNotIn("task-scoped context", guide)
+        self.assertNotIn("raw-offer intake", guide)
+        self.assertNotIn("structured extraction", guide)
+        self.assertNotIn("generated artifact files", guide)
 
         descriptor_text = json.dumps(mcp_descriptor(), sort_keys=True).lower()
         self.assertIn("capability-scoped", descriptor_text)
@@ -188,6 +195,27 @@ class CliMcpTests(unittest.TestCase):
         combined_contract = guide + "\n" + descriptor_text
         for term in forbidden_contract_terms:
             self.assertNotIn(term, combined_contract)
+
+    def test_docs_explain_llm_app_action_boundary(self):
+        root = Path(__file__).resolve().parent.parent
+        doc_paths = (
+            root / "docs" / "agent-guide.md",
+            root / "docs" / "cli.md",
+            root / "docs" / "openapi.md",
+            root / "docs" / "security-model.md",
+        )
+        docs = "\n".join(path.read_text(encoding="utf-8").lower() for path in doc_paths)
+        self.assertIn("llm app", docs)
+        self.assertIn("purpose-scoped context", docs)
+        self.assertIn("bounded action", docs)
+        self.assertIn("aaaat renders", docs)
+        self.assertIn("local templates", docs)
+        self.assertIn("agent is not the user", docs)
+        self.assertNotIn("aaaat agent intake raw-offer", docs)
+        self.assertNotIn("aaaat agent intake submit-extraction", docs)
+        self.assertNotIn("llm-generated final artifact files", docs)
+        self.assertNotIn("confidence scoring", docs)
+        self.assertNotIn("evidence scoring", docs)
 
     def test_mcp_descriptor_is_capability_only_no_llm_calls(self):
         root = Path(__file__).resolve().parent.parent

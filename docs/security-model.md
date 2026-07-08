@@ -8,15 +8,20 @@ Modes:
 - Static demo: fake data only, no backend, no write/raw intake controls.
 - Agent API: capability-scoped HTTP adapter exposing `/api/health` and `/api/agent/*`.
 
-Agent access is capability-scoped. The implemented capability is the task protocol: agents receive task envelopes and task-specific context from `aaaat.agent_access`; they submit task results with provenance. Agents do not receive all candidatures, dashboard payloads, arbitrary search, variable dumps, profile fact lists, or generic CRUD endpoints.
+Agent access is capability-scoped. The implemented capability is the task protocol: agents receive task envelopes and task-specific context from `aaaat.agent_access`; they submit task results with provenance. Agents do not receive database browsing or generic object-mutation surfaces.
 
-Future agent capabilities may include raw-offer intake and structured extraction/proposal submission. They are acceptable only when they are schema-bound, return narrow acknowledgements/envelopes, and route generated output through reviewable task results or deterministic apply logic. They must not become broad application/candidature CRUD under another name.
+Future LLM-app integration should use an action-session protocol:
+
+1. The agent requests a purpose-scoped context bundle using existing profile exposure policy.
+2. The agent submits one bounded action, such as creating a candidature from already-inferred fields, storing form answers, storing cover-letter body text as render input, requesting local rendering, or submitting an existing task result.
+
+This is not CRUD. The supported contract should not depend on internal AAAAT object identifiers.
 
 The dashboard is server-rendered from SQLite through Python. Browser actions use narrow form/htmx routes under `/dashboard/actions/*` and are local human UI internals, not an agent API.
 
 Aggregate candidature lists are private behavioral data.
 
-Generated private artifacts remain local. Destructive actions are outside the MVP.
+Generated private artifacts remain local. AAAAT renders artifacts from local templates, profile/application data, and explicit render inputs. Agents may provide template data such as cover-letter body text, but they do not provide final generated artifact files as the authoritative artifact output.
 
 Private reusable values are stored as variables with stable placeholders. Profile inputs such as `display_name` are canonicalized to `profile.display_name` and represented as `{{ profile.display_name }}` for agent work. Local rendering can resolve real values; agent contexts resolve according to each variable exposure policy (`raw`, `redacted`, `summarized`, `placeholder`, or `denied`); static demos never resolve real values.
 

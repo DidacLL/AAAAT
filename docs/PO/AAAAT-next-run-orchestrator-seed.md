@@ -3,12 +3,11 @@
 You are the orchestrator for the next AAAAT development run.
 
 Repository: `DidacLL/AAAAT`
-Branch: `codex/aaaatmigrationII`
-Latest known head to verify before coding: PR #11 head after the task-scoped privacy milestone.
+Branch: create a fresh branch from current `main`.
 
 ## Objective
 
-Make AAAAT production-ready-asap by implementing a capability-scoped agent protocol without rewriting the dashboard UI.
+Make AAAAT production-ready-asap by keeping the capability-scoped agent protocol precise without rewriting the dashboard UI.
 
 The current dashboard remains the human local UI. Do not replace it. Do not add a native app, Electron/Tauri, frontend framework, auth framework, cloud dependency, provider SDK, ORM, Alembic, Celery, Redis, or database server.
 
@@ -20,17 +19,59 @@ The implemented capability is task work:
 
 1. list task envelopes;
 2. get one task's minimal context;
-3. submit one task result;
-4. optionally claim/release a task;
-5. AAAAT stores provenance and applies/reviews deterministically.
+3. build/dispatch one task packet;
+4. submit one task result;
+5. optionally claim/release a task;
+6. AAAAT stores provenance and applies/reviews deterministically.
 
-The next valid capability is raw-offer intake plus structured extraction/proposal submission:
+The next valid capability is an action-session protocol for LLM-app-originated work.
 
-1. an agent can submit copied raw offer text without listing existing candidatures;
-2. AAAAT creates a placeholder candidature and extraction/enrichment tasks;
-3. AAAAT returns only a narrow acknowledgement, opaque correlation id, created task envelopes, and next allowed actions;
-4. the agent can submit structured JSON extraction for that intake/task;
-5. AAAAT validates the finite schema and stores reviewable output without generic patch access.
+## Actor split
+
+AAAAT-originated work:
+
+```text
+AAAAT creates task -> AAAAT builds packet -> LLM returns task result -> AAAAT stores/applies locally
+```
+
+LLM-app-originated work:
+
+```text
+LLM app reads offer/conversation -> LLM requests purpose context from AAAAT -> LLM submits one bounded action -> AAAAT stores/renders locally
+```
+
+The LLM is the intelligent layer when the work starts in the LLM app. AAAAT does not create extraction tasks for work already completed by the LLM. AAAAT validates shape, stores local data, and renders local templates.
+
+The LLM is not the user. It should not write human notes. It should not submit final artifact files. For cover letters and CVs, the LLM supplies data/render inputs; AAAAT renders local TeX/PDF artifacts from templates and stored data.
+
+## Future action-session capability
+
+Planned operations:
+
+```text
+get_agent_context_bundle(purpose) -> dict
+submit_agent_action(action, payload, *, agent_name='', agent_runtime='', model_provider='') -> dict
+```
+
+Examples:
+
+```bash
+python -m aaaat.cli agent context-bundle --purpose cover_letter
+python -m aaaat.cli agent action submit --input-file action.json
+```
+
+Allowed action examples:
+
+- create candidature from already-inferred fields;
+- store company research/preparation fields already written by the LLM;
+- store form answers already written by the LLM;
+- store cover-letter body text as local render input;
+- request local rendering from AAAAT templates;
+- submit an existing AAAAT task result.
+
+Action responses should be narrow acknowledgements and human-facing next actions. The LLM contract should not depend on internal AAAAT object identifiers.
+
+## Thin adapters
 
 Expose capabilities through thin adapters:
 
@@ -38,27 +79,30 @@ Expose capabilities through thin adapters:
 - HTTP: capability-scoped `/api/agent/*` adapter for agents that can call local URLs;
 - MCP/OpenAPI/Markdown: descriptors/guides for the same capability operations.
 
-## Main implementation work
+## Main implementation work for the next feature run
 
 1. Keep `aaaat/agent_access.py` as the single service layer for task access.
-2. Add a narrow agent intake service for raw-offer intake and structured extraction/proposal submission.
-3. Add CLI commands: `aaaat agent intake raw-offer --content ...`, `aaaat agent intake raw-offer --file ...`, and `aaaat agent intake submit-extraction ...`.
-4. Add matching `/api/agent/intake/*` routes if HTTP agent mode is enabled.
-5. Ensure responses contain only acknowledgements, opaque correlation ids, task envelopes, and next allowed actions.
-6. Update MCP/OpenAPI/docs to say capability-scoped, not generic REST and not task-only.
-7. Add focused tests for intake capability, schema validation, conflict preservation, route absence, and existing dashboard regression.
+2. Add a small `aaaat/agent_actions.py` service for purpose context bundles and bounded actions.
+3. Add CLI commands: `aaaat agent context-bundle --purpose ...` and `aaaat agent action submit ...`.
+4. Add optional matching `/api/agent/*` action-session routes if HTTP agent mode is enabled.
+5. Ensure responses are narrow acknowledgements and do not require internal object ids in the LLM contract.
+6. Store cover-letter body as render input, not as a generated artifact file.
+7. Use existing local rendering to produce artifacts from templates/data.
+8. Add focused tests for context bundles, bounded actions, no duplicate tasks for completed work, local rendering, route absence, and existing dashboard/dispatch regression.
 
 ## Non-goals
 
 Do not rewrite the dashboard. Do not remove the current human local dashboard routes. Do not implement complex authentication. Do not build a real MCP server. Do not redesign storage. Do not rename database tables destructively. Do not broaden dependencies.
 
+Do not implement agent raw-offer upload as the next capability. Do not implement generic create/update/list/show/search. Do not ask the LLM to provide generated artifact files.
+
 ## Required split for sub-agents
 
-- Agent A: implement the intake/proposal service layer and JSON schema validation.
-- Agent B: add CLI `agent intake ...` commands.
-- Agent C: add capability-scoped HTTP `/api/agent/intake/*` routes.
-- Agent D: update docs/MCP/OpenAPI to expose capability-scoped operations.
-- Agent E: add regression and privacy tests; keep dashboard/static/read-only/render tests passing.
+- Agent A: implement `agent_actions` service layer and action schema validation.
+- Agent B: add CLI `agent context-bundle` and `agent action submit` commands.
+- Agent C: add optional capability-scoped HTTP action routes under `/api/agent/*`.
+- Agent D: update docs/MCP/OpenAPI to expose capability-scoped action-session operations.
+- Agent E: add regression and privacy tests; keep dashboard/static/read-only/render/dispatch tests passing.
 
 Read the annex files before coding:
 
@@ -71,4 +115,4 @@ Read the annex files before coding:
 
 Acceptance summary:
 
-AAAAT keeps the dashboard usable, but agents get capability-scoped operations through CLI and optional HTTP. No agent-facing surface returns all candidatures, dashboard payload, arbitrary search, raw profile facts, raw variables, or generic object CRUD. All agent outputs land as reviewable/provenance-preserving results; deterministic apply/review remains owned by AAAAT.
+AAAAT keeps the dashboard usable, agents get capability-scoped operations through CLI and optional HTTP, and LLM-app-originated work uses purpose-scoped context plus bounded actions. No agent-facing surface returns all candidatures, dashboard payload, arbitrary search, raw profile facts, raw variables, generic object CRUD, or final artifact file ingestion. All generated artifacts remain local AAAAT template renders.

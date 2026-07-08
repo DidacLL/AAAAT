@@ -1,10 +1,14 @@
 # Agent Guide
 
-Agents interact with AAAAT through capability-scoped operations, not generic CRUD. A task is the primary implemented capability, but the contract also allows future narrow capabilities such as raw-offer intake and structured extraction proposals.
+Agents interact with AAAAT through capability-scoped operations, not generic CRUD. A task is the primary implemented capability.
 
-Agents must not browse, list, search, or patch the user's candidature database.
+The contract has two directions and they must not be confused.
 
-## Implemented task capability
+## AAAAT-originated work
+
+When work starts inside AAAAT, AAAAT creates a task. The agent receives a narrow task packet, completes the task externally, and submits a task result. AAAAT stores provenance and applies the result only through deterministic local review/apply flows.
+
+Implemented task commands:
 
 ```bash
 python -m aaaat.cli agent tasks --state queued
@@ -16,40 +20,43 @@ python -m aaaat.cli agent release <task_id>
 
 The optional HTTP adapter exposes equivalent task operations under `/api/agent/*`. `aaaat launch --agent-api` starts an agent HTTP surface with `/api/health` and capability-scoped `/api/agent/*` routes.
 
-Task contexts are minimized by `aaaat.agent_access`. They include a sanitized task envelope, task-specific context, privacy notes, and task-scoped write-back links. They do not include dashboard payloads, all candidatures, arbitrary search results, raw variable dumps, raw profile fact lists, or unrelated notes/artifacts/text blobs.
+Task contexts are minimized by `aaaat.agent_access`. They include a sanitized task envelope, task-specific context, privacy notes, and task-scoped write-back links. They do not include dashboard payloads or private database browsing surfaces.
 
-Submit results back to the task. AAAAT stores provenance and deterministic apply/review remains owned by AAAAT. Agent output must not directly overwrite approved candidature, application, or profile fields.
+## LLM-app-originated work
 
-## Planned intake/proposal capability
+When work starts in the LLM app, the LLM has already read the offer, interpreted the conversation, and produced the useful data before calling AAAAT. In this direction AAAAT should not create extraction tasks for the same completed work.
 
-Agent-side raw-offer workflows are valid if implemented as narrow capabilities, not CRUD. The intended shape is:
+The correct future capability is an action-session protocol:
 
 ```bash
-python -m aaaat.cli agent intake raw-offer --content "..."
-python -m aaaat.cli agent intake raw-offer --file offer.txt
-python -m aaaat.cli agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json
+python -m aaaat.cli agent context-bundle --purpose cover_letter
+python -m aaaat.cli agent action submit --input-file action.json
 ```
 
-Expected behavior:
+First, the LLM asks AAAAT for a purpose-scoped context bundle. Supported purposes should map to existing profile-context purposes such as `cv_generation`, `cover_letter`, `candidature_fit`, `recruiter_call`, and `form_answers`. AAAAT returns only the context allowed for that purpose and exposure policy.
 
-- raw-offer intake creates a placeholder candidature and extraction/enrichment tasks;
-- the response returns only a narrow acknowledgement, opaque correlation id, and created task envelopes;
-- structured extraction accepts only a documented finite JSON schema;
-- existing approved/non-empty fields are not overwritten except through deterministic apply rules;
-- conflicts are stored as reviewable task results or text blobs.
+Then the LLM submits one bounded action. Examples of bounded actions are:
 
-The same capability may later be mirrored under `/api/agent/intake/*`.
+- create a candidature from fields the LLM has already inferred;
+- store company-research or preparation fields the LLM has already written;
+- store form answers the LLM has already written;
+- store a cover-letter body as render input for the local template;
+- request local rendering from AAAAT templates;
+- submit the result for an existing AAAAT task.
 
-## Forbidden agent access
+AAAAT should acknowledge the action and perform local storage/rendering. The agent contract should not depend on internal AAAAT object identifiers.
 
-Do not expose or use these as agent operations:
+## Artifact boundary
 
-- broad application/candidature list or show commands;
-- arbitrary search;
-- raw profile fact or variable dumps;
-- dashboard payloads;
-- generic PATCH/PUT object routes;
-- direct database paths.
+Agents do not create final artifact files for AAAAT. AAAAT renders artifacts locally from templates and stored data.
+
+For cover letters, the LLM may supply the body text that fills the local `artifact.cover_letter.body` template variable. AAAAT renders the `.tex` file and optional PDF locally, then stores the generated artifact record.
+
+For CVs, the LLM should supply or improve the data used by the CV template, not submit a generated CV file.
+
+## Human/user boundary
+
+The agent is not the user. Agent-supplied text should land in explicit candidature fields, task results, form answers, research/preparation fields, or render inputs. Human notes remain a local user/dashboard concept unless a future bounded action explicitly defines agent-authored machine notes separately.
 
 The browser dashboard is a local human UI. Its action routes are form/htmx-oriented internals and are not an agent contract.
 

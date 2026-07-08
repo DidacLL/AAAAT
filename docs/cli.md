@@ -45,30 +45,39 @@ python -m aaaat.cli export static-demo outputs/static-demo.html
 python -m aaaat.cli agent-guide
 ```
 
+Broad local CLI commands remain available for human/admin maintenance, but they are not the agent contract.
+
+`intake raw-offer` is a human/local AAAAT-originated flow. It creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue can then ask an agent what to extract.
+
 Agent-facing commands use capability-scoped `agent` subcommands. The implemented capability is task work:
 
 ```bash
 python -m aaaat.cli agent tasks --state queued
 python -m aaaat.cli agent context <task_id>
+python -m aaaat.cli agent packet <task_id>
+python -m aaaat.cli agent dispatch <task_id> --backend manual
+python -m aaaat.cli agent dispatch <task_id> --backend command --cmd "..."
 python -m aaaat.cli agent submit <task_id> --result-body "..."
 python -m aaaat.cli agent submit <task_id> --result-file result.json
 python -m aaaat.cli agent claim <task_id>
 python -m aaaat.cli agent release <task_id>
 ```
 
-Planned agent intake/proposal commands may include:
+The next agent capability should support an LLM-app-originated action session, not raw-offer upload or object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
+
+Planned shape:
 
 ```bash
-python -m aaaat.cli agent intake raw-offer --content "Paste raw offer text here"
-python -m aaaat.cli agent intake raw-offer --file offer.txt
-python -m aaaat.cli agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json
+python -m aaaat.cli agent context-bundle --purpose cover_letter
+python -m aaaat.cli agent action submit --input-file action.json
+python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'
 ```
 
-These future commands should create or update only through documented schemas and reviewable results. They must not expose broad `app list`, `app show`, `search`, raw profile, raw variable, or generic patch behavior as agent capabilities.
+The LLM-app-originated action may carry already-inferred candidature fields, company research, form answers, or cover-letter body text. AAAAT stores those values in local fields or render inputs. It does not create extraction or drafting tasks for work already supplied in the action.
 
-Broad local CLI commands remain available for human/admin maintenance, but they are not the agent contract.
+For cover letters and CVs, the agent supplies data used by AAAAT templates. AAAAT renders generated files locally. The agent contract should not ask the LLM to submit final `.tex` or `.pdf` artifacts.
 
-`intake raw-offer` creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue then tells an agent what to extract.
+The agent is not the user. Agent-written text should land in explicit fields, task results, form answers, research/preparation fields, or render inputs, not in human note commands.
 
 Durable production-sprint commands:
 
