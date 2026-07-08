@@ -127,6 +127,104 @@ class AgentActionTests(unittest.TestCase):
         self.assertTrue(any(item["artifact_type"] == "cover_letter" for item in loaded["artifacts"]))
         self.assertEqual(loaded["tasks"], [])
 
+    def test_create_candidature_requested_tasks_queue_bounded_follow_up(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                ack = submit_agent_action(
+                    conn,
+                    {
+                        "action": "create_candidature",
+                        "payload": {
+                            "source_material": {"offer_text": "Backend platform role."},
+                            "candidature": {"company": "Research Co", "role": "Backend Engineer"},
+                            "requested_tasks": [
+                                {
+                                    "task_type": "company_research",
+                                    "priority": "low",
+                                    "reason": "Research was not completed during the conversation.",
+                                }
+                            ],
+                        },
+                    },
+                    agent_name="Agent",
+                    agent_runtime="cli",
+                    storage_path=tmp,
+                )
+                loaded = list_candidatures(conn, include_related=True)[0]
+
+        self.assertEqual(ack["queued"], {"count": 1})
+        self.assertEqual(ack["next"], ["open_dashboard"])
+        serialized_ack = json.dumps(ack)
+        self.assertNotIn("task_", serialized_ack)
+        self.assertNotIn("app_", serialized_ack)
+        self.assertNotIn(tmp, serialized_ack)
+        self.assertEqual(len(loaded["tasks"]), 1)
+        task = loaded["tasks"][0]
+        self.assertEqual(task["task_type"], "company_research")
+        self.assertEqual(task["priority"], "low")
+        self.assertEqual(task["context_hint"], "candidature:company_research")
+        self.assertIn("Research was not completed", task["instructions"])
+        self.assertEqual(task["created_by"], "agent")
+
+    def test_requested_tasks_skip_completed_outputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                set_profile_variable(conn, "display_name", "Local Candidate")
+                set_profile_variable(conn, "email", "candidate@example.invalid")
+                ack = submit_agent_action(
+                    conn,
+                    {
+                        "action": "create_candidature",
+                        "payload": {
+                            "candidature": {"company": "Done Co", "role": "Platform Engineer"},
+                            "outputs": {
+                                "company_research": "Already researched.",
+                                "form_answers": "Already drafted.",
+                                "cover_letter_body": "Already drafted cover letter.",
+                                "cv_positioning": "Already positioned CV.",
+                            },
+                            "render": {"cover_letter": True},
+                            "requested_tasks": [
+                                {"task_type": "company_research", "reason": "duplicate"},
+                                {"task_type": "draft_form_responses", "reason": "duplicate"},
+                                {"task_type": "draft_cover_letter", "reason": "duplicate"},
+                                {"task_type": "draft_cv", "reason": "duplicate"},
+                            ],
+                        },
+                    },
+                    storage_path=tmp,
+                )
+                loaded = list_candidatures(conn, include_related=True)[0]
+
+        self.assertEqual(ack["queued"], {"count": 0})
+        self.assertEqual(loaded["tasks"], [])
+        self.assertTrue(any(item["artifact_type"] == "cover_letter" for item in loaded["artifacts"]))
+        self.assertEqual(loaded["company_research"], "Already researched.")
+        self.assertEqual(loaded["form_answers"], "Already drafted.")
+
+    def test_requested_tasks_reject_unsupported_types_and_malformed_keyword_tasks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                with self.assertRaisesRegex(ValueError, "Unsupported requested task type: career_plan_review"):
+                    submit_agent_action(
+                        conn,
+                        {
+                            "action": "create_candidature",
+                            "payload": {"requested_tasks": [{"task_type": "career_plan_review"}]},
+                        },
+                    )
+                with self.assertRaisesRegex(ValueError, "keyword_definition requested task requires keyword"):
+                    submit_agent_action(
+                        conn,
+                        {
+                            "action": "create_candidature",
+                            "payload": {"requested_tasks": [{"task_type": "keyword_definition"}]},
+                        },
+                    )
+
     def test_cv_render_uses_existing_template_data(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
@@ -161,6 +259,8 @@ class AgentActionTests(unittest.TestCase):
                     submit_agent_action(conn, {"action": "create_candidature", "payload": []})
                 with self.assertRaisesRegex(ValueError, "Unsupported create_candidature payload sections"):
                     submit_agent_action(conn, {"action": "create_candidature", "payload": {"private_database_query": {}}})
+                with self.assertRaisesRegex(ValueError, "section must be a list: requested_tasks"):
+                    submit_agent_action(conn, {"action": "create_candidature", "payload": {"requested_tasks": {}}})
                 with self.assertRaisesRegex(ValueError, "valid JSON"):
                     submit_agent_action(conn, "{not-json")
                 with self.assertRaisesRegex(ValueError, "cover_letter_body is required"):
