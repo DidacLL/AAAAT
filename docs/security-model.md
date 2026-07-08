@@ -20,13 +20,13 @@ POST /api/agent/context-bundle
 POST /api/agent/actions
 ```
 
-Agent access is capability-scoped. A task handle is valid only for fetching bounded context and submitting a JSON result for that task. AAAAT owns applying task results to internal records.
+Agent access is capability-scoped. A task handle is valid only for fetching bounded context and submitting a JSON result for that task. In the MVP the task handle may be the local task row identifier, but it is still a handle-scoped callback token and not generic entity authority. AAAAT owns applying task results to internal records.
 
 The agent runtime must not expose dashboard HTML, static assets, fragments, dashboard actions, broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, or entity-ID mutation routes.
 
 The action-session protocol is not CRUD. The agent may request a purpose-scoped context bundle and submit one bounded action, such as creating a new candidature from already-inferred fields, storing form answers, storing cover-letter body text as render input, or requesting local rendering.
 
-Agent acknowledgements should be narrow and should not return application, candidature, profile-fact, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles.
+Agent contexts and acknowledgements should be narrow and should not return application, candidature, profile-fact, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles. Agent-scoped profile facts use `fact_ref` and non-ID placeholders rather than profile-fact row IDs.
 
 Generated private artifacts remain local. AAAAT renders artifacts from local templates, profile/application data, and explicit render inputs. Agents may provide template data such as cover-letter body text, but they do not provide final generated artifact files as authoritative artifact output.
 
@@ -39,7 +39,7 @@ AAAAT separates two profile data layers:
 - `variables`: scalar placeholders and private template values, such as `profile.email`.
 - `profile_facts`: structured professional/CV facts, such as skills, projects, education, salary expectations, preferences, and reusable summaries.
 
-Profile facts carry editable `visibility`, `exposure`, and usage flags. Local dashboard contexts may show raw facts, but agent and market contexts must respect exposure. Market research should prefer anonymized or summarized profile facts and must not rely on raw sensitive facts by default.
+Profile facts carry editable `visibility`, `exposure`, and usage flags. Local dashboard contexts may show raw facts and internal row IDs, but agent and market contexts must respect exposure and must not expose profile-fact row IDs. Market research should prefer anonymized or summarized profile facts and must not rely on raw sensitive facts by default.
 
 Static demos must omit real profile facts or use fake profile facts only.
 
