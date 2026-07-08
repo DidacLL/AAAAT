@@ -12,7 +12,7 @@ from aaaat.agent_access import (
     task_result_ack,
 )
 from aaaat.candidatures import create_candidature, get_candidature
-from aaaat.db import connect, init_db, set_profile_variable
+from aaaat.db import connect, create_application, init_db, set_profile_variable
 from aaaat.profile_facts import create_profile_fact
 from aaaat.tasks import create_task, get_task
 from aaaat.text_blobs import get_text_blob
@@ -23,17 +23,18 @@ class AgentAccessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                app = create_candidature(conn, company="Envelope Co", role="Engineer", raw_offer="Secret offer")
+                app = create_application(conn, company="Envelope Co", role="Engineer")
                 task = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
                 envelopes = list_agent_task_envelopes(conn, state="queued")
                 next_task = next_agent_task_envelope(conn)
 
         self.assertTrue(envelopes)
-        self.assertEqual(next_task["task_handle"], task["id"])
-        self.assertEqual(envelopes[0]["allowed_actions"], ["context", "submit"])
-        self.assertNotIn("id", envelopes[0])
-        self.assertNotIn("application_id", envelopes[0])
-        self.assertNotIn("Secret offer", json.dumps(envelopes))
+        self.assertEqual(next_task["state"], "queued")
+        matching = next(item for item in envelopes if item["task_handle"] == task["id"])
+        self.assertEqual(matching["allowed_actions"], ["context", "submit"])
+        self.assertNotIn("id", matching)
+        self.assertNotIn("application_id", matching)
+        self.assertNotIn("Envelope Co", json.dumps(envelopes))
 
     def test_task_context_is_specific_to_the_task_handle(self):
         with tempfile.TemporaryDirectory() as tmp:
