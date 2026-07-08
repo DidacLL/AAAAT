@@ -50,6 +50,9 @@ Agent-facing commands use capability-scoped `agent` subcommands. The implemented
 ```bash
 python -m aaaat.cli agent tasks --state queued
 python -m aaaat.cli agent context <task_id>
+python -m aaaat.cli agent context-bundle --purpose cover_letter
+python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'
+python -m aaaat.cli agent action submit --input-file action.json
 python -m aaaat.cli agent submit <task_id> --result-body "..."
 python -m aaaat.cli agent submit <task_id> --result-file result.json
 python -m aaaat.cli agent claim <task_id>
@@ -69,6 +72,8 @@ These commands create or update only through documented schemas and reviewable r
 `aaaat agent intake raw-offer` returns only `ok`, `capability`, an opaque `correlation_id`, created task envelopes, and `next_allowed_actions`. `aaaat agent intake submit-extraction` accepts only `{"fields": {...}, "notes": "..."?}` where fields are finite field-inference proposal keys; it stores a provenance-preserving task result or reviewable text blob without directly patching candidature fields.
 
 Broad local CLI commands remain available for human/admin maintenance, but they are not the agent contract.
+
+The action-session commands are for LLM-app-originated workflows. `context-bundle` returns purpose-scoped profile context only. `action submit` accepts one allowlisted action; the first supported action is `create_candidature`, including optional research, form answers, cover-letter body render input, and local cover-letter render request. The LLM supplies render data; AAAAT creates local generated artifacts from templates.
 
 `intake raw-offer` creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue then tells an agent what to extract.
 

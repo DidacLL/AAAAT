@@ -8,9 +8,11 @@ Modes:
 - Static demo: fake data only, no backend, no write/raw intake controls.
 - Agent API: capability-scoped HTTP adapter exposing `/api/health` and `/api/agent/*`.
 
-Agent access is capability-scoped. The implemented capabilities are the task protocol and schema-bound intake/proposal protocol. Agents receive task envelopes and task-specific context from `aaaat.agent_access`; they submit task results with provenance. Agents can also submit copied raw offer text and structured extraction proposals through narrow acknowledgement-style operations. Agents do not receive all candidatures, dashboard payloads, arbitrary search, variable dumps, profile fact lists, or generic CRUD endpoints.
+Agent access is capability-scoped. The implemented capabilities are the task protocol, schema-bound intake/proposal protocol, and bounded action-session protocol for LLM-app-originated work. Agents receive task envelopes and task-specific context from `aaaat.agent_access`; they submit task results with provenance. Agents can also submit copied raw offer text, structured extraction proposals, request purpose-scoped context bundles, and submit one allowlisted action. Agents do not receive all candidatures, dashboard payloads, arbitrary search, variable dumps, profile fact lists, or generic CRUD endpoints.
 
 Raw-offer intake and structured extraction/proposal submission are schema-bound, return narrow acknowledgements/envelopes, and route generated output through reviewable task results or deterministic apply logic. They must not become broad application/candidature CRUD under another name.
+
+Action sessions are schema-bound and return narrow acknowledgements. AAAAT owns local storage and template rendering. The LLM app supplies render data, not generated artifact files.
 
 The dashboard is server-rendered from SQLite through Python. Browser actions use narrow form/htmx routes under `/dashboard/actions/*` and are local human UI internals, not an agent API.
 

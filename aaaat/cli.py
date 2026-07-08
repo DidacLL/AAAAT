@@ -12,6 +12,7 @@ from .agent_access import (
     release_agent_task,
     submit_agent_task_result,
 )
+from .agent_actions import get_agent_context_bundle, submit_agent_action
 from .agent_guides import agent_guide
 from .agent_intake import agent_intake_raw_offer, agent_submit_structured_extraction
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
@@ -73,6 +74,8 @@ def build_parser() -> argparse.ArgumentParser:
     agent_tasks.add_argument("--limit", type=int)
     agent_context = agent.add_parser("context")
     agent_context.add_argument("task_id")
+    agent_context_bundle = agent.add_parser("context-bundle")
+    agent_context_bundle.add_argument("--purpose", required=True)
     agent_packet = agent.add_parser("packet")
     agent_packet.add_argument("task_id")
     agent_dispatch = agent.add_parser("dispatch")
@@ -109,6 +112,14 @@ def build_parser() -> argparse.ArgumentParser:
     agent_intake_submit.add_argument("--agent-name", default="")
     agent_intake_submit.add_argument("--agent-runtime", default="")
     agent_intake_submit.add_argument("--model-provider", default="")
+    agent_action = agent.add_parser("action").add_subparsers(dest="agent_action_command", required=True)
+    agent_action_submit = agent_action.add_parser("submit")
+    action_input = agent_action_submit.add_mutually_exclusive_group(required=True)
+    action_input.add_argument("--input-body")
+    action_input.add_argument("--input-file")
+    agent_action_submit.add_argument("--agent-name", default="")
+    agent_action_submit.add_argument("--agent-runtime", default="")
+    agent_action_submit.add_argument("--model-provider", default="")
 
     app = sub.add_parser("app").add_subparsers(dest="app_command", required=True)
     app_create = app.add_parser("create")
@@ -337,6 +348,8 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(list_agent_task_envelopes(conn, state=args.state, limit=args.limit), indent=2))
         elif args.command == "agent" and args.agent_command == "context":
             print(json.dumps(build_agent_task_context(conn, args.task_id), indent=2))
+        elif args.command == "agent" and args.agent_command == "context-bundle":
+            print(json.dumps(get_agent_context_bundle(conn, args.purpose), indent=2))
         elif args.command == "agent" and args.agent_command == "packet":
             print(json.dumps(build_task_packet(conn, args.task_id), indent=2))
         elif args.command == "agent" and args.agent_command == "dispatch":
@@ -389,6 +402,21 @@ def main(argv: list[str] | None = None) -> int:
                         agent_name=args.agent_name,
                         agent_runtime=args.agent_runtime,
                         model_provider=args.model_provider,
+                    ),
+                    indent=2,
+                )
+            )
+        elif args.command == "agent" and args.agent_command == "action" and args.agent_action_command == "submit":
+            action_body = Path(args.input_file).read_text(encoding="utf-8") if args.input_file else args.input_body
+            print(
+                json.dumps(
+                    submit_agent_action(
+                        conn,
+                        action_body,
+                        agent_name=args.agent_name,
+                        agent_runtime=args.agent_runtime,
+                        model_provider=args.model_provider,
+                        storage_path=args.storage,
                     ),
                     indent=2,
                 )

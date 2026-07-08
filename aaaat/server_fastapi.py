@@ -12,6 +12,7 @@ from .agent_access import (
     release_agent_task,
     submit_agent_task_result,
 )
+from .agent_actions import get_agent_context_bundle, submit_agent_action
 from .agent_intake import agent_intake_raw_offer, agent_submit_structured_extraction
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
 from .candidatures import create_candidature, get_candidature, list_candidatures, update_candidature
@@ -218,6 +219,32 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
                         agent_name=data.get("agent_name", ""),
                         agent_runtime=data.get("agent_runtime", ""),
                         model_provider=data.get("model_provider", ""),
+                    )
+            except Exception as exc:
+                handle_error(exc)
+
+        @app.post("/api/agent/context-bundle")
+        async def agent_context_bundle(request: Request) -> Any:
+            data, _ = await request_data(request)
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return get_agent_context_bundle(conn, data.get("purpose", ""))
+            except Exception as exc:
+                handle_error(exc)
+
+        @app.post("/api/agent/actions", dependencies=[Depends(writable)])
+        async def agent_actions(request: Request) -> Any:
+            data, _ = await request_data(request)
+            action_payload = {key: data[key] for key in ("action", "payload") if key in data}
+            try:
+                with connect(app.state.storage_path) as conn:
+                    return submit_agent_action(
+                        conn,
+                        action_payload,
+                        agent_name=data.get("agent_name", ""),
+                        agent_runtime=data.get("agent_runtime", ""),
+                        model_provider=data.get("model_provider", ""),
+                        storage_path=app.state.storage_path,
                     )
             except Exception as exc:
                 handle_error(exc)

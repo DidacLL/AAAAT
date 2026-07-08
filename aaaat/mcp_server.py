@@ -36,6 +36,8 @@ def mcp_descriptor() -> dict[str, Any]:
             ),
             tool("claim_agent_task", {"task_id": "string", "agent_name": "string", "agent_runtime": "string"}, ["task_id"]),
             tool("release_agent_task", {"task_id": "string"}, ["task_id"]),
+            tool("get_agent_context_bundle", {"purpose": "string"}, ["purpose"]),
+            tool("submit_agent_action", {"action": "string", "payload": "object"}, ["action", "payload"]),
             tool(
                 "create_agent_raw_offer_intake",
                 {"content": "string", "source_url": "string", "agent_name": "string", "agent_runtime": "string"},

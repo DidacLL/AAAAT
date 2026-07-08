@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import shlex
 import subprocess
 from typing import Any
 
@@ -16,12 +17,11 @@ def dispatch_command(conn: sqlite3.Connection, task_id: str, cmd: str) -> dict[s
     packet = build_task_packet(conn, task_id)
     packet_json = json.dumps(packet, indent=2, sort_keys=True) + "\n"
     completed = subprocess.run(
-        cmd,
+        shlex.split(cmd),
         input=packet_json,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        shell=True,
         check=False,
     )
     acknowledgement: dict[str, Any] = {

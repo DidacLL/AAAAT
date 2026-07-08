@@ -9,6 +9,8 @@ The implemented capabilities are the task protocol and schema-bound intake proto
 
 Each implemented capability is schema-bound and returns only narrow acknowledgements, opaque correlation ids, task envelopes, or reviewable result references.
 
+When work starts in the LLM app, use the action-session capability. The LLM app may request a purpose-scoped context bundle and submit one bounded action. AAAAT stores local data and renders artifacts locally from templates; the LLM app supplies render data, not generated files.
+
 Use the capability-scoped task protocol. Agents must not browse, list, search, or patch the user's candidature database. Do not copy private data into public demo files, templates, or docs.
 
 Core commands:
@@ -18,6 +20,9 @@ Core commands:
 - `aaaat agent submit <task_id> --result-file result.json`
 - `aaaat agent claim <task_id>`
 - `aaaat agent release <task_id>`
+- `aaaat agent context-bundle --purpose cover_letter`
+- `aaaat agent action submit --input-body '{"action":"create_candidature","payload":{...}}'`
+- `aaaat agent action submit --input-file action.json`
 - `aaaat agent intake raw-offer --content "..."`
 - `aaaat agent intake raw-offer --file offer.txt`
 - `aaaat agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json`
