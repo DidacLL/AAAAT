@@ -15,6 +15,7 @@ from aaaat.agent_access import (
     task_result_ack,
 )
 from aaaat.candidatures import create_candidature, get_candidature
+from aaaat.career_plans import create_career_plan
 from aaaat.db import connect, create_application, init_db, set_profile_variable
 from aaaat.dispatch.packet import build_task_packet
 from aaaat.profile_facts import create_profile_fact
@@ -85,6 +86,51 @@ class AgentAccessTests(unittest.TestCase):
         self.assertNotIn(task["id"], serialized)
         self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(context)))
         self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{handle}/result"})
+
+    def test_supported_task_types_have_default_instructions_and_response_formats(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                app = create_candidature(
+                    conn,
+                    company="Supported Co",
+                    role="Engineer",
+                    raw_offer="Python platform role",
+                    raw_application_form="Why this role?",
+                    keywords=["Python"],
+                )
+                create_career_plan(conn, body="Target local-first developer tooling roles.", target_roles="Backend Engineer", target_markets="EU")
+                tasks = [
+                    create_task(conn, "field_inference", "Infer fields", application_id=app["id"], context_hint="candidature:field_inference", idempotent=False),
+                    create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research", idempotent=False),
+                    create_task(conn, "keyword_definition", "Define keyword", application_id=app["id"], context_hint="keyword:Python", idempotent=False),
+                    create_task(conn, "draft_form_responses", "Draft forms", application_id=app["id"], context_hint="blob:form_responses", idempotent=False),
+                    create_task(conn, "draft_cv", "Draft CV", application_id=app["id"], context_hint="artifact:cv", idempotent=False),
+                    create_task(conn, "draft_cover_letter", "Draft cover", application_id=app["id"], context_hint="artifact:cover_letter", idempotent=False),
+                    create_task(conn, "career_plan_review", "Review career plan", context_hint="candidature:career_plan_review", idempotent=False),
+                ]
+                contexts = [build_agent_task_context(conn, task_handle(task)) for task in tasks]
+
+        expected_required = {
+            "field_inference": "fields",
+            "company_research": "company_research",
+            "keyword_definition": "definition",
+            "draft_form_responses": "form_answers",
+            "draft_cv": "cv_positioning",
+            "draft_cover_letter": "cover_letter_body",
+            "career_plan_review": "review",
+        }
+        for context in contexts:
+            task_type = context["task"]["task_type"]
+            self.assertTrue(context["instructions"]["default"])
+            self.assertEqual(context["response_format"]["type"], "json_object")
+            self.assertIn(expected_required[task_type], context["response_format"]["required"])
+            self.assertFalse(context["output_contract"]["entity_ids_allowed"])
+            self.assertTrue(context["input_context"] or task_type == "keyword_definition")
+            self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(context)))
+        career_context = next(item for item in contexts if item["task"]["task_type"] == "career_plan_review")
+        self.assertIn("career_plan_context", career_context["input_context"])
+        self.assertIn("plan_ref", json.dumps(career_context))
 
     def test_task_packet_is_self_contained_and_uses_contract_fields(self):
         with tempfile.TemporaryDirectory() as tmp:
