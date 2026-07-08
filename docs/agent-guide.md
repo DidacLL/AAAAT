@@ -27,6 +27,8 @@ A task handle is allowed only as an agent-session handle for fetching bounded ta
 
 Agent task contexts and acknowledgements must not expose application IDs, candidature IDs, artifact IDs, profile fact IDs, note IDs, todo IDs, blob IDs, file paths, or storage paths as mutation handles. Agent-scoped profile facts use `fact_ref` labels and placeholders such as `{{ profile_fact.skill.python }}`, not profile-fact row IDs.
 
+Career plans are local first-class records. Agents receive career plan material only through bounded context bundles, under `career_plans`, using non-ID `plan_ref` labels. Agents must not receive career plan row IDs or a career-plan CRUD surface.
+
 ## AAAAT-originated work
 
 When work starts inside AAAAT, AAAAT creates or selects a pending task. The agent obtains the next pending task, receives bounded task context, completes reasoning externally, and submits a JSON result. AAAAT stores provenance and applies results only through deterministic local ownership and review/apply flows.
@@ -36,6 +38,8 @@ Task contexts are minimized by `aaaat.agent_access`. They include a task handle,
 ## LLM-app-originated work
 
 When work starts in the LLM app, the LLM may already have raw offer text, form copy, user conversation, inferred candidature fields, draft form answers, cover-letter body text, or completed research. The LLM first asks AAAAT for a purpose-scoped context bundle, then submits one bounded action packet.
+
+Context bundles may include profile facts and career plans for `cover_letter`, `cv_generation`, `candidature_fit`, `market_research`, `recruiter_call`, `form_answers`, and `career_plan_review`. The bundle is a read context, not an edit channel.
 
 The first bounded action is `create_candidature`. It may create a new candidature from source material and already-derived outputs and request local rendering. It does not edit an existing candidature and does not return internal object identifiers.
 
