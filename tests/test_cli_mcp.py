@@ -149,7 +149,7 @@ class CliMcpTests(unittest.TestCase):
             self.assertEqual(bundle["purpose"], "candidature_fit")
             self.assertEqual(bundle["scope"], "agent")
             self.assertIn("{{ profile_fact.skill.python }}", json.dumps(bundle))
-            self.assertNotIn("fact_", json.dumps(bundle))
+            self.assertIn("fact_ref", json.dumps(bundle))
 
             action_path = Path(tmp) / "action.json"
             action_path.write_text(
