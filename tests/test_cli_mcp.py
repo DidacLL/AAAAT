@@ -224,6 +224,8 @@ class CliMcpTests(unittest.TestCase):
         self.assertIn("response_format", descriptor_text)
         self.assertIn("output_contract", descriptor_text)
         self.assertNotIn("task_id", descriptor_text)
+        self.assertNotIn("application_id", descriptor_text)
+        self.assertNotIn("server", descriptor_text)
         for tool in descriptor["tools"]:
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("properties", tool["inputSchema"])
@@ -248,6 +250,12 @@ class CliMcpTests(unittest.TestCase):
         self.assertNotIn("anthropic", mcp_source)
         self.assertNotIn("api_key", mcp_source)
         self.assertNotIn("chat.completions", mcp_source)
+        self.assertNotIn("from mcp", mcp_source)
+        self.assertNotIn("import mcp", mcp_source)
+        self.assertNotIn("fastmcp", mcp_source)
+        self.assertNotIn("stdio_server", mcp_source)
+        self.assertNotIn("sse_server", mcp_source)
+        self.assertNotIn("streamable_http", mcp_source)
 
 
 if __name__ == "__main__":

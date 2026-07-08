@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""Dependency-free MCP-compatible descriptor metadata.
+
+This module intentionally builds descriptor/tool/prompt schema data only. It does
+not start or implement an MCP transport loop. External adapters may map the
+emitted schema to AAAAT CLI commands or to the local agent HTTP runtime.
+"""
+
 from typing import Any
 
 
@@ -7,7 +14,7 @@ PROTOCOL_VERSION = "2025-06-18"
 
 
 CONTRACT_DESCRIPTION = (
-    "Capability-scoped AAAAT operation. No dashboard HTML, broad CRUD, or entity-ID mutation authority. "
+    "Descriptor-only MCP-compatible AAAAT operation. No dashboard HTML, broad CRUD, or entity-ID mutation authority. "
     "Task contexts and packets include task_handle, task_type, title, instructions, purpose, input_context, "
     "output_contract, response_format, allowed_actions, and privacy_notes."
 )
