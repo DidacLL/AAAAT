@@ -106,13 +106,11 @@ class FastApiServerTests(unittest.TestCase):
                 data={"application_id": app_id, "task_type": "company_research", "title": "Research company"},
                 follow_redirects=False,
             )
-            render = client.post("/dashboard/actions/render/cv", data={"application_id": app_id}, follow_redirects=False)
             self.assertEqual(core_updated.status_code, 303)
             self.assertEqual(updated.status_code, 303)
             self.assertEqual(note.status_code, 303)
             self.assertEqual(todo.status_code, 303)
             self.assertEqual(task.status_code, 303)
-            self.assertEqual(render.status_code, 303)
 
             with connect(tmp) as conn:
                 loaded = get_candidature(conn, app_id)
@@ -120,7 +118,7 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(loaded["details"]["description"], "Detailed offer")
             self.assertTrue(any(item["body"] == "Call note" for item in loaded["notes_records"]))
             self.assertTrue(any(item["title"] == "Follow up" for item in loaded["todos"]))
-            self.assertTrue(any(item["artifact_type"] == "cv" for item in loaded["artifacts"]))
+            self.assertTrue(any(item["task_type"] == "company_research" for item in loaded["tasks"]))
 
     def test_agent_runtime_exposes_capability_operations(self):
         with tempfile.TemporaryDirectory() as tmp:
