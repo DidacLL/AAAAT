@@ -70,29 +70,22 @@ class DispatchTests(unittest.TestCase):
                     "artifact:cover_letter",
                 ).stdout
             )
-            task_handle = json.loads(self.run_cli("--storage", tmp, "agent", "next").stdout)["task"]["task_handle"]
-            self.assertTrue(task_handle.startswith("taskh_"))
-            self.assertNotEqual(task_handle, task["id"])
 
-            packet = json.loads(self.run_cli("--storage", tmp, "agent", "packet", task_handle).stdout)
-            self.assertEqual(packet["task_handle"], task_handle)
-            self.assertNotIn("task", packet)
-            self.assertEqual(packet["task_type"], "draft_cover_letter")
-            self.assertEqual(packet["title"], "Draft Target Cover Letter")
+            packet = json.loads(self.run_cli("--storage", tmp, "agent", "packet", task["id"]).stdout)
+            self.assertEqual(packet["task"]["task_handle"], task["id"])
+            self.assertNotIn("id", packet["task"])
+            self.assertEqual(packet["task"]["task_type"], "draft_cover_letter")
+            self.assertEqual(packet["task"]["title"], "Draft Target Cover Letter")
             self.assertIn("instructions", packet)
-            self.assertIn("input_context", packet)
-            self.assertIn("output_contract", packet)
-            self.assertIn("response_format", packet)
+            self.assertIn("context", packet)
+            self.assertIn("expected_output", packet)
             self.assertIn("allowed_actions", packet)
-            self.assertIn("privacy_notes", packet)
             self.assertIn("callback_instructions", packet)
-            self.assertFalse(packet["output_contract"]["auto_apply_by_agent"])
-            self.assertFalse(packet["output_contract"]["entity_ids_allowed"])
+            self.assertFalse(packet["expected_output"]["auto_apply"])
             self.assertFalse(packet["callback_instructions"]["auto_apply"])
 
             packet_text = json.dumps(packet, sort_keys=True)
             self.assertIn("Target Co", packet_text)
-            self.assertNotIn(task["id"], packet_text)
             self.assertNotIn("Other Corp", packet_text)
             self.assertNotIn("UNRELATED CANDIDATURE SECRET", packet_text)
             self.assertNotIn("DENIED PROFILE SECRET", packet_text)
@@ -124,18 +117,18 @@ class DispatchTests(unittest.TestCase):
                 self.assertNotIn(forbidden, packet_text.lower())
 
             dispatch = json.loads(
-                self.run_cli("--storage", tmp, "agent", "dispatch", task_handle, "--backend", "manual").stdout
+                self.run_cli("--storage", tmp, "agent", "dispatch", task["id"], "--backend", "manual").stdout
             )
             outbox_path = Path(dispatch["packet_path"])
             self.assertEqual(dispatch["backend"], "manual")
-            self.assertEqual(dispatch["task_handle"], task_handle)
+            self.assertEqual(dispatch["task_handle"], task["id"])
             self.assertNotIn("task_id", dispatch)
             self.assertEqual(dispatch["packet_version"], packet["packet_version"])
             self.assertNotIn("packet", dispatch)
             dispatch_text = json.dumps(dispatch, sort_keys=True)
             self.assertNotIn("Target Co", dispatch_text)
             self.assertNotIn("Write a concise draft for review.", dispatch_text)
-            self.assertEqual(outbox_path, Path(tmp) / "agent_outbox" / f"{task_handle}.packet.json")
+            self.assertEqual(outbox_path, Path(tmp) / "agent_outbox" / f"{task['id']}.packet.json")
             self.assertTrue(outbox_path.exists())
             self.assertEqual(json.loads(outbox_path.read_text(encoding="utf-8")), packet)
 
