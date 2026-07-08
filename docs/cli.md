@@ -75,6 +75,7 @@ Agent context bundles may include active career plans for `cover_letter`, `cv_ge
 The HTTP agent runtime exposes the stricter machine-facing route set:
 
 ```text
+GET  /api/health
 GET  /api/agent/tasks/next
 GET  /api/agent/tasks/{task_handle}/context
 POST /api/agent/tasks/{task_handle}/result
