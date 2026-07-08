@@ -18,7 +18,7 @@ aaaat profile context --purpose cv_generation
 
 Each fact has editable visibility, exposure, and usage flags for CV, cover letter, agent context, market research, and dashboard use.
 
-Stable MVP commands:
+Stable local commands:
 
 ```bash
 python -m aaaat.cli init
@@ -45,33 +45,34 @@ python -m aaaat.cli export static-demo outputs/static-demo.html
 python -m aaaat.cli agent-guide
 ```
 
-Broad local CLI commands remain available for human/admin maintenance, but they are not the agent contract.
+Broad local CLI commands remain available for human/admin maintenance, but they are not the agent runtime contract.
 
-`intake raw-offer` is a human/local AAAAT-originated flow. It creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue can then ask an agent what to extract.
+`intake raw-offer` is a human/local AAAAT-originated flow. It creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue can then ask an agent to work on bounded task context.
 
-Agent-facing commands use capability-scoped `agent` subcommands. The implemented capability is task work:
-
-```bash
-python -m aaaat.cli agent tasks --state queued
-python -m aaaat.cli agent context <task_id>
-python -m aaaat.cli agent packet <task_id>
-python -m aaaat.cli agent dispatch <task_id> --backend manual
-python -m aaaat.cli agent dispatch <task_id> --backend command --cmd "..."
-python -m aaaat.cli agent submit <task_id> --result-body "..."
-python -m aaaat.cli agent submit <task_id> --result-file result.json
-python -m aaaat.cli agent claim <task_id>
-python -m aaaat.cli agent release <task_id>
-```
-
-The agent action-session capability supports LLM-app-originated work, not raw-offer upload or object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
-
-Action-session commands:
+Agent-facing runtime capabilities are task-handle and action-session scoped:
 
 ```bash
+python -m aaaat.cli agent context <task_handle>
+python -m aaaat.cli agent submit <task_handle> --result-body '{"result":"..."}'
+python -m aaaat.cli agent submit <task_handle> --result-file result.json
 python -m aaaat.cli agent context-bundle --purpose cover_letter
 python -m aaaat.cli agent action submit --input-file action.json
 python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'
 ```
+
+The HTTP agent runtime exposes the stricter machine-facing route set:
+
+```text
+GET  /api/agent/tasks/next
+GET  /api/agent/tasks/{task_handle}/context
+POST /api/agent/tasks/{task_handle}/result
+POST /api/agent/context-bundle
+POST /api/agent/actions
+```
+
+The agent runtime does not expose dashboard routes, broad entity lists, claim/release endpoints, or entity-ID mutation APIs.
+
+The agent action-session capability supports LLM-app-originated work, not raw-offer upload or object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
 
 The LLM-app-originated action may carry already-inferred candidature fields, company research, form answers, or cover-letter body text. AAAAT stores those values in local fields or render inputs. It does not create extraction or drafting tasks for work already supplied in the action.
 
@@ -81,7 +82,7 @@ For cover letters and CVs, the agent supplies data used by AAAAT templates. AAAA
 
 The agent is not the user. Agent-written text should land in explicit fields, task results, form answers, research/preparation fields, or render inputs, not in human note commands.
 
-Durable production-sprint commands:
+Durable production-sprint local commands:
 
 ```bash
 python -m aaaat.cli task create --application-id <id> --type company_research --title "Research company"
