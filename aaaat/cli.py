@@ -10,8 +10,10 @@ from .agent_access import (
     build_agent_task_context,
     claim_agent_task,
     list_agent_task_envelopes,
+    next_agent_task_envelope,
     release_agent_task,
     submit_agent_task_result,
+    task_result_ack,
 )
 from .agent_guides import agent_guide
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
@@ -68,19 +70,20 @@ def build_parser() -> argparse.ArgumentParser:
     launch_p.add_argument("--port", type=int, default=8765)
 
     agent = sub.add_parser("agent").add_subparsers(dest="agent_command", required=True)
+    agent.add_parser("next")
     agent_tasks = agent.add_parser("tasks")
     agent_tasks.add_argument("--state")
     agent_tasks.add_argument("--limit", type=int)
     agent_context = agent.add_parser("context")
-    agent_context.add_argument("task_id")
+    agent_context.add_argument("task_handle")
     agent_packet = agent.add_parser("packet")
-    agent_packet.add_argument("task_id")
+    agent_packet.add_argument("task_handle")
     agent_dispatch = agent.add_parser("dispatch")
-    agent_dispatch.add_argument("task_id")
+    agent_dispatch.add_argument("task_handle")
     agent_dispatch.add_argument("--backend", required=True, choices=["manual", "command"])
     agent_dispatch.add_argument("--cmd", default="")
     agent_submit = agent.add_parser("submit")
-    agent_submit.add_argument("task_id")
+    agent_submit.add_argument("task_handle")
     result_group = agent_submit.add_mutually_exclusive_group(required=True)
     result_group.add_argument("--result-body")
     result_group.add_argument("--result-file")
@@ -88,13 +91,12 @@ def build_parser() -> argparse.ArgumentParser:
     agent_submit.add_argument("--agent-name", default="")
     agent_submit.add_argument("--agent-runtime", default="")
     agent_submit.add_argument("--model-provider", default="")
-    agent_submit.add_argument("--artifact-id")
     agent_claim = agent.add_parser("claim")
-    agent_claim.add_argument("task_id")
+    agent_claim.add_argument("task_handle")
     agent_claim.add_argument("--agent-name", default="")
     agent_claim.add_argument("--agent-runtime", default="")
     agent_release = agent.add_parser("release")
-    agent_release.add_argument("task_id")
+    agent_release.add_argument("task_handle")
     agent_context_bundle = agent.add_parser("context-bundle")
     agent_context_bundle.add_argument("--purpose", required=True)
     agent_action = agent.add_parser("action").add_subparsers(dest="agent_action_command", required=True)
@@ -329,38 +331,35 @@ def main(argv: list[str] | None = None) -> int:
 
     init_db(args.storage)
     with connect(args.storage) as conn:
-        if args.command == "agent" and args.agent_command == "tasks":
+        if args.command == "agent" and args.agent_command == "next":
+            print(json.dumps({"task": next_agent_task_envelope(conn)}, indent=2))
+        elif args.command == "agent" and args.agent_command == "tasks":
             print(json.dumps(list_agent_task_envelopes(conn, state=args.state, limit=args.limit), indent=2))
         elif args.command == "agent" and args.agent_command == "context":
-            print(json.dumps(build_agent_task_context(conn, args.task_id), indent=2))
+            print(json.dumps(build_agent_task_context(conn, args.task_handle), indent=2))
         elif args.command == "agent" and args.agent_command == "packet":
-            print(json.dumps(build_task_packet(conn, args.task_id), indent=2))
+            print(json.dumps(build_task_packet(conn, args.task_handle), indent=2))
         elif args.command == "agent" and args.agent_command == "dispatch":
             if args.backend == "manual":
-                print(json.dumps(dispatch_manual(conn, args.storage, args.task_id), indent=2))
+                print(json.dumps(dispatch_manual(conn, args.storage, args.task_handle), indent=2))
             elif args.backend == "command":
-                print(json.dumps(dispatch_command(conn, args.task_id, args.cmd), indent=2))
+                print(json.dumps(dispatch_command(conn, args.task_handle, args.cmd), indent=2))
         elif args.command == "agent" and args.agent_command == "submit":
             result_body = Path(args.result_file).read_text(encoding="utf-8") if args.result_file else args.result_body
-            print(
-                json.dumps(
-                    submit_agent_task_result(
-                        conn,
-                        args.task_id,
-                        result_body,
-                        result_title=args.result_title,
-                        agent_name=args.agent_name,
-                        agent_runtime=args.agent_runtime,
-                        model_provider=args.model_provider,
-                        artifact_id=args.artifact_id,
-                    ),
-                    indent=2,
-                )
+            task = submit_agent_task_result(
+                conn,
+                args.task_handle,
+                result_body,
+                result_title=args.result_title,
+                agent_name=args.agent_name,
+                agent_runtime=args.agent_runtime,
+                model_provider=args.model_provider,
             )
+            print(json.dumps(task_result_ack(task), indent=2))
         elif args.command == "agent" and args.agent_command == "claim":
-            print(json.dumps(claim_agent_task(conn, args.task_id, agent_name=args.agent_name, agent_runtime=args.agent_runtime), indent=2))
+            print(json.dumps(claim_agent_task(conn, args.task_handle, agent_name=args.agent_name, agent_runtime=args.agent_runtime), indent=2))
         elif args.command == "agent" and args.agent_command == "release":
-            print(json.dumps(release_agent_task(conn, args.task_id), indent=2))
+            print(json.dumps(release_agent_task(conn, args.task_handle), indent=2))
         elif args.command == "agent" and args.agent_command == "context-bundle":
             print(json.dumps(get_agent_context_bundle(conn, args.purpose), indent=2))
         elif args.command == "agent" and args.agent_command == "action" and args.agent_action_command == "submit":
