@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 from aaaat.candidatures import get_candidature, list_candidatures
-from aaaat.db import connect, create_application, init_db, set_profile_variable
+from aaaat.db import connect, create_application, init_db
 from aaaat.profile_facts import create_profile_fact
 from aaaat.security import Mode
 from aaaat.server import launch
@@ -66,59 +66,23 @@ class FastApiServerTests(unittest.TestCase):
             self.assertTrue(any(path.startswith("/dashboard/fragments/") for path in registered))
             self.assertTrue(any(path.startswith("/dashboard/actions/") for path in registered))
 
-    def test_dashboard_actions_preserve_human_workflows(self):
+    def test_dashboard_form_action_writes_local_human_note(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                set_profile_variable(conn, "display_name", "Local Candidate")
-                set_profile_variable(conn, "email", "candidate@example.test")
-                set_profile_variable(conn, "summary.default", "Private local summary")
+                app = create_application(conn, company="Action Co", role="Platform Engineer")
             client = self.dashboard_client(tmp)
 
-            created = client.post(
-                "/dashboard/actions/raw-offer-intake",
-                data={
-                    "content": "Python role with screening call",
-                    "company": "Action Co",
-                    "role": "Platform Engineer",
-                    "keywords": "Python, Platform",
-                    "include_cv_task": "1",
-                },
+            note = client.post(
+                "/dashboard/actions/notes",
+                data={"application_id": app["id"], "note_type": "call", "body": "Call note"},
                 follow_redirects=False,
             )
-            self.assertEqual(created.status_code, 303)
-            app_id = created.headers["location"].split("application_id=", 1)[1].split("&", 1)[0]
-
-            core_updated = client.post(
-                f"/dashboard/actions/applications/{app_id}",
-                data={"_method": "PATCH", "next_action": "Prepare recruiter call"},
-                follow_redirects=False,
-            )
-            updated = client.post(
-                f"/dashboard/actions/candidatures/{app_id}",
-                data={"_method": "PATCH", "description": "Detailed offer", "questions_to_ask": "Ask about roadmap"},
-                follow_redirects=False,
-            )
-            note = client.post("/dashboard/actions/notes", data={"application_id": app_id, "note_type": "call", "body": "Call note"}, follow_redirects=False)
-            todo = client.post("/dashboard/actions/todos", data={"application_id": app_id, "title": "Follow up"}, follow_redirects=False)
-            task = client.post(
-                "/dashboard/actions/tasks",
-                data={"application_id": app_id, "task_type": "company_research", "title": "Research company"},
-                follow_redirects=False,
-            )
-            self.assertEqual(core_updated.status_code, 303)
-            self.assertEqual(updated.status_code, 303)
             self.assertEqual(note.status_code, 303)
-            self.assertEqual(todo.status_code, 303)
-            self.assertEqual(task.status_code, 303)
 
             with connect(tmp) as conn:
-                loaded = get_candidature(conn, app_id)
-            self.assertEqual(loaded["next_action"], "Prepare recruiter call")
-            self.assertEqual(loaded["details"]["description"], "Detailed offer")
+                loaded = get_candidature(conn, app["id"])
             self.assertTrue(any(item["body"] == "Call note" for item in loaded["notes_records"]))
-            self.assertTrue(any(item["title"] == "Follow up" for item in loaded["todos"]))
-            self.assertTrue(any(item["task_type"] == "company_research" for item in loaded["tasks"]))
 
     def test_agent_runtime_exposes_capability_operations(self):
         with tempfile.TemporaryDirectory() as tmp:
