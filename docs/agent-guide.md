@@ -1,49 +1,41 @@
 # Agent Guide
 
-Agents interact with AAAAT through capability-scoped operations, not generic CRUD. The implemented capabilities are task work and LLM-app action sessions.
+AAAAT has two separate runtimes. They are not two CRUD APIs, and the dashboard is not an agent API.
 
-The contract has two directions and they must not be confused.
+## Dashboard runtime
+
+The dashboard runtime is the local human UI. It serves server-rendered HTML, static dashboard assets, fragments, and local form actions. It may expose private internal identifiers inside HTML or form action URLs because it is a human-local interface.
+
+Dashboard routes are outside the agent contract. Agents must not treat dashboard HTML, dashboard fragments, htmx endpoints, or `/dashboard/actions/*` form handlers as supported machine interfaces.
+
+## Agent runtime
+
+The agent runtime is a machine-facing capability adapter. It exposes only bounded operations. It must not serve dashboard HTML, dashboard static assets, dashboard fragments, dashboard actions, broad entity lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, or identifier-based mutation endpoints.
+
+The supported agent HTTP routes are:
+
+```text
+GET  /api/health
+GET  /api/agent/tasks/next
+GET  /api/agent/tasks/{task_handle}/context
+POST /api/agent/tasks/{task_handle}/result
+POST /api/agent/context-bundle
+POST /api/agent/actions
+```
+
+A task handle is allowed only as an agent-session handle for fetching bounded task context and submitting that task result. It is not authority to mutate arbitrary local state. AAAAT owns mapping task results back to local records.
 
 ## AAAAT-originated work
 
-When work starts inside AAAAT, AAAAT creates a task. The agent receives a narrow task packet, completes the task externally, and submits a task result. AAAAT stores provenance and applies the result only through deterministic local review/apply flows.
+When work starts inside AAAAT, AAAAT creates or selects a pending task. The agent obtains the next pending task, receives bounded task context, completes reasoning externally, and submits a JSON result. AAAAT stores provenance and applies results only through deterministic local ownership and review/apply flows.
 
-Implemented task commands:
-
-```bash
-python -m aaaat.cli agent tasks --state queued
-python -m aaaat.cli agent context <task_id>
-python -m aaaat.cli agent submit <task_id> --result-file result.json
-python -m aaaat.cli agent claim <task_id>
-python -m aaaat.cli agent release <task_id>
-```
-
-The optional HTTP adapter exposes equivalent task operations under `/api/agent/*`. `aaaat launch --agent-api` starts an agent HTTP surface with `/api/health` and capability-scoped `/api/agent/*` routes.
-
-Task contexts are minimized by `aaaat.agent_access`. They include a sanitized task envelope, task-specific context, privacy notes, and task-scoped write-back links. They do not include dashboard payloads or private database browsing surfaces.
+Task contexts are minimized by `aaaat.agent_access`. They include a task handle, sanitized task envelope, task-specific context, privacy notes, and task-scoped write-back links. They do not include dashboard payloads or private database browsing surfaces.
 
 ## LLM-app-originated work
 
-When work starts in the LLM app, the LLM has already read the offer, interpreted the conversation, and produced the useful data before calling AAAAT. In this direction AAAAT should not create extraction tasks for the same completed work.
+When work starts in the LLM app, the LLM may already have raw offer text, form copy, user conversation, inferred candidature fields, draft form answers, cover-letter body text, or completed research. The LLM first asks AAAAT for a purpose-scoped context bundle, then submits one bounded action packet.
 
-The implemented action-session protocol is:
-
-```bash
-python -m aaaat.cli agent context-bundle --purpose cover_letter
-python -m aaaat.cli agent action submit --input-file action.json
-```
-
-First, the LLM asks AAAAT for a purpose-scoped context bundle. Supported purposes should map to existing profile-context purposes such as `cv_generation`, `cover_letter`, `candidature_fit`, `recruiter_call`, and `form_answers`. AAAAT returns only the context allowed for that purpose and exposure policy.
-
-Then the LLM submits one bounded action packet containing source material and derived outputs. The first implemented action is `create_candidature`; it can:
-
-- create a candidature from fields the LLM has already inferred;
-- store company-research or preparation fields the LLM has already written;
-- store form answers the LLM has already written;
-- store a cover-letter body as render input for the local template;
-- request local rendering from AAAAT templates.
-
-AAAAT acknowledges the action and performs local storage/rendering. The agent contract does not return internal AAAAT object identifiers.
+The first bounded action is `create_candidature`. It may create a new candidature from source material and already-derived outputs and request local rendering. It does not edit an existing candidature and does not return internal object identifiers.
 
 ## Artifact boundary
 
@@ -51,14 +43,10 @@ Agents do not create final artifact files for AAAAT. AAAAT renders artifacts loc
 
 For cover letters, the LLM may supply the body text that fills the local `artifact.cover_letter.body` template variable. AAAAT renders the `.tex` file and optional PDF locally, then stores the generated artifact record.
 
-For CVs, the LLM should supply or improve the data used by the CV template, not submit a generated CV file.
+For CVs, the LLM should supply or improve bounded data used by the CV template, not submit a generated CV file.
 
 ## Human/user boundary
 
-The agent is not the user. Agent-supplied text should land in explicit candidature fields, task results, form answers, research/preparation fields, or render inputs. Human notes remain a local user/dashboard concept unless a future bounded action explicitly defines agent-authored machine notes separately.
+The agent is not the user. Agent-supplied text should land in explicit candidature fields, task results, form answers, research/preparation fields, render inputs, or bounded future-task requests. Human notes remain a dashboard-local user concept unless a future bounded action explicitly defines agent-authored machine notes separately.
 
-The browser dashboard is a local human UI. Its action routes are form/htmx-oriented internals and are not an agent contract.
-
-Docs do not enforce security by themselves. Route absence, narrow service functions, and capability-scoped adapters reduce accidental over-exposure. If an agent has direct `.private/`, shell, code modification, or arbitrary localhost access while the dashboard server is running, AAAAT cannot fully constrain it.
-
-Aggregate candidature lists are private behavioral data.
+Docs do not enforce security by themselves. Runtime separation, route absence, narrow service functions, and capability-scoped adapters reduce accidental over-exposure. If an agent has direct `.private/`, shell, code modification, or arbitrary localhost access while the dashboard runtime is running, AAAAT cannot fully constrain it.

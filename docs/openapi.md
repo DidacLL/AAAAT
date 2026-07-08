@@ -1,45 +1,45 @@
-# HTTP Surface
+# HTTP Runtime Contract
 
-AAAAT has two FastAPI surfaces:
+AAAAT has two separate FastAPI runtimes, not two CRUD APIs and not a dashboard API for agents.
 
-- `surface='dashboard'`: server-rendered local human dashboard.
-- `surface='agent'`: capability-scoped HTTP adapter for agents.
+- `create_dashboard_app(storage, mode)`: local human dashboard runtime.
+- `create_agent_app(storage, mode)`: machine-facing bounded capability adapter.
+
+`create_app(storage, mode, surface=...)` remains only as a compatibility wrapper around the explicit builders.
 
 The server binds to `127.0.0.1` by default.
 
-## Agent HTTP Contract
+## Agent runtime
 
-`aaaat launch --agent-api` exposes `GET /api/health` and capability-scoped routes under `/api/agent/*`.
+`aaaat launch --agent-api` starts the agent runtime. It exposes only:
 
-Implemented task routes:
+```text
+GET  /api/health
+GET  /api/agent/tasks/next
+GET  /api/agent/tasks/{task_handle}/context
+POST /api/agent/tasks/{task_handle}/result
+POST /api/agent/context-bundle
+POST /api/agent/actions
+```
 
-- `GET /api/agent/tasks`
-- `GET /api/agent/tasks/{task_id}/context`
-- `POST /api/agent/tasks/{task_id}/claim`
-- `POST /api/agent/tasks/{task_id}/result`
-- `POST /api/agent/tasks/{task_id}/release`
+The agent runtime must not mount dashboard HTML, static dashboard assets, dashboard fragments, dashboard actions, broad CRUD/list/search/profile/candidature APIs, note/todo/blob APIs, artifact APIs, or entity-ID mutation routes.
 
-Task list responses return sanitized envelopes only. Task contexts are built by `aaaat.agent_access` and contain task-specific data, privacy notes, allowed actions, and task-scoped write-back links.
+`task_handle` is a bounded task handle for obtaining context and submitting one JSON result. It is not generic authority over local records. AAAAT owns applying task results to internal records.
 
-LLM-app integration uses an action-session shape under `/api/agent/*`:
+`POST /api/agent/context-bundle` returns purpose-scoped user/career/writing context using exposure policy.
 
-- `POST /api/agent/context-bundle`: the agent requests purpose-scoped user/career/writing context using the existing profile exposure model.
-- `POST /api/agent/actions`: the agent submits one bounded action packet containing source material and derived outputs.
+`POST /api/agent/actions` accepts one bounded action packet containing source material and derived outputs. The first action is `create_candidature`.
 
-This action-session surface is not object CRUD. The contract does not require the LLM to know internal AAAAT object identifiers. Responses are narrow acknowledgements and human-facing next-action hints; they do not return internal object identifiers.
+Agent-facing acknowledgements must remain narrow and must not return application, candidature, profile-fact, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles.
 
-Agents do not submit generated cover-letter or CV files. AAAAT renders local artifacts from templates, application/profile data, and explicit render inputs.
+## Dashboard runtime
 
-Agent-facing HTTP exposes capability routes only. It does not expose database browsing, machine-readable dashboard payloads, arbitrary search, profile/variable dumping, or generic object mutation.
+The dashboard runtime is the normal local human UI. It serves server-rendered HTML, static dashboard assets, htmx fragments, and local form actions under `/dashboard/actions/*`.
 
-## Dashboard Surface
-
-The normal dashboard renders HTML from local SQLite through Python. It does not expose broad private JSON/data APIs.
-
-Dashboard writes use narrow local action routes under `/dashboard/actions/*`. They are intended for server-rendered forms and htmx fragments, return redirects or HTML fragments, and are not reusable machine-readable object dumps. Examples include raw-offer intake, selected candidature edits, user-authored notes/todos, task queue/apply actions, local document rendering, profile fact edits, and artifact state changes.
+Dashboard HTML and form actions may contain private internal identifiers because this runtime is human-local and outside the agent contract.
 
 Read-only dashboard mode keeps rendering private local data but blocks dashboard actions with `403`.
 
-## Risk Note
+## Risk note
 
-Docs are descriptive, not the enforcement mechanism. Route absence and narrow service functions enforce the agent surface. An agent with broader local system access is outside AAAAT's full control.
+Docs are descriptive, not the enforcement mechanism. Route absence, explicit runtime builders, narrow service functions, and capability-scoped adapters enforce the agent boundary. An agent with broader filesystem, shell, code-modification, or arbitrary localhost access is outside AAAAT's full control.

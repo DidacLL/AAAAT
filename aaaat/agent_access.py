@@ -9,7 +9,7 @@ from .profile_facts import profile_context
 from .tasks import complete_task, get_task, keyword_from_context, list_tasks, update_task
 
 
-ENVELOPE_FIELDS = {"id", "task_type", "title", "state", "priority", "context_hint", "created_at", "updated_at"}
+ENVELOPE_FIELDS = {"task_type", "title", "state", "priority", "context_hint", "created_at", "updated_at"}
 SAFE_CONTEXT_PREFIXES = ("field:", "keyword:", "candidature:", "artifact:", "blob:", "call:")
 
 
@@ -21,19 +21,15 @@ def safe_context_hint(value: str | None) -> str:
 
 
 def allowed_actions(task: dict[str, Any]) -> list[str]:
-    state = task.get("state", "")
     actions = ["context"]
-    if state in {"queued", "claimed", "in_progress", "blocked"}:
+    if task.get("state", "") in {"queued", "claimed", "in_progress", "blocked"}:
         actions.append("submit")
-    if state == "queued":
-        actions.append("claim")
-    if state in {"claimed", "in_progress", "blocked"}:
-        actions.append("release")
     return actions
 
 
 def task_envelope(task: dict[str, Any]) -> dict[str, Any]:
     envelope = {key: task.get(key, "") for key in ENVELOPE_FIELDS if key != "context_hint"}
+    envelope["task_handle"] = task.get("id", "")
     envelope["context_hint"] = safe_context_hint(task.get("context_hint"))
     envelope["allowed_actions"] = allowed_actions(task)
     return envelope
@@ -48,6 +44,19 @@ def list_agent_task_envelopes(
     rows = list_tasks(conn, state=state)
     envelopes = [task_envelope(row) for row in rows]
     return envelopes[:limit] if limit else envelopes
+
+
+def next_agent_task_envelope(conn: sqlite3.Connection) -> dict[str, Any] | None:
+    tasks = list_tasks(conn, state="queued")
+    return task_envelope(tasks[0]) if tasks else None
+
+
+def task_result_ack(task: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": "accepted",
+        "task": {"task_handle": task.get("id", ""), "state": task.get("state", "")},
+        "next": ["open_dashboard"],
+    }
 
 
 def build_agent_task_context(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
@@ -101,27 +110,23 @@ def build_agent_task_context(conn: sqlite3.Connection, task_id: str) -> dict[str
             }
             all_fields = {**candidate_fields, **detail_fields}
             context = {
-                "application_id": application_id,
                 "source_material": source,
                 "missing_fields": sorted(key for key, value in all_fields.items() if not str(value or "").strip()),
                 "protected_fields": sorted(key for key, value in all_fields.items() if str(value or "").strip()),
             }
         elif task_type == "company_research":
             context = {
-                "application_id": application_id,
                 "company": app.get("company", ""),
                 "role": app.get("role", ""),
                 "source_url": app.get("source_url", ""),
             }
         elif task_type == "keyword_definition":
             context = {
-                "application_id": application_id,
                 "keyword": keyword_from_context(task.get("context_hint", "")),
                 "role_hint": app.get("role", ""),
             }
         elif task_type == "draft_form_responses":
             context = {
-                "application_id": application_id,
                 "company": app.get("company", ""),
                 "role": app.get("role", ""),
                 "raw_application_form": details.get("raw_application_form", ""),
@@ -129,7 +134,6 @@ def build_agent_task_context(conn: sqlite3.Connection, task_id: str) -> dict[str
             }
         elif task_type == "draft_cv":
             context = {
-                "application_id": application_id,
                 "company": app.get("company", ""),
                 "role": app.get("role", ""),
                 "keywords": application_keywords(conn, application_id),
@@ -138,7 +142,6 @@ def build_agent_task_context(conn: sqlite3.Connection, task_id: str) -> dict[str
             }
         elif task_type == "draft_cover_letter":
             context = {
-                "application_id": application_id,
                 "company": app.get("company", ""),
                 "role": app.get("role", ""),
                 "keywords": application_keywords(conn, application_id),
@@ -147,7 +150,6 @@ def build_agent_task_context(conn: sqlite3.Connection, task_id: str) -> dict[str
             }
         else:
             context = {
-                "application_id": application_id,
                 "company": app.get("company", ""),
                 "role": app.get("role", ""),
                 "context_hint": envelope.get("context_hint", ""),
@@ -155,15 +157,14 @@ def build_agent_task_context(conn: sqlite3.Connection, task_id: str) -> dict[str
     elif task_type == "keyword_definition":
         context = {"keyword": keyword_from_context(task.get("context_hint", ""))}
 
+    task_handle = envelope["task_handle"]
     return {
         "task": envelope,
         "context": context,
         "privacy": {"scope": "agent", "notes": privacy_notes},
         "allowed_actions": envelope["allowed_actions"],
         "write_back": {
-            "submit": f"/api/agent/tasks/{task_id}/result",
-            "claim": f"/api/agent/tasks/{task_id}/claim",
-            "release": f"/api/agent/tasks/{task_id}/release",
+            "submit": f"/api/agent/tasks/{task_handle}/result",
         },
     }
 
