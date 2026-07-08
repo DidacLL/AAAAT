@@ -22,10 +22,24 @@ aaaat career-plan context --purpose cover_letter
 
 Each fact has editable visibility, exposure, and usage flags for CV, cover letter, agent context, market research, and dashboard use. Local/admin profile fact and career plan commands use internal IDs. Agent-scoped context uses non-ID `fact_ref` and `plan_ref` labels and placeholders.
 
+## Local data and backup
+
+Private local data defaults to `.private/aaaat.sqlite3` with generated artifacts under `.private/artifacts/`. Initialization is idempotent and stores a lightweight `schema_meta` row named `schema_version`.
+
+Create a local backup before upgrades:
+
+```bash
+python -m aaaat.cli backup
+```
+
+By default this writes a timestamped zip under `.private/backups/` containing the SQLite database and files under `.private/artifacts/`. To write elsewhere, pass `--output <path>` and `--force`; without `--force`, AAAAT refuses backup targets outside the configured local storage path.
+
 Stable local commands:
 
 ```bash
 python -m aaaat.cli init
+python -m aaaat.cli backup
+python -m aaaat.cli backup --output /safe/private/backups --force
 python -m aaaat.cli launch
 python -m aaaat.cli launch --read-only
 python -m aaaat.cli launch --agent-api
