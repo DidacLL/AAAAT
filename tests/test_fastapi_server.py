@@ -154,7 +154,7 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(client.get("/dashboard/fragments/inspector").status_code, 404)
             self.assertEqual(client.post("/dashboard/actions/notes", json={}).status_code, 404)
 
-    def test_agent_runtime_next_task_uses_opaque_task_handle(self):
+    def test_agent_runtime_next_task_uses_task_handle(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             local_task = self.create_agent_task(tmp)
