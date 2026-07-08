@@ -108,7 +108,7 @@ def _profile_fact_fields(data: dict[str, Any], *, partial: bool = False) -> dict
 def create_agent_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
     Depends, FastAPI, HTTPException, _, _, _, _, _ = _require_fastapi()
     app = _configure_app(
-        FastAPI(title="AAAAT Agent Runtime", version="0.1.0", docs_url="/docs", redoc_url=None, openapi_url="/openapi.json"),
+        FastAPI(title="AAAAT Agent Runtime", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None),
         storage,
         mode,
         "agent",
