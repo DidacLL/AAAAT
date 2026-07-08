@@ -5,6 +5,7 @@ import sqlite3
 from typing import Any
 
 from .candidatures import get_candidature_details
+from .career_plans import career_plan_context
 from .db import application_keywords, get_application, list_raw_intake
 from .profile_facts import profile_context
 from .tasks import complete_task, get_task, keyword_from_context, list_tasks, update_task
@@ -322,6 +323,8 @@ def build_agent_task_context(conn: sqlite3.Connection, task_handle: str) -> dict
             }
     elif task_type == "keyword_definition":
         context = {"keyword": keyword_from_context(task.get("context_hint", ""))}
+    elif task_type == "career_plan_review":
+        context = {"career_plan_context": career_plan_context(conn, "career_plan_review", scope="agent")}
 
     result = {
         "task": envelope,
