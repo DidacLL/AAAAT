@@ -18,6 +18,12 @@ def mcp_descriptor() -> dict[str, Any]:
                 "title": "Capability-Scoped Agent Task Context",
                 "mimeType": "application/json",
             },
+            {
+                "uri": "aaaat://agent/capabilities",
+                "name": "agent-capabilities",
+                "title": "Capability-Scoped Agent Operations",
+                "mimeType": "application/json",
+            },
             {"uri": "aaaat://agent-guide", "name": "agent-guide", "title": "Capability-Scoped Agent Guide", "mimeType": "text/markdown"},
         ],
         "tools": [
@@ -30,6 +36,8 @@ def mcp_descriptor() -> dict[str, Any]:
             ),
             tool("claim_agent_task", {"task_id": "string", "agent_name": "string", "agent_runtime": "string"}, ["task_id"]),
             tool("release_agent_task", {"task_id": "string"}, ["task_id"]),
+            tool("get_agent_context_bundle", {"purpose": "string"}, ["purpose"]),
+            tool("submit_agent_action", {"action": "string", "payload": "object"}, ["action", "payload"]),
         ],
         "prompts": [
             prompt("complete_agent_task", ["task_id"]),
