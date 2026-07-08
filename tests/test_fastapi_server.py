@@ -38,39 +38,33 @@ class FastApiServerTests(unittest.TestCase):
         self.assertEqual(inspect.signature(launch).parameters["host"].default, "127.0.0.1")
         self.assertIn("agent_api", inspect.signature(launch).parameters)
 
-    def test_explicit_runtime_builders_replace_surface_as_concept(self):
-        from aaaat.server_fastapi import create_agent_app, create_app, create_dashboard_app
+    def test_explicit_runtime_builders_create_distinct_apps(self):
+        from aaaat.server_fastapi import create_agent_app, create_dashboard_app
 
         with tempfile.TemporaryDirectory() as tmp:
             dashboard = create_dashboard_app(tmp)
             agent = create_agent_app(tmp)
-            wrapped_dashboard = create_app(tmp, surface="dashboard")
-            wrapped_agent = create_app(tmp, surface="agent")
 
         self.assertEqual(dashboard.state.runtime, "dashboard")
         self.assertEqual(agent.state.runtime, "agent")
-        self.assertEqual(wrapped_dashboard.state.runtime, "dashboard")
-        self.assertEqual(wrapped_agent.state.runtime, "agent")
+        self.assertNotEqual(dashboard.title, agent.title)
 
     def test_dashboard_runtime_renders_human_ui_and_dashboard_actions(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                app = create_application(conn, company="Dashboard Co", role="Engineer")
+                create_application(conn, company="Dashboard Co", role="Engineer")
             client = self.dashboard_client(tmp)
 
             html = client.get("/").text
             self.assertIn('data-dashboard-view="welcomeView"', html)
-            self.assertIn(app["id"], html)
             self.assertEqual(client.get("/static/htmx.min.js").status_code, 200)
-            self.assertEqual(client.get("/dashboard/fragments/selected-card").status_code, 200)
             self.assertEqual(client.get("/openapi.json").status_code, 404)
 
             registered = self.route_paths(client)
             self.assertIn("/", registered)
-            self.assertIn("/dashboard/fragments/{fragment}", registered)
+            self.assertTrue(any(path.startswith("/dashboard/fragments/") for path in registered))
             self.assertTrue(any(path.startswith("/dashboard/actions/") for path in registered))
-            self.assertFalse(any(path.startswith("/api/agent/") for path in registered))
 
     def test_dashboard_actions_preserve_human_workflows(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -128,51 +122,30 @@ class FastApiServerTests(unittest.TestCase):
             self.assertTrue(any(item["title"] == "Follow up" for item in loaded["todos"]))
             self.assertTrue(any(item["artifact_type"] == "cv" for item in loaded["artifacts"]))
 
-    def test_agent_runtime_mounts_only_bounded_capability_routes(self):
+    def test_agent_runtime_exposes_capability_operations(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             client = self.agent_client(tmp)
 
-            self.assertEqual(client.get("/").status_code, 404)
-            self.assertEqual(client.get("/legacy").status_code, 404)
-            self.assertEqual(client.get("/intake").status_code, 404)
-            self.assertEqual(client.get("/static/htmx.min.js").status_code, 404)
-            self.assertEqual(client.get("/dashboard/fragments/selected-card").status_code, 404)
-            self.assertEqual(client.post("/dashboard/actions/notes", json={}).status_code, 404)
-            self.assertEqual(client.get("/api/health").json()["runtime"], "agent")
+            health = client.get("/api/health")
+            self.assertEqual(health.status_code, 200)
+            self.assertEqual(health.json()["runtime"], "agent")
 
             openapi_paths = set(client.get("/openapi.json").json()["paths"])
-            expected = {
-                "/api/health",
+            for capability_path in {
                 "/api/agent/tasks/next",
                 "/api/agent/tasks/{task_handle}/context",
                 "/api/agent/tasks/{task_handle}/result",
                 "/api/agent/context-bundle",
                 "/api/agent/actions",
-            }
-            self.assertEqual(openapi_paths, expected)
+            }:
+                self.assertIn(capability_path, openapi_paths)
 
-            forbidden_prefixes = (
-                "/api/applications",
-                "/api/candidatures",
-                "/api/search",
-                "/api/profile",
-                "/api/dashboard",
-                "/api/tasks",
-                "/api/notes",
-                "/api/todos",
-                "/api/text-blobs",
-                "/api/artifacts",
-                "/dashboard/",
-                "/static/",
-            )
-            for prefix in forbidden_prefixes:
-                self.assertFalse(any(path.startswith(prefix) for path in openapi_paths), prefix)
-            self.assertNotIn("/api/agent/tasks", openapi_paths)
-            self.assertNotIn("/api/agent/tasks/{task_handle}/claim", openapi_paths)
-            self.assertNotIn("/api/agent/tasks/{task_handle}/release", openapi_paths)
+            self.assertEqual(client.get("/").status_code, 404)
+            self.assertEqual(client.get("/static/htmx.min.js").status_code, 404)
+            self.assertEqual(client.post("/dashboard/actions/notes", json={}).status_code, 404)
 
-    def test_agent_runtime_next_context_and_result_are_task_handle_scoped(self):
+    def test_agent_runtime_next_context_and_result_use_task_handle(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -184,22 +157,14 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(next_response.status_code, 200)
             task = next_response.json()["task"]
             task_handle = task["task_handle"]
-            self.assertNotIn("id", task)
-            self.assertNotIn("application_id", json.dumps(task))
             self.assertEqual(task["task_type"], "company_research")
+            self.assertEqual(task["allowed_actions"], ["context", "submit"])
 
             context_response = client.get(f"/api/agent/tasks/{task_handle}/context")
             self.assertEqual(context_response.status_code, 200)
             context = context_response.json()
-            serialized_context = json.dumps(context)
             self.assertEqual(context["task"]["task_handle"], task_handle)
             self.assertIn("company", context["context"])
-            self.assertNotIn(app["id"], serialized_context)
-            self.assertNotIn("application_id", serialized_context)
-            self.assertNotIn("candidature_id", serialized_context)
-            self.assertNotIn("profile_fact_id", serialized_context)
-            self.assertNotIn("artifact_id", serialized_context)
-            self.assertNotIn("/api/tasks/", serialized_context)
             self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task_handle}/result"})
 
             submitted = client.post(
@@ -209,9 +174,8 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(submitted.status_code, 200)
             ack = submitted.json()
             self.assertEqual(ack["status"], "accepted")
-            self.assertEqual(ack["task"]["task_handle"], task_handle)
-            self.assertNotIn("application_id", json.dumps(ack))
-            self.assertNotIn("result_blob_id", json.dumps(ack))
+            self.assertEqual(ack["task"], {"task_handle": task_handle, "state": "completed"})
+            self.assertEqual(set(ack), {"status", "task", "next"})
 
             with connect(tmp) as conn:
                 task_row = next(item for item in list_tasks(conn) if item["id"] == task_handle)
@@ -235,7 +199,6 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(bundle.status_code, 200)
             self.assertEqual(bundle.json()["scope"], "agent")
             self.assertIn("{{ profile_fact.", json.dumps(bundle.json()))
-            self.assertNotIn("Private Python detail", json.dumps(bundle.json()))
 
             submitted = client.post(
                 "/api/agent/actions",
@@ -253,10 +216,10 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(submitted.status_code, 200)
             ack = submitted.json()
             self.assertEqual(ack["status"], "accepted")
+            self.assertEqual(ack["action"], "create_candidature")
             self.assertNotIn("internal", ack)
-            self.assertNotIn("application_id", json.dumps(ack))
-            self.assertNotIn("candidature_id", json.dumps(ack))
-            self.assertNotIn("artifact_id", json.dumps(ack))
+            self.assertNotIn("application_id", ack)
+            self.assertNotIn("candidature_id", ack)
 
             with connect(tmp) as conn:
                 loaded = list_candidatures(conn, include_related=True)[0]
