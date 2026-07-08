@@ -1,39 +1,47 @@
 # Security Model
 
-AAAAT binds the local server to `127.0.0.1` by default and stores private data in `.private/`.
+AAAAT is local-first. It binds local servers to `127.0.0.1` by default and stores private data in `.private/` or an explicitly configured local storage path.
 
-Modes:
-- Full local: normal local working dashboard with viewing, annotations, queue inspection, contextual edits, and raw-offer intake.
-- Read-only: same private data without write/raw intake controls; write requests return `403`.
-- Static demo: fake data only, no backend, no write/raw intake controls.
-- Agent API: capability-scoped HTTP adapter exposing `/api/health` and `/api/agent/*`.
+AAAAT has two separate runtimes.
 
-Agent access is capability-scoped. The implemented capability is the task protocol: agents receive task envelopes and task-specific context from `aaaat.agent_access`; they submit task results with provenance. Agents do not receive database browsing or generic object-mutation surfaces.
+## Dashboard runtime
 
-Future LLM-app integration should use an action-session protocol:
+The dashboard runtime is the local human UI. It renders private server-side HTML from SQLite, serves dashboard static assets, serves dashboard fragments, and accepts local form actions such as raw-offer intake, candidature edits, profile-fact edits, note/todo/task actions, local rendering, and static-demo export.
 
-1. The agent requests a purpose-scoped context bundle using existing profile exposure policy.
-2. The agent submits one bounded action, such as creating a candidature from already-inferred fields, storing form answers, storing cover-letter body text as render input, requesting local rendering, or submitting an existing task result.
+The dashboard runtime is not an agent API. Its HTML and form URLs may contain private internal identifiers because the dashboard is human-local only. Do not use dashboard identifiers, fragments, or `/dashboard/actions/*` as part of the agent contract.
 
-This is not CRUD. The supported contract should not depend on internal AAAAT object identifiers.
+Read-only dashboard mode renders the same private local data but blocks dashboard write actions with `403`. Static demo mode uses fake data only, has no backend, and has no write/raw-intake controls.
 
-The dashboard is server-rendered from SQLite through Python. Browser actions use narrow form/htmx routes under `/dashboard/actions/*` and are local human UI internals, not an agent API.
+## Agent runtime
 
-Aggregate candidature lists are private behavioral data.
+The agent runtime is a separate machine-facing capability adapter. It exists for bounded agent work only. It must not expose dashboard HTML, static UI assets, dashboard fragments, dashboard actions, broad JSON dashboard payloads, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, or entity-ID mutation routes.
 
-Generated private artifacts remain local. AAAAT renders artifacts from local templates, profile/application data, and explicit render inputs. Agents may provide template data such as cover-letter body text, but they do not provide final generated artifact files as the authoritative artifact output.
+The agent may only:
 
-Private reusable values are stored as variables with stable placeholders. Profile inputs such as `display_name` are canonicalized to `profile.display_name` and represented as `{{ profile.display_name }}` for agent work. Local rendering can resolve real values; agent contexts resolve according to each variable exposure policy (`raw`, `redacted`, `summarized`, `placeholder`, or `denied`); static demos never resolve real values.
+1. obtain the next pending task and a task handle;
+2. fetch bounded task context for that task handle;
+3. submit a JSON result for that task handle;
+4. obtain bounded user/style/career context, including CareerPlan where relevant;
+5. create a new candidature from source material or user conversation;
+6. request bounded future tasks for deferred work;
+7. perform LLM-owned reasoning using bounded context.
 
-# Profile Facts
+A task handle is not a database ID authority. It is valid only for the current task capability: context retrieval and result submission. AAAAT owns applying task results to internal records.
 
-AAAAT separates two profile data layers:
+The LLM must not receive `application_id`, `candidature_id`, `profile_fact_id`, `artifact_id`, note IDs, todo IDs, blob IDs, storage paths, or task-related internal IDs as authority to mutate arbitrary local state. Agent acknowledgements should be narrow status packets, for example `status`, `action`, `created`, `rendered`, `queued`, and `next`.
 
-- `variables`: scalar placeholders and private template values, such as `profile.email`.
-- `profile_facts`: structured professional/CV facts, such as skills, projects, education, salary expectations, preferences, and reusable summaries.
+## Profile, CareerPlan, and context exposure
 
-Profile facts carry editable `visibility`, `exposure`, and usage flags. Local dashboard contexts may show raw facts, but agent and market contexts must respect exposure. Market research should prefer anonymized or summarized profile facts and must not rely on raw sensitive facts by default.
+AAAAT separates local user data from agent context. Profile variables and profile facts carry exposure policy. Agent context bundles must be purpose-scoped and bounded. CareerPlan is part of bounded career context where relevant, not a broad profile dump.
 
-Static demos must omit real profile facts or use fake profile facts only.
+Private reusable values are stored as variables with stable placeholders. Profile inputs such as `display_name` are canonicalized to `profile.display_name` and represented as `{{ profile.display_name }}` for agent work. Local rendering can resolve real values; agent contexts resolve according to each exposure policy (`raw`, `redacted`, `summarized`, `placeholder`, or `denied`); static demos never resolve real values.
 
-AAAAT cannot fully protect private data from an agent with direct `.private/` filesystem access, shell access sufficient to inspect the database, arbitrary localhost access to a running dashboard, or code modification ability. The capability-scoped protocol reduces accidental over-exposure through the supported adapters.
+## Artifact boundary
+
+Generated private artifacts remain local. AAAAT renders artifacts from local templates, profile/application data, and explicit render inputs. Agents may provide template data such as cover-letter body text, but they do not provide final generated artifact files as authoritative artifact output.
+
+## Limits
+
+Docs are descriptive, not enforcement. Runtime separation, route absence, narrow service functions, and capability-scoped adapters reduce accidental over-exposure. AAAAT cannot fully protect private data from an agent with direct `.private/` filesystem access, shell access sufficient to inspect the database, arbitrary localhost access to a running dashboard runtime, or code modification ability.
+
+Generated guardrails and tests should be updated when they conflict with this security model. The durable invariant is capability-bounded agent access, not blacklist maintenance for every private dashboard route.
