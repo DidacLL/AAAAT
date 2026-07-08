@@ -1,4 +1,4 @@
-# AAAAT
+# Agent-Agnostic Auto Application Tracker
 
 <p align="center">
   <img src="aaaat/templates_ui/assets/AAAATbanner.png" alt="AAAAT logo" width="720">
