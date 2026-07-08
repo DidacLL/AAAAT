@@ -41,7 +41,25 @@ When work starts in the LLM app, the LLM may already have raw offer text, form c
 
 Context bundles may include profile facts and career plans for `cover_letter`, `cv_generation`, `candidature_fit`, `market_research`, `recruiter_call`, `form_answers`, and `career_plan_review`. The bundle is a read context, not an edit channel.
 
-The first bounded action is `create_candidature`. It may create a new candidature from source material and already-derived outputs and request local rendering. It does not edit an existing candidature and does not return internal object identifiers.
+The first bounded action is `create_candidature`. It may create a new candidature from source material and already-derived outputs, request local rendering, and optionally request bounded follow-up tasks in `requested_tasks`. It does not edit an existing candidature and does not return internal object identifiers.
+
+`requested_tasks` is allowed only inside a `create_candidature` action payload. Each item is a small object with `task_type`, optional `priority`, optional `reason`, and `keyword` only for `keyword_definition`.
+
+Supported requested task types are `company_research`, `form_answers` or `draft_form_responses`, `cover_letter` or `draft_cover_letter`, `cv` or `draft_cv`, and `keyword_definition` when a keyword is supplied. AAAAT binds created tasks internally to the new candidature and returns only `queued.count`. It skips duplicate follow-up tasks when the corresponding output or render was already supplied, such as `company_research`, `form_answers`, rendered cover letters, or CV positioning/rendering.
+
+Example action fragment:
+
+```json
+{
+  "requested_tasks": [
+    {
+      "task_type": "company_research",
+      "priority": "low",
+      "reason": "Research was not completed during the conversation."
+    }
+  ]
+}
+```
 
 ## Artifact boundary
 
