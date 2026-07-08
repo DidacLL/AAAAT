@@ -86,7 +86,8 @@ class CliMcpTests(unittest.TestCase):
 
             guide = self.run_cli("agent-guide")
             self.assertIn("AAAAT", guide.stdout)
-            self.assertIn("capability-scoped operations", guide.stdout)
+            self.assertIn("Agent runtime", guide.stdout)
+            self.assertIn("Dashboard runtime", guide.stdout)
 
     def test_agent_cli_protocol_commands_work(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -109,17 +110,17 @@ class CliMcpTests(unittest.TestCase):
             )
             tasks = json.loads(self.run_cli("--storage", tmp, "agent", "tasks", "--state", "queued").stdout)
             self.assertTrue(tasks)
-            task_id = tasks[0]["id"]
+            task_handle = tasks[0]["id"]
             self.assertIn("allowed_actions", tasks[0])
             self.assertNotIn("raw_intake", json.dumps(tasks))
 
-            context = json.loads(self.run_cli("--storage", tmp, "agent", "context", task_id).stdout)
-            self.assertEqual(context["task"]["id"], task_id)
+            context = json.loads(self.run_cli("--storage", tmp, "agent", "context", task_handle).stdout)
+            self.assertEqual(context["task"]["id"], task_handle)
             self.assertNotIn("/api/tasks/", json.dumps(context))
 
-            claimed = json.loads(self.run_cli("--storage", tmp, "agent", "claim", task_id, "--agent-name", "CLI Agent").stdout)
+            claimed = json.loads(self.run_cli("--storage", tmp, "agent", "claim", task_handle, "--agent-name", "CLI Agent").stdout)
             self.assertEqual(claimed["state"], "claimed")
-            released = json.loads(self.run_cli("--storage", tmp, "agent", "release", task_id).stdout)
+            released = json.loads(self.run_cli("--storage", tmp, "agent", "release", task_handle).stdout)
             self.assertEqual(released["state"], "queued")
             result_path = Path(tmp) / "result.txt"
             result_path.write_text('{"company": "CLI Co"}', encoding="utf-8")
@@ -129,7 +130,7 @@ class CliMcpTests(unittest.TestCase):
                     tmp,
                     "agent",
                     "submit",
-                    task_id,
+                    task_handle,
                     "--result-file",
                     str(result_path),
                     "--agent-name",
@@ -139,7 +140,6 @@ class CliMcpTests(unittest.TestCase):
                 ).stdout
             )
             self.assertEqual(submitted["state"], "completed")
-            self.assertEqual(submitted["application_id"], app_id)
 
     def test_agent_action_session_cli_commands_work(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -206,14 +206,19 @@ class CliMcpTests(unittest.TestCase):
         self.assertTrue(descriptor["prompts"])
         resources = {resource["uri"] for resource in descriptor["resources"]}
         tools = {tool["name"] for tool in descriptor["tools"]}
-        self.assertIn("aaaat://agent/tasks", resources)
-        self.assertIn("aaaat://agent/tasks/{task_id}/context", resources)
+        self.assertIn("aaaat://agent/tasks/next", resources)
+        self.assertIn("aaaat://agent/tasks/{task_handle}/context", resources)
         self.assertIn("aaaat://agent/context-bundle", resources)
+        self.assertIn("get_next_agent_task", tools)
         self.assertIn("submit_agent_task_result", tools)
         self.assertIn("get_agent_context_bundle", tools)
         self.assertIn("submit_agent_action", tools)
+        self.assertNotIn("aaaat://agent/tasks", resources)
         self.assertNotIn("aaaat://dashboard-payload", resources)
         self.assertNotIn("list_applications", tools)
+        self.assertNotIn("list_agent_tasks", tools)
+        self.assertNotIn("claim_agent_task", tools)
+        self.assertNotIn("release_agent_task", tools)
         for tool in descriptor["tools"]:
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("properties", tool["inputSchema"])
@@ -221,21 +226,27 @@ class CliMcpTests(unittest.TestCase):
 
     def test_generated_agent_contract_is_capability_scoped_and_not_broad_crud(self):
         guide = self.run_cli("agent-guide").stdout.lower()
-        self.assertIn("capability-scoped operations", guide)
-        self.assertIn("implemented capability", guide)
-        self.assertIn("purpose-scoped context bundle", guide)
+        self.assertIn("dashboard runtime", guide)
+        self.assertIn("agent runtime", guide)
+        self.assertIn("task handle", guide)
+        self.assertIn("bounded context", guide)
         self.assertIn("bounded action", guide)
-        self.assertIn("renders local templates", guide)
+        self.assertIn("careerplan", guide)
+        self.assertIn("aaaat applies task results", guide)
         self.assertIn("should not treat the agent as the user", guide)
-        self.assertNotIn("task-scoped context", guide)
         self.assertNotIn("raw-offer intake", guide)
         self.assertNotIn("structured extraction", guide)
         self.assertNotIn("generated artifact files", guide)
 
-        descriptor_text = json.dumps(mcp_descriptor(), sort_keys=True).lower()
+        descriptor = mcp_descriptor()
+        descriptor_text = json.dumps(descriptor, sort_keys=True).lower()
         self.assertIn("capability-scoped", descriptor_text)
+        self.assertIn("task_handle", descriptor_text)
         forbidden_contract_terms = (
             "list_applications",
+            "list_agent_tasks",
+            "claim_agent_task",
+            "release_agent_task",
             "dashboard-payload",
             "dashboard_payload",
             "application/context",
@@ -250,12 +261,16 @@ class CliMcpTests(unittest.TestCase):
             "dump_variables",
             "aaaat://variables",
             "generic_crud",
+            "application_id",
+            "candidature_id",
+            "profile_fact_id",
+            "artifact_id",
         )
         combined_contract = guide + "\n" + descriptor_text
         for term in forbidden_contract_terms:
             self.assertNotIn(term, combined_contract)
 
-    def test_docs_explain_llm_app_action_boundary(self):
+    def test_docs_explain_runtime_split_and_llm_action_boundary(self):
         root = Path(__file__).resolve().parent.parent
         doc_paths = (
             root / "docs" / "agent-guide.md",
@@ -264,7 +279,15 @@ class CliMcpTests(unittest.TestCase):
             root / "docs" / "security-model.md",
         )
         docs = "\n".join(path.read_text(encoding="utf-8").lower() for path in doc_paths)
-        self.assertIn("llm app", docs)
+        self.assertIn("dashboard runtime", docs)
+        self.assertIn("agent runtime", docs)
+        self.assertIn("server-rendered html", docs)
+        self.assertIn("may expose private", docs)
+        self.assertIn("not an agent api", docs)
+        self.assertIn("bounded user/style/career context", docs)
+        self.assertIn("careerplan", docs)
+        self.assertIn("task handle", docs)
+        self.assertIn("entity-id mutation", docs)
         self.assertIn("purpose-scoped context", docs)
         self.assertIn("bounded action", docs)
         self.assertIn("aaaat renders", docs)
