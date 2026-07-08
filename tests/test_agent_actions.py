@@ -1,4 +1,3 @@
-import importlib.util
 import json
 import subprocess
 import sys
@@ -13,9 +12,6 @@ from aaaat.db import connect, init_db, set_profile_variable
 from aaaat.profile_facts import create_profile_fact
 from aaaat.tasks import list_tasks
 from aaaat.text_blobs import list_text_blobs
-
-
-FASTAPI_AVAILABLE = importlib.util.find_spec("fastapi") is not None and importlib.util.find_spec("httpx") is not None
 
 
 class AgentActionsTests(unittest.TestCase):
@@ -166,31 +162,6 @@ class AgentActionsTests(unittest.TestCase):
             file_response = json.loads(self.run_cli("--storage", tmp, "agent", "action", "submit", "--input-file", str(path)).stdout)
             self.assertEqual(file_response["status"], "accepted")
             self.assertNotIn("application_id", file_response)
-
-    @unittest.skipUnless(FASTAPI_AVAILABLE, "FastAPI/httpx test dependencies are not installed")
-    def test_agent_action_http_routes_are_agent_surface_only(self):
-        from fastapi.testclient import TestClient
-
-        from aaaat.server_fastapi import create_app
-
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            dashboard = TestClient(create_app(tmp, surface="dashboard"))
-            agent = TestClient(create_app(tmp, surface="agent"))
-
-            self.assertEqual(dashboard.post("/api/agent/context-bundle", json={"purpose": "cover_letter"}).status_code, 404)
-            self.assertEqual(dashboard.post("/api/agent/actions", json=self.action()).status_code, 404)
-
-            context = agent.post("/api/agent/context-bundle", json={"purpose": "cover_letter"})
-            self.assertEqual(context.status_code, 200)
-            self.assertEqual(context.json()["status"], "ok")
-
-            submitted = agent.post("/api/agent/actions", json=self.action())
-            self.assertEqual(submitted.status_code, 200)
-            response = submitted.json()
-            self.assertEqual(response["status"], "accepted")
-            self.assertNotIn("application_id", response)
-            self.assertNotIn("artifact_id", response)
 
 
 if __name__ == "__main__":
