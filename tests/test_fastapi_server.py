@@ -31,44 +31,25 @@ class FastApiServerTests(unittest.TestCase):
         self.assertEqual(inspect.signature(launch).parameters["host"].default, "127.0.0.1")
         self.assertIn("agent_api", inspect.signature(launch).parameters)
 
-    def test_dashboard_renders_but_broad_private_json_apis_are_absent(self):
+    def test_dashboard_runtime_renders_human_ui_and_dashboard_actions(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                create_application(conn, company="Dashboard Co", role="Engineer")
+                app = create_application(conn, company="Dashboard Co", role="Engineer")
             client = self.client(tmp)
 
             html = client.get("/").text
             self.assertIn('data-dashboard-view="welcomeView"', html)
+            self.assertIn(app["id"], html)
             self.assertEqual(client.get("/static/htmx.min.js").status_code, 200)
             self.assertEqual(client.get("/openapi.json").status_code, 404)
 
-            unmounted = {
-                "/api/dashboard-payload",
-                "/api/review-queue",
-                "/api/applications",
-                "/api/applications/{application_id}/context",
-                "/api/candidatures",
-                "/api/candidatures/{candidature_id}",
-                "/api/candidatures/{candidature_id}/context",
-                "/api/search",
-                "/api/variables",
-                "/api/variables/{key}",
-                "/api/profile/facts",
-                "/api/profile/facts/{fact_id}",
-                "/api/profile/context",
-                "/api/tasks",
-                "/api/tasks/{task_id}",
-                "/api/todos",
-                "/api/notes",
-                "/api/text-blobs",
-                "/api/keywords",
-                "/api/agent/tasks",
-                "/api/agent/context-bundle",
-                "/api/agent/actions",
-            }
             registered = self.route_paths(client)
-            self.assertTrue(unmounted.isdisjoint(registered))
+            self.assertIn("/", registered)
+            self.assertIn("/dashboard/fragments/{fragment}", registered)
+            self.assertTrue(any(path.startswith("/dashboard/actions/") for path in registered))
+            self.assertFalse(any(path.startswith("/api/agent/") for path in registered))
+
             expected_dashboard_actions = {
                 "/dashboard/actions/raw-offer-intake",
                 "/dashboard/actions/applications/{application_id}",
@@ -89,30 +70,6 @@ class FastApiServerTests(unittest.TestCase):
                 "/dashboard/actions/export/static-demo",
             }
             self.assertTrue(expected_dashboard_actions.issubset(registered))
-
-            blocked = [
-                "/api/dashboard-payload",
-                "/api/review-queue",
-                "/api/applications",
-                "/api/candidatures",
-                "/api/search?q=Dashboard",
-                "/api/variables",
-                "/api/profile/facts",
-                "/api/profile/context?purpose=cv_generation",
-                "/api/tasks",
-                "/api/todos",
-                "/api/notes",
-                "/api/text-blobs",
-                "/api/keywords",
-                "/api/artifacts",
-                "/api/agent/tasks",
-            ]
-            for path in blocked:
-                self.assertEqual(client.get(path).status_code, 404, path)
-            self.assertEqual(client.post("/api/agent/context-bundle", json={"purpose": "cover_letter"}).status_code, 404)
-            self.assertEqual(client.post("/api/agent/actions", json={"action": "create_candidature", "payload": {}}).status_code, 404)
-            self.assertEqual(client.post("/api/render/cv", json={}).status_code, 404)
-            self.assertEqual(client.post("/api/applications", json={"company": "Nope"}).status_code, 404)
 
     def test_dashboard_actions_preserve_human_workflows(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -170,7 +127,7 @@ class FastApiServerTests(unittest.TestCase):
             self.assertTrue(any(item["title"] == "Follow up" for item in loaded["todos"]))
             self.assertTrue(any(item["artifact_type"] == "cv" for item in loaded["artifacts"]))
 
-    def test_agent_surface_is_capability_only_and_minimized(self):
+    def test_agent_runtime_is_capability_only_and_minimized(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -182,14 +139,22 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(client.get("/static/htmx.min.js").status_code, 404)
             self.assertEqual(client.get("/api/health").json()["surface"], "agent")
             openapi_paths = set(client.get("/openapi.json").json()["paths"])
-            self.assertIn("/api/agent/tasks", openapi_paths)
-            self.assertIn("/api/agent/context-bundle", openapi_paths)
-            self.assertIn("/api/agent/actions", openapi_paths)
             self.assertTrue(all(path == "/api/health" or path.startswith("/api/agent/") for path in openapi_paths))
-            self.assertEqual(client.get("/api/applications").status_code, 404)
-            self.assertEqual(client.get("/api/candidatures").status_code, 404)
-            self.assertEqual(client.get("/api/search?q=Agent").status_code, 404)
-            self.assertEqual(client.get("/api/profile/context?purpose=cv_generation").status_code, 404)
+            forbidden_fragments = (
+                "/api/applications",
+                "/api/candidatures",
+                "/api/search",
+                "/api/profile",
+                "/api/dashboard",
+                "/dashboard/",
+                "/static/",
+                "/api/notes",
+                "/api/todos",
+                "/api/text-blobs",
+                "/api/artifacts",
+            )
+            for fragment in forbidden_fragments:
+                self.assertFalse(any(fragment in path for path in openapi_paths), fragment)
 
             tasks = client.get("/api/agent/tasks").json()["tasks"]
             self.assertEqual(tasks[0]["id"], task["id"])
@@ -305,7 +270,7 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(client.get("/api/profile/context?purpose=cv_generation").status_code, 404)
 
             with connect(tmp) as conn:
-                fact = create_profile_fact(conn, fact_type="skill", title="Python", body="Private Python", use_for_dashboard=True)
+                create_profile_fact(conn, fact_type="skill", title="Python", body="Private Python", use_for_dashboard=True)
             read_only = self.client(tmp, Mode.READ_ONLY)
             html = read_only.get("/").text
             self.assertIn("data-profile-cv-panel", html)
