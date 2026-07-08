@@ -86,13 +86,15 @@ The agent runtime does not expose dashboard routes, broad entity lists, claim/re
 
 The agent action-session capability supports LLM-app-originated work, not raw-offer upload or object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
 
-The LLM-app-originated action may carry already-inferred candidature fields, company research, form answers, or cover-letter body text. AAAAT stores those values in local fields or render inputs. It does not create extraction or drafting tasks for work already supplied in the action.
+The LLM-app-originated action may carry already-inferred candidature fields, company research, form answers, cover-letter body text, render requests, and optional `requested_tasks` for bounded follow-up work. AAAAT stores supplied values, renders local artifacts itself, and queues only non-duplicate requested tasks it supports.
 
-Action acknowledgements are narrow and do not return internal AAAAT object identifiers.
+`requested_tasks` entries use `task_type`, optional `priority`, optional `reason`, and `keyword` only for `keyword_definition`. Supported task types are `company_research`, `form_answers` or `draft_form_responses`, `cover_letter` or `draft_cover_letter`, `cv` or `draft_cv`, and `keyword_definition` with a keyword.
+
+Action acknowledgements are narrow. When future tasks are accepted, the acknowledgement returns `queued.count` only, not task IDs, application IDs, candidature IDs, artifact IDs, blob IDs, file paths, storage paths, or database row IDs.
 
 For cover letters and CVs, the agent supplies data used by AAAAT templates. AAAAT renders generated files locally. The agent contract should not ask the LLM to submit final `.tex` or `.pdf` artifacts.
 
-The agent is not the user. Agent-written text should land in explicit fields, task results, form answers, research/preparation fields, or render inputs, not in human note commands.
+The agent is not the user. Agent-written text should land in explicit fields, task results, form answers, research/preparation fields, render inputs, or bounded future-task requests, not in human note commands.
 
 Durable production-sprint local commands:
 
