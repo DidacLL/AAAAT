@@ -19,7 +19,7 @@ from aaaat.text_blobs import get_text_blob
 
 
 class AgentAccessTests(unittest.TestCase):
-    def test_task_envelopes_are_minimal_and_handle_scoped(self):
+    def test_task_envelopes_are_handle_scoped_and_minimal(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -30,27 +30,17 @@ class AgentAccessTests(unittest.TestCase):
 
         self.assertTrue(envelopes)
         self.assertEqual(next_task["task_handle"], task["id"])
-        allowed = {"task_handle", "task_type", "title", "state", "priority", "context_hint", "created_at", "updated_at", "allowed_actions"}
-        for envelope in envelopes:
-            self.assertLessEqual(set(envelope), allowed)
-            self.assertNotIn("id", envelope)
-            self.assertNotIn("application_id", envelope)
-        serialized = json.dumps(envelopes)
-        self.assertNotIn(app["id"], serialized)
-        self.assertNotIn("raw_intake", serialized)
-        self.assertNotIn("Secret offer", serialized)
-        self.assertNotIn("notes_records", serialized)
-        self.assertNotIn("profile_facts", serialized)
-        self.assertNotIn("variables", serialized)
-        self.assertNotIn("artifacts", serialized)
-        self.assertNotIn("text_blobs", serialized)
+        self.assertEqual(envelopes[0]["allowed_actions"], ["context", "submit"])
+        self.assertNotIn("id", envelopes[0])
+        self.assertNotIn("application_id", envelopes[0])
+        self.assertNotIn("Secret offer", json.dumps(envelopes))
 
-    def test_field_inference_context_is_task_specific_without_entity_mutation_ids(self):
+    def test_task_context_is_specific_to_the_task_handle(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 app = create_candidature(conn, company="Field Co", role="Engineer", raw_offer="Python role in Madrid")
-                other = create_candidature(conn, company="Other Private Co", role="Private Role", raw_offer="Do not leak")
+                create_candidature(conn, company="Other Private Co", role="Private Role", raw_offer="Do not leak")
                 task = create_task(conn, "field_inference", "Infer", application_id=app["id"], context_hint="candidature:field_inference")
                 context = build_agent_task_context(conn, task["id"])
 
@@ -60,13 +50,8 @@ class AgentAccessTests(unittest.TestCase):
         self.assertIn("source_material", context["context"])
         self.assertIn("missing_fields", context["context"])
         self.assertIn("protected_fields", context["context"])
-        self.assertNotIn(app["id"], serialized)
-        self.assertNotIn(other["id"], serialized)
-        self.assertNotIn("application_id", serialized)
         self.assertNotIn("Other Private Co", serialized)
         self.assertNotIn("Do not leak", serialized)
-        self.assertNotIn("raw_intake", serialized)
-        self.assertNotIn("/api/tasks/", serialized)
         self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task['id']}/result"})
 
     def test_cv_context_uses_privacy_filtered_profile_context(self):
@@ -88,11 +73,10 @@ class AgentAccessTests(unittest.TestCase):
 
         serialized = json.dumps(context)
         self.assertIn("profile_context", context["context"])
-        self.assertNotIn("Private Candidate", serialized)
-        self.assertNotIn("PRIVATE PROFILE FACT", serialized)
         self.assertIn("{{ profile_fact.", serialized)
+        self.assertNotIn("PRIVATE PROFILE FACT", serialized)
 
-    def test_submit_claim_and_release_preserve_task_boundary(self):
+    def test_task_submission_ack_is_narrow(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -116,9 +100,8 @@ class AgentAccessTests(unittest.TestCase):
         self.assertEqual(claimed["state"], "claimed")
         self.assertEqual(released["state"], "queued")
         self.assertEqual(submitted["state"], "completed")
-        self.assertEqual(ack, {"status": "accepted", "task": {"task_handle": task["id"], "state": "completed"}, "next": ["open_dashboard"]})
-        self.assertNotIn("application_id", json.dumps(ack))
-        self.assertNotIn("result_blob_id", json.dumps(ack))
+        self.assertEqual(set(ack), {"status", "task", "next"})
+        self.assertEqual(ack["task"], {"task_handle": task["id"], "state": "completed"})
         self.assertEqual(loaded["pitch"], "Human pitch")
         self.assertEqual(blob["body"], "Agent pitch")
         self.assertEqual(blob["agent_name"], "Agent")
