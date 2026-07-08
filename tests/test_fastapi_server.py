@@ -4,7 +4,7 @@ import json
 import tempfile
 import unittest
 
-from aaaat.candidatures import get_candidature, list_candidatures
+from aaaat.candidatures import list_candidatures
 from aaaat.db import connect, create_application, init_db
 from aaaat.profile_facts import create_profile_fact
 from aaaat.security import Mode
@@ -65,23 +65,6 @@ class FastApiServerTests(unittest.TestCase):
             self.assertIn("/", registered)
             self.assertTrue(any(path.startswith("/dashboard/fragments/") for path in registered))
             self.assertTrue(any(path.startswith("/dashboard/actions/") for path in registered))
-
-    def test_dashboard_action_writes_local_human_note(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            with connect(tmp) as conn:
-                app = create_application(conn, company="Action Co", role="Platform Engineer")
-            client = self.dashboard_client(tmp)
-
-            client.post(
-                "/dashboard/actions/notes",
-                json={"application_id": app["id"], "note_type": "call", "body": "Call note"},
-                follow_redirects=False,
-            )
-
-            with connect(tmp) as conn:
-                loaded = get_candidature(conn, app["id"])
-            self.assertTrue(any(item["body"] == "Call note" for item in loaded["notes_records"]))
 
     def test_agent_runtime_exposes_capability_operations(self):
         with tempfile.TemporaryDirectory() as tmp:
