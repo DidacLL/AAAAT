@@ -22,11 +22,11 @@ POST /api/agent/actions
 
 Agent access is capability-scoped. A task handle is valid only for fetching bounded context and submitting a JSON result for that task. In the MVP the task handle may be the local task row identifier, but it is still a handle-scoped callback token and not generic entity authority. AAAAT owns applying task results to internal records.
 
-The agent runtime must not expose dashboard HTML, static assets, fragments, dashboard actions, broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, or entity-ID mutation routes.
+The agent runtime must not expose dashboard HTML, static assets, fragments, dashboard actions, broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, career-plan CRUD, or entity-ID mutation routes.
 
 The action-session protocol is not CRUD. The agent may request a purpose-scoped context bundle and submit one bounded action, such as creating a new candidature from already-inferred fields, storing form answers, storing cover-letter body text as render input, or requesting local rendering.
 
-Agent contexts and acknowledgements should be narrow and should not return application, candidature, profile-fact, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles. Agent-scoped profile facts use `fact_ref` and non-ID placeholders rather than profile-fact row IDs.
+Agent contexts and acknowledgements should be narrow and should not return application, candidature, profile-fact, career-plan, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles. Agent-scoped profile facts use `fact_ref` and non-ID placeholders rather than profile-fact row IDs. Agent-scoped career plans use `plan_ref` rather than career-plan row IDs.
 
 Generated private artifacts remain local. AAAAT renders artifacts from local templates, profile/application data, and explicit render inputs. Agents may provide template data such as cover-letter body text, but they do not provide final generated artifact files as authoritative artifact output.
 
@@ -41,6 +41,12 @@ AAAAT separates two profile data layers:
 
 Profile facts carry editable `visibility`, `exposure`, and usage flags. Local dashboard contexts may show raw facts and internal row IDs, but agent and market contexts must respect exposure and must not expose profile-fact row IDs. Market research should prefer anonymized or summarized profile facts and must not rely on raw sensitive facts by default.
 
-Static demos must omit real profile facts or use fake profile facts only.
+## Career Plans
+
+Career plans are local first-class records for career strategy, objectives, constraints, target markets, and target roles. They may be managed by local/admin surfaces. Agent exposure is limited to bounded context bundles for `cover_letter`, `cv_generation`, `candidature_fit`, `market_research`, `recruiter_call`, `form_answers`, and `career_plan_review`.
+
+Agent bundles expose active career plans as read-only context with non-ID `plan_ref` labels. They do not expose career-plan row IDs, storage paths, or mutation routes.
+
+Static demos must omit real profile facts and career plans or use fake data only.
 
 AAAAT cannot fully protect private data from an agent with direct `.private/` filesystem access, shell access sufficient to inspect the database, arbitrary localhost access to a running dashboard, or code modification ability. The capability-scoped protocol reduces accidental over-exposure through the supported adapters.
