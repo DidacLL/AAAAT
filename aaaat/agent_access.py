@@ -21,14 +21,9 @@ def safe_context_hint(value: str | None) -> str:
 
 
 def allowed_actions(task: dict[str, Any]) -> list[str]:
-    state = task.get("state", "")
     actions = ["context"]
-    if state in {"queued", "claimed", "in_progress", "blocked"}:
+    if task.get("state", "") in {"queued", "claimed", "in_progress", "blocked"}:
         actions.append("submit")
-    if state == "queued":
-        actions.append("claim")
-    if state in {"claimed", "in_progress", "blocked"}:
-        actions.append("release")
     return actions
 
 
@@ -167,7 +162,7 @@ def build_agent_task_context(conn: sqlite3.Connection, task_id: str) -> dict[str
         "task": envelope,
         "context": context,
         "privacy": {"scope": "agent", "notes": privacy_notes},
-        "allowed_actions": [action for action in envelope["allowed_actions"] if action in {"context", "submit"}],
+        "allowed_actions": envelope["allowed_actions"],
         "write_back": {
             "submit": f"/api/agent/tasks/{task_handle}/result",
         },
