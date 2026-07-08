@@ -1,8 +1,10 @@
 import json
 import tempfile
 import unittest
+from typing import Any
 
 from aaaat.agent_access import (
+    FORBIDDEN_AGENT_CONTEXT_KEYS,
     build_agent_task_context,
     claim_agent_task,
     list_agent_task_envelopes,
@@ -14,8 +16,20 @@ from aaaat.agent_access import (
 from aaaat.candidatures import create_candidature, get_candidature
 from aaaat.db import connect, create_application, init_db, set_profile_variable
 from aaaat.profile_facts import create_profile_fact
-from aaaat.tasks import create_task, get_task
+from aaaat.tasks import apply_task_result, create_task, get_task
 from aaaat.text_blobs import get_text_blob
+
+
+def object_keys(value: Any) -> set[str]:
+    keys: set[str] = set()
+    if isinstance(value, dict):
+        keys.update(value)
+        for item in value.values():
+            keys.update(object_keys(item))
+    elif isinstance(value, list):
+        for item in value:
+            keys.update(object_keys(item))
+    return keys
 
 
 class AgentAccessTests(unittest.TestCase):
@@ -53,14 +67,15 @@ class AgentAccessTests(unittest.TestCase):
         self.assertIn("protected_fields", context["context"])
         self.assertNotIn("Other Private Co", serialized)
         self.assertNotIn("Do not leak", serialized)
+        self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(context)))
         self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task['id']}/result"})
 
-    def test_cv_context_uses_privacy_filtered_profile_context(self):
+    def test_cv_context_uses_privacy_filtered_profile_context_without_fact_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Private Candidate")
-                create_profile_fact(
+                fact = create_profile_fact(
                     conn,
                     fact_type="skill",
                     title="Python",
@@ -74,37 +89,47 @@ class AgentAccessTests(unittest.TestCase):
 
         serialized = json.dumps(context)
         self.assertIn("profile_context", context["context"])
-        self.assertIn("{{ profile_fact.", serialized)
+        self.assertIn("{{ profile_fact.skill.python }}", serialized)
+        self.assertNotIn(fact["id"], serialized)
         self.assertNotIn("PRIVATE PROFILE FACT", serialized)
+        self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(context)))
+        for fact_context in context["context"]["profile_context"]["facts"]:
+            self.assertNotIn("id", fact_context)
+            self.assertIn("fact_ref", fact_context)
 
-    def test_task_submission_ack_is_narrow(self):
+    def test_task_submission_ack_is_narrow_and_apply_uses_internal_binding(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 app = create_candidature(conn, company="Submit Co", role="Engineer", pitch="Human pitch")
-                task = create_task(conn, "pitch_draft", "Draft pitch", application_id=app["id"], context_hint="field:pitch")
+                task = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
                 claimed = claim_agent_task(conn, task["id"], agent_name="Agent", agent_runtime="cli")
                 released = release_agent_task(conn, task["id"])
                 submitted = submit_agent_task_result(
                     conn,
                     task["id"],
-                    "Agent pitch",
+                    "Agent research",
                     agent_name="Agent",
                     agent_runtime="cli",
                     model_provider="local",
                 )
                 ack = task_result_ack(submitted)
-                loaded = get_candidature(conn, app["id"])
+                loaded_before_apply = get_candidature(conn, app["id"])
                 blob = get_text_blob(conn, submitted["result_blob_id"])
                 task_row = get_task(conn, task["id"])
+                applied = apply_task_result(conn, task["id"])
+                loaded_after_apply = get_candidature(conn, app["id"])
 
         self.assertEqual(claimed["state"], "claimed")
         self.assertEqual(released["state"], "queued")
         self.assertEqual(submitted["state"], "completed")
         self.assertEqual(set(ack), {"status", "task", "next"})
         self.assertEqual(ack["task"], {"task_handle": task["id"], "state": "completed"})
-        self.assertEqual(loaded["pitch"], "Human pitch")
-        self.assertEqual(blob["body"], "Agent pitch")
+        self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(ack)))
+        self.assertEqual(loaded_before_apply["company_research"], "")
+        self.assertEqual(loaded_after_apply["company_research"], "Agent research")
+        self.assertEqual(applied["state"], "completed")
+        self.assertEqual(blob["body"], "Agent research")
         self.assertEqual(blob["agent_name"], "Agent")
         self.assertEqual(blob["agent_runtime"], "cli")
         self.assertEqual(blob["model_provider"], "local")
