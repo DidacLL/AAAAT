@@ -20,7 +20,7 @@ from .dashboard_views import dashboard_view_model, render_dashboard_fragment, re
 from .db import connect, init_db, set_profile_variable
 from .notes import create_note
 from .payload import dashboard_payload
-from .profile_facts import create_profile_fact
+from .profile_facts import archive_profile_fact, create_profile_fact, update_profile_fact
 from .security import Mode
 from .static_export import export_static_demo
 from .tasks import apply_task_result, complete_task, create_task
@@ -119,7 +119,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
             conn=conn,
         )
 
-    def profile_fact_fields(data: dict[str, Any]) -> dict[str, Any]:
+    def profile_fact_fields(data: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
         fields = {
             key: data[key]
             for key in {
@@ -144,7 +144,8 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
             "use_for_market_research",
             "use_for_dashboard",
         }:
-            fields[key] = bool_field(data, key)
+            if key in data or not partial:
+                fields[key] = bool_field(data, key)
         return fields
 
     def register_agent_routes() -> None:
@@ -452,6 +453,28 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
                     model = make_view_model(conn)
                     return HTMLResponse(render_dashboard_fragment("inspector", model))
             return respond(item, 201, is_form, "/")
+
+        @app.post("/dashboard/actions/profile/facts/{fact_id}", dependencies=[Depends(writable)])
+        async def dashboard_patch_profile_fact(fact_id: str, request: Request) -> Any:
+            data, is_form = await request_data(request)
+            if data.get("_method", "").upper() != "PATCH":
+                raise HTTPException(status_code=405, detail="method not allowed")
+            with connect(app.state.storage_path) as conn:
+                item = update_profile_fact(conn, fact_id, **profile_fact_fields(data, partial=True))
+                if wants_fragment(request):
+                    model = make_view_model(conn)
+                    return HTMLResponse(render_dashboard_fragment("inspector", model))
+            return respond(item, 200, is_form, "/")
+
+        @app.post("/dashboard/actions/profile/facts/{fact_id}/archive", dependencies=[Depends(writable)])
+        async def dashboard_archive_profile_fact(fact_id: str, request: Request) -> Any:
+            _, is_form = await request_data(request)
+            with connect(app.state.storage_path) as conn:
+                item = archive_profile_fact(conn, fact_id)
+                if wants_fragment(request):
+                    model = make_view_model(conn)
+                    return HTMLResponse(render_dashboard_fragment("inspector", model))
+            return respond(item, 200, is_form, "/")
 
         @app.post("/dashboard/actions/profile/variables", dependencies=[Depends(writable)])
         async def dashboard_patch_profile_variable(request: Request) -> Any:
