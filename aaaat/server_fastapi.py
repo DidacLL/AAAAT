@@ -5,12 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .agent_actions import get_agent_context_bundle, submit_agent_action
-from .agent_access import (
-    build_agent_task_context,
-    next_agent_task_envelope,
-    submit_agent_task_result,
-    task_result_ack,
-)
+from .agent_access import build_agent_task_context, next_agent_task_envelope, submit_agent_task_result, task_result_ack
 from .candidatures import create_candidature, update_candidature
 from .dashboard import render_dashboard as render_legacy_dashboard
 from .dashboard import render_raw_offer_intake_page
@@ -75,8 +70,38 @@ def _json_result_body(data: dict[str, Any]) -> str:
     return str(data.get("result_body", ""))
 
 
+def _bool_field(data: dict[str, Any], key: str) -> bool:
+    return str(data.get(key, "")).lower() in {"1", "true", "yes", "on"}
+
+
+def _bool_field_default(data: dict[str, Any], key: str, default: bool) -> bool:
+    if key not in data:
+        return default
+    return _bool_field(data, key)
+
+
+def _keyword_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [term.strip() for term in value.split(",") if term.strip()]
+    return [str(term).strip() for term in (value or []) if str(term).strip()]
+
+
+def _profile_fact_fields(data: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
+    fields = {
+        key: data[key]
+        for key in {"fact_type", "title", "body", "tags", "visibility", "exposure", "source", "review_state", "notes"}
+        if key in data
+    }
+    if "type" in data:
+        fields["fact_type"] = data["type"]
+    for key in {"use_for_cv", "use_for_cover_letter", "use_for_agent_context", "use_for_market_research", "use_for_dashboard"}:
+        if key in data or not partial:
+            fields[key] = _bool_field(data, key)
+    return fields
+
+
 def create_agent_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
-    Depends, FastAPI, HTTPException, _, _, _, _, _ = _require_fastapi()
+    Depends, FastAPI, HTTPException, Request, _, _, _, _ = _require_fastapi()
     app = _configure_app(
         FastAPI(title="AAAAT Agent Runtime", version="0.1.0", docs_url="/docs", redoc_url=None, openapi_url="/openapi.json"),
         storage,
@@ -106,7 +131,7 @@ def create_agent_app(storage: str = ".private", mode: Mode | str = Mode.FULL) ->
             _handle_error(exc, HTTPException)
 
     @app.post("/api/agent/tasks/{task_handle}/result", dependencies=[Depends(writable)])
-    async def agent_submit_result(task_handle: str, request: Any) -> dict[str, Any]:
+    async def agent_submit_result(task_handle: str, request: Request) -> dict[str, Any]:
         data, _ = await _request_data(request, HTTPException)
         result_body = _json_result_body(data)
         if not result_body.strip():
@@ -127,7 +152,7 @@ def create_agent_app(storage: str = ".private", mode: Mode | str = Mode.FULL) ->
             _handle_error(exc, HTTPException)
 
     @app.post("/api/agent/context-bundle")
-    async def agent_context_bundle(request: Any) -> dict[str, Any]:
+    async def agent_context_bundle(request: Request) -> dict[str, Any]:
         data, _ = await _request_data(request, HTTPException)
         try:
             with connect(app.state.storage_path) as conn:
@@ -136,7 +161,7 @@ def create_agent_app(storage: str = ".private", mode: Mode | str = Mode.FULL) ->
             _handle_error(exc, HTTPException)
 
     @app.post("/api/agent/actions", dependencies=[Depends(writable)])
-    async def agent_submit_action(request: Any) -> dict[str, Any]:
+    async def agent_submit_action(request: Request) -> dict[str, Any]:
         data, _ = await _request_data(request, HTTPException)
         packet = {"action": data.get("action"), "payload": data.get("payload", {})}
         try:
@@ -179,19 +204,6 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
     def wants_fragment(request: Request) -> bool:
         return request.headers.get("HX-Request", "").lower() == "true"
 
-    def bool_field(data: dict[str, Any], key: str) -> bool:
-        return str(data.get(key, "")).lower() in {"1", "true", "yes", "on"}
-
-    def bool_field_default(data: dict[str, Any], key: str, default: bool) -> bool:
-        if key not in data:
-            return default
-        return bool_field(data, key)
-
-    def keyword_list(value: Any) -> list[str]:
-        if isinstance(value, str):
-            return [term.strip() for term in value.split(",") if term.strip()]
-        return [str(term).strip() for term in (value or []) if str(term).strip()]
-
     def handle_error(exc: Exception) -> None:
         _handle_error(exc, HTTPException)
 
@@ -213,35 +225,6 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
             search_query=q,
             conn=conn,
         )
-
-    def profile_fact_fields(data: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
-        fields = {
-            key: data[key]
-            for key in {
-                "fact_type",
-                "title",
-                "body",
-                "tags",
-                "visibility",
-                "exposure",
-                "source",
-                "review_state",
-                "notes",
-            }
-            if key in data
-        }
-        if "type" in data:
-            fields["fact_type"] = data["type"]
-        for key in {
-            "use_for_cv",
-            "use_for_cover_letter",
-            "use_for_agent_context",
-            "use_for_market_research",
-            "use_for_dashboard",
-        }:
-            if key in data or not partial:
-                fields[key] = bool_field(data, key)
-        return fields
 
     app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
 
@@ -280,13 +263,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         return HTMLResponse(render_legacy_dashboard(payload, app.state.mode, application_id, keyword, tab))
 
     @app.get("/dashboard/fragments/{fragment}", response_class=HTMLResponse)
-    def dashboard_fragment(
-        fragment: str,
-        application_id: str | None = None,
-        keyword: str | None = None,
-        view: str | None = None,
-        q: str | None = None,
-    ) -> Any:
+    def dashboard_fragment(fragment: str, application_id: str | None = None, keyword: str | None = None, view: str | None = None, q: str | None = None) -> Any:
         try:
             with connect(app.state.storage_path) as conn:
                 model = make_view_model(conn, view=view, application_id=application_id, keyword=keyword, q=q)
@@ -309,18 +286,18 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
             "next_action": "Extract raw offer details",
             "raw_offer": data.get("content", ""),
             "created_by": data.get("created_by", "user") or "user",
-            "include_cv_task": bool_field(data, "include_cv_task"),
-            "include_cover_letter_task": bool_field(data, "include_cover_letter_task"),
-            "include_form_responses_task": bool_field(data, "include_form_responses_task"),
-            "include_field_inference_task": bool_field_default(data, "include_field_inference_task", True),
-            "include_company_research_task": bool_field_default(data, "include_company_research_task", True),
-            "include_keyword_detection_task": bool_field_default(data, "include_keyword_detection_task", True),
+            "include_cv_task": _bool_field(data, "include_cv_task"),
+            "include_cover_letter_task": _bool_field(data, "include_cover_letter_task"),
+            "include_form_responses_task": _bool_field(data, "include_form_responses_task"),
+            "include_field_inference_task": _bool_field_default(data, "include_field_inference_task", True),
+            "include_company_research_task": _bool_field_default(data, "include_company_research_task", True),
+            "include_keyword_detection_task": _bool_field_default(data, "include_keyword_detection_task", True),
         }
         for key in ("source", "source_url", "location"):
             if data.get(key):
                 fields[key] = data[key]
         if data.get("keywords"):
-            fields["keywords"] = keyword_list(data["keywords"])
+            fields["keywords"] = _keyword_list(data["keywords"])
         with connect(app.state.storage_path) as conn:
             item = create_candidature(conn, **fields)
             if wants_fragment(request):
@@ -334,7 +311,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         if data.get("_method", "").upper() != "PATCH":
             raise HTTPException(status_code=405, detail="method not allowed")
         if "keywords" in data:
-            data["keywords"] = keyword_list(data["keywords"])
+            data["keywords"] = _keyword_list(data["keywords"])
         with connect(app.state.storage_path) as conn:
             item = update_application(conn, application_id, **data)
             if wants_fragment(request):
@@ -349,17 +326,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
             raise HTTPException(status_code=405, detail="method not allowed")
         update_fields = {
             key: data[key]
-            for key in {
-                "description",
-                "salary_expectation",
-                "publication_date",
-                "application_date",
-                "raw_application_form",
-                "strengths",
-                "questions_to_ask",
-                "tech_stack",
-                "valuation",
-            }
+            for key in {"description", "salary_expectation", "publication_date", "application_date", "raw_application_form", "strengths", "questions_to_ask", "tech_stack", "valuation"}
             if key in data
         }
         with connect(app.state.storage_path) as conn:
@@ -373,28 +340,14 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
     async def dashboard_create_note(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
-            item = create_note(
-                conn,
-                data.get("body", ""),
-                application_id=data.get("application_id") or None,
-                note_type=data.get("note_type", "general"),
-                created_by=data.get("created_by", "user"),
-            )
+            item = create_note(conn, data.get("body", ""), application_id=data.get("application_id") or None, note_type=data.get("note_type", "general"), created_by=data.get("created_by", "user"))
         return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
     @app.post("/dashboard/actions/todos", dependencies=[Depends(writable)])
     async def dashboard_create_todo(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
-            item = create_todo(
-                conn,
-                data.get("title", ""),
-                application_id=data.get("application_id") or None,
-                body=data.get("body", ""),
-                state=data.get("state", "open"),
-                pinned=bool_field(data, "pinned"),
-                due_at=data.get("due_at", ""),
-            )
+            item = create_todo(conn, data.get("title", ""), application_id=data.get("application_id") or None, body=data.get("body", ""), state=data.get("state", "open"), pinned=_bool_field(data, "pinned"), due_at=data.get("due_at", ""))
         return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
     @app.post("/dashboard/actions/tasks", dependencies=[Depends(writable)])
@@ -419,15 +372,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
     async def dashboard_complete_task(task_id: str, request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
-            item = complete_task(
-                conn,
-                task_id,
-                result_body=data.get("result_body", ""),
-                result_title=data.get("result_title", ""),
-                artifact_id=data.get("artifact_id") or None,
-                agent_name=data.get("agent_name", ""),
-                agent_runtime=data.get("agent_runtime", ""),
-            )
+            item = complete_task(conn, task_id, result_body=data.get("result_body", ""), result_title=data.get("result_title", ""), artifact_id=data.get("artifact_id") or None, agent_name=data.get("agent_name", ""), agent_runtime=data.get("agent_runtime", ""))
         return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
 
     @app.post("/dashboard/actions/tasks/{task_id}/apply", dependencies=[Depends(writable)])
@@ -443,14 +388,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         application_id = data.get("application_id", "")
         output = safe_artifact_output_path(app.state.storage_path, application_id, "cv", data.get("output_path") or None)
         with connect(app.state.storage_path) as conn:
-            item = render_document_artifact(
-                conn,
-                "cv",
-                output,
-                application_id,
-                compile_pdf=bool_field(data, "compile_pdf"),
-                save_version=bool_field(data, "save_version"),
-            )
+            item = render_document_artifact(conn, "cv", output, application_id, compile_pdf=_bool_field(data, "compile_pdf"), save_version=_bool_field(data, "save_version"))
         return respond(item, 200, is_form, f"/?view=detailedView&application_id={application_id}")
 
     @app.post("/dashboard/actions/render/cover-letter", dependencies=[Depends(writable)])
@@ -462,22 +400,14 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
             extra["artifact.cover_letter.body_tex"] = data["body_tex"]
         output = safe_artifact_output_path(app.state.storage_path, application_id, "cover-letter", data.get("output_path") or None)
         with connect(app.state.storage_path) as conn:
-            item = render_document_artifact(
-                conn,
-                "cover-letter",
-                output,
-                application_id,
-                extra,
-                compile_pdf=bool_field(data, "compile_pdf"),
-                save_version=bool_field(data, "save_version"),
-            )
+            item = render_document_artifact(conn, "cover-letter", output, application_id, extra, compile_pdf=_bool_field(data, "compile_pdf"), save_version=_bool_field(data, "save_version"))
         return respond(item, 200, is_form, f"/?view=detailedView&application_id={application_id}")
 
     @app.post("/dashboard/actions/profile/facts", dependencies=[Depends(writable)])
     async def dashboard_create_profile_fact(request: Request) -> Any:
         data, is_form = await request_data(request)
         with connect(app.state.storage_path) as conn:
-            item = create_profile_fact(conn, **profile_fact_fields(data))
+            item = create_profile_fact(conn, **_profile_fact_fields(data))
             if wants_fragment(request):
                 model = make_view_model(conn)
                 return HTMLResponse(render_dashboard_fragment("inspector", model))
@@ -489,7 +419,7 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         if data.get("_method", "").upper() != "PATCH":
             raise HTTPException(status_code=405, detail="method not allowed")
         with connect(app.state.storage_path) as conn:
-            item = update_profile_fact(conn, fact_id, **profile_fact_fields(data, partial=True))
+            item = update_profile_fact(conn, fact_id, **_profile_fact_fields(data, partial=True))
             if wants_fragment(request):
                 model = make_view_model(conn)
                 return HTMLResponse(render_dashboard_fragment("inspector", model))
@@ -540,33 +470,11 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         application_id = data.get("application_id", "")
         source_context = f"candidature:{application_id}:user_view"
         with connect(app.state.storage_path) as conn:
-            existing = next(
-                (
-                    blob
-                    for blob in list_text_blobs(conn, application_id)
-                    if blob.get("blob_type") == "user_view" and blob.get("source_context") == source_context
-                ),
-                None,
-            )
+            existing = next((blob for blob in list_text_blobs(conn, application_id) if blob.get("blob_type") == "user_view" and blob.get("source_context") == source_context), None)
             if existing:
-                item = update_text_blob(
-                    conn,
-                    existing["id"],
-                    title=data.get("title", "User view"),
-                    body=data.get("body", ""),
-                    review_state="draft",
-                )
+                item = update_text_blob(existing["id"], title=data.get("title", "User view"), body=data.get("body", ""), review_state="draft")
             else:
-                item = create_text_blob(
-                    conn,
-                    "user_view",
-                    data.get("body", ""),
-                    application_id=application_id,
-                    title=data.get("title", "User view"),
-                    source_context=source_context,
-                    review_state="draft",
-                    created_by="user",
-                )
+                item = create_text_blob(conn, "user_view", data.get("body", ""), application_id=application_id, title=data.get("title", "User view"), source_context=source_context, review_state="draft", created_by="user")
             if wants_fragment(request):
                 model = make_view_model(conn, view="userView", application_id=application_id)
                 return HTMLResponse(render_dashboard_fragment("selected-card", model))
@@ -590,13 +498,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
     raise ValueError(f"Invalid surface: {surface}")
 
 
-def launch(
-    storage: str = ".private",
-    read_only: bool = False,
-    host: str = "127.0.0.1",
-    port: int = 8765,
-    agent_api: bool = False,
-) -> None:
+def launch(storage: str = ".private", read_only: bool = False, host: str = "127.0.0.1", port: int = 8765, agent_api: bool = False) -> None:
     init_db(storage)
     _, _, _, _, _, _, _, _ = _require_fastapi()
     import uvicorn
