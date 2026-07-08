@@ -32,7 +32,7 @@ Do not evaluate this release as SaaS, multi-user infrastructure, or a public net
 - [ ] Generated outputs and local artifacts are ignored unless intentionally committed as fake examples.
 - [ ] No real CV data, recruiter messages, offers, notes, rendered letters, or backups are committed.
 - [ ] Static demo export uses `examples/demo_payload.json` or another explicitly fake payload.
-- [ ] Visual assets under `aaaat/templates-ui/assets/` are private-safe.
+- [ ] Visual assets under `aaaat/templates_ui/assets/` are private-safe.
 - [ ] Manual backup/restore procedure is documented.
 
 ## Dashboard behavior
