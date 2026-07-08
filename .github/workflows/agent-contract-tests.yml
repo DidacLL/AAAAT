@@ -34,8 +34,12 @@ jobs:
         run: python -B -m unittest tests.test_fastapi_server.FastApiServerTests.test_read_only_dashboard_blocks_dashboard_actions
       - name: Domain service tests
         run: python -B -m unittest tests.test_domain_services
-      - name: Profile fact tests
-        run: python -B -m unittest tests.test_profile_facts
+      - name: Profile fact service tests
+        run: python -B -m unittest tests.test_profile_facts.ProfileFactServiceTests
+      - name: Profile fact CLI tests
+        run: python -B -m unittest tests.test_profile_facts.ProfileFactCliTests
+      - name: Profile fact FastAPI tests
+        run: python -B -m unittest tests.test_profile_facts.ProfileFactFastApiTests
       - name: Template tests
         run: python -B -m unittest tests.test_templates
       - name: Dashboard view tests
