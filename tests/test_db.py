@@ -1,8 +1,19 @@
 import tempfile
 import unittest
+import zipfile
+from pathlib import Path
 
 from aaaat.artifacts import list_artifacts, save_artifact, update_artifact_state
-from aaaat.db import add_raw_intake, connect, create_application, init_db, list_raw_intake
+from aaaat.db import (
+    SCHEMA_VERSION,
+    add_raw_intake,
+    connect,
+    create_application,
+    get_schema_version,
+    init_db,
+    list_raw_intake,
+)
+from aaaat.local_data import create_local_backup
 
 
 class DbTests(unittest.TestCase):
@@ -43,6 +54,53 @@ class DbTests(unittest.TestCase):
                 self.assertEqual(stored["source_context"], "application-context")
                 self.assertEqual(stored["review_state"], "reviewed")
                 self.assertEqual(stored["notes"], "")
+
+    def test_schema_version_and_init_are_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            init_db(tmp)
+            with connect(tmp) as conn:
+                self.assertEqual(get_schema_version(conn), SCHEMA_VERSION)
+                self.assertEqual(
+                    conn.execute("SELECT COUNT(*) FROM schema_meta WHERE key = 'schema_version'").fetchone()[0],
+                    1,
+                )
+                self.assertEqual(
+                    conn.execute("SELECT COUNT(*) FROM glossary_terms WHERE term = 'ATS'").fetchone()[0],
+                    1,
+                )
+                self.assertEqual(
+                    conn.execute("SELECT COUNT(*) FROM templates WHERE name IN ('cv', 'cover-letter')").fetchone()[0],
+                    2,
+                )
+
+    def test_backup_creation_includes_database_and_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            artifact_dir = Path(tmp) / "artifacts"
+            artifact_dir.mkdir()
+            (artifact_dir / "cover-letter.tex").write_text("private local artifact", encoding="utf-8")
+
+            backup = create_local_backup(tmp)
+
+            self.assertTrue(backup.exists())
+            self.assertEqual(backup.parent, Path(tmp) / "backups")
+            with zipfile.ZipFile(backup) as archive:
+                names = set(archive.namelist())
+            self.assertIn("aaaat.sqlite3", names)
+            self.assertIn("artifacts/cover-letter.tex", names)
+
+    def test_backup_refuses_output_outside_storage_without_force(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = Path(tmp) / "private"
+            public_output = Path(tmp) / "public-backups"
+            init_db(storage)
+
+            with self.assertRaises(ValueError):
+                create_local_backup(storage, public_output)
+
+            forced = create_local_backup(storage, public_output, force=True)
+            self.assertTrue(forced.exists())
 
     def test_artifact_review_state_changes_and_archived_sorts_secondary(self):
         with tempfile.TemporaryDirectory() as tmp:
