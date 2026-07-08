@@ -2,25 +2,25 @@
 
 AAAAT is provider-agnostic. It does not require a specific model, provider, SDK, or external agent. Agent-compatible workflows are optional and bounded.
 
-Do not treat AAAAT as an agent runtime, a chat application, or a broad CRUD API. AAAAT stores local data and exposes limited task/context/action surfaces so external tooling can help without receiving unrestricted access to the local job-search database.
+Do not treat AAAAT as an agent runtime, a chat application, or a broad CRUD API. AAAAT stores local data and exposes limited task/context/action capabilities so external tooling can help without receiving unrestricted access to the local job-search database.
 
-## Operating surfaces
+## Local runtimes
 
-AAAAT has two main local surfaces.
+AAAAT has two main local runtimes.
 
-The dashboard surface is the human working UI:
+The dashboard runtime is the human working UI:
 
 ```bash
 aaaat launch
 ```
 
-The agent surface is the machine-facing capability adapter:
+The agent runtime is the machine-facing capability adapter:
 
 ```bash
 aaaat launch --agent-api
 ```
 
-The dashboard may show rich local private state because it is for the user on the local machine. The agent surface must remain narrow and task-scoped.
+The dashboard may show rich local private state because it is for the user on the local machine. The agent runtime must remain narrow and task-scoped.
 
 ## Read-only agent runtime
 
@@ -37,7 +37,7 @@ Read-only mode allows safe inspection routes and blocks write submissions.
 AAAAT-originated work follows this shape:
 
 1. AAAAT or the user creates a task.
-2. An external tool asks for queued task envelopes.
+2. An external tool asks for the next queued task or queued task envelopes.
 3. The tool requests context for one task handle.
 4. AAAAT returns bounded task context.
 5. The external tool produces a result outside AAAAT.
@@ -96,7 +96,9 @@ aaaat mcp-descriptor
 aaaat mcp-validate
 ```
 
-This is a descriptor/schema surface for local compatibility. Do not document it as a full MCP server transport unless that transport is actually implemented.
+This is descriptor/tool-schema compatibility for local adapters. It is not a full MCP server implementation. AAAAT does not currently provide stdio, SSE, or streamable HTTP MCP server transport.
+
+External tooling can consume the descriptor and map its resources/tools to the CLI commands or local HTTP routes above. Do not document AAAAT as a direct MCP server unless an actual MCP transport is implemented.
 
 ## Artifact boundary
 
