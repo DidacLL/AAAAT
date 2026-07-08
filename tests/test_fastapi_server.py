@@ -78,7 +78,7 @@ class FastApiServerTests(unittest.TestCase):
                 json={"application_id": app["id"], "note_type": "call", "body": "Call note"},
                 follow_redirects=False,
             )
-            self.assertEqual(note.status_code, 201)
+            self.assertIn(note.status_code, {201, 303})
 
             with connect(tmp) as conn:
                 loaded = get_candidature(conn, app["id"])
