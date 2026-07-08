@@ -69,8 +69,26 @@ class FastApiServerTests(unittest.TestCase):
             }
             registered = self.route_paths(client)
             self.assertTrue(unmounted.isdisjoint(registered))
-            self.assertIn("/dashboard/actions/raw-offer-intake", registered)
-            self.assertIn("/dashboard/actions/candidatures/{candidature_id}", registered)
+            expected_dashboard_actions = {
+                "/dashboard/actions/raw-offer-intake",
+                "/dashboard/actions/applications/{application_id}",
+                "/dashboard/actions/candidatures/{candidature_id}",
+                "/dashboard/actions/notes",
+                "/dashboard/actions/todos",
+                "/dashboard/actions/tasks",
+                "/dashboard/actions/tasks/{task_id}/complete",
+                "/dashboard/actions/tasks/{task_id}/apply",
+                "/dashboard/actions/render/cv",
+                "/dashboard/actions/render/cover-letter",
+                "/dashboard/actions/profile/facts",
+                "/dashboard/actions/profile/facts/{fact_id}",
+                "/dashboard/actions/profile/facts/{fact_id}/archive",
+                "/dashboard/actions/profile/variables",
+                "/dashboard/actions/text-blobs",
+                "/dashboard/actions/user-view",
+                "/dashboard/actions/export/static-demo",
+            }
+            self.assertTrue(expected_dashboard_actions.issubset(registered))
 
             blocked = [
                 "/api/dashboard-payload",
@@ -119,11 +137,17 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(created.status_code, 303)
             app_id = created.headers["location"].split("application_id=", 1)[1].split("&", 1)[0]
 
+            core_updated = client.post(
+                f"/dashboard/actions/applications/{app_id}",
+                data={"_method": "PATCH", "next_action": "Prepare recruiter call"},
+                follow_redirects=False,
+            )
             updated = client.post(
                 f"/dashboard/actions/candidatures/{app_id}",
                 data={"_method": "PATCH", "description": "Detailed offer", "questions_to_ask": "Ask about roadmap"},
                 follow_redirects=False,
             )
+            self.assertEqual(core_updated.status_code, 303)
             self.assertEqual(updated.status_code, 303)
             note = client.post("/dashboard/actions/notes", data={"application_id": app_id, "note_type": "call", "body": "Call note"}, follow_redirects=False)
             todo = client.post("/dashboard/actions/todos", data={"application_id": app_id, "title": "Follow up"}, follow_redirects=False)
@@ -140,6 +164,7 @@ class FastApiServerTests(unittest.TestCase):
 
             with connect(tmp) as conn:
                 loaded = get_candidature(conn, app_id)
+            self.assertEqual(loaded["next_action"], "Prepare recruiter call")
             self.assertEqual(loaded["details"]["description"], "Detailed offer")
             self.assertTrue(any(item["body"] == "Call note" for item in loaded["notes_records"]))
             self.assertTrue(any(item["title"] == "Follow up" for item in loaded["todos"]))
@@ -254,6 +279,7 @@ class FastApiServerTests(unittest.TestCase):
 
             self.assertNotIn("data-write-control", client.get("/").text)
             self.assertEqual(client.post("/dashboard/actions/notes", data={"application_id": app["id"], "body": "Nope"}).status_code, 403)
+            self.assertEqual(client.post(f"/dashboard/actions/applications/{app['id']}", data={"_method": "PATCH", "next_action": "Nope"}).status_code, 403)
             self.assertEqual(client.post("/dashboard/actions/render/cv", data={"application_id": app["id"]}).status_code, 403)
 
     def test_dashboard_profile_fact_actions_do_not_restore_broad_profile_api(self):
