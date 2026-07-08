@@ -17,6 +17,16 @@ from aaaat.tasks import create_task, list_tasks
 FASTAPI_AVAILABLE = importlib.util.find_spec("fastapi") is not None and importlib.util.find_spec("httpx") is not None
 
 
+AGENT_RUNTIME_ROUTES = {
+    ("GET", "/api/health"),
+    ("GET", "/api/agent/tasks/next"),
+    ("GET", "/api/agent/tasks/{task_handle}/context"),
+    ("POST", "/api/agent/tasks/{task_handle}/result"),
+    ("POST", "/api/agent/context-bundle"),
+    ("POST", "/api/agent/actions"),
+}
+
+
 def object_keys(value: Any) -> set[str]:
     keys: set[str] = set()
     if isinstance(value, dict):
@@ -47,6 +57,15 @@ class FastApiServerTests(unittest.TestCase):
 
     def route_paths(self, client):
         return {getattr(route, "path", "") for route in client.app.routes}
+
+    def route_methods(self, client):
+        methods = set()
+        for route in client.app.routes:
+            path = getattr(route, "path", "")
+            for method in getattr(route, "methods", set()) or set():
+                if method not in {"HEAD", "OPTIONS"}:
+                    methods.add((method, path))
+        return methods
 
     def create_agent_task(self, storage):
         with connect(storage) as conn:
@@ -80,11 +99,47 @@ class FastApiServerTests(unittest.TestCase):
             self.assertIn('data-dashboard-view="welcomeView"', html)
             self.assertEqual(client.get("/static/htmx.min.js").status_code, 200)
             self.assertEqual(client.get("/openapi.json").status_code, 404)
+            self.assertEqual(client.get("/dashboard/fragments/inspector").status_code, 200)
 
             registered = self.route_paths(client)
             self.assertIn("/", registered)
             self.assertTrue(any(path.startswith("/dashboard/fragments/") for path in registered))
             self.assertTrue(any(path.startswith("/dashboard/actions/") for path in registered))
+
+    def test_dashboard_runtime_keeps_human_form_action_workflows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            client = self.dashboard_client(tmp)
+
+            response = client.post(
+                "/dashboard/actions/raw-offer-intake",
+                json={
+                    "company": "Workflow Co",
+                    "role": "Backend Engineer",
+                    "content": "Raw offer text from the dashboard.",
+                    "keywords": "Python, APIs",
+                    "include_company_research_task": "true",
+                },
+            )
+            self.assertEqual(response.status_code, 201, response.text)
+
+            with connect(tmp) as conn:
+                loaded = list_candidatures(conn, include_related=True)[0]
+            self.assertEqual(loaded["company"], "Workflow Co")
+            self.assertEqual(loaded["role"], "Backend Engineer")
+            self.assertEqual(loaded["raw_intake"][0]["content"], "Raw offer text from the dashboard.")
+            self.assertEqual(loaded["keywords"], ["APIs", "Python"])
+            self.assertTrue(any(task["task_type"] == "company_research" for task in loaded["tasks"]))
+
+    def test_agent_runtime_exposes_only_capability_routes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            client = self.agent_client(tmp)
+
+            self.assertEqual(self.route_methods(client), AGENT_RUNTIME_ROUTES)
+            self.assertEqual(client.get("/api/health").json()["runtime"], "agent")
+            self.assertEqual(client.get("/docs").status_code, 404)
+            self.assertEqual(client.get("/openapi.json").status_code, 404)
 
     def test_agent_runtime_is_not_dashboard_ui(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -96,6 +151,7 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(health.json()["runtime"], "agent")
             self.assertEqual(client.get("/").status_code, 404)
             self.assertEqual(client.get("/static/htmx.min.js").status_code, 404)
+            self.assertEqual(client.get("/dashboard/fragments/inspector").status_code, 404)
             self.assertEqual(client.post("/dashboard/actions/notes", json={}).status_code, 404)
 
     def test_agent_runtime_next_task_uses_task_handle(self):

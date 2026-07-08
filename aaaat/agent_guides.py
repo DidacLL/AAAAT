@@ -12,7 +12,7 @@ Dashboard runtime:
 
 Agent runtime:
 - machine-facing capability adapter;
-- no dashboard HTML, static assets, fragments, or dashboard actions;
+- no dashboard HTML, static assets, fragments, dashboard actions, generated API docs, or OpenAPI JSON;
 - no broad list/search/profile/candidature/career-plan CRUD;
 - no entity-ID mutation authority.
 

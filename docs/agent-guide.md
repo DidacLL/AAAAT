@@ -10,7 +10,7 @@ Dashboard routes are outside the agent contract. Agents must not treat dashboard
 
 ## Agent runtime
 
-The agent runtime is a machine-facing capability adapter. It exposes only bounded operations. It must not serve dashboard HTML, dashboard static assets, dashboard fragments, dashboard actions, broad entity lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, or identifier-based mutation endpoints.
+The agent runtime is a machine-facing capability adapter. It exposes only bounded operations. It must not serve dashboard HTML, dashboard static assets, dashboard fragments, dashboard actions, generated API docs, OpenAPI JSON, broad entity lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, or identifier-based mutation endpoints.
 
 The supported agent HTTP routes are:
 
