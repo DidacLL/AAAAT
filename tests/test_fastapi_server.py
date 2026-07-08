@@ -17,12 +17,19 @@ FASTAPI_AVAILABLE = importlib.util.find_spec("fastapi") is not None and importli
 
 @unittest.skipUnless(FASTAPI_AVAILABLE, "FastAPI/httpx test dependencies are not installed")
 class FastApiServerTests(unittest.TestCase):
-    def client(self, storage, mode=Mode.FULL, surface="dashboard"):
+    def dashboard_client(self, storage, mode=Mode.FULL):
         from fastapi.testclient import TestClient
 
-        from aaaat.server_fastapi import create_app
+        from aaaat.server_fastapi import create_dashboard_app
 
-        return TestClient(create_app(storage, mode, surface=surface))
+        return TestClient(create_dashboard_app(storage, mode))
+
+    def agent_client(self, storage, mode=Mode.FULL):
+        from fastapi.testclient import TestClient
+
+        from aaaat.server_fastapi import create_agent_app
+
+        return TestClient(create_agent_app(storage, mode))
 
     def route_paths(self, client):
         return {getattr(route, "path", "") for route in client.app.routes}
@@ -31,88 +38,39 @@ class FastApiServerTests(unittest.TestCase):
         self.assertEqual(inspect.signature(launch).parameters["host"].default, "127.0.0.1")
         self.assertIn("agent_api", inspect.signature(launch).parameters)
 
-    def test_dashboard_renders_but_broad_private_json_apis_are_absent(self):
+    def test_explicit_runtime_builders_replace_surface_as_concept(self):
+        from aaaat.server_fastapi import create_agent_app, create_app, create_dashboard_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dashboard = create_dashboard_app(tmp)
+            agent = create_agent_app(tmp)
+            wrapped_dashboard = create_app(tmp, surface="dashboard")
+            wrapped_agent = create_app(tmp, surface="agent")
+
+        self.assertEqual(dashboard.state.runtime, "dashboard")
+        self.assertEqual(agent.state.runtime, "agent")
+        self.assertEqual(wrapped_dashboard.state.runtime, "dashboard")
+        self.assertEqual(wrapped_agent.state.runtime, "agent")
+
+    def test_dashboard_runtime_renders_human_ui_and_dashboard_actions(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                create_application(conn, company="Dashboard Co", role="Engineer")
-            client = self.client(tmp)
+                app = create_application(conn, company="Dashboard Co", role="Engineer")
+            client = self.dashboard_client(tmp)
 
             html = client.get("/").text
             self.assertIn('data-dashboard-view="welcomeView"', html)
+            self.assertIn(app["id"], html)
             self.assertEqual(client.get("/static/htmx.min.js").status_code, 200)
+            self.assertEqual(client.get("/dashboard/fragments/selected-card").status_code, 200)
             self.assertEqual(client.get("/openapi.json").status_code, 404)
 
-            unmounted = {
-                "/api/dashboard-payload",
-                "/api/review-queue",
-                "/api/applications",
-                "/api/applications/{application_id}/context",
-                "/api/candidatures",
-                "/api/candidatures/{candidature_id}",
-                "/api/candidatures/{candidature_id}/context",
-                "/api/search",
-                "/api/variables",
-                "/api/variables/{key}",
-                "/api/profile/facts",
-                "/api/profile/facts/{fact_id}",
-                "/api/profile/context",
-                "/api/tasks",
-                "/api/tasks/{task_id}",
-                "/api/todos",
-                "/api/notes",
-                "/api/text-blobs",
-                "/api/keywords",
-                "/api/agent/tasks",
-                "/api/agent/context-bundle",
-                "/api/agent/actions",
-            }
             registered = self.route_paths(client)
-            self.assertTrue(unmounted.isdisjoint(registered))
-            expected_dashboard_actions = {
-                "/dashboard/actions/raw-offer-intake",
-                "/dashboard/actions/applications/{application_id}",
-                "/dashboard/actions/candidatures/{candidature_id}",
-                "/dashboard/actions/notes",
-                "/dashboard/actions/todos",
-                "/dashboard/actions/tasks",
-                "/dashboard/actions/tasks/{task_id}/complete",
-                "/dashboard/actions/tasks/{task_id}/apply",
-                "/dashboard/actions/render/cv",
-                "/dashboard/actions/render/cover-letter",
-                "/dashboard/actions/profile/facts",
-                "/dashboard/actions/profile/facts/{fact_id}",
-                "/dashboard/actions/profile/facts/{fact_id}/archive",
-                "/dashboard/actions/profile/variables",
-                "/dashboard/actions/text-blobs",
-                "/dashboard/actions/user-view",
-                "/dashboard/actions/export/static-demo",
-            }
-            self.assertTrue(expected_dashboard_actions.issubset(registered))
-
-            blocked = [
-                "/api/dashboard-payload",
-                "/api/review-queue",
-                "/api/applications",
-                "/api/candidatures",
-                "/api/search?q=Dashboard",
-                "/api/variables",
-                "/api/profile/facts",
-                "/api/profile/context?purpose=cv_generation",
-                "/api/tasks",
-                "/api/todos",
-                "/api/notes",
-                "/api/text-blobs",
-                "/api/keywords",
-                "/api/artifacts",
-                "/api/agent/tasks",
-            ]
-            for path in blocked:
-                self.assertEqual(client.get(path).status_code, 404, path)
-            self.assertEqual(client.post("/api/agent/context-bundle", json={"purpose": "cover_letter"}).status_code, 404)
-            self.assertEqual(client.post("/api/agent/actions", json={"action": "create_candidature", "payload": {}}).status_code, 404)
-            self.assertEqual(client.post("/api/render/cv", json={}).status_code, 404)
-            self.assertEqual(client.post("/api/applications", json={"company": "Nope"}).status_code, 404)
+            self.assertIn("/", registered)
+            self.assertIn("/dashboard/fragments/{fragment}", registered)
+            self.assertTrue(any(path.startswith("/dashboard/actions/") for path in registered))
+            self.assertFalse(any(path.startswith("/api/agent/") for path in registered))
 
     def test_dashboard_actions_preserve_human_workflows(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -121,7 +79,7 @@ class FastApiServerTests(unittest.TestCase):
                 set_profile_variable(conn, "display_name", "Local Candidate")
                 set_profile_variable(conn, "email", "candidate@example.test")
                 set_profile_variable(conn, "summary.default", "Private local summary")
-            client = self.client(tmp)
+            client = self.dashboard_client(tmp)
 
             created = client.post(
                 "/dashboard/actions/raw-offer-intake",
@@ -147,8 +105,6 @@ class FastApiServerTests(unittest.TestCase):
                 data={"_method": "PATCH", "description": "Detailed offer", "questions_to_ask": "Ask about roadmap"},
                 follow_redirects=False,
             )
-            self.assertEqual(core_updated.status_code, 303)
-            self.assertEqual(updated.status_code, 303)
             note = client.post("/dashboard/actions/notes", data={"application_id": app_id, "note_type": "call", "body": "Call note"}, follow_redirects=False)
             todo = client.post("/dashboard/actions/todos", data={"application_id": app_id, "title": "Follow up"}, follow_redirects=False)
             task = client.post(
@@ -157,6 +113,8 @@ class FastApiServerTests(unittest.TestCase):
                 follow_redirects=False,
             )
             render = client.post("/dashboard/actions/render/cv", data={"application_id": app_id}, follow_redirects=False)
+            self.assertEqual(core_updated.status_code, 303)
+            self.assertEqual(updated.status_code, 303)
             self.assertEqual(note.status_code, 303)
             self.assertEqual(todo.status_code, 303)
             self.assertEqual(task.status_code, 303)
@@ -170,38 +128,96 @@ class FastApiServerTests(unittest.TestCase):
             self.assertTrue(any(item["title"] == "Follow up" for item in loaded["todos"]))
             self.assertTrue(any(item["artifact_type"] == "cv" for item in loaded["artifacts"]))
 
-    def test_agent_surface_is_capability_only_and_minimized(self):
+    def test_agent_runtime_mounts_only_bounded_capability_routes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            client = self.agent_client(tmp)
+
+            self.assertEqual(client.get("/").status_code, 404)
+            self.assertEqual(client.get("/legacy").status_code, 404)
+            self.assertEqual(client.get("/intake").status_code, 404)
+            self.assertEqual(client.get("/static/htmx.min.js").status_code, 404)
+            self.assertEqual(client.get("/dashboard/fragments/selected-card").status_code, 404)
+            self.assertEqual(client.post("/dashboard/actions/notes", json={}).status_code, 404)
+            self.assertEqual(client.get("/api/health").json()["runtime"], "agent")
+
+            openapi_paths = set(client.get("/openapi.json").json()["paths"])
+            expected = {
+                "/api/health",
+                "/api/agent/tasks/next",
+                "/api/agent/tasks/{task_handle}/context",
+                "/api/agent/tasks/{task_handle}/result",
+                "/api/agent/context-bundle",
+                "/api/agent/actions",
+            }
+            self.assertEqual(openapi_paths, expected)
+
+            forbidden_prefixes = (
+                "/api/applications",
+                "/api/candidatures",
+                "/api/search",
+                "/api/profile",
+                "/api/dashboard",
+                "/api/tasks",
+                "/api/notes",
+                "/api/todos",
+                "/api/text-blobs",
+                "/api/artifacts",
+                "/dashboard/",
+                "/static/",
+            )
+            for prefix in forbidden_prefixes:
+                self.assertFalse(any(path.startswith(prefix) for path in openapi_paths), prefix)
+            self.assertNotIn("/api/agent/tasks", openapi_paths)
+            self.assertNotIn("/api/agent/tasks/{task_handle}/claim", openapi_paths)
+            self.assertNotIn("/api/agent/tasks/{task_handle}/release", openapi_paths)
+
+    def test_agent_runtime_next_context_and_result_are_task_handle_scoped(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 app = create_application(conn, company="Agent Co", role="Engineer")
-                task = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
-            client = self.client(tmp, surface="agent")
+                create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
+            client = self.agent_client(tmp)
 
-            self.assertEqual(client.get("/").status_code, 404)
-            self.assertEqual(client.get("/static/htmx.min.js").status_code, 404)
-            self.assertEqual(client.get("/api/health").json()["surface"], "agent")
-            openapi_paths = set(client.get("/openapi.json").json()["paths"])
-            self.assertIn("/api/agent/tasks", openapi_paths)
-            self.assertIn("/api/agent/context-bundle", openapi_paths)
-            self.assertIn("/api/agent/actions", openapi_paths)
-            self.assertTrue(all(path == "/api/health" or path.startswith("/api/agent/") for path in openapi_paths))
-            self.assertEqual(client.get("/api/applications").status_code, 404)
-            self.assertEqual(client.get("/api/candidatures").status_code, 404)
-            self.assertEqual(client.get("/api/search?q=Agent").status_code, 404)
-            self.assertEqual(client.get("/api/profile/context?purpose=cv_generation").status_code, 404)
+            next_response = client.get("/api/agent/tasks/next")
+            self.assertEqual(next_response.status_code, 200)
+            task = next_response.json()["task"]
+            task_handle = task["task_handle"]
+            self.assertNotIn("id", task)
+            self.assertNotIn("application_id", json.dumps(task))
+            self.assertEqual(task["task_type"], "company_research")
 
-            tasks = client.get("/api/agent/tasks").json()["tasks"]
-            self.assertEqual(tasks[0]["id"], task["id"])
-            self.assertNotIn("company", tasks[0])
-            context = client.get(f"/api/agent/tasks/{task['id']}/context").json()
-            serialized = json.dumps(context)
-            self.assertIn("task", context)
-            self.assertIn("context", context)
-            self.assertNotIn("dashboard", serialized.lower())
-            self.assertNotIn("/api/tasks/", serialized)
+            context_response = client.get(f"/api/agent/tasks/{task_handle}/context")
+            self.assertEqual(context_response.status_code, 200)
+            context = context_response.json()
+            serialized_context = json.dumps(context)
+            self.assertEqual(context["task"]["task_handle"], task_handle)
+            self.assertIn("company", context["context"])
+            self.assertNotIn(app["id"], serialized_context)
+            self.assertNotIn("application_id", serialized_context)
+            self.assertNotIn("candidature_id", serialized_context)
+            self.assertNotIn("profile_fact_id", serialized_context)
+            self.assertNotIn("artifact_id", serialized_context)
+            self.assertNotIn("/api/tasks/", serialized_context)
+            self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task_handle}/result"})
 
-    def test_agent_surface_context_bundle_and_action_session(self):
+            submitted = client.post(
+                f"/api/agent/tasks/{task_handle}/result",
+                json={"result_json": {"summary": "Agent research"}, "agent_name": "Agent", "agent_runtime": "http", "model_provider": "local"},
+            )
+            self.assertEqual(submitted.status_code, 200)
+            ack = submitted.json()
+            self.assertEqual(ack["status"], "accepted")
+            self.assertEqual(ack["task"]["task_handle"], task_handle)
+            self.assertNotIn("application_id", json.dumps(ack))
+            self.assertNotIn("result_blob_id", json.dumps(ack))
+
+            with connect(tmp) as conn:
+                task_row = next(item for item in list_tasks(conn) if item["id"] == task_handle)
+            self.assertEqual(task_row["state"], "completed")
+
+    def test_agent_runtime_context_bundle_and_action_session(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -213,7 +229,7 @@ class FastApiServerTests(unittest.TestCase):
                     exposure="placeholder",
                     use_for_agent_context=True,
                 )
-            client = self.client(tmp, surface="agent")
+            client = self.agent_client(tmp)
 
             bundle = client.post("/api/agent/context-bundle", json={"purpose": "candidature_fit"})
             self.assertEqual(bundle.status_code, 200)
@@ -238,6 +254,9 @@ class FastApiServerTests(unittest.TestCase):
             ack = submitted.json()
             self.assertEqual(ack["status"], "accepted")
             self.assertNotIn("internal", ack)
+            self.assertNotIn("application_id", json.dumps(ack))
+            self.assertNotIn("candidature_id", json.dumps(ack))
+            self.assertNotIn("artifact_id", json.dumps(ack))
 
             with connect(tmp) as conn:
                 loaded = list_candidatures(conn, include_related=True)[0]
@@ -246,72 +265,17 @@ class FastApiServerTests(unittest.TestCase):
             self.assertEqual(loaded["form_answers"], "HTTP form answers")
             self.assertEqual(loaded["raw_intake"][0]["content"], "HTTP raw offer")
 
-    def test_agent_surface_submit_claim_release(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            with connect(tmp) as conn:
-                app = create_application(conn, company="Submit Co", role="Engineer", pitch="Human pitch")
-                task = create_task(conn, "pitch_draft", "Draft pitch", application_id=app["id"], context_hint="field:pitch")
-            client = self.client(tmp, surface="agent")
-
-            claimed = client.post(f"/api/agent/tasks/{task['id']}/claim", json={"agent_name": "Agent"})
-            self.assertEqual(claimed.status_code, 200)
-            released = client.post(f"/api/agent/tasks/{task['id']}/release", json={})
-            self.assertEqual(released.status_code, 200)
-            submitted = client.post(
-                f"/api/agent/tasks/{task['id']}/result",
-                json={"result_body": "Suggested pitch", "agent_name": "Agent", "agent_runtime": "http", "model_provider": "local"},
-            )
-            self.assertEqual(submitted.status_code, 200)
-
-            with connect(tmp) as conn:
-                loaded = get_candidature(conn, app["id"])
-                task_row = next(item for item in list_tasks(conn, application_id=app["id"]) if item["id"] == task["id"])
-            self.assertEqual(loaded["pitch"], "Human pitch")
-            self.assertEqual(task_row["state"], "completed")
-
     def test_read_only_dashboard_blocks_dashboard_actions(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 app = create_application(conn, company="Blocked Co", role="Reviewer")
-            client = self.client(tmp, Mode.READ_ONLY)
+            client = self.dashboard_client(tmp, Mode.READ_ONLY)
 
             self.assertNotIn("data-write-control", client.get("/").text)
             self.assertEqual(client.post("/dashboard/actions/notes", data={"application_id": app["id"], "body": "Nope"}).status_code, 403)
             self.assertEqual(client.post(f"/dashboard/actions/applications/{app['id']}", data={"_method": "PATCH", "next_action": "Nope"}).status_code, 403)
             self.assertEqual(client.post("/dashboard/actions/render/cv", data={"application_id": app["id"]}).status_code, 403)
-
-    def test_dashboard_profile_fact_actions_do_not_restore_broad_profile_api(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            client = self.client(tmp)
-            created = client.post(
-                "/dashboard/actions/profile/facts",
-                data={
-                    "fact_type": "project",
-                    "title": "AAAAT",
-                    "body": "Agentic local job tracker",
-                    "visibility": "professional",
-                    "exposure": "summarized",
-                    "use_for_cv": "1",
-                },
-                follow_redirects=False,
-            )
-            self.assertEqual(created.status_code, 303)
-            self.assertNotIn("/api/profile/facts", self.route_paths(client))
-            self.assertNotIn("/api/profile/context", self.route_paths(client))
-            self.assertEqual(client.get("/api/profile/facts").status_code, 404)
-            self.assertEqual(client.get("/api/profile/context?purpose=cv_generation").status_code, 404)
-
-            with connect(tmp) as conn:
-                fact = create_profile_fact(conn, fact_type="skill", title="Python", body="Private Python", use_for_dashboard=True)
-            read_only = self.client(tmp, Mode.READ_ONLY)
-            html = read_only.get("/").text
-            self.assertIn("data-profile-cv-panel", html)
-            self.assertIn("Python", html)
-            self.assertNotIn("profile-fact-add", html)
-            self.assertNotIn("profile-fact-edit", html)
 
 
 if __name__ == "__main__":
