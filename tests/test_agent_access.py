@@ -6,8 +6,10 @@ from aaaat.agent_access import (
     build_agent_task_context,
     claim_agent_task,
     list_agent_task_envelopes,
+    next_agent_task_envelope,
     release_agent_task,
     submit_agent_task_result,
+    task_result_ack,
 )
 from aaaat.candidatures import create_candidature, get_candidature
 from aaaat.db import connect, init_db, set_profile_variable
@@ -17,19 +19,24 @@ from aaaat.text_blobs import get_text_blob
 
 
 class AgentAccessTests(unittest.TestCase):
-    def test_task_envelopes_are_minimal(self):
+    def test_task_envelopes_are_minimal_and_handle_scoped(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 app = create_candidature(conn, company="Envelope Co", role="Engineer", raw_offer="Secret offer")
-                create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
+                task = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
                 envelopes = list_agent_task_envelopes(conn, state="queued")
+                next_task = next_agent_task_envelope(conn)
 
         self.assertTrue(envelopes)
-        allowed = {"id", "task_type", "title", "state", "priority", "context_hint", "created_at", "updated_at", "allowed_actions"}
+        self.assertEqual(next_task["task_handle"], task["id"])
+        allowed = {"task_handle", "task_type", "title", "state", "priority", "context_hint", "created_at", "updated_at", "allowed_actions"}
         for envelope in envelopes:
             self.assertLessEqual(set(envelope), allowed)
+            self.assertNotIn("id", envelope)
+            self.assertNotIn("application_id", envelope)
         serialized = json.dumps(envelopes)
+        self.assertNotIn(app["id"], serialized)
         self.assertNotIn("raw_intake", serialized)
         self.assertNotIn("Secret offer", serialized)
         self.assertNotIn("notes_records", serialized)
@@ -38,7 +45,7 @@ class AgentAccessTests(unittest.TestCase):
         self.assertNotIn("artifacts", serialized)
         self.assertNotIn("text_blobs", serialized)
 
-    def test_field_inference_context_is_task_specific(self):
+    def test_field_inference_context_is_task_specific_without_entity_mutation_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -48,16 +55,19 @@ class AgentAccessTests(unittest.TestCase):
                 context = build_agent_task_context(conn, task["id"])
 
         serialized = json.dumps(context)
-        self.assertEqual(context["task"]["id"], task["id"])
+        self.assertEqual(context["task"]["task_handle"], task["id"])
+        self.assertNotIn("id", context["task"])
         self.assertIn("source_material", context["context"])
         self.assertIn("missing_fields", context["context"])
         self.assertIn("protected_fields", context["context"])
+        self.assertNotIn(app["id"], serialized)
         self.assertNotIn(other["id"], serialized)
+        self.assertNotIn("application_id", serialized)
         self.assertNotIn("Other Private Co", serialized)
         self.assertNotIn("Do not leak", serialized)
         self.assertNotIn("raw_intake", serialized)
         self.assertNotIn("/api/tasks/", serialized)
-        self.assertIn("/api/agent/tasks/", serialized)
+        self.assertEqual(context["write_back"], {"submit": f"/api/agent/tasks/{task['id']}/result"})
 
     def test_cv_context_uses_privacy_filtered_profile_context(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -98,6 +108,7 @@ class AgentAccessTests(unittest.TestCase):
                     agent_runtime="cli",
                     model_provider="local",
                 )
+                ack = task_result_ack(submitted)
                 loaded = get_candidature(conn, app["id"])
                 blob = get_text_blob(conn, submitted["result_blob_id"])
                 task_row = get_task(conn, task["id"])
@@ -105,6 +116,9 @@ class AgentAccessTests(unittest.TestCase):
         self.assertEqual(claimed["state"], "claimed")
         self.assertEqual(released["state"], "queued")
         self.assertEqual(submitted["state"], "completed")
+        self.assertEqual(ack, {"status": "accepted", "task": {"task_handle": task["id"], "state": "completed"}, "next": ["open_dashboard"]})
+        self.assertNotIn("application_id", json.dumps(ack))
+        self.assertNotIn("result_blob_id", json.dumps(ack))
         self.assertEqual(loaded["pitch"], "Human pitch")
         self.assertEqual(blob["body"], "Agent pitch")
         self.assertEqual(blob["agent_name"], "Agent")
