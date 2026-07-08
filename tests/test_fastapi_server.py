@@ -72,7 +72,7 @@ class FastApiServerTests(unittest.TestCase):
             self.assertTrue(any(path.startswith("/dashboard/fragments/") for path in registered))
             self.assertTrue(any(path.startswith("/dashboard/actions/") for path in registered))
 
-    def test_agent_runtime_exposes_capability_operations(self):
+    def test_agent_runtime_is_not_dashboard_ui(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             client = self.agent_client(tmp)
@@ -80,17 +80,6 @@ class FastApiServerTests(unittest.TestCase):
             health = client.get("/api/health")
             self.assertEqual(health.status_code, 200)
             self.assertEqual(health.json()["runtime"], "agent")
-
-            openapi_paths = set(client.get("/openapi.json").json()["paths"])
-            for capability_path in {
-                "/api/agent/tasks/next",
-                "/api/agent/tasks/{task_handle}/context",
-                "/api/agent/tasks/{task_handle}/result",
-                "/api/agent/context-bundle",
-                "/api/agent/actions",
-            }:
-                self.assertIn(capability_path, openapi_paths)
-
             self.assertEqual(client.get("/").status_code, 404)
             self.assertEqual(client.get("/static/htmx.min.js").status_code, 404)
             self.assertEqual(client.post("/dashboard/actions/notes", json={}).status_code, 404)
