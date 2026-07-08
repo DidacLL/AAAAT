@@ -3,23 +3,40 @@ from __future__ import annotations
 
 AGENT_GUIDE = """# AAAAT Agent Guide
 
-AAAAT stores private job application data locally and exposes capability-scoped operations to external agents.
+AAAAT stores private job application data locally. It has two separate runtimes:
 
-The implemented capability set includes the task protocol and the action-session protocol. For tasks, agents receive task envelopes and narrow task context, then submit task results. For LLM-app-originated action sessions, agents request purpose-scoped context and submit one bounded action packet.
+- Dashboard runtime: local human UI, server-rendered HTML, static assets, fragments, and form actions. It is not the agent contract and may expose private internal IDs in local HTML.
+- Agent runtime: machine-facing capability adapter. It exposes only bounded task, context, and action operations.
 
-The action-session protocol is not CRUD: an agent first requests a purpose-scoped context bundle such as `cv_generation`, `cover_letter`, `candidature_fit`, `recruiter_call`, or `form_answers`, then submits one bounded action such as creating a candidature from already-inferred fields, storing a cover-letter body as render input, or requesting a local render.
+Agents must not use dashboard HTML, dashboard fragments, htmx endpoints, or `/dashboard/actions/*` as a machine API.
 
-LLM-originated work starts in the LLM app. In that flow the LLM already read the offer and produced the useful data before calling AAAAT. AAAAT should not create extraction tasks for work already supplied by the LLM. AAAAT should not treat the agent as the user, should not ask the agent to write human notes, and should not accept final artifact files from the agent. AAAAT renders local templates for cover letters and CVs from stored data.
+Agent capabilities are limited to:
 
-Core commands:
-- `aaaat agent tasks --state queued`
-- `aaaat agent context <task_id>`
-- `aaaat agent submit <task_id> --result-body "..."`
-- `aaaat agent submit <task_id> --result-file result.json`
-- `aaaat agent claim <task_id>`
-- `aaaat agent release <task_id>`
+1. obtain the next pending task and task handle;
+2. fetch bounded context for that task handle;
+3. submit a JSON result for that task handle;
+4. request bounded user/style/career context, including CareerPlan where relevant;
+5. create a new candidature from user conversation or source material;
+6. request bounded future tasks for deferred work;
+7. perform LLM-owned reasoning using bounded context.
+
+A task handle is valid only for task context and task result submission. It is not authority to mutate arbitrary local state. AAAAT applies task results to internal records.
+
+The LLM must not receive application IDs, candidature IDs, profile fact IDs, artifact IDs, note IDs, todo IDs, blob IDs, storage paths, or task-related internal IDs as entity mutation authority.
+
+Intended agent commands:
+
+- `aaaat agent next`
+- `aaaat agent context <task_handle>`
+- `aaaat agent submit <task_handle> --result-file result.json`
 - `aaaat agent context-bundle --purpose cover_letter`
 - `aaaat agent action submit --input-file action.json`
+
+The action-session protocol is not CRUD. An agent requests a purpose-scoped context bundle such as `cv_generation`, `cover_letter`, `candidature_fit`, `market_research`, `recruiter_call`, `form_answers`, or `career_plan_review`, then submits one bounded action such as `create_candidature`.
+
+LLM-originated `create_candidature` work starts in the LLM app. In that flow the LLM may already have read the offer, interpreted the user conversation, inferred fields, drafted form answers, drafted cover-letter body text, or completed research before calling AAAAT. AAAAT should not create extraction tasks for work already supplied by the LLM.
+
+AAAAT should not treat the agent as the user, should not ask the agent to write human notes, should not accept final artifact files from the agent, and should not return internal identifiers in acknowledgements. AAAAT renders local templates for cover letters and CVs from stored data.
 
 Agents must not browse, list, search, or patch the user's candidature database. Do not copy private data into public demo files, templates, or docs.
 """
