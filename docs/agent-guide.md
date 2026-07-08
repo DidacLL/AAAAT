@@ -1,6 +1,6 @@
 # Agent Guide
 
-Agents interact with AAAAT through capability-scoped operations, not generic CRUD. The implemented capabilities are task work, raw-offer intake and structured extraction proposals, and bounded action sessions for LLM-app-originated work.
+Agents interact with AAAAT through capability-scoped operations, not generic CRUD. The implemented capabilities are task work plus raw-offer intake and structured extraction proposals.
 
 Agents must not browse, list, search, or patch the user's candidature database.
 
@@ -19,23 +19,6 @@ The optional HTTP adapter exposes equivalent task operations under `/api/agent/*
 Task contexts are minimized by `aaaat.agent_access`. They include a sanitized task envelope, task-specific context, privacy notes, and task-scoped write-back links. They do not include dashboard payloads, all candidatures, arbitrary search results, raw variable dumps, raw profile fact lists, or unrelated notes/artifacts/text blobs.
 
 Submit results back to the task. AAAAT stores provenance and deterministic apply/review remains owned by AAAAT. Agent output must not directly overwrite approved candidature, application, or profile fields.
-
-## Action-session capability
-
-When work starts in the LLM app, request purpose-scoped context before writing:
-
-```bash
-python -m aaaat.cli agent context-bundle --purpose cover_letter
-```
-
-Submit one bounded action:
-
-```bash
-python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'
-python -m aaaat.cli agent action submit --input-file action.json
-```
-
-The first implemented action is `create_candidature`. It can create a local candidature, store LLM-supplied research/preparation fields, form answers, and cover-letter body render input, and request local cover-letter rendering. Responses are acknowledgements only and do not expose internal ids by default. AAAAT renders artifacts locally from templates; the LLM supplies render data, not generated files.
 
 ## Intake/proposal capability
 

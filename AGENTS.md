@@ -5,9 +5,6 @@ AAAAT is not an LLM wrapper. Agents use capability-scoped commands with explicit
 Implemented agent capability:
 - `python -m aaaat.cli agent tasks --state queued`
 - `python -m aaaat.cli agent context <task_id>`
-- `python -m aaaat.cli agent context-bundle --purpose cover_letter`
-- `python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'`
-- `python -m aaaat.cli agent action submit --input-file action.json`
 - `python -m aaaat.cli agent submit <task_id> --result-body "..."`
 - `python -m aaaat.cli agent submit <task_id> --result-file result.json`
 - `python -m aaaat.cli agent claim <task_id>`
@@ -21,7 +18,5 @@ Implemented agent intake capability:
 Agent intake is allowed only as schema-bound `aaaat agent ...` operations or `/api/agent/*` routes that return narrow acknowledgements/envelopes, opaque correlation ids, task envelopes, and next allowed actions, not as generic CRUD/list/search access.
 
 The browser dashboard is a compact local human working surface. Its routes are not an agent contract. Add new opportunities through dashboard raw-offer intake, user-directed local CLI use, or capability-scoped agent intake; never by agents enumerating private data.
-
-When work starts in an LLM app, use the action-session capability: request purpose-scoped context, then submit one bounded action. AAAAT stores local data and renders artifacts locally from templates. The LLM supplies render data; it does not create generated artifact files.
 
 Do not place private values in public demos, source templates, docs, or examples.

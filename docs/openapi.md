@@ -24,16 +24,9 @@ Implemented intake/proposal routes:
 - `POST /api/agent/intake/raw-offer`
 - `POST /api/agent/intake/{correlation_id}/extraction`
 
-Implemented action-session routes:
-
-- `POST /api/agent/context-bundle`
-- `POST /api/agent/actions`
-
 Task list responses return sanitized envelopes only. Task contexts are built by `aaaat.agent_access` and contain task-specific data, privacy notes, allowed actions, and task-scoped write-back links.
 
 Agent intake/proposal routes are schema-bound capabilities. Raw-offer intake creates a placeholder candidature and extraction/enrichment tasks, but responses are narrow acknowledgements plus opaque correlation ids/task envelopes. Structured extraction accepts finite documented JSON fields and routes output through reviewable task results or deterministic apply logic. It is not generic candidature CRUD.
-
-Action-session routes are also schema-bound capabilities. Context bundles return only purpose-scoped profile context. Action submission accepts one allowlisted action; the first implemented action is `create_candidature`. AAAAT stores local data and renders local artifacts from templates. Agent-facing responses do not expose internal object ids by default.
 
 Agent-facing HTTP does not expose all candidatures, dashboard payloads, review queues, arbitrary search, variables, profile facts, render routes, generic CRUD, notes, artifacts, todos, text blobs, or keyword collections.
 
