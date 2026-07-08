@@ -24,7 +24,9 @@ The agent runtime exposes only bounded capabilities:
 4. request a bounded context bundle;
 5. submit one bounded action packet.
 
-A task handle is valid only for task context and result submission. AAAAT owns applying results to internal records. Agents must not receive application IDs, candidature IDs, profile fact IDs, artifact IDs, file paths, or storage paths as mutation authority.
+A task handle is valid only for task context and result submission. In the MVP it may equal AAAAT's local task row identifier, but it is accepted only as a task endpoint handle. AAAAT owns applying results to internal records. Agents must not receive application IDs, candidature IDs, profile fact IDs, artifact IDs, note IDs, todo IDs, blob IDs, file paths, or storage paths as mutation authority.
+
+Agent-scoped profile facts use non-ID fact references such as `fact_ref: skill.python` and placeholders such as `{{ profile_fact.skill.python }}`. Do not treat those labels as profile CRUD handles.
 
 The action-session protocol is not CRUD. An agent first requests a purpose-scoped context bundle such as `cv_generation`, `cover_letter`, `candidature_fit`, `recruiter_call`, or `form_answers`, then submits one bounded action such as `create_candidature` from already-inferred fields, cover-letter body text, or render inputs.
 
