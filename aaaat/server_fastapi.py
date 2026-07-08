@@ -1,17 +1,15 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
-
-from fastapi import Request
 
 from .agent_actions import get_agent_context_bundle, submit_agent_action
 from .agent_access import (
     build_agent_task_context,
-    claim_agent_task,
-    list_agent_task_envelopes,
-    release_agent_task,
+    next_agent_task_envelope,
     submit_agent_task_result,
+    task_result_ack,
 )
 from .candidatures import create_candidature, update_candidature
 from .dashboard import render_dashboard as render_legacy_dashboard
@@ -39,41 +37,142 @@ def _require_fastapi() -> tuple[Any, Any, Any, Any, Any, Any, Any, Any]:
     return Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse, StaticFiles
 
 
-def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface: str = "dashboard") -> Any:
-    Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse, StaticFiles = _require_fastapi()
-    selected_mode = Mode(mode)
-    if surface not in {"dashboard", "agent"}:
-        raise ValueError(f"Invalid surface: {surface}")
-    app = FastAPI(
-        title="AAAAT",
-        version="0.1.0",
-        docs_url=None if surface == "dashboard" else "/docs",
-        redoc_url=None,
-        openapi_url=None if surface == "dashboard" else "/openapi.json",
-    )
+def _configure_app(app: Any, storage: str, mode: Mode | str, runtime: str) -> Any:
     app.state.storage_path = storage
-    app.state.mode = selected_mode
-    app.state.surface = surface
+    app.state.mode = Mode(mode)
+    app.state.runtime = runtime
+    app.state.surface = runtime
+    return app
+
+
+def _handle_error(exc: Exception, http_exception: Any) -> None:
+    if isinstance(exc, KeyError):
+        raise http_exception(status_code=404, detail=str(exc)) from exc
+    if isinstance(exc, ValueError):
+        raise http_exception(status_code=400, detail=str(exc)) from exc
+    raise exc
+
+
+async def _request_data(request: Any, http_exception: Any) -> tuple[dict[str, Any], bool]:
+    content_type = request.headers.get("content-type", "")
+    if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
+        form = await request.form()
+        return {key: str(value) for key, value in form.items()}, True
+    body = await request.body()
+    if not body:
+        return {}, False
+    data = await request.json()
+    if not isinstance(data, dict):
+        raise http_exception(status_code=400, detail="request body must be a JSON object")
+    return data, False
+
+
+def _json_result_body(data: dict[str, Any]) -> str:
+    if "result_json" in data:
+        return json.dumps(data["result_json"], indent=2, sort_keys=True)
+    if "result" in data:
+        return json.dumps(data["result"], indent=2, sort_keys=True)
+    return str(data.get("result_body", ""))
+
+
+def create_agent_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
+    Depends, FastAPI, HTTPException, _, _, _, _, _ = _require_fastapi()
+    app = _configure_app(
+        FastAPI(title="AAAAT Agent Runtime", version="0.1.0", docs_url="/docs", redoc_url=None, openapi_url="/openapi.json"),
+        storage,
+        mode,
+        "agent",
+    )
+
+    def writable() -> None:
+        if app.state.mode != Mode.FULL:
+            raise HTTPException(status_code=403, detail="read only")
+
+    @app.get("/api/health")
+    def agent_health() -> dict[str, Any]:
+        return {"ok": True, "mode": app.state.mode.value, "runtime": "agent", "surface": "agent"}
+
+    @app.get("/api/agent/tasks/next")
+    def agent_next_task() -> dict[str, Any]:
+        with connect(app.state.storage_path) as conn:
+            return {"task": next_agent_task_envelope(conn)}
+
+    @app.get("/api/agent/tasks/{task_handle}/context")
+    def agent_task_context(task_handle: str) -> dict[str, Any]:
+        try:
+            with connect(app.state.storage_path) as conn:
+                return build_agent_task_context(conn, task_handle)
+        except Exception as exc:
+            _handle_error(exc, HTTPException)
+
+    @app.post("/api/agent/tasks/{task_handle}/result", dependencies=[Depends(writable)])
+    async def agent_submit_result(task_handle: str, request: Any) -> dict[str, Any]:
+        data, _ = await _request_data(request, HTTPException)
+        result_body = _json_result_body(data)
+        if not result_body.strip():
+            raise HTTPException(status_code=400, detail="result_json or result_body is required")
+        try:
+            with connect(app.state.storage_path) as conn:
+                task = submit_agent_task_result(
+                    conn,
+                    task_handle,
+                    result_body,
+                    result_title=data.get("result_title", ""),
+                    agent_name=data.get("agent_name", ""),
+                    agent_runtime=data.get("agent_runtime", ""),
+                    model_provider=data.get("model_provider", ""),
+                )
+                return task_result_ack(task)
+        except Exception as exc:
+            _handle_error(exc, HTTPException)
+
+    @app.post("/api/agent/context-bundle")
+    async def agent_context_bundle(request: Any) -> dict[str, Any]:
+        data, _ = await _request_data(request, HTTPException)
+        try:
+            with connect(app.state.storage_path) as conn:
+                return get_agent_context_bundle(conn, data.get("purpose", ""))
+        except Exception as exc:
+            _handle_error(exc, HTTPException)
+
+    @app.post("/api/agent/actions", dependencies=[Depends(writable)])
+    async def agent_submit_action(request: Any) -> dict[str, Any]:
+        data, _ = await _request_data(request, HTTPException)
+        packet = {"action": data.get("action"), "payload": data.get("payload", {})}
+        try:
+            with connect(app.state.storage_path) as conn:
+                return submit_agent_action(
+                    conn,
+                    packet,
+                    agent_name=data.get("agent_name", ""),
+                    agent_runtime=data.get("agent_runtime", ""),
+                    model_provider=data.get("model_provider", ""),
+                    storage_path=app.state.storage_path,
+                )
+        except Exception as exc:
+            _handle_error(exc, HTTPException)
+
+    return app
+
+
+def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL) -> Any:
+    Depends, FastAPI, HTTPException, Request, HTMLResponse, JSONResponse, RedirectResponse, StaticFiles = _require_fastapi()
+    app = _configure_app(
+        FastAPI(title="AAAAT Dashboard Runtime", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None),
+        storage,
+        mode,
+        "dashboard",
+    )
 
     def writable() -> None:
         if app.state.mode != Mode.FULL:
             raise HTTPException(status_code=403, detail="read only")
 
     async def request_data(request: Request) -> tuple[dict[str, Any], bool]:
-        content_type = request.headers.get("content-type", "")
-        if "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
-            form = await request.form()
-            return {key: str(value) for key, value in form.items()}, True
-        body = await request.body()
-        if not body:
-            return {}, False
-        data = await request.json()
-        if not isinstance(data, dict):
-            raise HTTPException(status_code=400, detail="request body must be a JSON object")
-        return data, False
+        return await _request_data(request, HTTPException)
 
     def respond(payload: dict[str, Any], status: int, is_form: bool, redirect_to: str) -> Any:
-        if is_form or app.state.surface == "dashboard":
+        if is_form:
             return RedirectResponse(redirect_to, status_code=303)
         return JSONResponse(payload, status_code=status)
 
@@ -94,11 +193,7 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
         return [str(term).strip() for term in (value or []) if str(term).strip()]
 
     def handle_error(exc: Exception) -> None:
-        if isinstance(exc, KeyError):
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-        if isinstance(exc, ValueError):
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        raise exc
+        _handle_error(exc, HTTPException)
 
     def make_view_model(
         conn: Any,
@@ -148,427 +243,351 @@ def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface:
                 fields[key] = bool_field(data, key)
         return fields
 
-    def register_agent_routes() -> None:
-        @app.get("/api/health")
-        def agent_health() -> dict[str, Any]:
-            return {"ok": True, "mode": app.state.mode.value, "surface": app.state.surface}
+    app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
 
-        @app.get("/api/agent/tasks")
-        def agent_tasks(state: str | None = None, limit: int | None = None) -> dict[str, Any]:
+    @app.get("/api/health")
+    def health() -> dict[str, Any]:
+        return {"ok": True, "mode": app.state.mode.value, "runtime": "dashboard", "surface": "dashboard"}
+
+    @app.get("/", response_class=HTMLResponse)
+    def index(
+        application_id: str | None = None,
+        keyword: str | None = None,
+        tab: str = "company",
+        view: str | None = None,
+        renderer: str | None = None,
+        q: str | None = None,
+    ) -> Any:
+        with connect(app.state.storage_path) as conn:
+            payload = dashboard_payload(conn, include_raw=app.state.mode == Mode.FULL)
+            if renderer == "legacy":
+                return HTMLResponse(render_legacy_dashboard(payload, app.state.mode, application_id, keyword, tab))
+            model = dashboard_view_model(
+                payload,
+                app.state.mode,
+                view=view,
+                selected_application_id=application_id,
+                selected_keyword=keyword,
+                search_query=q,
+                conn=conn,
+            )
+        return HTMLResponse(render_dashboard_view(payload, app.state.mode, view_model=model))
+
+    @app.get("/legacy", response_class=HTMLResponse)
+    def legacy(application_id: str | None = None, keyword: str | None = None, tab: str = "company") -> Any:
+        with connect(app.state.storage_path) as conn:
+            payload = dashboard_payload(conn, include_raw=app.state.mode == Mode.FULL)
+        return HTMLResponse(render_legacy_dashboard(payload, app.state.mode, application_id, keyword, tab))
+
+    @app.get("/dashboard/fragments/{fragment}", response_class=HTMLResponse)
+    def dashboard_fragment(
+        fragment: str,
+        application_id: str | None = None,
+        keyword: str | None = None,
+        view: str | None = None,
+        q: str | None = None,
+    ) -> Any:
+        try:
             with connect(app.state.storage_path) as conn:
-                return {"tasks": list_agent_task_envelopes(conn, state=state, limit=limit)}
+                model = make_view_model(conn, view=view, application_id=application_id, keyword=keyword, q=q)
+            return HTMLResponse(render_dashboard_fragment(fragment, model))
+        except Exception as exc:
+            handle_error(exc)
 
-        @app.get("/api/agent/tasks/{task_id}/context")
-        def agent_task_context(task_id: str) -> dict[str, Any]:
-            try:
-                with connect(app.state.storage_path) as conn:
-                    return build_agent_task_context(conn, task_id)
-            except Exception as exc:
-                handle_error(exc)
+    @app.get("/intake", response_class=HTMLResponse)
+    def intake() -> Any:
+        return HTMLResponse(render_raw_offer_intake_page(app.state.mode))
 
-        @app.post("/api/agent/context-bundle")
-        async def agent_context_bundle(request: Request) -> dict[str, Any]:
-            data, _ = await request_data(request)
-            try:
-                with connect(app.state.storage_path) as conn:
-                    return get_agent_context_bundle(conn, data.get("purpose", ""))
-            except Exception as exc:
-                handle_error(exc)
+    @app.post("/dashboard/actions/raw-offer-intake", dependencies=[Depends(writable)])
+    async def dashboard_raw_offer_intake(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        fields = {
+            "company": data.get("company") or "Pending extraction",
+            "role": data.get("role") or "Pending role",
+            "status": data.get("status") or "intake",
+            "priority": data.get("priority") or "normal",
+            "next_action": "Extract raw offer details",
+            "raw_offer": data.get("content", ""),
+            "created_by": data.get("created_by", "user") or "user",
+            "include_cv_task": bool_field(data, "include_cv_task"),
+            "include_cover_letter_task": bool_field(data, "include_cover_letter_task"),
+            "include_form_responses_task": bool_field(data, "include_form_responses_task"),
+            "include_field_inference_task": bool_field_default(data, "include_field_inference_task", True),
+            "include_company_research_task": bool_field_default(data, "include_company_research_task", True),
+            "include_keyword_detection_task": bool_field_default(data, "include_keyword_detection_task", True),
+        }
+        for key in ("source", "source_url", "location"):
+            if data.get(key):
+                fields[key] = data[key]
+        if data.get("keywords"):
+            fields["keywords"] = keyword_list(data["keywords"])
+        with connect(app.state.storage_path) as conn:
+            item = create_candidature(conn, **fields)
+            if wants_fragment(request):
+                model = make_view_model(conn, view="detailedView", application_id=item["id"])
+                return HTMLResponse(render_dashboard_fragment("inspector", model))
+        return respond(item, 201, is_form, f"/?application_id={item['id']}&tab=raw")
 
-        @app.post("/api/agent/actions", dependencies=[Depends(writable)])
-        async def agent_submit_action(request: Request) -> dict[str, Any]:
-            data, _ = await request_data(request)
-            packet = {"action": data.get("action"), "payload": data.get("payload", {})}
-            try:
-                with connect(app.state.storage_path) as conn:
-                    return submit_agent_action(
-                        conn,
-                        packet,
-                        agent_name=data.get("agent_name", ""),
-                        agent_runtime=data.get("agent_runtime", ""),
-                        model_provider=data.get("model_provider", ""),
-                        storage_path=app.state.storage_path,
-                    )
-            except Exception as exc:
-                handle_error(exc)
+    @app.post("/dashboard/actions/applications/{application_id}", dependencies=[Depends(writable)])
+    async def dashboard_patch_application(application_id: str, request: Request) -> Any:
+        data, is_form = await request_data(request)
+        if data.get("_method", "").upper() != "PATCH":
+            raise HTTPException(status_code=405, detail="method not allowed")
+        if "keywords" in data:
+            data["keywords"] = keyword_list(data["keywords"])
+        with connect(app.state.storage_path) as conn:
+            item = update_application(conn, application_id, **data)
+            if wants_fragment(request):
+                model = make_view_model(conn, view=data.get("view") or "detailedView", application_id=application_id)
+                return HTMLResponse(render_dashboard_fragment("selected-card", model))
+        return respond(item, 200, is_form, f"/?application_id={application_id}")
 
-        @app.post("/api/agent/tasks/{task_id}/claim", dependencies=[Depends(writable)])
-        async def agent_claim_task(task_id: str, request: Request) -> Any:
-            data, _ = await request_data(request)
-            try:
-                with connect(app.state.storage_path) as conn:
-                    return claim_agent_task(conn, task_id, agent_name=data.get("agent_name", ""), agent_runtime=data.get("agent_runtime", ""))
-            except Exception as exc:
-                handle_error(exc)
-
-        @app.post("/api/agent/tasks/{task_id}/result", dependencies=[Depends(writable)])
-        async def agent_submit_result(task_id: str, request: Request) -> Any:
-            data, _ = await request_data(request)
-            try:
-                with connect(app.state.storage_path) as conn:
-                    return submit_agent_task_result(
-                        conn,
-                        task_id,
-                        data.get("result_body", ""),
-                        result_title=data.get("result_title", ""),
-                        agent_name=data.get("agent_name", ""),
-                        agent_runtime=data.get("agent_runtime", ""),
-                        model_provider=data.get("model_provider", ""),
-                        artifact_id=data.get("artifact_id") or None,
-                    )
-            except Exception as exc:
-                handle_error(exc)
-
-        @app.post("/api/agent/tasks/{task_id}/release", dependencies=[Depends(writable)])
-        async def agent_release_task(task_id: str) -> dict[str, Any]:
-            try:
-                with connect(app.state.storage_path) as conn:
-                    return release_agent_task(conn, task_id)
-            except Exception as exc:
-                handle_error(exc)
-
-    def register_dashboard_routes() -> None:
-        app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
-
-        @app.get("/api/health")
-        def health() -> dict[str, Any]:
-            return {"ok": True, "mode": app.state.mode.value, "surface": app.state.surface}
-
-        @app.get("/", response_class=HTMLResponse)
-        def index(
-            application_id: str | None = None,
-            keyword: str | None = None,
-            tab: str = "company",
-            view: str | None = None,
-            renderer: str | None = None,
-            q: str | None = None,
-        ) -> Any:
-            with connect(app.state.storage_path) as conn:
-                payload = dashboard_payload(conn, include_raw=app.state.mode == Mode.FULL)
-                if renderer == "legacy":
-                    return HTMLResponse(render_legacy_dashboard(payload, app.state.mode, application_id, keyword, tab))
-                model = dashboard_view_model(
-                    payload,
-                    app.state.mode,
-                    view=view,
-                    selected_application_id=application_id,
-                    selected_keyword=keyword,
-                    search_query=q,
-                    conn=conn,
-                )
-            return HTMLResponse(render_dashboard_view(payload, app.state.mode, view_model=model))
-
-        @app.get("/legacy", response_class=HTMLResponse)
-        def legacy(application_id: str | None = None, keyword: str | None = None, tab: str = "company") -> Any:
-            with connect(app.state.storage_path) as conn:
-                payload = dashboard_payload(conn, include_raw=app.state.mode == Mode.FULL)
-            return HTMLResponse(render_legacy_dashboard(payload, app.state.mode, application_id, keyword, tab))
-
-        @app.get("/dashboard/fragments/{fragment}", response_class=HTMLResponse)
-        def dashboard_fragment(
-            fragment: str,
-            application_id: str | None = None,
-            keyword: str | None = None,
-            view: str | None = None,
-            q: str | None = None,
-        ) -> Any:
-            try:
-                with connect(app.state.storage_path) as conn:
-                    model = make_view_model(conn, view=view, application_id=application_id, keyword=keyword, q=q)
-                return HTMLResponse(render_dashboard_fragment(fragment, model))
-            except Exception as exc:
-                handle_error(exc)
-
-        @app.get("/intake", response_class=HTMLResponse)
-        def intake() -> Any:
-            return HTMLResponse(render_raw_offer_intake_page(app.state.mode))
-
-        @app.post("/dashboard/actions/raw-offer-intake", dependencies=[Depends(writable)])
-        async def dashboard_raw_offer_intake(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            fields = {
-                "company": data.get("company") or "Pending extraction",
-                "role": data.get("role") or "Pending role",
-                "status": data.get("status") or "intake",
-                "priority": data.get("priority") or "normal",
-                "next_action": "Extract raw offer details",
-                "raw_offer": data.get("content", ""),
-                "created_by": data.get("created_by", "user") or "user",
-                "include_cv_task": bool_field(data, "include_cv_task"),
-                "include_cover_letter_task": bool_field(data, "include_cover_letter_task"),
-                "include_form_responses_task": bool_field(data, "include_form_responses_task"),
-                "include_field_inference_task": bool_field_default(data, "include_field_inference_task", True),
-                "include_company_research_task": bool_field_default(data, "include_company_research_task", True),
-                "include_keyword_detection_task": bool_field_default(data, "include_keyword_detection_task", True),
+    @app.post("/dashboard/actions/candidatures/{candidature_id}", dependencies=[Depends(writable)])
+    async def dashboard_patch_candidature(candidature_id: str, request: Request) -> Any:
+        data, is_form = await request_data(request)
+        if data.get("_method", "").upper() != "PATCH":
+            raise HTTPException(status_code=405, detail="method not allowed")
+        update_fields = {
+            key: data[key]
+            for key in {
+                "description",
+                "salary_expectation",
+                "publication_date",
+                "application_date",
+                "raw_application_form",
+                "strengths",
+                "questions_to_ask",
+                "tech_stack",
+                "valuation",
             }
-            for key in ("source", "source_url", "location"):
-                if data.get(key):
-                    fields[key] = data[key]
-            if data.get("keywords"):
-                fields["keywords"] = keyword_list(data["keywords"])
-            with connect(app.state.storage_path) as conn:
-                item = create_candidature(conn, **fields)
-                if wants_fragment(request):
-                    model = make_view_model(conn, view="detailedView", application_id=item["id"])
-                    return HTMLResponse(render_dashboard_fragment("inspector", model))
-            return respond(item, 201, is_form, f"/?application_id={item['id']}&tab=raw")
+            if key in data
+        }
+        with connect(app.state.storage_path) as conn:
+            item = update_candidature(conn, candidature_id, **update_fields)
+            if wants_fragment(request):
+                model = make_view_model(conn, view=data.get("view") or "detailedView", application_id=candidature_id)
+                return HTMLResponse(render_dashboard_fragment("selected-card", model))
+        return respond(item, 200, is_form, f"/?view=detailedView&application_id={candidature_id}")
 
-        @app.post("/dashboard/actions/applications/{application_id}", dependencies=[Depends(writable)])
-        async def dashboard_patch_application(application_id: str, request: Request) -> Any:
-            data, is_form = await request_data(request)
-            if data.get("_method", "").upper() != "PATCH":
-                raise HTTPException(status_code=405, detail="method not allowed")
-            if "keywords" in data:
-                data["keywords"] = keyword_list(data["keywords"])
-            with connect(app.state.storage_path) as conn:
-                item = update_application(conn, application_id, **data)
-                if wants_fragment(request):
-                    model = make_view_model(conn, view=data.get("view") or "detailedView", application_id=application_id)
-                    return HTMLResponse(render_dashboard_fragment("selected-card", model))
-            return respond(item, 200, is_form, f"/?application_id={application_id}")
+    @app.post("/dashboard/actions/notes", dependencies=[Depends(writable)])
+    async def dashboard_create_note(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        with connect(app.state.storage_path) as conn:
+            item = create_note(
+                conn,
+                data.get("body", ""),
+                application_id=data.get("application_id") or None,
+                note_type=data.get("note_type", "general"),
+                created_by=data.get("created_by", "user"),
+            )
+        return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-        @app.post("/dashboard/actions/candidatures/{candidature_id}", dependencies=[Depends(writable)])
-        async def dashboard_patch_candidature(candidature_id: str, request: Request) -> Any:
-            data, is_form = await request_data(request)
-            if data.get("_method", "").upper() != "PATCH":
-                raise HTTPException(status_code=405, detail="method not allowed")
-            update_fields = {
-                key: data[key]
-                for key in {
-                    "description",
-                    "salary_expectation",
-                    "publication_date",
-                    "application_date",
-                    "raw_application_form",
-                    "strengths",
-                    "questions_to_ask",
-                    "tech_stack",
-                    "valuation",
-                }
-                if key in data
-            }
-            with connect(app.state.storage_path) as conn:
-                item = update_candidature(conn, candidature_id, **update_fields)
-                if wants_fragment(request):
-                    model = make_view_model(conn, view=data.get("view") or "detailedView", application_id=candidature_id)
-                    return HTMLResponse(render_dashboard_fragment("selected-card", model))
-            return respond(item, 200, is_form, f"/?view=detailedView&application_id={candidature_id}")
+    @app.post("/dashboard/actions/todos", dependencies=[Depends(writable)])
+    async def dashboard_create_todo(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        with connect(app.state.storage_path) as conn:
+            item = create_todo(
+                conn,
+                data.get("title", ""),
+                application_id=data.get("application_id") or None,
+                body=data.get("body", ""),
+                state=data.get("state", "open"),
+                pinned=bool_field(data, "pinned"),
+                due_at=data.get("due_at", ""),
+            )
+        return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
 
-        @app.post("/dashboard/actions/notes", dependencies=[Depends(writable)])
-        async def dashboard_create_note(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            with connect(app.state.storage_path) as conn:
-                item = create_note(
+    @app.post("/dashboard/actions/tasks", dependencies=[Depends(writable)])
+    async def dashboard_create_task(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        with connect(app.state.storage_path) as conn:
+            item = create_task(
+                conn,
+                data.get("task_type", "manual"),
+                data.get("title", "Task"),
+                application_id=data.get("application_id") or None,
+                instructions=data.get("instructions", ""),
+                state=data.get("state", "queued"),
+                priority=data.get("priority", "normal"),
+                context_hint=data.get("context_hint", ""),
+                created_by=data.get("created_by", "user"),
+                notes=data.get("notes", ""),
+            )
+        return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
+
+    @app.post("/dashboard/actions/tasks/{task_id}/complete", dependencies=[Depends(writable)])
+    async def dashboard_complete_task(task_id: str, request: Request) -> Any:
+        data, is_form = await request_data(request)
+        with connect(app.state.storage_path) as conn:
+            item = complete_task(
+                conn,
+                task_id,
+                result_body=data.get("result_body", ""),
+                result_title=data.get("result_title", ""),
+                artifact_id=data.get("artifact_id") or None,
+                agent_name=data.get("agent_name", ""),
+                agent_runtime=data.get("agent_runtime", ""),
+            )
+        return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
+
+    @app.post("/dashboard/actions/tasks/{task_id}/apply", dependencies=[Depends(writable)])
+    async def dashboard_apply_task(task_id: str, request: Request) -> Any:
+        _, is_form = await request_data(request)
+        with connect(app.state.storage_path) as conn:
+            item = apply_task_result(conn, task_id)
+        return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
+
+    @app.post("/dashboard/actions/render/cv", dependencies=[Depends(writable)])
+    async def dashboard_render_cv(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        application_id = data.get("application_id", "")
+        output = safe_artifact_output_path(app.state.storage_path, application_id, "cv", data.get("output_path") or None)
+        with connect(app.state.storage_path) as conn:
+            item = render_document_artifact(
+                conn,
+                "cv",
+                output,
+                application_id,
+                compile_pdf=bool_field(data, "compile_pdf"),
+                save_version=bool_field(data, "save_version"),
+            )
+        return respond(item, 200, is_form, f"/?view=detailedView&application_id={application_id}")
+
+    @app.post("/dashboard/actions/render/cover-letter", dependencies=[Depends(writable)])
+    async def dashboard_render_cover_letter(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        application_id = data.get("application_id", "")
+        extra = {"artifact.cover_letter.body": data.get("body", "Draft body pending review.")}
+        if data.get("body_tex"):
+            extra["artifact.cover_letter.body_tex"] = data["body_tex"]
+        output = safe_artifact_output_path(app.state.storage_path, application_id, "cover-letter", data.get("output_path") or None)
+        with connect(app.state.storage_path) as conn:
+            item = render_document_artifact(
+                conn,
+                "cover-letter",
+                output,
+                application_id,
+                extra,
+                compile_pdf=bool_field(data, "compile_pdf"),
+                save_version=bool_field(data, "save_version"),
+            )
+        return respond(item, 200, is_form, f"/?view=detailedView&application_id={application_id}")
+
+    @app.post("/dashboard/actions/profile/facts", dependencies=[Depends(writable)])
+    async def dashboard_create_profile_fact(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        with connect(app.state.storage_path) as conn:
+            item = create_profile_fact(conn, **profile_fact_fields(data))
+            if wants_fragment(request):
+                model = make_view_model(conn)
+                return HTMLResponse(render_dashboard_fragment("inspector", model))
+        return respond(item, 201, is_form, "/")
+
+    @app.post("/dashboard/actions/profile/facts/{fact_id}", dependencies=[Depends(writable)])
+    async def dashboard_patch_profile_fact(fact_id: str, request: Request) -> Any:
+        data, is_form = await request_data(request)
+        if data.get("_method", "").upper() != "PATCH":
+            raise HTTPException(status_code=405, detail="method not allowed")
+        with connect(app.state.storage_path) as conn:
+            item = update_profile_fact(conn, fact_id, **profile_fact_fields(data, partial=True))
+            if wants_fragment(request):
+                model = make_view_model(conn)
+                return HTMLResponse(render_dashboard_fragment("inspector", model))
+        return respond(item, 200, is_form, "/")
+
+    @app.post("/dashboard/actions/profile/facts/{fact_id}/archive", dependencies=[Depends(writable)])
+    async def dashboard_archive_profile_fact(fact_id: str, request: Request) -> Any:
+        _, is_form = await request_data(request)
+        with connect(app.state.storage_path) as conn:
+            item = archive_profile_fact(conn, fact_id)
+            if wants_fragment(request):
+                model = make_view_model(conn)
+                return HTMLResponse(render_dashboard_fragment("inspector", model))
+        return respond(item, 200, is_form, "/")
+
+    @app.post("/dashboard/actions/profile/variables", dependencies=[Depends(writable)])
+    async def dashboard_patch_profile_variable(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        if data.get("_method", "").upper() != "PATCH":
+            raise HTTPException(status_code=405, detail="method not allowed")
+        with connect(app.state.storage_path) as conn:
+            set_profile_variable(conn, data.get("key", ""), data.get("value", ""))
+        return respond({"ok": True, "key": data.get("key", "")}, 200, is_form, "/")
+
+    @app.post("/dashboard/actions/text-blobs", dependencies=[Depends(writable)])
+    async def dashboard_create_text_blob(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        with connect(app.state.storage_path) as conn:
+            item = create_text_blob(
+                conn,
+                data.get("blob_type", "note"),
+                data.get("body", ""),
+                application_id=data.get("application_id") or None,
+                title=data.get("title", ""),
+                source_context=data.get("source_context", ""),
+                review_state=data.get("review_state", "draft"),
+                created_by=data.get("created_by", "user"),
+                agent_name=data.get("agent_name", ""),
+                agent_runtime=data.get("agent_runtime", ""),
+                model_provider=data.get("model_provider", ""),
+                notes=data.get("notes", ""),
+            )
+        return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
+
+    @app.post("/dashboard/actions/user-view", dependencies=[Depends(writable)])
+    async def dashboard_user_view(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        application_id = data.get("application_id", "")
+        source_context = f"candidature:{application_id}:user_view"
+        with connect(app.state.storage_path) as conn:
+            existing = next(
+                (
+                    blob
+                    for blob in list_text_blobs(conn, application_id)
+                    if blob.get("blob_type") == "user_view" and blob.get("source_context") == source_context
+                ),
+                None,
+            )
+            if existing:
+                item = update_text_blob(
                     conn,
-                    data.get("body", ""),
-                    application_id=data.get("application_id") or None,
-                    note_type=data.get("note_type", "general"),
-                    created_by=data.get("created_by", "user"),
-                )
-            return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
-
-        @app.post("/dashboard/actions/todos", dependencies=[Depends(writable)])
-        async def dashboard_create_todo(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            with connect(app.state.storage_path) as conn:
-                item = create_todo(
-                    conn,
-                    data.get("title", ""),
-                    application_id=data.get("application_id") or None,
+                    existing["id"],
+                    title=data.get("title", "User view"),
                     body=data.get("body", ""),
-                    state=data.get("state", "open"),
-                    pinned=bool_field(data, "pinned"),
-                    due_at=data.get("due_at", ""),
+                    review_state="draft",
                 )
-            return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
-
-        @app.post("/dashboard/actions/tasks", dependencies=[Depends(writable)])
-        async def dashboard_create_task(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            with connect(app.state.storage_path) as conn:
-                item = create_task(
-                    conn,
-                    data.get("task_type", "manual"),
-                    data.get("title", "Task"),
-                    application_id=data.get("application_id") or None,
-                    instructions=data.get("instructions", ""),
-                    state=data.get("state", "queued"),
-                    priority=data.get("priority", "normal"),
-                    context_hint=data.get("context_hint", ""),
-                    created_by=data.get("created_by", "user"),
-                    notes=data.get("notes", ""),
-                )
-            return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
-
-        @app.post("/dashboard/actions/tasks/{task_id}/complete", dependencies=[Depends(writable)])
-        async def dashboard_complete_task(task_id: str, request: Request) -> Any:
-            data, is_form = await request_data(request)
-            with connect(app.state.storage_path) as conn:
-                item = complete_task(
-                    conn,
-                    task_id,
-                    result_body=data.get("result_body", ""),
-                    result_title=data.get("result_title", ""),
-                    artifact_id=data.get("artifact_id") or None,
-                    agent_name=data.get("agent_name", ""),
-                    agent_runtime=data.get("agent_runtime", ""),
-                )
-            return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
-
-        @app.post("/dashboard/actions/tasks/{task_id}/apply", dependencies=[Depends(writable)])
-        async def dashboard_apply_task(task_id: str, request: Request) -> Any:
-            _, is_form = await request_data(request)
-            with connect(app.state.storage_path) as conn:
-                item = apply_task_result(conn, task_id)
-            return respond(item, 200, is_form, f"/?application_id={item.get('application_id') or ''}")
-
-        @app.post("/dashboard/actions/render/cv", dependencies=[Depends(writable)])
-        async def dashboard_render_cv(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            application_id = data.get("application_id", "")
-            output = safe_artifact_output_path(app.state.storage_path, application_id, "cv", data.get("output_path") or None)
-            with connect(app.state.storage_path) as conn:
-                item = render_document_artifact(
-                    conn,
-                    "cv",
-                    output,
-                    application_id,
-                    compile_pdf=bool_field(data, "compile_pdf"),
-                    save_version=bool_field(data, "save_version"),
-                )
-            return respond(item, 200, is_form, f"/?view=detailedView&application_id={application_id}")
-
-        @app.post("/dashboard/actions/render/cover-letter", dependencies=[Depends(writable)])
-        async def dashboard_render_cover_letter(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            application_id = data.get("application_id", "")
-            extra = {"artifact.cover_letter.body": data.get("body", "Draft body pending review.")}
-            if data.get("body_tex"):
-                extra["artifact.cover_letter.body_tex"] = data["body_tex"]
-            output = safe_artifact_output_path(app.state.storage_path, application_id, "cover-letter", data.get("output_path") or None)
-            with connect(app.state.storage_path) as conn:
-                item = render_document_artifact(
-                    conn,
-                    "cover-letter",
-                    output,
-                    application_id,
-                    extra,
-                    compile_pdf=bool_field(data, "compile_pdf"),
-                    save_version=bool_field(data, "save_version"),
-                )
-            return respond(item, 200, is_form, f"/?view=detailedView&application_id={application_id}")
-
-        @app.post("/dashboard/actions/profile/facts", dependencies=[Depends(writable)])
-        async def dashboard_create_profile_fact(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            with connect(app.state.storage_path) as conn:
-                item = create_profile_fact(conn, **profile_fact_fields(data))
-                if wants_fragment(request):
-                    model = make_view_model(conn)
-                    return HTMLResponse(render_dashboard_fragment("inspector", model))
-            return respond(item, 201, is_form, "/")
-
-        @app.post("/dashboard/actions/profile/facts/{fact_id}", dependencies=[Depends(writable)])
-        async def dashboard_patch_profile_fact(fact_id: str, request: Request) -> Any:
-            data, is_form = await request_data(request)
-            if data.get("_method", "").upper() != "PATCH":
-                raise HTTPException(status_code=405, detail="method not allowed")
-            with connect(app.state.storage_path) as conn:
-                item = update_profile_fact(conn, fact_id, **profile_fact_fields(data, partial=True))
-                if wants_fragment(request):
-                    model = make_view_model(conn)
-                    return HTMLResponse(render_dashboard_fragment("inspector", model))
-            return respond(item, 200, is_form, "/")
-
-        @app.post("/dashboard/actions/profile/facts/{fact_id}/archive", dependencies=[Depends(writable)])
-        async def dashboard_archive_profile_fact(fact_id: str, request: Request) -> Any:
-            _, is_form = await request_data(request)
-            with connect(app.state.storage_path) as conn:
-                item = archive_profile_fact(conn, fact_id)
-                if wants_fragment(request):
-                    model = make_view_model(conn)
-                    return HTMLResponse(render_dashboard_fragment("inspector", model))
-            return respond(item, 200, is_form, "/")
-
-        @app.post("/dashboard/actions/profile/variables", dependencies=[Depends(writable)])
-        async def dashboard_patch_profile_variable(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            if data.get("_method", "").upper() != "PATCH":
-                raise HTTPException(status_code=405, detail="method not allowed")
-            with connect(app.state.storage_path) as conn:
-                set_profile_variable(conn, data.get("key", ""), data.get("value", ""))
-            return respond({"ok": True, "key": data.get("key", "")}, 200, is_form, "/")
-
-        @app.post("/dashboard/actions/text-blobs", dependencies=[Depends(writable)])
-        async def dashboard_create_text_blob(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            with connect(app.state.storage_path) as conn:
+            else:
                 item = create_text_blob(
                     conn,
-                    data.get("blob_type", "note"),
+                    "user_view",
                     data.get("body", ""),
-                    application_id=data.get("application_id") or None,
-                    title=data.get("title", ""),
-                    source_context=data.get("source_context", ""),
-                    review_state=data.get("review_state", "draft"),
-                    created_by=data.get("created_by", "user"),
-                    agent_name=data.get("agent_name", ""),
-                    agent_runtime=data.get("agent_runtime", ""),
-                    model_provider=data.get("model_provider", ""),
-                    notes=data.get("notes", ""),
+                    application_id=application_id,
+                    title=data.get("title", "User view"),
+                    source_context=source_context,
+                    review_state="draft",
+                    created_by="user",
                 )
-            return respond(item, 201, is_form, f"/?application_id={item.get('application_id') or ''}")
+            if wants_fragment(request):
+                model = make_view_model(conn, view="userView", application_id=application_id)
+                return HTMLResponse(render_dashboard_fragment("selected-card", model))
+        return respond(item, 200, is_form, f"/?view=userView&application_id={application_id}")
 
-        @app.post("/dashboard/actions/user-view", dependencies=[Depends(writable)])
-        async def dashboard_user_view(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            application_id = data.get("application_id", "")
-            source_context = f"candidature:{application_id}:user_view"
-            with connect(app.state.storage_path) as conn:
-                existing = next(
-                    (
-                        blob
-                        for blob in list_text_blobs(conn, application_id)
-                        if blob.get("blob_type") == "user_view" and blob.get("source_context") == source_context
-                    ),
-                    None,
-                )
-                if existing:
-                    item = update_text_blob(
-                        conn,
-                        existing["id"],
-                        title=data.get("title", "User view"),
-                        body=data.get("body", ""),
-                        review_state="draft",
-                    )
-                else:
-                    item = create_text_blob(
-                        conn,
-                        "user_view",
-                        data.get("body", ""),
-                        application_id=application_id,
-                        title=data.get("title", "User view"),
-                        source_context=source_context,
-                        review_state="draft",
-                        created_by="user",
-                    )
-                if wants_fragment(request):
-                    model = make_view_model(conn, view="userView", application_id=application_id)
-                    return HTMLResponse(render_dashboard_fragment("selected-card", model))
-            return respond(item, 200, is_form, f"/?view=userView&application_id={application_id}")
+    @app.post("/dashboard/actions/export/static-demo", dependencies=[Depends(writable)])
+    async def dashboard_export_static_demo(request: Request) -> Any:
+        data, is_form = await request_data(request)
+        output = data.get("output_path", "outputs/static-demo.html")
+        item = {"path": str(export_static_demo(output))}
+        return respond(item, 200, is_form, "/")
 
-        @app.post("/dashboard/actions/export/static-demo", dependencies=[Depends(writable)])
-        async def dashboard_export_static_demo(request: Request) -> Any:
-            data, is_form = await request_data(request)
-            output = data.get("output_path", "outputs/static-demo.html")
-            item = {"path": str(export_static_demo(output))}
-            return respond(item, 200, is_form, "/")
-
-    if surface == "agent":
-        register_agent_routes()
-    else:
-        register_dashboard_routes()
     return app
+
+
+def create_app(storage: str = ".private", mode: Mode | str = Mode.FULL, surface: str = "dashboard") -> Any:
+    if surface == "dashboard":
+        return create_dashboard_app(storage, mode)
+    if surface == "agent":
+        return create_agent_app(storage, mode)
+    raise ValueError(f"Invalid surface: {surface}")
 
 
 def launch(
@@ -583,7 +602,7 @@ def launch(
     import uvicorn
 
     mode = Mode.READ_ONLY if read_only else Mode.FULL
-    surface = "agent" if agent_api else "dashboard"
-    app = create_app(storage, mode, surface=surface)
-    print(f"AAAAT {surface} listening on http://{host}:{port}")
+    runtime = "agent" if agent_api else "dashboard"
+    app = create_agent_app(storage, mode) if agent_api else create_dashboard_app(storage, mode)
+    print(f"AAAAT {runtime} listening on http://{host}:{port}")
     uvicorn.run(app, host=host, port=port)
