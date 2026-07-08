@@ -17,7 +17,7 @@ test = ["httpx"]
 aaaat = "aaaat.cli:main"
 
 [tool.setuptools]
-packages = ["aaaat"]
+packages = ["aaaat", "aaaat.dispatch"]
 include-package-data = true
 
 [tool.setuptools.package-data]

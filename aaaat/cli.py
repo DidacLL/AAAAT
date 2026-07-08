@@ -14,6 +14,8 @@ from .agent_access import (
 )
 from .agent_guides import agent_guide
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
+from .dispatch.manual import dispatch_manual
+from .dispatch.packet import build_task_packet
 from .keywords import add_keyword_alias, create_keyword_note
 from .notes import create_note, list_notes
 from .privacy import list_variables, set_variable
@@ -69,6 +71,11 @@ def build_parser() -> argparse.ArgumentParser:
     agent_tasks.add_argument("--limit", type=int)
     agent_context = agent.add_parser("context")
     agent_context.add_argument("task_id")
+    agent_packet = agent.add_parser("packet")
+    agent_packet.add_argument("task_id")
+    agent_dispatch = agent.add_parser("dispatch")
+    agent_dispatch.add_argument("task_id")
+    agent_dispatch.add_argument("--backend", required=True, choices=["manual"])
     agent_submit = agent.add_parser("submit")
     agent_submit.add_argument("task_id")
     result_group = agent_submit.add_mutually_exclusive_group(required=True)
@@ -313,6 +320,10 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(list_agent_task_envelopes(conn, state=args.state, limit=args.limit), indent=2))
         elif args.command == "agent" and args.agent_command == "context":
             print(json.dumps(build_agent_task_context(conn, args.task_id), indent=2))
+        elif args.command == "agent" and args.agent_command == "packet":
+            print(json.dumps(build_task_packet(conn, args.task_id), indent=2))
+        elif args.command == "agent" and args.agent_command == "dispatch":
+            print(json.dumps(dispatch_manual(conn, args.storage, args.task_id), indent=2))
         elif args.command == "agent" and args.agent_command == "submit":
             result_body = Path(args.result_file).read_text(encoding="utf-8") if args.result_file else args.result_body
             print(
