@@ -23,7 +23,9 @@ POST /api/agent/context-bundle
 POST /api/agent/actions
 ```
 
-A task handle is allowed only as an agent-session handle for fetching bounded task context and submitting that task result. It is not authority to mutate arbitrary local state. AAAAT owns mapping task results back to local records.
+A task handle is allowed only as an agent-session handle for fetching bounded task context and submitting that task result. The current MVP may use the local task row identifier as the transitional `task_handle`, but the handle is accepted only by task endpoints. It is not authority to mutate arbitrary local state. AAAAT owns mapping task results back to local records through internal task binding.
+
+Agent task contexts and acknowledgements must not expose application IDs, candidature IDs, artifact IDs, profile fact IDs, note IDs, todo IDs, blob IDs, file paths, or storage paths as mutation handles. Agent-scoped profile facts use `fact_ref` labels and placeholders such as `{{ profile_fact.skill.python }}`, not profile-fact row IDs.
 
 ## AAAAT-originated work
 
