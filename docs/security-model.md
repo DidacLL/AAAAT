@@ -1,31 +1,38 @@
 # Security Model
 
-AAAAT binds the local server to `127.0.0.1` by default and stores private data in `.private/`.
+AAAAT binds local servers to `127.0.0.1` by default and stores private data in `.private/`.
 
-Modes:
-- Full local: normal local working dashboard with viewing, annotations, queue inspection, contextual edits, and raw-offer intake.
-- Read-only: same private data without write/raw intake controls; write requests return `403`.
-- Static demo: fake data only, no backend, no write/raw intake controls.
-- Agent API: capability-scoped HTTP adapter exposing `/api/health` and `/api/agent/*`.
+AAAAT has two separate runtimes:
 
-Agent access is capability-scoped. The implemented capability is the task protocol: agents receive task envelopes and task-specific context from `aaaat.agent_access`; they submit task results with provenance. Agents do not receive database browsing or generic object-mutation surfaces.
+- Dashboard runtime: local human UI with server-rendered HTML, static assets, fragments, and `/dashboard/actions/*` form actions.
+- Agent runtime: machine-facing capability adapter with only bounded task, context, and action routes.
 
-Future LLM-app integration should use an action-session protocol:
+The dashboard runtime is not an agent API. Its HTML and form URLs may contain private internal identifiers because it is human-local.
 
-1. The agent requests a purpose-scoped context bundle using existing profile exposure policy.
-2. The agent submits one bounded action, such as creating a candidature from already-inferred fields, storing form answers, storing cover-letter body text as render input, requesting local rendering, or submitting an existing task result.
+The agent runtime exposes only:
 
-This is not CRUD. The supported contract should not depend on internal AAAAT object identifiers.
+```text
+GET  /api/health
+GET  /api/agent/tasks/next
+GET  /api/agent/tasks/{task_handle}/context
+POST /api/agent/tasks/{task_handle}/result
+POST /api/agent/context-bundle
+POST /api/agent/actions
+```
 
-The dashboard is server-rendered from SQLite through Python. Browser actions use narrow form/htmx routes under `/dashboard/actions/*` and are local human UI internals, not an agent API.
+Agent access is capability-scoped. A task handle is valid only for fetching bounded context and submitting a JSON result for that task. AAAAT owns applying task results to internal records.
 
-Aggregate candidature lists are private behavioral data.
+The agent runtime must not expose dashboard HTML, static assets, fragments, dashboard actions, broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, or entity-ID mutation routes.
 
-Generated private artifacts remain local. AAAAT renders artifacts from local templates, profile/application data, and explicit render inputs. Agents may provide template data such as cover-letter body text, but they do not provide final generated artifact files as the authoritative artifact output.
+The action-session protocol is not CRUD. The agent may request a purpose-scoped context bundle and submit one bounded action, such as creating a new candidature from already-inferred fields, storing form answers, storing cover-letter body text as render input, or requesting local rendering.
+
+Agent acknowledgements should be narrow and should not return application, candidature, profile-fact, artifact, storage, file-path, note, todo, or blob identifiers as mutation handles.
+
+Generated private artifacts remain local. AAAAT renders artifacts from local templates, profile/application data, and explicit render inputs. Agents may provide template data such as cover-letter body text, but they do not provide final generated artifact files as authoritative artifact output.
 
 Private reusable values are stored as variables with stable placeholders. Profile inputs such as `display_name` are canonicalized to `profile.display_name` and represented as `{{ profile.display_name }}` for agent work. Local rendering can resolve real values; agent contexts resolve according to each variable exposure policy (`raw`, `redacted`, `summarized`, `placeholder`, or `denied`); static demos never resolve real values.
 
-# Profile Facts
+## Profile Facts
 
 AAAAT separates two profile data layers:
 
