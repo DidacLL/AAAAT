@@ -10,7 +10,7 @@ PACKET_VERSION = "aaaat.task_packet.v1"
 
 PRIVACY_RULES = [
     "Use only the context in this packet for the task.",
-    "Do not request or infer broad candidature lists, dashboard payloads, arbitrary search results, database paths, or generic CRUD routes.",
+    "Do not request additional private records, local files, or routes.",
     "Respect profile exposure markers; denied or redacted facts are unavailable.",
     "Return a task result only. AAAAT will store it for review and will not auto-apply it.",
 ]
