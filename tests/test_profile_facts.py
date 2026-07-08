@@ -92,6 +92,9 @@ class ProfileFactServiceTests(unittest.TestCase):
         self.assertNotIn("Sensitive exact salary expectation", market_text)
         self.assertNotIn("Private banking operations detail with named systems", market_text)
         self.assertIn("Private banking operations detail with named systems", local_text)
+        for fact in agent["facts"]:
+            self.assertNotIn("id", fact)
+            self.assertIn("fact_ref", fact)
 
 
 class ProfileFactCliTests(unittest.TestCase):
@@ -130,6 +133,7 @@ class ProfileFactCliTests(unittest.TestCase):
 
         self.assertEqual(listed[0]["id"], fact_id)
         self.assertEqual(context["facts"][0]["title"], "Python")
+        self.assertNotIn("id", context["facts"][0])
 
 
 @unittest.skipUnless(FASTAPI_AVAILABLE, "FastAPI/httpx test dependencies are not installed")
@@ -164,7 +168,9 @@ class ProfileFactFastApiTests(unittest.TestCase):
                 self.assertEqual(facts[0]["title"], "AAAAT")
                 fact_id = facts[0]["id"]
                 update_profile_fact(conn, fact_id, exposure="placeholder")
-                self.assertEqual(profile_context(conn, "cv_generation")["facts"][0]["body"], "{{ profile_fact." + fact_id + " }}")
+                self.assertEqual(profile_context(conn, "cv_generation")["facts"][0]["body"], "{{ profile_fact.project.aaaat }}")
+                self.assertNotIn("id", profile_context(conn, "cv_generation")["facts"][0])
+                self.assertEqual(profile_context(conn, "cv_generation", scope="local_dashboard")["facts"][0]["id"], fact_id)
 
             read_only = self.client(tmp, Mode.READ_ONLY)
             self.assertEqual(read_only.post("/dashboard/actions/profile/facts", json={"fact_type": "skill"}).status_code, 403)

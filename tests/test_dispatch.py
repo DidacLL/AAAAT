@@ -72,7 +72,8 @@ class DispatchTests(unittest.TestCase):
             )
 
             packet = json.loads(self.run_cli("--storage", tmp, "agent", "packet", task["id"]).stdout)
-            self.assertEqual(packet["task"]["id"], task["id"])
+            self.assertEqual(packet["task"]["task_handle"], task["id"])
+            self.assertNotIn("id", packet["task"])
             self.assertEqual(packet["task"]["task_type"], "draft_cover_letter")
             self.assertEqual(packet["task"]["title"], "Draft Target Cover Letter")
             self.assertIn("instructions", packet)
@@ -92,6 +93,15 @@ class DispatchTests(unittest.TestCase):
             self.assertNotIn(str(tmp), packet_text)
             self.assertNotIn("aaaat.sqlite3", packet_text)
             for forbidden in (
+                "application_id",
+                "candidature_id",
+                "profile_fact_id",
+                "artifact_id",
+                "note_id",
+                "todo_id",
+                "blob_id",
+                "file_path",
+                "storage_path",
                 "dashboard-payload",
                 "dashboard_payload",
                 "list_applications",
@@ -111,7 +121,8 @@ class DispatchTests(unittest.TestCase):
             )
             outbox_path = Path(dispatch["packet_path"])
             self.assertEqual(dispatch["backend"], "manual")
-            self.assertEqual(dispatch["task_id"], task["id"])
+            self.assertEqual(dispatch["task_handle"], task["id"])
+            self.assertNotIn("task_id", dispatch)
             self.assertEqual(dispatch["packet_version"], packet["packet_version"])
             self.assertNotIn("packet", dispatch)
             dispatch_text = json.dumps(dispatch, sort_keys=True)

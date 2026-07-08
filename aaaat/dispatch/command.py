@@ -8,14 +8,14 @@ import subprocess
 from typing import Any
 
 from .packet import PACKET_VERSION, build_task_packet
-from ..agent_access import submit_agent_task_result
+from ..agent_access import submit_agent_task_result, task_result_ack
 
 
-def dispatch_command(conn: sqlite3.Connection, task_id: str, cmd: str) -> dict[str, Any]:
+def dispatch_command(conn: sqlite3.Connection, task_handle: str, cmd: str) -> dict[str, Any]:
     """Send one task packet to a user-configured command and submit stdout as the result."""
     if not cmd.strip():
         raise ValueError("Command dispatch requires --cmd")
-    packet = build_task_packet(conn, task_id)
+    packet = build_task_packet(conn, task_handle)
     packet_json = json.dumps(packet, indent=2, sort_keys=True) + "\n"
     completed = run_backend_command(
         cmd,
@@ -23,7 +23,7 @@ def dispatch_command(conn: sqlite3.Connection, task_id: str, cmd: str) -> dict[s
     )
     acknowledgement: dict[str, Any] = {
         "backend": "command",
-        "task_id": task_id,
+        "task_handle": task_handle,
         "packet_version": PACKET_VERSION,
         "exit_code": completed.returncode,
         "stderr": completed.stderr,
@@ -36,13 +36,15 @@ def dispatch_command(conn: sqlite3.Connection, task_id: str, cmd: str) -> dict[s
         return acknowledgement
 
     acknowledgement["submitted"] = True
-    acknowledgement["task"] = submit_agent_task_result(
+    task = submit_agent_task_result(
         conn,
-        task_id,
+        task_handle,
         completed.stdout,
         agent_name="command",
         agent_runtime="command",
     )
+    acknowledgement["task"] = task_result_ack(task)["task"]
+    acknowledgement["next"] = ["open_dashboard"]
     return acknowledgement
 
 

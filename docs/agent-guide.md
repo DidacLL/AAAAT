@@ -23,7 +23,11 @@ POST /api/agent/context-bundle
 POST /api/agent/actions
 ```
 
-A task handle is allowed only as an agent-session handle for fetching bounded task context and submitting that task result. It is not authority to mutate arbitrary local state. AAAAT owns mapping task results back to local records.
+A task handle is allowed only as an agent-session handle for fetching bounded task context and submitting that task result. The current MVP may use the local task row identifier as the transitional `task_handle`, but the handle is accepted only by task endpoints. It is not authority to mutate arbitrary local state. AAAAT owns mapping task results back to local records through internal task binding.
+
+Agent task contexts and acknowledgements must not expose application IDs, candidature IDs, artifact IDs, profile fact IDs, note IDs, todo IDs, blob IDs, file paths, or storage paths as mutation handles. Agent-scoped profile facts use `fact_ref` labels and placeholders such as `{{ profile_fact.skill.python }}`, not profile-fact row IDs.
+
+Career plans are local first-class records. Agents receive career plan material only through bounded context bundles, under `career_plans`, using non-ID `plan_ref` labels. Agents must not receive career plan row IDs or a career-plan CRUD surface.
 
 ## AAAAT-originated work
 
@@ -34,6 +38,8 @@ Task contexts are minimized by `aaaat.agent_access`. They include a task handle,
 ## LLM-app-originated work
 
 When work starts in the LLM app, the LLM may already have raw offer text, form copy, user conversation, inferred candidature fields, draft form answers, cover-letter body text, or completed research. The LLM first asks AAAAT for a purpose-scoped context bundle, then submits one bounded action packet.
+
+Context bundles may include profile facts and career plans for `cover_letter`, `cv_generation`, `candidature_fit`, `market_research`, `recruiter_call`, `form_answers`, and `career_plan_review`. The bundle is a read context, not an edit channel.
 
 The first bounded action is `create_candidature`. It may create a new candidature from source material and already-derived outputs and request local rendering. It does not edit an existing candidature and does not return internal object identifiers.
 

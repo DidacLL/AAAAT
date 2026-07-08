@@ -46,15 +46,17 @@ class DispatchCommandTests(unittest.TestCase):
                 self.run_cli("--storage", tmp, "agent", "dispatch", task["id"], "--backend", "command", "--cmd", cmd).stdout
             )
             self.assertEqual(dispatch["backend"], "command")
-            self.assertEqual(dispatch["task_id"], task["id"])
+            self.assertEqual(dispatch["task_handle"], task["id"])
+            self.assertNotIn("task_id", dispatch)
             self.assertEqual(dispatch["exit_code"], 0)
             self.assertEqual(dispatch["stderr"], "")
             self.assertTrue(dispatch["submitted"])
             self.assertNotIn("stdout", dispatch)
             self.assertNotIn("RESULT:Research Command Co", json.dumps(dispatch))
-            self.assertEqual(dispatch["task"]["state"], "completed")
-            self.assertEqual(dispatch["task"]["agent_runtime"], "command")
-            self.assertTrue(dispatch["task"]["result_blob_id"])
+            self.assertEqual(dispatch["task"], {"task_handle": task["id"], "state": "completed"})
+            self.assertEqual(dispatch["next"], ["open_dashboard"])
+            self.assertNotIn("result_blob_id", json.dumps(dispatch))
+            self.assertNotIn("application_id", json.dumps(dispatch))
 
             blobs = json.loads(self.run_cli("--storage", tmp, "blob", "list", "--application-id", app["id"]).stdout)
             self.assertEqual(blobs[0]["body"].strip(), "RESULT:Research Command Co")
@@ -87,6 +89,7 @@ class DispatchCommandTests(unittest.TestCase):
                 self.run_cli("--storage", tmp, "agent", "dispatch", task["id"], "--backend", "command", "--cmd", cmd).stdout
             )
             self.assertEqual(dispatch["backend"], "command")
+            self.assertEqual(dispatch["task_handle"], task["id"])
             self.assertEqual(dispatch["exit_code"], 7)
             self.assertEqual(dispatch["stderr"], "runner failed\n")
             self.assertFalse(dispatch["submitted"])
@@ -120,6 +123,7 @@ class DispatchCommandTests(unittest.TestCase):
                 self.run_cli("--storage", tmp, "agent", "dispatch", task["id"], "--backend", "command", "--cmd", cmd).stdout
             )
             self.assertEqual(dispatch["backend"], "command")
+            self.assertEqual(dispatch["task_handle"], task["id"])
             self.assertEqual(dispatch["exit_code"], 0)
             self.assertEqual(dispatch["stderr"], "no stdout\n")
             self.assertEqual(dispatch["error"], "empty_stdout")

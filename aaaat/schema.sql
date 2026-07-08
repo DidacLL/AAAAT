@@ -131,6 +131,19 @@ CREATE TABLE IF NOT EXISTS profile_facts (
   notes TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS career_plans (
+  id TEXT PRIMARY KEY,
+  body TEXT NOT NULL DEFAULT '',
+  objectives TEXT NOT NULL DEFAULT '[]',
+  constraints TEXT NOT NULL DEFAULT '[]',
+  target_markets TEXT NOT NULL DEFAULT '[]',
+  target_roles TEXT NOT NULL DEFAULT '[]',
+  source TEXT NOT NULL DEFAULT 'user',
+  review_state TEXT NOT NULL DEFAULT 'active',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS text_blobs (
   id TEXT PRIMARY KEY,
   application_id TEXT REFERENCES applications(id) ON DELETE SET NULL,
