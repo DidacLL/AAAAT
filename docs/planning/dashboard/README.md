@@ -17,6 +17,32 @@ Detailed View
 
 Smart View and Detailed View do not replace Welcome View and User View.
 
+## Current product status
+
+The current branch is technically integrated and CI-green, but the dashboard UX is **not product-approved**.
+
+The implemented dashboard must not be treated as complete merely because projection builders, templates, and tests exist. The product-owner rejection is recorded in:
+
+```text
+10-dashboard-product-ux-correction.md
+```
+
+That file is the current source of truth for the missing dashboard UX behavior:
+
+```text
+fixed dashboard shell
+constrained viewport
+left/center/right panel layout
+panel-local scrolling
+reusable expandable module primitive
+real button-based tab/module controls
+actual collapsed panels for forms/actions/configuration
+Detailed View column visibility/order controls
+hard UX acceptance tests beyond data-hook presence
+```
+
+Do not merge the dashboard PR as product-complete until those UX requirements are implemented or explicitly deferred by product decision.
+
 ## Compatibility amendment
 
 The general architecture review confirms the four-view dashboard direction and adds one implementation constraint: the dashboard should render from structured projection/view-model data where practical.
@@ -36,15 +62,20 @@ Do not block the dashboard redesign on future work such as a compatibility descr
 04-codex-worker-prompts.md
 05-dashboard-test-plan.md
 06-runtime-boundary-notes.md
-```
-
-Expected audit outputs from the first orchestration prompts:
-
-```text
 07-dashboard-requirements-trace.md
 08-current-dashboard-implementation-map.md
+09-dashboard-integration-review.md
+10-dashboard-product-ux-correction.md
 ```
 
 ## Orchestration status
 
-Start with doc-only validation and implementation mapping. Implementation should begin only after the orchestrator accepts those summaries.
+Implementation already reached a technically integrated state, but product UX review rejected the result.
+
+Current status:
+
+```text
+BLOCKED_REPLAN_REQUIRED
+```
+
+The next implementation direction must be derived from `10-dashboard-product-ux-correction.md`, not from the earlier green integration result alone.
