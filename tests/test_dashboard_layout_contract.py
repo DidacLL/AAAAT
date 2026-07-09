@@ -106,6 +106,48 @@ class DashboardLayoutContractTests(unittest.TestCase):
                     self.assertTrue(panel.get("aria-label"))
                     self.assertIn("dashboard-panel", panel.get("class", ""))
 
+    def test_dashboard_module_primitive_exposes_durable_structure(self):
+        html = self.render_dashboard("smartView")
+        tags = _tags(html)
+        modules = [attrs for _, attrs in tags if attrs.get("data-module-primitive") == "dashboard-module"]
+
+        self.assertEqual([module.get("data-dashboard-region") for module in modules], ["left", "center", "right"])
+        for module in modules:
+            self.assertEqual(module.get("data-module-boundary"), "bounded")
+            self.assertIn(module.get("data-module-state"), {"expanded", "collapsed"})
+            self.assertIn("x-data", module)
+            self.assertIn("x-bind:data-module-state", module)
+            self.assertTrue(module.get("data-module-id"))
+
+        self.assertGreaterEqual(html.count("data-module-header"), 3)
+        self.assertGreaterEqual(html.count("data-module-title"), 3)
+        self.assertGreaterEqual(html.count("data-module-actions"), 3)
+        self.assertGreaterEqual(html.count("data-module-body"), 3)
+        self.assertGreaterEqual(html.count('data-module-scroll="local"'), 3)
+
+    def test_dashboard_module_controls_are_real_buttons_with_alpine_state(self):
+        html = self.render_dashboard("smartView")
+        tags = _tags(html)
+        toggle_buttons = [attrs for tag, attrs in tags if tag == "button" and attrs.get("data-module-control") == "toggle"]
+
+        self.assertGreaterEqual(len(toggle_buttons), 3)
+        for button in toggle_buttons[:3]:
+            self.assertEqual(button.get("type"), "button")
+            self.assertIn("x-on:click", button)
+            self.assertIn("x-bind:aria-expanded", button)
+            self.assertTrue(button.get("aria-controls"))
+
+    def test_dashboard_modules_keep_htmx_targets_only_on_refreshable_regions(self):
+        html = self.render_dashboard("smartView")
+        tags = _tags(html)
+        htmx_modules = [attrs for _, attrs in tags if "data-htmx-module-target" in attrs]
+
+        self.assertGreaterEqual(len(htmx_modules), 2)
+        for module in htmx_modules:
+            self.assertIn(module.get("data-htmx-module-target"), html)
+        self.assertIn('hx-get="/dashboard/fragments/selected-card', html)
+        self.assertIn('hx-target="[data-selected-app]"', html)
+
     def test_dashboard_overflow_is_owned_by_panel_local_scroll_regions(self):
         html = self.render_dashboard("detailedView")
         tags = _tags(html)
