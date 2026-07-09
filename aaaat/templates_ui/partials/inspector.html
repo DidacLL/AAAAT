@@ -2,66 +2,83 @@
   <h2>Inspector</h2>
   <div class="body">
     {% if view == "welcomeView" %}
-      <h3>Tasks</h3>
-      {% for item in open_tasks[:5] %}
+      <h3>Setup</h3>
+      <div class="field" data-welcome-inspector="setup">
+        <span class="label">First-run state</span>
+        <p>{% if welcome.setup_state.is_first_run %}No candidatures yet.{% else %}{{ applications|length }} candidature{% if applications|length != 1 %}s{% endif %} available.{% endif %}</p>
+      </div>
+      <h3>Next actions</h3>
+      {% for item in welcome.primary_actions[:5] %}
+        <div class="todo-item" data-welcome-inspector-action="{{ item.id }}">{{ item.label }}</div>
+      {% endfor %}
+      <h3>Pending dashboard work</h3>
+      {% for item in welcome.open_task_summary.items[:5] %}
         <div class="queue-item" data-task-item>{{ item.priority }} / {{ item.state }} / {{ item.title }}</div>
       {% else %}
         <p class="empty">No pending tasks.</p>
       {% endfor %}
-      <h3>Next actions</h3>
-      {% for app in applications[:5] %}
-        {% if app.next_action %}
-          <div class="todo-item">{{ app.company }} / {{ app.next_action }}</div>
-        {% endif %}
-      {% endfor %}
     {% elif view == "smartView" %}
-      <h3>Keywords</h3>
-      {% for keyword in selected.keywords or [] %}
-        <a class="chip" data-keyword="{{ keyword }}" href="/?view=smartView&application_id={{ selected.id }}&keyword={{ keyword }}" hx-get="/dashboard/fragments/inspector?view=smartView&application_id={{ selected.id }}&keyword={{ keyword }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">{{ keyword }}</a>
-      {% else %}
-        <p class="empty">No keywords yet.</p>
-      {% endfor %}
-      <div class="field" data-keyword-panel>
-        <span class="label">{{ selected_keyword or "Keyword" }}</span>
-        <p>{{ selected_keyword_item.definition or "No definition yet." }}</p>
-        {% for alias in selected_keyword_item.aliases or [] %}
-          <span class="chip">{{ alias }}</span>
-        {% endfor %}
-        {% for note in selected_keyword_item.notes or [] %}
-          <p>{{ note.body }}</p>
-        {% endfor %}
-      </div>
-    {% elif view == "detailedView" %}
-      <h3>Panels</h3>
-      {% for tab in ["keyword", "company", "notes", "queue", "artifacts", "tasks", "todos", "blobs"] %}
-        <a class="chip" data-inspector-tab="{{ tab }}" href="/?view=detailedView&application_id={{ selected.id }}&tab={{ tab }}">{{ tab }}</a>
-      {% endfor %}
-      {% if can_show_raw_intake(mode) %}
-        <a class="chip" data-inspector-tab="raw" href="/?view=detailedView&application_id={{ selected.id }}&tab=raw">raw</a>
-      {% endif %}
-      <div class="field">
-        <span class="label">Artifacts</span>
-        {% for artifact in selected.artifacts %}
-          <p>{{ artifact.review_state }} / {{ artifact.label }}</p>
+      {% if selected %}
+        <h3>Keywords</h3>
+        {% for keyword in selected.keywords or [] %}
+          <a class="chip" data-keyword="{{ keyword }}" href="/?view=smartView&application_id={{ selected.id }}&keyword={{ keyword }}" hx-get="/dashboard/fragments/inspector?view=smartView&application_id={{ selected.id }}&keyword={{ keyword }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">{{ keyword }}</a>
         {% else %}
-          <p class="empty">No artifacts yet.</p>
+          <p class="empty">No keywords yet.</p>
         {% endfor %}
-      </div>
-      {% if can_show_raw_intake(mode) %}
-        <div class="field" data-inspector-tab="raw">
-          <span class="label">Raw intake</span>
-          {% for intake in selected.raw_intake %}
-            <p>{{ intake.content }}</p>
-          {% else %}
-            <p class="empty">No raw intake yet.</p>
+        <div class="field" data-keyword-panel>
+          <span class="label">{{ selected_keyword or "Keyword" }}</span>
+          <p>{{ selected_keyword_item.definition or "No definition yet." }}</p>
+          {% for alias in selected_keyword_item.aliases or [] %}
+            <span class="chip">{{ alias }}</span>
+          {% endfor %}
+          {% for note in selected_keyword_item.notes or [] %}
+            <p>{{ note.body }}</p>
           {% endfor %}
         </div>
+      {% else %}
+        <p class="empty">Select a candidature to inspect keyword context.</p>
+      {% endif %}
+    {% elif view == "detailedView" %}
+      {% if selected %}
+        <h3>Panels</h3>
+        {% for tab in ["keyword", "company", "notes", "queue", "artifacts", "tasks", "todos", "blobs"] %}
+          <a class="chip" data-inspector-tab="{{ tab }}" href="/?view=detailedView&application_id={{ selected.id }}&tab={{ tab }}">{{ tab }}</a>
+        {% endfor %}
+        {% if can_show_raw_intake(mode) %}
+          <a class="chip" data-inspector-tab="raw" href="/?view=detailedView&application_id={{ selected.id }}&tab=raw">raw</a>
+        {% endif %}
+        <div class="field">
+          <span class="label">Artifacts</span>
+          {% for artifact in selected.artifacts %}
+            <p>{{ artifact.review_state }} / {{ artifact.label }}</p>
+          {% else %}
+            <p class="empty">No artifacts yet.</p>
+          {% endfor %}
+        </div>
+        {% if can_show_raw_intake(mode) %}
+          <div class="field" data-inspector-tab="raw">
+            <span class="label">Raw intake</span>
+            {% for intake in selected.raw_intake %}
+              <p>{{ intake.content }}</p>
+            {% else %}
+              <p class="empty">No raw intake yet.</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% else %}
+        <p class="empty">Select a row to inspect detailed context.</p>
       {% endif %}
     {% else %}
-      <h3>User view</h3>
-      <p>This preset reuses candidature data without storing a fork.</p>
+      <h3>User control center</h3>
+      {% for section in user.summary_sections %}
+        <div class="field" data-user-inspector-section="{{ section.id }}">
+          <span class="label">{{ section.label }}</span>
+          <p>{{ section.count }} item{% if section.count != 1 %}s{% endif %}{% if not section.editable %} / read-only{% endif %}</p>
+        </div>
+      {% endfor %}
     {% endif %}
-    {% if can_write(mode) %}
+
+    {% if can_write(mode) and view != "userView" %}
       <details class="field">
         <summary>New candidature</summary>
         <form method="post" action="/dashboard/actions/raw-offer-intake" data-write-control="new-candidature" hx-post="/dashboard/actions/raw-offer-intake" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
@@ -82,55 +99,60 @@
         </form>
       </details>
     {% endif %}
+
     <details class="field" data-profile-cv-panel>
       <summary>Profile / CV data</summary>
-      {% for fact in profile_facts %}
-        {% if fact.use_for_dashboard %}
-          <div class="blob-item" data-profile-fact="{{ fact.id }}">
-            <strong>{{ fact.fact_type }} / {{ fact.title or "Untitled fact" }}</strong>
-            <p>{{ fact.body }}</p>
-            <p class="meta">
-              <span class="badge visibility-{{ fact.visibility }}">{{ fact.visibility }}</span>
-              <span class="badge exposure-{{ fact.exposure }}">{{ fact.exposure }}</span>
-              {% if fact.use_for_cv %}<span class="badge">CV</span>{% endif %}
-              {% if fact.use_for_cover_letter %}<span class="badge">Cover letter</span>{% endif %}
-              {% if fact.use_for_agent_context %}<span class="badge">Agent</span>{% endif %}
-              {% if fact.use_for_market_research %}<span class="badge">Market</span>{% endif %}
-              {% if fact.tags %}<span>{{ fact.tags|join(", ") }}</span>{% endif %}
-            </p>
-            {% if can_write(mode) %}
-              <details class="inline-edit" data-write-control="profile-fact-edit">
-                <summary>Edit</summary>
-                <form method="post" action="/dashboard/actions/profile/facts/{{ fact.id }}" hx-post="/dashboard/actions/profile/facts/{{ fact.id }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
-                  <input type="hidden" name="_method" value="PATCH">
-                  <input name="title" value="{{ fact.title }}" placeholder="Title">
-                  <textarea name="body">{{ fact.body }}</textarea>
-                  <input name="tags" value="{{ fact.tags|join(', ') }}" placeholder="tags">
-                  <select name="visibility">
-                    {% for item in ["public", "professional", "private", "sensitive"] %}
-                      <option value="{{ item }}" {% if fact.visibility == item %}selected{% endif %}>{{ item }}</option>
-                    {% endfor %}
-                  </select>
-                  <select name="exposure">
-                    {% for item in ["raw", "anonymized", "summarized", "placeholder", "redacted", "denied"] %}
-                      <option value="{{ item }}" {% if fact.exposure == item %}selected{% endif %}>{{ item }}</option>
-                    {% endfor %}
-                  </select>
-                  <input type="hidden" name="use_for_cv" value="0"><label><input type="checkbox" name="use_for_cv" value="1" {% if fact.use_for_cv %}checked{% endif %}> CV</label>
-                  <input type="hidden" name="use_for_cover_letter" value="0"><label><input type="checkbox" name="use_for_cover_letter" value="1" {% if fact.use_for_cover_letter %}checked{% endif %}> Cover letter</label>
-                  <input type="hidden" name="use_for_agent_context" value="0"><label><input type="checkbox" name="use_for_agent_context" value="1" {% if fact.use_for_agent_context %}checked{% endif %}> Agent</label>
-                  <input type="hidden" name="use_for_market_research" value="0"><label><input type="checkbox" name="use_for_market_research" value="1" {% if fact.use_for_market_research %}checked{% endif %}> Market</label>
-                  <input type="hidden" name="use_for_dashboard" value="0"><label><input type="checkbox" name="use_for_dashboard" value="1" {% if fact.use_for_dashboard %}checked{% endif %}> Dashboard</label>
-                  <button>Save fact</button>
-                </form>
-              </details>
-            {% endif %}
-          </div>
-        {% endif %}
+      {% if permissions.is_static_demo %}
+        <p class="subtle">Static demo mode hides private profile facts and write controls.</p>
       {% else %}
-        <p class="empty">No profile facts yet.</p>
-      {% endfor %}
-      {% if can_write(mode) %}
+        {% for fact in profile_facts %}
+          {% if fact.use_for_dashboard %}
+            <div class="blob-item" data-profile-fact="{{ fact.id }}">
+              <strong>{{ fact.fact_type }} / {{ fact.title or "Untitled fact" }}</strong>
+              <p>{{ fact.body }}</p>
+              <p class="meta">
+                <span class="badge visibility-{{ fact.visibility }}">{{ fact.visibility }}</span>
+                <span class="badge exposure-{{ fact.exposure }}">{{ fact.exposure }}</span>
+                {% if fact.use_for_cv %}<span class="badge">CV</span>{% endif %}
+                {% if fact.use_for_cover_letter %}<span class="badge">Cover letter</span>{% endif %}
+                {% if fact.use_for_agent_context %}<span class="badge">Agent</span>{% endif %}
+                {% if fact.use_for_market_research %}<span class="badge">Market</span>{% endif %}
+                {% if fact.tags %}<span>{{ fact.tags|join(", ") }}</span>{% endif %}
+              </p>
+              {% if can_write(mode) %}
+                <details class="inline-edit" data-write-control="profile-fact-edit">
+                  <summary>Edit</summary>
+                  <form method="post" action="/dashboard/actions/profile/facts/{{ fact.id }}" hx-post="/dashboard/actions/profile/facts/{{ fact.id }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
+                    <input type="hidden" name="_method" value="PATCH">
+                    <input name="title" value="{{ fact.title }}" placeholder="Title">
+                    <textarea name="body">{{ fact.body }}</textarea>
+                    <input name="tags" value="{{ fact.tags|join(', ') }}" placeholder="tags">
+                    <select name="visibility">
+                      {% for item in ["public", "professional", "private", "sensitive"] %}
+                        <option value="{{ item }}" {% if fact.visibility == item %}selected{% endif %}>{{ item }}</option>
+                      {% endfor %}
+                    </select>
+                    <select name="exposure">
+                      {% for item in ["raw", "anonymized", "summarized", "placeholder", "redacted", "denied"] %}
+                        <option value="{{ item }}" {% if fact.exposure == item %}selected{% endif %}>{{ item }}</option>
+                      {% endfor %}
+                    </select>
+                    <input type="hidden" name="use_for_cv" value="0"><label><input type="checkbox" name="use_for_cv" value="1" {% if fact.use_for_cv %}checked{% endif %}> CV</label>
+                    <input type="hidden" name="use_for_cover_letter" value="0"><label><input type="checkbox" name="use_for_cover_letter" value="1" {% if fact.use_for_cover_letter %}checked{% endif %}> Cover letter</label>
+                    <input type="hidden" name="use_for_agent_context" value="0"><label><input type="checkbox" name="use_for_agent_context" value="1" {% if fact.use_for_agent_context %}checked{% endif %}> Agent</label>
+                    <input type="hidden" name="use_for_market_research" value="0"><label><input type="checkbox" name="use_for_market_research" value="1" {% if fact.use_for_market_research %}checked{% endif %}> Market</label>
+                    <input type="hidden" name="use_for_dashboard" value="0"><label><input type="checkbox" name="use_for_dashboard" value="1" {% if fact.use_for_dashboard %}checked{% endif %}> Dashboard</label>
+                    <button>Save fact</button>
+                  </form>
+                </details>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% else %}
+          <p class="empty">No profile facts yet.</p>
+        {% endfor %}
+      {% endif %}
+      {% if can_write(mode) and not permissions.is_static_demo %}
         <details class="inline-edit" data-write-control="profile-fact-add">
           <summary>Add profile fact</summary>
           <form method="post" action="/dashboard/actions/profile/facts" hx-post="/dashboard/actions/profile/facts" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
