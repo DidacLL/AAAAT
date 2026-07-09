@@ -1,29 +1,59 @@
-<section class="surface" aria-label="Candidatures">
-  <h2>Candidatures</h2>
-  {% if search_query and search_result.available %}
-    <div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>
-  {% endif %}
-  {% if applications %}
-    {% for app in applications %}
-      <a class="app-row" data-app-row href="/?view={{ view }}&application_id={{ app.id }}" hx-get="/dashboard/fragments/selected-card?view={{ view }}&application_id={{ app.id }}" hx-target="[data-selected-app]" hx-swap="outerHTML" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
-        <strong>{{ app.company or "Add company" }}</strong><br>
-        <span>{{ app.role or "Add role" }}</span>
-        <span class="meta">
-          <span>{{ app.status or "draft" }}</span>
-          <span>{{ app.priority or "normal" }}</span>
-          {% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}
-        </span>
-        {% for keyword in app.keywords or [] %}
-          <span class="chip" data-keyword="{{ keyword }}">{{ keyword }}</span>
-        {% endfor %}
-        <span class="meta">
-          <span>Open:</span>
-          <span>call</span>
-          <span>edit</span>
-        </span>
-      </a>
-    {% endfor %}
-  {% else %}
-    <p class="body empty">No candidatures yet.</p>
-  {% endif %}
-</section>
+{% if view == "welcomeView" %}
+  <section class="surface" aria-label="Welcome actions" data-welcome-side-panel>
+    <h2>Start</h2>
+    <div class="body">
+      {% for item in welcome.primary_actions %}
+        <div class="field" data-welcome-side-action="{{ item.id }}">
+          <strong>{{ item.label }}</strong>
+          {% if item.target_view %}
+            <p><a href="/?view={{ item.target_view }}{% if selected %}&application_id={{ selected.id }}{% endif %}">Open</a></p>
+          {% elif item.panel %}
+            <p class="subtle">Use the collapsed New candidature panel.</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% elif view == "userView" %}
+  <section class="surface" aria-label="User control sections" data-user-side-panel>
+    <h2>User controls</h2>
+    <div class="body">
+      {% for section in user.summary_sections %}
+        <a class="app-row" data-user-control-link="{{ section.id }}" href="/?view=userView{% if selected %}&application_id={{ selected.id }}{% endif %}#{{ section.id }}">
+          <strong>{{ section.label }}</strong><br>
+          <span class="meta"><span>{{ section.count }} item{% if section.count != 1 %}s{% endif %}</span>{% if not section.editable %}<span>read-only</span>{% endif %}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+{% else %}
+  <section class="surface" aria-label="Candidatures">
+    <h2>Candidatures</h2>
+    {% if search_query and search_result.available %}
+      <div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>
+    {% endif %}
+    {% if applications %}
+      {% for app in applications %}
+        <a class="app-row" data-app-row href="/?view={{ view }}&application_id={{ app.id }}" hx-get="/dashboard/fragments/selected-card?view={{ view }}&application_id={{ app.id }}" hx-target="[data-selected-app]" hx-swap="outerHTML" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
+          <strong>{{ app.company or "Add company" }}</strong><br>
+          <span>{{ app.role or "Add role" }}</span>
+          <span class="meta">
+            <span>{{ app.status or "draft" }}</span>
+            <span>{{ app.priority or "normal" }}</span>
+            {% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}
+          </span>
+          {% for keyword in app.keywords or [] %}
+            <span class="chip" data-keyword="{{ keyword }}">{{ keyword }}</span>
+          {% endfor %}
+          <span class="meta">
+            <span>Open:</span>
+            <span>call</span>
+            <span>edit</span>
+          </span>
+        </a>
+      {% endfor %}
+    {% else %}
+      <p class="body empty">No candidatures yet.</p>
+    {% endif %}
+  </section>
+{% endif %}
