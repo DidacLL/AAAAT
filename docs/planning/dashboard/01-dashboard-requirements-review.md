@@ -8,6 +8,31 @@ The issue is not only visual polish. The current model makes the user work too h
 
 The dashboard should be treated as an operational interface for job search execution, especially during recruiter calls. It should not behave like a generic CRUD admin page.
 
+
+## Compatibility amendment: UI projection boundary
+
+The general architecture review confirms the four-view dashboard direction and adds one implementation constraint: dashboard state should be assembled through structured projection/view-model data where practical, not only inside HTML templates.
+
+The dashboard projection boundary should prepare structured data for human UI rendering, including:
+
+```text
+Welcome setup state
+User/profile/career summaries
+Smart View candidature summaries
+Selected candidature operational detail
+Primary note
+Keyword/glossary context
+Artifact state summaries
+Detailed View rows and column state
+Detailed View toolbox actions
+Human-facing task queue summaries
+Dashboard counters and next actions
+```
+
+This projection boundary is not an agent API, not a provider integration, and not a host adapter. It is an internal dashboard-facing view-model layer so the server-rendered dashboard and any future embedded UI can consume structured state without scraping HTML.
+
+Do not block the dashboard redesign on broader future-compatibility work such as a compatibility descriptor, host adapter, artifact lifecycle overhaul, privacy-schema consolidation, or provider-specific integration. Those are future branches.
+
 ## Core problems to correct
 
 ### 1. Duplicated read/edit boxes
