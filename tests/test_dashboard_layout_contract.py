@@ -93,6 +93,16 @@ class DashboardLayoutContractTests(unittest.TestCase):
         self.assertEqual(shell.get("data-overflow-owner"), "panels")
         self.assertIn("dashboard-shell", shell.get("class", ""))
 
+    def test_dashboard_loads_alpine_and_htmx_for_split_responsibility(self):
+        html = self.render_dashboard("smartView")
+        tags = _tags(html)
+        scripts = [attrs.get("src") for tag, attrs in tags if tag == "script"]
+
+        self.assertIn("/static/alpine.min.js", scripts)
+        self.assertIn("/static/htmx.min.js", scripts)
+        self.assertLess(scripts.index("/static/alpine.min.js"), scripts.index("/static/htmx.min.js"))
+        self.assertIn("[x-cloak]{display:none!important}", html)
+
     def test_operational_views_expose_bounded_left_center_right_regions(self):
         for view in ("smartView", "detailedView"):
             with self.subTest(view=view):
@@ -115,8 +125,8 @@ class DashboardLayoutContractTests(unittest.TestCase):
         for module in modules:
             self.assertEqual(module.get("data-module-boundary"), "bounded")
             self.assertIn(module.get("data-module-state"), {"expanded", "collapsed"})
-            self.assertIn("x-data", module)
-            self.assertIn("x-bind:data-module-state", module)
+            self.assertEqual(module.get("x-data"), "{ open: true }")
+            self.assertEqual(module.get("x-bind:data-module-state"), "open ? 'expanded' : 'collapsed'")
             self.assertTrue(module.get("data-module-id"))
 
         self.assertGreaterEqual(html.count("data-module-header"), 3)
@@ -124,6 +134,8 @@ class DashboardLayoutContractTests(unittest.TestCase):
         self.assertGreaterEqual(html.count("data-module-actions"), 3)
         self.assertGreaterEqual(html.count("data-module-body"), 3)
         self.assertGreaterEqual(html.count('data-module-scroll="local"'), 3)
+        self.assertGreaterEqual(html.count('x-show="open"'), 3)
+        self.assertGreaterEqual(html.count("x-cloak"), 3)
 
     def test_dashboard_module_controls_are_real_buttons_with_alpine_state(self):
         html = self.render_dashboard("smartView")
@@ -133,8 +145,8 @@ class DashboardLayoutContractTests(unittest.TestCase):
         self.assertGreaterEqual(len(toggle_buttons), 3)
         for button in toggle_buttons[:3]:
             self.assertEqual(button.get("type"), "button")
-            self.assertIn("x-on:click", button)
-            self.assertIn("x-bind:aria-expanded", button)
+            self.assertEqual(button.get("@click"), "open = !open")
+            self.assertEqual(button.get(":aria-expanded"), "open.toString()")
             self.assertTrue(button.get("aria-controls"))
 
     def test_dashboard_modules_keep_htmx_targets_only_on_refreshable_regions(self):
