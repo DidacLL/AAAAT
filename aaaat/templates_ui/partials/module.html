@@ -12,3 +12,19 @@
   </div>
 </section>
 {%- endmacro %}
+
+{% macro module_selector(selector_id, label, selected_id, hooks='') -%}
+<div class="module-selector" role="tablist" aria-label="{{ label }}" data-module-selector data-module-selector-id="{{ selector_id }}" data-module-selector-selected="{{ selected_id }}" x-data="{ selected: '{{ selected_id }}' }" x-bind:data-module-selector-selected="selected" {{ hooks|safe }}>
+  {{ caller('tabs') }}
+</div>
+{%- endmacro %}
+
+{% macro module_selector_button(selector_id, tab_id, label, selected_id, controls_id, htmx_attrs='') -%}
+<button type="button" class="module-tab" role="tab" data-module-selector-button data-module-selector-id="{{ selector_id }}" data-module-tab-id="{{ tab_id }}" data-module-selected="{% if selected_id == tab_id %}true{% else %}false{% endif %}" @click="selected = '{{ tab_id }}'" :aria-selected="(selected === '{{ tab_id }}').toString()" x-bind:data-module-selected="(selected === '{{ tab_id }}').toString()" aria-controls="{{ controls_id }}" aria-selected="{% if selected_id == tab_id %}true{% else %}false{% endif %}" {{ htmx_attrs|safe }}>{{ label }}</button>
+{%- endmacro %}
+
+{% macro module_selector_panel(selector_id, tab_id, selected_id, panel_id, hooks='', panel_class='field') -%}
+<div id="{{ panel_id }}" class="{{ panel_class }}" role="tabpanel" data-module-selector-panel data-module-selector-id="{{ selector_id }}" data-module-tab-id="{{ tab_id }}" x-show="selected === '{{ tab_id }}'" x-cloak {% if selected_id != tab_id %}hidden{% endif %} {{ hooks|safe }}>
+  {{ caller() }}
+</div>
+{%- endmacro %}
