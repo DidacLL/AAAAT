@@ -112,7 +112,7 @@ class DashboardSmartViewTests(unittest.TestCase):
         _, model, _ = self.smart_model(mode=Mode.FULL, context_module="notes")
         html = render_dashboard_fragment("selected-card", model)
 
-        self.assertEqual(html.count('data-primary-note'), 1)
+        self.assertEqual(html.count('<div class="field" data-primary-note>'), 1)
         self.assertIn("Primary Smart note value", html)
         self.assertIn('data-primary-note-editor', html)
         self.assertIn('textarea name="notes"', html)
