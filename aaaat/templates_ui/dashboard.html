@@ -19,13 +19,14 @@
     .views{display:flex;gap:6px;flex-wrap:wrap}.views a,.chip,.badge{border:1px solid #9aacbf;border-radius:999px;padding:3px 8px;text-decoration:none;font-size:13px;background:#fff}
     .views a[aria-current='page']{background:#dfeaf3}
     .global-search{display:flex;gap:6px}.global-search input{width:100%}
-    .new-candidature{min-width:280px}.new-candidature summary{font-weight:700;cursor:pointer}.new-candidature form{display:grid;gap:7px;margin-top:8px}.check-row{display:flex;gap:8px;flex-wrap:wrap}
+    .new-candidature{min-width:280px}.check-row{display:flex;gap:8px;flex-wrap:wrap}
     .shell{display:grid;grid-template-columns:minmax(260px,.82fr) minmax(480px,1.42fr) minmax(320px,.9fr);gap:12px;padding:12px;box-sizing:border-box;width:100%;max-width:1500px;margin:0 auto;flex:1 1 auto;min-height:0;overflow:hidden}
     .surface{background:#fff;border:1px solid #d8dee8;border-radius:6px;min-width:0;overflow:hidden}
     .surface h2{font-size:15px;margin:0}
     .module-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #e5eaf0;flex:0 0 auto}
     .module-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:max-content}.module-toggle{font-size:12px;padding:3px 7px}
     .module-selector{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.module-tab{border-radius:999px;font-size:13px;padding:4px 9px}.module-tab[aria-selected='true'],.module-tab[data-module-selected='true']{background:#dfeaf3;border-color:#6f8fae;font-weight:700}
+    .expandable-panel{border:1px solid #e2e8f0;border-radius:6px;background:#fbfcfd;margin:8px 0;overflow:hidden}.expandable-panel-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px}.expandable-panel h3{font-size:14px;margin:0}.expandable-panel-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px}.expandable-panel-body{border-top:1px solid #e5eaf0;padding:10px;display:grid;gap:7px}.expandable-panel-body form{display:grid;gap:7px}
     .dashboard-panel{display:flex;flex-direction:column;min-height:0;max-height:100%}.panel-scroll{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}.table-scroll{max-width:100%;overflow:auto}
     .body{padding:12px}.app-row{display:block;padding:10px 12px;border-bottom:1px solid #edf1f5;text-decoration:none;color:inherit}
     .app-row[aria-current='true']{border-left:3px solid #2d6f9f;background:#f3f8fc}.meta{display:flex;flex-wrap:wrap;gap:6px;color:#53677f;font-size:12px;margin-top:5px}
@@ -41,6 +42,7 @@
   </style>
 </head>
 <body class="dashboard-body" data-dashboard-view="{{ view }}" data-page-scroll="not-primary" data-overflow-contract="panel-local-scroll">
+  {% import "partials/module.html" as ui %}
   <header>
     <h1>AAAAT</h1>
     {% if mode.value != "full" %}<span class="mode">Safe inspection</span>{% endif %}
@@ -58,29 +60,32 @@
       <button>Search</button>
     </form>
     {% if can_write(mode) %}
-      <details class="new-candidature" data-write-control="new-candidature-panel">
-        <summary data-raw-offer-entry>New candidature</summary>
-        <form method="post" action="/dashboard/actions/raw-offer-intake">
-          <textarea name="content" required placeholder="Paste raw offer text"></textarea>
-          <input name="company" placeholder="Company">
-          <input name="role" placeholder="Role">
-          <div class="check-row">
-            <input name="status" placeholder="Status" value="intake">
-            <input name="priority" placeholder="Priority" value="normal">
-          </div>
-          <input name="source_url" placeholder="Source URL">
-          <input name="keywords" placeholder="Keywords, comma separated">
-          <div class="check-row">
-            <input type="hidden" name="include_field_inference_task" value="0"><label><input type="checkbox" name="include_field_inference_task" value="1" checked> Infer missing fields</label>
-            <input type="hidden" name="include_company_research_task" value="0"><label><input type="checkbox" name="include_company_research_task" value="1" checked> Company research</label>
-            <input type="hidden" name="include_keyword_detection_task" value="0"><label><input type="checkbox" name="include_keyword_detection_task" value="1" checked> Keyword detection</label>
-            <label><input type="checkbox" name="include_cv_task" value="1"> CV task</label>
-            <label><input type="checkbox" name="include_cover_letter_task" value="1"> Cover letter</label>
-            <label><input type="checkbox" name="include_form_responses_task" value="1"> Form responses</label>
-          </div>
-          <button>Create candidature and queue tasks</button>
-        </form>
-      </details>
+      <div class="new-candidature">
+        {% call(slot) ui.expandable_panel("global-raw-intake", "New candidature", "creation", hooks="data-write-control='new-candidature-panel' data-raw-offer-entry", scroll=True) %}
+          {% if slot == "body" %}
+            <form method="post" action="/dashboard/actions/raw-offer-intake" data-write-control="raw-offer-intake-form">
+              <textarea name="content" required placeholder="Paste raw offer text"></textarea>
+              <input name="company" placeholder="Company">
+              <input name="role" placeholder="Role">
+              <div class="check-row">
+                <input name="status" placeholder="Status" value="intake">
+                <input name="priority" placeholder="Priority" value="normal">
+              </div>
+              <input name="source_url" placeholder="Source URL">
+              <input name="keywords" placeholder="Keywords, comma separated">
+              <div class="check-row">
+                <input type="hidden" name="include_field_inference_task" value="0"><label><input type="checkbox" name="include_field_inference_task" value="1" checked> Infer missing fields</label>
+                <input type="hidden" name="include_company_research_task" value="0"><label><input type="checkbox" name="include_company_research_task" value="1" checked> Company research</label>
+                <input type="hidden" name="include_keyword_detection_task" value="0"><label><input type="checkbox" name="include_keyword_detection_task" value="1" checked> Keyword detection</label>
+                <label><input type="checkbox" name="include_cv_task" value="1"> CV task</label>
+                <label><input type="checkbox" name="include_cover_letter_task" value="1"> Cover letter</label>
+                <label><input type="checkbox" name="include_form_responses_task" value="1"> Form responses</label>
+              </div>
+              <button>Create candidature and queue tasks</button>
+            </form>
+          {% endif %}
+        {% endcall %}
+      </div>
     {% endif %}
   </nav>
   <main class="shell dashboard-shell" role="main" aria-label="Dashboard workspace" data-dashboard-shell="bounded" data-layout-contract="bounded-panels" data-overflow-owner="panels">
