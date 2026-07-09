@@ -1,6 +1,6 @@
-<aside class="surface" aria-label="Inspector">
+<aside class="surface dashboard-panel dashboard-panel-right" role="region" aria-label="Inspector" data-dashboard-panel data-dashboard-region="right" data-panel-boundary="bounded">
   <h2>Inspector</h2>
-  <div class="body">
+  <div class="body panel-scroll" data-panel-scroll="expected" tabindex="0">
     {% if view == "welcomeView" %}
       <h3>Setup</h3>
       <div class="field" data-welcome-inspector="setup"><span class="label">First-run state</span><p>{% if welcome.setup_state.is_first_run %}No candidatures yet.{% else %}{{ applications|length }} candidature{% if applications|length != 1 %}s{% endif %} available.{% endif %}</p></div>
