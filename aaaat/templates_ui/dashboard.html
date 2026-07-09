@@ -5,20 +5,22 @@
   <title>AAAAT</title>
   <script src="/static/htmx.min.js" defer></script>
   <style>
-    body{font-family:Arial,sans-serif;margin:0;background:#eef2f5;color:#172131}
+    html{height:100%}
+    body{font-family:Arial,sans-serif;margin:0;background:#eef2f5;color:#172131;height:100vh;min-height:0;overflow:hidden;display:flex;flex-direction:column}
     a{color:#174a7c} button,input,textarea,select{font:inherit}
     button{border:1px solid #7f94aa;background:#fff;border-radius:5px;padding:5px 9px;cursor:pointer}
     input,textarea,select{border:1px solid #aeb9c8;border-radius:5px;padding:6px;box-sizing:border-box}
     textarea{min-height:82px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px;background:#fff;border-bottom:1px solid #d8dee8}
+    header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px;background:#fff;border-bottom:1px solid #d8dee8;flex:0 0 auto}
     header h1{font-size:22px;margin:0}.mode{font-size:12px;color:#6b7c90}
-    .command{display:grid;grid-template-columns:auto minmax(260px,1fr) auto;gap:12px;align-items:start;padding:12px 18px;background:#fff;border-bottom:1px solid #d8dee8}
+    .command{display:grid;grid-template-columns:auto minmax(260px,1fr) auto;gap:12px;align-items:start;padding:12px 18px;background:#fff;border-bottom:1px solid #d8dee8;flex:0 0 auto}
     .views{display:flex;gap:6px;flex-wrap:wrap}.views a,.chip,.badge{border:1px solid #9aacbf;border-radius:999px;padding:3px 8px;text-decoration:none;font-size:13px;background:#fff}
     .views a[aria-current='page']{background:#dfeaf3}
     .global-search{display:flex;gap:6px}.global-search input{width:100%}
     .new-candidature{min-width:280px}.new-candidature summary{font-weight:700;cursor:pointer}.new-candidature form{display:grid;gap:7px;margin-top:8px}.check-row{display:flex;gap:8px;flex-wrap:wrap}
-    .shell{display:grid;grid-template-columns:minmax(260px,.82fr) minmax(480px,1.42fr) minmax(320px,.9fr);gap:12px;padding:12px}
-    .surface{background:#fff;border:1px solid #d8dee8;border-radius:6px;min-width:0;overflow:hidden}.surface h2{font-size:15px;margin:0;padding:10px 12px;border-bottom:1px solid #e5eaf0}
+    .shell{display:grid;grid-template-columns:minmax(260px,.82fr) minmax(480px,1.42fr) minmax(320px,.9fr);gap:12px;padding:12px;box-sizing:border-box;width:100%;max-width:1500px;margin:0 auto;flex:1 1 auto;min-height:0;overflow:hidden}
+    .surface{background:#fff;border:1px solid #d8dee8;border-radius:6px;min-width:0;overflow:hidden}.surface h2{font-size:15px;margin:0;padding:10px 12px;border-bottom:1px solid #e5eaf0;flex:0 0 auto}
+    .dashboard-panel{display:flex;flex-direction:column;min-height:0;max-height:100%}.panel-scroll{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}.table-scroll{max-width:100%;overflow:auto}
     .body{padding:12px}.app-row{display:block;padding:10px 12px;border-bottom:1px solid #edf1f5;text-decoration:none;color:inherit}
     .app-row[aria-current='true']{border-left:3px solid #2d6f9f;background:#f3f8fc}.meta{display:flex;flex-wrap:wrap;gap:6px;color:#53677f;font-size:12px;margin-top:5px}
     .hero-grid,.field-grid,.quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.quick-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -29,10 +31,10 @@
     .badge.visibility-public{background:#e7f5ee}.badge.visibility-professional{background:#eaf1fb}.badge.visibility-private{background:#fff4dc}.badge.visibility-sensitive{background:#fdeaea}
     .badge.exposure-raw{background:#eef7ff}.badge.exposure-denied,.badge.exposure-redacted{background:#f4e8ee}.badge.exposure-placeholder,.badge.exposure-summarized,.badge.exposure-anonymized{background:#f4f7ec}
     .empty{color:#62768d}.subtle{color:#62768d;font-size:13px}.section-title{font-size:13px;text-transform:uppercase;color:#62768d;margin:12px 0 6px}
-    @media(max-width:1080px){.command,.shell{grid-template-columns:1fr}.hero-grid,.field-grid,.quick-grid{grid-template-columns:1fr}.new-candidature{min-width:0}.field-line{grid-template-columns:1fr}}
+    @media(max-width:1080px){.command,.shell{grid-template-columns:1fr}.hero-grid,.field-grid,.quick-grid{grid-template-columns:1fr}.new-candidature{min-width:0}.field-line{grid-template-columns:1fr}.dashboard-panel{min-height:260px}}
   </style>
 </head>
-<body data-dashboard-view="{{ view }}">
+<body class="dashboard-body" data-dashboard-view="{{ view }}" data-page-scroll="not-primary" data-overflow-contract="panel-local-scroll">
   <header>
     <h1>AAAAT</h1>
     {% if mode.value != "full" %}<span class="mode">Safe inspection</span>{% endif %}
@@ -75,7 +77,7 @@
       </details>
     {% endif %}
   </nav>
-  <main class="shell">
+  <main class="shell dashboard-shell" role="main" aria-label="Dashboard workspace" data-dashboard-shell="bounded" data-layout-contract="bounded-panels" data-overflow-owner="panels">
     {% include "partials/candidature_list.html" %}
     {% include "partials/selected_card.html" %}
     {% include "partials/inspector.html" %}
