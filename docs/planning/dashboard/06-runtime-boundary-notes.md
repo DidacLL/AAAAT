@@ -48,6 +48,15 @@ Request bounded future tasks
 
 Task handles are not general entity IDs. They are allowed only for task context/result flow.
 
+
+## Dashboard projection boundary
+
+The dashboard runtime may use an internal projection/view-model layer to prepare structured state for HTML rendering. This layer is part of the dashboard adapter and domain-facing UI model, not part of the agent runtime.
+
+The projection layer may contain human-local data needed by the dashboard, including selected candidature details, primary note state, artifact summaries, task queue summaries, profile/career summaries, and table column state. Because this projection is intended for the human-local dashboard, it must not be exposed wholesale to agents.
+
+Future embedded UI adapters may consume similar projection data, but that is a separate adapter decision. The dashboard branch should not turn projection data into a broad HTTP or agent contract by default.
+
 ## Why this matters for UX work
 
 The dashboard redesign introduces richer human UI:
@@ -91,6 +100,7 @@ profile_fact_id as mutation authority
 artifact_id as mutation authority
 task IDs beyond bounded task handles
 full dashboard payloads
+full dashboard projection dumps
 full table/grid exports
 raw unrestricted profile dumps
 raw unrestricted candidature dumps
