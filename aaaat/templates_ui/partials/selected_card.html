@@ -4,440 +4,57 @@
     <div class="body" data-welcome-view>
       <p class="subtle">AAAAT is a local-first workspace for tracking candidatures, preparing recruiter conversations, and generating job-application artifacts while keeping dashboard data human-local.</p>
       <div class="hero-grid" data-welcome-setup-state>
-        <div class="action-card">
-          <span class="label">Setup state</span>
-          {% if welcome.setup_state.is_first_run %}
-            <strong>First run</strong>
-            <p>No candidatures are stored yet.</p>
-          {% else %}
-            <strong>{{ applications|length }} candidature{% if applications|length != 1 %}s{% endif %}</strong>
-            <p>{{ welcome.setup_state.missing_profile_variables|length }} profile item{% if welcome.setup_state.missing_profile_variables|length != 1 %}s{% endif %} still need attention.</p>
-          {% endif %}
-        </div>
-        <div class="action-card">
-          <span class="label">Local-first operating model</span>
-          <p>Use the dashboard manually, then queue bounded tasks for external agents only when you choose to.</p>
-        </div>
+        <div class="action-card"><span class="label">Setup state</span>{% if welcome.setup_state.is_first_run %}<strong>First run</strong><p>No candidatures are stored yet.</p>{% else %}<strong>{{ applications|length }} candidature{% if applications|length != 1 %}s{% endif %}</strong><p>{{ welcome.setup_state.missing_profile_variables|length }} profile item{% if welcome.setup_state.missing_profile_variables|length != 1 %}s{% endif %} still need attention.</p>{% endif %}</div>
+        <div class="action-card"><span class="label">Local-first operating model</span><p>Use the dashboard manually, then queue bounded tasks for external agents only when you choose to.</p></div>
       </div>
-
       <h3 class="section-title">Primary actions</h3>
       <div class="quick-grid" data-welcome-primary-actions>
-        {% for item in welcome.primary_actions %}
-          <div class="action-card" data-welcome-primary-action="{{ item.id }}">
-            <span class="label">{{ item.label }}</span>
-            {% if item.target_view %}
-              <a href="/?view={{ item.target_view }}{% if selected %}&application_id={{ selected.id }}{% endif %}">Open</a>
-            {% elif item.panel %}
-              <p class="subtle">Available from the collapsed New candidature panel.</p>
-            {% else %}
-              <p class="subtle">Available in the dashboard controls.</p>
-            {% endif %}
-            {% if not item.enabled %}<p class="subtle">Read-only in this mode.</p>{% endif %}
-          </div>
-        {% endfor %}
+        {% for item in welcome.primary_actions %}<div class="action-card" data-welcome-primary-action="{{ item.id }}"><span class="label">{{ item.label }}</span>{% if item.target_view %}<a href="/?view={{ item.target_view }}{% if selected %}&application_id={{ selected.id }}{% endif %}">Open</a>{% elif item.panel %}<p class="subtle">Available from the collapsed New candidature panel.</p>{% endif %}{% if not item.enabled %}<p class="subtle">Read-only in this mode.</p>{% endif %}</div>{% endfor %}
       </div>
-
-      <details class="field" data-welcome-setup-panel>
-        <summary>Setup checklist</summary>
-        <div class="field-grid">
-          <div class="field"><span class="label">Personal data</span><p>{{ user.profile_summary.profile_variable_count }} stored profile variable{% if user.profile_summary.profile_variable_count != 1 %}s{% endif %}.</p></div>
-          <div class="field"><span class="label">Career strategy</span><p>{{ user.career_summary.career_plan_count }} active career plan{% if user.career_summary.career_plan_count != 1 %}s{% endif %}.</p></div>
-          <div class="field"><span class="label">CV fields</span><p>{{ user.profile_summary.profile_fact_count }} dashboard profile fact{% if user.profile_summary.profile_fact_count != 1 %}s{% endif %}.</p></div>
-          <div class="field"><span class="label">Template variables</span><p>{{ user.template_summary.missing_profile_variables|length }} missing variable{% if user.template_summary.missing_profile_variables|length != 1 %}s{% endif %}.</p></div>
-        </div>
-      </details>
-
+      <details class="field" data-welcome-setup-panel><summary>Setup checklist</summary><div class="field-grid"><div class="field"><span class="label">Personal data</span><p>{{ user.profile_summary.profile_variable_count }} stored profile variable{% if user.profile_summary.profile_variable_count != 1 %}s{% endif %}.</p></div><div class="field"><span class="label">Career strategy</span><p>{{ user.career_summary.career_plan_count }} active career plan{% if user.career_summary.career_plan_count != 1 %}s{% endif %}.</p></div><div class="field"><span class="label">CV fields</span><p>{{ user.profile_summary.profile_fact_count }} dashboard profile fact{% if user.profile_summary.profile_fact_count != 1 %}s{% endif %}.</p></div><div class="field"><span class="label">Template variables</span><p>{{ user.template_summary.missing_profile_variables|length }} missing variable{% if user.template_summary.missing_profile_variables|length != 1 %}s{% endif %}.</p></div></div></details>
       <div class="hero-grid">
-        <div class="action-card" data-welcome-summary="todos">
-          <span class="label">Open todos</span>
-          <strong>{{ welcome.open_todo_summary.count }}</strong>
-          {% for todo in welcome.open_todo_summary.items[:4] %}
-            <p>{{ todo.title }}{% if todo.due_at %} / {{ todo.due_at }}{% endif %}</p>
-          {% else %}
-            <p class="empty">No open todos.</p>
-          {% endfor %}
-        </div>
-        <div class="action-card" data-welcome-summary="tasks">
-          <span class="label">Pending agent tasks</span>
-          <strong>{{ welcome.open_task_summary.count }}</strong>
-          {% for task in welcome.open_task_summary.items[:4] %}
-            <p>{{ task.priority }} / {{ task.title }}</p>
-          {% else %}
-            <p class="empty">No pending tasks.</p>
-          {% endfor %}
-        </div>
+        <div class="action-card" data-welcome-summary="todos"><span class="label">Open todos</span><strong>{{ welcome.open_todo_summary.count }}</strong>{% for todo in welcome.open_todo_summary["items"][:4] %}<p>{{ todo.title }}{% if todo.due_at %} / {{ todo.due_at }}{% endif %}</p>{% else %}<p class="empty">No open todos.</p>{% endfor %}</div>
+        <div class="action-card" data-welcome-summary="tasks"><span class="label">Pending agent tasks</span><strong>{{ welcome.open_task_summary.count }}</strong>{% for task in welcome.open_task_summary["items"][:4] %}<p>{{ task.priority }} / {{ task.title }}</p>{% else %}<p class="empty">No pending tasks.</p>{% endfor %}</div>
       </div>
-
-      {% if welcome.important_candidatures %}
-        <h3 class="section-title">Latest and important candidatures</h3>
-        {% for app in welcome.important_candidatures %}
-          <div class="field" data-important-candidature>
-            <strong>{{ app.company }}</strong> / {{ app.role }}
-            <p class="meta">
-              <span>{{ app.status }}</span>
-              <span>{{ app.priority }}</span>
-              {% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}
-            </p>
-            <p>
-              <a href="/?view=smartView&application_id={{ app.id }}">Open Smart View</a>
-              <a href="/?view=detailedView&application_id={{ app.id }}">Open Detailed View</a>
-            </p>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p class="empty">No candidatures yet. Use the collapsed New candidature panel when you are ready to create or import one.</p>
-      {% endif %}
+      {% if welcome.important_candidatures %}<h3 class="section-title">Latest and important candidatures</h3>{% for app in welcome.important_candidatures %}<div class="field" data-important-candidature><strong>{{ app.company }}</strong> / {{ app.role }}<p class="meta"><span>{{ app.status }}</span><span>{{ app.priority }}</span>{% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}</p><p><a href="/?view=smartView&application_id={{ app.id }}">Open Smart View</a> <a href="/?view=detailedView&application_id={{ app.id }}">Open Detailed View</a></p></div>{% endfor %}{% else %}<p class="empty">No candidatures yet. Use the collapsed New candidature panel when you are ready to create or import one.</p>{% endif %}
     </div>
 
   {% elif view == "smartView" %}
     {% set detail = smart.selected_candidature_detail %}
-    {% if not detail %}
-      <h2>Recruiter call view</h2>
-      <div class="body"><p class="empty">No candidature selected yet. Create or import a candidature from the collapsed New candidature panel.</p></div>
-    {% else %}
+    {% if not detail %}<h2>Recruiter call view</h2><div class="body"><p class="empty">No candidature selected yet. Create or import a candidature from the collapsed New candidature panel.</p></div>{% else %}
       <h2>Recruiter call view</h2>
       <div class="body" data-smart-operational-detail>
-        <form method="get" action="/" class="global-search" hx-get="/dashboard/fragments/candidature-list" hx-target="[aria-label='Candidatures']" hx-swap="outerHTML">
-          <input type="hidden" name="view" value="smartView">
-          <input type="hidden" name="application_id" value="{{ detail.id }}">
-          <input type="hidden" name="context_module" value="{{ smart.selected_context_module }}">
-          <input name="q" value="{{ search_query }}" placeholder="Search caller, company, role, keyword, note">
-          <button>Find</button>
-        </form>
-        {% if search_query %}
-          <div class="field" data-search-results>
-            <span class="label">Matches</span>
-            {% if search_result.available %}
-              {% for result in search_result.results %}
-                <p><a href="/?view=smartView&application_id={{ result.application_id or result.entity_id }}">{{ result.title or result.entity_type }}</a><br><span class="meta">{{ result.entity_type }} / {{ result.snippet }}</span></p>
-              {% else %}
-                <p class="empty">No matches.</p>
-              {% endfor %}
-            {% else %}
-              <p class="empty">{{ search_result.error }}</p>
-            {% endif %}
-          </div>
-        {% endif %}
-
-        <div class="hero-grid" data-smart-selected-summary>
-          <div class="action-card">
-            <span class="label">Candidature</span>
-            <h3>{{ detail.company or "Add company" }}</h3>
-            <p><strong>{{ detail.role or "Add role" }}</strong></p>
-            <p class="meta">
-              <span>{{ detail.status or "draft" }}</span>
-              <span>{{ detail.priority or "normal" }}</span>
-              {% if detail.location %}<span>{{ detail.location }}</span>{% endif %}
-              {% if detail.remote_mode %}<span>{{ detail.remote_mode }}</span>{% endif %}
-            </p>
-            {% if detail.source_url %}<p><a href="{{ detail.source_url }}">Source URL</a></p>{% endif %}
-            {% if detail.next_action %}<p><strong>Next:</strong> {{ detail.next_action }}</p>{% endif %}
-          </div>
-          <div class="action-card" data-call-card>
-            <span class="label">Call card</span>
-            <p>{{ smart.call_card.pitch or "No pitch captured yet." }}</p>
-            <p>{{ smart.call_card.smart_question or "No smart question captured yet." }}</p>
-            <p>{{ smart.call_card.risk_to_avoid or "No risk captured yet." }}</p>
-          </div>
-        </div>
-
+        <form method="get" action="/" class="global-search" hx-get="/dashboard/fragments/candidature-list" hx-target="[aria-label='Candidatures']" hx-swap="outerHTML"><input type="hidden" name="view" value="smartView"><input type="hidden" name="application_id" value="{{ detail.id }}"><input type="hidden" name="context_module" value="{{ smart.selected_context_module }}"><input name="q" value="{{ search_query }}" placeholder="Search caller, company, role, keyword, note"><button>Find</button></form>
+        {% if search_query %}<div class="field" data-search-results><span class="label">Matches</span>{% if search_result.available %}{% for result in search_result.results %}<p><a href="/?view=smartView&application_id={{ result.application_id or result.entity_id }}">{{ result.title or result.entity_type }}</a><br><span class="meta">{{ result.entity_type }} / {{ result.snippet }}</span></p>{% else %}<p class="empty">No matches.</p>{% endfor %}{% else %}<p class="empty">{{ search_result.error }}</p>{% endif %}</div>{% endif %}
+        <div class="hero-grid" data-smart-selected-summary><div class="action-card"><span class="label">Candidature</span><h3>{{ detail.company or "Add company" }}</h3><p><strong>{{ detail.role or "Add role" }}</strong></p><p class="meta"><span>{{ detail.status or "draft" }}</span><span>{{ detail.priority or "normal" }}</span>{% if detail.location %}<span>{{ detail.location }}</span>{% endif %}{% if detail.remote_mode %}<span>{{ detail.remote_mode }}</span>{% endif %}</p>{% if detail.source_url %}<p><a href="{{ detail.source_url }}">Source URL</a></p>{% endif %}{% if detail.next_action %}<p><strong>Next:</strong> {{ detail.next_action }}</p>{% endif %}</div><div class="action-card" data-call-card><span class="label">Call card</span><p>{{ smart.call_card.pitch or "No pitch captured yet." }}</p><p>{{ smart.call_card.smart_question or "No smart question captured yet." }}</p><p>{{ smart.call_card.risk_to_avoid or "No risk captured yet." }}</p></div></div>
         <h3 class="section-title">Operational detail</h3>
-        <div class="field-grid" data-selected-operational-fields>
-          <div class="field" data-operational-field="pitch"><span class="label">Pitch</span><p>{{ detail.pitch or "No pitch captured yet." }}</p></div>
-          <div class="field" data-operational-field="risk_to_avoid"><span class="label">Risk to avoid</span><p>{{ detail.risks_to_avoid or "No risk captured yet." }}</p></div>
-          <div class="field" data-operational-field="smart_question"><span class="label">Smart question</span><p>{{ detail.smart_question or "No smart question captured yet." }}</p></div>
-          <div class="field" data-operational-field="prepare_first"><span class="label">Prepare first</span><p>{{ detail.prepare_first or "No immediate preparation captured yet." }}</p></div>
-          <div class="field" data-operational-field="prepare_later"><span class="label">Prepare later</span><p>{{ detail.prepare_later or "No later preparation captured yet." }}</p></div>
-          <div class="field" data-operational-field="call_signals"><span class="label">Call signals</span><p>{{ detail.call_signals or "No call signals captured yet." }}</p></div>
-          <div class="field" data-operational-field="offer_snapshot"><span class="label">Offer snapshot</span><p>{{ detail.offer_snapshot or "No offer snapshot captured yet." }}</p></div>
-          <div class="field" data-operational-field="artifact_state_summary">
-            <span class="label">Artifact state summary</span>
-            {% if smart.artifact_summary.count %}
-              <p>{{ smart.artifact_summary.current_count }} current / {{ smart.artifact_summary.archived_count }} archived.</p>
-              <p class="meta">{% for state, count in smart.artifact_summary.states.items() %}<span>{{ state }}:{{ count }}</span>{% endfor %}</p>
-            {% else %}
-              <p class="empty">No artifacts yet.</p>
-            {% endif %}
-          </div>
-        </div>
-
+        <div class="field-grid" data-selected-operational-fields><div class="field" data-operational-field="pitch"><span class="label">Pitch</span><p>{{ detail.pitch or "No pitch captured yet." }}</p></div><div class="field" data-operational-field="risk_to_avoid"><span class="label">Risk to avoid</span><p>{{ detail.risks_to_avoid or "No risk captured yet." }}</p></div><div class="field" data-operational-field="smart_question"><span class="label">Smart question</span><p>{{ detail.smart_question or "No smart question captured yet." }}</p></div><div class="field" data-operational-field="prepare_first"><span class="label">Prepare first</span><p>{{ detail.prepare_first or "No immediate preparation captured yet." }}</p></div><div class="field" data-operational-field="prepare_later"><span class="label">Prepare later</span><p>{{ detail.prepare_later or "No later preparation captured yet." }}</p></div><div class="field" data-operational-field="call_signals"><span class="label">Call signals</span><p>{{ detail.call_signals or "No call signals captured yet." }}</p></div><div class="field" data-operational-field="offer_snapshot"><span class="label">Offer snapshot</span><p>{{ detail.offer_snapshot or "No offer snapshot captured yet." }}</p></div><div class="field" data-operational-field="artifact_state_summary"><span class="label">Artifact state summary</span>{% if smart.artifact_summary.count %}<p>{{ smart.artifact_summary.current_count }} current / {{ smart.artifact_summary.archived_count }} archived.</p><p class="meta">{% for state, count in smart.artifact_summary.states.items() %}<span>{{ state }}:{{ count }}</span>{% endfor %}</p>{% else %}<p class="empty">No artifacts yet.</p>{% endif %}</div></div>
         <h3 class="section-title">Primary note</h3>
-        <div class="field" data-primary-note>
-          <span class="label">Primary note</span>
-          {% if smart.primary_note.editable %}
-            <form method="post" action="/dashboard/actions/applications/{{ smart.primary_note.application_id }}" data-primary-note-editor>
-              <input type="hidden" name="_method" value="PATCH">
-              <input type="hidden" name="view" value="smartView">
-              <input type="hidden" name="context_module" value="notes">
-              <textarea name="notes" placeholder="Primary call note">{{ smart.primary_note.value }}</textarea>
-              <button>Save primary note</button>
-            </form>
-          {% else %}
-            <div class="field-value" data-primary-note-readonly>{{ smart.primary_note.value or "No primary note captured yet." }}</div>
-          {% endif %}
-          <details class="inline-edit" data-note-history-summary>
-            <summary>Note history metadata</summary>
-            <p class="subtle">{{ smart.primary_note.history_count }} historical note{% if smart.primary_note.history_count != 1 %}s{% endif %} stored outside the primary Smart View note field.</p>
-          </details>
-        </div>
+        <div class="field" data-primary-note><span class="label">Primary note</span>{% if smart.primary_note.editable %}<form method="post" action="/dashboard/actions/applications/{{ smart.primary_note.application_id }}" data-primary-note-editor><input type="hidden" name="_method" value="PATCH"><input type="hidden" name="view" value="smartView"><input type="hidden" name="context_module" value="notes"><textarea name="notes" placeholder="Primary call note">{{ smart.primary_note.value }}</textarea><button>Save primary note</button></form>{% else %}<div class="field-value" data-primary-note-readonly>{{ smart.primary_note.value or "No primary note captured yet." }}</div>{% endif %}<details class="inline-edit" data-note-history-summary><summary>Note history metadata</summary><p class="subtle">{{ smart.primary_note.history_count }} historical note{% if smart.primary_note.history_count != 1 %}s{% endif %} stored outside the primary Smart View note field.</p></details></div>
       </div>
     {% endif %}
 
   {% elif view == "detailedView" %}
-    {% if not selected %}
-      <h2>Detailed candidature</h2>
-      <div class="body"><p class="empty">No candidature selected yet.</p></div>
-    {% else %}
-      <h2>Detailed candidature</h2>
-      <div class="body" data-detailed-fields>
-        {% set core_fields = [
-          ("company", "Company"), ("role", "Role"), ("status", "Status"), ("priority", "Priority"),
-          ("source", "Source"), ("source_url", "Source URL"), ("location", "Location"), ("remote_mode", "Remote"),
-          ("next_action", "Next action"), ("pitch", "Pitch"), ("risks_to_avoid", "Risks to avoid"),
-          ("smart_question", "Smart question"), ("call_signals", "Call signals"), ("technical_reading", "Technical reading"),
-          ("prepare_first", "Prepare first"), ("prepare_later", "Prepare later"), ("offer_snapshot", "Offer snapshot"),
-          ("company_research", "Company research"), ("form_answers", "Form answers"), ("notes", "Notes")
-        ] %}
-        {% for field, label in core_fields %}
-          <div class="field-line" data-inline-field="{{ field }}">
-            <span class="label">{{ label }}</span>
-            <div class="field-value">{{ selected.get(field) or "Add " ~ label|lower }}</div>
-            {% if can_write(mode) %}
-              <details class="inline-edit">
-                <summary>Edit</summary>
-                <form method="post" action="/dashboard/actions/applications/{{ selected.id }}">
-                  <input type="hidden" name="_method" value="PATCH">
-                  <textarea name="{{ field }}">{{ selected.get(field) or "" }}</textarea>
-                  <button>Save</button>
-                </form>
-              </details>
-            {% endif %}
-          </div>
-        {% endfor %}
-        {% set detail_fields = [
-          ("description", "Description"), ("salary_expectation", "Salary expectation"),
-          ("publication_date", "Publication date"), ("application_date", "Application date"),
-          ("raw_application_form", "Raw application form"), ("strengths", "Strengths"),
-          ("questions_to_ask", "Questions to ask"), ("tech_stack", "Tech stack"), ("valuation", "Valuation")
-        ] %}
-        {% for field, label in detail_fields %}
-          <div class="field-line" data-detail-field="{{ field }}">
-            <span class="label">{{ label }}</span>
-            <div class="field-value">{{ selected.details.get(field) or "Add " ~ label|lower }}</div>
-            {% if can_write(mode) %}
-              <details class="inline-edit">
-                <summary>Edit</summary>
-                <form method="post" action="/dashboard/actions/candidatures/{{ selected.id }}">
-                  <input type="hidden" name="_method" value="PATCH">
-                  <textarea name="{{ field }}">{{ selected.details.get(field) or "" }}</textarea>
-                  <button>Save</button>
-                </form>
-              </details>
-            {% endif %}
-          </div>
-        {% endfor %}
-        {% if can_write(mode) %}
-          <h3 class="section-title">Document actions</h3>
-          <div class="quick-grid" data-document-actions>
-            <form class="action-card" method="post" action="/dashboard/actions/render/cv">
-              <span class="label">CV</span>
-              <input type="hidden" name="application_id" value="{{ selected.id }}">
-              <label><input type="checkbox" name="compile_pdf" value="1"> Compile PDF if pdflatex is available</label>
-              <button>Render local template</button>
-            </form>
-            <form class="action-card" method="post" action="/dashboard/actions/tasks">
-              <span class="label">CV</span>
-              <input type="hidden" name="application_id" value="{{ selected.id }}">
-              <input type="hidden" name="task_type" value="draft_cv">
-              <input type="hidden" name="context_hint" value="artifact:cv">
-              <input type="hidden" name="title" value="Draft adapted CV">
-              <input type="hidden" name="created_by" value="dashboard">
-              <button>Queue agent draft</button>
-            </form>
-            <form class="action-card" method="post" action="/dashboard/actions/render/cover-letter">
-              <span class="label">Cover letter</span>
-              <input type="hidden" name="application_id" value="{{ selected.id }}">
-              <textarea name="body" placeholder="Optional local cover-letter body">I am applying for the {{ selected.role }} role at {{ selected.company }}.</textarea>
-              <label><input type="checkbox" name="compile_pdf" value="1"> Compile PDF if pdflatex is available</label>
-              <button>Render local template</button>
-            </form>
-            <form class="action-card" method="post" action="/dashboard/actions/tasks">
-              <span class="label">Cover letter</span>
-              <input type="hidden" name="application_id" value="{{ selected.id }}">
-              <input type="hidden" name="task_type" value="draft_cover_letter">
-              <input type="hidden" name="context_hint" value="artifact:cover_letter">
-              <input type="hidden" name="title" value="Draft cover letter">
-              <input type="hidden" name="created_by" value="dashboard">
-              <button>Queue agent draft</button>
-            </form>
-          </div>
-          <h3 class="section-title">Generative tasks</h3>
-          <div class="quick-grid" data-generative-actions>
-            {% for task_type, title, hint in [
-              ("field_inference", "Infer missing fields", "candidature:field_inference"),
-              ("company_research", "Research company", "candidature:company_research"),
-              ("draft_form_responses", "Draft form responses", "blob:form_responses"),
-              ("keyword_definition", "Define missing keywords", "keyword:auto")
-            ] %}
-              <form class="action-card" method="post" action="/dashboard/actions/tasks">
-                <input type="hidden" name="application_id" value="{{ selected.id }}">
-                <input type="hidden" name="task_type" value="{{ task_type }}">
-                <input type="hidden" name="context_hint" value="{{ hint }}">
-                <input type="hidden" name="title" value="{{ title }}">
-                <input type="hidden" name="created_by" value="dashboard">
-                <button>{{ title }}</button>
-              </form>
-            {% endfor %}
-          </div>
-        {% endif %}
-        <h3 class="section-title">Completed task results</h3>
-        {% for task in selected.tasks if task.state == "completed" and (task.result_blob_id or task.artifact_id) %}
-          <div class="field" data-completed-task>
-            <strong>{{ task.title }}</strong>
-            <p class="meta"><span>{{ task.task_type }}</span><span>{{ task.context_hint }}</span></p>
-            {% if can_write(mode) %}
-              <form method="post" action="/dashboard/actions/tasks/{{ task.id }}/apply">
-                <button>Apply result</button>
-              </form>
-            {% endif %}
-          </div>
-        {% else %}
-          <p class="empty">No completed task results waiting to apply.</p>
-        {% endfor %}
-      </div>
-    {% endif %}
+    <h2>Detailed candidature grid</h2>
+    <div class="body" data-detailed-grid>
+      <form method="get" action="/" class="global-search" data-detailed-filter-form><input type="hidden" name="view" value="detailedView">{% if detailed.has_selected_row %}<input type="hidden" name="application_id" value="{{ detailed.selected_row.id }}">{% endif %}<input name="q" value="{{ detailed.filters.search }}" placeholder="Filter candidature rows"><button>Filter</button></form>
+      <div class="field" data-detailed-column-state><span class="label">Column state</span><p>{{ detailed.visible_columns|length }} visible of {{ detailed.available_columns|length }} available columns. {{ detailed.filtered_row_count }} of {{ detailed.all_row_count }} row{% if detailed.all_row_count != 1 %}s{% endif %} shown.</p><details class="inline-edit" data-detailed-column-config><summary>Visible/order metadata</summary><p class="subtle" data-detailed-available-columns>{% for column in detailed.available_columns %}{{ column.key }}{% if not loop.last %}, {% endif %}{% endfor %}</p><p class="subtle" data-detailed-visible-columns>{% for column in detailed.visible_columns %}{{ column }}{% if not loop.last %}, {% endif %}{% endfor %}</p><p class="subtle" data-detailed-column-order>{% for column in detailed.column_order %}{{ column }}{% if not loop.last %}, {% endif %}{% endfor %}</p></details></div>
+      {% if detailed.rows %}<div style="overflow:auto"><table data-detailed-table><thead><tr>{% for column in detailed.visible_column_defs %}<th data-detailed-column="{{ column.key }}">{{ column.label }}</th>{% endfor %}</tr></thead><tbody>{% for row in detailed.rows %}<tr data-detailed-row data-application-id="{{ row.id }}" {% if detailed.selected_row and row.id == detailed.selected_row.id %}aria-current="true" data-selected-row="true"{% endif %}>{% for column in detailed.visible_column_defs %}<td data-detailed-cell="{{ column.key }}">{% if loop.first %}<a href="/?view=detailedView&application_id={{ row.id }}{% if detailed.filters.search %}&q={{ detailed.filters.search }}{% endif %}">{{ row.get(column.key) or "—" }}</a>{% else %}{{ row.get(column.key) or "—" }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty" data-detailed-empty-grid>No candidatures match the current Detailed View filters.</p>{% endif %}
+    </div>
 
   {% elif view == "userView" %}
     <h2>User control center</h2>
     <div class="body" data-user-control-center>
       <p class="subtle">Profile, career strategy, template, writing, theme, task, and local privacy controls are grouped here without mixing operational candidature clutter into the main workspace.</p>
-      <div class="quick-grid" data-user-summary-sections>
-        {% for section in user.summary_sections %}
-          <div class="action-card" data-user-summary-section="{{ section.id }}">
-            <span class="label">{{ section.label }}</span>
-            <strong>{{ section.count }}</strong>
-            {% if permissions.can_write and section.editable %}<p class="subtle">Editable from its expandable panel.</p>{% else %}<p class="subtle">Visible in {{ permissions.mode }} mode.</p>{% endif %}
-          </div>
-        {% endfor %}
-      </div>
-
-      <details class="field" data-user-panel="personal_data">
-        <summary>Personal data</summary>
-        <p>{{ user.profile_summary.profile_variable_count }} profile variable{% if user.profile_summary.profile_variable_count != 1 %}s{% endif %} stored locally.</p>
-        {% if user.profile_summary.missing_profile_variables %}
-          <p class="subtle">Missing: {{ user.profile_summary.missing_profile_variables|join(", ") }}</p>
-        {% endif %}
-        {% if permissions.can_write %}
-          <details class="inline-edit" data-write-control="profile-variable-add">
-            <summary>Add or update profile variable</summary>
-            <form method="post" action="/dashboard/actions/profile/variables">
-              <input name="key" placeholder="profile key">
-              <input name="value" placeholder="value">
-              <select name="exposure">
-                <option>placeholder</option>
-                <option>summarized</option>
-                <option>redacted</option>
-                <option>denied</option>
-                <option>raw</option>
-              </select>
-              <button>Save variable</button>
-            </form>
-          </details>
-        {% endif %}
-      </details>
-
-      <details class="field" data-user-panel="career_strategy">
-        <summary>Career strategy</summary>
-        <p>{{ user.career_summary.career_plan_count }} active career plan{% if user.career_summary.career_plan_count != 1 %}s{% endif %}.</p>
-        {% if permissions.is_static_demo %}
-          <p class="subtle">Static demo mode hides private strategy content.</p>
-        {% else %}
-          {% for plan in user.career_summary.items %}
-            <div class="blob-item"><strong>{{ plan.source or "Career plan" }}</strong><p>{{ plan.body or "No strategy body captured." }}</p></div>
-          {% else %}
-            <p class="empty">No career strategy captured yet.</p>
-          {% endfor %}
-        {% endif %}
-      </details>
-
-      <details class="field" data-user-panel="cv_fields">
-        <summary>CV fields</summary>
-        <p>{{ user.profile_summary.profile_fact_count }} dashboard profile fact{% if user.profile_summary.profile_fact_count != 1 %}s{% endif %}.</p>
-        {% if permissions.is_static_demo %}
-          <p class="subtle">Static demo mode hides private profile facts.</p>
-        {% else %}
-          {% for fact_type, facts in user.profile_summary.grouped_profile_facts.items() %}
-            <div class="field" data-user-profile-fact-group="{{ fact_type }}">
-              <span class="label">{{ fact_type }}</span>
-              {% for fact in facts %}
-                {% if fact.use_for_dashboard %}
-                  <p><strong>{{ fact.title or "Untitled fact" }}</strong> <span class="badge visibility-{{ fact.visibility }}">{{ fact.visibility }}</span> <span class="badge exposure-{{ fact.exposure }}">{{ fact.exposure }}</span></p>
-                {% endif %}
-              {% endfor %}
-            </div>
-          {% else %}
-            <p class="empty">No dashboard profile facts yet.</p>
-          {% endfor %}
-        {% endif %}
-        {% if permissions.can_write %}
-          <details class="inline-edit" data-write-control="profile-fact-add">
-            <summary>Add profile/CV fact</summary>
-            <form method="post" action="/dashboard/actions/profile/facts">
-              <select name="fact_type">
-                {% for item in ["target_role", "skill", "experience", "project", "education", "certification", "language", "achievement", "preference", "constraint", "salary_expectation", "cv_summary", "role_positioning_note"] %}
-                  <option value="{{ item }}">{{ item }}</option>
-                {% endfor %}
-              </select>
-              <input name="title" placeholder="Title">
-              <textarea name="body" placeholder="Professional/CV fact"></textarea>
-              <input name="tags" placeholder="python, backend">
-              <button>Add fact</button>
-            </form>
-          </details>
-        {% endif %}
-      </details>
-
-      <details class="field" data-user-panel="template_variables">
-        <summary>Template variables</summary>
-        {% if user.template_summary.missing_profile_variables %}
-          <p class="subtle">Missing template variables: {{ user.template_summary.missing_profile_variables|join(", ") }}</p>
-        {% else %}
-          <p class="empty">No required template variables are missing.</p>
-        {% endif %}
-      </details>
-
-      <details class="field" data-user-panel="writing_preferences">
-        <summary>Writing preferences</summary>
-        <p class="subtle">A local editable version for your own wording and preparation, without storing a fork of the candidature record.</p>
-        <div data-user-view-editor>
-          <p>{{ selected_user_view.body or "No customized user wording captured yet." }}</p>
-          {% if permissions.can_write and selected %}
-            <details class="inline-edit" data-write-control="user-view-edit">
-              <summary>Edit local wording</summary>
-              <form method="post" action="/dashboard/actions/user-view">
-                <input type="hidden" name="application_id" value="{{ selected.id }}">
-                <input name="title" value="{{ selected_user_view.title or 'User view' }}">
-                <textarea name="body" placeholder="Editable summary, positioning, notes, and preparation text">{{ selected_user_view.body or selected.pitch or "" }}</textarea>
-                <button>Save user view</button>
-              </form>
-            </details>
-          {% endif %}
-        </div>
-      </details>
-
-      <details class="field" data-user-panel="settings">
-        <summary>Theme, accessibility, agent/task, and local privacy</summary>
-        <div class="field-grid">
-          <div class="field"><span class="label">Mode</span><p>{{ user.settings_summary.mode }}</p></div>
-          <div class="field"><span class="label">Write controls</span><p>{% if user.settings_summary.write_enabled %}Enabled{% else %}Disabled{% endif %}</p></div>
-          <div class="field"><span class="label">Theme/accessibility</span><p>Theme controls are represented as dashboard settings and can be expanded later without changing the agent contract.</p></div>
-          <div class="field"><span class="label">Storage/privacy</span><p>Dashboard data remains local-human runtime state, not an agent projection API.</p></div>
-        </div>
-      </details>
+      <div class="quick-grid" data-user-summary-sections>{% for section in user.summary_sections %}<div class="action-card" data-user-summary-section="{{ section.id }}"><span class="label">{{ section.label }}</span><strong>{{ section.count }}</strong>{% if permissions.can_write and section.editable %}<p class="subtle">Editable from its expandable panel.</p>{% else %}<p class="subtle">Visible in {{ permissions.mode }} mode.</p>{% endif %}</div>{% endfor %}</div>
+      <details class="field" data-user-panel="personal_data"><summary>Personal data</summary><p>{{ user.profile_summary.profile_variable_count }} profile variable{% if user.profile_summary.profile_variable_count != 1 %}s{% endif %} stored locally.</p>{% if user.profile_summary.missing_profile_variables %}<p class="subtle">Missing: {{ user.profile_summary.missing_profile_variables|join(", ") }}</p>{% endif %}{% if permissions.can_write %}<details class="inline-edit" data-write-control="profile-variable-add"><summary>Add or update profile variable</summary><form method="post" action="/dashboard/actions/profile/variables"><input name="key" placeholder="profile key"><input name="value" placeholder="value"><button>Save variable</button></form></details>{% endif %}</details>
+      <details class="field" data-user-panel="career_strategy"><summary>Career strategy</summary><p>{{ user.career_summary.career_plan_count }} active career plan{% if user.career_summary.career_plan_count != 1 %}s{% endif %}.</p>{% if permissions.is_static_demo %}<p class="subtle">Static demo mode hides private strategy content.</p>{% else %}{% for plan in user.career_summary["items"] %}<div class="blob-item"><strong>{{ plan.source or "Career plan" }}</strong><p>{{ plan.body or "No strategy body captured." }}</p></div>{% else %}<p class="empty">No career strategy captured yet.</p>{% endfor %}{% endif %}</details>
+      <details class="field" data-user-panel="cv_fields"><summary>CV fields</summary><p>{{ user.profile_summary.profile_fact_count }} dashboard profile fact{% if user.profile_summary.profile_fact_count != 1 %}s{% endif %}.</p>{% if permissions.is_static_demo %}<p class="subtle">Static demo mode hides private profile facts.</p>{% else %}{% for fact_type, facts in user.profile_summary.grouped_profile_facts.items() %}<div class="field" data-user-profile-fact-group="{{ fact_type }}"><span class="label">{{ fact_type }}</span>{% for fact in facts %}{% if fact.use_for_dashboard %}<p><strong>{{ fact.title or "Untitled fact" }}</strong> <span class="badge visibility-{{ fact.visibility }}">{{ fact.visibility }}</span> <span class="badge exposure-{{ fact.exposure }}">{{ fact.exposure }}</span></p>{% endif %}{% endfor %}</div>{% else %}<p class="empty">No dashboard profile facts yet.</p>{% endfor %}{% endif %}{% if permissions.can_write %}<details class="inline-edit" data-write-control="profile-fact-add"><summary>Add profile/CV fact</summary><form method="post" action="/dashboard/actions/profile/facts"><input name="title" placeholder="Title"><textarea name="body" placeholder="Professional/CV fact"></textarea><button>Add fact</button></form></details>{% endif %}</details>
+      <details class="field" data-user-panel="template_variables"><summary>Template variables</summary>{% if user.template_summary.missing_profile_variables %}<p class="subtle">Missing template variables: {{ user.template_summary.missing_profile_variables|join(", ") }}</p>{% else %}<p class="empty">No required template variables are missing.</p>{% endif %}</details>
+      <details class="field" data-user-panel="writing_preferences"><summary>Writing preferences</summary><p class="subtle">A local editable version for your own wording and preparation, without storing a fork of the candidature record.</p><div data-user-view-editor><p>{{ selected_user_view.body or "No customized user wording captured yet." }}</p>{% if permissions.can_write and selected %}<details class="inline-edit" data-write-control="user-view-edit"><summary>Edit local wording</summary><form method="post" action="/dashboard/actions/user-view"><input type="hidden" name="application_id" value="{{ selected.id }}"><input name="title" value="{{ selected_user_view.title or 'User view' }}"><textarea name="body">{{ selected_user_view.body or selected.pitch or "" }}</textarea><button>Save user view</button></form></details>{% endif %}</div></details>
+      <details class="field" data-user-panel="settings"><summary>Theme, accessibility, agent/task, and local privacy</summary><div class="field-grid"><div class="field"><span class="label">Mode</span><p>{{ user.settings_summary.mode }}</p></div><div class="field"><span class="label">Write controls</span><p>{% if user.settings_summary.write_enabled %}Enabled{% else %}Disabled{% endif %}</p></div><div class="field"><span class="label">Storage/privacy</span><p>Dashboard data remains local-human runtime state, not an agent projection API.</p></div></div></details>
     </div>
-
   {% else %}
-    <h2>Local candidature dashboard</h2>
-    <div class="body"><p class="empty">Choose a dashboard view.</p></div>
+    <h2>Local candidature dashboard</h2><div class="body"><p class="empty">Choose a dashboard view.</p></div>
   {% endif %}
 </section>
