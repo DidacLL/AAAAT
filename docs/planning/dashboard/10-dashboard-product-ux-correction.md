@@ -32,19 +32,19 @@ insufficient hard UX tests
 
 ## Accepted dashboard interaction stack
 
-The dashboard remains server-rendered, local-first, and provider-independent. The correction pass should not attempt a SPA rewrite, but it should also not hand-roll all dynamic behavior through static templates.
+The dashboard remains server-rendered, local-first, and provider-independent. The correction pass should not attempt a SPA rewrite, but it should also not hand-roll dynamic behavior that the accepted dashboard stack already covers.
 
 Accepted stack:
 
 ```text
 Jinja for server-rendered structure
 existing HTMX for server-rendered partial updates and button-triggered fragment swaps
-Alpine.js for dashboard-local interaction state
+Alpine.js as the required mechanism for dashboard-local interaction state where Alpine can express the behavior
 project-owned CSS for layout, density, visual hierarchy, and themes
-small project-owned JavaScript only where Alpine/HTMX/native HTML are insufficient
+small project-owned JavaScript only where Alpine/HTMX/native HTML cannot express the specific primitive cleanly
 ```
 
-Use the split intentionally:
+Required responsibility split:
 
 ```text
 HTMX owns server interactions: fragment swaps, selected context refreshes, form submissions, server-rendered module bodies.
@@ -52,6 +52,28 @@ Alpine.js owns local UI state: expanded/collapsed modules, selected tab/module s
 Jinja owns durable structure and initial render.
 CSS owns bounded layout, panel sizing, visual hierarchy, and density.
 ```
+
+Alpine.js is not merely permitted. For local dashboard interaction state, do not hand-roll custom JavaScript or duplicate local open/closed/selected/visible state in templates when Alpine can express the behavior directly.
+
+Use Alpine directly for local dashboard state:
+
+```text
+x-data for component-local state
+x-show or equivalent Alpine binding for collapsed/expanded visibility
+@click or equivalent Alpine event binding for local toggles
+x-bind / :aria-expanded / :aria-selected for accessibility and state markers
+class/data-state bindings for selected, active, disabled, collapsed, and expanded states
+```
+
+Use HTMX only where the behavior requires server-rendered state or server-side action handling:
+
+```text
+hx-get / hx-post for server requests
+hx-target for fragment targets
+hx-swap for server-rendered body replacement
+```
+
+Custom JavaScript is allowed only when Alpine, HTMX, native HTML, and CSS cannot express the needed dashboard primitive cleanly. The worker must document the reason before or in the completion summary.
 
 Do not introduce React, Vue, Angular, Svelte, a large UI kit, or drag/table libraries in this correction pass unless separately justified and explicitly accepted.
 
@@ -96,7 +118,8 @@ local body region
 optional local scroll area
 consistent selected/active/disabled states
 HTMX-compatible body/action targets where server refresh is needed
-Alpine-backed local expanded/collapsed state where server refresh is not needed
+Alpine-required local expanded/collapsed state where the state is local
+no custom JavaScript replacement for Alpine-equivalent local state
 ```
 
 Failure condition:
@@ -117,7 +140,7 @@ visible selected state
 module body swaps without losing selected candidature
 right-panel context can change while central selected candidature remains visible
 controls are reusable for Smart right-panel modules and other module groups
-Alpine state for immediate selected-state feedback
+Alpine-required local selected-state feedback where the selected state is local
 HTMX swaps for server-rendered module bodies where needed
 ```
 
@@ -139,7 +162,7 @@ profile/config panels closed by default
 action panels closed by default
 advanced forms closed by default
 expanded/collapsed state visible in markup and UI
-Alpine-backed local expanded/collapsed behavior where appropriate
+Alpine-required local expanded/collapsed behavior where the state is local
 no visible form walls at first render
 ```
 
@@ -207,7 +230,7 @@ panel-local scroll regions exist where overflow is expected
 modules expose collapsed/expanded state
 modules expose header, title, action area, body, and optional local scroll region
 tab/module controls are buttons with selected state
-Alpine state attributes exist for local expanded/selected behavior where used
+Alpine state attributes exist for local expanded/selected behavior where local state exists
 HTMX attributes exist for server-rendered swaps where used
 switching a Smart context module preserves selected candidature context
 forms/action panels are collapsed by default
@@ -229,8 +252,8 @@ Recommended order:
 
 ```text
 1. Dashboard shell and bounded three-panel layout. DONE as first corrective slice.
-2. Reusable module primitive with Alpine-backed collapsed/expanded behavior and HTMX-compatible action/body targets.
-3. Button-based tab/module control primitive using Alpine for selected state and HTMX for server-rendered body swaps where needed.
+2. Reusable module primitive with Alpine-required collapsed/expanded behavior for local state and HTMX-compatible action/body targets.
+3. Button-based tab/module control primitive using Alpine for local selected state and HTMX for server-rendered body swaps where needed.
 4. Expandable form/action/configuration panels using the module primitive.
 5. Smart View scan-safe first-screen rewrite using shell, modules, and tab controls.
 6. Detailed View column visibility/order controls using shell, modules, and tab/control primitives.
@@ -263,7 +286,7 @@ the dashboard uses a bounded shell layout
 operational views use constrained left/center/right panels
 modules are reusable and expandable where needed
 tab/module controls are real buttons with selected state
-HTMX and Alpine are used deliberately for their accepted responsibilities
+HTMX and Alpine are used according to their required responsibilities
 forms/actions/configuration are closed by default
 Smart View is scan-safe on first render
 Detailed View has usable column visibility/order controls
