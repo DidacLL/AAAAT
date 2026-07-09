@@ -28,6 +28,7 @@ def render_dashboard_view(
     view: str | None = None,
     selected_application_id: str | None = None,
     selected_keyword: str | None = None,
+    selected_context_module: str | None = None,
     search_query: str | None = None,
     view_model: dict[str, Any] | None = None,
 ) -> str:
@@ -37,6 +38,7 @@ def render_dashboard_view(
         view=view,
         selected_application_id=selected_application_id,
         selected_keyword=selected_keyword,
+        selected_context_module=selected_context_module,
         search_query=search_query,
     )
     env = dashboard_environment()
@@ -74,6 +76,7 @@ def dashboard_view_model(
     view: str | None = None,
     selected_application_id: str | None = None,
     selected_keyword: str | None = None,
+    selected_context_module: str | None = None,
     search_query: str | None = None,
     conn: Any | None = None,
 ) -> dict[str, Any]:
@@ -90,6 +93,7 @@ def dashboard_view_model(
         view=view,
         selected_application_id=selected_application_id,
         selected_keyword=selected_keyword,
+        selected_context_module=selected_context_module,
         search_query=search_query,
         conn=conn,
     )
