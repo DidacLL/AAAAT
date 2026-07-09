@@ -13,6 +13,35 @@ Detailed View
 
 These views are part of the dashboard runtime only. They are local human UI surfaces and must not be treated as the agent contract.
 
+
+## Projection/view-model boundary
+
+The four views should be rendered from structured dashboard projection data where practical. HTML templates should consume already-prepared view models instead of becoming the only place where dashboard state, selection, column configuration, task summaries, or primary note behavior is assembled.
+
+The projection layer should include, at minimum:
+
+```text
+current view state
+permissions for full/read-only/static-demo mode
+Welcome View setup state and primary actions
+User View profile/career/template/settings summaries
+Smart View candidature summaries
+selected candidature detail
+primary note state
+selected keyword/glossary context
+artifact state summary
+Detailed View rows
+available/visible columns
+column order/filter/search state
+selected row context
+Detailed View toolbox actions
+human-facing task queue summary
+```
+
+This layer is still dashboard runtime infrastructure. It must not be exposed as a broad agent API and must not become a provider-specific integration surface.
+
+The immediate dashboard branch should add or prepare this boundary only as far as needed for the four-view redesign. It should not attempt a full domain-service rewrite.
+
 ## Shared layout principles
 
 The dashboard may use a three-region layout where useful:
