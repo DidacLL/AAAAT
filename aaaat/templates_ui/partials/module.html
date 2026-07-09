@@ -13,6 +13,21 @@
 </section>
 {%- endmacro %}
 
+{% macro expandable_panel(panel_id, title, kind='action', hooks='', body_class='expandable-panel-body', collapsed=True, scroll=False, htmx_attrs='') -%}
+<section class="expandable-panel" data-expandable-panel data-panel-kind="{{ kind }}" data-panel-id="{{ panel_id }}" data-panel-default="{% if collapsed %}collapsed{% else %}expanded{% endif %}" data-panel-state="{% if collapsed %}collapsed{% else %}expanded{% endif %}" x-data="{ open: {% if collapsed %}false{% else %}true{% endif %} }" x-bind:data-panel-state="open ? 'expanded' : 'collapsed'" {{ hooks|safe }} {{ htmx_attrs|safe }}>
+  <div class="expandable-panel-header" data-panel-header>
+    <h3 data-panel-title>{{ title }}</h3>
+    <div class="expandable-panel-actions" data-panel-actions>
+      <button type="button" class="module-toggle" data-panel-control="toggle" @click="open = !open" :aria-expanded="open.toString()" aria-controls="{{ panel_id }}-body" aria-expanded="{% if collapsed %}false{% else %}true{% endif %}"><span x-text="open ? 'Collapse' : 'Expand'">{% if collapsed %}Expand{% else %}Collapse{% endif %}</span></button>
+      {{ caller('actions') }}
+    </div>
+  </div>
+  <div id="{{ panel_id }}-body" class="{{ body_class }}{% if scroll %} panel-scroll{% endif %}" data-panel-body {% if scroll %}data-panel-scroll="local"{% endif %} x-show="open" x-cloak>
+    {{ caller('body') }}
+  </div>
+</section>
+{%- endmacro %}
+
 {% macro module_selector(selector_id, label, selected_id, hooks='') -%}
 <div class="module-selector" role="tablist" aria-label="{{ label }}" data-module-selector data-module-selector-id="{{ selector_id }}" data-module-selector-selected="{{ selected_id }}" x-data="{ selected: '{{ selected_id }}' }" x-bind:data-module-selector-selected="selected" {{ hooks|safe }}>
   {{ caller('tabs') }}
