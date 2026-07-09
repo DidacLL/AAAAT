@@ -1,7 +1,7 @@
 {% if view == "welcomeView" %}
-  <section class="surface" aria-label="Welcome actions" data-welcome-side-panel>
+  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="Welcome actions" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded" data-welcome-side-panel>
     <h2>Start</h2>
-    <div class="body">
+    <div class="body panel-scroll" data-panel-scroll="expected" tabindex="0">
       {% for item in welcome.primary_actions %}
         <div class="field" data-welcome-side-action="{{ item.id }}">
           <strong>{{ item.label }}</strong>
@@ -11,9 +11,9 @@
     </div>
   </section>
 {% elif view == "userView" %}
-  <section class="surface" aria-label="User control sections" data-user-side-panel>
+  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="User control sections" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded" data-user-side-panel>
     <h2>User controls</h2>
-    <div class="body">
+    <div class="body panel-scroll" data-panel-scroll="expected" tabindex="0">
       {% for section in user.summary_sections %}
         <a class="app-row" data-user-control-link="{{ section.id }}" href="/?view=userView{% if selected %}&application_id={{ selected.id }}{% endif %}#{{ section.id }}">
           <strong>{{ section.label }}</strong><br>
@@ -23,9 +23,9 @@
     </div>
   </section>
 {% elif view == "detailedView" %}
-  <section class="surface" aria-label="Detailed toolbox" data-detailed-toolbox data-detailed-toolbox-state="{% if detailed.has_selected_row %}selected{% else %}general{% endif %}">
+  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="Detailed toolbox" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded" data-detailed-toolbox data-detailed-toolbox-state="{% if detailed.has_selected_row %}selected{% else %}general{% endif %}">
     <h2>{% if detailed.has_selected_row %}Candidature toolbox{% else %}General toolbox{% endif %}</h2>
-    <div class="body">
+    <div class="body panel-scroll" data-panel-scroll="expected" tabindex="0">
       {% if detailed.has_selected_row %}
         <div class="field" data-detailed-selected-context>
           <span class="label">Selected row</span>
@@ -52,36 +52,40 @@
     </div>
   </section>
 {% elif view == "smartView" %}
-  <section class="surface" aria-label="Candidatures" data-smart-candidature-list>
+  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="Candidatures" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded" data-smart-candidature-list>
     <h2>Candidatures</h2>
-    {% if search_query and search_result.available %}<div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>{% endif %}
-    {% if smart.candidature_summaries %}
-      {% for app in smart.candidature_summaries %}
-        <a class="app-row" data-app-row data-smart-candidature-summary href="/?view=smartView&application_id={{ app.id }}&context_module={{ smart.selected_context_module }}" hx-get="/dashboard/fragments/selected-card?view=smartView&application_id={{ app.id }}&context_module={{ smart.selected_context_module }}" hx-target="[data-selected-app]" hx-swap="outerHTML" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
-          <strong>{{ app.company or "Add company" }}</strong><br>
-          <span>{{ app.role or "Add role" }}</span>
-          <span class="meta"><span>{{ app.status or "draft" }}</span><span>{{ app.priority or "normal" }}</span>{% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}</span>
-          <span class="meta">{% if app.source %}<span>Source: {{ app.source }}</span>{% elif app.source_url %}<span>Source URL</span>{% endif %}{% if app.last_activity %}<span>{{ app.last_activity }}</span>{% endif %}</span>
-          {% if app.keywords %}<span class="meta" data-smart-summary-keywords>{% for keyword in app.keywords[:4] %}<span class="chip" data-keyword="{{ keyword }}">{{ keyword }}</span>{% endfor %}</span>{% endif %}
-          <span class="meta" data-artifact-state-indicator>{% if app.artifact_summary.count %}<span>{{ app.artifact_summary.count }} artifact{% if app.artifact_summary.count != 1 %}s{% endif %}</span>{% for state, count in app.artifact_summary.states.items() %}<span>{{ state }}:{{ count }}</span>{% endfor %}{% else %}<span>No artifacts</span>{% endif %}</span>
-        </a>
-      {% endfor %}
-    {% else %}
-      <p class="body empty">No candidatures yet.</p>
-    {% endif %}
+    <div class="panel-scroll" data-panel-scroll="expected" tabindex="0">
+      {% if search_query and search_result.available %}<div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>{% endif %}
+      {% if smart.candidature_summaries %}
+        {% for app in smart.candidature_summaries %}
+          <a class="app-row" data-app-row data-smart-candidature-summary href="/?view=smartView&application_id={{ app.id }}&context_module={{ smart.selected_context_module }}" hx-get="/dashboard/fragments/selected-card?view=smartView&application_id={{ app.id }}&context_module={{ smart.selected_context_module }}" hx-target="[data-selected-app]" hx-swap="outerHTML" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
+            <strong>{{ app.company or "Add company" }}</strong><br>
+            <span>{{ app.role or "Add role" }}</span>
+            <span class="meta"><span>{{ app.status or "draft" }}</span><span>{{ app.priority or "normal" }}</span>{% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}</span>
+            <span class="meta">{% if app.source %}<span>Source: {{ app.source }}</span>{% elif app.source_url %}<span>Source URL</span>{% endif %}{% if app.last_activity %}<span>{{ app.last_activity }}</span>{% endif %}</span>
+            {% if app.keywords %}<span class="meta" data-smart-summary-keywords>{% for keyword in app.keywords[:4] %}<span class="chip" data-keyword="{{ keyword }}">{{ keyword }}</span>{% endfor %}</span>{% endif %}
+            <span class="meta" data-artifact-state-indicator>{% if app.artifact_summary.count %}<span>{{ app.artifact_summary.count }} artifact{% if app.artifact_summary.count != 1 %}s{% endif %}</span>{% for state, count in app.artifact_summary.states.items() %}<span>{{ state }}:{{ count }}</span>{% endfor %}{% else %}<span>No artifacts</span>{% endif %}</span>
+          </a>
+        {% endfor %}
+      {% else %}
+        <p class="body empty">No candidatures yet.</p>
+      {% endif %}
+    </div>
   </section>
 {% else %}
-  <section class="surface" aria-label="Candidatures">
+  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="Candidatures" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded">
     <h2>Candidatures</h2>
-    {% if search_query and search_result.available %}<div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>{% endif %}
-    {% if applications %}
-      {% for app in applications %}
-        <a class="app-row" data-app-row href="/?view={{ view }}&application_id={{ app.id }}" hx-get="/dashboard/fragments/selected-card?view={{ view }}&application_id={{ app.id }}" hx-target="[data-selected-app]" hx-swap="outerHTML" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
-          <strong>{{ app.company or "Add company" }}</strong><br><span>{{ app.role or "Add role" }}</span>
-          <span class="meta"><span>{{ app.status or "draft" }}</span><span>{{ app.priority or "normal" }}</span>{% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}</span>
-          {% for keyword in app.keywords or [] %}<span class="chip" data-keyword="{{ keyword }}">{{ keyword }}</span>{% endfor %}
-        </a>
-      {% endfor %}
-    {% else %}<p class="body empty">No candidatures yet.</p>{% endif %}
+    <div class="panel-scroll" data-panel-scroll="expected" tabindex="0">
+      {% if search_query and search_result.available %}<div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>{% endif %}
+      {% if applications %}
+        {% for app in applications %}
+          <a class="app-row" data-app-row href="/?view={{ view }}&application_id={{ app.id }}" hx-get="/dashboard/fragments/selected-card?view={{ view }}&application_id={{ app.id }}" hx-target="[data-selected-app]" hx-swap="outerHTML" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
+            <strong>{{ app.company or "Add company" }}</strong><br><span>{{ app.role or "Add role" }}</span>
+            <span class="meta"><span>{{ app.status or "draft" }}</span><span>{{ app.priority or "normal" }}</span>{% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}</span>
+            {% for keyword in app.keywords or [] %}<span class="chip" data-keyword="{{ keyword }}">{{ keyword }}</span>{% endfor %}
+          </a>
+        {% endfor %}
+      {% else %}<p class="body empty">No candidatures yet.</p>{% endif %}
+    </div>
   </section>
 {% endif %}
