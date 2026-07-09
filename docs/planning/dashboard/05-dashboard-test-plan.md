@@ -10,7 +10,7 @@ Do not test:
 - Exact wording.
 - Exact fake company names.
 - Temporary DOM structure unless it represents a durable contract.
-- Implementation details of a specific JavaScript approach.
+- Exact Alpine expression strings unless the expression itself is the durable behavior contract.
 
 Prefer tests that verify:
 
@@ -22,7 +22,7 @@ Prefer tests that verify:
 - Bounded shell and panel-local scroll ownership.
 - Reusable module structure.
 - Button-based tab/module semantics.
-- Alpine-backed local state attributes where Alpine is used.
+- Alpine-required local state attributes where local state exists.
 - HTMX targets/swaps where server-rendered partial updates are used.
 - Runtime separation.
 
@@ -33,12 +33,12 @@ The dashboard accepted interaction stack is:
 ```text
 Jinja
 existing HTMX
-Alpine.js
+Alpine.js as the required local dashboard state layer where Alpine can express the behavior
 project-owned CSS
-small project-owned JavaScript only where needed
+small project-owned JavaScript only where Alpine/HTMX/native HTML cannot express the specific primitive cleanly
 ```
 
-Tests may assert durable Alpine/HTMX contracts when those attributes define required product behavior.
+Tests should assert durable Alpine/HTMX contracts when those attributes define required product behavior.
 
 Examples:
 
@@ -49,6 +49,8 @@ hx-get / hx-post / hx-target / hx-swap exist where server-rendered fragments or 
 button elements are used for actions and tab/module controls
 aria-selected / aria-expanded / data-selected or equivalent durable state markers are present
 ```
+
+Tests should fail if local collapsed/expanded/selected/visible behavior is implemented through custom Alpine-equivalent JavaScript instead of Alpine without a documented justification.
 
 Do not assert exact Alpine expression strings unless the expression itself is the durable behavior contract.
 
@@ -101,9 +103,10 @@ Module actions are real buttons where they trigger UI behavior.
 Module exposes a body region.
 Module can represent collapsed and expanded state.
 Module can declare a local scroll body where overflow is expected.
-Alpine-backed module state exists where expansion/collapse is local.
+Alpine-required module state exists where expansion/collapse is local.
 HTMX-compatible module targets exist where server-rendered refresh is expected.
 Reusable module markup is shared or consistently applied across Welcome/User/Smart/Detailed surfaces where practical.
+Custom Alpine-equivalent JavaScript is not used for module open/closed state unless explicitly justified.
 ```
 
 ## Tab/module control tests
@@ -113,10 +116,11 @@ Test cases:
 ```text
 Tab/module selectors use button elements, not passive links, for UI selection.
 Selected tab/module state is visible through durable attributes.
-Alpine-backed selected state exists where immediate local feedback is expected.
+Alpine-required selected state exists where immediate local feedback is expected.
 HTMX targets/swaps exist where selected module content is server-rendered.
 Switching a Smart context module preserves selected candidature context.
 Right-panel module body can change without removing central selected-candidature detail.
+Custom Alpine-equivalent JavaScript is not used for local selected state unless explicitly justified.
 ```
 
 ## View tests
