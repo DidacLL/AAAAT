@@ -19,15 +19,17 @@ Smart View and Detailed View do not replace Welcome View and User View.
 
 ## Current product status
 
-The current branch is technically integrated and CI-green, but the dashboard UX is **not product-approved**.
+The current branch is CI-green and points in the intended architectural direction, but the dashboard implementation is **not technically complete for the required UX behavior** and is **not product-approved**.
 
-The implemented dashboard must not be treated as complete merely because projection builders, templates, and tests exist. The product-owner rejection is recorded in:
+CI currently proves that the code compiles, runtime boundaries are guarded, and the implemented tests pass. It does not prove that the required dashboard behaviors, views, controls, panel model, or interaction model have been implemented correctly.
+
+The product-owner rejection is recorded in:
 
 ```text
 10-dashboard-product-ux-correction.md
 ```
 
-That file is the current source of truth for the missing dashboard UX behavior:
+That file is the current source of truth for missing required dashboard behavior:
 
 ```text
 fixed dashboard shell
@@ -70,7 +72,7 @@ Do not block the dashboard redesign on future work such as a compatibility descr
 
 ## Orchestration status
 
-Implementation already reached a technically integrated state, but product UX review rejected the result.
+Implementation reached a CI-green architectural base, but product UX review rejected the result as incomplete for required behavior.
 
 Current status:
 
