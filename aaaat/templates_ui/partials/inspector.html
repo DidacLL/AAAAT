@@ -3,260 +3,40 @@
   <div class="body">
     {% if view == "welcomeView" %}
       <h3>Setup</h3>
-      <div class="field" data-welcome-inspector="setup">
-        <span class="label">First-run state</span>
-        <p>{% if welcome.setup_state.is_first_run %}No candidatures yet.{% else %}{{ applications|length }} candidature{% if applications|length != 1 %}s{% endif %} available.{% endif %}</p>
-      </div>
-      <h3>Next actions</h3>
-      {% for item in welcome.primary_actions[:5] %}
-        <div class="todo-item" data-welcome-inspector-action="{{ item.id }}">{{ item.label }}</div>
-      {% endfor %}
-      <h3>Pending dashboard work</h3>
-      {% for item in welcome.open_task_summary.items[:5] %}
-        <div class="queue-item" data-task-item>{{ item.priority }} / {{ item.state }} / {{ item.title }}</div>
-      {% else %}
-        <p class="empty">No pending tasks.</p>
-      {% endfor %}
+      <div class="field" data-welcome-inspector="setup"><span class="label">First-run state</span><p>{% if welcome.setup_state.is_first_run %}No candidatures yet.{% else %}{{ applications|length }} candidature{% if applications|length != 1 %}s{% endif %} available.{% endif %}</p></div>
+      <h3>Next actions</h3>{% for item in welcome.primary_actions[:5] %}<div class="todo-item" data-welcome-inspector-action="{{ item.id }}">{{ item.label }}</div>{% endfor %}
+      <h3>Pending dashboard work</h3>{% for item in welcome.open_task_summary["items"][:5] %}<div class="queue-item" data-task-item>{{ item.priority }} / {{ item.state }} / {{ item.title }}</div>{% else %}<p class="empty">No pending tasks.</p>{% endfor %}
     {% elif view == "smartView" %}
       {% set detail = smart.selected_candidature_detail %}
       {% if detail %}
         <h3>Context</h3>
-        <div class="field" data-smart-context-selector>
-          {% for module in smart.context_modules %}
-            <a class="chip" data-context-module="{{ module.id }}" href="/?view=smartView&application_id={{ detail.id }}&context_module={{ module.id }}{% if selected_keyword %}&keyword={{ selected_keyword }}{% endif %}" hx-get="/dashboard/fragments/inspector?view=smartView&application_id={{ detail.id }}&context_module={{ module.id }}{% if selected_keyword %}&keyword={{ selected_keyword }}{% endif %}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML" {% if smart.selected_context_module == module.id %}aria-current="page"{% endif %}>{{ module.label }}</a>
-          {% endfor %}
-        </div>
-        <div class="field" data-smart-context-selected-candidature>
-          <span class="label">Selected candidature</span>
-          <p><strong>{{ detail.company }}</strong> / {{ detail.role }}</p>
-          <p class="meta"><span>{{ detail.status }}</span><span>{{ detail.priority }}</span>{% if detail.next_action %}<span>Next: {{ detail.next_action }}</span>{% endif %}</p>
-        </div>
-
+        <div class="field" data-smart-context-selector>{% for module in smart.context_modules %}<a class="chip" data-context-module="{{ module.id }}" href="/?view=smartView&application_id={{ detail.id }}&context_module={{ module.id }}{% if selected_keyword %}&keyword={{ selected_keyword }}{% endif %}" hx-get="/dashboard/fragments/inspector?view=smartView&application_id={{ detail.id }}&context_module={{ module.id }}{% if selected_keyword %}&keyword={{ selected_keyword }}{% endif %}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML" {% if smart.selected_context_module == module.id %}aria-current="page"{% endif %}>{{ module.label }}</a>{% endfor %}</div>
+        <div class="field" data-smart-context-selected-candidature><span class="label">Selected candidature</span><p><strong>{{ detail.company }}</strong> / {{ detail.role }}</p><p class="meta"><span>{{ detail.status }}</span><span>{{ detail.priority }}</span>{% if detail.next_action %}<span>Next: {{ detail.next_action }}</span>{% endif %}</p></div>
         {% if smart.selected_context_module == "notes" %}
-          <div class="field" data-smart-context-panel="notes">
-            <span class="label">Notes</span>
-            <p data-primary-note-context>{{ smart.primary_note.value or "No primary note captured yet." }}</p>
-            <p class="subtle">Primary note source: {{ smart.primary_note.source }}.</p>
-            <p class="subtle">{{ smart.primary_note.history_count }} historical note{% if smart.primary_note.history_count != 1 %}s{% endif %} stored outside the primary Smart View field.</p>
-          </div>
+          <div class="field" data-smart-context-panel="notes"><span class="label">Notes</span><p data-primary-note-context>{{ smart.primary_note.value or "No primary note captured yet." }}</p><p class="subtle">Primary note source: {{ smart.primary_note.source }}.</p><p class="subtle">{{ smart.primary_note.history_count }} historical note{% if smart.primary_note.history_count != 1 %}s{% endif %} stored outside the primary Smart View field.</p></div>
         {% elif smart.selected_context_module == "keywords" %}
-          <div class="field" data-smart-context-panel="keywords">
-            <span class="label">Keywords</span>
-            {% for keyword in detail.keywords or [] %}
-              <a class="chip" data-keyword="{{ keyword }}" href="/?view=smartView&application_id={{ detail.id }}&context_module=keywords&keyword={{ keyword }}" hx-get="/dashboard/fragments/inspector?view=smartView&application_id={{ detail.id }}&context_module=keywords&keyword={{ keyword }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">{{ keyword }}</a>
-            {% else %}
-              <p class="empty">No keywords yet.</p>
-            {% endfor %}
-          </div>
-          <div class="field" data-keyword-panel>
-            <span class="label">{{ smart.selected_keyword_context.term or "Keyword" }}</span>
-            <p>{{ smart.selected_keyword_context.definition or "No definition yet." }}</p>
-            {% for alias in smart.selected_keyword_context.item.aliases or [] %}
-              <span class="chip">{{ alias }}</span>
-            {% endfor %}
-            {% for note in smart.selected_keyword_context.item.notes or [] %}
-              <p>{{ note.body }}</p>
-            {% endfor %}
-          </div>
+          <div class="field" data-smart-context-panel="keywords"><span class="label">Keywords</span>{% for keyword in detail.keywords or [] %}<a class="chip" data-keyword="{{ keyword }}" href="/?view=smartView&application_id={{ detail.id }}&context_module=keywords&keyword={{ keyword }}" hx-get="/dashboard/fragments/inspector?view=smartView&application_id={{ detail.id }}&context_module=keywords&keyword={{ keyword }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">{{ keyword }}</a>{% else %}<p class="empty">No keywords yet.</p>{% endfor %}</div><div class="field" data-keyword-panel><span class="label">{{ smart.selected_keyword_context.term or "Keyword" }}</span><p>{{ smart.selected_keyword_context.definition or "No definition yet." }}</p>{% for alias in smart.selected_keyword_context.item.aliases or [] %}<span class="chip">{{ alias }}</span>{% endfor %}{% for note in smart.selected_keyword_context.item.notes or [] %}<p>{{ note.body }}</p>{% endfor %}</div>
         {% elif smart.selected_context_module == "artifacts" %}
-          <div class="field" data-smart-context-panel="artifacts">
-            <span class="label">Artifacts</span>
-            {% if smart.artifact_summary.count %}
-              <p>{{ smart.artifact_summary.current_count }} current / {{ smart.artifact_summary.archived_count }} archived.</p>
-              {% for artifact in smart.artifact_summary.current %}
-                <p>{{ artifact.review_state }} / {{ artifact.label }}</p>
-              {% endfor %}
-              {% if smart.artifact_summary.archived_count %}
-                <details class="inline-edit" data-archived-artifacts>
-                  <summary>Archived artifacts</summary>
-                  {% for artifact in smart.artifact_summary.archived %}<p>{{ artifact.review_state }} / {{ artifact.label }}</p>{% endfor %}
-                </details>
-              {% endif %}
-            {% else %}
-              <p class="empty">No artifacts yet.</p>
-            {% endif %}
-          </div>
+          <div class="field" data-smart-context-panel="artifacts"><span class="label">Artifacts</span>{% if smart.artifact_summary.count %}<p>{{ smart.artifact_summary.current_count }} current / {{ smart.artifact_summary.archived_count }} archived.</p>{% for artifact in smart.artifact_summary.current %}<p>{{ artifact.review_state }} / {{ artifact.label }}</p>{% endfor %}{% if smart.artifact_summary.archived_count %}<details class="inline-edit" data-archived-artifacts><summary>Archived artifacts</summary>{% for artifact in smart.artifact_summary.archived %}<p>{{ artifact.review_state }} / {{ artifact.label }}</p>{% endfor %}</details>{% endif %}{% else %}<p class="empty">No artifacts yet.</p>{% endif %}</div>
         {% elif smart.selected_context_module == "call_card" %}
-          <div class="field" data-smart-context-panel="call_card">
-            <span class="label">Call card</span>
-            <p><strong>Pitch:</strong> {{ smart.call_card.pitch or "No pitch captured yet." }}</p>
-            <p><strong>Question:</strong> {{ smart.call_card.smart_question or "No smart question captured yet." }}</p>
-            <p><strong>Risk:</strong> {{ smart.call_card.risk_to_avoid or "No risk captured yet." }}</p>
-            <p><strong>Prepare first:</strong> {{ smart.call_card.prepare_first or "No immediate preparation captured yet." }}</p>
-            <p><strong>Prepare later:</strong> {{ smart.call_card.prepare_later or "No later preparation captured yet." }}</p>
-          </div>
+          <div class="field" data-smart-context-panel="call_card"><span class="label">Call card</span><p><strong>Pitch:</strong> {{ smart.call_card.pitch or "No pitch captured yet." }}</p><p><strong>Question:</strong> {{ smart.call_card.smart_question or "No smart question captured yet." }}</p><p><strong>Risk:</strong> {{ smart.call_card.risk_to_avoid or "No risk captured yet." }}</p><p><strong>Prepare first:</strong> {{ smart.call_card.prepare_first or "No immediate preparation captured yet." }}</p><p><strong>Prepare later:</strong> {{ smart.call_card.prepare_later or "No later preparation captured yet." }}</p></div>
         {% elif smart.selected_context_module == "company_research" %}
-          <div class="field" data-smart-context-panel="company_research">
-            <span class="label">Company research</span>
-            <p>{{ smart.company_research or "No company research captured yet." }}</p>
-          </div>
+          <div class="field" data-smart-context-panel="company_research"><span class="label">Company research</span><p>{{ smart.company_research or "No company research captured yet." }}</p></div>
         {% elif smart.selected_context_module == "form_answers" %}
-          <div class="field" data-smart-context-panel="form_answers">
-            <span class="label">Form answers</span>
-            <p>{{ smart.form_answers or "No form answers captured yet." }}</p>
-          </div>
+          <div class="field" data-smart-context-panel="form_answers"><span class="label">Form answers</span><p>{{ smart.form_answers or "No form answers captured yet." }}</p></div>
         {% elif smart.selected_context_module == "agent_suggestions" %}
-          <div class="field" data-smart-context-panel="agent_suggestions">
-            <span class="label">Agent suggestions</span>
-            {% for item in smart.agent_suggestions %}
-              <p>{{ item.review_state or item.state or "pending" }} / {{ item.title or item.task_type }}</p>
-            {% else %}
-              <p class="empty">No agent suggestions waiting for review.</p>
-            {% endfor %}
-          </div>
+          <div class="field" data-smart-context-panel="agent_suggestions"><span class="label">Agent suggestions</span>{% for item in smart.agent_suggestions %}<p>{{ item.review_state or item.state or "pending" }} / {{ item.title or item.task_type }}</p>{% else %}<p class="empty">No agent suggestions waiting for review.</p>{% endfor %}</div>
         {% endif %}
-      {% else %}
-        <p class="empty">Select a candidature to inspect Smart View context.</p>
-      {% endif %}
+      {% else %}<p class="empty">Select a candidature to inspect Smart View context.</p>{% endif %}
     {% elif view == "detailedView" %}
-      {% if selected %}
-        <h3>Panels</h3>
-        {% for tab in ["keyword", "company", "notes", "queue", "artifacts", "tasks", "todos", "blobs"] %}
-          <a class="chip" data-inspector-tab="{{ tab }}" href="/?view=detailedView&application_id={{ selected.id }}&tab={{ tab }}">{{ tab }}</a>
-        {% endfor %}
-        {% if can_show_raw_intake(mode) %}
-          <a class="chip" data-inspector-tab="raw" href="/?view=detailedView&application_id={{ selected.id }}&tab=raw">raw</a>
-        {% endif %}
-        <div class="field">
-          <span class="label">Artifacts</span>
-          {% for artifact in selected.artifacts %}
-            <p>{{ artifact.review_state }} / {{ artifact.label }}</p>
-          {% else %}
-            <p class="empty">No artifacts yet.</p>
-          {% endfor %}
-        </div>
-        {% if can_show_raw_intake(mode) %}
-          <div class="field" data-inspector-tab="raw">
-            <span class="label">Raw intake</span>
-            {% for intake in selected.raw_intake %}
-              <p>{{ intake.content }}</p>
-            {% else %}
-              <p class="empty">No raw intake yet.</p>
-            {% endfor %}
-          </div>
-        {% endif %}
-      {% else %}
-        <p class="empty">Select a row to inspect detailed context.</p>
-      {% endif %}
+      <div data-detailed-task-queue><h3>LLM task queue</h3><p class="subtle" data-dashboard-task-queue-boundary>Human-facing dashboard state only; this is not an agent API or broad task enumeration contract.</p>{% for group_name, group in detailed.task_queue_summary.groups.items() %}<div class="field" data-task-queue-group="{{ group_name }}"><span class="label">{{ group.label }}</span><strong>{{ group.count }}</strong>{% for item in group["items"] %}<div class="queue-item" data-task-queue-item><strong>{{ item.title or item.reason or item.category or item.task_type or "Task" }}</strong><p class="meta">{% if item.task_type %}<span>{{ item.task_type }}</span>{% endif %}{% if item.category %}<span>{{ item.category }}</span>{% endif %}{% if item.state %}<span>{{ item.state }}</span>{% endif %}{% if item.priority %}<span>{{ item.priority }}</span>{% endif %}</p>{% if item.company or item.role %}<p class="subtle">{{ item.company }}{% if item.role %} / {{ item.role }}{% endif %}</p>{% endif %}{% if item.recommended_action %}<p>{{ item.recommended_action }}</p>{% endif %}</div>{% else %}<p class="empty">No {{ group.label|lower }} items.</p>{% endfor %}</div>{% endfor %}</div>
     {% else %}
-      <h3>User control center</h3>
-      {% for section in user.summary_sections %}
-        <div class="field" data-user-inspector-section="{{ section.id }}">
-          <span class="label">{{ section.label }}</span>
-          <p>{{ section.count }} item{% if section.count != 1 %}s{% endif %}{% if not section.editable %} / read-only{% endif %}</p>
-        </div>
-      {% endfor %}
+      <h3>User control center</h3>{% for section in user.summary_sections %}<div class="field" data-user-inspector-section="{{ section.id }}"><span class="label">{{ section.label }}</span><p>{{ section.count }} item{% if section.count != 1 %}s{% endif %}{% if not section.editable %} / read-only{% endif %}</p></div>{% endfor %}
     {% endif %}
 
     {% if can_write(mode) and view != "userView" %}
-      <details class="field">
-        <summary>New candidature</summary>
-        <form method="post" action="/dashboard/actions/raw-offer-intake" data-write-control="new-candidature" hx-post="/dashboard/actions/raw-offer-intake" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
-          <textarea name="content" required placeholder="Paste raw offer"></textarea>
-          <input name="company" placeholder="Company">
-          <input name="role" placeholder="Role">
-          <input name="status" placeholder="Status" value="intake">
-          <input name="priority" placeholder="Priority" value="normal">
-          <input name="source_url" placeholder="Source URL">
-          <input name="keywords" placeholder="Keywords, comma separated">
-          <input type="hidden" name="include_field_inference_task" value="0"><label><input type="checkbox" name="include_field_inference_task" value="1" checked> Infer missing fields</label>
-          <input type="hidden" name="include_company_research_task" value="0"><label><input type="checkbox" name="include_company_research_task" value="1" checked> Company research</label>
-          <input type="hidden" name="include_keyword_detection_task" value="0"><label><input type="checkbox" name="include_keyword_detection_task" value="1" checked> Keyword detection</label>
-          <label><input type="checkbox" name="include_cv_task" value="1"> CV task</label>
-          <label><input type="checkbox" name="include_cover_letter_task" value="1"> Cover-letter task</label>
-          <label><input type="checkbox" name="include_form_responses_task" value="1"> Form-response task</label>
-          <button>Create</button>
-        </form>
-      </details>
+      <details class="field"><summary>New candidature</summary><form method="post" action="/dashboard/actions/raw-offer-intake" data-write-control="new-candidature" hx-post="/dashboard/actions/raw-offer-intake" hx-target="[aria-label='Inspector']" hx-swap="outerHTML"><textarea name="content" required placeholder="Paste raw offer"></textarea><input name="company" placeholder="Company"><input name="role" placeholder="Role"><input name="status" placeholder="Status" value="intake"><input name="priority" placeholder="Priority" value="normal"><input name="source_url" placeholder="Source URL"><input name="keywords" placeholder="Keywords, comma separated"><input type="hidden" name="include_field_inference_task" value="0"><label><input type="checkbox" name="include_field_inference_task" value="1" checked> Infer missing fields</label><input type="hidden" name="include_company_research_task" value="0"><label><input type="checkbox" name="include_company_research_task" value="1" checked> Company research</label><input type="hidden" name="include_keyword_detection_task" value="0"><label><input type="checkbox" name="include_keyword_detection_task" value="1" checked> Keyword detection</label><label><input type="checkbox" name="include_cv_task" value="1"> CV task</label><label><input type="checkbox" name="include_cover_letter_task" value="1"> Cover-letter task</label><label><input type="checkbox" name="include_form_responses_task" value="1"> Form-response task</label><button>Create</button></form></details>
     {% endif %}
-
-    <details class="field" data-profile-cv-panel>
-      <summary>Profile / CV data</summary>
-      {% if permissions.is_static_demo %}
-        <p class="subtle">Static demo mode hides private profile facts and write controls.</p>
-      {% else %}
-        {% for fact in profile_facts %}
-          {% if fact.use_for_dashboard %}
-            <div class="blob-item" data-profile-fact="{{ fact.id }}">
-              <strong>{{ fact.fact_type }} / {{ fact.title or "Untitled fact" }}</strong>
-              <p>{{ fact.body }}</p>
-              <p class="meta">
-                <span class="badge visibility-{{ fact.visibility }}">{{ fact.visibility }}</span>
-                <span class="badge exposure-{{ fact.exposure }}">{{ fact.exposure }}</span>
-                {% if fact.use_for_cv %}<span class="badge">CV</span>{% endif %}
-                {% if fact.use_for_cover_letter %}<span class="badge">Cover letter</span>{% endif %}
-                {% if fact.use_for_agent_context %}<span class="badge">Agent</span>{% endif %}
-                {% if fact.use_for_market_research %}<span class="badge">Market</span>{% endif %}
-                {% if fact.tags %}<span>{{ fact.tags|join(", ") }}</span>{% endif %}
-              </p>
-              {% if can_write(mode) %}
-                <details class="inline-edit" data-write-control="profile-fact-edit">
-                  <summary>Edit</summary>
-                  <form method="post" action="/dashboard/actions/profile/facts/{{ fact.id }}" hx-post="/dashboard/actions/profile/facts/{{ fact.id }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
-                    <input type="hidden" name="_method" value="PATCH">
-                    <input name="title" value="{{ fact.title }}" placeholder="Title">
-                    <textarea name="body">{{ fact.body }}</textarea>
-                    <input name="tags" value="{{ fact.tags|join(', ') }}" placeholder="tags">
-                    <select name="visibility">
-                      {% for item in ["public", "professional", "private", "sensitive"] %}
-                        <option value="{{ item }}" {% if fact.visibility == item %}selected{% endif %}>{{ item }}</option>
-                      {% endfor %}
-                    </select>
-                    <select name="exposure">
-                      {% for item in ["raw", "anonymized", "summarized", "placeholder", "redacted", "denied"] %}
-                        <option value="{{ item }}" {% if fact.exposure == item %}selected{% endif %}>{{ item }}</option>
-                      {% endfor %}
-                    </select>
-                    <input type="hidden" name="use_for_cv" value="0"><label><input type="checkbox" name="use_for_cv" value="1" {% if fact.use_for_cv %}checked{% endif %}> CV</label>
-                    <input type="hidden" name="use_for_cover_letter" value="0"><label><input type="checkbox" name="use_for_cover_letter" value="1" {% if fact.use_for_cover_letter %}checked{% endif %}> Cover letter</label>
-                    <input type="hidden" name="use_for_agent_context" value="0"><label><input type="checkbox" name="use_for_agent_context" value="1" {% if fact.use_for_agent_context %}checked{% endif %}> Agent</label>
-                    <input type="hidden" name="use_for_market_research" value="0"><label><input type="checkbox" name="use_for_market_research" value="1" {% if fact.use_for_market_research %}checked{% endif %}> Market</label>
-                    <input type="hidden" name="use_for_dashboard" value="0"><label><input type="checkbox" name="use_for_dashboard" value="1" {% if fact.use_for_dashboard %}checked{% endif %}> Dashboard</label>
-                    <button>Save fact</button>
-                  </form>
-                </details>
-              {% endif %}
-            </div>
-          {% endif %}
-        {% else %}
-          <p class="empty">No profile facts yet.</p>
-        {% endfor %}
-      {% endif %}
-      {% if can_write(mode) and not permissions.is_static_demo %}
-        <details class="inline-edit" data-write-control="profile-fact-add">
-          <summary>Add profile fact</summary>
-          <form method="post" action="/dashboard/actions/profile/facts" hx-post="/dashboard/actions/profile/facts" hx-target="[aria-label='Inspector']" hx-swap="outerHTML">
-            <select name="fact_type">
-              {% for item in ["target_role", "skill", "experience", "project", "education", "certification", "language", "achievement", "preference", "constraint", "salary_expectation", "cv_summary", "role_positioning_note"] %}
-                <option value="{{ item }}">{{ item }}</option>
-              {% endfor %}
-            </select>
-            <input name="title" placeholder="Title">
-            <textarea name="body" placeholder="Professional/CV fact"></textarea>
-            <input name="tags" placeholder="python, backend">
-            <select name="visibility">
-              <option>private</option>
-              <option>professional</option>
-              <option>public</option>
-              <option>sensitive</option>
-            </select>
-            <select name="exposure">
-              <option>summarized</option>
-              <option>placeholder</option>
-              <option>anonymized</option>
-              <option>redacted</option>
-              <option>denied</option>
-              <option>raw</option>
-            </select>
-            <input type="hidden" name="use_for_cv" value="0"><label><input type="checkbox" name="use_for_cv" value="1"> CV</label>
-            <input type="hidden" name="use_for_cover_letter" value="0"><label><input type="checkbox" name="use_for_cover_letter" value="1"> Cover letter</label>
-            <input type="hidden" name="use_for_agent_context" value="0"><label><input type="checkbox" name="use_for_agent_context" value="1"> Agent</label>
-            <input type="hidden" name="use_for_market_research" value="0"><label><input type="checkbox" name="use_for_market_research" value="1"> Market</label>
-            <input type="hidden" name="use_for_dashboard" value="0"><label><input type="checkbox" name="use_for_dashboard" value="1" checked> Dashboard</label>
-            <button>Add fact</button>
-          </form>
-        </details>
-      {% endif %}
-    </details>
+    <details class="field" data-profile-cv-panel><summary>Profile / CV data</summary>{% if permissions.is_static_demo %}<p class="subtle">Static demo mode hides private profile facts and write controls.</p>{% else %}{% for fact in profile_facts %}{% if fact.use_for_dashboard %}<div class="blob-item" data-profile-fact="{{ fact.id }}"><strong>{{ fact.fact_type }} / {{ fact.title or "Untitled fact" }}</strong><p>{{ fact.body }}</p><p class="meta"><span class="badge visibility-{{ fact.visibility }}">{{ fact.visibility }}</span><span class="badge exposure-{{ fact.exposure }}">{{ fact.exposure }}</span>{% if fact.use_for_cv %}<span class="badge">CV</span>{% endif %}{% if fact.tags %}<span>{{ fact.tags|join(", ") }}</span>{% endif %}</p>{% if can_write(mode) %}<details class="inline-edit" data-write-control="profile-fact-edit"><summary>Edit</summary><form method="post" action="/dashboard/actions/profile/facts/{{ fact.id }}" hx-post="/dashboard/actions/profile/facts/{{ fact.id }}" hx-target="[aria-label='Inspector']" hx-swap="outerHTML"><input type="hidden" name="_method" value="PATCH"><input name="title" value="{{ fact.title }}"><textarea name="body">{{ fact.body }}</textarea><button>Save fact</button></form></details>{% endif %}</div>{% endif %}{% else %}<p class="empty">No profile facts yet.</p>{% endfor %}{% endif %}{% if can_write(mode) and not permissions.is_static_demo %}<details class="inline-edit" data-write-control="profile-fact-add"><summary>Add profile fact</summary><form method="post" action="/dashboard/actions/profile/facts" hx-post="/dashboard/actions/profile/facts" hx-target="[aria-label='Inspector']" hx-swap="outerHTML"><input name="title" placeholder="Title"><textarea name="body" placeholder="Professional/CV fact"></textarea><button>Add fact</button></form></details>{% endif %}</details>
   </div>
 </aside>
