@@ -1,0 +1,14 @@
+{% macro dashboard_module(region, title, aria_label, module_id, extra_classes='', hooks='', body_class='body', scroll=True, scroll_mode='expected', collapsed=False, htmx_attrs='') -%}
+<section class="surface dashboard-panel dashboard-panel-{{ region }} {{ extra_classes }}" role="region" aria-label="{{ aria_label }}" data-dashboard-panel data-dashboard-module data-module-primitive="dashboard-module" data-module-id="{{ module_id }}" data-dashboard-region="{{ region }}" data-panel-boundary="bounded" data-module-boundary="bounded" data-module-state="{% if collapsed %}collapsed{% else %}expanded{% endif %}" x-data="{ open: {% if collapsed %}false{% else %}true{% endif %} }" x-bind:data-module-state="open ? 'expanded' : 'collapsed'" {{ hooks|safe }} {{ htmx_attrs|safe }}>
+  <div class="module-header" data-module-header>
+    <h2 data-module-title>{{ title }}</h2>
+    <div class="module-actions" data-module-actions>
+      <button type="button" class="module-toggle" data-module-control="toggle" x-on:click="open = !open" x-bind:aria-expanded="open.toString()" aria-controls="{{ module_id }}-body" aria-expanded="{% if collapsed %}false{% else %}true{% endif %}"><span x-text="open ? 'Collapse' : 'Expand'">{% if collapsed %}Expand{% else %}Collapse{% endif %}</span></button>
+      {{ caller('actions') }}
+    </div>
+  </div>
+  <div id="{{ module_id }}-body" class="{{ body_class }}{% if scroll %} panel-scroll{% endif %}" data-module-body data-module-target="{{ module_id }}-body" {% if scroll %}data-panel-scroll="{{ scroll_mode }}" data-module-scroll="local"{% endif %} x-show="open" tabindex="0">
+    {{ caller('body') }}
+  </div>
+</section>
+{%- endmacro %}
