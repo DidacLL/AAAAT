@@ -17,9 +17,32 @@ Prefer tests that verify:
 - View availability.
 - Mode restrictions.
 - Presence/absence of write controls.
-- Payload/state semantics.
+- Projection/view-state semantics.
 - Major panel roles.
 - Runtime separation.
+
+
+## Projection/view-state tests
+
+Test cases:
+
+```text
+Dashboard projection can be built without rendering HTML templates.
+Projection includes current view state: welcome, user, smart, or detailed.
+Projection includes permissions for full local, read-only, and static demo modes.
+Projection includes Welcome View setup state and primary actions.
+Projection includes User View profile/career/template/settings summaries without exposing operational candidature clutter by default.
+Projection includes Smart View compact candidature summaries.
+Projection includes selected candidature detail when a candidature is selected.
+Projection includes one primary note state per selected candidature.
+Projection includes selected keyword/glossary context without losing selected candidature context.
+Projection includes Detailed View rows and available/visible column state.
+Projection includes Detailed View toolbox actions based on selected-row state.
+Projection includes human-facing task queue summary for Detailed View.
+Projection is not exposed through the agent runtime as a broad dashboard payload.
+```
+
+These tests should target durable state semantics, not exact class names, CSS layout, or full rendered markup.
 
 ## View tests
 
@@ -172,6 +195,7 @@ Selected keyword has a durable selected-state marker.
 Possible files:
 
 ```text
+tests/test_dashboard_projection.py
 tests/test_dashboard_views.py
 tests/test_dashboard_modes.py
 tests/test_dashboard_notes.py
