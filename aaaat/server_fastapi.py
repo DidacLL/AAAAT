@@ -212,9 +212,26 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
     def handle_error(exc: Exception) -> None:
         _handle_error(exc, HTTPException)
 
-    def make_view_model(conn: Any, *, view: str | None = None, application_id: str | None = None, keyword: str | None = None, q: str | None = None) -> dict[str, Any]:
+    def make_view_model(
+        conn: Any,
+        *,
+        view: str | None = None,
+        application_id: str | None = None,
+        keyword: str | None = None,
+        context_module: str | None = None,
+        q: str | None = None,
+    ) -> dict[str, Any]:
         payload = dashboard_payload(conn, include_raw=app.state.mode == Mode.FULL)
-        return dashboard_view_model(payload, app.state.mode, view=view, selected_application_id=application_id, selected_keyword=keyword, search_query=q, conn=conn)
+        return dashboard_view_model(
+            payload,
+            app.state.mode,
+            view=view,
+            selected_application_id=application_id,
+            selected_keyword=keyword,
+            selected_context_module=context_module,
+            search_query=q,
+            conn=conn,
+        )
 
     app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
 
@@ -223,12 +240,29 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         return {"ok": True, "mode": app.state.mode.value, "runtime": "dashboard", "surface": "dashboard"}
 
     @app.get("/", response_class=HTMLResponse)
-    def index(application_id: str | None = None, keyword: str | None = None, tab: str = "company", view: str | None = None, renderer: str | None = None, q: str | None = None) -> Any:
+    def index(
+        application_id: str | None = None,
+        keyword: str | None = None,
+        tab: str = "company",
+        view: str | None = None,
+        context_module: str | None = None,
+        renderer: str | None = None,
+        q: str | None = None,
+    ) -> Any:
         with connect(app.state.storage_path) as conn:
             payload = dashboard_payload(conn, include_raw=app.state.mode == Mode.FULL)
             if renderer == "legacy":
                 return HTMLResponse(render_legacy_dashboard(payload, app.state.mode, application_id, keyword, tab))
-            model = dashboard_view_model(payload, app.state.mode, view=view, selected_application_id=application_id, selected_keyword=keyword, search_query=q, conn=conn)
+            model = dashboard_view_model(
+                payload,
+                app.state.mode,
+                view=view,
+                selected_application_id=application_id,
+                selected_keyword=keyword,
+                selected_context_module=context_module,
+                search_query=q,
+                conn=conn,
+            )
         return HTMLResponse(render_dashboard_view(payload, app.state.mode, view_model=model))
 
     @app.get("/legacy", response_class=HTMLResponse)
@@ -238,10 +272,17 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
         return HTMLResponse(render_legacy_dashboard(payload, app.state.mode, application_id, keyword, tab))
 
     @app.get("/dashboard/fragments/{fragment}", response_class=HTMLResponse)
-    def dashboard_fragment(fragment: str, application_id: str | None = None, keyword: str | None = None, view: str | None = None, q: str | None = None) -> Any:
+    def dashboard_fragment(
+        fragment: str,
+        application_id: str | None = None,
+        keyword: str | None = None,
+        view: str | None = None,
+        context_module: str | None = None,
+        q: str | None = None,
+    ) -> Any:
         try:
             with connect(app.state.storage_path) as conn:
-                model = make_view_model(conn, view=view, application_id=application_id, keyword=keyword, q=q)
+                model = make_view_model(conn, view=view, application_id=application_id, keyword=keyword, context_module=context_module, q=q)
             return HTMLResponse(render_dashboard_fragment(fragment, model))
         except Exception as exc:
             handle_error(exc)
@@ -287,12 +328,20 @@ def create_dashboard_app(storage: str = ".private", mode: Mode | str = Mode.FULL
             raise HTTPException(status_code=405, detail="method not allowed")
         if "keywords" in data:
             data["keywords"] = _keyword_list(data["keywords"])
+        view = data.get("view") or "detailedView"
+        context_module = data.get("context_module") or None
+        keyword = data.get("keyword") or None
         with connect(app.state.storage_path) as conn:
             item = update_application(conn, application_id, **data)
             if wants_fragment(request):
-                model = make_view_model(conn, view=data.get("view") or "detailedView", application_id=application_id)
+                model = make_view_model(conn, view=view, application_id=application_id, keyword=keyword, context_module=context_module)
                 return HTMLResponse(render_dashboard_fragment("selected-card", model))
-        return respond(item, 200, is_form, f"/?application_id={application_id}")
+        redirect = f"/?view={view}&application_id={application_id}"
+        if context_module:
+            redirect += f"&context_module={context_module}"
+        if keyword:
+            redirect += f"&keyword={keyword}"
+        return respond(item, 200, is_form, redirect)
 
     @app.post("/dashboard/actions/candidatures/{candidature_id}", dependencies=[Depends(writable)])
     async def dashboard_patch_candidature(candidature_id: str, request: Request) -> Any:
