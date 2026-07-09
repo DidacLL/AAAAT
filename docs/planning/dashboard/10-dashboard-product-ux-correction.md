@@ -3,20 +3,34 @@
 ## Status
 
 ```text
-BLOCKED_REPLAN_REQUIRED
+PRODUCT_READY_TO_REVIEW
 ```
 
-The dashboard branch is CI-green and points in the intended architectural direction, but the current dashboard implementation is not technically complete for the required UX behavior and is not product-approved.
+The dashboard branch is CI-green, preserves the intended runtime boundaries, and now implements the planned corrective UX baseline through the final hard UX contract pass.
 
-The previous integration result must not be interpreted as UX completion or as a technically correct implementation of the requested views and interactions. Existing tests prove projection data, route boundaries, and selected DOM hooks. They do not prove that the required dashboard behaviors, controls, panels, modules, or view interactions have been implemented correctly.
+The previous `BLOCKED_REPLAN_REQUIRED` status applied while the dashboard lacked reusable interaction primitives, scan-safe Smart View behavior, and usable Detailed View column controls. That corrective work has now been completed and covered by hard UX contract tests.
 
-The first corrective slice established a bounded dashboard shell/layout contract. The next corrective work should build reusable dashboard interaction primitives on top of that shell.
+This status means the branch is ready for product review. It does not mean the PR has been product-approved or merged.
 
-## Product-owner rejection summary
+## Final reviewed baseline
 
-The current dashboard fails the intended UX because it still behaves too much like a vertically expanding document with many visible information blocks, not a bounded dashboard.
+The completed corrective baseline is:
 
-Rejected behavior includes:
+```text
+1. Bounded dashboard shell and left/center/right panel regions: done.
+2. Reusable dashboard module primitive: done.
+3. Button-based module selector primitive: done.
+4. Expandable form/action/configuration panels: done.
+5. Smart View scan-safe first screen: done.
+6. Detailed View column visibility/order controls: done.
+7. Final hard UX contract/review pass across Welcome, User, Smart, and Detailed: done.
+```
+
+## Historical product-owner rejection summary
+
+The prior implementation was rejected because it behaved too much like a vertically expanding document with many visible information blocks, not a bounded dashboard.
+
+Rejected behavior included:
 
 ```text
 uncontrolled vertical page growth
@@ -30,9 +44,11 @@ forms/actions/configuration not consistently hidden in real collapsed panels
 insufficient hard UX tests
 ```
 
+The current implementation addresses those rejection points through the bounded shell, module primitive, module selector primitive, expandable panels, Smart View first-screen rewrite, Detailed View table controls, and dashboard UX contract tests.
+
 ## Accepted dashboard interaction stack
 
-The dashboard remains server-rendered, local-first, and provider-independent. The correction pass should not attempt a SPA rewrite, but it should also not hand-roll dynamic behavior that the accepted dashboard stack already covers.
+The dashboard remains server-rendered, local-first, and provider-independent. The correction pass did not introduce a SPA framework or table/grid library.
 
 Accepted stack:
 
@@ -73,15 +89,15 @@ hx-target for fragment targets
 hx-swap for server-rendered body replacement
 ```
 
-Custom JavaScript is allowed only when Alpine, HTMX, native HTML, and CSS cannot express the needed dashboard primitive cleanly. The worker must document the reason before or in the completion summary.
+Custom JavaScript remains allowed only when Alpine, HTMX, native HTML, and CSS cannot express the needed dashboard primitive cleanly. No custom JavaScript was required for the corrective baseline.
 
-Do not introduce React, Vue, Angular, Svelte, a large UI kit, or drag/table libraries in this correction pass unless separately justified and explicitly accepted.
+Do not introduce React, Vue, Angular, Svelte, a large UI kit, drag libraries, table/grid libraries, or new frontend build tooling for this dashboard UX line.
 
 ## Corrected product requirements
 
 ### 1. Dashboard layout primitives
 
-The dashboard must define real layout primitives rather than relying on an unconstrained document flow.
+The dashboard defines real layout primitives rather than relying on unconstrained document flow.
 
 Required behavior:
 
@@ -104,7 +120,7 @@ The page grows vertically as more modules, forms, rows, or details render.
 
 ### 2. Reusable module primitive
 
-The dashboard needs a reusable module/card primitive used consistently across Welcome, User, Smart, and Detailed views.
+The dashboard uses a reusable module/card primitive across Welcome, User, Smart, and Detailed views where practical.
 
 Required behavior:
 
@@ -130,7 +146,7 @@ Each view hand-builds unrelated blocks with inconsistent behavior, controls, and
 
 ### 3. Real tab/module controls
 
-Context selection must use real controls, not passive navigation links that merely reload or scroll the page.
+Context selection uses real controls rather than passive navigation text.
 
 Required behavior:
 
@@ -152,7 +168,7 @@ Tabs appear as links, do not expose selected state, or do not behave as a reusab
 
 ### 4. Actual expandable panels
 
-Expandable panels must be real collapsed dashboard controls, not merely content placed lower in a long document.
+Expandable panels are real collapsed dashboard controls, not merely content placed lower in a long document.
 
 Required behavior:
 
@@ -172,32 +188,9 @@ Failure condition:
 Forms, configuration areas, or action bodies are visible by default or cause the screen to become a long form document.
 ```
 
-### 5. Detailed View controls
+### 5. Smart View first screen
 
-Detailed View must be a usable table/grid management surface, not only a rendered table.
-
-Required behavior:
-
-```text
-table/grid in constrained central region
-columns can be marked visible/hidden through UI controls
-column order can be controlled through UI controls, or at minimum through explicit up/down/order controls
-selected row drives toolbox context
-left toolbox shows general actions when no row is selected
-left toolbox shows candidature-specific actions when a row is selected
-right panel shows human-facing task queue in a bounded region
-no full vertical document editor behavior
-```
-
-Failure condition:
-
-```text
-Column visibility/order exists only in projection state or tests but not as usable dashboard controls.
-```
-
-### 6. Smart View first screen
-
-Smart View must be scan-safe and usable during recruiter calls.
+Smart View is scan-safe and usable during recruiter calls.
 
 Required behavior:
 
@@ -216,11 +209,51 @@ Failure condition:
 The first screen presents too many modules, large text blocks, forms, or vertical sections to be useful during a call.
 ```
 
+### 6. Detailed View controls
+
+Detailed View is a usable table/grid management surface, not only a rendered table.
+
+Required behavior:
+
+```text
+table/grid in constrained central region
+candidatures render as rows
+core fields are available as columns
+columns can be marked visible/hidden through UI controls
+column order can be controlled through explicit up/down/order controls
+selected row drives toolbox context
+left toolbox shows general actions when no row is selected
+left toolbox shows candidature-specific actions when a row is selected
+right panel shows human-facing task queue in a bounded region
+no full vertical document editor behavior
+```
+
+Failure condition:
+
+```text
+Column visibility/order exists only in projection state or tests but not as usable dashboard controls.
+```
+
+## Final hard UX acceptance checks
+
+The final pass validates:
+
+```text
+Welcome View shows first-run/onboarding/orientation state, clear primary actions, and no visible raw-intake/form wall.
+User View is a profile/career/template/settings/control-center surface, not candidature operations.
+Smart View is scan-safe for recruiter calls, with compact candidature list, central operational detail, one primary note, and right module selector.
+Detailed View is a constrained candidature table/grid management surface with usable column visibility/order controls.
+Forms/action/configuration surfaces are collapsed by default.
+Alpine owns local open/closed/selected/visible state where local state is used.
+HTMX remains limited to server-rendered fragment/form/action paths.
+No custom Alpine-equivalent JavaScript was added.
+No SPA/table/grid/drag/UI-kit dependency was added.
+Runtime boundaries remain intact.
+```
+
 ## Corrected acceptance tests
 
-Existing data-hook tests are not enough. The test plan must include hard UX contracts that verify structure and behavior.
-
-Required test coverage:
+Hard UX contract tests now cover:
 
 ```text
 layout shell has bounded dashboard regions
@@ -230,34 +263,36 @@ panel-local scroll regions exist where overflow is expected
 modules expose collapsed/expanded state
 modules expose header, title, action area, body, and optional local scroll region
 tab/module controls are buttons with selected state
-Alpine state attributes exist for local expanded/selected behavior where local state exists
+Alpine state attributes exist for local expanded/selected/visible behavior where local state exists
 HTMX attributes exist for server-rendered swaps where used
 switching a Smart context module preserves selected candidature context
 forms/action panels are collapsed by default
-Smart initial render is scan-safe and excludes long content/form walls
-Detailed View exposes column visibility controls
-Detailed View exposes column order controls or explicit ordering controls
-Detailed View table is in a constrained grid region
+Welcome View first-run/orientation behavior
+User View control-center behavior and read-only/static mode behavior
+Smart initial render scan-safety and absence of long content/form walls
+Detailed View column visibility controls
+Detailed View column order controls and explicit up/down controls
+Detailed View table in a constrained grid region
 Detailed View toolbox changes between general and selected-row states
-runtime boundary still prevents dashboard projection/routes/actions from entering agent runtime
+right task queue remains bounded and human-facing
+runtime boundary still prevents dashboard projection/routes/actions/assets from entering agent runtime
+forbidden frontend/table/drag dependencies are absent
 ```
 
-Tests should still avoid brittle exact CSS snapshots. They may assert durable layout attributes, roles, state attributes, button semantics, region boundaries, Alpine/HTMX interaction attributes, and absence of uncontrolled form/content walls.
+Tests should continue to avoid brittle exact CSS snapshots. They may assert durable layout attributes, roles, state attributes, button semantics, region boundaries, Alpine/HTMX interaction attributes, and absence of uncontrolled form/content walls.
 
 ## Corrective implementation order
 
-The next implementation should build on the bounded shell/layout baseline and establish reusable dashboard primitives before rewriting Smart or Detailed content.
-
-Recommended order:
+Corrective implementation order and status:
 
 ```text
-1. Dashboard shell and bounded three-panel layout. DONE as first corrective slice.
-2. Reusable module primitive with Alpine-required collapsed/expanded behavior for local state and HTMX-compatible action/body targets.
-3. Button-based tab/module control primitive using Alpine for local selected state and HTMX for server-rendered body swaps where needed.
-4. Expandable form/action/configuration panels using the module primitive.
-5. Smart View scan-safe first-screen rewrite using shell, modules, and tab controls.
-6. Detailed View column visibility/order controls using shell, modules, and tab/control primitives.
-7. Hard UX contract tests for layout, modules, tabs, panels, Smart, and Detailed.
+1. Dashboard shell and bounded three-panel layout. DONE.
+2. Reusable module primitive with Alpine-required collapsed/expanded behavior for local state and HTMX-compatible action/body targets. DONE.
+3. Button-based tab/module control primitive using Alpine for local selected state and HTMX for server-rendered body swaps where needed. DONE.
+4. Expandable form/action/configuration panels using the module primitive. DONE.
+5. Smart View scan-safe first-screen rewrite using shell, modules, and tab controls. DONE.
+6. Detailed View column visibility/order controls using shell, modules, and tab/control primitives. DONE.
+7. Hard UX contract/review pass for layout, modules, tabs, panels, Welcome, User, Smart, and Detailed. DONE.
 ```
 
 ## Non-goals for the correction pass
@@ -269,6 +304,8 @@ no MCP descriptor changes
 no provider integration
 no SPA/frontend framework migration
 no large UI kit migration
+no table/grid library migration
+no drag-and-drop dependency
 no broad schema rewrite
 no additional speculative application features
 ```
@@ -279,7 +316,7 @@ All dashboard UX correction work remains human-local dashboard work. The project
 
 ## Completion criteria
 
-The UX correction is complete only when:
+The UX correction baseline is complete when:
 
 ```text
 the dashboard uses a bounded shell layout
@@ -288,8 +325,17 @@ modules are reusable and expandable where needed
 tab/module controls are real buttons with selected state
 HTMX and Alpine are used according to their required responsibilities
 forms/actions/configuration are closed by default
+Welcome View satisfies first-run/orientation behavior
+User View satisfies profile/settings/control-center behavior
 Smart View is scan-safe on first render
 Detailed View has usable column visibility/order controls
 hard UX contract tests pass
 agent/runtime boundaries remain intact
+CI and Agent Contract Tests are green
+```
+
+Current branch classification after the final hard UX review:
+
+```text
+PRODUCT_READY_TO_REVIEW
 ```
