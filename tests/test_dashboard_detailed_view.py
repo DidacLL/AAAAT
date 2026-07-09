@@ -73,18 +73,29 @@ class DashboardDetailedViewTests(unittest.TestCase):
         payload, model, _ = self.detailed_fixture(selected=False)
         html = render_dashboard_view(payload, Mode.FULL, view_model=model)
         self.assertIn('data-detailed-toolbox-state="general"', html)
-        self.assertIn('data-detailed-toolbox-action="career_path_edit"', html)
-        self.assertIn('data-detailed-toolbox-action="import_create_candidature"', html)
-        self.assertNotIn('data-detailed-toolbox-action="generate_cv"', html)
+        self.assertIn('data-detailed-toolbox-action', html)
+        self.assertIn('career_path_edit', html)
+        self.assertIn('import_create_candidature', html)
+        self.assertNotIn('generate_cv', html)
         self.assertNotIn('aria-label="Candidatures"', html)
 
     def test_selected_row_shows_candidature_specific_toolbox(self):
         payload, model, _ = self.detailed_fixture(selected=True)
         html = render_dashboard_view(payload, Mode.FULL, view_model=model)
         self.assertIn('data-detailed-toolbox-state="selected"', html)
-        self.assertIn('data-detailed-toolbox-action="generate_cv"', html)
-        self.assertIn('data-detailed-toolbox-action="prepare_recruiter_call"', html)
+        self.assertIn('data-detailed-toolbox-action', html)
+        self.assertIn('generate_cv', html)
+        self.assertIn('prepare_recruiter_call', html)
         self.assertIn('data-selected-row="true"', html)
+
+    def test_toolbox_actions_are_collapsed_dashboard_panels(self):
+        payload, model, _ = self.detailed_fixture(selected=True)
+        html = render_dashboard_view(payload, Mode.FULL, view_model=model)
+        self.assertIn('data-panel-kind="action"', html)
+        self.assertIn('data-panel-default="collapsed"', html)
+        self.assertIn('data-panel-control="toggle"', html)
+        self.assertIn('x-bind:data-panel-state', html)
+        self.assertNotIn("<details", html)
 
     def test_right_panel_renders_human_facing_task_queue_groups(self):
         payload, model, _ = self.detailed_fixture(selected=True)
