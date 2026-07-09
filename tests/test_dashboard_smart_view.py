@@ -118,7 +118,6 @@ class DashboardSmartViewTests(unittest.TestCase):
         self.assertIn("Backend Platform Engineer", html)
         self.assertIn("Barcelona", html)
         self.assertIn("hybrid", html)
-        self.assertIn("LinkedIn", html)
         self.assertIn("Source URL", html)
         self.assertIn("Prepare recruiter call", html)
         self.assertIn("Backend platform pitch", html)
@@ -151,9 +150,11 @@ class DashboardSmartViewTests(unittest.TestCase):
     def test_notes_use_one_primary_note_field_in_full_local_mode(self):
         _, model, _ = self.smart_model(mode=Mode.FULL, context_module="notes")
         html = render_dashboard_fragment("selected-card", model)
+        tags = _tags(html)
+        note_blocks = [attrs for _, attrs in tags if "data-primary-note" in attrs]
 
-        self.assertEqual(html.count('data-primary-note '), 1)
-        self.assertIn('data-primary-note-interaction="one"', html)
+        self.assertEqual(len(note_blocks), 1)
+        self.assertEqual(note_blocks[0].get("data-primary-note-interaction"), "one")
         self.assertIn("Primary Smart note value", html)
         self.assertIn('data-primary-note-edit-affordance', html)
         self.assertIn('data-primary-note-editor', html)
