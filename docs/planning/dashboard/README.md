@@ -45,6 +45,29 @@ hard UX acceptance tests beyond data-hook presence
 
 Do not merge the dashboard PR as product-complete until those UX requirements are implemented or explicitly deferred by product decision.
 
+## Dashboard interaction stack decision
+
+The dashboard remains server-rendered and local-first, but the interaction layer is no longer expected to be hand-rolled from templates alone.
+
+Accepted dashboard interaction stack:
+
+```text
+Jinja for server-rendered structure
+existing HTMX for server-rendered partial updates and button-triggered fragment swaps
+Alpine.js for dashboard-local interaction state
+project-owned CSS for layout, density, visual hierarchy, and themes
+small project-owned JavaScript only where Alpine/HTMX/native HTML are insufficient
+```
+
+HTMX and Alpine.js should be used deliberately where they fit:
+
+```text
+HTMX: server interactions, partial refreshes, selected context swaps, form submissions, dashboard fragments
+Alpine.js: collapsed/expanded state, selected module/tab state, local dropdowns, local button state, local visibility toggles
+```
+
+This is not a frontend framework migration. Do not introduce React, Vue, Angular, Svelte, a large UI kit, or drag/table libraries unless separately justified and explicitly accepted.
+
 ## Compatibility amendment
 
 The general architecture review confirms the four-view dashboard direction and adds one implementation constraint: the dashboard should render from structured projection/view-model data where practical.
@@ -74,10 +97,12 @@ Do not block the dashboard redesign on future work such as a compatibility descr
 
 Implementation reached a CI-green architectural base, but product UX review rejected the result as incomplete for required behavior.
 
+The first corrective slice completed the bounded shell/layout contract on branch head `0551f5c9aaba740f31d4d7444c47221788ffdf35`.
+
 Current status:
 
 ```text
 BLOCKED_REPLAN_REQUIRED
 ```
 
-The next implementation direction must be derived from `10-dashboard-product-ux-correction.md`, not from the earlier green integration result alone.
+The next implementation direction must be derived from `10-dashboard-product-ux-correction.md`, the accepted HTMX+Alpine interaction stack, and the current bounded-shell baseline.
