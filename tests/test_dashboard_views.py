@@ -37,20 +37,22 @@ class DashboardViewRenderTests(unittest.TestCase):
     def test_dashboard_views_keep_stable_hooks(self):
         payload, app = self.payload()
         html = render_dashboard_view(payload, Mode.FULL, view="detailedView", selected_application_id=app["id"])
-
         self.assertIn('data-dashboard-view="detailedView"', html)
-        self.assertIn("data-app-row", html)
         self.assertIn("data-selected-app", html)
-        self.assertIn('data-inline-field="next_action"', html)
-        self.assertIn('data-inspector-tab="raw"', html)
+        self.assertIn("data-detailed-toolbox", html)
+        self.assertIn('data-detailed-toolbox-state="selected"', html)
+        self.assertIn("data-detailed-grid", html)
+        self.assertIn("data-detailed-table", html)
+        self.assertIn("data-detailed-row", html)
+        self.assertIn('data-selected-row="true"', html)
+        self.assertIn('data-detailed-column="company"', html)
+        self.assertNotIn('data-inline-field="next_action"', html)
         self.assertIn("data-write-control", html)
-        self.assertIn("data-raw-offer-entry", html)
-        self.assertIn('data-keyword="ATS"', html)
+        self.assertIn("ATS", html)
 
     def test_read_only_view_removes_write_and_raw_controls(self):
         payload, app = self.payload()
         html = render_dashboard_view(payload, Mode.READ_ONLY, view="detailedView", selected_application_id=app["id"])
-
         self.assertNotIn("data-write-control", html)
         self.assertNotIn('data-inspector-tab="raw"', html)
         self.assertNotIn("data-raw-offer-entry", html)
@@ -61,7 +63,6 @@ class DashboardViewRenderTests(unittest.TestCase):
     def test_user_view_is_a_preset_not_a_duplicate_record(self):
         payload, app = self.payload()
         html = render_dashboard_view(payload, Mode.FULL, view="userView", selected_application_id=app["id"])
-
         self.assertIn('data-dashboard-view="userView"', html)
         self.assertIn("without storing a fork", html)
 
@@ -74,17 +75,8 @@ class DashboardViewRenderTests(unittest.TestCase):
             create_note(conn, "Python screening note", application_id=app["id"])
             rebuild_index(conn)
             payload = dashboard_payload(conn)
-            model = dashboard_view_model(
-                payload,
-                Mode.FULL,
-                view="smartView",
-                selected_application_id=app["id"],
-                selected_keyword="Python",
-                search_query="Python",
-                conn=conn,
-            )
+            model = dashboard_view_model(payload, Mode.FULL, view="smartView", selected_application_id=app["id"], selected_keyword="Python", search_query="Python", conn=conn)
             html = render_dashboard_view(payload, Mode.FULL, view_model=model)
-
         self.assertIn('data-dashboard-view="smartView"', html)
         self.assertIn('data-keyword="Python"', html)
         self.assertIn("data-search-results", html)
@@ -101,14 +93,13 @@ class DashboardViewRenderTests(unittest.TestCase):
             payload = dashboard_payload(conn)
             model = dashboard_view_model(payload, Mode.FULL, view="welcomeView", selected_application_id=app["id"], conn=conn)
             html = render_dashboard_view(payload, Mode.FULL, view_model=model)
-
         self.assertIn("Open todos", html)
         self.assertIn("Prepare call", html)
         self.assertIn("Pending agent tasks", html)
         self.assertIn("Research Welcome Co", html)
         self.assertIn("Welcome Co", html)
 
-    def test_detailed_view_exposes_core_and_detail_edit_controls(self):
+    def test_detailed_view_renders_grid_not_single_candidature_editor(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         init_db(tmp.name)
@@ -117,27 +108,22 @@ class DashboardViewRenderTests(unittest.TestCase):
             payload = dashboard_payload(conn)
             model = dashboard_view_model(payload, Mode.FULL, view="detailedView", selected_application_id=app["id"], conn=conn)
             html = render_dashboard_view(payload, Mode.FULL, view_model=model)
-
-        self.assertIn('data-inline-field="company"', html)
-        self.assertIn('data-detail-field="description"', html)
-        self.assertIn("/dashboard/actions/candidatures/", html)
-        self.assertIn("data-generative-actions", html)
-        self.assertIn("data-document-actions", html)
-        self.assertIn("Render local template", html)
-        self.assertIn("Queue agent draft", html)
+        self.assertIn("data-detailed-grid", html)
+        self.assertIn("data-detailed-table", html)
+        self.assertIn("data-detailed-row", html)
+        self.assertIn("data-detailed-column-state", html)
+        self.assertNotIn('data-inline-field="company"', html)
+        self.assertNotIn('data-detail-field="description"', html)
+        self.assertNotIn("/dashboard/actions/candidatures/", html)
+        self.assertNotIn("data-generative-actions", html)
+        self.assertNotIn("data-document-actions", html)
+        self.assertNotIn("Render local template", html)
+        self.assertNotIn("Queue agent draft", html)
 
     def test_dashboard_creation_panel_includes_all_task_toggles(self):
         payload, app = self.payload()
         html = render_dashboard_view(payload, Mode.FULL, view="welcomeView", selected_application_id=app["id"])
-
-        for name in (
-            "include_field_inference_task",
-            "include_company_research_task",
-            "include_keyword_detection_task",
-            "include_cv_task",
-            "include_cover_letter_task",
-            "include_form_responses_task",
-        ):
+        for name in ("include_field_inference_task", "include_company_research_task", "include_keyword_detection_task", "include_cv_task", "include_cover_letter_task", "include_form_responses_task"):
             self.assertIn(name, html)
 
     def test_user_view_and_profile_panel_are_editable_in_full_mode(self):
@@ -146,20 +132,10 @@ class DashboardViewRenderTests(unittest.TestCase):
         init_db(tmp.name)
         with connect(tmp.name) as conn:
             app = create_application(conn, company="User Co", role="Engineer", pitch="User pitch")
-            create_profile_fact(
-                conn,
-                fact_type="skill",
-                title="Python",
-                body="Backend APIs",
-                visibility="professional",
-                exposure="summarized",
-                use_for_cv=True,
-                use_for_dashboard=True,
-            )
+            create_profile_fact(conn, fact_type="skill", title="Python", body="Backend APIs", visibility="professional", exposure="summarized", use_for_cv=True, use_for_dashboard=True)
             payload = dashboard_payload(conn)
             model = dashboard_view_model(payload, Mode.FULL, view="userView", selected_application_id=app["id"], conn=conn)
             html = render_dashboard_view(payload, Mode.FULL, view_model=model)
-
         self.assertIn("data-user-view-editor", html)
         self.assertIn("/dashboard/actions/user-view", html)
         self.assertIn("data-profile-cv-panel", html)
@@ -176,7 +152,6 @@ class DashboardViewRenderTests(unittest.TestCase):
             payload = dashboard_payload(conn)
             model = dashboard_view_model(payload, Mode.READ_ONLY, view="smartView", selected_application_id=app["id"], conn=conn)
             html = render_dashboard_view(payload, Mode.READ_ONLY, view_model=model)
-
         self.assertIn("data-profile-cv-panel", html)
         self.assertNotIn("profile-fact-add", html)
         self.assertNotIn("profile-fact-edit", html)
