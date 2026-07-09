@@ -22,7 +22,7 @@
     {% endif %}
   {% endcall %}
 {% elif view == "detailedView" %}
-  {% call(slot) ui.dashboard_module("left", "Candidature toolbox" if detailed.has_selected_row else "General toolbox", "Detailed toolbox", "detailed-toolbox", hooks="data-detailed-toolbox data-detailed-toolbox-state='selected'" if detailed.has_selected_row else "data-detailed-toolbox data-detailed-toolbox-state='general'") %}
+  {% call(slot) ui.dashboard_module("left", "Candidature toolbox" if detailed.has_selected_row else "General toolbox", "Detailed toolbox", "detailed-toolbox", hooks='data-detailed-toolbox data-detailed-toolbox-state="selected"' if detailed.has_selected_row else 'data-detailed-toolbox data-detailed-toolbox-state="general"') %}
     {% if slot == "body" %}
       {% if detailed.has_selected_row %}
         <div class="field" data-detailed-selected-context>
