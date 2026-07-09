@@ -8,20 +8,7 @@ Primary orchestration branch:
 didacll/dashboard-design
 ```
 
-Worker branches should target this branch unless the orchestrator explicitly changes the target.
-
-Suggested worker branch names:
-
-```text
-codex/dashboard-plan-validation
-codex/dashboard-current-map
-codex/dashboard-projection-model
-codex/dashboard-welcome-user
-codex/dashboard-smart-detailed
-codex/dashboard-tests-review
-```
-
-This work should be coordinated with the dashboard runtime cleanup but must not weaken the agent/dashboard runtime split.
+This branch is the canonical dashboard-design branch for PR #36. Do not leave dashboard work stranded outside this branch.
 
 ## Work package name
 
@@ -29,33 +16,73 @@ This work should be coordinated with the dashboard runtime cleanup but must not 
 Dashboard four-view UX replacement
 ```
 
+## Current implementation status
+
+The branch has a CI-green architectural base and a completed bounded shell/layout corrective slice, but it is not product-approved and is not technically complete for the required UX behavior.
+
+The current source of truth for the missing UX behavior is:
+
+```text
+docs/planning/dashboard/10-dashboard-product-ux-correction.md
+```
+
 ## Goals
 
 - Preserve and clarify Welcome View, User View, Smart View, and Detailed View.
+- Implement the dashboard as a constrained human workspace, not a vertically expanding document.
+- Use a fixed/constrained shell with left, center, and right bounded panel regions.
+- Use reusable dashboard module primitives instead of unrelated hand-built blocks.
+- Use real button controls for actions and tab/module selection.
 - Replace duplicated read/edit boxes with inline editable display sections.
 - Convert notes into one primary directly editable note field per candidature.
 - Hide input forms inside collapsed expandable panels.
 - Implement Smart View as the default recruiter-call-oriented operational view.
 - Implement Detailed View as the table/grid-oriented candidature management view.
+- Add real column visibility and ordering controls for Detailed View.
 - Add left-panel toolbox behavior for Detailed View.
 - Add right-panel LLM task queue for Detailed View.
 - Preserve keyword chip behavior and selected keyword context behavior.
 - Preserve dashboard runtime as human-local only.
-- Build or prepare a dashboard projection/view-model boundary consumed by the HTML dashboard.
+- Build or preserve a dashboard projection/view-model boundary consumed by the HTML dashboard.
 - Avoid exposing this UI model or projection data as an agent API.
 - Use existing assets for clean accessible light/dark themes.
-- Avoid heavy frontend dependencies.
+- Avoid heavy frontend dependencies and avoid SPA migration.
+
+## Accepted dashboard interaction stack
+
+The dashboard remains server-rendered and local-first, but dynamic behavior should not be hand-rolled from templates alone.
+
+Accepted stack:
+
+```text
+Jinja for server-rendered structure
+existing HTMX for server-rendered partial updates and button-triggered fragment swaps
+Alpine.js for dashboard-local interaction state
+project-owned CSS for layout, density, visual hierarchy, and themes
+small project-owned JavaScript only where Alpine/HTMX/native HTML are insufficient
+```
+
+Responsibility split:
+
+```text
+Jinja: durable structure and initial render
+HTMX: server interactions, partial refreshes, selected context swaps, form submissions, server-rendered module bodies
+Alpine.js: collapsed/expanded modules, selected tabs/modules, dropdowns, local button state, local visibility toggles
+CSS: bounded shell, panel sizing, density, visual hierarchy, theme behavior
+```
+
+This is not a frontend framework migration. Do not introduce React, Vue, Angular, Svelte, a large UI kit, or drag/table libraries unless separately justified and explicitly accepted.
 
 ## Non-goals
 
-- Do not implement a frontend framework migration unless required.
+- Do not implement a frontend SPA migration.
 - Do not create a dashboard JSON API for agents.
 - Do not expose dashboard actions in the agent runtime.
-- Do not overbuild saved user-defined views in the first pass.
-- Do not implement speculative modules before the base view model is stable.
+- Do not overbuild saved user-defined views in the first correction pass.
+- Do not implement speculative modules before the base shell/module/tab primitives are stable.
 - Do not rewrite storage architecture for the UX pass unless a minimal field is missing.
 - Do not implement the future compatibility descriptor, host adapter, artifact lifecycle overhaul, or privacy-schema consolidation in this branch.
-
+- Do not start static export migration while the human dashboard UX is still blocked.
 
 ## Compatibility amendment: UI projection boundary
 
@@ -92,172 +119,98 @@ Constraints:
 - The agent runtime remains bounded task/context/action only.
 - Avoid a broad domain-service rewrite in this dashboard branch.
 
-Future work, not required for this branch:
+## Corrective implementation order
+
+### 1. Dashboard shell and bounded three-panel layout
+
+Status: completed as the first corrective slice on branch head `0551f5c9aaba740f31d4d7444c47221788ffdf35`.
+
+The shell establishes a bounded dashboard container, left/center/right panel regions, and panel-local scroll ownership.
+
+### 2. Reusable module primitive
+
+Implement a reusable dashboard module primitive that can host editable dashboard content consistently across Welcome, User, Smart, and Detailed views.
+
+Required behavior:
 
 ```text
-provider-neutral compatibility descriptor
-host-embedded adapter prototype
-privacy/exposure consolidation
-artifact lifecycle hardening
-task-envelope hardening beyond existing runtime-boundary tests
-storage adapter redesign
+module header
+module title
+module action area
+real button controls
+collapsed/expanded state where applicable
+local body region
+optional local scroll area
+consistent selected/active/disabled states
+HTMX-compatible body/action target where server refresh is needed
+Alpine-backed local expanded/collapsed state where server refresh is not needed
 ```
 
-## Proposed implementation order
+The module primitive should reduce repeated buttons, repeated content blocks, and inconsistent visual structure.
 
-### 1. Define dashboard projection and view-state model
+### 3. Button-based tab/module selector primitive
 
-Model the structured projection data and view state required by the four views.
+Implement a reusable control primitive for switching right-panel or module content.
 
-Suggested state fields:
+Required behavior:
 
 ```text
-current_view: welcome | user | smart | detailed
-selected_candidature_ref
-selected_right_panel_module
-selected_keyword
-selected_table_columns
-table_column_order
-table_filters
-table_search
-selected_toolbox_action
-expanded_panels
-theme
+buttons, not passive links
+visible selected state
+Alpine-backed immediate selected-state feedback
+HTMX-backed server-rendered body swaps where needed
+selected candidature context preserved across module switches
+reusable for Smart right-panel context and other module groups
 ```
 
-This state can initially be held in server-rendered query params, form fields, local storage, or minimal JavaScript state depending on current implementation.
+### 4. Expandable form/action/configuration panels
 
-Do not create unnecessary persistence until required.
+Move form walls and action clusters into consistent expandable panels using the module primitive.
 
-The projection model should be callable without requiring dashboard route handlers or HTML templates.
-
-### 2. Refactor dashboard payload shape around projection data
-
-The dashboard payload should provide separate structures for the four views without duplicating business logic. Prefer small Python projection builders or view-model functions over template-only state assembly.
-
-Suggested payload sections:
+Required behavior:
 
 ```text
-mode
-view_state
-welcome
-user
-smart
-detailed
-glossary
-tasks
-theme/assets
-permissions
+creation/import panels closed by default
+profile/config panels closed by default
+action panels closed by default
+advanced forms closed by default
+expanded/collapsed state visible in markup and UI
+no visible form walls at first render
 ```
 
-Suggested Smart View payload:
+### 5. Smart View scan-safe rewrite
 
-```text
-candidature_summaries
-selected_candidature_detail
-selected_context_module
-selected_keyword_definition
-primary_note
-artifact_summary
-```
-
-Suggested Detailed View payload:
-
-```text
-rows
-available_columns
-visible_columns
-column_order
-filters
-selected_row
-selected_toolbox_actions
-general_toolbox_actions
-task_queue_summary
-```
-
-Suggested User View payload:
-
-```text
-personal_data_summary
-career_plan_summary
-strategy_summary
-cv_fields_summary
-template_variables_summary
-preferences_summary
-agent_task_settings_summary
-expanded_panels
-```
-
-Suggested Welcome View payload:
-
-```text
-setup_state
-primary_actions
-empty_state_summary
-onboarding_panels
-```
-
-### 3. Preserve/create Welcome View
-
-Implement or preserve a clean first-run/empty-state view.
+Rebuild Smart View first-screen behavior using the shell, module primitive, and tab/module controls.
 
 Requirements:
 
-- Short local-first orientation.
-- Clear primary actions.
-- No noisy forms visible by default.
-- Expandable panels for setup.
-- Navigation to User View, Smart View, and Detailed View.
+- Compact candidature list in the left panel.
+- Selected candidature central detail constrained to recruiter-call operational detail.
+- Primary note directly available without becoming a notes list.
+- Right context selector available without overwhelming the screen.
+- No quick-action/form wall on first render.
+- No long descriptions, research blocks, or large artifact lists visible on first render.
+- HTMX may refresh server-rendered context bodies.
+- Alpine should manage local selected/open state where appropriate.
 
-### 4. Preserve/create User View
+### 6. Detailed View column controls
 
-Implement or preserve a dedicated control center for user/profile/settings.
-
-Requirements:
-
-- Personal data.
-- Career path.
-- Strategy.
-- CV fields.
-- Profile variables.
-- Template variables.
-- Preferences.
-- Theme/accessibility settings if represented.
-- Agent/task configuration where appropriate.
-- Forms grouped in expandable panels.
-
-### 5. Rebuild Smart View
-
-Implement the default operational dashboard view.
+Implement table/grid-oriented management using the shell, module primitive, and control primitives.
 
 Requirements:
 
-- Left panel expanded initially.
-- Compact candidature list.
-- Selected candidature expands central detail.
-- Right panel context selector.
-- Always-editable primary note in full local mode.
-- Keyword chip behavior.
-- No duplicated read/edit boxes.
-- Input forms hidden by default.
-
-### 6. Rebuild Detailed View
-
-Implement table/grid-oriented management.
-
-Requirements:
-
-- Central table with candidatures as rows.
-- All core fields available as columns.
-- Column visibility and ordering state.
+- Central table/grid in constrained region.
+- Core fields available as columns.
+- Column visibility can be controlled through UI controls.
+- Column ordering can be controlled through UI controls, at least with explicit up/down/order controls.
 - Search/filter by column values.
-- Selected row defines current candidature.
+- Selected row defines candidature context.
 - Left toolbox changes based on selection.
-- Right panel shows LLM task queue.
+- Right panel shows human-facing LLM task queue in a bounded region.
 
 ### 7. Inline edit and form policy
 
-Replace separate read/edit blocks with inline edit affordances.
+Replace separate read/edit blocks with inline edit affordances where supported.
 
 Required behavior:
 
@@ -280,7 +233,7 @@ Agent/task config
 Advanced view config
 ```
 
-### 8. Theme and assets pass
+### 8. Theme and visual hierarchy pass
 
 Use existing assets for visual continuity.
 
@@ -293,26 +246,42 @@ Requirements:
 - Clear selected candidature state.
 - Clear selected keyword state.
 - Status/priority indicators not dependent only on color.
+- Reduced information density on first render.
+- Consistent module spacing and button hierarchy.
 
 ### 9. Test pass
 
-Add durable tests for view contracts, runtime boundaries, and mode behavior.
+Add durable tests for view contracts, runtime boundaries, mode behavior, and interactive dashboard primitives.
 
 Do not test exact CSS or exact wording.
 
+Tests may assert durable attributes, roles, button semantics, Alpine state attributes, HTMX targets, panel boundaries, and absence of uncontrolled form/content walls.
+
 ## Minimal JavaScript policy
 
-Use JavaScript only where it directly supports the UX:
+The dashboard should use the accepted interaction stack instead of hand-rolling all behavior.
+
+Use Alpine.js where local UI state is the problem:
 
 ```text
-Panel toggles
-Inline edit affordances
-Column visibility
-Column reordering
-Search/filter
-Selection state
-Theme toggle if represented client-side
+module collapsed/expanded state
+selected tab/module state
+dropdowns
+local button group state
+local visibility toggles
 ```
+
+Use HTMX where server-rendered dashboard state is the problem:
+
+```text
+fragment swaps
+selected context refreshes
+form submissions
+module body refreshes
+partial dashboard panel updates
+```
+
+Use small project-owned JavaScript only if Alpine, HTMX, native HTML, and CSS do not cover the specific primitive cleanly.
 
 Avoid heavy dependencies and frontend frameworks for the MVP.
 
@@ -349,12 +318,15 @@ Dashboard HTML may contain private IDs because it is human-local. Agent runtime 
 This work is complete when:
 
 - Four views exist or are preserved: Welcome, User, Smart, Detailed.
+- The dashboard uses a bounded shell with constrained left/center/right panel regions.
+- Reusable modules exist with header, actions, body, and collapsed/expanded behavior.
+- Tab/module controls are button-based and preserve selected context.
 - Smart View is usable as the default operational call view.
-- Detailed View is a table/grid candidature management view.
+- Detailed View is a table/grid candidature management view with usable column visibility/order controls.
 - Notes are a single primary directly editable field per candidature in full local mode.
-- Forms are hidden by default.
+- Forms are hidden by default in real expandable panels.
 - Read-only and static demo modes preserve the correct restrictions.
 - Light/dark theme behavior exists using existing assets.
-- Tests cover durable UX contracts, including projection/view-state semantics.
+- Tests cover durable UX contracts, including shell, module, tab/control, projection, and view-state semantics.
 - No dashboard route/action is added to the agent runtime.
 - No projection output is exposed as a broad agent-facing API.
