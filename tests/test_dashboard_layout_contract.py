@@ -149,6 +149,37 @@ class DashboardLayoutContractTests(unittest.TestCase):
             self.assertEqual(button.get(":aria-expanded"), "open.toString()")
             self.assertTrue(button.get("aria-controls"))
 
+    def test_module_selector_uses_alpine_for_selected_state_and_buttons(self):
+        html = self.render_dashboard("smartView", context_module="keywords", selected_keyword="Python")
+        tags = _tags(html)
+        selector = _first(tags, tag="div", attr="data-module-selector-id", value="smart-context-selector")
+        buttons = [attrs for tag, attrs in tags if tag == "button" and attrs.get("data-module-selector-id") == "smart-context-selector"]
+
+        self.assertEqual(selector.get("role"), "tablist")
+        self.assertEqual(selector.get("x-data"), "{ selected: 'keywords' }")
+        self.assertEqual(selector.get("x-bind:data-module-selector-selected"), "selected")
+        self.assertEqual(selector.get("data-module-selector-selected"), "keywords")
+        self.assertGreaterEqual(len(buttons), 4)
+        for button in buttons:
+            self.assertEqual(button.get("type"), "button")
+            self.assertEqual(button.get("role"), "tab")
+            self.assertIn("@click", button)
+            self.assertIn(":aria-selected", button)
+            self.assertIn("x-bind:data-module-selected", button)
+            self.assertTrue(button.get("aria-controls"))
+
+    def test_module_selector_uses_htmx_only_for_server_rendered_body_swaps(self):
+        html = self.render_dashboard("smartView", context_module="keywords", selected_keyword="Python")
+        tags = _tags(html)
+        selector_buttons = [attrs for tag, attrs in tags if tag == "button" and attrs.get("data-module-selector-id") == "smart-context-selector"]
+
+        self.assertTrue(any(button.get("hx-get", "").startswith("/dashboard/fragments/inspector") for button in selector_buttons))
+        self.assertTrue(all(button.get("hx-target") == '[aria-label="Inspector"]' for button in selector_buttons))
+        self.assertTrue(all(button.get("hx-swap") == "outerHTML" for button in selector_buttons))
+        panel = _first(tags, tag="div", attr="data-module-selector-panel")
+        self.assertEqual(panel.get("data-module-selector-id"), "smart-context-selector")
+        self.assertEqual(panel.get("id"), "smart-context-panel")
+
     def test_dashboard_modules_keep_htmx_targets_only_on_refreshable_regions(self):
         html = self.render_dashboard("smartView")
         tags = _tags(html)
