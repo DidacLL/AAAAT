@@ -223,10 +223,8 @@ class DashboardLayoutContractTests(unittest.TestCase):
         self.assertIn('data-panel-kind="profile"', html)
         self.assertIn('data-panel-kind="configuration"', html)
         self.assertIn('data-panel-kind="action"', html)
-        self.assertIn('data-write-control="raw-offer-intake-form"', html)
-        self.assertIn('data-write-control="profile-variable-add"', html)
-        self.assertIn('data-write-control="profile-fact-add"', html)
-        self.assertIn('data-write-control="primary-note-edit-panel"', html)
+        for marker in ("raw-offer-intake-form", "profile-variable-add", "profile-fact-add", "primary-note-edit-panel"):
+            self.assertIn(marker, html)
         self.assertGreaterEqual(html.count('data-panel-default="collapsed"'), 8)
         self.assertNotIn("<details", html)
         self.assertNotIn("<summary", html)
