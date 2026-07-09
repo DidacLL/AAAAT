@@ -3,11 +3,11 @@
   <div class="module-header" data-module-header>
     <h2 data-module-title>{{ title }}</h2>
     <div class="module-actions" data-module-actions>
-      <button type="button" class="module-toggle" data-module-control="toggle" x-on:click="open = !open" x-bind:aria-expanded="open.toString()" aria-controls="{{ module_id }}-body" aria-expanded="{% if collapsed %}false{% else %}true{% endif %}"><span x-text="open ? 'Collapse' : 'Expand'">{% if collapsed %}Expand{% else %}Collapse{% endif %}</span></button>
+      <button type="button" class="module-toggle" data-module-control="toggle" @click="open = !open" :aria-expanded="open.toString()" aria-controls="{{ module_id }}-body" aria-expanded="{% if collapsed %}false{% else %}true{% endif %}"><span x-text="open ? 'Collapse' : 'Expand'">{% if collapsed %}Expand{% else %}Collapse{% endif %}</span></button>
       {{ caller('actions') }}
     </div>
   </div>
-  <div id="{{ module_id }}-body" class="{{ body_class }}{% if scroll %} panel-scroll{% endif %}" data-module-body data-module-target="{{ module_id }}-body" {% if scroll %}data-panel-scroll="{{ scroll_mode }}" data-module-scroll="local"{% endif %} x-show="open" tabindex="0">
+  <div id="{{ module_id }}-body" class="{{ body_class }}{% if scroll %} panel-scroll{% endif %}" data-module-body data-module-target="{{ module_id }}-body" {% if scroll %}data-panel-scroll="{{ scroll_mode }}" data-module-scroll="local"{% endif %} x-show="open" x-cloak tabindex="0">
     {{ caller('body') }}
   </div>
 </section>
