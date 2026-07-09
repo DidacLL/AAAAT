@@ -54,17 +54,21 @@ Accepted dashboard interaction stack:
 ```text
 Jinja for server-rendered structure
 existing HTMX for server-rendered partial updates and button-triggered fragment swaps
-Alpine.js for dashboard-local interaction state
+Alpine.js as the required mechanism for dashboard-local interaction state where Alpine can express the behavior
 project-owned CSS for layout, density, visual hierarchy, and themes
-small project-owned JavaScript only where Alpine/HTMX/native HTML are insufficient
+small project-owned JavaScript only where Alpine/HTMX/native HTML cannot express the specific primitive cleanly
 ```
 
-HTMX and Alpine.js should be used deliberately where they fit:
+HTMX and Alpine.js must be used deliberately according to their responsibilities:
 
 ```text
 HTMX: server interactions, partial refreshes, selected context swaps, form submissions, dashboard fragments
-Alpine.js: collapsed/expanded state, selected module/tab state, local dropdowns, local button state, local visibility toggles
+Alpine.js: collapsed/expanded state, selected module/tab state, local dropdowns, local button-group state, local visibility toggles
 ```
+
+Do not recreate Alpine-equivalent local state manually in project-owned JavaScript or duplicated template logic. If Alpine can express local open/closed/selected/visible state directly, use Alpine.
+
+Custom JavaScript is allowed only when Alpine, HTMX, native HTML, and CSS cannot express the needed dashboard primitive cleanly. The reason must be documented in the worker summary.
 
 This is not a frontend framework migration. Do not introduce React, Vue, Angular, Svelte, a large UI kit, or drag/table libraries unless separately justified and explicitly accepted.
 
