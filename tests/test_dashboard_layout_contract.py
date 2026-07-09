@@ -43,7 +43,7 @@ def _first(tags, *, tag=None, attr=None, value=None):
 
 @unittest.skipUnless(JINJA_AVAILABLE, "Jinja2 is not installed")
 class DashboardLayoutContractTests(unittest.TestCase):
-    def render_dashboard(self, view="smartView", *, context_module="keywords", selected_keyword="Python"):
+    def render_dashboard(self, view="smartView", *, context_module="keywords", selected_keyword="Python", mode=Mode.FULL):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         init_db(tmp.name)
@@ -69,14 +69,14 @@ class DashboardLayoutContractTests(unittest.TestCase):
             payload = dashboard_payload(conn)
             model = dashboard_view_model(
                 payload,
-                Mode.FULL,
+                mode,
                 view=view,
                 selected_application_id=app["id"],
                 selected_keyword=selected_keyword,
                 selected_context_module=context_module,
                 conn=conn,
             )
-        return render_dashboard_view(payload, Mode.FULL, view_model=model)
+        return render_dashboard_view(payload, mode, view_model=model)
 
     def test_dashboard_shell_declares_bounded_scroll_contract(self):
         html = self.render_dashboard("smartView")
@@ -179,6 +179,67 @@ class DashboardLayoutContractTests(unittest.TestCase):
         panel = _first(tags, tag="div", attr="data-module-selector-panel")
         self.assertEqual(panel.get("data-module-selector-id"), "smart-context-selector")
         self.assertEqual(panel.get("id"), "smart-context-panel")
+
+    def test_expandable_panels_use_alpine_and_are_collapsed_by_default(self):
+        html = "\n".join([
+            self.render_dashboard("smartView", context_module="keywords"),
+            self.render_dashboard("userView"),
+            self.render_dashboard("detailedView"),
+            self.render_dashboard("welcomeView"),
+        ])
+        tags = _tags(html)
+        panels = [attrs for _, attrs in tags if "data-expandable-panel" in attrs]
+        bodies = [attrs for _, attrs in tags if "data-panel-body" in attrs]
+
+        self.assertGreaterEqual(len(panels), 10)
+        for panel in panels:
+            self.assertEqual(panel.get("data-panel-default"), "collapsed")
+            self.assertEqual(panel.get("data-panel-state"), "collapsed")
+            self.assertIn("open: false", panel.get("x-data", ""))
+            self.assertEqual(panel.get("x-bind:data-panel-state"), "open ? 'expanded' : 'collapsed'")
+            self.assertTrue(panel.get("data-panel-kind"))
+        self.assertGreaterEqual(len(bodies), len(panels))
+        for body in bodies[: len(panels)]:
+            self.assertEqual(body.get("x-show"), "open")
+            self.assertIn("x-cloak", body)
+
+    def test_expandable_panel_controls_are_buttons_with_aria_state(self):
+        html = self.render_dashboard("userView")
+        tags = _tags(html)
+        controls = [attrs for tag, attrs in tags if tag == "button" and attrs.get("data-panel-control") == "toggle"]
+
+        self.assertGreaterEqual(len(controls), 5)
+        for control in controls:
+            self.assertEqual(control.get("type"), "button")
+            self.assertEqual(control.get("@click"), "open = !open")
+            self.assertEqual(control.get(":aria-expanded"), "open.toString()")
+            self.assertEqual(control.get("aria-expanded"), "false")
+            self.assertTrue(control.get("aria-controls"))
+
+    def test_creation_profile_config_and_action_forms_start_inside_collapsed_panels(self):
+        html = "\n".join([self.render_dashboard("smartView"), self.render_dashboard("userView"), self.render_dashboard("detailedView")])
+
+        self.assertIn('data-panel-kind="creation"', html)
+        self.assertIn('data-panel-kind="profile"', html)
+        self.assertIn('data-panel-kind="configuration"', html)
+        self.assertIn('data-panel-kind="action"', html)
+        self.assertIn('data-write-control="raw-offer-intake-form"', html)
+        self.assertIn('data-write-control="profile-variable-add"', html)
+        self.assertIn('data-write-control="profile-fact-add"', html)
+        self.assertIn('data-write-control="primary-note-edit-panel"', html)
+        self.assertGreaterEqual(html.count('data-panel-default="collapsed"'), 8)
+        self.assertNotIn("<details", html)
+        self.assertNotIn("<summary", html)
+
+    def test_read_only_and_static_demo_do_not_expose_write_or_raw_intake_controls(self):
+        read_only = self.render_dashboard("userView", mode=Mode.READ_ONLY)
+        static_demo = self.render_dashboard("smartView", mode=Mode.STATIC_DEMO)
+
+        for html in (read_only, static_demo):
+            self.assertNotIn("data-write-control", html)
+            self.assertNotIn("raw-offer-intake", html)
+            self.assertNotIn("data-raw-offer-entry", html)
+            self.assertNotIn("/dashboard/actions/raw-offer-intake", html)
 
     def test_dashboard_modules_keep_htmx_targets_only_on_refreshable_regions(self):
         html = self.render_dashboard("smartView")
