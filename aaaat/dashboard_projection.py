@@ -43,6 +43,16 @@ DETAILED_COLUMNS: list[dict[str, str]] = [
     {"key": "keywords", "label": "Keywords"},
     {"key": "artifacts_state", "label": "Artifacts state"},
     {"key": "notes_excerpt", "label": "Notes excerpt"},
+    {"key": "pitch", "label": "Pitch"},
+    {"key": "smart_question", "label": "Smart question"},
+    {"key": "risks_to_avoid", "label": "Risks to avoid"},
+    {"key": "prepare_first", "label": "Prepare first"},
+    {"key": "prepare_later", "label": "Prepare later"},
+    {"key": "call_signals", "label": "Call signals"},
+    {"key": "technical_reading", "label": "Technical reading"},
+    {"key": "offer_snapshot", "label": "Offer snapshot"},
+    {"key": "company_research", "label": "Company research"},
+    {"key": "form_answers", "label": "Form answers"},
     {"key": "created_at", "label": "Created at"},
     {"key": "updated_at", "label": "Updated at"},
 ]
@@ -103,7 +113,7 @@ def build_dashboard_projection(
     permissions = build_permissions(mode)
 
     apps = list(payload.get("applications", []))
-    selected = select_application(apps, selected_application_id)
+    selected = select_application(apps, selected_application_id, default_to_first=current_view != "detailedView")
     if conn is not None and selected:
         selected = get_candidature(conn, selected["id"], include_related=True)
     selected = ensure_selected_shape(selected)
@@ -157,7 +167,6 @@ def build_dashboard_projection(
     )
 
     return {
-        # Compatibility keys consumed by the current Jinja templates.
         "payload": payload,
         "mode": mode,
         "view": current_view,
@@ -178,18 +187,13 @@ def build_dashboard_projection(
         "selected_keyword_item": selected_keyword_item,
         "search_query": search_query or "",
         "search_result": search_result,
-        # Structured projection sections for the four-view redesign.
         "permissions": permissions,
         "view_state": view_state,
         "welcome": welcome,
         "user": user,
         "smart": smart,
         "detailed": detailed,
-        "glossary": {
-            "items": glossary,
-            "selected_keyword": selected_term,
-            "selected_item": selected_keyword_item,
-        },
+        "glossary": {"items": glossary, "selected_keyword": selected_term, "selected_item": selected_keyword_item},
     }
 
 
@@ -233,14 +237,7 @@ def build_view_state(
     }
 
 
-def build_welcome_projection(
-    payload: dict[str, Any],
-    permissions: dict[str, Any],
-    apps: list[dict[str, Any]],
-    important: list[dict[str, Any]],
-    open_todos: list[dict[str, Any]],
-    open_tasks: list[dict[str, Any]],
-) -> dict[str, Any]:
+def build_welcome_projection(payload: dict[str, Any], permissions: dict[str, Any], apps: list[dict[str, Any]], important: list[dict[str, Any]], open_todos: list[dict[str, Any]], open_tasks: list[dict[str, Any]]) -> dict[str, Any]:
     missing_profile = list(payload.get("missing_profile_variables", []))
     setup_state = {
         "has_candidatures": bool(apps),
@@ -266,14 +263,7 @@ def build_welcome_projection(
     }
 
 
-def build_user_projection(
-    payload: dict[str, Any],
-    permissions: dict[str, Any],
-    profile_facts: list[dict[str, Any]],
-    grouped_profile_facts: dict[str, list[dict[str, Any]]],
-    career_plans: list[dict[str, Any]],
-    selected_user_view: dict[str, Any],
-) -> dict[str, Any]:
+def build_user_projection(payload: dict[str, Any], permissions: dict[str, Any], profile_facts: list[dict[str, Any]], grouped_profile_facts: dict[str, list[dict[str, Any]]], career_plans: list[dict[str, Any]], selected_user_view: dict[str, Any]) -> dict[str, Any]:
     profile_variables = payload.get("profile_variables", {})
     missing_profile = list(payload.get("missing_profile_variables", []))
     summary_sections = [
@@ -286,12 +276,7 @@ def build_user_projection(
     ]
     return {
         "summary_sections": summary_sections,
-        "profile_summary": {
-            "profile_variable_count": len(profile_variables),
-            "profile_fact_count": len(profile_facts),
-            "grouped_profile_facts": grouped_profile_facts,
-            "missing_profile_variables": missing_profile,
-        },
+        "profile_summary": {"profile_variable_count": len(profile_variables), "profile_fact_count": len(profile_facts), "grouped_profile_facts": grouped_profile_facts, "missing_profile_variables": missing_profile},
         "career_summary": {"career_plan_count": len(career_plans), "items": career_plans[:3]},
         "template_summary": {"missing_profile_variables": missing_profile},
         "settings_summary": {"mode": permissions["mode"], "write_enabled": permissions["can_write"]},
@@ -299,15 +284,7 @@ def build_user_projection(
     }
 
 
-def build_smart_projection(
-    apps: list[dict[str, Any]],
-    selected: dict[str, Any],
-    selected_keyword: str,
-    selected_keyword_item: dict[str, Any],
-    selected_queue: list[dict[str, Any]],
-    permissions: dict[str, Any],
-    view_state: dict[str, Any],
-) -> dict[str, Any]:
+def build_smart_projection(apps: list[dict[str, Any]], selected: dict[str, Any], selected_keyword: str, selected_keyword_item: dict[str, Any], selected_queue: list[dict[str, Any]], permissions: dict[str, Any], view_state: dict[str, Any]) -> dict[str, Any]:
     selected_detail = selected_candidature_detail(selected)
     return {
         "candidature_summaries": [candidature_summary(app) for app in apps],
@@ -315,12 +292,7 @@ def build_smart_projection(
         "primary_note": primary_note_state(selected, permissions),
         "context_modules": SMART_CONTEXT_MODULES,
         "selected_context_module": view_state["selected_context_module"],
-        "selected_keyword_context": {
-            "term": selected_keyword,
-            "item": selected_keyword_item,
-            "definition": selected_keyword_item.get("definition", "") if selected_keyword_item else "",
-            "selected_candidature": selected_detail,
-        },
+        "selected_keyword_context": {"term": selected_keyword, "item": selected_keyword_item, "definition": selected_keyword_item.get("definition", "") if selected_keyword_item else "", "selected_candidature": selected_detail},
         "artifact_summary": artifact_summary(selected.get("artifacts", []) if selected else []),
         "call_card": call_card(selected),
         "company_research": selected.get("company_research", "") if selected else "",
@@ -329,32 +301,32 @@ def build_smart_projection(
     }
 
 
-def build_detailed_projection(
-    apps: list[dict[str, Any]],
-    selected: dict[str, Any],
-    all_tasks: list[dict[str, Any]],
-    queue: list[dict[str, Any]],
-    permissions: dict[str, Any],
-    view_state: dict[str, Any],
-) -> dict[str, Any]:
-    rows = [detailed_row(app) for app in apps]
+def build_detailed_projection(apps: list[dict[str, Any]], selected: dict[str, Any], all_tasks: list[dict[str, Any]], queue: list[dict[str, Any]], permissions: dict[str, Any], view_state: dict[str, Any]) -> dict[str, Any]:
+    all_rows = [detailed_row(app) for app in apps]
+    rows = filter_detailed_rows(all_rows, view_state["search_query"], view_state["filters"])
     selected_row = next((row for row in rows if selected and row.get("id") == selected.get("id")), {})
     return {
         "rows": rows,
+        "all_row_count": len(all_rows),
+        "filtered_row_count": len(rows),
         "available_columns": DETAILED_COLUMNS,
         "visible_columns": view_state["visible_columns"],
+        "visible_column_defs": visible_column_defs(view_state["visible_columns"], view_state["column_order"]),
         "column_order": view_state["column_order"],
         "filters": {"search": view_state["search_query"], "column_filters": view_state["filters"]},
         "selected_row": selected_row,
-        "toolbox_actions": toolbox_actions(bool(selected), permissions),
+        "has_selected_row": bool(selected_row),
+        "toolbox_actions": toolbox_actions(bool(selected_row), permissions),
         "task_queue_summary": task_queue_summary(all_tasks, queue),
     }
 
 
-def select_application(apps: list[dict[str, Any]], selected_application_id: str | None) -> dict[str, Any]:
+def select_application(apps: list[dict[str, Any]], selected_application_id: str | None, *, default_to_first: bool = True) -> dict[str, Any]:
     if not apps:
         return {}
-    return next((app for app in apps if app.get("id") == selected_application_id), apps[0])
+    if selected_application_id:
+        return next((app for app in apps if app.get("id") == selected_application_id), {})
+    return apps[0] if default_to_first else {}
 
 
 def ensure_selected_shape(selected: dict[str, Any]) -> dict[str, Any]:
@@ -375,15 +347,7 @@ def ensure_selected_shape(selected: dict[str, Any]) -> dict[str, Any]:
 def selected_user_view_blob(selected: dict[str, Any]) -> dict[str, Any]:
     if not selected:
         return {}
-    return next(
-        (
-            blob
-            for blob in selected.get("text_blobs", [])
-            if blob.get("blob_type") == "user_view"
-            and blob.get("source_context") == f"candidature:{selected.get('id')}:user_view"
-        ),
-        {},
-    )
+    return next((blob for blob in selected.get("text_blobs", []) if blob.get("blob_type") == "user_view" and blob.get("source_context") == f"candidature:{selected.get('id')}:user_view"), {})
 
 
 def first_keyword(selected: dict[str, Any]) -> str:
@@ -416,56 +380,17 @@ def build_search_result(conn: Any | None, search_query: str | None) -> dict[str,
 
 def candidature_summary(app: dict[str, Any]) -> dict[str, Any]:
     artifacts = app.get("artifacts", []) or []
-    return {
-        "id": app.get("id", ""),
-        "company": app.get("company", ""),
-        "role": app.get("role", ""),
-        "status": app.get("status", "draft"),
-        "priority": app.get("priority", "normal"),
-        "next_action": app.get("next_action", ""),
-        "source": app.get("source", ""),
-        "source_url": app.get("source_url", ""),
-        "location": app.get("location", ""),
-        "remote_mode": app.get("remote_mode", ""),
-        "keywords": app.get("keywords", []) or [],
-        "last_activity": app.get("last_activity") or app.get("updated_at") or app.get("created_at") or "",
-        "artifact_summary": artifact_summary(artifacts),
-    }
+    return {"id": app.get("id", ""), "company": app.get("company", ""), "role": app.get("role", ""), "status": app.get("status", "draft"), "priority": app.get("priority", "normal"), "next_action": app.get("next_action", ""), "source": app.get("source", ""), "source_url": app.get("source_url", ""), "location": app.get("location", ""), "remote_mode": app.get("remote_mode", ""), "keywords": app.get("keywords", []) or [], "last_activity": app.get("last_activity") or app.get("updated_at") or app.get("created_at") or "", "artifact_summary": artifact_summary(artifacts)}
 
 
 def selected_candidature_detail(selected: dict[str, Any]) -> dict[str, Any]:
     if not selected:
         return {}
-    return {
-        "id": selected.get("id", ""),
-        "company": selected.get("company", ""),
-        "role": selected.get("role", ""),
-        "status": selected.get("status", ""),
-        "priority": selected.get("priority", ""),
-        "location": selected.get("location", ""),
-        "remote_mode": selected.get("remote_mode", ""),
-        "source_url": selected.get("source_url", ""),
-        "next_action": selected.get("next_action", ""),
-        "pitch": selected.get("pitch", ""),
-        "risks_to_avoid": selected.get("risks_to_avoid", ""),
-        "smart_question": selected.get("smart_question", ""),
-        "prepare_first": selected.get("prepare_first", ""),
-        "prepare_later": selected.get("prepare_later", ""),
-        "call_signals": selected.get("call_signals", ""),
-        "offer_snapshot": selected.get("offer_snapshot") or selected.get("details", {}).get("description", ""),
-        "keywords": selected.get("keywords", []) or [],
-    }
+    return {"id": selected.get("id", ""), "company": selected.get("company", ""), "role": selected.get("role", ""), "status": selected.get("status", ""), "priority": selected.get("priority", ""), "location": selected.get("location", ""), "remote_mode": selected.get("remote_mode", ""), "source_url": selected.get("source_url", ""), "next_action": selected.get("next_action", ""), "pitch": selected.get("pitch", ""), "risks_to_avoid": selected.get("risks_to_avoid", ""), "smart_question": selected.get("smart_question", ""), "prepare_first": selected.get("prepare_first", ""), "prepare_later": selected.get("prepare_later", ""), "call_signals": selected.get("call_signals", ""), "offer_snapshot": selected.get("offer_snapshot") or selected.get("details", {}).get("description", ""), "keywords": selected.get("keywords", []) or []}
 
 
 def primary_note_state(selected: dict[str, Any], permissions: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "application_id": selected.get("id", "") if selected else "",
-        "value": selected.get("notes", "") if selected else "",
-        "source": "applications.notes",
-        "visible": bool(selected),
-        "editable": bool(selected) and permissions["can_write"],
-        "history_count": len(selected.get("notes_records", [])) if selected else 0,
-    }
+    return {"application_id": selected.get("id", "") if selected else "", "value": selected.get("notes", "") if selected else "", "source": "applications.notes", "visible": bool(selected), "editable": bool(selected) and permissions["can_write"], "history_count": len(selected.get("notes_records", [])) if selected else 0}
 
 
 def artifact_summary(artifacts: list[dict[str, Any]]) -> dict[str, Any]:
@@ -475,27 +400,13 @@ def artifact_summary(artifacts: list[dict[str, Any]]) -> dict[str, Any]:
     for artifact in artifacts:
         state = artifact.get("review_state", "draft")
         states[state] = states.get(state, 0) + 1
-    return {
-        "count": len(artifacts),
-        "current_count": len(current),
-        "archived_count": len(archived),
-        "states": states,
-        "current": current,
-        "archived": archived,
-    }
+    return {"count": len(artifacts), "current_count": len(current), "archived_count": len(archived), "states": states, "current": current, "archived": archived}
 
 
 def call_card(selected: dict[str, Any]) -> dict[str, str]:
     if not selected:
         return {}
-    return {
-        "pitch": selected.get("pitch", ""),
-        "risk_to_avoid": selected.get("risks_to_avoid", ""),
-        "smart_question": selected.get("smart_question") or selected.get("details", {}).get("questions_to_ask", ""),
-        "prepare_first": selected.get("prepare_first", ""),
-        "prepare_later": selected.get("prepare_later", ""),
-        "call_signals": selected.get("call_signals", ""),
-    }
+    return {"pitch": selected.get("pitch", ""), "risk_to_avoid": selected.get("risks_to_avoid", ""), "smart_question": selected.get("smart_question") or selected.get("details", {}).get("questions_to_ask", ""), "prepare_first": selected.get("prepare_first", ""), "prepare_later": selected.get("prepare_later", ""), "call_signals": selected.get("call_signals", "")}
 
 
 def detailed_row(app: dict[str, Any]) -> dict[str, Any]:
@@ -515,10 +426,42 @@ def detailed_row(app: dict[str, Any]) -> dict[str, Any]:
         "keywords": ", ".join(app.get("keywords", []) or []),
         "artifacts_state": ", ".join(f"{state}:{count}" for state, count in sorted(summary["states"].items())),
         "notes_excerpt": excerpt(app.get("notes", "")),
+        "pitch": excerpt(app.get("pitch", "")),
+        "smart_question": excerpt(app.get("smart_question", "")),
+        "risks_to_avoid": excerpt(app.get("risks_to_avoid", "")),
+        "prepare_first": excerpt(app.get("prepare_first", "")),
+        "prepare_later": excerpt(app.get("prepare_later", "")),
+        "call_signals": excerpt(app.get("call_signals", "")),
+        "technical_reading": excerpt(app.get("technical_reading", "")),
+        "offer_snapshot": excerpt(app.get("offer_snapshot", "")),
+        "company_research": excerpt(app.get("company_research", "")),
+        "form_answers": excerpt(app.get("form_answers", "")),
         "created_at": app.get("created_at", ""),
         "updated_at": app.get("updated_at", ""),
         "raw": app,
     }
+
+
+def filter_detailed_rows(rows: list[dict[str, Any]], search_query: str, filters: dict[str, Any]) -> list[dict[str, Any]]:
+    filtered = rows
+    query = str(search_query or "").strip().lower()
+    if query:
+        filtered = [row for row in filtered if query in searchable_row_text(row)]
+    for key, expected in (filters or {}).items():
+        expected_text = str(expected or "").strip().lower()
+        if expected_text:
+            filtered = [row for row in filtered if expected_text in str(row.get(key, "")).lower()]
+    return filtered
+
+
+def searchable_row_text(row: dict[str, Any]) -> str:
+    return " ".join(str(row.get(column["key"], "")) for column in DETAILED_COLUMNS).lower()
+
+
+def visible_column_defs(visible_columns: list[str], column_order: list[str]) -> list[dict[str, str]]:
+    columns = {column["key"]: column for column in DETAILED_COLUMNS}
+    visible = set(visible_columns)
+    return [columns[key] for key in column_order if key in visible and key in columns]
 
 
 def toolbox_actions(has_selected_row: bool, permissions: dict[str, Any]) -> list[dict[str, Any]]:
@@ -556,11 +499,8 @@ def task_queue_summary(all_tasks: list[dict[str, Any]], queue: list[dict[str, An
         "deferred": [task for task in all_tasks if task.get("state") == "deferred"],
         "recently_completed": [task for task in all_tasks if task.get("state") == "completed"][:5],
     }
-    return {
-        "groups": {name: {"count": len(items), "items": items[:8]} for name, items in groups.items()},
-        "total_open": len(groups["pending"]),
-        "human_facing": True,
-    }
+    labels = {"pending": "Pending", "queued_running": "Queued/running", "review_needed": "Review needed", "failed": "Failed", "deferred": "Deferred", "recently_completed": "Recently completed"}
+    return {"groups": {name: {"label": labels[name], "count": len(items), "items": items[:8]} for name, items in groups.items()}, "total_open": len(groups["pending"]), "human_facing": True}
 
 
 def normalized_column_order(column_order: list[str] | None) -> list[str]:
@@ -580,24 +520,10 @@ def normalized_visible_columns(visible_columns: list[str] | None, column_order: 
 
 def important_applications(apps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     priority_order = {"high": 0, "normal": 1, "low": 2}
-    return sorted(
-        apps,
-        key=lambda item: (
-            priority_order.get(str(item.get("priority") or "normal"), 1),
-            0 if item.get("next_action") else 1,
-            str(item.get("updated_at") or item.get("created_at") or ""),
-        ),
-    )[:6]
+    return sorted(apps, key=lambda item: (priority_order.get(str(item.get("priority") or "normal"), 1), 0 if item.get("next_action") else 1, str(item.get("updated_at") or item.get("created_at") or "")))[:6]
 
 
-def action(
-    action_id: str,
-    label: str,
-    *,
-    target_view: str | None = None,
-    panel: str | None = None,
-    enabled: bool = True,
-) -> dict[str, Any]:
+def action(action_id: str, label: str, *, target_view: str | None = None, panel: str | None = None, enabled: bool = True) -> dict[str, Any]:
     return {"id": action_id, "label": label, "target_view": target_view or "", "panel": panel or "", "enabled": enabled}
 
 
