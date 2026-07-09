@@ -34,18 +34,19 @@
         <p class="subtle" data-detailed-no-selection>No row selected. Use general configuration actions or select a candidature in the grid.</p>
       {% endif %}
       {% for item in detailed.toolbox_actions %}
-        <div class="action-card" data-detailed-toolbox-action="{{ item.id }}" data-action-enabled="{% if item.enabled %}true{% else %}false{% endif %}">
-          <strong>{{ item.label }}</strong>
-          {% if item.target_view %}
-            <p><a href="/?view={{ item.target_view }}{% if selected %}&application_id={{ selected.id }}{% endif %}">Open</a></p>
-          {% elif item.panel %}
-            <p class="subtle">Available from the collapsed New candidature panel.</p>
-          {% elif item.enabled %}
-            <p class="subtle">Represented as a dashboard toolbox action. Execution controls stay collapsed or future-scoped.</p>
-          {% else %}
-            <p class="subtle">Read-only in this mode.</p>
+        {% call(slot) ui.expandable_panel("detailed-toolbox-action-" ~ item.id, item.label, "action", hooks="data-detailed-toolbox-action='" ~ item.id ~ "' data-action-enabled='" ~ ("true" if item.enabled else "false") ~ "'") %}
+          {% if slot == "body" %}
+            {% if item.target_view %}
+              <p><a href="/?view={{ item.target_view }}{% if selected %}&application_id={{ selected.id }}{% endif %}">Open</a></p>
+            {% elif item.panel %}
+              <p class="subtle">Available from the collapsed New candidature panel.</p>
+            {% elif item.enabled %}
+              <p class="subtle">Represented as a dashboard toolbox action. Execution controls stay collapsed or future-scoped.</p>
+            {% else %}
+              <p class="subtle">Read-only in this mode.</p>
+            {% endif %}
           {% endif %}
-        </div>
+        {% endcall %}
       {% endfor %}
     {% endif %}
   {% endcall %}
