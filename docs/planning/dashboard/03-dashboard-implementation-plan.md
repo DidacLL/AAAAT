@@ -2,16 +2,23 @@
 
 ## Branching
 
-Create a dedicated worker branch:
+Primary orchestration branch:
 
 ```text
-codex/runtime-split-dashboard-ux
+didacll/dashboard-design
 ```
 
-Target integration branch:
+Worker branches should target this branch unless the orchestrator explicitly changes the target.
+
+Suggested worker branch names:
 
 ```text
-codex/runtime-split-agent-dashboard
+codex/dashboard-plan-validation
+codex/dashboard-current-map
+codex/dashboard-projection-model
+codex/dashboard-welcome-user
+codex/dashboard-smart-detailed
+codex/dashboard-tests-review
 ```
 
 This work should be coordinated with the dashboard runtime cleanup but must not weaken the agent/dashboard runtime split.
@@ -34,7 +41,8 @@ Dashboard four-view UX replacement
 - Add right-panel LLM task queue for Detailed View.
 - Preserve keyword chip behavior and selected keyword context behavior.
 - Preserve dashboard runtime as human-local only.
-- Avoid exposing this UI model as agent API.
+- Build or prepare a dashboard projection/view-model boundary consumed by the HTML dashboard.
+- Avoid exposing this UI model or projection data as an agent API.
 - Use existing assets for clean accessible light/dark themes.
 - Avoid heavy frontend dependencies.
 
@@ -46,12 +54,60 @@ Dashboard four-view UX replacement
 - Do not overbuild saved user-defined views in the first pass.
 - Do not implement speculative modules before the base view model is stable.
 - Do not rewrite storage architecture for the UX pass unless a minimal field is missing.
+- Do not implement the future compatibility descriptor, host adapter, artifact lifecycle overhaul, or privacy-schema consolidation in this branch.
+
+
+## Compatibility amendment: UI projection boundary
+
+A general architecture review confirms the dashboard direction but changes the implementation emphasis. The dashboard should be projection-first where practical.
+
+This means the implementation should introduce or clarify a structured dashboard projection/view-model layer that prepares state for the four views before HTML rendering. The server-rendered dashboard should consume this projection data. Future embedded UI adapters may later consume similar projections without scraping dashboard HTML.
+
+The projection layer should cover:
+
+```text
+Welcome setup state and primary actions
+User/profile/career/template/settings summaries
+Smart View candidature summaries
+selected candidature operational detail
+primary note state
+keyword/glossary context
+artifact state summaries
+Detailed View rows
+available and visible columns
+column order/filter/search state
+selected row context
+Detailed View toolbox actions
+human-facing task queue summaries
+dashboard counters and next actions
+permissions for full/read-only/static-demo modes
+```
+
+Constraints:
+
+- The projection layer is not an agent API.
+- The projection layer is not an LLM/provider adapter.
+- The projection layer is not a new HTTP contract by default.
+- The dashboard remains human-local.
+- The agent runtime remains bounded task/context/action only.
+- Avoid a broad domain-service rewrite in this dashboard branch.
+
+Future work, not required for this branch:
+
+```text
+provider-neutral compatibility descriptor
+host-embedded adapter prototype
+privacy/exposure consolidation
+artifact lifecycle hardening
+task-envelope hardening beyond existing runtime-boundary tests
+storage adapter redesign
+```
 
 ## Proposed implementation order
 
-### 1. Define dashboard view-state model
+### 1. Define dashboard projection and view-state model
 
-Model the state required by the four views.
+Model the structured projection data and view state required by the four views.
 
 Suggested state fields:
 
@@ -73,9 +129,11 @@ This state can initially be held in server-rendered query params, form fields, l
 
 Do not create unnecessary persistence until required.
 
-### 2. Refactor dashboard payload shape
+The projection model should be callable without requiring dashboard route handlers or HTML templates.
 
-The dashboard payload should provide separate structures for the four views without duplicating business logic.
+### 2. Refactor dashboard payload shape around projection data
+
+The dashboard payload should provide separate structures for the four views without duplicating business logic. Prefer small Python projection builders or view-model functions over template-only state assembly.
 
 Suggested payload sections:
 
@@ -280,7 +338,7 @@ If the current model stores notes as a list, introduce a primary note projection
 
 ## Integration with runtime split
 
-This work applies only to the dashboard runtime.
+This work applies only to the dashboard runtime and its internal projection/view-model layer.
 
 The agent runtime remains separate and capability-scoped.
 
@@ -297,5 +355,6 @@ This work is complete when:
 - Forms are hidden by default.
 - Read-only and static demo modes preserve the correct restrictions.
 - Light/dark theme behavior exists using existing assets.
-- Tests cover durable UX contracts.
+- Tests cover durable UX contracts, including projection/view-state semantics.
 - No dashboard route/action is added to the agent runtime.
+- No projection output is exposed as a broad agent-facing API.
