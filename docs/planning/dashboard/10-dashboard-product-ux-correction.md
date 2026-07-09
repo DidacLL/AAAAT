@@ -6,9 +6,9 @@
 BLOCKED_REPLAN_REQUIRED
 ```
 
-The dashboard branch is technically integrated and CI-green, but the current dashboard implementation is not product-approved.
+The dashboard branch is CI-green and points in the intended architectural direction, but the current dashboard implementation is not technically complete for the required UX behavior and is not product-approved.
 
-The previous integration result must not be interpreted as UX completion. Existing tests prove projection data, route boundaries, and selected DOM hooks. They do not prove that the dashboard is usable as a constrained human workspace during recruiter calls or candidature management.
+The previous integration result must not be interpreted as UX completion or as a technically correct implementation of the requested views and interactions. Existing tests prove projection data, route boundaries, and selected DOM hooks. They do not prove that the required dashboard behaviors, controls, panels, modules, or view interactions have been implemented correctly.
 
 ## Product-owner rejection summary
 
