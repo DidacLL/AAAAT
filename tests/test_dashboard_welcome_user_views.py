@@ -50,10 +50,14 @@ class DashboardWelcomeUserViewTests(unittest.TestCase):
             init_db(tmp)
             html = self.render_view(tmp, Mode.FULL, view="welcomeView")
 
-        self.assertIn('<details class="new-candidature" data-write-control="new-candidature-panel">', html)
-        self.assertNotIn('<details class="new-candidature" data-write-control="new-candidature-panel" open>', html)
+        self.assertIn('data-panel-id="global-raw-intake"', html)
+        self.assertIn('data-panel-id="welcome-setup-checklist"', html)
+        self.assertIn('data-panel-kind="creation"', html)
         self.assertIn('data-welcome-setup-panel', html)
-        self.assertNotIn('data-welcome-setup-panel open', html)
+        self.assertGreaterEqual(html.count('data-panel-default="collapsed"'), 2)
+        self.assertGreaterEqual(html.count('x-data="{ open: false }"'), 2)
+        self.assertIn('data-panel-control="toggle"', html)
+        self.assertNotIn("<details", html)
         self.assertNotIn('data-detailed-fields', html)
 
     def test_user_view_renders_control_center_sections_without_candidature_list(self):
@@ -82,10 +86,11 @@ class DashboardWelcomeUserViewTests(unittest.TestCase):
         self.assertIn('data-user-summary-section="cv_fields"', html)
         self.assertIn('data-user-summary-section="template_variables"', html)
         self.assertIn('data-user-summary-section="settings"', html)
-        self.assertIn('data-user-panel="personal_data"', html)
-        self.assertIn('data-user-panel="career_strategy"', html)
-        self.assertIn('data-user-panel="cv_fields"', html)
-        self.assertIn('data-user-panel="settings"', html)
+        self.assertIn("data-user-panel", html)
+        self.assertIn("personal_data", html)
+        self.assertIn("career_strategy", html)
+        self.assertIn("cv_fields", html)
+        self.assertIn("settings", html)
         self.assertIn("without storing a fork", html)
         self.assertIn("visibility-professional", html)
         self.assertIn("exposure-summarized", html)
@@ -99,14 +104,15 @@ class DashboardWelcomeUserViewTests(unittest.TestCase):
                 app = create_application(conn, company="Panel Co", role="Engineer")
             html = self.render_view(tmp, Mode.FULL, view="userView", application_id=app["id"])
 
-        self.assertIn('<details class="field" data-user-panel="personal_data">', html)
-        self.assertIn('<details class="field" data-user-panel="career_strategy">', html)
-        self.assertIn('<details class="field" data-user-panel="cv_fields">', html)
-        self.assertIn('<details class="field" data-user-panel="settings">', html)
-        self.assertNotIn('<details class="field" data-user-panel="personal_data" open>', html)
-        self.assertNotIn('<details class="field" data-user-panel="career_strategy" open>', html)
-        self.assertNotIn('<details class="field" data-user-panel="cv_fields" open>', html)
-        self.assertNotIn('<details class="field" data-user-panel="settings" open>', html)
+        for panel_id in ("user-personal-data", "user-career-strategy", "user-cv-fields", "user-settings"):
+            self.assertIn(f'data-panel-id="{panel_id}"', html)
+        self.assertGreaterEqual(html.count('data-expandable-panel'), 5)
+        self.assertGreaterEqual(html.count('data-panel-default="collapsed"'), 5)
+        self.assertGreaterEqual(html.count('x-show="open"'), 5)
+        self.assertIn('data-write-control="profile-variable-add"', html)
+        self.assertIn('data-write-control="profile-fact-add"', html)
+        self.assertNotIn("<details", html)
+        self.assertNotIn("<summary", html)
 
     def test_user_view_hides_write_controls_in_read_only_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
