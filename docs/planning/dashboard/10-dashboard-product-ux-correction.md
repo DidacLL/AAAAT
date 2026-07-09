@@ -10,6 +10,8 @@ The dashboard branch is CI-green and points in the intended architectural direct
 
 The previous integration result must not be interpreted as UX completion or as a technically correct implementation of the requested views and interactions. Existing tests prove projection data, route boundaries, and selected DOM hooks. They do not prove that the required dashboard behaviors, controls, panels, modules, or view interactions have been implemented correctly.
 
+The first corrective slice established a bounded dashboard shell/layout contract. The next corrective work should build reusable dashboard interaction primitives on top of that shell.
+
 ## Product-owner rejection summary
 
 The current dashboard fails the intended UX because it still behaves too much like a vertically expanding document with many visible information blocks, not a bounded dashboard.
@@ -27,6 +29,31 @@ Detailed View lacking usable column hide/show/move controls
 forms/actions/configuration not consistently hidden in real collapsed panels
 insufficient hard UX tests
 ```
+
+## Accepted dashboard interaction stack
+
+The dashboard remains server-rendered, local-first, and provider-independent. The correction pass should not attempt a SPA rewrite, but it should also not hand-roll all dynamic behavior through static templates.
+
+Accepted stack:
+
+```text
+Jinja for server-rendered structure
+existing HTMX for server-rendered partial updates and button-triggered fragment swaps
+Alpine.js for dashboard-local interaction state
+project-owned CSS for layout, density, visual hierarchy, and themes
+small project-owned JavaScript only where Alpine/HTMX/native HTML are insufficient
+```
+
+Use the split intentionally:
+
+```text
+HTMX owns server interactions: fragment swaps, selected context refreshes, form submissions, server-rendered module bodies.
+Alpine.js owns local UI state: expanded/collapsed modules, selected tab/module state, dropdowns, button groups, local visibility toggles.
+Jinja owns durable structure and initial render.
+CSS owns bounded layout, panel sizing, visual hierarchy, and density.
+```
+
+Do not introduce React, Vue, Angular, Svelte, a large UI kit, or drag/table libraries in this correction pass unless separately justified and explicitly accepted.
 
 ## Corrected product requirements
 
@@ -68,6 +95,8 @@ collapsed/expanded state where applicable
 local body region
 optional local scroll area
 consistent selected/active/disabled states
+HTMX-compatible body/action targets where server refresh is needed
+Alpine-backed local expanded/collapsed state where server refresh is not needed
 ```
 
 Failure condition:
@@ -88,6 +117,8 @@ visible selected state
 module body swaps without losing selected candidature
 right-panel context can change while central selected candidature remains visible
 controls are reusable for Smart right-panel modules and other module groups
+Alpine state for immediate selected-state feedback
+HTMX swaps for server-rendered module bodies where needed
 ```
 
 Failure condition:
@@ -108,6 +139,7 @@ profile/config panels closed by default
 action panels closed by default
 advanced forms closed by default
 expanded/collapsed state visible in markup and UI
+Alpine-backed local expanded/collapsed behavior where appropriate
 no visible form walls at first render
 ```
 
@@ -173,7 +205,10 @@ left/center/right panels exist for operational views
 full page does not become the primary scroll container for dashboard content
 panel-local scroll regions exist where overflow is expected
 modules expose collapsed/expanded state
+modules expose header, title, action area, body, and optional local scroll region
 tab/module controls are buttons with selected state
+Alpine state attributes exist for local expanded/selected behavior where used
+HTMX attributes exist for server-rendered swaps where used
 switching a Smart context module preserves selected candidature context
 forms/action panels are collapsed by default
 Smart initial render is scan-safe and excludes long content/form walls
@@ -184,22 +219,22 @@ Detailed View toolbox changes between general and selected-row states
 runtime boundary still prevents dashboard projection/routes/actions from entering agent runtime
 ```
 
-Tests should still avoid brittle exact CSS snapshots. They may assert durable layout attributes, roles, state attributes, button semantics, region boundaries, and absence of uncontrolled form/content walls.
+Tests should still avoid brittle exact CSS snapshots. They may assert durable layout attributes, roles, state attributes, button semantics, region boundaries, Alpine/HTMX interaction attributes, and absence of uncontrolled form/content walls.
 
 ## Corrective implementation order
 
-The next implementation should not start by adding more data to the projection. It should first establish usable dashboard primitives.
+The next implementation should build on the bounded shell/layout baseline and establish reusable dashboard primitives before rewriting Smart or Detailed content.
 
 Recommended order:
 
 ```text
-1. Dashboard shell and bounded three-panel layout
-2. Reusable module primitive with collapsed/expanded behavior
-3. Button-based tab/module control primitive
-4. Expandable form/action/configuration panels
-5. Smart View scan-safe first-screen rewrite using primitives
-6. Detailed View column visibility/order controls using primitives
-7. Hard UX contract tests for layout, modules, tabs, panels, and table controls
+1. Dashboard shell and bounded three-panel layout. DONE as first corrective slice.
+2. Reusable module primitive with Alpine-backed collapsed/expanded behavior and HTMX-compatible action/body targets.
+3. Button-based tab/module control primitive using Alpine for selected state and HTMX for server-rendered body swaps where needed.
+4. Expandable form/action/configuration panels using the module primitive.
+5. Smart View scan-safe first-screen rewrite using shell, modules, and tab controls.
+6. Detailed View column visibility/order controls using shell, modules, and tab/control primitives.
+7. Hard UX contract tests for layout, modules, tabs, panels, Smart, and Detailed.
 ```
 
 ## Non-goals for the correction pass
@@ -209,7 +244,8 @@ no static export migration
 no agent runtime changes
 no MCP descriptor changes
 no provider integration
-no frontend framework migration
+no SPA/frontend framework migration
+no large UI kit migration
 no broad schema rewrite
 no additional speculative application features
 ```
@@ -227,6 +263,7 @@ the dashboard uses a bounded shell layout
 operational views use constrained left/center/right panels
 modules are reusable and expandable where needed
 tab/module controls are real buttons with selected state
+HTMX and Alpine are used deliberately for their accepted responsibilities
 forms/actions/configuration are closed by default
 Smart View is scan-safe on first render
 Detailed View has usable column visibility/order controls
