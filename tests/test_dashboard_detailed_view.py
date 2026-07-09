@@ -1,4 +1,5 @@
 import importlib.util
+from pathlib import Path
 import tempfile
 import unittest
 
@@ -34,7 +35,9 @@ class DashboardDetailedViewTests(unittest.TestCase):
         html = render_dashboard_view(payload, Mode.FULL, view_model=model)
         self.assertIn('data-dashboard-view="detailedView"', html)
         self.assertIn('data-detailed-grid', html)
+        self.assertIn('data-detailed-grid-state="column-controls-local"', html)
         self.assertIn('data-detailed-table', html)
+        self.assertIn('role="grid"', html)
         self.assertIn('data-detailed-row', html)
         self.assertIn("Grid Co", html)
         self.assertIn("Rows Co", html)
@@ -53,9 +56,47 @@ class DashboardDetailedViewTests(unittest.TestCase):
         self.assertEqual([column["key"] for column in model["detailed"]["visible_column_defs"]], ["role", "company"])
         self.assertIn('data-detailed-column="role"', html)
         self.assertIn('data-detailed-column="company"', html)
-        self.assertNotIn('data-detailed-column="status"', html)
+        self.assertIn('data-detailed-column="status"', html)
+        self.assertIn('data-column-initial-visible="true"', html)
+        self.assertIn('data-column-initial-visible="false"', html)
+        self.assertIn('x-show="isVisible(\'status\')"', html)
         self.assertIn('data-detailed-visible-columns', html)
         self.assertIn('data-detailed-column-order', html)
+
+    def test_core_fields_are_available_as_grid_columns(self):
+        payload, model, _ = self.detailed_fixture(selected=True)
+        html = render_dashboard_view(payload, Mode.FULL, view_model=model)
+        for column in ("company", "role", "status", "priority", "next_action"):
+            self.assertIn(f'data-detailed-column="{column}"', html)
+            self.assertIn(f'data-detailed-cell="{column}"', html)
+
+    def test_column_visibility_controls_are_real_alpine_form_controls(self):
+        payload, model, _ = self.detailed_fixture(selected=True)
+        html = render_dashboard_view(payload, Mode.FULL, view_model=model)
+        self.assertIn('data-detailed-column-controls', html)
+        self.assertIn('data-detailed-column-visibility-controls', html)
+        self.assertIn('data-detailed-column-visibility-control', html)
+        self.assertIn('type="checkbox"', html)
+        self.assertIn('x-data=', html)
+        self.assertIn('visibleColumns:', html)
+        self.assertIn('toggleColumn(key)', html)
+        self.assertIn('x-bind:checked="isVisible(', html)
+        self.assertIn('@change="toggleColumn(', html)
+        self.assertIn('data-column-visible="true"', html)
+        self.assertIn('data-column-visible="false"', html)
+        self.assertIn('x-bind:data-column-visible', html)
+
+    def test_column_order_controls_are_explicit_buttons(self):
+        payload, model, _ = self.detailed_fixture(selected=True)
+        html = render_dashboard_view(payload, Mode.FULL, view_model=model)
+        self.assertIn('data-detailed-column-order-controls', html)
+        self.assertIn('data-detailed-column-order-control="up"', html)
+        self.assertIn('data-detailed-column-order-control="down"', html)
+        self.assertIn('type="button"', html)
+        self.assertIn('moveColumn(key, direction)', html)
+        self.assertIn('@click="moveColumn(', html)
+        self.assertIn('x-bind:data-column-order', html)
+        self.assertIn('x-bind:style="\'order:\' + columnIndex(', html)
 
     def test_search_query_filters_projected_rows(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -87,6 +128,7 @@ class DashboardDetailedViewTests(unittest.TestCase):
         self.assertIn('generate_cv', html)
         self.assertIn('prepare_recruiter_call', html)
         self.assertIn('data-selected-row="true"', html)
+        self.assertIn('aria-current="true"', html)
 
     def test_toolbox_actions_are_collapsed_dashboard_panels(self):
         payload, model, _ = self.detailed_fixture(selected=True)
@@ -102,6 +144,7 @@ class DashboardDetailedViewTests(unittest.TestCase):
         html = render_dashboard_view(payload, Mode.FULL, view_model=model)
         self.assertIn('data-detailed-task-queue', html)
         self.assertIn('data-dashboard-task-queue-boundary', html)
+        self.assertIn('data-panel-scroll="expected"', html)
         for group in ("pending", "queued_running", "review_needed", "failed", "deferred", "recently_completed"):
             self.assertIn(f'data-task-queue-group="{group}"', html)
         self.assertIn("Research Grid Co", html)
@@ -123,6 +166,11 @@ class DashboardDetailedViewTests(unittest.TestCase):
             self.assertIn("Grid Co", html)
             self.assertNotIn('data-write-control', html)
             self.assertNotIn('data-raw-offer-entry', html)
+
+    def test_no_table_grid_or_drag_library_dependency_is_added(self):
+        pyproject = Path("pyproject.toml").read_text(encoding="utf-8").lower()
+        for dependency in ("sortablejs", "ag-grid", "tanstack", "datatables", "react", "vue", "svelte"):
+            self.assertNotIn(dependency, pyproject)
 
 
 @unittest.skipUnless(FASTAPI_AVAILABLE, "FastAPI/httpx test dependencies are not installed")
