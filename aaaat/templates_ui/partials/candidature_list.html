@@ -1,31 +1,29 @@
+{% import "partials/module.html" as ui %}
 {% if view == "welcomeView" %}
-  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="Welcome actions" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded" data-welcome-side-panel>
-    <h2>Start</h2>
-    <div class="body panel-scroll" data-panel-scroll="expected" tabindex="0">
+  {% call(slot) ui.dashboard_module("left", "Start", "Welcome actions", "welcome-actions", hooks="data-welcome-side-panel") %}
+    {% if slot == "body" %}
       {% for item in welcome.primary_actions %}
         <div class="field" data-welcome-side-action="{{ item.id }}">
           <strong>{{ item.label }}</strong>
           {% if item.target_view %}<p><a href="/?view={{ item.target_view }}{% if selected %}&application_id={{ selected.id }}{% endif %}">Open</a></p>{% elif item.panel %}<p class="subtle">Use the collapsed New candidature panel.</p>{% endif %}
         </div>
       {% endfor %}
-    </div>
-  </section>
+    {% endif %}
+  {% endcall %}
 {% elif view == "userView" %}
-  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="User control sections" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded" data-user-side-panel>
-    <h2>User controls</h2>
-    <div class="body panel-scroll" data-panel-scroll="expected" tabindex="0">
+  {% call(slot) ui.dashboard_module("left", "User controls", "User control sections", "user-control-sections", hooks="data-user-side-panel") %}
+    {% if slot == "body" %}
       {% for section in user.summary_sections %}
         <a class="app-row" data-user-control-link="{{ section.id }}" href="/?view=userView{% if selected %}&application_id={{ selected.id }}{% endif %}#{{ section.id }}">
           <strong>{{ section.label }}</strong><br>
           <span class="meta"><span>{{ section.count }} item{% if section.count != 1 %}s{% endif %}</span>{% if not section.editable %}<span>read-only</span>{% endif %}</span>
         </a>
       {% endfor %}
-    </div>
-  </section>
+    {% endif %}
+  {% endcall %}
 {% elif view == "detailedView" %}
-  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="Detailed toolbox" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded" data-detailed-toolbox data-detailed-toolbox-state="{% if detailed.has_selected_row %}selected{% else %}general{% endif %}">
-    <h2>{% if detailed.has_selected_row %}Candidature toolbox{% else %}General toolbox{% endif %}</h2>
-    <div class="body panel-scroll" data-panel-scroll="expected" tabindex="0">
+  {% call(slot) ui.dashboard_module("left", "Candidature toolbox" if detailed.has_selected_row else "General toolbox", "Detailed toolbox", "detailed-toolbox", hooks="data-detailed-toolbox data-detailed-toolbox-state='selected'" if detailed.has_selected_row else "data-detailed-toolbox data-detailed-toolbox-state='general'") %}
+    {% if slot == "body" %}
       {% if detailed.has_selected_row %}
         <div class="field" data-detailed-selected-context>
           <span class="label">Selected row</span>
@@ -49,12 +47,11 @@
           {% endif %}
         </div>
       {% endfor %}
-    </div>
-  </section>
+    {% endif %}
+  {% endcall %}
 {% elif view == "smartView" %}
-  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="Candidatures" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded" data-smart-candidature-list>
-    <h2>Candidatures</h2>
-    <div class="panel-scroll" data-panel-scroll="expected" tabindex="0">
+  {% call(slot) ui.dashboard_module("left", "Candidatures", "Candidatures", "smart-candidatures", hooks="data-smart-candidature-list", body_class="", htmx_attrs="data-htmx-module-target='smart-candidatures-body'") %}
+    {% if slot == "body" %}
       {% if search_query and search_result.available %}<div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>{% endif %}
       {% if smart.candidature_summaries %}
         {% for app in smart.candidature_summaries %}
@@ -70,12 +67,11 @@
       {% else %}
         <p class="body empty">No candidatures yet.</p>
       {% endif %}
-    </div>
-  </section>
+    {% endif %}
+  {% endcall %}
 {% else %}
-  <section class="surface dashboard-panel dashboard-panel-left" role="region" aria-label="Candidatures" data-dashboard-panel data-dashboard-region="left" data-panel-boundary="bounded">
-    <h2>Candidatures</h2>
-    <div class="panel-scroll" data-panel-scroll="expected" tabindex="0">
+  {% call(slot) ui.dashboard_module("left", "Candidatures", "Candidatures", "candidatures", body_class="", htmx_attrs="data-htmx-module-target='candidatures-body'") %}
+    {% if slot == "body" %}
       {% if search_query and search_result.available %}<div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>{% endif %}
       {% if applications %}
         {% for app in applications %}
@@ -86,6 +82,6 @@
           </a>
         {% endfor %}
       {% else %}<p class="body empty">No candidatures yet.</p>{% endif %}
-    </div>
-  </section>
+    {% endif %}
+  {% endcall %}
 {% endif %}
