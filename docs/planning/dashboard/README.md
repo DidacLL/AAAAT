@@ -19,17 +19,23 @@ Smart View and Detailed View do not replace Welcome View and User View.
 
 ## Current product status
 
-The current branch is CI-green and points in the intended architectural direction, but the dashboard implementation is **not technically complete for the required UX behavior** and is **not product-approved**.
+The current branch is CI-green and has completed the planned corrective dashboard UX baseline through the final hard UX contract pass.
 
-CI currently proves that the code compiles, runtime boundaries are guarded, and the implemented tests pass. It does not prove that the required dashboard behaviors, views, controls, panel model, or interaction model have been implemented correctly.
+Current readiness classification:
 
-The product-owner rejection is recorded in:
+```text
+PRODUCT_READY_TO_REVIEW
+```
+
+This means the branch is ready for product review. It does not mean the PR has been product-approved or merged.
+
+The final product UX correction status is recorded in:
 
 ```text
 10-dashboard-product-ux-correction.md
 ```
 
-That file is the current source of truth for missing required dashboard behavior:
+That file remains the current source of truth for the corrective dashboard behavior and final review decision:
 
 ```text
 fixed dashboard shell
@@ -39,11 +45,13 @@ panel-local scrolling
 reusable expandable module primitive
 real button-based tab/module controls
 actual collapsed panels for forms/actions/configuration
+Smart View scan-safe first screen
 Detailed View column visibility/order controls
 hard UX acceptance tests beyond data-hook presence
+runtime boundary preservation
 ```
 
-Do not merge the dashboard PR as product-complete until those UX requirements are implemented or explicitly deferred by product decision.
+Do not merge the dashboard PR as product-approved until the product owner explicitly accepts the review-ready branch.
 
 ## Dashboard interaction stack decision
 
@@ -70,7 +78,7 @@ Do not recreate Alpine-equivalent local state manually in project-owned JavaScri
 
 Custom JavaScript is allowed only when Alpine, HTMX, native HTML, and CSS cannot express the needed dashboard primitive cleanly. The reason must be documented in the worker summary.
 
-This is not a frontend framework migration. Do not introduce React, Vue, Angular, Svelte, a large UI kit, or drag/table libraries unless separately justified and explicitly accepted.
+This is not a frontend framework migration. Do not introduce React, Vue, Angular, Svelte, a large UI kit, drag libraries, table/grid libraries, or new frontend build tooling unless separately justified and explicitly accepted.
 
 ## Compatibility amendment
 
@@ -99,14 +107,22 @@ Do not block the dashboard redesign on future work such as a compatibility descr
 
 ## Orchestration status
 
-Implementation reached a CI-green architectural base, but product UX review rejected the result as incomplete for required behavior.
+Implementation reached a CI-green architectural base, then product UX review rejected the result as incomplete for required behavior. The corrective sequence has now completed:
 
-The first corrective slice completed the bounded shell/layout contract on branch head `0551f5c9aaba740f31d4d7444c47221788ffdf35`.
+```text
+1. Bounded dashboard shell and left/center/right panel regions: done.
+2. Reusable dashboard module primitive: done.
+3. Button-based module selector primitive: done.
+4. Expandable form/action/configuration panels: done.
+5. Smart View scan-safe first screen: done.
+6. Detailed View column visibility/order controls: done.
+7. Final hard UX contract/review pass: done.
+```
 
 Current status:
 
 ```text
-BLOCKED_REPLAN_REQUIRED
+PRODUCT_READY_TO_REVIEW
 ```
 
-The next implementation direction must be derived from `10-dashboard-product-ux-correction.md`, the accepted HTMX+Alpine interaction stack, and the current bounded-shell baseline.
+Future work should be product-review follow-up, not another corrective feature slice, unless a new blocker is found.
