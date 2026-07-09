@@ -1,6 +1,7 @@
 import importlib.util
 import tempfile
 import unittest
+from html.parser import HTMLParser
 
 from aaaat.artifacts import save_artifact
 from aaaat.dashboard_views import dashboard_view_model, render_dashboard_fragment, render_dashboard_view
@@ -12,6 +13,21 @@ from aaaat.security import Mode
 
 JINJA_AVAILABLE = importlib.util.find_spec("jinja2") is not None
 FASTAPI_AVAILABLE = importlib.util.find_spec("fastapi") is not None and importlib.util.find_spec("httpx") is not None
+
+
+class _TagCollector(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags = []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append((tag, dict(attrs)))
+
+
+def _tags(html):
+    parser = _TagCollector()
+    parser.feed(html)
+    return parser.tags
 
 
 @unittest.skipUnless(JINJA_AVAILABLE, "Jinja2 is not installed")
@@ -87,37 +103,64 @@ class DashboardSmartViewTests(unittest.TestCase):
         self.assertNotIn("Primary Smart note value", html)
         self.assertNotIn("SECONDARY FULL NOTE SHOULD NOT BE IN THE SMART LEFT LIST", html)
         self.assertNotIn("Senior backend role focused on local-first tooling", html)
+        self.assertNotIn("Company builds developer productivity tools", html)
+        self.assertNotIn("/dashboard/actions/raw-offer-intake", html)
 
-    def test_central_panel_renders_selected_operational_detail(self):
+    def test_central_panel_renders_scan_safe_selected_operational_detail(self):
         _, model, _ = self.smart_model()
         html = render_dashboard_fragment("selected-card", model)
 
         self.assertIn('data-smart-operational-detail', html)
+        self.assertIn('data-smart-first-screen="scan-safe"', html)
+        self.assertIn('data-smart-identity-card', html)
+        self.assertIn('data-smart-call-reminders', html)
         self.assertIn("Smart Projection Co", html)
         self.assertIn("Backend Platform Engineer", html)
         self.assertIn("Barcelona", html)
         self.assertIn("hybrid", html)
+        self.assertIn("LinkedIn", html)
         self.assertIn("Source URL", html)
         self.assertIn("Prepare recruiter call", html)
         self.assertIn("Backend platform pitch", html)
         self.assertIn("Do not overstate cloud ownership", html)
         self.assertIn("What does success look like after 90 days?", html)
         self.assertIn("Review call card and compensation range", html)
-        self.assertIn("Compare offer with career strategy", html)
-        self.assertIn("Recruiter mentioned platform ownership", html)
-        self.assertIn("Senior backend role focused on local-first tooling", html)
+        self.assertIn('data-smart-secondary-context', html)
+        self.assertIn('data-panel-default="collapsed"', html)
+        self.assertIn('data-operational-field="offer_snapshot"', html)
         self.assertIn('data-operational-field="artifact_state_summary"', html)
+        self.assertNotIn('data-document-actions', html)
+        self.assertNotIn('data-generative-actions', html)
+        self.assertNotIn('/dashboard/actions/raw-offer-intake', html)
+
+    def test_secondary_call_context_is_collapsed_not_first_screen_wall(self):
+        _, model, _ = self.smart_model()
+        html = render_dashboard_fragment("selected-card", model)
+        tags = _tags(html)
+        secondary = next(attrs for _, attrs in tags if attrs.get("data-panel-id") == "smart-secondary-context")
+        body = next(attrs for _, attrs in tags if attrs.get("id") == "smart-secondary-context-body")
+
+        self.assertEqual(secondary.get("data-panel-kind"), "advanced")
+        self.assertEqual(secondary.get("data-panel-default"), "collapsed")
+        self.assertEqual(secondary.get("x-bind:data-panel-state"), "open ? 'expanded' : 'collapsed'")
+        self.assertEqual(body.get("x-show"), "open")
+        self.assertIn("x-cloak", body)
+        self.assertIn("Senior backend role focused on local-first tooling", html)
+        self.assertIn("Recruiter mentioned platform ownership", html)
 
     def test_notes_use_one_primary_note_field_in_full_local_mode(self):
         _, model, _ = self.smart_model(mode=Mode.FULL, context_module="notes")
         html = render_dashboard_fragment("selected-card", model)
 
-        self.assertEqual(html.count('<div class="field" data-primary-note>'), 1)
+        self.assertEqual(html.count('data-primary-note '), 1)
+        self.assertIn('data-primary-note-interaction="one"', html)
         self.assertIn("Primary Smart note value", html)
+        self.assertIn('data-primary-note-edit-affordance', html)
         self.assertIn('data-primary-note-editor', html)
         self.assertIn('textarea name="notes"', html)
         self.assertIn("Save primary note", html)
         self.assertNotIn("Historical call note should stay secondary", html)
+        self.assertNotIn('/dashboard/actions/notes', html)
 
     def test_read_only_mode_shows_primary_note_without_edit_control(self):
         _, model, _ = self.smart_model(mode=Mode.READ_ONLY, context_module="notes")
@@ -126,17 +169,40 @@ class DashboardSmartViewTests(unittest.TestCase):
         self.assertIn("Primary Smart note value", html)
         self.assertIn('data-primary-note-readonly', html)
         self.assertNotIn('data-primary-note-editor', html)
+        self.assertNotIn('data-primary-note-edit-affordance', html)
         self.assertNotIn('textarea name="notes"', html)
         self.assertNotIn("Save primary note", html)
+
+    def test_static_demo_mode_excludes_private_write_and_raw_intake_controls(self):
+        payload, model, _ = self.smart_model(mode=Mode.STATIC_DEMO, context_module="notes")
+        html = render_dashboard_view(payload, Mode.STATIC_DEMO, view_model=model)
+
+        self.assertIn('data-dashboard-view="smartView"', html)
+        self.assertNotIn('data-write-control', html)
+        self.assertNotIn('/dashboard/actions/raw-offer-intake', html)
+        self.assertNotIn('data-raw-offer-entry', html)
+        self.assertNotIn('textarea name="notes"', html)
+        self.assertNotIn('data-primary-note-editor', html)
 
     def test_context_module_selector_and_modules_render_from_projection(self):
         _, model, _ = self.smart_model(context_module="artifacts")
         html = render_dashboard_fragment("inspector", model)
+        tags = _tags(html)
+        buttons = [attrs for tag, attrs in tags if tag == "button" and attrs.get("data-module-selector-id") == "smart-context-selector"]
 
         self.assertIn('data-smart-context-selector', html)
+        self.assertGreaterEqual(len(buttons), 7)
+        for button in buttons:
+            self.assertEqual(button.get("type"), "button")
+            self.assertEqual(button.get("role"), "tab")
+            self.assertIn("@click", button)
+            self.assertIn(":aria-selected", button)
+            self.assertTrue(button.get("hx-get", "").startswith("/dashboard/fragments/inspector"))
         for label in ("Notes", "Keywords", "Artifacts", "Call card", "Company research", "Form answers", "Agent suggestions"):
             self.assertIn(label, html)
         self.assertIn('data-smart-context-panel="artifacts"', html)
+        self.assertNotIn('data-smart-context-panel="notes"', html)
+        self.assertNotIn('data-smart-context-panel="company_research"', html)
         self.assertIn("Cover letter", html)
         self.assertIn("reviewed", html)
 
@@ -150,6 +216,9 @@ class DashboardSmartViewTests(unittest.TestCase):
         self.assertNotIn('/dashboard/actions/notes', html)
         self.assertNotIn('/dashboard/actions/todos', html)
         self.assertNotIn('/dashboard/actions/tasks', html)
+        self.assertNotIn('/dashboard/actions/raw-offer-intake', html)
+        self.assertNotIn('<details', html)
+        self.assertNotIn('<summary', html)
 
     def test_keyword_context_keeps_selected_candidature_visible(self):
         payload, model, _ = self.smart_model(context_module="keywords", selected_keyword="Python")
@@ -161,6 +230,7 @@ class DashboardSmartViewTests(unittest.TestCase):
         self.assertIn('data-smart-context-panel="keywords"', html)
         self.assertIn('data-keyword-panel', html)
         self.assertIn("Programming language used for backend services.", html)
+        self.assertIn('hx-get="/dashboard/fragments/inspector?view=smartView', html)
 
 
 @unittest.skipUnless(FASTAPI_AVAILABLE, "FastAPI/httpx test dependencies are not installed")
