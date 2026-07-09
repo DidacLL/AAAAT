@@ -26,6 +26,45 @@
       {% endfor %}
     </div>
   </section>
+{% elif view == "smartView" %}
+  <section class="surface" aria-label="Candidatures" data-smart-candidature-list>
+    <h2>Candidatures</h2>
+    {% if search_query and search_result.available %}
+      <div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>
+    {% endif %}
+    {% if smart.candidature_summaries %}
+      {% for app in smart.candidature_summaries %}
+        <a class="app-row" data-app-row data-smart-candidature-summary href="/?view=smartView&application_id={{ app.id }}&context_module={{ smart.selected_context_module }}" hx-get="/dashboard/fragments/selected-card?view=smartView&application_id={{ app.id }}&context_module={{ smart.selected_context_module }}" hx-target="[data-selected-app]" hx-swap="outerHTML" {% if selected and app.id == selected.id %}aria-current="true"{% endif %}>
+          <strong>{{ app.company or "Add company" }}</strong><br>
+          <span>{{ app.role or "Add role" }}</span>
+          <span class="meta">
+            <span>{{ app.status or "draft" }}</span>
+            <span>{{ app.priority or "normal" }}</span>
+            {% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}
+          </span>
+          <span class="meta">
+            {% if app.source %}<span>Source: {{ app.source }}</span>{% elif app.source_url %}<span>Source URL</span>{% endif %}
+            {% if app.last_activity %}<span>{{ app.last_activity }}</span>{% endif %}
+          </span>
+          {% if app.keywords %}
+            <span class="meta" data-smart-summary-keywords>
+              {% for keyword in app.keywords[:4] %}<span class="chip" data-keyword="{{ keyword }}">{{ keyword }}</span>{% endfor %}
+            </span>
+          {% endif %}
+          <span class="meta" data-artifact-state-indicator>
+            {% if app.artifact_summary.count %}
+              <span>{{ app.artifact_summary.count }} artifact{% if app.artifact_summary.count != 1 %}s{% endif %}</span>
+              {% for state, count in app.artifact_summary.states.items() %}<span>{{ state }}:{{ count }}</span>{% endfor %}
+            {% else %}
+              <span>No artifacts</span>
+            {% endif %}
+          </span>
+        </a>
+      {% endfor %}
+    {% else %}
+      <p class="body empty">No candidatures yet.</p>
+    {% endif %}
+  </section>
 {% else %}
   <section class="surface" aria-label="Candidatures">
     <h2>Candidatures</h2>
