@@ -50,26 +50,48 @@ docs/planning/dashboard/10-dashboard-product-ux-correction.md
 
 ## Accepted dashboard interaction stack
 
-The dashboard remains server-rendered and local-first, but dynamic behavior should not be hand-rolled from templates alone.
+The dashboard remains server-rendered and local-first, but dynamic behavior should not be hand-rolled when the accepted stack already covers it.
 
 Accepted stack:
 
 ```text
 Jinja for server-rendered structure
 existing HTMX for server-rendered partial updates and button-triggered fragment swaps
-Alpine.js for dashboard-local interaction state
+Alpine.js as the required mechanism for dashboard-local interaction state where Alpine can express the behavior
 project-owned CSS for layout, density, visual hierarchy, and themes
-small project-owned JavaScript only where Alpine/HTMX/native HTML are insufficient
+small project-owned JavaScript only where Alpine/HTMX/native HTML cannot express the specific primitive cleanly
 ```
 
-Responsibility split:
+Required responsibility split:
 
 ```text
 Jinja: durable structure and initial render
 HTMX: server interactions, partial refreshes, selected context swaps, form submissions, server-rendered module bodies
-Alpine.js: collapsed/expanded modules, selected tabs/modules, dropdowns, local button state, local visibility toggles
+Alpine.js: collapsed/expanded modules, selected tabs/modules, dropdowns, local button-group state, local visibility toggles
 CSS: bounded shell, panel sizing, density, visual hierarchy, theme behavior
 ```
+
+Alpine.js is not merely permitted. For local dashboard interaction state, do not hand-roll custom JavaScript or duplicate local open/closed/selected/visible state in templates when Alpine can express the behavior directly.
+
+Use Alpine directly for local dashboard state:
+
+```text
+x-data for component-local state
+x-show or equivalent Alpine binding for collapsed/expanded visibility
+@click or equivalent Alpine event binding for toggles
+x-bind / :aria-expanded / :aria-selected for accessibility and state markers
+class/data-state bindings for selected, active, disabled, collapsed, and expanded states
+```
+
+Use HTMX only where server-rendered state or server-side action handling is required:
+
+```text
+hx-get / hx-post for server requests
+hx-target for fragment targets
+hx-swap for server-rendered body replacement
+```
+
+Custom JavaScript is allowed only when Alpine, HTMX, native HTML, and CSS cannot express the needed dashboard primitive cleanly. The reason must be documented in the worker summary.
 
 This is not a frontend framework migration. Do not introduce React, Vue, Angular, Svelte, a large UI kit, or drag/table libraries unless separately justified and explicitly accepted.
 
@@ -143,7 +165,8 @@ local body region
 optional local scroll area
 consistent selected/active/disabled states
 HTMX-compatible body/action target where server refresh is needed
-Alpine-backed local expanded/collapsed state where server refresh is not needed
+Alpine-required local expanded/collapsed state where the state is local
+no custom JavaScript replacement for Alpine-equivalent local state
 ```
 
 The module primitive should reduce repeated buttons, repeated content blocks, and inconsistent visual structure.
@@ -157,7 +180,7 @@ Required behavior:
 ```text
 buttons, not passive links
 visible selected state
-Alpine-backed immediate selected-state feedback
+Alpine-required immediate selected-state feedback where the selected state is local
 HTMX-backed server-rendered body swaps where needed
 selected candidature context preserved across module switches
 reusable for Smart right-panel context and other module groups
@@ -175,6 +198,7 @@ profile/config panels closed by default
 action panels closed by default
 advanced forms closed by default
 expanded/collapsed state visible in markup and UI
+Alpine-required local expanded/collapsed behavior where the state is local
 no visible form walls at first render
 ```
 
@@ -190,8 +214,9 @@ Requirements:
 - Right context selector available without overwhelming the screen.
 - No quick-action/form wall on first render.
 - No long descriptions, research blocks, or large artifact lists visible on first render.
-- HTMX may refresh server-rendered context bodies.
-- Alpine should manage local selected/open state where appropriate.
+- HTMX refreshes server-rendered context bodies where server state is needed.
+- Alpine manages local selected/open state where the state is local.
+- Do not hand-roll Alpine-equivalent local state.
 
 ### 6. Detailed View column controls
 
@@ -259,15 +284,15 @@ Tests may assert durable attributes, roles, button semantics, Alpine state attri
 
 ## Minimal JavaScript policy
 
-The dashboard should use the accepted interaction stack instead of hand-rolling all behavior.
+The dashboard must use the accepted interaction stack instead of hand-rolling Alpine-equivalent behavior.
 
-Use Alpine.js where local UI state is the problem:
+Use Alpine.js for local UI state:
 
 ```text
 module collapsed/expanded state
 selected tab/module state
 dropdowns
-local button group state
+local button-group state
 local visibility toggles
 ```
 
@@ -281,7 +306,7 @@ module body refreshes
 partial dashboard panel updates
 ```
 
-Use small project-owned JavaScript only if Alpine, HTMX, native HTML, and CSS do not cover the specific primitive cleanly.
+Use small project-owned JavaScript only if Alpine, HTMX, native HTML, and CSS do not cover the specific primitive cleanly. Document the reason in the worker summary.
 
 Avoid heavy dependencies and frontend frameworks for the MVP.
 
@@ -321,6 +346,7 @@ This work is complete when:
 - The dashboard uses a bounded shell with constrained left/center/right panel regions.
 - Reusable modules exist with header, actions, body, and collapsed/expanded behavior.
 - Tab/module controls are button-based and preserve selected context.
+- Local open/closed/selected/visible state uses Alpine rather than custom Alpine-equivalent JavaScript.
 - Smart View is usable as the default operational call view.
 - Detailed View is a table/grid candidature management view with usable column visibility/order controls.
 - Notes are a single primary directly editable field per candidature in full local mode.
