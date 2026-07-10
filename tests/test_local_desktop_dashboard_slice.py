@@ -8,7 +8,8 @@ from pathlib import Path
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_contains_private_values
 from aaaat.dashboard_modules import default_module_registry, modules_for_view, validate_module_registry
 from aaaat.dashboard_projection import build_dashboard_projection
-from aaaat.db import connect, create_application, init_db
+from aaaat.db import connect, create_application, init_db, list_applications
+from aaaat.demo_seed import seed
 from aaaat.payload import dashboard_payload
 from aaaat.security import Mode
 
@@ -150,6 +151,7 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
         self.assertEqual(pyproject["project"]["scripts"]["aaaat-desktop"], "aaaat.ui_desktop.app:main")
+        self.assertEqual(pyproject["project"]["scripts"]["aaaat-seed-desktop-demo"], "aaaat.demo_seed:main")
         self.assertIn("wxPython", pyproject["project"]["optional-dependencies"]["desktop"])
         self.assertIn("aaaat.ui_desktop", pyproject["tool"]["setuptools"]["packages"])
 
@@ -170,7 +172,24 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("Reset layout", source)
         self.assertIn("DEFAULT_FOCUS_RIGHT = 260", source)
         self.assertIn("overview_cards_sizer", source)
+        self.assertIn("wx.WrapSizer(wx.HORIZONTAL)", source)
+        self.assertIn("_bind_card_click", source)
+        self.assertIn("OVERVIEW_CARD_SIZE", source)
         self.assertNotIn("_overview_cards_sizer", source)
+
+
+class LocalDesktopDashboardSeedTests(unittest.TestCase):
+    def test_seed_creates_many_mostly_complete_candidatures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            created = seed(tmp, count=18, reset=True)
+            with connect(tmp) as conn:
+                apps = list_applications(conn)
+
+        self.assertEqual(len(created), 18)
+        self.assertEqual(len(apps), 18)
+        self.assertTrue(any(app["pitch"] for app in apps))
+        self.assertTrue(any(not app["pitch"] for app in apps))
+        self.assertTrue(any(app["keywords"] for app in apps))
 
 
 class LocalDesktopDashboardRuntimeBoundaryTests(unittest.TestCase):
