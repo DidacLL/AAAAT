@@ -39,6 +39,8 @@ class DashboardDetailedViewTests(unittest.TestCase):
         self.assertIn('data-detailed-table', html)
         self.assertIn('role="grid"', html)
         self.assertIn('data-detailed-row', html)
+        self.assertIn('data-detailed-row-selector', html)
+        self.assertIn('data-detailed-row-select', html)
         self.assertIn("Grid Co", html)
         self.assertIn("Rows Co", html)
         self.assertNotIn('data-detailed-fields', html)
@@ -128,6 +130,7 @@ class DashboardDetailedViewTests(unittest.TestCase):
         self.assertIn('generate_cv', html)
         self.assertIn('prepare_recruiter_call', html)
         self.assertIn('data-selected-row="true"', html)
+        self.assertIn('data-detailed-row-select', html)
         self.assertIn('aria-current="true"', html)
 
     def test_toolbox_actions_are_collapsed_dashboard_panels(self):
@@ -166,6 +169,13 @@ class DashboardDetailedViewTests(unittest.TestCase):
             self.assertIn("Grid Co", html)
             self.assertNotIn('data-write-control', html)
             self.assertNotIn('data-raw-offer-entry', html)
+
+    def test_alpine_runtime_asset_exists_for_local_dashboard_state(self):
+        alpine_asset = Path("aaaat/static/alpine.min.js")
+        self.assertTrue(alpine_asset.exists())
+        source = alpine_asset.read_text(encoding="utf-8")
+        for marker in ("window.Alpine", "x-data", "x-show", "x-bind", "htmx:afterSwap"):
+            self.assertIn(marker, source)
 
     def test_no_table_grid_or_drag_library_dependency_is_added(self):
         pyproject = Path("pyproject.toml").read_text(encoding="utf-8").lower()
