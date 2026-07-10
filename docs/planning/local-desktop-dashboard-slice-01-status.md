@@ -8,10 +8,11 @@ PR: `#37`
 ```text
 SMART_VIEW_APPROVED
 DETAILED_VIEW_FOUNDATION_ADDED
-READY_FOR_DETAILED_VIEW_MANUAL_VERIFICATION
+DETAILED_VIEW_FOUNDATION_VISUALLY_ACCEPTED_WITH_FOLLOWUPS
+READY_FOR_DETAILED_VIEW_EDITING_AND_COLUMNS_REFINEMENT
 ```
 
-Smart View remains the approved local desktop call cockpit. The Detailed View foundation has now been added as the structured batch inspection/review surface.
+Smart View remains the approved local desktop call cockpit. The Detailed View foundation has been visually accepted as the structured batch inspection/review surface, with a focused follow-up slice required for column controls and right-panel editing.
 
 ## Approved Smart View UX contract
 
@@ -34,7 +35,7 @@ keyword links inside center text update the right definition pane
 
 Detailed View is the batch review surface, not the recruiter-call cockpit.
 
-Implemented:
+Implemented and visually accepted:
 
 ```text
 open Detailed View from the desktop frame
@@ -45,7 +46,34 @@ show selected structured detail
 open selected candidature back in Smart View
 ```
 
-The Detail panel shows projected toolbox actions as non-mutating review affordances only. This foundation slice does not add editing, broad CRUD, or agent-facing mutation authority.
+The Detail panel shows projected toolbox actions as non-mutating review affordances only. This foundation slice does not add editing, broad CRUD, or external mutation authority.
+
+## Local visual verification review
+
+Result:
+
+```text
+Good job. This is what is expected.
+```
+
+Follow-up requirements:
+
+```text
+1. Detailed View needs column control: hide/show columns is preferred if simpler than moving/reordering columns.
+2. The selected candidature shown in the right panel should be easy to edit for supported fields.
+```
+
+These follow-ups are planned in:
+
+```text
+docs/planning/local-desktop-dashboard-slice-03-detailed-view-editing-columns-plan.md
+```
+
+Target classification after the follow-up slice:
+
+```text
+READY_FOR_DETAILED_VIEW_EDITING_MANUAL_VERIFICATION
+```
 
 ## Current wx adapter structure
 
@@ -94,7 +122,7 @@ aaaat/ui_desktop/detail_panel.py
 
 The projection boundary remains unchanged. `dashboard_projection.py`, `dashboard_layout.py`, `dashboard_modules.py`, domain code, browser/dashboard runtime, MCP descriptors, and agent runtime contracts remain toolkit-neutral.
 
-No wx, HTML dashboard route, MCP resource, external machine-facing route, broad CRUD API, plugin framework, heavy dependency, or agent mutation-authority expansion was added.
+No wx, HTML dashboard route, MCP resource, external machine-facing route, broad CRUD API, plugin framework, heavy dependency, or mutation-authority expansion was added.
 
 ## Tests
 
@@ -116,8 +144,9 @@ full unittest discovery in CI
 ## Not implemented yet
 
 ```text
-Detailed View editing
-Detailed View column chooser/persistence UI
+Detailed View editable right panel
+Detailed View column hide/show controls
+Detailed View column persistence if cleanly supported by existing layout state
 Full User View wx workspace
 Full Welcome View onboarding surface
 real new-candidature/profile/settings desktop dialogs
