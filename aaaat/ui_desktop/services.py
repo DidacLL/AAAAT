@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from aaaat.db import connect, set_profile_variable, update_application
+from aaaat.db import connect, delete_application, set_profile_variable, update_application
 
 SUPPORTED_DETAIL_EDIT_FIELDS = {
     "company",
@@ -55,6 +55,12 @@ class DesktopCommandService:
             return None
         with connect(self.storage_path) as conn:
             return update_application(conn, candidature_ref, **safe_changes)
+
+    def delete_candidature(self, candidature_ref: str) -> bool:
+        if not candidature_ref:
+            return False
+        with connect(self.storage_path) as conn:
+            return delete_application(conn, candidature_ref)
 
     def update_profile_variables(self, changes: dict[str, Any]) -> dict[str, str]:
         safe_changes = {
