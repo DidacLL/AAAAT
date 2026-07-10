@@ -32,8 +32,7 @@ class UserViewMixin:
         self.focus_panel.Hide()
         self.detailed_panel.Hide()
         self.user_panel.Show()
-        self.root_sizer.Layout()
-        self.Layout()
+        self._sync_view_buttons()
 
     def _go_user(self) -> None:
         self._show_user()
