@@ -200,9 +200,9 @@ class LocalDesktopDetailedViewAdapterTests(unittest.TestCase):
         detailed_view = Path("aaaat/ui_desktop/detailed_view.py").read_text(encoding="utf-8")
 
         self.assertIn("DetailedViewMixin", main_window)
-        self.assertIn("detailed_button", main_window)
+        self.assertIn("self.view_book", main_window)
         self.assertIn("_build_detailed_surface", main_window)
-        self.assertIn("detailed_button.Bind", smart_view)
+        self.assertIn("EVT_NOTEBOOK_PAGE_CHANGED", smart_view)
         self.assertIn("_go_detailed", smart_view)
         self.assertIn("_show_detailed", detailed_view)
         self.assertIn("_refresh_detailed_view", detailed_view)
