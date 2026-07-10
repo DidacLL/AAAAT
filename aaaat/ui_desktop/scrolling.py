@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import wx  # type: ignore[import-not-found]
 
+_BOUND_SCROLL_ATTR = "_aaaat_parent_wheel_scroll_bound_to"
+
 
 def bind_parent_wheel_scroll(root: wx.Window, scrolled_parent: wx.ScrolledWindow) -> None:
     """Forward mouse-wheel events from non-scrolling child widgets to a parent scroller."""
@@ -11,7 +13,9 @@ def bind_parent_wheel_scroll(root: wx.Window, scrolled_parent: wx.ScrolledWindow
             continue
         if _keeps_own_wheel_scroll(child):
             continue
-        child.Bind(wx.EVT_MOUSEWHEEL, lambda event, target=scrolled_parent: _scroll_parent(event, target))
+        if getattr(child, _BOUND_SCROLL_ATTR, None) != id(scrolled_parent):
+            child.Bind(wx.EVT_MOUSEWHEEL, lambda event, target=scrolled_parent: _scroll_parent(event, target))
+            setattr(child, _BOUND_SCROLL_ATTR, id(scrolled_parent))
         bind_parent_wheel_scroll(child, scrolled_parent)
 
 
