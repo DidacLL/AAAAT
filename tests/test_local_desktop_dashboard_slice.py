@@ -1,7 +1,9 @@
 import inspect
 import sys
 import tempfile
+import tomllib
 import unittest
+from pathlib import Path
 
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_contains_private_values
 from aaaat.dashboard_modules import default_module_registry, modules_for_view, validate_module_registry
@@ -125,6 +127,32 @@ class LocalDesktopDashboardModuleRegistryTests(unittest.TestCase):
         self.assertIn("primary_note", [module.module_id for module in modules_for_view("smart")])
         self.assertIn("detailed_table", [module.module_id for module in modules_for_view("detailed")])
         self.assertIn("profile_summary", [module.module_id for module in modules_for_view("user")])
+
+
+class LocalDesktopDashboardAdapterTests(unittest.TestCase):
+    def test_desktop_projection_builder_imports_without_wx(self):
+        from aaaat.ui_desktop.app import build_desktop_projection
+
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            projection = build_desktop_projection(tmp, Mode.FULL)
+
+        self.assertIn("smart", projection)
+        self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
+
+    def test_pyproject_exposes_optional_desktop_launcher(self):
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+        self.assertEqual(pyproject["project"]["scripts"]["aaaat-desktop"], "aaaat.ui_desktop.app:main")
+        self.assertIn("wxPython", pyproject["project"]["optional-dependencies"]["desktop"])
+        self.assertIn("aaaat.ui_desktop", pyproject["tool"]["setuptools"]["packages"])
+
+    def test_wx_code_is_isolated_to_desktop_adapter(self):
+        from aaaat.ui_desktop import app as desktop_app
+
+        app_source = inspect.getsource(desktop_app)
+        self.assertIn("import wx", app_source)
+        self.assertIn("inside this function", app_source)
 
 
 class LocalDesktopDashboardRuntimeBoundaryTests(unittest.TestCase):
