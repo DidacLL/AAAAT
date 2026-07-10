@@ -8,7 +8,7 @@ from pathlib import Path
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_contains_private_values
 from aaaat.dashboard_modules import default_module_registry, modules_for_view, validate_module_registry
 from aaaat.dashboard_projection import build_dashboard_projection
-from aaaat.db import connect, create_application, init_db, list_applications
+from aaaat.db import add_raw_intake, connect, create_application, init_db, list_applications, list_raw_intake
 from aaaat.demo_seed import seed
 from aaaat.payload import dashboard_payload
 from aaaat.security import Mode
@@ -37,7 +37,8 @@ class LocalDesktopDashboardProjectionTests(unittest.TestCase):
                 form_answers="Draft form answer",
                 keywords=["Python"],
             )
-            payload = dashboard_payload(conn)
+            add_raw_intake(conn, app["id"], "Literal offer text with responsibilities, requirements, interview process, and source clues." * 8, created_by="test")
+            payload = dashboard_payload(conn, include_raw=True)
         return payload, app
 
     def test_projection_contains_four_desktop_view_sections(self):
@@ -62,6 +63,19 @@ class LocalDesktopDashboardProjectionTests(unittest.TestCase):
         self.assertEqual(primary_note["interaction_model"], "single_primary_note")
         self.assertTrue(primary_note["history_is_secondary"])
         self.assertIn("primary_note", [module["id"] for module in projection["smart"]["context_modules"]])
+
+    def test_smart_projection_exposes_literal_source_text(self):
+        payload, app = self.payload()
+
+        projection = build_dashboard_projection(payload, Mode.FULL, view="smart", selected_application_id=app["id"])
+        detail = projection["smart"]["selected_candidature_detail"]
+        source = projection["smart"]["source_text"]
+
+        self.assertIn("Literal offer text", detail["source_text"])
+        self.assertIn("Literal offer text", source["body"])
+        self.assertTrue(source["has_raw"])
+        self.assertGreater(source["length"], 200)
+        self.assertIn("source_text", [module["id"] for module in projection["smart"]["context_modules"]])
 
     def test_detailed_projection_is_rows_and_columns(self):
         payload, app = self.payload()
@@ -123,6 +137,7 @@ class LocalDesktopDashboardLayoutTests(unittest.TestCase):
 
         self.assertLess(state.pane_layout["smart"]["right"], state.pane_layout["detailed"]["right"])
         self.assertLessEqual(state.pane_layout["smart"]["left"], 220)
+        self.assertLessEqual(state.pane_layout["smart"]["right"], 220)
 
 
 class LocalDesktopDashboardModuleRegistryTests(unittest.TestCase):
@@ -170,7 +185,7 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("_show_focus", source)
         self.assertIn("CollapsiblePane", source)
         self.assertIn("Reset layout", source)
-        self.assertIn("DEFAULT_FOCUS_RIGHT = 260", source)
+        self.assertIn("DEFAULT_FOCUS_RIGHT = 210", source)
         self.assertIn("overview_cards_sizer", source)
         self.assertIn("wx.WrapSizer(wx.HORIZONTAL)", source)
         self.assertIn("_bind_card_click", source)
@@ -178,7 +193,11 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("expanded_overview_ref", source)
         self.assertIn("EXPANDED_CARD_SIZE", source)
         self.assertIn("Click again to open Smart View", source)
+        self.assertIn("_add_source_reader", source)
+        self.assertIn("Literal offer/source text", source)
+        self.assertIn("wx.TE_READONLY", source)
         self.assertIn("Freeze()", source)
+        self.assertNotIn("center_grid = wx.FlexGridSizer", source)
         self.assertNotIn("_overview_cards_sizer", source)
 
 
@@ -188,6 +207,7 @@ class LocalDesktopDashboardSeedTests(unittest.TestCase):
             summary = seed(tmp, count=18, reset=True)
             with connect(tmp) as conn:
                 apps = list_applications(conn)
+                raw = list_raw_intake(conn, apps[0]["id"])
 
         self.assertEqual(summary["total"], 18)
         self.assertEqual(summary["created"], 18)
@@ -195,6 +215,9 @@ class LocalDesktopDashboardSeedTests(unittest.TestCase):
         self.assertTrue(any(app["pitch"] for app in apps))
         self.assertTrue(any(app["call_signals"] for app in apps))
         self.assertTrue(any(app["keywords"] for app in apps))
+        self.assertTrue(raw)
+        self.assertGreater(len(raw[0]["content"]), 1000)
+        self.assertIn("About the role", raw[0]["content"])
 
     def test_seed_is_idempotent_without_reset(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -202,10 +225,12 @@ class LocalDesktopDashboardSeedTests(unittest.TestCase):
             second = seed(tmp, count=3)
             with connect(tmp) as conn:
                 apps = list_applications(conn)
+                raw = [list_raw_intake(conn, app["id"]) for app in apps]
 
         self.assertEqual(first["created"], 3)
         self.assertEqual(second["updated"], 3)
         self.assertEqual(len(apps), 3)
+        self.assertTrue(all(len(items) == 1 for items in raw))
 
 
 class LocalDesktopDashboardRuntimeBoundaryTests(unittest.TestCase):
