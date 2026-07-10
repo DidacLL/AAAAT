@@ -98,9 +98,9 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.title = wx.StaticText(self.toolbar, label="AAAAT")
         self.title.SetFont(self.title.GetFont().Bold().Larger())
         self.mode_chip = wx.StaticText(self.toolbar, label="read-only" if self.mode == Mode.READ_ONLY else "local")
-        self.overview_button = wx.Button(self.toolbar, label="List", size=(62, -1))
-        self.detailed_button = wx.Button(self.toolbar, label="Detailed", size=(82, -1))
-        self.user_button = wx.Button(self.toolbar, label="User", size=(64, -1))
+        self.overview_button = wx.ToggleButton(self.toolbar, label="List", size=(62, -1))
+        self.detailed_button = wx.ToggleButton(self.toolbar, label="Detailed", size=(82, -1))
+        self.user_button = wx.ToggleButton(self.toolbar, label="User", size=(64, -1))
         self.profile_button = self.user_button
         self.reset_button = wx.Button(self.toolbar, label="Reset", size=(68, -1))
         self.new_button = wx.Button(self.toolbar, label="+", size=(40, -1))
