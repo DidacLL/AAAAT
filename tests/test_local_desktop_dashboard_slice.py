@@ -162,58 +162,128 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("smart", projection)
         self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
 
-    def test_pyproject_exposes_optional_desktop_launcher(self):
+    def test_dashboard_projection_builder_imports_without_wx(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                payload = dashboard_payload(conn, include_raw=True)
+
+        projection = build_dashboard_projection(payload, Mode.FULL, view="smart")
+
+        self.assertIn("smart", projection)
+        self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
+
+    def test_pyproject_exposes_actual_desktop_launcher(self):
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
+        self.assertEqual(pyproject["project"]["name"], "aaaat")
         self.assertEqual(pyproject["project"]["scripts"]["aaaat-desktop"], "aaaat.ui_desktop.app:main")
         self.assertEqual(pyproject["project"]["scripts"]["aaaat-seed-desktop-demo"], "aaaat.demo_seed:main")
         self.assertIn("wxPython", pyproject["project"]["optional-dependencies"]["desktop"])
         self.assertIn("aaaat.ui_desktop", pyproject["tool"]["setuptools"]["packages"])
 
-    def test_wx_code_is_isolated_to_desktop_adapter(self):
+    def test_smart_view_still_launches_through_aaaat_desktop(self):
+        source = Path("aaaat/ui_desktop/app.py").read_text(encoding="utf-8")
+
+        self.assertIn("def launch_desktop_dashboard", source)
+        self.assertIn("DesktopDashboardFrame", source)
+        self.assertIn("DesktopCommandService", source)
+        self.assertIn('argparse.ArgumentParser(prog="aaaat-desktop")', source)
+
+    def test_wx_imports_remain_isolated_to_desktop_ui_modules(self):
+        allowed = {Path("aaaat/ui_desktop")}
+        offenders = []
+        for path in Path("aaaat").rglob("*.py"):
+            source = path.read_text(encoding="utf-8")
+            if "import wx" in source and not any(parent in path.parents for parent in allowed):
+                offenders.append(str(path))
+
+        self.assertEqual(offenders, [])
+
+    def test_desktop_app_import_is_behavior_free_until_launch(self):
         from aaaat.ui_desktop import app as desktop_app
 
         app_source = inspect.getsource(desktop_app)
         self.assertIn("import wx", app_source)
         self.assertIn("inside this function", app_source)
+        self.assertNotIn("card_state_patch", app_source)
+        self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
 
-    def test_smart_view_source_has_overview_and_focus_modes(self):
+    def test_main_window_is_reduced_to_top_level_layout(self):
         source = Path("aaaat/ui_desktop/main_window.py").read_text(encoding="utf-8")
 
-        self.assertIn("overview", source)
-        self.assertIn("_candidature_card", source)
-        self.assertIn("_show_focus", source)
-        self.assertIn("CollapsiblePane", source)
-        self.assertIn("Reset layout", source)
-        self.assertIn("DEFAULT_FOCUS_LEFT = 220", source)
-        self.assertIn("DEFAULT_FOCUS_RIGHT = 220", source)
-        self.assertIn("DEFAULT_CENTER_NOTES_HEIGHT", source)
-        self.assertIn("overview_cards_sizer", source)
-        self.assertIn("wx.WrapSizer(wx.HORIZONTAL)", source)
-        self.assertIn("_bind_card_click", source)
-        self.assertIn("_on_card_click", source)
-        self.assertIn("expanded_overview_ref", source)
-        self.assertIn("expanded_center_cards", source)
-        self.assertIn("EXPANDED_CARD_SIZE", source)
-        self.assertIn("Click again to open Smart View", source)
-        self.assertIn("_add_source_card", source)
-        self.assertIn("_center_card_shell", source)
-        self.assertIn("_toggle_center_card", source)
-        self.assertIn("_bind_center_card_click", source)
-        self.assertIn("_apply_focus_layout", source)
-        self.assertIn("total_width * 0.20", source)
-        self.assertIn("Literal offer/source text", source)
-        self.assertIn("wx.html.HtmlWindow", source)
-        self.assertIn("kw:", source)
-        self.assertIn("_on_keyword_html_link", source)
-        self.assertIn("_refresh_right_context", source)
-        self.assertIn("_add_notes_band", source)
+        self.assertIn("class DesktopDashboardFrame", source)
+        self.assertIn("SmartViewMixin", source)
+        self.assertIn("_build_menu", source)
+        self.assertIn("_build_shell", source)
         self.assertIn("center_notes_panel", source)
-        self.assertIn("Freeze()", source)
-        self.assertNotIn("center_grid = wx.FlexGridSizer", source)
-        self.assertNotIn("_overview_cards_sizer", source)
-        self.assertNotIn("_add_note_module", source)
-        self.assertNotIn("_add_source_reader", source)
+        self.assertIn("wx.WrapSizer(wx.HORIZONTAL)", source)
+        self.assertLess(len(source.splitlines()), 230)
+        self.assertNotIn("update_application", source)
+        self.assertNotIn("apply_center_card_state_patch", source)
+
+    def test_extracted_adapter_modules_hold_smart_view_behavior(self):
+        smart_view = Path("aaaat/ui_desktop/smart_view.py").read_text(encoding="utf-8")
+        overview = Path("aaaat/ui_desktop/overview_board.py").read_text(encoding="utf-8")
+        center_cards = Path("aaaat/ui_desktop/center_cards.py").read_text(encoding="utf-8")
+        keyword_pane = Path("aaaat/ui_desktop/keyword_pane.py").read_text(encoding="utf-8")
+        notes_band = Path("aaaat/ui_desktop/notes_band.py").read_text(encoding="utf-8")
+        links = Path("aaaat/ui_desktop/wx_html_links.py").read_text(encoding="utf-8")
+        services = Path("aaaat/ui_desktop/services.py").read_text(encoding="utf-8")
+
+        self.assertIn("_show_focus", smart_view)
+        self.assertIn("_apply_focus_layout", smart_view)
+        self.assertIn("total_width * 0.20", smart_view)
+        self.assertIn("_refresh_right_context", smart_view)
+        self.assertIn("command_service.save_note", smart_view)
+        self.assertIn("Click again to open Smart View", overview)
+        self.assertIn("EXPANDED_CARD_SIZE", overview)
+        self.assertIn("_on_card_click", overview)
+        self.assertIn("Literal offer/source text", center_cards)
+        self.assertIn("CenterCardBuilder", center_cards)
+        self.assertIn("StopPropagation", center_cards)
+        self.assertIn("Keyword ·", keyword_pane)
+        self.assertIn("definition", keyword_pane)
+        self.assertIn("NotesBand", notes_band)
+        self.assertIn("Save", notes_band)
+        self.assertIn("kw:", links)
+        self.assertIn("EVT_HTML_LINK_CLICKED", links)
+        self.assertIn("update_application", services)
+        self.assertNotIn("connect(", notes_band)
+
+    def test_card_state_patch_is_removed(self):
+        app_source = Path("aaaat/ui_desktop/app.py").read_text(encoding="utf-8")
+        smart_source = Path("aaaat/ui_desktop/smart_view.py").read_text(encoding="utf-8")
+        main_source = Path("aaaat/ui_desktop/main_window.py").read_text(encoding="utf-8")
+
+        self.assertFalse(Path("aaaat/ui_desktop/card_state_patch.py").exists())
+        self.assertNotIn("apply_center_card_state_patch", app_source + smart_source + main_source)
+
+    def test_center_card_state_is_explicit_and_independent(self):
+        from aaaat.ui_desktop.card_state import CenterCardState
+
+        state = CenterCardState.default()
+
+        self.assertTrue(state.is_expanded("call"))
+        self.assertFalse(state.is_expanded("source"))
+        self.assertTrue(state.is_expanded("now"))
+        state.toggle("call")
+        self.assertFalse(state.is_expanded("call"))
+        self.assertTrue(state.is_expanded("now"))
+        state.toggle("source")
+        self.assertTrue(state.is_expanded("source"))
+        self.assertFalse(state.is_expanded("call"))
+
+    def test_collapsing_all_center_cards_leaves_all_collapsed(self):
+        from aaaat.ui_desktop.card_state import DEFAULT_CENTER_CARD_STATES, CenterCardState
+
+        state = CenterCardState.default()
+        for card_id in DEFAULT_CENTER_CARD_STATES:
+            state.set_expanded(card_id, False)
+
+        self.assertEqual(state.expanded_ids(), set())
+        self.assertFalse(state.is_expanded("call", True))
+        self.assertFalse(state.is_expanded("now", True))
 
 
 class LocalDesktopDashboardSeedTests(unittest.TestCase):
