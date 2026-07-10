@@ -6,7 +6,7 @@ PR: `#37`
 ## Classification
 
 ```text
-READY_FOR_THIRD_MANUAL_WX_SMART_VIEW_VERIFICATION
+READY_FOR_FOURTH_MANUAL_WX_SMART_VIEW_VERIFICATION
 ```
 
 The first wx Smart View attempt was rejected as `BLOCKED_BY_UX_REGRESSION`: it looked more professional than the browser version, but still behaved like a conventional three-column admin screen. The Smart View requirement is not a CRUD dashboard. It is a panic-mode call cockpit.
@@ -27,6 +27,17 @@ short identifying signal
 ```
 
 This overview uses most of the available space until a candidature is selected. Because desktop apps are mostly horizontal, the overview must distribute cards horizontally and wrap them across the available width instead of stacking every candidature vertically into a thin long column.
+
+### Staged overview interaction
+
+Overview cards use a two-step interaction:
+
+```text
+first click: expand the card in place
+second click on the expanded card: open Smart View focus mode
+```
+
+The first click gives more recognition information without collapsing the list. The second click commits to the specific candidature and opens the focused call cockpit.
 
 ### Focus after selection
 
@@ -110,6 +121,10 @@ Notes are editable, but not allowed to consume the main workspace by default.
 - `aaaat/ui_desktop/main_window.py`
   - Implements overview mode with large horizontal wrapping candidature cards.
   - Makes the whole card clickable; no small far-right open button is required.
+  - Implements staged overview interaction: first click expands one card, second click opens focus mode.
+  - Avoids rebuilding hidden panes during overview/focus refresh.
+  - Wraps refreshes with `Freeze()`/`Thaw()` to reduce visible redraw tearing.
+  - Adds font hierarchy with stronger company, role, status, section headings, and module headings.
   - Implements focus mode with a narrow left navigation strip, large center context, and smaller right context.
   - Supports candidature selection.
   - Supports search/filter in both overview and focus navigation.
@@ -125,15 +140,19 @@ Notes are editable, but not allowed to consume the main workspace by default.
 
 ### Demo feeder
 
-- `scripts/seed_desktop_demo.py`
+- `aaaat.demo_seed`
   - Seeds deterministic Smart View demo candidatures.
   - Defaults to 48 candidatures.
   - Mostly fills all key fields, with occasional intentionally missing fields to test imperfect real data.
   - Uses stable demo ids and upserts records, so it can be run repeatedly.
 
+- `scripts/seed_desktop_demo.py`
+  - Thin wrapper around `aaaat.demo_seed`.
+
 ### Launch surfaces
 
 - `aaaat-desktop` script entry point.
+- `aaaat-seed-desktop-demo` script entry point.
 - `launchers/Open AAAAT Desktop.cmd`.
 - `launchers/open-aaaat-desktop.sh`.
 
@@ -150,7 +169,8 @@ Notes are editable, but not allowed to consume the main workspace by default.
   - Module registry validation.
   - Desktop adapter import without wx.
   - Optional desktop package metadata.
-  - Source-level guard for overview/focus/collapsible/reset behavior.
+  - Source-level guard for overview/focus/collapsible/reset/staged-card behavior.
+  - Demo feeder creation and idempotency.
   - Agent runtime boundary.
 
 ## Not implemented yet
@@ -168,7 +188,7 @@ Run after installing the desktop extra:
 
 ```bash
 python -m pip install -e .[desktop]
-python scripts/seed_desktop_demo.py --count 64
+aaaat-seed-desktop-demo --reset --count 64
 aaaat-desktop
 ```
 
@@ -178,9 +198,11 @@ Verify:
 app opens into an overview board, not a tiny list
 candidature cards distribute horizontally and wrap across available width
 cards are readable without being a thin vertical list
-whole card is clickable and enters focus mode
-company, role, keywords, and call signal are visually easy to scan
-selecting a card enters focus mode
+first card click expands only that card in place
+expanded card shows more information without opening focus mode
+second click on expanded card enters focus mode
+company, role, keywords, status, and call signal are visually distinguishable
+expanding a card does not visibly tear/redraw the whole window
 focus mode collapses the candidature list into a narrow left strip
 Expand/List returns to the overview board
 center area gets most visual space
@@ -204,7 +226,7 @@ Do not classify as `PRODUCT_READY_TO_REVIEW` yet.
 Use:
 
 ```text
-READY_FOR_THIRD_MANUAL_WX_SMART_VIEW_VERIFICATION
+READY_FOR_FOURTH_MANUAL_WX_SMART_VIEW_VERIFICATION
 ```
 
 If this verification fails, classify as:
