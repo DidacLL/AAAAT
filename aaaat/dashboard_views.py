@@ -21,6 +21,9 @@ FRAGMENTS = {
 }
 
 
+NO_SMART_SELECTION = "__smart_list_first__"
+
+
 def render_dashboard_view(
     payload: dict[str, Any],
     mode: Mode | str = Mode.FULL,
@@ -87,11 +90,19 @@ def dashboard_view_model(
     so it remains clearly separate from the agent runtime.
     """
 
+    normalized_view = normalize_view(view)
+    effective_selected_application_id = selected_application_id
+    if normalized_view == "smartView" and selected_application_id is None:
+        # Smart View should start list-first. Passing a non-matching sentinel avoids
+        # the projection's generic default-to-first behavior without changing other
+        # views that still rely on first-candidature defaults.
+        effective_selected_application_id = NO_SMART_SELECTION
+
     return build_dashboard_projection(
         payload,
         mode,
-        view=view,
-        selected_application_id=selected_application_id,
+        view=normalized_view,
+        selected_application_id=effective_selected_application_id,
         selected_keyword=selected_keyword,
         selected_context_module=selected_context_module,
         search_query=search_query,
