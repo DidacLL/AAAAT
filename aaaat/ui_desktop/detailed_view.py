@@ -7,6 +7,7 @@ import wx  # type: ignore[import-not-found]
 from .detail_panel import DetailPanel
 from .detail_table import DetailTable
 
+DEFAULT_DETAILED_FRAME_WIDTH = 1280
 DEFAULT_DETAILED_RIGHT = 340
 
 
@@ -32,7 +33,7 @@ class DetailedViewMixin:
         self.detailed_splitter.SetMinimumPaneSize(220)
         self.detail_table = DetailTable(self.detailed_splitter, on_select=self._select_detailed_ref)
         self.detail_panel = DetailPanel(self.detailed_splitter, on_open_smart=self._open_selected_in_smart)
-        width = max(620, DEFAULT_WINDOW_SIZE[0] - int(self.layout_state.pane_layout.get("detailed", {}).get("right", DEFAULT_DETAILED_RIGHT)))
+        width = max(620, DEFAULT_DETAILED_FRAME_WIDTH - int(self.layout_state.pane_layout.get("detailed", {}).get("right", DEFAULT_DETAILED_RIGHT)))
         self.detailed_splitter.SplitVertically(self.detail_table, self.detail_panel, width)
         sizer.Add(self.detailed_splitter, 1, wx.EXPAND)
         self.root_sizer.Add(self.detailed_panel, 1, wx.ALL | wx.EXPAND, 6)
