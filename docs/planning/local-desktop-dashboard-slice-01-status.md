@@ -6,35 +6,17 @@ PR: `#37`
 ## Classification
 
 ```text
-READY_FOR_SPRINT_CLOSE_MANUAL_VERIFICATION
+SMART_VIEW_APPROVED
+READY_FOR_SECOND_SLICE_FOUNDATION
 ```
 
-The current Smart View direction is a local desktop call cockpit, not a CRUD dashboard. Recent verification added sprint-close UX constraints:
+Smart View has been manually approved as the local desktop call cockpit. The code-quality run keeps that approved behavior while splitting the wx adapter so the next slice does not copy a large `main_window.py` pattern.
 
-```text
-center content should use expandable cards, not title-row-only expanders
-focus mode should default near 20 / 60 / 20 across left / center / right
-notes must be fixed at the bottom of the central panel
-keywords in central text must link to a right-pane definition module
-```
-
-This matches the source PDF interaction model: navigate by candidature/call signal first, then use linked technical terms as fast jumps into a definition surface.
-
-## Corrected Smart View UX contract
+## Approved Smart View UX contract
 
 ### Recognition before administration
 
-The no-selection state is an overview board. Candidatures are readable cards with:
-
-```text
-company
-role
-status / priority / keywords
-short identifying signal
-source excerpt
-```
-
-The overview distributes cards horizontally and wraps across the available desktop width.
+The no-selection state is an overview board. Candidatures are readable cards with company, role, status, priority, keywords, a short identifying signal, and source excerpt. The overview distributes cards horizontally and wraps across the desktop width.
 
 ### Staged overview interaction
 
@@ -47,62 +29,50 @@ The first click gives more recognition information without collapsing the list. 
 
 ### Focus mode hierarchy
 
-Focus mode prioritizes the center:
-
 ```text
 left: narrow candidature navigation strip, about 20 percent
 center: dominant card workspace and fixed notes band, about 60 percent
 right: narrow keyword definition / secondary context, about 20 percent
 ```
 
-The split is applied after the wx frame is realized so the right pane does not fall back to half of the remaining width. User resizing remains possible after the initial/default layout is applied.
+The split is applied after the wx frame is realized so the right pane does not fall back to half of the remaining content width. User resizing remains possible after the initial/default layout is applied.
 
 ### Center card behavior
 
-The center must not feel like a title-row accordion. It uses card surfaces:
+The center uses card surfaces, not title-row-only expanders.
 
 ```text
 click anywhere on a center card -> expand/collapse that card
 linked terms inside card text remain clickable -> update right definition pane
 ```
 
-Cards currently include:
-
-```text
-Call cockpit
-Source
-Now
-Later
-Offer
-```
+Cards currently include Call cockpit, Source, Now, Later, and Offer. Expansion state is explicit and independent by card id. Collapsing all center cards leaves all cards collapsed.
 
 ### Literal offer/source text
 
-A candidature may include a long literal offer text. That text is factual source material and often the strongest visual memory from the application process.
-
-Smart View exposes it as a center card:
+Smart View exposes long literal offer/source text as a center Source card:
 
 ```text
 Source card collapsed: compact excerpt
 Source card expanded: full-width source reader with linked glossary terms
 ```
 
-This avoids pushing long source text into small right-column modules or two-column cards where it becomes unreadable.
+This keeps factual source material readable and out of the narrow right pane.
 
 ### Notes band
 
-Notes are not a right-pane module. Notes are fixed at the bottom of the central panel:
+Notes are fixed at the bottom of the central panel:
 
 ```text
 center top: card workspace
 center bottom: notes band, about 20 percent of center height
 ```
 
-The notes band is always reachable while reading the source text and does not steal the right-pane keyword definition surface.
+The notes band remains reachable while reading source text and does not steal the right-pane keyword definition surface.
 
 ### Keyword definition interaction
 
-Technical keywords are not passive chips. Terms inside central text are links:
+Technical keywords are active links:
 
 ```text
 click keyword in center text -> right pane shows definition
@@ -117,68 +87,80 @@ The right pane is dedicated to the active keyword definition, with small keyword
 - `aaaat/dashboard_projection.py`
   - Builds human-local projection sections for `welcome`, `smart`, `detailed`, `user`, `glossary`, `permissions`, and `view_state`.
   - Exposes Smart View selected-candidature detail, primary note, keyword context, artifacts, source text, and call context.
-  - Exposes raw source excerpts and source length when raw intake is included in the local desktop payload.
   - Does not import wxPython.
   - Is not exposed as an agent API.
-
 - `aaaat/dashboard_layout.py`
   - Persists local layout state only.
   - Defaults Smart View to a narrow focus nav and a narrow right context.
+- `aaaat/dashboard_modules.py`
+  - Keeps module registration toolkit-neutral.
 
-### wx desktop Smart View adapter
+### Extracted wx desktop Smart View adapter
 
 - `aaaat/ui_desktop/app.py`
-  - Builds the desktop projection with `include_raw=True`, so local Smart View can show literal source text.
+  - Builds the desktop projection with `include_raw=True`.
   - Keeps wxPython import isolated to launch time.
-
+  - Launches `DesktopDashboardFrame` through `aaaat-desktop`.
 - `aaaat/ui_desktop/main_window.py`
-  - Keeps overview cards horizontal and wrapping.
-  - Keeps staged overview-card click behavior.
-  - Applies near 20/60/20 focus proportions after the frame is realized.
-  - Uses center cards instead of title-row-only expanders for the main center content.
-  - Lets center cards expand/collapse by clicking anywhere on the card surface.
-  - Keeps linked glossary terms inside center card text clickable.
-  - Adds a dominant center call cockpit card.
-  - Adds a source card for long literal offer/source text.
-  - Renders center text through `wx.html.HtmlWindow` so glossary terms can be clickable.
-  - Moves notes into a fixed bottom band in the central panel.
-  - Dedicates the right pane to keyword definitions and secondary artifacts.
-  - Updates the right definition module when a linked center term is clicked.
-  - Reduces redraw churn by refreshing only the active surface and using `Freeze()`/`Thaw()`.
+  - Keeps only the wx frame, menu, toolbar, view shell, splitters, and top-level layout containers.
+- `aaaat/ui_desktop/smart_view.py`
+  - Orchestrates Smart View overview/focus surfaces, refresh, selected candidature/keyword handoff, layout persistence, and notes save handoff.
+- `aaaat/ui_desktop/overview_board.py`
+  - Owns horizontal overview cards and staged first-click expand / second-click focus behavior.
+- `aaaat/ui_desktop/center_cards.py`
+  - Owns center card construction for call/source/now/later/offer cards.
+- `aaaat/ui_desktop/card_state.py`
+  - Owns explicit independent center-card expansion state without wx dependencies.
+- `aaaat/ui_desktop/keyword_pane.py`
+  - Owns the right-pane keyword definition module and shortcut buttons.
+- `aaaat/ui_desktop/notes_band.py`
+  - Owns the fixed bottom-center notes editor and accepts only a save callback.
+- `aaaat/ui_desktop/wx_html_links.py`
+  - Owns glossary-aware wx HTML and `kw:` link handling.
+- `aaaat/ui_desktop/services.py`
+  - Owns tiny local `DesktopCommandService.save_note(candidature_ref, body)`.
 
-### Demo feeder
+### Removed
+
+- `aaaat/ui_desktop/card_state_patch.py`
+- `apply_center_card_state_patch()`
+- Runtime monkey patching for center-card behavior
+
+### Demo feeder and launch surfaces
 
 - `aaaat.demo_seed`
-  - Seeds deterministic Smart View demo candidatures.
-  - Adds long literal offer text into `raw_intake` for each demo candidature.
-  - Keeps records idempotent; repeated runs update existing demo candidatures and replace prior demo raw intake.
-
 - `scripts/seed_desktop_demo.py`
-  - Thin wrapper around `aaaat.demo_seed`.
-
-### Launch surfaces
-
-- `aaaat-desktop`.
-- `aaaat-seed-desktop-demo`.
-- `launchers/Open AAAAT Desktop.cmd`.
-- `launchers/open-aaaat-desktop.sh`.
+- `aaaat-desktop`
+- `aaaat-seed-desktop-demo`
+- `launchers/Open AAAAT Desktop.cmd`
+- `launchers/open-aaaat-desktop.sh`
 
 ### Tests
 
-- `tests/test_local_desktop_dashboard_slice.py`
-  - Projection contract.
-  - Raw source text projection.
-  - Smart View primary-note model.
-  - Detailed View rows/columns model.
-  - Read-only permission projection.
-  - Toolkit-neutral projection import behavior.
-  - Layout state persistence.
-  - Smart View right-context size guard.
-  - Desktop adapter import without wx.
-  - Optional desktop package metadata.
-  - Source-level guard for staged-card behavior, center cards, source card, notes band, clickable keyword links, delayed 20/60/20 layout, right-context definition refresh, and removal of the old right-notes module.
-  - Demo feeder creation, long raw source text, and idempotency.
-  - Agent runtime boundary.
+- Projection contract and toolkit-neutral imports.
+- Raw source text projection.
+- Smart View primary-note model.
+- Detailed View projection rows/columns contract only; no Detailed View UI implementation.
+- Read-only permission projection.
+- Layout state persistence.
+- Smart View right-context size guard.
+- Desktop projection builder import without wx.
+- Dashboard projection builder import without wx.
+- Actual package/script metadata for `aaaat` and `aaaat-desktop`.
+- wx import isolation to `aaaat/ui_desktop`.
+- `main_window.py` reduced to top-level layout.
+- Extracted adapter module source guards.
+- `card_state_patch.py` removal.
+- Explicit independent `CenterCardState` unit behavior.
+- Collapsing all center cards leaves all collapsed.
+- Demo feeder creation and idempotency.
+- Agent runtime boundary.
+
+## Projection/runtime contract
+
+The projection boundary remains unchanged. `dashboard_projection`, `dashboard_layout`, `dashboard_modules`, domain code, and agent runtime code remain toolkit-neutral. The agent runtime still does not import `ui_desktop`, `dashboard_projection`, or `DashboardLayoutState`.
+
+No wx, HTML dashboard routes, MCP resources, agent routes, broad CRUD API, plugin framework, heavy dependency, or agent mutation authority was added by this cleanup.
 
 ## Not implemented yet
 
@@ -189,9 +171,7 @@ The right pane is dedicated to the active keyword definition, with small keyword
 - Desktop packaging beyond launcher scripts.
 - Browser dashboard removal or deprecation.
 
-## Manual verification required
-
-Run:
+## Manual verification command
 
 ```bash
 python -m pip install -e .[desktop]
@@ -199,46 +179,4 @@ aaaat-seed-desktop-demo --reset --count 64
 aaaat-desktop
 ```
 
-Verify:
-
-```text
-overview cards distribute horizontally and wrap
-first click expands a card in place
-second click opens focus mode
-focus starts near 20/60/20 for left/center/right
-right pane does not start at half of the remaining content area
-focus center is visibly the dominant workspace
-center modules behave like expandable cards
-clicking anywhere on a center card expands/collapses it
-source excerpt is visible as factual memory cue
-expanding Source opens a full-width source reader
-long literal offer text remains readable when expanded
-notes are fixed at the bottom of the center panel
-notes occupy roughly the bottom band, not the right pane
-technical terms in center text are clickable
-clicking a center term updates the right keyword definition
-right pane is useful as a definition surface
-search includes source/recognition text
-panes are resizable
-Reset restores 20/60/20 and bottom-notes proportions
-layout state persists after restart
-agent runtime remains unchanged
-```
-
-## Review decision
-
-Do not classify as `PRODUCT_READY_TO_REVIEW` until this manual verification passes.
-
-Use:
-
-```text
-READY_FOR_SPRINT_CLOSE_MANUAL_VERIFICATION
-```
-
-If this verification fails, classify as:
-
-```text
-BLOCKED_BY_UX_REGRESSION
-```
-
-If this verification passes, close this Smart View sprint and start the next implementation slice with Detailed View table/grid.
+The approved Smart View checklist remains: overview cards wrap horizontally, first click expands, second click opens focus, focus starts near 20/60/20, center is dominant, center cards expand independently, all cards can remain collapsed, Source expands into a readable full-width source reader, notes stay fixed at center-bottom, keyword links update the right definition pane, search includes recognition/source text, panes are resizable, Reset restores layout, and layout persists after restart.
