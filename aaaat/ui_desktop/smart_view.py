@@ -39,6 +39,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.profile_button.Bind(wx.EVT_BUTTON, self._on_support_surface)
         self.reset_button.Bind(wx.EVT_BUTTON, self._on_reset_layout)
         self.overview_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_overview())
+        self.detailed_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_detailed())
         self.expand_list_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_overview())
         self.overview_search.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self._on_overview_search)
         self.overview_search.Bind(wx.EVT_TEXT_ENTER, self._on_overview_search)
@@ -47,17 +48,24 @@ class SmartViewMixin(OverviewBoardMixin):
         self.nav_search.Bind(wx.EVT_TEXT_ENTER, self._on_nav_search)
         self.nav_search.Bind(wx.EVT_SEARCHCTRL_CANCEL_BTN, self._on_clear_search)
         self.nav_list.Bind(wx.EVT_LISTBOX, self._on_select_nav)
+        self._bind_detailed_events()
 
     def _show_overview(self) -> None:
+        self.current_view = "smart"
+        self.layout_state.selected_view = "smart"
         self.selected_ref = None
         self.overview_panel.Show()
         self.focus_panel.Hide()
+        self.detailed_panel.Hide()
         self.root_sizer.Layout()
         self.Layout()
 
     def _show_focus(self) -> None:
+        self.current_view = "smart"
+        self.layout_state.selected_view = "smart"
         self.overview_panel.Hide()
         self.focus_panel.Show()
+        self.detailed_panel.Hide()
         self.root_sizer.Layout()
         self.Layout()
         if not self._focus_layout_applied:
@@ -88,12 +96,16 @@ class SmartViewMixin(OverviewBoardMixin):
         self.Freeze()
         try:
             self._reload_projection()
-            if self.overview_panel.IsShown():
+            if self.current_view == "detailed" and self.detailed_panel.IsShown():
+                self._refresh_detailed_view()
+                self.title.SetLabel("AAAAT · Detailed")
+            elif self.overview_panel.IsShown():
                 self._refresh_overview_cards()
+                self.title.SetLabel("AAAAT · Smart")
             else:
                 self._refresh_nav_list()
                 self._refresh_focus_modules()
-            self.title.SetLabel("AAAAT · Smart")
+                self.title.SetLabel("AAAAT · Smart")
             self.Layout()
         finally:
             self.Thaw()
@@ -101,16 +113,17 @@ class SmartViewMixin(OverviewBoardMixin):
     def _reload_projection(self) -> None:
         with connect(self.storage_path) as conn:
             payload = dashboard_payload(conn, include_raw=True)
+        view = self.current_view if self.current_view in {"smart", "detailed"} else "smart"
         self.projection = build_dashboard_projection(
             payload,
             self.mode,
-            view="smart",
+            view=view,
             selected_application_id=self.selected_ref,
             selected_keyword=self.selected_keyword,
             search_query=self.search_query,
             layout_state=self.layout_state,
         )
-        if self.selected_ref and not self._selected_detail():
+        if self.selected_ref and not self._selected_detail() and not self._detailed_selected_row():
             self.selected_ref = None
 
     def _refresh_nav_list(self) -> None:
@@ -337,13 +350,15 @@ class SmartViewMixin(OverviewBoardMixin):
 
     def _on_close(self, event: wx.CloseEvent) -> None:
         try:
-            self.layout_state.selected_view = "smart"
+            self.layout_state.selected_view = self.current_view
             self.layout_state.selected_candidature_ref = self.selected_ref
             self.layout_state.selected_keyword = self.selected_keyword
             if self.focus_splitter.IsSplit():
                 self.layout_state.pane_layout.setdefault("smart", {})["left"] = max(1, int(self.focus_splitter.GetSashPosition()))
             if self.right_scroll:
                 self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(1, min(240, int(self.right_scroll.GetSize().GetWidth())))
+            if self.detailed_splitter.IsSplit():
+                self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(1, int(self.detail_panel.GetSize().GetWidth()))
             self.layout_state.save(self.layout_path)
         finally:
             event.Skip()
