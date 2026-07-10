@@ -12,12 +12,13 @@ from .card_state import CenterCardState
 from .detailed_view import DetailedViewMixin
 from .services import DesktopCommandService
 from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
+from .user_view import UserViewMixin
 
 RIGHT_MODULES = ["keywords", "artifacts"]
 
 
-class DesktopDashboardFrame(DetailedViewMixin, SmartViewMixin, wx.Frame):
-    """Top-level wx desktop frame for Smart and Detailed desktop views."""
+class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx.Frame):
+    """Top-level wx desktop frame for Smart, Detailed, and User desktop views."""
 
     def __init__(
         self,
@@ -37,7 +38,7 @@ class DesktopDashboardFrame(DetailedViewMixin, SmartViewMixin, wx.Frame):
         self.layout_path = Path(layout_path)
         self.command_service = command_service or DesktopCommandService(storage_path)
         self.current_view = str(projection.get("view_state", {}).get("current_view") or layout_state.selected_view or "smart")
-        if self.current_view not in {"smart", "detailed"}:
+        if self.current_view not in {"smart", "detailed", "user"}:
             self.current_view = "smart"
         self.selected_ref = layout_state.selected_candidature_ref
         self.selected_keyword = layout_state.selected_keyword
@@ -59,7 +60,9 @@ class DesktopDashboardFrame(DetailedViewMixin, SmartViewMixin, wx.Frame):
         self._refresh_all()
 
     def _show_initial_view(self) -> None:
-        if self.current_view == "detailed":
+        if self.current_view == "user":
+            self._show_user()
+        elif self.current_view == "detailed":
             self._show_detailed()
         elif self.selected_ref:
             self._show_focus()
@@ -70,7 +73,7 @@ class DesktopDashboardFrame(DetailedViewMixin, SmartViewMixin, wx.Frame):
         menu_bar = wx.MenuBar()
         file_menu = wx.Menu()
         self.new_candidature_item = file_menu.Append(wx.ID_NEW, "New…")
-        self.profile_item = file_menu.Append(wx.ID_ANY, "Profile…")
+        self.profile_item = file_menu.Append(wx.ID_ANY, "User/Profile")
         file_menu.AppendSeparator()
         self.reset_layout_item = file_menu.Append(wx.ID_ANY, "Reset layout")
         file_menu.AppendSeparator()
@@ -86,6 +89,7 @@ class DesktopDashboardFrame(DetailedViewMixin, SmartViewMixin, wx.Frame):
         self._build_overview_surface()
         self._build_focus_surface()
         self._build_detailed_surface()
+        self._build_user_surface()
 
     def _build_toolbar(self) -> None:
         self.toolbar = wx.Panel(self.root)
@@ -96,12 +100,13 @@ class DesktopDashboardFrame(DetailedViewMixin, SmartViewMixin, wx.Frame):
         self.mode_chip = wx.StaticText(self.toolbar, label="read-only" if self.mode == Mode.READ_ONLY else "local")
         self.overview_button = wx.Button(self.toolbar, label="List", size=(62, -1))
         self.detailed_button = wx.Button(self.toolbar, label="Detailed", size=(82, -1))
+        self.user_button = wx.Button(self.toolbar, label="User", size=(64, -1))
+        self.profile_button = self.user_button
         self.reset_button = wx.Button(self.toolbar, label="Reset", size=(68, -1))
         self.new_button = wx.Button(self.toolbar, label="+", size=(40, -1))
-        self.profile_button = wx.Button(self.toolbar, label="Me", size=(48, -1))
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
-        for control in (self.mode_chip, self.overview_button, self.detailed_button, self.reset_button, self.new_button, self.profile_button):
+        for control in (self.mode_chip, self.overview_button, self.detailed_button, self.user_button, self.reset_button, self.new_button):
             toolbar_sizer.Add(control, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         self.root_sizer.Add(self.toolbar, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
 
