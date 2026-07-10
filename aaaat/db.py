@@ -259,6 +259,35 @@ def update_application(conn: sqlite3.Connection, app_id: str, **fields: Any) -> 
     return get_application(conn, app_id)
 
 
+def delete_application(conn: sqlite3.Connection, app_id: str) -> bool:
+    row = conn.execute("SELECT id FROM applications WHERE id = ?", (app_id,)).fetchone()
+    if row is None:
+        return False
+
+    artifact_rows = conn.execute("SELECT id FROM generated_artifacts WHERE application_id = ?", (app_id,)).fetchall()
+    artifact_ids = [str(row["id"]) for row in artifact_rows]
+    if artifact_ids:
+        placeholders = ", ".join("?" for _ in artifact_ids)
+        conn.execute(f"UPDATE tasks SET artifact_id = NULL WHERE artifact_id IN ({placeholders})", artifact_ids)
+        conn.execute(
+            f"""UPDATE candidature_details
+            SET cv_sent_artifact_id = CASE WHEN cv_sent_artifact_id IN ({placeholders}) THEN NULL ELSE cv_sent_artifact_id END,
+                cover_letter_artifact_id = CASE WHEN cover_letter_artifact_id IN ({placeholders}) THEN NULL ELSE cover_letter_artifact_id END
+            WHERE application_id = ?""",
+            [*artifact_ids, *artifact_ids, app_id],
+        )
+
+    conn.execute("DELETE FROM candidature_details WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM raw_intake WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM application_keywords WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM agent_suggestions WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM generated_artifacts WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM notes WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM applications WHERE id = ?", (app_id,))
+    conn.commit()
+    return True
+
+
 def set_application_keywords(conn: sqlite3.Connection, app_id: str, keywords: Any) -> None:
     if isinstance(keywords, str):
         terms = [term.strip() for term in keywords.split(",") if term.strip()]
@@ -380,6 +409,6 @@ def get_template(conn: sqlite3.Connection, name: str) -> dict[str, Any]:
     row = conn.execute("SELECT * FROM templates WHERE name = ?", (name,)).fetchone()
     if row is None:
         raise KeyError(f"Template not found: {name}")
-    data = row_to_dict(row)
-    data["required_variables"] = json.loads(data["required_variables"])
-    return data
+    item = row_to_dict(row)
+    item["required_variables"] = json.loads(item["required_variables"])
+    return item
