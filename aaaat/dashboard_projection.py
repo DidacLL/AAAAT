@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .dashboard_layout import DashboardLayoutState
-from .dashboard_modules import default_module_registry, modules_for_view, validate_module_registry
+from .dashboard_modules import modules_for_view, validate_module_registry
 from .security import Mode, can_show_raw_intake, can_write
 
 DESKTOP_VIEWS = {"welcome", "smart", "detailed", "user"}
@@ -235,6 +235,7 @@ def _candidature_summary(app: dict[str, Any]) -> dict[str, Any]:
         "status": app.get("status") or "draft",
         "priority": app.get("priority") or "normal",
         "next_action": app.get("next_action") or "",
+        "call_signals": app.get("call_signals") or "",
         "deadline_or_last_contact": app.get("next_action_date") or app.get("last_activity") or "",
         "source": app.get("source") or "",
         "keywords": list(app.get("keywords") or []),
@@ -256,6 +257,7 @@ def _selected_detail(app: dict[str, Any] | None) -> dict[str, Any] | None:
         "source": app.get("source") or "",
         "source_url": app.get("source_url") or "",
         "next_action": app.get("next_action") or "",
+        "call_signals": app.get("call_signals") or "",
         "last_activity": app.get("last_activity") or "",
         "pitch": app.get("pitch") or "",
         "risk_to_avoid": app.get("risks_to_avoid") or "",
