@@ -14,6 +14,7 @@ from .center_cards import CenterCardBuilder
 from .keyword_pane import KeywordPane
 from .notes_band import NotesBand
 from .overview_board import OverviewBoardMixin
+from .scrolling import bind_parent_wheel_scroll
 from .wx_html_links import KeywordHtmlLinker
 
 DEFAULT_FOCUS_LEFT = 220
@@ -148,6 +149,7 @@ class SmartViewMixin(OverviewBoardMixin):
             self.center_sizer.Add(self._empty_message(self.center_scroll, "Select a candidature."), 0, wx.ALL | wx.EXPAND, 12)
             self.center_scroll.Layout()
             self.right_scroll.Layout()
+            bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
             return
 
         self.center_cards.add_hero(detail)
@@ -164,6 +166,8 @@ class SmartViewMixin(OverviewBoardMixin):
         self.center_notes_panel.Layout()
         self.right_scroll.Layout()
         self.right_scroll.FitInside()
+        bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
+        bind_parent_wheel_scroll(self.right_scroll, self.right_scroll)
 
     def _add_notes_band(self) -> None:
         primary_note = self.projection["smart"].get("primary_note") or {}
@@ -201,6 +205,7 @@ class SmartViewMixin(OverviewBoardMixin):
         pane.render_content_module("Artifacts", self._artifacts_text(), expanded=False)
         self.right_scroll.Layout()
         self.right_scroll.FitInside()
+        bind_parent_wheel_scroll(self.right_scroll, self.right_scroll)
 
     def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
         return self.keyword_linker.make_window(parent, text, min_height=min_height)
@@ -313,52 +318,48 @@ class SmartViewMixin(OverviewBoardMixin):
         self.nav_search.SetValue("")
         self._refresh_all()
 
-    def _on_select_nav(self, _event: wx.CommandEvent) -> None:
-        selection = self.nav_list.GetSelection()
-        if selection == wx.NOT_FOUND or selection >= len(self._list_refs):
-            return
-        self.selected_ref = self._list_refs[selection]
-        self.layout_state.selected_candidature_ref = self.selected_ref
-        self._refresh_all()
+    def _on_select_nav(self, event: wx.CommandEvent) -> None:
+        index = event.GetSelection()
+        if 0 <= index < len(self._list_refs):
+            self._select_ref(self._list_refs[index])
 
     def _select_keyword(self, term: str, *, refresh_center: bool) -> None:
         self.selected_keyword = term
         self.layout_state.selected_keyword = term
         self._reload_projection()
-        detail = self._selected_detail()
+        self._refresh_right_context(self._selected_detail() or {})
         if refresh_center:
             self._refresh_focus_modules()
-        elif detail:
-            self._refresh_right_context(detail)
 
-    def _on_support_surface(self, event: wx.Event) -> None:
-        label = "Support"
-        event_id = event.GetId()
-        if event_id in {self.new_candidature_item.GetId(), self.new_button.GetId()}:
-            label = "New candidature"
-        if event_id in {self.profile_item.GetId(), self.profile_button.GetId()}:
-            label = "Profile"
-        wx.MessageBox(f"{label} opens as a compact dialog in the next slice.", "AAAAT", wx.OK | wx.ICON_INFORMATION, self)
+    def _on_support_surface(self, _event: wx.Event) -> None:
+        wx.MessageBox("This desktop slice keeps creation/profile editing in existing flows.", "AAAAT Desktop")
 
     def _on_reset_layout(self, _event: wx.Event) -> None:
+        self.layout_state = self.layout_state.default()
+        self.center_card_state.reset()
+        self.focus_left_width = DEFAULT_FOCUS_LEFT
+        self.focus_right_width = DEFAULT_FOCUS_RIGHT
         self._focus_layout_applied = False
-        self._apply_focus_layout(True)
-        self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_left_width
-        self.layout_state.pane_layout.setdefault("smart", {})["right"] = self.focus_right_width
-        self.layout_state.save(self.layout_path)
-        self.Layout()
+        if self.focus_splitter.IsSplit():
+            self.focus_splitter.SetSashPosition(self.focus_left_width)
+        if self.content_splitter.IsSplit():
+            self.content_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width)
+        if self.center_splitter.IsSplit():
+            self.center_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[1] - DEFAULT_CENTER_NOTES_HEIGHT - 90)
+        self._refresh_all()
 
     def _on_close(self, event: wx.CloseEvent) -> None:
-        try:
-            self.layout_state.selected_view = self.current_view
-            self.layout_state.selected_candidature_ref = self.selected_ref
-            self.layout_state.selected_keyword = self.selected_keyword
-            if self.focus_splitter.IsSplit():
-                self.layout_state.pane_layout.setdefault("smart", {})["left"] = max(1, int(self.focus_splitter.GetSashPosition()))
-            if self.right_scroll:
-                self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(1, min(240, int(self.right_scroll.GetSize().GetWidth())))
-            if self.detailed_splitter.IsSplit():
-                self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(1, int(self.detail_panel.GetSize().GetWidth()))
-            self.layout_state.save(self.layout_path)
-        finally:
-            event.Skip()
+        self.layout_state.selected_view = self.current_view
+        self.layout_state.selected_candidature_ref = self.selected_ref
+        self.layout_state.selected_keyword = self.selected_keyword
+        self.layout_state.search_query = self.search_query
+        if self.focus_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
+        if self.content_splitter.IsSplit():
+            total = max(1, self.content_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(160, total - self.content_splitter.GetSashPosition())
+        if hasattr(self, "detailed_splitter") and self.detailed_splitter.IsSplit():
+            total = max(1, self.detailed_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(220, total - self.detailed_splitter.GetSashPosition())
+        self.layout_state.save(self.layout_path)
+        event.Skip()
