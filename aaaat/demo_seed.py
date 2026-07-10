@@ -93,7 +93,8 @@ def _maybe_blank(index: int, value: str) -> str:
 def _clear_seed_data(conn: sqlite3.Connection) -> None:
     conn.execute("DELETE FROM application_keywords")
     conn.execute("DELETE FROM generated_artifacts")
-    conn.execute("DELETE FROM agent_tasks")
+    conn.execute("DELETE FROM tasks")
+    conn.execute("DELETE FROM todos")
     conn.execute("DELETE FROM text_blobs")
     conn.execute("DELETE FROM notes")
     conn.execute("DELETE FROM raw_intake")
