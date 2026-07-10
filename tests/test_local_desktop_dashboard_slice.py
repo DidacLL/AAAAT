@@ -181,15 +181,27 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
 class LocalDesktopDashboardSeedTests(unittest.TestCase):
     def test_seed_creates_many_mostly_complete_candidatures(self):
         with tempfile.TemporaryDirectory() as tmp:
-            created = seed(tmp, count=18, reset=True)
+            summary = seed(tmp, count=18, reset=True)
             with connect(tmp) as conn:
                 apps = list_applications(conn)
 
-        self.assertEqual(len(created), 18)
+        self.assertEqual(summary["total"], 18)
+        self.assertEqual(summary["created"], 18)
         self.assertEqual(len(apps), 18)
         self.assertTrue(any(app["pitch"] for app in apps))
-        self.assertTrue(any(not app["pitch"] for app in apps))
+        self.assertTrue(any(app["call_signals"] for app in apps))
         self.assertTrue(any(app["keywords"] for app in apps))
+
+    def test_seed_is_idempotent_without_reset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = seed(tmp, count=3, reset=True)
+            second = seed(tmp, count=3)
+            with connect(tmp) as conn:
+                apps = list_applications(conn)
+
+        self.assertEqual(first["created"], 3)
+        self.assertEqual(second["updated"], 3)
+        self.assertEqual(len(apps), 3)
 
 
 class LocalDesktopDashboardRuntimeBoundaryTests(unittest.TestCase):
