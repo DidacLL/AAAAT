@@ -5,6 +5,7 @@ from typing import Any, Callable
 import wx  # type: ignore[import-not-found]
 
 from .detail_fields import collect_writable_changes, grouped_detail_fields
+from .scrolling import bind_parent_wheel_scroll
 
 EditableSaveCallback = Callable[[str, dict[str, str]], None]
 
@@ -33,33 +34,39 @@ class DetailPanel(wx.ScrolledWindow):
         self.SetSizer(self.sizer)
 
     def render(self, projection: dict[str, Any], *, can_edit: bool) -> None:
-        self.sizer.Clear(delete_windows=True)
-        self._controls = {}
-        self._original_values = {}
-        self._field_storage_keys = {}
-        detailed = projection.get("detailed") or {}
-        selected = detailed.get("selected_row")
-        if not selected:
-            self._current_ref = None
-            self._add_empty()
+        self.Freeze()
+        try:
+            self.sizer.Clear(delete_windows=True)
+            self._controls = {}
+            self._original_values = {}
+            self._field_storage_keys = {}
+            detailed = projection.get("detailed") or {}
+            selected = detailed.get("selected_row")
+            if not selected:
+                self._current_ref = None
+                self._add_empty()
+                self.Layout()
+                self.FitInside()
+                bind_parent_wheel_scroll(self, self)
+                return
+
+            self._current_ref = str(selected.get("ref") or "")
+            title = wx.StaticText(self, label=str(selected.get("company") or "Untitled Company"))
+            title.SetFont(title.GetFont().Bold().Larger().Larger())
+            role = wx.StaticText(self, label=str(selected.get("role") or "Untitled Role"))
+            role.SetFont(role.GetFont().Bold().Larger())
+            self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+            self.sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+
+            self._add_actions(can_edit)
+            for group in grouped_detail_fields(projection):
+                self._add_group(group, can_edit=can_edit)
+
             self.Layout()
             self.FitInside()
-            return
-
-        self._current_ref = str(selected.get("ref") or "")
-        title = wx.StaticText(self, label=str(selected.get("company") or "Untitled Company"))
-        title.SetFont(title.GetFont().Bold().Larger().Larger())
-        role = wx.StaticText(self, label=str(selected.get("role") or "Untitled Role"))
-        role.SetFont(role.GetFont().Bold().Larger())
-        self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        self.sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-
-        self._add_actions(can_edit)
-        for group in grouped_detail_fields(projection):
-            self._add_group(group, can_edit=can_edit)
-
-        self.Layout()
-        self.FitInside()
+            bind_parent_wheel_scroll(self, self)
+        finally:
+            self.Thaw()
 
     def _add_actions(self, can_edit: bool) -> None:
         actions = wx.BoxSizer(wx.HORIZONTAL)
