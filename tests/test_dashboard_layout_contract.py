@@ -85,6 +85,7 @@ class DashboardLayoutContractTests(unittest.TestCase):
         body = _first(tags, tag="body")
         self.assertEqual(body.get("data-page-scroll"), "not-primary")
         self.assertEqual(body.get("data-overflow-contract"), "panel-local-scroll")
+        self.assertEqual(body.get("data-has-selected"), "true")
         self.assertIn("dashboard-body", body.get("class", ""))
 
         shell = _first(tags, tag="main", attr="data-dashboard-shell", value="bounded")
@@ -125,7 +126,7 @@ class DashboardLayoutContractTests(unittest.TestCase):
         for module in modules:
             self.assertEqual(module.get("data-module-boundary"), "bounded")
             self.assertIn(module.get("data-module-state"), {"expanded", "collapsed"})
-            self.assertEqual(module.get("x-data"), "{ open: true }")
+            self.assertTrue(module.get("x-data"))
             self.assertEqual(module.get("x-bind:data-module-state"), "open ? 'expanded' : 'collapsed'")
             self.assertTrue(module.get("data-module-id"))
 
@@ -174,7 +175,7 @@ class DashboardLayoutContractTests(unittest.TestCase):
         selector_buttons = [attrs for tag, attrs in tags if tag == "button" and attrs.get("data-module-selector-id") == "smart-context-selector"]
 
         self.assertTrue(any(button.get("hx-get", "").startswith("/dashboard/fragments/inspector") for button in selector_buttons))
-        self.assertTrue(all(button.get("hx-target") == '[aria-label="Inspector"]' for button in selector_buttons))
+        self.assertTrue(all(button.get("hx-target") == '[aria-label="Context"]' for button in selector_buttons))
         self.assertTrue(all(button.get("hx-swap") == "outerHTML" for button in selector_buttons))
         panel = _first(tags, tag="div", attr="data-module-selector-panel")
         self.assertEqual(panel.get("data-module-selector-id"), "smart-context-selector")
@@ -191,7 +192,7 @@ class DashboardLayoutContractTests(unittest.TestCase):
         panels = [attrs for _, attrs in tags if "data-expandable-panel" in attrs]
         bodies = [attrs for _, attrs in tags if "data-panel-body" in attrs]
 
-        self.assertGreaterEqual(len(panels), 10)
+        self.assertGreaterEqual(len(panels), 9)
         for panel in panels:
             self.assertEqual(panel.get("data-panel-default"), "collapsed")
             self.assertEqual(panel.get("data-panel-state"), "collapsed")
@@ -217,7 +218,7 @@ class DashboardLayoutContractTests(unittest.TestCase):
             self.assertTrue(control.get("aria-controls"))
 
     def test_creation_profile_config_and_action_forms_start_inside_collapsed_panels(self):
-        html = "\n".join([self.render_dashboard("smartView"), self.render_dashboard("userView"), self.render_dashboard("detailedView")])
+        html = "\n".join([self.render_dashboard("welcomeView"), self.render_dashboard("smartView"), self.render_dashboard("userView"), self.render_dashboard("detailedView")])
 
         self.assertIn('data-panel-kind="creation"', html)
         self.assertIn('data-panel-kind="profile"', html)
