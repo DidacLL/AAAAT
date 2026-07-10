@@ -9,10 +9,11 @@ PR: `#37`
 SMART_VIEW_APPROVED
 DETAILED_VIEW_FOUNDATION_ADDED
 DETAILED_VIEW_FOUNDATION_VISUALLY_ACCEPTED_WITH_FOLLOWUPS
-READY_FOR_DETAILED_VIEW_EDITING_AND_COLUMNS_REFINEMENT
+DETAILED_VIEW_COLUMNS_AND_EDITING_ADDED
+READY_FOR_DETAILED_VIEW_EDITING_MANUAL_VERIFICATION
 ```
 
-Smart View remains the approved local desktop call cockpit. The Detailed View foundation has been visually accepted as the structured batch inspection/review surface, with a focused follow-up slice required for column controls and right-panel editing.
+Smart View remains the approved local desktop call cockpit. The Detailed View foundation has been visually accepted as the structured batch inspection/review surface, and the focused follow-up for column controls and right-panel editing has been implemented.
 
 ## Approved Smart View UX contract
 
@@ -31,11 +32,11 @@ notes remain fixed in the bottom center band
 keyword links inside center text update the right definition pane
 ```
 
-## Detailed View foundation
+## Detailed View behavior
 
 Detailed View is the batch review surface, not the recruiter-call cockpit.
 
-Implemented and visually accepted:
+Implemented and visually accepted foundation:
 
 ```text
 open Detailed View from the desktop frame
@@ -46,34 +47,36 @@ show selected structured detail
 open selected candidature back in Smart View
 ```
 
-The Detail panel shows projected toolbox actions as non-mutating review affordances only. This foundation slice does not add editing, broad CRUD, or external mutation authority.
-
-## Local visual verification review
-
-Result:
+Implemented refinement:
 
 ```text
-Good job. This is what is expected.
+hide/show columns through a small Columns dialog
+rebuild wx table from selected visible columns
+persist visible column choices through existing DashboardLayoutState.detailed_columns
+editable selected-candidature fields in the right panel
+clear editable/read-only separation
+explicit Save and Cancel/Revert
+save through DesktopCommandService.update_candidature_fields
+projection refresh after save with selected candidature kept stable
+Open in Smart View continues to open the selected candidature after edits
 ```
 
-Follow-up requirements:
+Editable fields:
 
 ```text
-1. Detailed View needs column control: hide/show columns is preferred if simpler than moving/reordering columns.
-2. The selected candidature shown in the right panel should be easy to edit for supported fields.
+company
+role
+status
+priority
+location
+remote_mode
+source
+source_url
+next_action
+notes
 ```
 
-These follow-ups are planned in:
-
-```text
-docs/planning/local-desktop-dashboard-slice-03-detailed-view-editing-columns-plan.md
-```
-
-Target classification after the follow-up slice:
-
-```text
-READY_FOR_DETAILED_VIEW_EDITING_MANUAL_VERIFICATION
-```
+Unsupported/source-derived projected fields remain read-only.
 
 ## Current wx adapter structure
 
@@ -106,16 +109,19 @@ aaaat/ui_desktop/wx_html_links.py
   kw: glossary links in wx HTML
 
 aaaat/ui_desktop/services.py
-  DesktopCommandService.save_note
+  DesktopCommandService.save_note and update_candidature_fields
 
 aaaat/ui_desktop/detailed_view.py
-  Detailed View orchestration
+  Detailed View orchestration, column controls, save/cancel handoff
 
 aaaat/ui_desktop/detail_table.py
-  projected candidature row table
+  projected candidature row table and visible-column rendering
 
 aaaat/ui_desktop/detail_panel.py
-  selected-row structured detail panel
+  editable selected-row structured detail panel
+
+aaaat/ui_desktop/detail_columns.py
+  toolkit-neutral visible-column helpers
 ```
 
 ## Projection/runtime contract
@@ -133,9 +139,13 @@ projection contract and toolkit-neutral imports
 Smart View primary-note/source/keyword/card-state guards
 Detailed View projection rows/selected row
 Detailed View desktop projection builder import without wx
+Detail column helper behavior without wx
+DesktopCommandService supported-field updates
 Detailed View open-from-frame source guard
 DetailTable / DetailPanel extraction guards
-main_window.py shell-size and no-table/no-persistence guards
+column hide/show source guards
+right-panel editable-field save/cancel source guards
+main_window.py shell-size and no-table/no-persistence/no-edit-logic guards
 wx import isolation
 runtime boundary guard
 full unittest discovery in CI
@@ -144,9 +154,8 @@ full unittest discovery in CI
 ## Not implemented yet
 
 ```text
-Detailed View editable right panel
-Detailed View column hide/show controls
-Detailed View column persistence if cleanly supported by existing layout state
+Detailed View drag column reordering
+Detailed View richer field validation/pickers
 Full User View wx workspace
 Full Welcome View onboarding surface
 real new-candidature/profile/settings desktop dialogs
@@ -168,7 +177,11 @@ Check:
 List opens the approved Smart overview
 Detailed opens the batch review surface
 Detailed shows candidature rows
-selecting a row updates the selected detail panel
-Open in Smart View opens the selected candidature in Smart focus
+Columns opens hide/show controls
+visible column choices rebuild the table
+selecting a row updates editable fields in the right panel
+Save applies supported field edits and keeps selection stable
+Cancel/Revert restores projected values without saving
+Open in Smart View opens the selected candidature after edits
 Smart overview/focus/card/notes/keyword behavior remains unchanged
 ```
