@@ -53,13 +53,14 @@ class SmartViewMixin(OverviewBoardMixin):
         self._bind_user_events()
 
     def _sync_view_buttons(self) -> None:
-        for button, selected in (
-            (self.overview_button, self.current_view == "smart"),
-            (self.detailed_button, self.current_view == "detailed"),
-            (self.user_button, self.current_view == "user"),
+        for button, label, view in (
+            (self.overview_button, "List", "smart"),
+            (self.detailed_button, "Detailed", "detailed"),
+            (self.user_button, "User", "user"),
         ):
-            if hasattr(button, "SetValue"):
-                button.SetValue(selected)
+            selected = self.current_view == view
+            button.SetLabel(f"[{label}]" if selected else label)
+            button.SetToolTip(f"Current view: {label}" if selected else f"Open {label} view")
 
     def _show_overview(self) -> None:
         self.current_view = "smart"
