@@ -34,10 +34,10 @@ class SmartViewMixin(OverviewBoardMixin):
         self.Bind(wx.EVT_CLOSE, self._on_close)
         self.Bind(wx.EVT_MENU, lambda _event: self.Close(), id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self._on_support_surface, self.new_candidature_item)
-        self.Bind(wx.EVT_MENU, self._on_support_surface, self.profile_item)
+        self.Bind(wx.EVT_MENU, lambda _event: self._go_user(), self.profile_item)
         self.Bind(wx.EVT_MENU, self._on_reset_layout, self.reset_layout_item)
         self.new_button.Bind(wx.EVT_BUTTON, self._on_support_surface)
-        self.profile_button.Bind(wx.EVT_BUTTON, self._on_support_surface)
+        self.user_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_user())
         self.reset_button.Bind(wx.EVT_BUTTON, self._on_reset_layout)
         self.overview_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_overview())
         self.detailed_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_detailed())
@@ -50,6 +50,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.nav_search.Bind(wx.EVT_SEARCHCTRL_CANCEL_BTN, self._on_clear_search)
         self.nav_list.Bind(wx.EVT_LISTBOX, self._on_select_nav)
         self._bind_detailed_events()
+        self._bind_user_events()
 
     def _show_overview(self) -> None:
         self.current_view = "smart"
@@ -58,6 +59,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.overview_panel.Show()
         self.focus_panel.Hide()
         self.detailed_panel.Hide()
+        self.user_panel.Hide()
         self.root_sizer.Layout()
         self.Layout()
 
@@ -67,6 +69,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.overview_panel.Hide()
         self.focus_panel.Show()
         self.detailed_panel.Hide()
+        self.user_panel.Hide()
         self.root_sizer.Layout()
         self.Layout()
         if not self._focus_layout_applied:
@@ -97,7 +100,10 @@ class SmartViewMixin(OverviewBoardMixin):
         self.Freeze()
         try:
             self._reload_projection()
-            if self.current_view == "detailed" and self.detailed_panel.IsShown():
+            if self.current_view == "user" and self.user_panel.IsShown():
+                self._refresh_user_view()
+                self.title.SetLabel("AAAAT · User")
+            elif self.current_view == "detailed" and self.detailed_panel.IsShown():
                 self._refresh_detailed_view()
                 self.title.SetLabel("AAAAT · Detailed")
             elif self.overview_panel.IsShown():
@@ -114,7 +120,7 @@ class SmartViewMixin(OverviewBoardMixin):
     def _reload_projection(self) -> None:
         with connect(self.storage_path) as conn:
             payload = dashboard_payload(conn, include_raw=True)
-        view = self.current_view if self.current_view in {"smart", "detailed"} else "smart"
+        view = self.current_view if self.current_view in {"smart", "detailed", "user"} else "smart"
         self.projection = build_dashboard_projection(
             payload,
             self.mode,
@@ -332,7 +338,7 @@ class SmartViewMixin(OverviewBoardMixin):
             self._refresh_focus_modules()
 
     def _on_support_surface(self, _event: wx.Event) -> None:
-        wx.MessageBox("This desktop slice keeps creation/profile editing in existing flows.", "AAAAT Desktop")
+        wx.MessageBox("This desktop slice keeps candidature creation in existing flows.", "AAAAT Desktop")
 
     def _on_reset_layout(self, _event: wx.Event) -> None:
         self.layout_state = self.layout_state.default()
