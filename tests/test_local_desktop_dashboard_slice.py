@@ -428,3 +428,32 @@ class LocalDesktopDashboardSeedTests(unittest.TestCase):
         self.assertTrue(any(app["keywords"] for app in apps))
         self.assertTrue(raw)
         self.assertGreater(len(raw[0]["content"]), 1000)
+        self.assertIn("About the role", raw[0]["content"])
+
+    def test_seed_is_idempotent_without_reset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = seed(tmp, count=3, reset=True)
+            second = seed(tmp, count=3)
+            with connect(tmp) as conn:
+                apps = list_applications(conn)
+                raw = [list_raw_intake(conn, app["id"]) for app in apps]
+
+        self.assertEqual(first["created"], 3)
+        self.assertEqual(second["updated"], 3)
+        self.assertEqual(len(apps), 3)
+        self.assertTrue(all(len(items) == 1 for items in raw))
+
+
+class LocalDesktopDashboardRuntimeBoundaryTests(unittest.TestCase):
+    def test_agent_runtime_does_not_import_desktop_ui_or_projection(self):
+        from aaaat.server_fastapi import create_agent_app
+
+        source = inspect.getsource(create_agent_app)
+
+        self.assertNotIn("ui_desktop", source)
+        self.assertNotIn("dashboard_projection", source)
+        self.assertNotIn("DashboardLayoutState", source)
+
+
+if __name__ == "__main__":
+    unittest.main()
