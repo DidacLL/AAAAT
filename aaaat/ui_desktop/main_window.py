@@ -51,6 +51,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.focus_right_width = min(saved_right, 240)
         self._list_refs: list[str] = []
         self._overview_card_refs: list[str] = []
+        self._rendered_view_keys: dict[str, tuple[Any, ...]] = {}
 
         self._init_smart_view_helpers()
         self._build_menu()
@@ -86,6 +87,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.root_sizer = wx.BoxSizer(wx.VERTICAL)
         self.root.SetSizer(self.root_sizer)
         self._build_toolbar()
+        self._build_view_book()
         self._build_overview_surface()
         self._build_focus_surface()
         self._build_detailed_surface()
@@ -98,22 +100,24 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.title = wx.StaticText(self.toolbar, label="AAAAT")
         self.title.SetFont(self.title.GetFont().Bold().Larger())
         self.mode_chip = wx.StaticText(self.toolbar, label="read-only" if self.mode == Mode.READ_ONLY else "local")
-        self.overview_button = wx.Button(self.toolbar, label="List", size=(76, -1))
-        self.detailed_button = wx.Button(self.toolbar, label="Detailed", size=(104, -1))
-        self.user_button = wx.Button(self.toolbar, label="User", size=(78, -1))
-        self.profile_button = self.user_button
         self.reset_button = wx.Button(self.toolbar, label="Reset", size=(68, -1))
         self.new_button = wx.Button(self.toolbar, label="+", size=(40, -1))
-        self._view_button_default_font = self.overview_button.GetFont()
-        self._view_button_active_font = self._view_button_default_font.Bold()
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
-        for control in (self.mode_chip, self.overview_button, self.detailed_button, self.user_button, self.reset_button, self.new_button):
+        for control in (self.mode_chip, self.reset_button, self.new_button):
             toolbar_sizer.Add(control, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         self.root_sizer.Add(self.toolbar, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
 
+    def _build_view_book(self) -> None:
+        self.view_book = wx.Notebook(self.root, style=wx.NB_TOP)
+        self.smart_panel = wx.Panel(self.view_book)
+        self.smart_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.smart_panel.SetSizer(self.smart_sizer)
+        self.view_book.AddPage(self.smart_panel, "List")
+        self.root_sizer.Add(self.view_book, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+
     def _build_overview_surface(self) -> None:
-        self.overview_panel = wx.Panel(self.root)
+        self.overview_panel = wx.Panel(self.smart_panel)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.overview_panel.SetSizer(sizer)
         self.overview_search = wx.SearchCtrl(self.overview_panel, style=wx.TE_PROCESS_ENTER)
@@ -125,10 +129,10 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.overview_cards_sizer = wx.WrapSizer(wx.HORIZONTAL)
         self.overview_scroll.SetSizer(self.overview_cards_sizer)
         sizer.Add(self.overview_scroll, 1, wx.EXPAND)
-        self.root_sizer.Add(self.overview_panel, 1, wx.ALL | wx.EXPAND, 6)
+        self.smart_sizer.Add(self.overview_panel, 1, wx.ALL | wx.EXPAND, 6)
 
     def _build_focus_surface(self) -> None:
-        self.focus_panel = wx.Panel(self.root)
+        self.focus_panel = wx.Panel(self.smart_panel)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.focus_panel.SetSizer(sizer)
         self.focus_splitter = wx.SplitterWindow(self.focus_panel, style=wx.SP_LIVE_UPDATE)
@@ -143,7 +147,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         initial_center_width = DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width
         self.content_splitter.SplitVertically(self.center_panel, self.right_scroll, max(640, initial_center_width))
         sizer.Add(self.focus_splitter, 1, wx.EXPAND)
-        self.root_sizer.Add(self.focus_panel, 1, wx.ALL | wx.EXPAND, 6)
+        self.smart_sizer.Add(self.focus_panel, 1, wx.ALL | wx.EXPAND, 6)
 
         self._build_nav_panel()
         self._build_center_panel()
