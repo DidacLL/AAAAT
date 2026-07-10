@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from aaaat.db import connect, create_application, get_application, init_db, update_application, upsert_glossary_term
+from aaaat.db import add_raw_intake, connect, create_application, get_application, init_db, update_application, upsert_glossary_term
 
 
 COMPANIES = [
@@ -110,18 +110,64 @@ def build_record(index: int) -> dict[str, Any]:
     return record
 
 
-def upsert_application(conn: sqlite3.Connection, record: dict[str, Any]) -> str:
+def build_raw_offer_text(index: int, record: dict[str, Any]) -> str:
+    keywords = list(record.get("keywords") or [])
+    focus = keywords[0] if keywords else "systems"
+    secondary = keywords[1] if len(keywords) > 1 else "delivery"
+    company = record["company"]
+    role = record["role"]
+    return f"""{company} — {role}
+
+About the role
+We are looking for a pragmatic engineer to join a small product/platform team. The role works close to product, operations, and engineering leadership. You will help improve internal systems, remove recurring manual work, and build reliable services that can be understood and maintained by a small team.
+
+What you will do
+- Own backend services related to {focus}, integrations, and operational workflows.
+- Review existing scripts and services, identify fragile points, and replace them with simpler, observable components.
+- Work with product and operations to translate ambiguous requirements into small deliverable slices.
+- Improve deployment, monitoring, and incident response around systems that affect customer-facing workflows.
+- Document decisions clearly enough that another engineer can continue the work without tribal knowledge.
+
+Tech stack and context
+The current stack includes {', '.join(keywords)}. Some services are mature and stable, while others grew organically during a busy product period. We value maintainability, careful migrations, and clean operational boundaries more than fashionable architecture. Experience with {secondary}, data flows, APIs, and production debugging will be useful.
+
+What we are looking for
+- Strong Python or backend engineering fundamentals.
+- Ability to reason about trade-offs and avoid overengineering.
+- Comfort reading existing code before proposing rewrites.
+- Clear communication during ambiguous product discussions.
+- Evidence of ownership: diagnosing issues, reducing repeated manual work, and shipping improvements incrementally.
+
+Interview process
+The first call is a recruiter screen focused on motivation, salary range, remote expectations, and recent backend/platform work. The second step is a technical conversation with two engineers. Later steps may include a small system-design exercise and a conversation with the hiring manager.
+
+Signals to remember
+This is the offer text that would visually identify {company} during a call: {record['source']} mentioned {focus}, {secondary}, ownership, and a team trying to reduce operational friction without building a large platform team.
+
+Open questions
+- What is broken enough that the first hire should improve it immediately?
+- How much product ambiguity is expected from this role?
+- Is the team looking for a builder, an operator, or a platform owner?
+- Which systems are risky today because only one person understands them?
+"""
+
+
+def upsert_application(conn: sqlite3.Connection, record: dict[str, Any], raw_offer_text: str) -> str:
     app_id = str(record["id"])
     try:
         get_application(conn, app_id)
     except KeyError:
         create_application(conn, **record)
-        return "created"
+        result = "created"
+    else:
+        update_fields = dict(record)
+        update_fields.pop("id", None)
+        update_application(conn, app_id, **update_fields)
+        result = "updated"
 
-    update_fields = dict(record)
-    update_fields.pop("id", None)
-    update_application(conn, app_id, **update_fields)
-    return "updated"
+    conn.execute("DELETE FROM raw_intake WHERE application_id = ? AND created_by = ?", (app_id, "demo_seed"))
+    add_raw_intake(conn, app_id, raw_offer_text, created_by="demo_seed")
+    return result
 
 
 def seed(storage: str | Path, count: int = 48, *, reset: bool = False) -> dict[str, int]:
@@ -134,7 +180,8 @@ def seed(storage: str | Path, count: int = 48, *, reset: bool = False) -> dict[s
         for term, definition in GLOSSARY.items():
             upsert_glossary_term(conn, term, definition, "demo")
         for index in range(count):
-            result = upsert_application(conn, build_record(index))
+            record = build_record(index)
+            result = upsert_application(conn, record, build_raw_offer_text(index, record))
             if result == "created":
                 created += 1
             else:
