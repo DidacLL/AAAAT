@@ -36,6 +36,7 @@ class DetailTable(wx.Panel):
 
     def render(self, detailed: dict[str, Any], *, selected_ref: str | None, visible_columns: list[str] | None = None) -> None:
         self._rendering = True
+        self.Freeze()
         try:
             self.table.DeleteAllItems()
             self.table.DeleteAllColumns()
@@ -63,6 +64,7 @@ class DetailTable(wx.Panel):
                 self.table.Select(selected_index)
                 self.table.Focus(selected_index)
         finally:
+            self.Thaw()
             self._rendering = False
 
     def _filtered_rows(self, detailed: dict[str, Any]) -> list[dict[str, Any]]:
