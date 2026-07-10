@@ -117,6 +117,12 @@ class LocalDesktopDashboardLayoutTests(unittest.TestCase):
 
         self.assertEqual(loaded.selected_view, "detailed")
 
+    def test_smart_defaults_give_right_context_less_space(self):
+        state = DashboardLayoutState.default()
+
+        self.assertLess(state.pane_layout["smart"]["right"], state.pane_layout["detailed"]["right"])
+        self.assertLessEqual(state.pane_layout["smart"]["left"], 220)
+
 
 class LocalDesktopDashboardModuleRegistryTests(unittest.TestCase):
     def test_default_registry_is_valid_and_view_scoped(self):
@@ -153,6 +159,16 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         app_source = inspect.getsource(desktop_app)
         self.assertIn("import wx", app_source)
         self.assertIn("inside this function", app_source)
+
+    def test_smart_view_source_has_overview_and_focus_modes(self):
+        source = Path("aaaat/ui_desktop/main_window.py").read_text(encoding="utf-8")
+
+        self.assertIn("overview", source)
+        self.assertIn("_candidature_card", source)
+        self.assertIn("_show_focus", source)
+        self.assertIn("CollapsiblePane", source)
+        self.assertIn("Reset layout", source)
+        self.assertIn("DEFAULT_FOCUS_RIGHT = 260", source)
 
 
 class LocalDesktopDashboardRuntimeBoundaryTests(unittest.TestCase):
