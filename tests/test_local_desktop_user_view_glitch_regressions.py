@@ -24,19 +24,33 @@ class LocalDesktopUserViewGlitchRegressionTests(unittest.TestCase):
         self.assertIn("GetScrollThumb(wx.VERTICAL)", scrolling)
         self.assertIn("scroll_range > scroll_thumb > 0", scrolling)
 
-    def test_view_buttons_are_toggle_buttons_and_synced_from_current_view(self):
+    def test_view_buttons_are_plain_buttons_with_active_label_marker(self):
         main_window = Path("aaaat/ui_desktop/main_window.py").read_text(encoding="utf-8")
         smart_view = Path("aaaat/ui_desktop/smart_view.py").read_text(encoding="utf-8")
         detailed_view = Path("aaaat/ui_desktop/detailed_view.py").read_text(encoding="utf-8")
         user_view = Path("aaaat/ui_desktop/user_view.py").read_text(encoding="utf-8")
 
-        self.assertIn("wx.ToggleButton(self.toolbar, label=\"List\"", main_window)
-        self.assertIn("wx.ToggleButton(self.toolbar, label=\"Detailed\"", main_window)
-        self.assertIn("wx.ToggleButton(self.toolbar, label=\"User\"", main_window)
+        self.assertIn("wx.Button(self.toolbar, label=\"List\"", main_window)
+        self.assertIn("wx.Button(self.toolbar, label=\"Detailed\"", main_window)
+        self.assertIn("wx.Button(self.toolbar, label=\"User\"", main_window)
+        self.assertNotIn("wx.ToggleButton", main_window)
         self.assertIn("def _sync_view_buttons", smart_view)
-        self.assertIn("button.SetValue(selected)", smart_view)
+        self.assertIn("button.SetLabel(f\"[{label}]\" if selected else label)", smart_view)
+        self.assertIn("button.SetToolTip", smart_view)
+        self.assertNotIn("SetValue(selected)", smart_view)
         self.assertIn("self._sync_view_buttons()", detailed_view)
         self.assertIn("self._sync_view_buttons()", user_view)
+
+    def test_reset_layout_remains_a_command_not_a_view_tab(self):
+        main_window = Path("aaaat/ui_desktop/main_window.py").read_text(encoding="utf-8")
+        smart_view = Path("aaaat/ui_desktop/smart_view.py").read_text(encoding="utf-8")
+
+        self.assertIn("self.reset_button = wx.Button", main_window)
+        self.assertIn("self.reset_button.Bind(wx.EVT_BUTTON, self._on_reset_layout)", smart_view)
+        reset_body = smart_view[smart_view.index("def _on_reset_layout") : smart_view.index("\n    def ", smart_view.index("def _on_reset_layout") + 1)]
+        self.assertNotIn('current_view = "user"', reset_body)
+        self.assertNotIn('current_view = "detailed"', reset_body)
+        self.assertNotIn('current_view = "smart"', reset_body)
 
     def test_view_switches_defer_root_layout_to_single_refresh_pass(self):
         smart_view = Path("aaaat/ui_desktop/smart_view.py").read_text(encoding="utf-8")
