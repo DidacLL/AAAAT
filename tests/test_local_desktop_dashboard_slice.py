@@ -174,7 +174,11 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("overview_cards_sizer", source)
         self.assertIn("wx.WrapSizer(wx.HORIZONTAL)", source)
         self.assertIn("_bind_card_click", source)
-        self.assertIn("OVERVIEW_CARD_SIZE", source)
+        self.assertIn("_on_card_click", source)
+        self.assertIn("expanded_overview_ref", source)
+        self.assertIn("EXPANDED_CARD_SIZE", source)
+        self.assertIn("Click again to open Smart View", source)
+        self.assertIn("Freeze()", source)
         self.assertNotIn("_overview_cards_sizer", source)
 
 
