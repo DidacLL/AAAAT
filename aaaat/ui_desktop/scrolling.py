@@ -22,7 +22,18 @@ def bind_parent_wheel_scroll(root: wx.Window, scrolled_parent: wx.ScrolledWindow
 def _keeps_own_wheel_scroll(window: wx.Window) -> bool:
     if not isinstance(window, wx.TextCtrl):
         return False
-    return bool(window.GetWindowStyleFlag() & wx.TE_MULTILINE)
+    if not bool(window.GetWindowStyleFlag() & wx.TE_MULTILINE):
+        return False
+    return _window_can_scroll_vertically(window)
+
+
+def _window_can_scroll_vertically(window: wx.Window) -> bool:
+    try:
+        scroll_range = int(window.GetScrollRange(wx.VERTICAL) or 0)
+        scroll_thumb = int(window.GetScrollThumb(wx.VERTICAL) or 0)
+    except Exception:
+        return False
+    return scroll_range > scroll_thumb > 0
 
 
 def _scroll_parent(event: wx.MouseEvent, scrolled_parent: wx.ScrolledWindow) -> None:
