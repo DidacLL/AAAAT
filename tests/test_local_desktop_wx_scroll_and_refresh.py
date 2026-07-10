@@ -8,6 +8,7 @@ class LocalDesktopWxScrollAndRefreshTests(unittest.TestCase):
         smart_view = Path("aaaat/ui_desktop/smart_view.py").read_text(encoding="utf-8")
         overview = Path("aaaat/ui_desktop/overview_board.py").read_text(encoding="utf-8")
         detail_panel = Path("aaaat/ui_desktop/detail_panel.py").read_text(encoding="utf-8")
+        user_panel = Path("aaaat/ui_desktop/user_panel.py").read_text(encoding="utf-8")
 
         self.assertIn("bind_parent_wheel_scroll", scrolling)
         self.assertIn("wx.EVT_MOUSEWHEEL", scrolling)
@@ -19,6 +20,15 @@ class LocalDesktopWxScrollAndRefreshTests(unittest.TestCase):
         self.assertIn("bind_parent_wheel_scroll(self.right_scroll, self.right_scroll)", smart_view)
         self.assertIn("bind_parent_wheel_scroll(self.overview_scroll, self.overview_scroll)", overview)
         self.assertIn("bind_parent_wheel_scroll(self, self)", detail_panel)
+        self.assertIn("bind_parent_wheel_scroll(self, self)", user_panel)
+
+    def test_user_cancel_revert_restores_projected_values_without_saving(self):
+        user_panel = Path("aaaat/ui_desktop/user_panel.py").read_text(encoding="utf-8")
+
+        self.assertIn("def _on_cancel", user_panel)
+        self.assertIn("control.SetValue(self._original_values.get", user_panel)
+        self.assertIn("self.on_cancel()", user_panel)
+        self.assertNotIn("self.on_save", user_panel[user_panel.index("def _on_cancel") :])
 
     def test_detailed_selection_refreshes_are_frozen_to_prevent_intermediate_paint(self):
         detailed_view = Path("aaaat/ui_desktop/detailed_view.py").read_text(encoding="utf-8")
