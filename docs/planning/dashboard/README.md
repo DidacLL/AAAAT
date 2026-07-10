@@ -19,23 +19,23 @@ Smart View and Detailed View do not replace Welcome View and User View.
 
 ## Current product status
 
-The current branch is CI-green and has completed the planned corrective dashboard UX baseline through the final hard UX contract pass.
+The previous `PRODUCT_READY_TO_REVIEW` status was premature. A browser-blocking UX regression was found: `dashboard.html` loaded `/static/alpine.min.js`, but that asset was missing, so Alpine-owned local dashboard state did not execute.
 
 Current readiness classification:
 
 ```text
-PRODUCT_READY_TO_REVIEW
+BLOCKED_BY_UX_REGRESSION
 ```
 
-This means the branch is ready for product review. It does not mean the PR has been product-approved or merged.
+The regression fix pass has added the missing local runtime asset and stabilized Detailed View row selection, but product-ready status should not be restored until the dashboard is manually verified in a browser.
 
-The final product UX correction status is recorded in:
+The current product UX correction status is recorded in:
 
 ```text
 10-dashboard-product-ux-correction.md
 ```
 
-That file remains the current source of truth for the corrective dashboard behavior and final review decision:
+That file remains the current source of truth for the corrective dashboard behavior and review decision:
 
 ```text
 fixed dashboard shell
@@ -47,11 +47,12 @@ real button-based tab/module controls
 actual collapsed panels for forms/actions/configuration
 Smart View scan-safe first screen
 Detailed View column visibility/order controls
-hard UX acceptance tests beyond data-hook presence
+Alpine runtime asset available to execute local state
 runtime boundary preservation
+browser-level verification still required
 ```
 
-Do not merge the dashboard PR as product-approved until the product owner explicitly accepts the review-ready branch.
+Do not merge the dashboard PR as product-approved until the product owner explicitly accepts the branch.
 
 ## Dashboard interaction stack decision
 
@@ -107,22 +108,12 @@ Do not block the dashboard redesign on future work such as a compatibility descr
 
 ## Orchestration status
 
-Implementation reached a CI-green architectural base, then product UX review rejected the result as incomplete for required behavior. The corrective sequence has now completed:
-
-```text
-1. Bounded dashboard shell and left/center/right panel regions: done.
-2. Reusable dashboard module primitive: done.
-3. Button-based module selector primitive: done.
-4. Expandable form/action/configuration panels: done.
-5. Smart View scan-safe first screen: done.
-6. Detailed View column visibility/order controls: done.
-7. Final hard UX contract/review pass: done.
-```
+Implementation reached a CI-green architectural base, then product UX review rejected the result as incomplete for required behavior. A later final-pass review incorrectly marked the branch as product-ready while missing the actual Alpine runtime asset. That has been corrected.
 
 Current status:
 
 ```text
-PRODUCT_READY_TO_REVIEW
+BLOCKED_BY_UX_REGRESSION
 ```
 
-Future work should be product-review follow-up, not another corrective feature slice, unless a new blocker is found.
+Next required work is browser verification of the fixed local-state behavior.
