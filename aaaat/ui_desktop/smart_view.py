@@ -68,7 +68,8 @@ class SmartViewMixin(OverviewBoardMixin):
 
     def _view_cache_key(self, view: str) -> tuple[Any, ...]:
         detailed_columns = tuple(self.layout_state.detailed_columns.get("visible") or [])
-        return (view, str(self.selected_ref or ""), str(self.selected_keyword or ""), self.search_query, detailed_columns)
+        smart_surface = self._smart_surface if view == "smart" else ""
+        return (view, smart_surface, str(self.selected_ref or ""), str(self.selected_keyword or ""), self.search_query, detailed_columns)
 
     def _is_view_rendered(self, view: str) -> bool:
         return self._rendered_view_keys.get(view) == self._view_cache_key(view)
@@ -82,8 +83,7 @@ class SmartViewMixin(OverviewBoardMixin):
             return
         self._update_title_for_current_view()
         self._sync_view_tab()
-        self.root_sizer.Layout()
-        self.Layout()
+        self._layout_current_surface()
 
     def _update_title_for_current_view(self) -> None:
         if self.current_view == "user":
@@ -93,8 +93,28 @@ class SmartViewMixin(OverviewBoardMixin):
         else:
             self.title.SetLabel("AAAAT · Smart")
 
+    def _layout_current_surface(self) -> None:
+        if self.current_view == "smart":
+            self.smart_panel.Layout()
+            self.smart_sizer.Layout()
+            if self._smart_surface == "overview":
+                self.overview_panel.Layout()
+                self.overview_scroll.Layout()
+                self.overview_scroll.FitInside()
+            else:
+                self.focus_panel.Layout()
+        elif self.current_view == "detailed":
+            self.detailed_panel.Layout()
+        elif self.current_view == "user":
+            self.user_panel.Layout()
+        self.view_book.Layout()
+        self.root_sizer.Layout()
+        self.root.Layout()
+        self.Layout()
+
     def _show_overview(self) -> None:
         self.current_view = "smart"
+        self._smart_surface = "overview"
         self.layout_state.selected_view = "smart"
         self.selected_ref = None
         self.overview_panel.Show()
@@ -103,6 +123,7 @@ class SmartViewMixin(OverviewBoardMixin):
 
     def _show_focus(self) -> None:
         self.current_view = "smart"
+        self._smart_surface = "focus"
         self.layout_state.selected_view = "smart"
         self.overview_panel.Hide()
         self.focus_panel.Show()
@@ -129,7 +150,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.focus_left_width = left
         self.focus_right_width = right
         self._focus_layout_applied = True
-        self.Layout()
+        self._layout_current_surface()
 
     def _refresh_all(self) -> None:
         self.Freeze()
@@ -139,7 +160,7 @@ class SmartViewMixin(OverviewBoardMixin):
                 self._refresh_user_view()
             elif self.current_view == "detailed":
                 self._refresh_detailed_view()
-            elif self.overview_panel.IsShown():
+            elif self._smart_surface == "overview":
                 self._refresh_overview_cards()
             else:
                 self._refresh_nav_list()
@@ -147,8 +168,7 @@ class SmartViewMixin(OverviewBoardMixin):
             self._update_title_for_current_view()
             self._sync_view_tab()
             self._mark_current_view_rendered()
-            self.root_sizer.Layout()
-            self.Layout()
+            self._layout_current_surface()
         finally:
             self.Thaw()
 
@@ -347,11 +367,13 @@ class SmartViewMixin(OverviewBoardMixin):
         self.search_query = self.overview_search.GetValue()
         self.expanded_overview_ref = None
         self.nav_search.SetValue(self.search_query)
+        self._rendered_view_keys.pop("smart", None)
         self._refresh_all()
 
     def _on_nav_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = self.nav_search.GetValue()
         self.overview_search.SetValue(self.search_query)
+        self._rendered_view_keys.pop("smart", None)
         self._refresh_all()
 
     def _on_clear_search(self, _event: wx.CommandEvent) -> None:
@@ -359,6 +381,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.expanded_overview_ref = None
         self.overview_search.SetValue("")
         self.nav_search.SetValue("")
+        self._rendered_view_keys.pop("smart", None)
         self._refresh_all()
 
     def _on_select_nav(self, event: wx.CommandEvent) -> None:
