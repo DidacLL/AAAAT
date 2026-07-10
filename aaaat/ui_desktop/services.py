@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from aaaat.db import connect, update_application
+from aaaat.db import connect, set_profile_variable, update_application
 
 SUPPORTED_DETAIL_EDIT_FIELDS = {
     "company",
@@ -28,6 +28,17 @@ SUPPORTED_DETAIL_EDIT_FIELDS = {
     "form_answers",
 }
 
+SUPPORTED_PROFILE_VARIABLE_FIELDS = {
+    "profile.display_name",
+    "profile.email",
+    "profile.phone",
+    "profile.location",
+    "profile.linkedin_url",
+    "profile.github_url",
+    "profile.portfolio_url",
+    "profile.summary.default",
+}
+
 
 class DesktopCommandService:
     """Tiny local command adapter for desktop UI writes."""
@@ -44,3 +55,16 @@ class DesktopCommandService:
             return None
         with connect(self.storage_path) as conn:
             return update_application(conn, candidature_ref, **safe_changes)
+
+    def update_profile_variables(self, changes: dict[str, Any]) -> dict[str, str]:
+        safe_changes = {
+            key: str(value)
+            for key, value in changes.items()
+            if key in SUPPORTED_PROFILE_VARIABLE_FIELDS
+        }
+        if not safe_changes:
+            return {}
+        with connect(self.storage_path) as conn:
+            for key, value in safe_changes.items():
+                set_profile_variable(conn, key, value)
+        return safe_changes
