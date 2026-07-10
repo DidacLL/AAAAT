@@ -16,13 +16,16 @@
     textarea{min-height:82px}
     header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px;background:#fff;border-bottom:1px solid #d8dee8;flex:0 0 auto}
     header h1{font-size:22px;margin:0}.mode{font-size:12px;color:#6b7c90}
-    .command{display:grid;grid-template-columns:auto minmax(260px,1fr) auto;gap:12px;align-items:start;padding:12px 18px;background:#fff;border-bottom:1px solid #d8dee8;flex:0 0 auto}
+    .command{display:grid;grid-template-columns:auto minmax(260px,1fr);gap:12px;align-items:start;padding:12px 18px;background:#fff;border-bottom:1px solid #d8dee8;flex:0 0 auto}
     .views{display:flex;gap:6px;flex-wrap:wrap}.views a,.chip,.badge{border:1px solid #9aacbf;border-radius:999px;padding:3px 8px;text-decoration:none;font-size:13px;background:#fff}
     .views a[aria-current='page']{background:#dfeaf3}
     .global-search{display:flex;gap:6px}.global-search input{width:100%}
-    .new-candidature{min-width:280px}.check-row{display:flex;gap:8px;flex-wrap:wrap}
+    .check-row{display:flex;gap:8px;flex-wrap:wrap}
     .shell{display:grid;grid-template-columns:minmax(260px,.82fr) minmax(480px,1.42fr) minmax(320px,.9fr);gap:12px;padding:12px;box-sizing:border-box;width:100%;max-width:1500px;margin:0 auto;flex:1 1 auto;min-height:0;overflow:hidden}
+    body[data-dashboard-view='smartView'][data-has-selected='true'] .shell{grid-template-columns:minmax(220px,.52fr) minmax(560px,1.58fr) minmax(300px,.9fr)}
     .surface{background:#fff;border:1px solid #d8dee8;border-radius:6px;min-width:0;overflow:hidden}
+    .surface[data-module-state='collapsed']{align-self:start;min-height:0}.surface[data-module-state='collapsed'] [data-module-body]{display:none!important}
+    .expandable-panel[data-panel-state='collapsed'] [data-panel-body]{display:none!important}.expandable-panel[data-panel-state='collapsed']{min-height:0}
     .surface h2{font-size:15px;margin:0}
     .module-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #e5eaf0;flex:0 0 auto}
     .module-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:max-content}.module-toggle{font-size:12px;padding:3px 7px}
@@ -41,10 +44,10 @@
     .badge.visibility-public{background:#e7f5ee}.badge.visibility-professional{background:#eaf1fb}.badge.visibility-private{background:#fff4dc}.badge.visibility-sensitive{background:#fdeaea}
     .badge.exposure-raw{background:#eef7ff}.badge.exposure-denied,.badge.exposure-redacted{background:#f4e8ee}.badge.exposure-placeholder,.badge.exposure-summarized,.badge.exposure-anonymized{background:#f4f7ec}
     .empty{color:#62768d}.subtle{color:#62768d;font-size:13px}.section-title{font-size:13px;text-transform:uppercase;color:#62768d;margin:12px 0 6px}
-    @media(max-width:1080px){.command,.shell{grid-template-columns:1fr}.hero-grid,.field-grid,.quick-grid{grid-template-columns:1fr}.new-candidature{min-width:0}.field-line{grid-template-columns:1fr}.dashboard-panel{min-height:260px}}
+    @media(max-width:1080px){.command,.shell,body[data-dashboard-view='smartView'][data-has-selected='true'] .shell{grid-template-columns:1fr}.hero-grid,.field-grid,.quick-grid{grid-template-columns:1fr}.field-line{grid-template-columns:1fr}.dashboard-panel{min-height:260px}}
   </style>
 </head>
-<body class="dashboard-body" data-dashboard-view="{{ view }}" data-page-scroll="not-primary" data-overflow-contract="panel-local-scroll">
+<body class="dashboard-body" data-dashboard-view="{{ view }}" data-has-selected="{% if selected %}true{% else %}false{% endif %}" data-page-scroll="not-primary" data-overflow-contract="panel-local-scroll">
   {% import "partials/module.html" as ui %}
   <header>
     <h1>AAAAT</h1>
@@ -62,34 +65,6 @@
       <input name="q" value="{{ search_query }}" placeholder="Find candidature, company, keyword, note">
       <button>Search</button>
     </form>
-    {% if can_write(mode) %}
-      <div class="new-candidature">
-        {% call(slot) ui.expandable_panel("global-raw-intake", "New candidature", "creation", hooks="data-write-control='new-candidature-panel' data-raw-offer-entry", scroll=True) %}
-          {% if slot == "body" %}
-            <form method="post" action="/dashboard/actions/raw-offer-intake" data-write-control="raw-offer-intake-form">
-              <textarea name="content" required placeholder="Paste raw offer text"></textarea>
-              <input name="company" placeholder="Company">
-              <input name="role" placeholder="Role">
-              <div class="check-row">
-                <input name="status" placeholder="Status" value="intake">
-                <input name="priority" placeholder="Priority" value="normal">
-              </div>
-              <input name="source_url" placeholder="Source URL">
-              <input name="keywords" placeholder="Keywords, comma separated">
-              <div class="check-row">
-                <input type="hidden" name="include_field_inference_task" value="0"><label><input type="checkbox" name="include_field_inference_task" value="1" checked> Infer missing fields</label>
-                <input type="hidden" name="include_company_research_task" value="0"><label><input type="checkbox" name="include_company_research_task" value="1" checked> Company research</label>
-                <input type="hidden" name="include_keyword_detection_task" value="0"><label><input type="checkbox" name="include_keyword_detection_task" value="1" checked> Keyword detection</label>
-                <label><input type="checkbox" name="include_cv_task" value="1"> CV task</label>
-                <label><input type="checkbox" name="include_cover_letter_task" value="1"> Cover letter</label>
-                <label><input type="checkbox" name="include_form_responses_task" value="1"> Form responses</label>
-              </div>
-              <button>Create candidature and queue tasks</button>
-            </form>
-          {% endif %}
-        {% endcall %}
-      </div>
-    {% endif %}
   </nav>
   <main class="shell dashboard-shell" role="main" aria-label="Dashboard workspace" data-dashboard-shell="bounded" data-layout-contract="bounded-panels" data-overflow-owner="panels">
     {% include "partials/candidature_list.html" %}
