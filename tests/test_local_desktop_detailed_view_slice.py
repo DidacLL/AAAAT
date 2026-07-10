@@ -6,7 +6,7 @@ from pathlib import Path
 
 from aaaat.dashboard_layout import DashboardLayoutState
 from aaaat.dashboard_projection import build_dashboard_projection
-from aaaat.db import add_raw_intake, connect, create_application, get_application, init_db
+from aaaat.db import add_raw_intake, connect, create_application, get_application, init_db, list_applications, list_raw_intake
 from aaaat.payload import dashboard_payload
 from aaaat.security import Mode
 
@@ -120,6 +120,22 @@ class LocalDesktopDetailedViewProjectionTests(unittest.TestCase):
         self.assertEqual(updated["offer_snapshot"], "Updated offer")
         self.assertIn("Linux", updated["keywords"])
         self.assertNotEqual(updated["created_at"], "unsupported write must not pass detail boundary")
+
+    def test_desktop_command_service_deletes_selected_candidature(self):
+        from aaaat.ui_desktop.services import DesktopCommandService
+
+        _payload, first, second, storage = self.payload()
+        service = DesktopCommandService(storage)
+
+        self.assertTrue(service.delete_candidature(first["id"]))
+
+        with connect(storage) as conn:
+            with self.assertRaises(KeyError):
+                get_application(conn, first["id"])
+            remaining_refs = {app["id"] for app in list_applications(conn)}
+            self.assertNotIn(first["id"], remaining_refs)
+            self.assertIn(second["id"], remaining_refs)
+            self.assertEqual(list_raw_intake(conn, first["id"]), [])
 
     def test_detail_columns_normalize_visible_columns_without_wx(self):
         from aaaat.ui_desktop.detail_columns import DEFAULT_DETAILED_VISIBLE_COLUMNS, column_title, normalize_visible_columns
@@ -238,7 +254,7 @@ class LocalDesktopDetailedViewAdapterTests(unittest.TestCase):
         self.assertIn("normalize_visible_columns", table)
         self.assertIn("DEFAULT_DETAILED_VISIBLE_COLUMNS", columns)
 
-    def test_detail_panel_exposes_grouped_full_editor_and_explicit_save_cancel(self):
+    def test_detail_panel_exposes_grouped_full_editor_and_explicit_save_cancel_delete(self):
         panel = Path("aaaat/ui_desktop/detail_panel.py").read_text(encoding="utf-8")
         fields = Path("aaaat/ui_desktop/detail_fields.py").read_text(encoding="utf-8")
 
@@ -278,23 +294,30 @@ class LocalDesktopDetailedViewAdapterTests(unittest.TestCase):
             self.assertIn(field, fields)
         self.assertIn("Save", panel)
         self.assertIn("Cancel/Revert", panel)
+        self.assertIn("Delete", panel)
         self.assertIn("read-only", panel)
         self.assertIn("_on_save", panel)
         self.assertIn("_on_cancel", panel)
+        self.assertIn("_on_delete", panel)
         self.assertNotIn("update_application", panel)
         self.assertNotIn("connect(", panel)
 
-    def test_detail_panel_save_uses_desktop_command_service_and_refresh_path(self):
+    def test_detail_panel_save_delete_use_desktop_command_service_and_refresh_path(self):
         detailed_view = Path("aaaat/ui_desktop/detailed_view.py").read_text(encoding="utf-8")
         services = Path("aaaat/ui_desktop/services.py").read_text(encoding="utf-8")
 
         self.assertIn("command_service.update_candidature_fields", detailed_view)
+        self.assertIn("command_service.delete_candidature", detailed_view)
+        self.assertIn("wx.MessageBox", detailed_view)
         self.assertIn("_save_detail_edits", detailed_view)
+        self.assertIn("_delete_selected_candidature", detailed_view)
         self.assertIn("_reload_projection()", detailed_view)
         self.assertIn("_refresh_detailed_view()", detailed_view)
         self.assertIn("update_candidature_fields", services)
+        self.assertIn("delete_candidature", services)
         self.assertIn("SUPPORTED_DETAIL_EDIT_FIELDS", services)
         self.assertIn("update_application", services)
+        self.assertIn("delete_application", services)
 
     def test_main_window_remains_top_level_shell_only(self):
         source = Path("aaaat/ui_desktop/main_window.py").read_text(encoding="utf-8")
