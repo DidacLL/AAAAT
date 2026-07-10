@@ -63,7 +63,7 @@
     {% endif %}
   {% endcall %}
 {% elif view == "smartView" %}
-  {% call(slot) ui.dashboard_module("left", "Candidatures", "Candidatures", "smart-candidatures", hooks="data-smart-candidature-list", body_class="", collapsed=smart.selected_candidature_detail is truthy, htmx_attrs="data-htmx-module-target='smart-candidatures-body'") %}
+  {% call(slot) ui.dashboard_module("left", "Candidatures", "Candidatures", "smart-candidatures", hooks="data-smart-candidature-list", body_class="", collapsed=smart.selected_candidature_detail, htmx_attrs="data-htmx-module-target='smart-candidatures-body'") %}
     {% if slot == "body" %}
       {% if search_query and search_result.available %}<div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>{% endif %}
       {% if smart.candidature_summaries %}
