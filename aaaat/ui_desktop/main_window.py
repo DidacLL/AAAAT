@@ -17,6 +17,7 @@ DEFAULT_FOCUS_LEFT = 210
 DEFAULT_FOCUS_RIGHT = 260
 DEFAULT_WINDOW_SIZE = (1280, 780)
 OVERVIEW_CARD_SIZE = (390, 168)
+EXPANDED_CARD_SIZE = (790, 250)
 
 
 class DesktopDashboardFrame(wx.Frame):
@@ -28,8 +29,8 @@ class DesktopDashboardFrame(wx.Frame):
     - focus: the selected candidature becomes the center, and the list collapses
       into a narrow navigation strip.
 
-    This adapter consumes toolkit-neutral projection data and writes user actions
-    through domain functions. Agent runtime code must not import this module.
+    Overview card interaction is staged: first click expands one card in place;
+    second click on that expanded card opens focus mode.
     """
 
     def __init__(
@@ -50,6 +51,7 @@ class DesktopDashboardFrame(wx.Frame):
         self.selected_ref = layout_state.selected_candidature_ref
         self.selected_keyword = layout_state.selected_keyword
         self.search_query = ""
+        self.expanded_overview_ref: str | None = None
         self.focus_left_width = int(layout_state.pane_layout.get("smart", {}).get("left", DEFAULT_FOCUS_LEFT))
         self.focus_right_width = int(layout_state.pane_layout.get("smart", {}).get("right", DEFAULT_FOCUS_RIGHT))
 
@@ -184,12 +186,18 @@ class DesktopDashboardFrame(wx.Frame):
         self.Layout()
 
     def _refresh_all(self) -> None:
-        self._reload_projection()
-        self._refresh_overview_cards()
-        self._refresh_nav_list()
-        self._refresh_focus_modules()
-        self.title.SetLabel("AAAAT · Smart")
-        self.Layout()
+        self.Freeze()
+        try:
+            self._reload_projection()
+            if self.overview_panel.IsShown():
+                self._refresh_overview_cards()
+            else:
+                self._refresh_nav_list()
+                self._refresh_focus_modules()
+            self.title.SetLabel("AAAAT · Smart")
+            self.Layout()
+        finally:
+            self.Thaw()
 
     def _reload_projection(self) -> None:
         with connect(self.storage_path) as conn:
@@ -210,6 +218,8 @@ class DesktopDashboardFrame(wx.Frame):
         self.overview_cards_sizer.Clear(delete_windows=True)
         self._overview_card_refs = []
         apps = self._filtered_summaries()
+        if self.expanded_overview_ref and self.expanded_overview_ref not in {str(item.get("ref")) for item in apps}:
+            self.expanded_overview_ref = None
         if not apps:
             self.overview_cards_sizer.Add(self._empty_message(self.overview_scroll, "No matching candidatures."), 0, wx.ALL | wx.EXPAND, 12)
         for item in apps:
@@ -218,46 +228,98 @@ class DesktopDashboardFrame(wx.Frame):
         self.overview_scroll.FitInside()
 
     def _candidature_card(self, item: dict[str, Any]) -> wx.Panel:
+        ref = str(item.get("ref"))
+        expanded = self.expanded_overview_ref == ref
         card = wx.Panel(self.overview_scroll, style=wx.BORDER_SIMPLE)
-        card.SetMinSize(OVERVIEW_CARD_SIZE)
+        card.SetMinSize(EXPANDED_CARD_SIZE if expanded else OVERVIEW_CARD_SIZE)
         sizer = wx.BoxSizer(wx.VERTICAL)
         card.SetSizer(sizer)
 
+        header = wx.BoxSizer(wx.HORIZONTAL)
+        title_box = wx.BoxSizer(wx.VERTICAL)
         company = wx.StaticText(card, label=str(item.get("company") or "Untitled"))
         company.SetFont(company.GetFont().Bold().Larger())
         role = wx.StaticText(card, label=str(item.get("role") or "Role"))
         role.SetFont(role.GetFont().Bold())
-        sizer.Add(company, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
-        sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+        title_box.Add(company, 0, wx.BOTTOM | wx.EXPAND, 2)
+        title_box.Add(role, 0, wx.EXPAND, 2)
+        state = wx.StaticText(card, label=self._clip(f"{item.get('status') or ''} · {item.get('priority') or ''}", 34))
+        state.SetFont(state.GetFont().Bold())
+        header.Add(title_box, 1, wx.ALL | wx.EXPAND, 8)
+        header.Add(state, 0, wx.ALL | wx.ALIGN_TOP, 8)
+        sizer.Add(header, 0, wx.EXPAND)
 
-        chips = "  ".join([str(item.get("status") or ""), str(item.get("priority") or ""), *[f"#{keyword}" for keyword in item.get("keywords") or []]])
-        if chips.strip():
-            chip_label = wx.StaticText(card, label=self._clip(chips, 84))
-            chip_label.Wrap(360)
-            sizer.Add(chip_label, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+        keywords = "  ".join(f"#{keyword}" for keyword in item.get("keywords") or [])
+        if keywords:
+            chip_label = wx.StaticText(card, label=self._clip(keywords, 84))
+            chip_label.Wrap(360 if not expanded else 740)
+            sizer.Add(chip_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
-        body_grid = wx.FlexGridSizer(rows=1, cols=2, vgap=6, hgap=10)
-        body_grid.AddGrowableCol(0, 1)
-        body_grid.AddGrowableCol(1, 1)
-        source = wx.StaticText(card, label=self._clip(str(item.get("source") or item.get("deadline_or_last_contact") or "source pending"), 56))
-        next_action = wx.StaticText(card, label=self._clip(str(item.get("next_action") or "next action pending"), 64))
-        source.Wrap(170)
-        next_action.Wrap(170)
-        body_grid.Add(source, 1, wx.EXPAND)
-        body_grid.Add(next_action, 1, wx.EXPAND)
-        sizer.Add(body_grid, 1, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
+        if expanded:
+            self._add_overview_expanded_body(card, sizer, item)
+            hint = wx.StaticText(card, label="Click again to open Smart View")
+            hint.SetFont(hint.GetFont().Bold())
+            sizer.Add(hint, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT, 8)
+        else:
+            self._add_overview_compact_body(card, sizer, item)
 
-        ref = str(item.get("ref"))
         self._bind_card_click(card, ref)
         self._overview_card_refs.append(ref)
         return card
 
+    def _add_overview_compact_body(self, card: wx.Panel, sizer: wx.BoxSizer, item: dict[str, Any]) -> None:
+        body_grid = wx.FlexGridSizer(rows=1, cols=2, vgap=6, hgap=10)
+        body_grid.AddGrowableCol(0, 1)
+        body_grid.AddGrowableCol(1, 1)
+        signal = wx.StaticText(card, label=self._clip(str(item.get("call_signals") or item.get("source") or "signal pending"), 56))
+        next_action = wx.StaticText(card, label=self._clip(str(item.get("next_action") or "next action pending"), 64))
+        signal.Wrap(170)
+        next_action.Wrap(170)
+        body_grid.Add(signal, 1, wx.EXPAND)
+        body_grid.Add(next_action, 1, wx.EXPAND)
+        sizer.Add(body_grid, 1, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
+
+    def _add_overview_expanded_body(self, card: wx.Panel, sizer: wx.BoxSizer, item: dict[str, Any]) -> None:
+        grid = wx.FlexGridSizer(rows=2, cols=2, vgap=8, hgap=12)
+        grid.AddGrowableCol(0, 1)
+        grid.AddGrowableCol(1, 1)
+        blocks = [
+            ("Recognize", item.get("call_signals") or item.get("source") or "No call signal yet."),
+            ("Next", item.get("next_action") or "No next action yet."),
+            ("Source", item.get("source") or item.get("deadline_or_last_contact") or "Source pending."),
+            ("Artifacts", item.get("artifacts_state") or "No artifact state."),
+        ]
+        for title, body in blocks:
+            panel = wx.Panel(card)
+            panel_sizer = wx.BoxSizer(wx.VERTICAL)
+            panel.SetSizer(panel_sizer)
+            label = wx.StaticText(panel, label=title)
+            label.SetFont(label.GetFont().Bold())
+            text = wx.StaticText(panel, label=self._clip(body, 120))
+            text.Wrap(350)
+            panel_sizer.Add(label, 0, wx.BOTTOM | wx.EXPAND, 2)
+            panel_sizer.Add(text, 1, wx.EXPAND, 2)
+            grid.Add(panel, 1, wx.EXPAND)
+        sizer.Add(grid, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+
     def _bind_card_click(self, window: wx.Window, ref: str) -> None:
         window.SetCursor(wx.Cursor(wx.CURSOR_HAND))
-        window.Bind(wx.EVT_LEFT_DOWN, lambda _event, selected=ref: self._select_ref(selected))
+        window.Bind(wx.EVT_LEFT_UP, lambda _event, selected=ref: self._on_card_click(selected))
         for child in window.GetChildren():
             if isinstance(child, wx.Window):
                 self._bind_card_click(child, ref)
+
+    def _on_card_click(self, ref: str) -> None:
+        if self.expanded_overview_ref == ref:
+            self._select_ref(ref)
+            return
+        self.expanded_overview_ref = ref
+        self.Freeze()
+        try:
+            self._refresh_overview_cards()
+            self.Layout()
+        finally:
+            self.Thaw()
 
     def _refresh_nav_list(self) -> None:
         apps = self._filtered_summaries()
@@ -323,9 +385,12 @@ class DesktopDashboardFrame(wx.Frame):
         pane = module.GetPane()
         pane_sizer = wx.BoxSizer(wx.VERTICAL)
         pane.SetSizer(pane_sizer)
+        heading = wx.StaticText(pane, label=title)
+        heading.SetFont(heading.GetFont().Bold())
         content = wx.StaticText(pane, label=text or "—")
         content.Wrap(360 if parent is self.center_scroll else 240)
-        pane_sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
+        pane_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+        pane_sizer.Add(content, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
         module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_scrollers())
         target_sizer.Add(module, 1, wx.BOTTOM | wx.EXPAND, 6)
 
@@ -386,6 +451,7 @@ class DesktopDashboardFrame(wx.Frame):
                     str(item.get("status") or ""),
                     str(item.get("priority") or ""),
                     str(item.get("next_action") or ""),
+                    str(item.get("call_signals") or ""),
                     " ".join(str(keyword) for keyword in item.get("keywords") or []),
                 ]
             ).lower()
@@ -427,18 +493,21 @@ class DesktopDashboardFrame(wx.Frame):
         return text[: max(0, limit - 1)].rstrip() + "…"
 
     def _select_ref(self, ref: str) -> None:
+        self.expanded_overview_ref = None
         self.selected_ref = ref
         self.layout_state.selected_candidature_ref = ref
         self._show_focus()
         self._refresh_all()
 
     def _go_overview(self) -> None:
+        self.expanded_overview_ref = None
         self.layout_state.selected_candidature_ref = None
         self._show_overview()
         self._refresh_all()
 
     def _on_overview_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = self.overview_search.GetValue()
+        self.expanded_overview_ref = None
         self.nav_search.SetValue(self.search_query)
         self._refresh_all()
 
@@ -449,6 +518,7 @@ class DesktopDashboardFrame(wx.Frame):
 
     def _on_clear_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = ""
+        self.expanded_overview_ref = None
         self.overview_search.SetValue("")
         self.nav_search.SetValue("")
         self._refresh_all()
