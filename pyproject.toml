@@ -16,7 +16,7 @@ desktop = ["wxPython"]
 
 [project.scripts]
 aaaat = "aaaat.cli:main"
-aaaat-desktop = "aaaat.ui_desktop.app:launch_desktop_dashboard"
+aaaat-desktop = "aaaat.ui_desktop.app:main"
 
 [tool.setuptools]
 packages = ["aaaat", "aaaat.dispatch", "aaaat.ui_desktop"]
