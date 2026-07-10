@@ -73,7 +73,7 @@ class DetailedViewMixin:
             self.detailed_search.SetValue(self.search_query)
         visible_columns = self._visible_detailed_columns(detailed)
         self.detail_table.render(detailed, selected_ref=self.selected_ref, visible_columns=visible_columns)
-        self.detail_panel.render(detailed, note_body=self._selected_note_body(), can_edit=can_write(self.mode))
+        self.detail_panel.render(self.projection, can_edit=can_write(self.mode))
         self.detailed_panel.Layout()
 
     def _visible_detailed_columns(self, detailed: dict[str, Any]) -> list[str]:
@@ -130,10 +130,6 @@ class DetailedViewMixin:
         self.layout_state.selected_view = "smart"
         self._show_focus()
         self._refresh_all()
-
-    def _selected_note_body(self) -> str:
-        note = (self.projection.get("smart") or {}).get("primary_note") or {}
-        return str(note.get("body") or "")
 
     def _on_detailed_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = self.detailed_search.GetValue()
