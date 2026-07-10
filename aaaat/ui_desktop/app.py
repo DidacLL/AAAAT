@@ -17,7 +17,7 @@ def build_desktop_projection(storage: str | Path, mode: Mode | str, layout_state
     init_db(storage)
     layout = layout_state or DashboardLayoutState.load(layout_state_path(storage))
     with connect(storage) as conn:
-        payload = dashboard_payload(conn)
+        payload = dashboard_payload(conn, include_raw=True)
     return build_dashboard_projection(payload, Mode(mode), view=layout.selected_view, layout_state=layout)
 
 
