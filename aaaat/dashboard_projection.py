@@ -179,6 +179,7 @@ def _smart_projection(
             {"id": "keyword_context", "title": "Keywords", "selected": False},
             {"id": "artifacts", "title": "Artifacts", "selected": False},
             {"id": "call_card", "title": "Call card", "selected": False},
+            {"id": "source_text", "title": "Source", "selected": False},
             {"id": "company_research", "title": "Company research", "selected": False},
             {"id": "form_answers", "title": "Form answers", "selected": False},
             {"id": "agent_suggestions", "title": "Agent suggestions", "selected": False},
@@ -186,6 +187,7 @@ def _smart_projection(
         "selected_keyword_definition": _glossary_definition(glossary, selected_keyword),
         "artifact_summary": _artifact_summary(selected),
         "call_card": _call_card(selected),
+        "source_text": _source_text(selected),
         "company_research": {"body": selected.get("company_research", "") if selected else ""},
         "form_answers": {"body": selected.get("form_answers", "") if selected else ""},
         "agent_suggestions": _review_queue_summary(payload.get("review_queue") or []),
@@ -228,6 +230,7 @@ def _column_state(layout: DashboardLayoutState) -> dict[str, list[str]]:
 
 
 def _candidature_summary(app: dict[str, Any]) -> dict[str, Any]:
+    source_text = _source_text(app)
     return {
         "ref": app.get("id"),
         "company": app.get("company") or "Untitled Company",
@@ -236,6 +239,8 @@ def _candidature_summary(app: dict[str, Any]) -> dict[str, Any]:
         "priority": app.get("priority") or "normal",
         "next_action": app.get("next_action") or "",
         "call_signals": app.get("call_signals") or "",
+        "source_excerpt": source_text["excerpt"],
+        "source_length": source_text["length"],
         "deadline_or_last_contact": app.get("next_action_date") or app.get("last_activity") or "",
         "source": app.get("source") or "",
         "keywords": list(app.get("keywords") or []),
@@ -246,6 +251,7 @@ def _candidature_summary(app: dict[str, Any]) -> dict[str, Any]:
 def _selected_detail(app: dict[str, Any] | None) -> dict[str, Any] | None:
     if not app:
         return None
+    source_text = _source_text(app)
     return {
         "ref": app.get("id"),
         "company": app.get("company") or "Untitled Company",
@@ -256,6 +262,9 @@ def _selected_detail(app: dict[str, Any] | None) -> dict[str, Any] | None:
         "remote_mode": app.get("remote_mode") or "",
         "source": app.get("source") or "",
         "source_url": app.get("source_url") or "",
+        "source_excerpt": source_text["excerpt"],
+        "source_text": source_text["body"],
+        "source_length": source_text["length"],
         "next_action": app.get("next_action") or "",
         "call_signals": app.get("call_signals") or "",
         "last_activity": app.get("last_activity") or "",
@@ -287,6 +296,16 @@ def _call_card(app: dict[str, Any] | None) -> dict[str, str]:
         "prepare_later": app.get("prepare_later", "") if app else "",
         "signals": app.get("call_signals", "") if app else "",
     }
+
+
+def _source_text(app: dict[str, Any] | None) -> dict[str, Any]:
+    raw_items = list(app.get("raw_intake") or []) if app else []
+    body = "\n\n".join(str(item.get("content") or "").strip() for item in raw_items if str(item.get("content") or "").strip())
+    if not body and app:
+        body = app.get("offer_snapshot") or app.get("company_research") or ""
+    compact = " ".join(body.split())
+    excerpt = compact[:240].rstrip() + ("…" if len(compact) > 240 else "")
+    return {"body": body, "excerpt": excerpt, "length": len(body), "has_raw": bool(raw_items)}
 
 
 def _artifact_summary(app: dict[str, Any] | None) -> dict[str, Any]:
