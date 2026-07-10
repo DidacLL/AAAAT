@@ -12,12 +12,13 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["httpx"]
+desktop = ["wxPython"]
 
 [project.scripts]
 aaaat = "aaaat.cli:main"
 
 [tool.setuptools]
-packages = ["aaaat", "aaaat.dispatch"]
+packages = ["aaaat", "aaaat.dispatch", "aaaat.ui_desktop"]
 include-package-data = true
 
 [tool.setuptools.package-data]
