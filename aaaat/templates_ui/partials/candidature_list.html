@@ -1,17 +1,30 @@
 {% import "partials/module.html" as ui %}
 {% if view == "welcomeView" %}
-  {% call(slot) ui.dashboard_module("left", "Start", "Welcome actions", "welcome-actions", hooks="data-welcome-side-panel") %}
+  {% call(slot) ui.dashboard_module("left", "Start", "Welcome orientation", "welcome-actions", hooks="data-welcome-side-panel") %}
     {% if slot == "body" %}
-      {% for item in welcome.primary_actions %}
-        <div class="field" data-welcome-side-action="{{ item.id }}">
-          <strong>{{ item.label }}</strong>
-          {% if item.target_view %}<p><a href="/?view={{ item.target_view }}{% if selected %}&application_id={{ selected.id }}{% endif %}">Open</a></p>{% elif item.panel %}<p class="subtle">Use the collapsed New candidature panel.</p>{% endif %}
-        </div>
-      {% endfor %}
+      <div class="field" data-welcome-side-orientation>
+        <span class="label">How to use this dashboard</span>
+        <p>Start with one candidature, add personal/CV context in User View, use Smart View for calls, and use Detailed View for table management.</p>
+      </div>
+      {% if can_write(mode) %}
+        {% call(slot) ui.expandable_panel("welcome-new-candidature", "Create or import candidature", "creation", hooks="data-write-control='new-candidature-panel' data-raw-offer-entry", scroll=True) %}
+          {% if slot == "body" %}
+            <form method="post" action="/dashboard/actions/raw-offer-intake" data-write-control="raw-offer-intake-form">
+              <textarea name="content" required placeholder="Paste raw offer text"></textarea>
+              <input name="company" placeholder="Company">
+              <input name="role" placeholder="Role">
+              <div class="check-row"><input name="status" placeholder="Status" value="intake"><input name="priority" placeholder="Priority" value="normal"></div>
+              <input name="source_url" placeholder="Source URL">
+              <input name="keywords" placeholder="Keywords, comma separated">
+              <button>Create candidature</button>
+            </form>
+          {% endif %}
+        {% endcall %}
+      {% endif %}
     {% endif %}
   {% endcall %}
 {% elif view == "userView" %}
-  {% call(slot) ui.dashboard_module("left", "User controls", "User control sections", "user-control-sections", hooks="data-user-side-panel") %}
+  {% call(slot) ui.dashboard_module("left", "User sections", "User control sections", "user-control-sections", hooks="data-user-side-panel") %}
     {% if slot == "body" %}
       {% for section in user.summary_sections %}
         <a class="app-row" data-user-control-link="{{ section.id }}" href="/?view=userView{% if selected %}&application_id={{ selected.id }}{% endif %}#{{ section.id }}">
@@ -30,28 +43,27 @@
           <p><strong>{{ detailed.selected_row.company }}</strong><br>{{ detailed.selected_row.role }}</p>
           <p class="meta"><span>{{ detailed.selected_row.status }}</span><span>{{ detailed.selected_row.priority }}</span></p>
         </div>
-      {% else %}
-        <p class="subtle" data-detailed-no-selection>No row selected. Use general configuration actions or select a candidature in the grid.</p>
-      {% endif %}
-      {% for item in detailed.toolbox_actions %}
-        {% call(slot) ui.expandable_panel("detailed-toolbox-action-" ~ item.id, item.label, "action", hooks="data-detailed-toolbox-action='" ~ item.id ~ "' data-action-enabled='" ~ ("true" if item.enabled else "false") ~ "'") %}
+        {% call(slot) ui.expandable_panel("detailed-selected-actions", "Actions for selected candidature", "action", hooks="data-detailed-toolbox-actions") %}
           {% if slot == "body" %}
-            {% if item.target_view %}
-              <p><a href="/?view={{ item.target_view }}{% if selected %}&application_id={{ selected.id }}{% endif %}">Open</a></p>
-            {% elif item.panel %}
-              <p class="subtle">Available from the collapsed New candidature panel.</p>
-            {% elif item.enabled %}
-              <p class="subtle">Represented as a dashboard toolbox action. Execution controls stay collapsed or future-scoped.</p>
-            {% else %}
-              <p class="subtle">Read-only in this mode.</p>
-            {% endif %}
+            {% for item in detailed.toolbox_actions %}
+              <div class="field" data-detailed-toolbox-action="{{ item.id }}" data-action-enabled="{{ 'true' if item.enabled else 'false' }}"><strong>{{ item.label }}</strong>{% if not item.enabled %}<p class="subtle">Read-only in this mode.</p>{% endif %}</div>
+            {% endfor %}
           {% endif %}
         {% endcall %}
-      {% endfor %}
+      {% else %}
+        <p class="subtle" data-detailed-no-selection>No row selected. Select a row in the grid for candidature-specific actions.</p>
+        {% call(slot) ui.expandable_panel("detailed-general-actions", "General configuration", "configuration", hooks="data-detailed-toolbox-actions") %}
+          {% if slot == "body" %}
+            {% for item in detailed.toolbox_actions %}
+              <div class="field" data-detailed-toolbox-action="{{ item.id }}" data-action-enabled="{{ 'true' if item.enabled else 'false' }}">{% if item.target_view %}<a href="/?view={{ item.target_view }}{% if selected %}&application_id={{ selected.id }}{% endif %}">{{ item.label }}</a>{% else %}<strong>{{ item.label }}</strong>{% endif %}{% if not item.enabled %}<p class="subtle">Read-only in this mode.</p>{% endif %}</div>
+            {% endfor %}
+          {% endif %}
+        {% endcall %}
+      {% endif %}
     {% endif %}
   {% endcall %}
 {% elif view == "smartView" %}
-  {% call(slot) ui.dashboard_module("left", "Candidatures", "Candidatures", "smart-candidatures", hooks="data-smart-candidature-list", body_class="", htmx_attrs="data-htmx-module-target='smart-candidatures-body'") %}
+  {% call(slot) ui.dashboard_module("left", "Candidatures", "Candidatures", "smart-candidatures", hooks="data-smart-candidature-list", body_class="", collapsed=smart.selected_candidature_detail is truthy, htmx_attrs="data-htmx-module-target='smart-candidatures-body'") %}
     {% if slot == "body" %}
       {% if search_query and search_result.available %}<div class="body" data-search-summary>{{ search_result.results|length }} matches for {{ search_query }}</div>{% endif %}
       {% if smart.candidature_summaries %}
@@ -60,9 +72,9 @@
             <strong>{{ app.company or "Add company" }}</strong><br>
             <span>{{ app.role or "Add role" }}</span>
             <span class="meta"><span>{{ app.status or "draft" }}</span><span>{{ app.priority or "normal" }}</span>{% if app.next_action %}<span>Next: {{ app.next_action }}</span>{% endif %}</span>
-            <span class="meta">{% if app.source %}<span>Source: {{ app.source }}</span>{% elif app.source_url %}<span>Source URL</span>{% endif %}{% if app.last_activity %}<span>{{ app.last_activity }}</span>{% endif %}</span>
+            <span class="meta">{% if app.source %}<span>Source: {{ app.source }}</span>{% elif app.source_url %}<span>Source URL</span>{% endif %}{% if app.location %}<span>{{ app.location }}</span>{% endif %}{% if app.remote_mode %}<span>{{ app.remote_mode }}</span>{% endif %}</span>
             {% if app.keywords %}<span class="meta" data-smart-summary-keywords>{% for keyword in app.keywords[:4] %}<span class="chip" data-keyword="{{ keyword }}">{{ keyword }}</span>{% endfor %}</span>{% endif %}
-            <span class="meta" data-artifact-state-indicator>{% if app.artifact_summary.count %}<span>{{ app.artifact_summary.count }} artifact{% if app.artifact_summary.count != 1 %}s{% endif %}</span>{% for state, count in app.artifact_summary.states.items() %}<span>{{ state }}:{{ count }}</span>{% endfor %}{% else %}<span>No artifacts</span>{% endif %}</span>
+            <span class="meta" data-artifact-state-indicator>{% if app.artifact_summary.count %}<span>{{ app.artifact_summary.count }} artifact{% if app.artifact_summary.count != 1 %}s{% endif %}</span>{% else %}<span>No artifacts</span>{% endif %}</span>
           </a>
         {% endfor %}
       {% else %}
