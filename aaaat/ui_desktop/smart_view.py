@@ -52,6 +52,15 @@ class SmartViewMixin(OverviewBoardMixin):
         self._bind_detailed_events()
         self._bind_user_events()
 
+    def _sync_view_buttons(self) -> None:
+        for button, selected in (
+            (self.overview_button, self.current_view == "smart"),
+            (self.detailed_button, self.current_view == "detailed"),
+            (self.user_button, self.current_view == "user"),
+        ):
+            if hasattr(button, "SetValue"):
+                button.SetValue(selected)
+
     def _show_overview(self) -> None:
         self.current_view = "smart"
         self.layout_state.selected_view = "smart"
@@ -60,8 +69,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.focus_panel.Hide()
         self.detailed_panel.Hide()
         self.user_panel.Hide()
-        self.root_sizer.Layout()
-        self.Layout()
+        self._sync_view_buttons()
 
     def _show_focus(self) -> None:
         self.current_view = "smart"
@@ -70,8 +78,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.focus_panel.Show()
         self.detailed_panel.Hide()
         self.user_panel.Hide()
-        self.root_sizer.Layout()
-        self.Layout()
+        self._sync_view_buttons()
         if not self._focus_layout_applied:
             wx.CallAfter(self._apply_focus_layout, False)
 
@@ -113,6 +120,8 @@ class SmartViewMixin(OverviewBoardMixin):
                 self._refresh_nav_list()
                 self._refresh_focus_modules()
                 self.title.SetLabel("AAAAT · Smart")
+            self._sync_view_buttons()
+            self.root_sizer.Layout()
             self.Layout()
         finally:
             self.Thaw()
