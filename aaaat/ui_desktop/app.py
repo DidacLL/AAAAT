@@ -34,10 +34,8 @@ def launch_desktop_dashboard(storage: str | Path = ".private", *, read_only: boo
     except ModuleNotFoundError as exc:  # pragma: no cover - depends on optional dependency
         raise RuntimeError("wxPython is required for the desktop dashboard. Install AAAAT with the desktop extra: pip install -e .[desktop]") from exc
 
-    from .card_state_patch import apply_center_card_state_patch
     from .main_window import DesktopDashboardFrame
-
-    apply_center_card_state_patch(DesktopDashboardFrame)
+    from .services import DesktopCommandService
 
     mode = Mode.READ_ONLY if read_only else Mode.FULL
     init_db(storage)
@@ -46,7 +44,14 @@ def launch_desktop_dashboard(storage: str | Path = ".private", *, read_only: boo
     projection = build_desktop_projection(storage, mode, layout)
 
     app = wx.App(False)
-    frame = DesktopDashboardFrame(storage_path=str(storage), mode=mode, projection=projection, layout_state=layout, layout_path=layout_path)
+    frame = DesktopDashboardFrame(
+        storage_path=str(storage),
+        mode=mode,
+        projection=projection,
+        layout_state=layout,
+        layout_path=layout_path,
+        command_service=DesktopCommandService(storage),
+    )
     frame.Show()
     app.MainLoop()
     return 0
