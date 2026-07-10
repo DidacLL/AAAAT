@@ -18,7 +18,7 @@ class DetailedViewMixin:
     """Detailed View foundation for batch candidature review."""
 
     def _build_detailed_surface(self) -> None:
-        self.detailed_panel = wx.Panel(self.root)
+        self.detailed_panel = wx.Panel(self.view_book)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.detailed_panel.SetSizer(sizer)
 
@@ -46,7 +46,7 @@ class DetailedViewMixin:
         width = max(620, DEFAULT_DETAILED_FRAME_WIDTH - int(self.layout_state.pane_layout.get("detailed", {}).get("right", DEFAULT_DETAILED_RIGHT)))
         self.detailed_splitter.SplitVertically(self.detail_table, self.detail_panel, width)
         sizer.Add(self.detailed_splitter, 1, wx.EXPAND)
-        self.root_sizer.Add(self.detailed_panel, 1, wx.ALL | wx.EXPAND, 6)
+        self.view_book.AddPage(self.detailed_panel, "Detailed")
 
     def _bind_detailed_events(self) -> None:
         self.detailed_search.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self._on_detailed_search)
@@ -57,15 +57,11 @@ class DetailedViewMixin:
     def _show_detailed(self) -> None:
         self.current_view = "detailed"
         self.layout_state.selected_view = "detailed"
-        self.overview_panel.Hide()
-        self.focus_panel.Hide()
-        self.detailed_panel.Show()
-        self.user_panel.Hide()
-        self._sync_view_buttons()
+        self._sync_view_tab()
 
     def _go_detailed(self) -> None:
         self._show_detailed()
-        self._refresh_all()
+        self._refresh_current_if_needed()
 
     def _refresh_detailed_view(self) -> None:
         self.detailed_panel.Freeze()
@@ -106,14 +102,17 @@ class DetailedViewMixin:
         self.layout_state.detailed_columns["visible"] = selected
         self.layout_state.detailed_columns["order"] = selected
         self.layout_state.save(self.layout_path)
+        self._rendered_view_keys.pop("detailed", None)
         self._reload_projection()
         self._refresh_detailed_view()
+        self._mark_current_view_rendered()
 
     def _select_detailed_ref(self, ref: str) -> None:
         self.selected_ref = ref
         self.layout_state.selected_candidature_ref = ref
         self._reload_projection()
         self._refresh_detailed_view()
+        self._mark_current_view_rendered()
 
     def _save_detail_edits(self, ref: str, changes: dict[str, str]) -> None:
         if not can_write(self.mode) or not ref:
@@ -121,11 +120,14 @@ class DetailedViewMixin:
         self.command_service.update_candidature_fields(ref, changes)
         self.selected_ref = ref
         self.layout_state.selected_candidature_ref = ref
+        self._rendered_view_keys.clear()
         self._reload_projection()
         self._refresh_detailed_view()
+        self._mark_current_view_rendered()
 
     def _cancel_detail_edits(self) -> None:
         self._refresh_detailed_view()
+        self._mark_current_view_rendered()
 
     def _open_selected_in_smart(self) -> None:
         if not self.selected_ref:
@@ -133,7 +135,7 @@ class DetailedViewMixin:
         self.current_view = "smart"
         self.layout_state.selected_view = "smart"
         self._show_focus()
-        self._refresh_all()
+        self._refresh_current_if_needed()
 
     def _on_detailed_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = self.detailed_search.GetValue()
