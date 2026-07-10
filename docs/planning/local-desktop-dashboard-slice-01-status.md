@@ -2,6 +2,8 @@
 
 Branch: `didacll/local-desktop-dashboard`
 PR: `#37`
+Head after cleanup: `bcfe287fd3d50af6f96e0efa1ba18dde54f2b2e6`
+Latest cleanup commit at that head: `Remove desktop card state patch`
 
 ## Classification
 
@@ -88,7 +90,7 @@ The right pane is dedicated to the active keyword definition, with small keyword
   - Builds human-local projection sections for `welcome`, `smart`, `detailed`, `user`, `glossary`, `permissions`, and `view_state`.
   - Exposes Smart View selected-candidature detail, primary note, keyword context, artifacts, source text, and call context.
   - Does not import wxPython.
-  - Is not exposed as an agent API.
+  - Is not exposed as an external machine API.
 - `aaaat/dashboard_layout.py`
   - Persists local layout state only.
   - Defaults Smart View to a narrow focus nav and a narrow right context.
@@ -154,13 +156,13 @@ The right pane is dedicated to the active keyword definition, with small keyword
 - Explicit independent `CenterCardState` unit behavior.
 - Collapsing all center cards leaves all collapsed.
 - Demo feeder creation and idempotency.
-- Agent runtime boundary.
+- Runtime boundary.
 
 ## Projection/runtime contract
 
-The projection boundary remains unchanged. `dashboard_projection`, `dashboard_layout`, `dashboard_modules`, domain code, and agent runtime code remain toolkit-neutral. The agent runtime still does not import `ui_desktop`, `dashboard_projection`, or `DashboardLayoutState`.
+The projection boundary remains unchanged. `dashboard_projection`, `dashboard_layout`, `dashboard_modules`, domain code, and runtime code remain toolkit-neutral. The runtime boundary still does not import `ui_desktop`, `dashboard_projection`, or `DashboardLayoutState` where those would cross the intended desktop boundary.
 
-No wx, HTML dashboard routes, MCP resources, agent routes, broad CRUD API, plugin framework, heavy dependency, or agent mutation authority was added by this cleanup.
+No wx, HTML dashboard routes, MCP resources, external machine-facing routes, broad CRUD API, plugin framework, heavy dependency, or mutation-authority expansion was added by this cleanup.
 
 ## Not implemented yet
 
@@ -170,6 +172,22 @@ No wx, HTML dashboard routes, MCP resources, agent routes, broad CRUD API, plugi
 - Real new-candidature/profile/settings desktop dialogs.
 - Desktop packaging beyond launcher scripts.
 - Browser dashboard removal or deprecation.
+
+## Next slice
+
+Slice 02 is now planned in:
+
+```text
+docs/planning/local-desktop-dashboard-slice-02-detailed-view-plan.md
+```
+
+The next implementation target is a wx Detailed View foundation for structured candidature review. It must preserve Smart View behavior, keep `main_window.py` as the shell, consume the existing projection pattern, and avoid new broad APIs or runtime boundary changes.
+
+Target classification after Slice 02 implementation:
+
+```text
+READY_FOR_DETAILED_VIEW_MANUAL_VERIFICATION
+```
 
 ## Manual verification command
 
