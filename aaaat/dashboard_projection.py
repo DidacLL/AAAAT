@@ -148,18 +148,87 @@ def _welcome_projection(payload: dict[str, Any], apps: list[dict[str, Any]]) -> 
 
 def _user_projection(payload: dict[str, Any]) -> dict[str, Any]:
     profile_variables = payload.get("profile_variables") or {}
-    missing = payload.get("missing_profile_variables") or []
+    variable_records = list(payload.get("profile_variable_records") or [])
+    profile_facts = list(payload.get("profile_facts") or [])
+    profile_context = payload.get("profile_context_dashboard") or {}
+    missing = list(payload.get("missing_profile_variables") or [])
     return {
         "profile_summary": {
             "variable_count": len(profile_variables),
+            "fact_count": len(profile_facts),
             "missing_variables": list(missing),
             "ready_for_templates": not bool(missing),
         },
-        "career_summary": {"configured": bool(payload.get("career_plan")), "has_strategy": bool(payload.get("career_strategy"))},
+        "profile_variables": _profile_variable_items(profile_variables),
+        "profile_variable_records": _profile_variable_record_items(variable_records),
+        "profile_facts": _profile_fact_items(profile_facts),
+        "profile_context": profile_context,
+        "career_summary": {
+            "configured": bool(payload.get("career_plan") or payload.get("career_strategy")),
+            "has_strategy": bool(payload.get("career_strategy")),
+            "note": "No dedicated local CareerPlan record is projected yet." if not payload.get("career_plan") else "CareerPlan data available.",
+        },
         "template_summary": {"missing_profile_variables": list(missing), "artifact_types": ["cv", "cover_letter"]},
         "settings_summary": {"storage_mode": "local", "privacy": "local-first", "agent_workflows": "optional"},
         "workspace_modules": [module.module_id for module in modules_for_view("user")],
     }
+
+
+def _profile_variable_items(profile_variables: dict[str, Any]) -> list[dict[str, str]]:
+    by_key: dict[str, str] = {}
+    for key, value in sorted(profile_variables.items()):
+        canonical = str(key) if str(key).startswith("profile.") else f"profile.{key}"
+        by_key[canonical] = str(value or "")
+    return [{"key": key, "value": value} for key, value in sorted(by_key.items())]
+
+
+def _profile_variable_record_items(records: list[Any]) -> list[dict[str, Any]]:
+    items = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        key = str(record.get("key") or "")
+        if not key.startswith("profile."):
+            continue
+        items.append(
+            {
+                "key": key,
+                "placeholder": record.get("placeholder") or "",
+                "exposure": record.get("exposure") or "",
+                "summary": record.get("summary") or "",
+                "is_sensitive": bool(record.get("is_sensitive")),
+                "updated_at": record.get("updated_at") or "",
+            }
+        )
+    return items
+
+
+def _profile_fact_items(facts: list[Any]) -> list[dict[str, Any]]:
+    items = []
+    for fact in facts:
+        if not isinstance(fact, dict):
+            continue
+        items.append(
+            {
+                "fact_type": fact.get("fact_type") or "",
+                "title": fact.get("title") or "",
+                "body": fact.get("body") or "",
+                "tags": list(fact.get("tags") or []),
+                "visibility": fact.get("visibility") or "",
+                "exposure": fact.get("exposure") or "",
+                "source": fact.get("source") or "",
+                "review_state": fact.get("review_state") or "",
+                "usage": {
+                    "cv": bool(fact.get("use_for_cv")),
+                    "cover_letter": bool(fact.get("use_for_cover_letter")),
+                    "agent_context": bool(fact.get("use_for_agent_context")),
+                    "market_research": bool(fact.get("use_for_market_research")),
+                    "dashboard": bool(fact.get("use_for_dashboard")),
+                },
+                "updated_at": fact.get("updated_at") or "",
+            }
+        )
+    return items
 
 
 def _smart_projection(
