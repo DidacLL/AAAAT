@@ -35,6 +35,7 @@ class DashboardWelcomeUserViewTests(unittest.TestCase):
         self.assertIn('data-dashboard-view="welcomeView"', html)
         self.assertIn("data-welcome-view", html)
         self.assertIn("local-first", html)
+        self.assertIn('data-welcome-side-orientation', html)
         self.assertIn('data-welcome-primary-action="create_first_candidature"', html)
         self.assertIn('data-welcome-primary-action="import_source_material"', html)
         self.assertIn('data-welcome-primary-action="configure_personal_data"', html)
@@ -50,13 +51,15 @@ class DashboardWelcomeUserViewTests(unittest.TestCase):
             init_db(tmp)
             html = self.render_view(tmp, Mode.FULL, view="welcomeView")
 
-        self.assertIn('data-panel-id="global-raw-intake"', html)
+        self.assertIn('data-panel-id="welcome-new-candidature"', html)
         self.assertIn('data-panel-id="welcome-setup-checklist"', html)
         self.assertIn('data-panel-kind="creation"', html)
         self.assertIn('data-welcome-setup-panel', html)
+        self.assertIn('raw-offer-intake-form', html)
         self.assertGreaterEqual(html.count('data-panel-default="collapsed"'), 2)
         self.assertGreaterEqual(html.count('x-data="{ open: false }"'), 2)
         self.assertIn('data-panel-control="toggle"', html)
+        self.assertNotIn('data-panel-id="global-raw-intake"', html)
         self.assertNotIn("<details", html)
         self.assertNotIn('data-detailed-fields', html)
 
@@ -96,6 +99,7 @@ class DashboardWelcomeUserViewTests(unittest.TestCase):
         self.assertIn("exposure-summarized", html)
         self.assertNotIn("data-app-row", html)
         self.assertNotIn("data-important-candidature", html)
+        self.assertNotIn("raw-offer-intake-form", html)
 
     def test_user_view_groups_forms_in_expandable_panels(self):
         with tempfile.TemporaryDirectory() as tmp:
