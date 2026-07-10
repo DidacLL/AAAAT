@@ -11,7 +11,7 @@ class UserViewMixin:
     """User/Profile View foundation for local desktop profile context."""
 
     def _build_user_surface(self) -> None:
-        self.user_panel = wx.Panel(self.root)
+        self.user_panel = wx.Panel(self.view_book)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.user_panel.SetSizer(sizer)
         self.user_content = UserPanel(
@@ -20,7 +20,7 @@ class UserViewMixin:
             on_cancel=self._cancel_user_edits,
         )
         sizer.Add(self.user_content, 1, wx.ALL | wx.EXPAND, 0)
-        self.root_sizer.Add(self.user_panel, 1, wx.ALL | wx.EXPAND, 6)
+        self.view_book.AddPage(self.user_panel, "User")
 
     def _bind_user_events(self) -> None:
         pass
@@ -28,15 +28,11 @@ class UserViewMixin:
     def _show_user(self) -> None:
         self.current_view = "user"
         self.layout_state.selected_view = "user"
-        self.overview_panel.Hide()
-        self.focus_panel.Hide()
-        self.detailed_panel.Hide()
-        self.user_panel.Show()
-        self._sync_view_buttons()
+        self._sync_view_tab()
 
     def _go_user(self) -> None:
         self._show_user()
-        self._refresh_all()
+        self._refresh_current_if_needed()
 
     def _refresh_user_view(self) -> None:
         self.user_panel.Freeze()
@@ -50,8 +46,11 @@ class UserViewMixin:
         if not can_write(self.mode):
             return
         self.command_service.update_profile_variables(changes)
+        self._rendered_view_keys.clear()
         self._reload_projection()
         self._refresh_user_view()
+        self._mark_current_view_rendered()
 
     def _cancel_user_edits(self) -> None:
         self._refresh_user_view()
+        self._mark_current_view_rendered()
