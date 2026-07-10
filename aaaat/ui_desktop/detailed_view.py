@@ -68,13 +68,17 @@ class DetailedViewMixin:
         self._refresh_all()
 
     def _refresh_detailed_view(self) -> None:
-        detailed = self.projection.get("detailed") or {}
-        if self.detailed_search.GetValue() != self.search_query:
-            self.detailed_search.SetValue(self.search_query)
-        visible_columns = self._visible_detailed_columns(detailed)
-        self.detail_table.render(detailed, selected_ref=self.selected_ref, visible_columns=visible_columns)
-        self.detail_panel.render(self.projection, can_edit=can_write(self.mode))
-        self.detailed_panel.Layout()
+        self.detailed_panel.Freeze()
+        try:
+            detailed = self.projection.get("detailed") or {}
+            if self.detailed_search.GetValue() != self.search_query:
+                self.detailed_search.SetValue(self.search_query)
+            visible_columns = self._visible_detailed_columns(detailed)
+            self.detail_table.render(detailed, selected_ref=self.selected_ref, visible_columns=visible_columns)
+            self.detail_panel.render(self.projection, can_edit=can_write(self.mode))
+            self.detailed_panel.Layout()
+        finally:
+            self.detailed_panel.Thaw()
 
     def _visible_detailed_columns(self, detailed: dict[str, Any]) -> list[str]:
         available_columns = [column for column in detailed.get("available_columns") or [] if isinstance(column, dict)]
