@@ -6,12 +6,12 @@ PR: `#37`
 ## Classification
 
 ```text
-READY_FOR_SECOND_MANUAL_WX_SMART_VIEW_VERIFICATION
+READY_FOR_THIRD_MANUAL_WX_SMART_VIEW_VERIFICATION
 ```
 
 The first wx Smart View attempt was rejected as `BLOCKED_BY_UX_REGRESSION`: it looked more professional than the browser version, but still behaved like a conventional three-column admin screen. The Smart View requirement is not a CRUD dashboard. It is a panic-mode call cockpit.
 
-This revision refactors the Smart View around the corrected UX contract below.
+This revision refactors the Smart View around the corrected UX contract below and adds a demo feeder for realistic high-volume local testing.
 
 ## Corrected Smart View UX contract
 
@@ -26,7 +26,7 @@ status / priority / keywords
 short identifying signal
 ```
 
-This overview uses most of the available space until a candidature is selected.
+This overview uses most of the available space until a candidature is selected. Because desktop apps are mostly horizontal, the overview must distribute cards horizontally and wrap them across the available width instead of stacking every candidature vertically into a thin long column.
 
 ### Focus after selection
 
@@ -55,6 +55,10 @@ Offer
 
 Long content is clipped in summaries and available by expanding the module.
 
+### Interaction economy
+
+A candidature card is the click target. The user should not need to move to a small button at the end of a row/card to open it during a call.
+
 ### Resizing and expansion
 
 - Panels are resizable through splitters.
@@ -82,6 +86,7 @@ Notes are editable, but not allowed to consume the main workspace by default.
 - `aaaat/dashboard_projection.py`
   - Builds human-local projection sections for `welcome`, `smart`, `detailed`, `user`, `glossary`, `permissions`, and `view_state`.
   - Exposes Smart View selected-candidature detail, primary note, right context modules, keyword context, artifacts, call card, company research, form answers, and agent suggestions.
+  - Exposes `call_signals` in Smart View candidature summaries so overview cards can show call-recognition cues.
   - Exposes Detailed View rows, available columns, visible columns, column order, selected row, toolbox actions, and task queue summary.
   - Does not import wxPython.
   - Is not exposed as an agent API.
@@ -103,7 +108,8 @@ Notes are editable, but not allowed to consume the main workspace by default.
   - Builds projection before creating the desktop frame.
 
 - `aaaat/ui_desktop/main_window.py`
-  - Implements overview mode with large candidature cards.
+  - Implements overview mode with large horizontal wrapping candidature cards.
+  - Makes the whole card clickable; no small far-right open button is required.
   - Implements focus mode with a narrow left navigation strip, large center context, and smaller right context.
   - Supports candidature selection.
   - Supports search/filter in both overview and focus navigation.
@@ -116,6 +122,14 @@ Notes are editable, but not allowed to consume the main workspace by default.
   - Persists selected view, selected candidature, selected keyword, and pane sizes on close.
   - Provides a reset-layout action.
   - Provides File menu support-surface entries for new candidature and profile/settings as reachable placeholders, without occupying Smart View.
+
+### Demo feeder
+
+- `scripts/seed_desktop_demo.py`
+  - Seeds deterministic Smart View demo candidatures.
+  - Defaults to 48 candidatures.
+  - Mostly fills all key fields, with occasional intentionally missing fields to test imperfect real data.
+  - Uses stable demo ids and upserts records, so it can be run repeatedly.
 
 ### Launch surfaces
 
@@ -154,9 +168,7 @@ Run after installing the desktop extra:
 
 ```bash
 python -m pip install -e .[desktop]
-aaaat init
-aaaat app create --company "Example Co" --role "Backend Engineer" --status meeting --priority high
-aaaat app create --company "Other Co" --role "Platform Engineer" --status draft --priority normal
+python scripts/seed_desktop_demo.py --count 64
 aaaat-desktop
 ```
 
@@ -164,8 +176,10 @@ Verify:
 
 ```text
 app opens into an overview board, not a tiny list
-candidature cards are recognizable at one glance
-company, role, and keywords are visually easy to scan
+candidature cards distribute horizontally and wrap across available width
+cards are readable without being a thin vertical list
+whole card is clickable and enters focus mode
+company, role, keywords, and call signal are visually easy to scan
 selecting a card enters focus mode
 focus mode collapses the candidature list into a narrow left strip
 Expand/List returns to the overview board
@@ -190,7 +204,7 @@ Do not classify as `PRODUCT_READY_TO_REVIEW` yet.
 Use:
 
 ```text
-READY_FOR_SECOND_MANUAL_WX_SMART_VIEW_VERIFICATION
+READY_FOR_THIRD_MANUAL_WX_SMART_VIEW_VERIFICATION
 ```
 
 If this verification fails, classify as:
