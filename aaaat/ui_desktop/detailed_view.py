@@ -40,6 +40,7 @@ class DetailedViewMixin:
         self.detail_panel = DetailPanel(
             self.detailed_splitter,
             on_save=self._save_detail_edits,
+            on_delete=self._delete_selected_candidature,
             on_cancel=self._cancel_detail_edits,
             on_open_smart=self._open_selected_in_smart,
         )
@@ -122,6 +123,33 @@ class DetailedViewMixin:
         self.layout_state.selected_candidature_ref = ref
         self._rendered_view_keys.clear()
         self._reload_projection()
+        self._refresh_detailed_view()
+        self._mark_current_view_rendered()
+
+    def _delete_selected_candidature(self, ref: str) -> None:
+        if not can_write(self.mode) or not ref:
+            return
+        row = self._detailed_selected_row() or {}
+        label = " ".join(part for part in (str(row.get("company") or ""), str(row.get("role") or "")) if part).strip() or ref
+        confirmed = wx.MessageBox(
+            f"Delete candidature '{label}'?\n\nThis removes the local candidature record and its local intake/notes/artifact rows.",
+            "Delete candidature",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+            self.detailed_panel,
+        )
+        if confirmed != wx.YES:
+            return
+        if not self.command_service.delete_candidature(ref):
+            return
+        self.selected_ref = None
+        self.layout_state.selected_candidature_ref = None
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        rows = (self.projection.get("detailed") or {}).get("rows") or []
+        if rows:
+            self.selected_ref = str(rows[0].get("ref") or "") or None
+            self.layout_state.selected_candidature_ref = self.selected_ref
+            self._reload_projection()
         self._refresh_detailed_view()
         self._mark_current_view_rendered()
 
