@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import html
+import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote, unquote
 
 import wx  # type: ignore[import-not-found]
+import wx.html  # type: ignore[import-not-found]
 
 from aaaat.dashboard_layout import DashboardLayoutState
 from aaaat.dashboard_projection import build_dashboard_projection
@@ -12,10 +16,11 @@ from aaaat.payload import dashboard_payload
 from aaaat.security import Mode, can_write
 
 
-RIGHT_MODULES = ["notes", "keywords", "artifacts"]
+RIGHT_MODULES = ["keywords", "artifacts"]
 DEFAULT_FOCUS_LEFT = 210
 DEFAULT_FOCUS_RIGHT = 210
 DEFAULT_WINDOW_SIZE = (1280, 780)
+DEFAULT_CENTER_NOTES_HEIGHT = 150
 OVERVIEW_CARD_SIZE = (390, 168)
 EXPANDED_CARD_SIZE = (790, 250)
 
@@ -122,20 +127,40 @@ class DesktopDashboardFrame(wx.Frame):
         self.nav_panel = wx.Panel(self.focus_splitter)
         self.content_splitter = wx.SplitterWindow(self.focus_splitter, style=wx.SP_LIVE_UPDATE)
         self.content_splitter.SetMinimumPaneSize(160)
-        self.center_scroll = wx.ScrolledWindow(self.content_splitter)
+        self.center_panel = wx.Panel(self.content_splitter)
         self.right_scroll = wx.ScrolledWindow(self.content_splitter)
-        self.center_scroll.SetScrollRate(8, 12)
         self.right_scroll.SetScrollRate(8, 12)
         self.focus_splitter.SplitVertically(self.nav_panel, self.content_splitter, self.focus_left_width)
-        center_width = max(760, DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width)
-        self.content_splitter.SplitVertically(self.center_scroll, self.right_scroll, center_width)
+        center_width = max(780, DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width)
+        self.content_splitter.SplitVertically(self.center_panel, self.right_scroll, center_width)
         sizer.Add(self.focus_splitter, 1, wx.EXPAND)
 
         self._build_nav_panel()
-        self.center_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.center_scroll.SetSizer(self.center_sizer)
+        self._build_center_panel()
         self.right_sizer = wx.BoxSizer(wx.VERTICAL)
         self.right_scroll.SetSizer(self.right_sizer)
+
+    def _build_center_panel(self) -> None:
+        panel_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.center_panel.SetSizer(panel_sizer)
+        self.center_splitter = wx.SplitterWindow(self.center_panel, style=wx.SP_LIVE_UPDATE)
+        self.center_splitter.SetMinimumPaneSize(110)
+        self.center_body_scroll = wx.ScrolledWindow(self.center_splitter)
+        self.center_body_scroll.SetScrollRate(8, 12)
+        self.center_notes_panel = wx.Panel(self.center_splitter, style=wx.BORDER_SIMPLE)
+        self.center_splitter.SplitHorizontally(
+            self.center_body_scroll,
+            self.center_notes_panel,
+            DEFAULT_WINDOW_SIZE[1] - DEFAULT_CENTER_NOTES_HEIGHT - 90,
+        )
+        self.center_splitter.SetSashGravity(0.78)
+        panel_sizer.Add(self.center_splitter, 1, wx.EXPAND)
+
+        self.center_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.center_body_scroll.SetSizer(self.center_sizer)
+        self.center_notes_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.center_notes_panel.SetSizer(self.center_notes_sizer)
+        self.center_scroll = self.center_body_scroll
 
     def _build_nav_panel(self) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -332,6 +357,7 @@ class DesktopDashboardFrame(wx.Frame):
 
     def _refresh_focus_modules(self) -> None:
         self.center_sizer.Clear(delete_windows=True)
+        self.center_notes_sizer.Clear(delete_windows=True)
         self.right_sizer.Clear(delete_windows=True)
         detail = self._selected_detail()
         if not detail:
@@ -346,13 +372,12 @@ class DesktopDashboardFrame(wx.Frame):
         self._add_content_module(self.center_scroll, self.center_sizer, "Now", detail.get("prepare_first"), expanded=True)
         self._add_content_module(self.center_scroll, self.center_sizer, "Later", detail.get("prepare_later"), expanded=False)
         self._add_content_module(self.center_scroll, self.center_sizer, "Offer", detail.get("offer_snapshot"), expanded=False)
-
-        self._add_note_module()
-        self._add_keywords_module(detail)
-        self._add_content_module(self.right_scroll, self.right_sizer, "Artifacts", self._artifacts_text(), expanded=False)
+        self._add_notes_band()
+        self._refresh_right_context(detail)
 
         self.center_scroll.Layout()
         self.center_scroll.FitInside()
+        self.center_notes_panel.Layout()
         self.right_scroll.Layout()
         self.right_scroll.FitInside()
 
@@ -393,10 +418,9 @@ class DesktopDashboardFrame(wx.Frame):
             block.SetSizer(block_sizer)
             label = wx.StaticText(block, label=heading)
             label.SetFont(label.GetFont().Bold())
-            text = wx.StaticText(block, label=self._clip(body, 220))
-            text.Wrap(420)
+            html_body = self._html_text_window(block, self._clip(body, 220), min_height=72)
             block_sizer.Add(label, 0, wx.BOTTOM | wx.EXPAND, 2)
-            block_sizer.Add(text, 1, wx.EXPAND, 2)
+            block_sizer.Add(html_body, 1, wx.EXPAND, 2)
             grid.Add(block, 1, wx.EXPAND)
         sizer.Add(grid, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
         self.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
@@ -412,8 +436,7 @@ class DesktopDashboardFrame(wx.Frame):
         pane.SetSizer(sizer)
         heading = wx.StaticText(pane, label=f"Literal offer/source text · {len(source_text)} chars")
         heading.SetFont(heading.GetFont().Bold())
-        reader = wx.TextCtrl(pane, value=source_text or source_excerpt, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
-        reader.SetMinSize((-1, 280))
+        reader = self._html_text_window(pane, source_text or source_excerpt, min_height=300)
         sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
         sizer.Add(reader, 1, wx.ALL | wx.EXPAND, 8)
         module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_scrollers())
@@ -429,53 +452,136 @@ class DesktopDashboardFrame(wx.Frame):
         pane.SetSizer(pane_sizer)
         heading = wx.StaticText(pane, label=title)
         heading.SetFont(heading.GetFont().Bold())
-        content = wx.StaticText(pane, label=text or "—")
-        content.Wrap(760 if parent is self.center_scroll else 210)
+        content = self._html_text_window(pane, text or "—", min_height=80)
         pane_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
         pane_sizer.Add(content, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
         module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_scrollers())
         target_sizer.Add(module, 0, wx.BOTTOM | wx.EXPAND, 6)
 
-    def _add_note_module(self) -> None:
+    def _add_notes_band(self) -> None:
         primary_note = self.projection["smart"].get("primary_note") or {}
         body = primary_note.get("body") or ""
-        module = wx.CollapsiblePane(self.right_scroll, label=f"Notes · {self._clip(body, 42) if body else 'empty'}")
-        module.Collapse(False)
-        pane = module.GetPane()
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        pane.SetSizer(sizer)
-        self.note_text = wx.TextCtrl(pane, value=body, style=wx.TE_MULTILINE)
-        self.note_text.SetMinSize((-1, 100))
-        self.note_text.Enable(can_write(self.mode))
-        save = wx.Button(pane, label="Save", size=(58, -1))
+        header = wx.BoxSizer(wx.HORIZONTAL)
+        title = wx.StaticText(self.center_notes_panel, label="Notes")
+        title.SetFont(title.GetFont().Bold())
+        save = wx.Button(self.center_notes_panel, label="Save", size=(58, -1))
         save.Enable(can_write(self.mode))
         save.Bind(wx.EVT_BUTTON, self._on_save_note)
-        sizer.Add(self.note_text, 1, wx.ALL | wx.EXPAND, 6)
-        sizer.Add(save, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT, 6)
-        module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_scrollers())
-        self.right_sizer.Add(module, 0, wx.BOTTOM | wx.EXPAND, 6)
+        header.Add(title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
+        header.AddStretchSpacer(1)
+        header.Add(save, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
+        self.note_text = wx.TextCtrl(self.center_notes_panel, value=body, style=wx.TE_MULTILINE)
+        self.note_text.Enable(can_write(self.mode))
+        self.center_notes_sizer.Add(header, 0, wx.EXPAND)
+        self.center_notes_sizer.Add(self.note_text, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+
+    def _refresh_right_context(self, detail: dict[str, Any]) -> None:
+        self.right_sizer.Clear(delete_windows=True)
+        self._add_keywords_module(detail)
+        self._add_content_module(self.right_scroll, self.right_sizer, "Artifacts", self._artifacts_text(), expanded=False)
+        self.right_scroll.Layout()
+        self.right_scroll.FitInside()
 
     def _add_keywords_module(self, detail: dict[str, Any]) -> None:
-        keywords = list(detail.get("keywords") or [])
+        terms = self._terms_for_detail(detail)
         definition = self.projection["smart"].get("selected_keyword_definition") or {}
-        label = "Keywords" if not keywords else f"Keywords · {' '.join('#' + str(item) for item in keywords[:2])}"
+        selected = str(definition.get("term") or self.selected_keyword or (terms[0] if terms else ""))
+        label = f"Keyword · {selected}" if selected else "Keyword"
         module = wx.CollapsiblePane(self.right_scroll, label=label)
         module.Collapse(False)
         pane = module.GetPane()
         sizer = wx.BoxSizer(wx.VERTICAL)
         pane.SetSizer(sizer)
-        self.keyword_list = wx.ListBox(pane, choices=[str(item) for item in keywords])
-        self.keyword_definition = wx.StaticText(pane, label=str(definition.get("definition") or "No definition."))
-        self.keyword_definition.Wrap(210)
-        self.keyword_list.Bind(wx.EVT_LISTBOX, self._on_select_keyword)
-        sizer.Add(self.keyword_list, 0, wx.ALL | wx.EXPAND, 6)
-        sizer.Add(self.keyword_definition, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+
+        title = wx.StaticText(pane, label=selected or "No keyword selected")
+        title.SetFont(title.GetFont().Bold().Larger())
+        definition_text = wx.StaticText(pane, label=str(definition.get("definition") or "Click a linked term in the center panel."))
+        definition_text.Wrap(205)
+        sizer.Add(title, 0, wx.ALL | wx.EXPAND, 6)
+        sizer.Add(definition_text, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+
+        if terms:
+            chips_panel = wx.Panel(pane)
+            chips = wx.WrapSizer(wx.HORIZONTAL)
+            chips_panel.SetSizer(chips)
+            for term in terms:
+                button = wx.Button(chips_panel, label=str(term), size=(-1, 25))
+                button.Bind(wx.EVT_BUTTON, lambda _event, selected_term=str(term): self._select_keyword(selected_term, refresh_center=False))
+                chips.Add(button, 0, wx.ALL, 2)
+            sizer.Add(chips_panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
+
         module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_scrollers())
         self.right_sizer.Add(module, 0, wx.BOTTOM | wx.EXPAND, 6)
+
+    def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
+        window = wx.html.HtmlWindow(parent, style=wx.BORDER_NONE | wx.html.HW_SCROLLBAR_AUTO)
+        window.SetMinSize((-1, min_height))
+        window.SetPage(self._keyword_html(text))
+        window.Bind(wx.html.EVT_HTML_LINK_CLICKED, self._on_keyword_html_link)
+        return window
+
+    def _keyword_html(self, text: str) -> str:
+        content = str(text or "")
+        terms = self._known_terms()
+        if not content:
+            body = "—"
+        elif not terms:
+            body = html.escape(content).replace("\n", "<br>")
+        else:
+            pattern = re.compile(r"(?<![A-Za-z0-9_])(" + "|".join(re.escape(term) for term in terms) + r")(?![A-Za-z0-9_])", re.IGNORECASE)
+            chunks: list[str] = []
+            last = 0
+            for match in pattern.finditer(content):
+                chunks.append(html.escape(content[last : match.start()]).replace("\n", "<br>"))
+                label = match.group(0)
+                canonical = self._canonical_term(label)
+                chunks.append(f'<a href="kw:{quote(canonical)}">{html.escape(label)}</a>')
+                last = match.end()
+            chunks.append(html.escape(content[last:]).replace("\n", "<br>"))
+            body = "".join(chunks)
+        return f"<html><body><font size='2'>{body}</font></body></html>"
+
+    def _known_terms(self) -> list[str]:
+        terms: set[str] = set()
+        for item in self.projection.get("glossary", {}).get("terms") or []:
+            term = str(item.get("term") or "").strip()
+            if len(term) >= 2:
+                terms.add(term)
+        detail = self._selected_detail() or {}
+        for term in detail.get("keywords") or []:
+            cleaned = str(term).strip()
+            if len(cleaned) >= 2:
+                terms.add(cleaned)
+        return sorted(terms, key=len, reverse=True)
+
+    def _canonical_term(self, term: str) -> str:
+        lowered = term.lower()
+        for known in self._known_terms():
+            if known.lower() == lowered:
+                return known
+        return term
+
+    def _terms_for_detail(self, detail: dict[str, Any]) -> list[str]:
+        result: list[str] = []
+        for term in detail.get("keywords") or []:
+            if str(term).strip() and str(term) not in result:
+                result.append(str(term))
+        selected = self.selected_keyword
+        if selected and selected not in result:
+            result.insert(0, selected)
+        return result
+
+    def _on_keyword_html_link(self, event: wx.html.HtmlLinkEvent) -> None:
+        href = event.GetLinkInfo().GetHref()
+        if not href.startswith("kw:"):
+            event.Skip()
+            return
+        self._select_keyword(unquote(href[3:]), refresh_center=False)
 
     def _fit_scrollers(self) -> None:
         self.center_scroll.Layout()
         self.center_scroll.FitInside()
+        self.center_notes_panel.Layout()
         self.right_scroll.Layout()
         self.right_scroll.FitInside()
 
@@ -574,20 +680,26 @@ class DesktopDashboardFrame(wx.Frame):
         self.layout_state.selected_candidature_ref = self.selected_ref
         self._refresh_all()
 
+    def _select_keyword(self, term: str, *, refresh_center: bool) -> None:
+        self.selected_keyword = term
+        self.layout_state.selected_keyword = term
+        self._reload_projection()
+        detail = self._selected_detail()
+        if refresh_center:
+            self._refresh_focus_modules()
+        elif detail:
+            self._refresh_right_context(detail)
+
     def _on_select_keyword(self, _event: wx.CommandEvent) -> None:
-        selection = self.keyword_list.GetSelection()
-        if selection == wx.NOT_FOUND:
-            return
-        self.selected_keyword = self.keyword_list.GetString(selection)
-        self.layout_state.selected_keyword = self.selected_keyword
-        self._refresh_all()
+        # Legacy handler kept for compatibility with older list-based keyword UI.
+        return
 
     def _on_save_note(self, _event: wx.CommandEvent) -> None:
         if not can_write(self.mode) or not self.selected_ref:
             return
         with connect(self.storage_path) as conn:
             update_application(conn, self.selected_ref, notes=self.note_text.GetValue())
-        self._refresh_all()
+        self._reload_projection()
 
     def _on_support_surface(self, event: wx.Event) -> None:
         label = "Support"
@@ -605,6 +717,8 @@ class DesktopDashboardFrame(wx.Frame):
             self.focus_splitter.SetSashPosition(DEFAULT_FOCUS_LEFT)
         if self.content_splitter.IsSplit():
             self.content_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[0] - DEFAULT_FOCUS_LEFT - DEFAULT_FOCUS_RIGHT)
+        if self.center_splitter.IsSplit():
+            self.center_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[1] - DEFAULT_CENTER_NOTES_HEIGHT - 90)
         self.layout_state.pane_layout.setdefault("smart", {})["left"] = DEFAULT_FOCUS_LEFT
         self.layout_state.pane_layout.setdefault("smart", {})["right"] = DEFAULT_FOCUS_RIGHT
         self.layout_state.save(self.layout_path)
