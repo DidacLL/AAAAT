@@ -21,6 +21,7 @@ DEFAULT_FOCUS_LEFT = 220
 DEFAULT_FOCUS_RIGHT = 220
 DEFAULT_WINDOW_SIZE = (1280, 780)
 DEFAULT_CENTER_NOTES_HEIGHT = 150
+_VIEW_TAB_INDEX = {"smart": 0, "detailed": 1, "user": 2}
 
 
 class SmartViewMixin(OverviewBoardMixin):
@@ -36,11 +37,9 @@ class SmartViewMixin(OverviewBoardMixin):
         self.Bind(wx.EVT_MENU, self._on_support_surface, self.new_candidature_item)
         self.Bind(wx.EVT_MENU, lambda _event: self._go_user(), self.profile_item)
         self.Bind(wx.EVT_MENU, self._on_reset_layout, self.reset_layout_item)
+        self.view_book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self._on_view_tab_changed)
         self.new_button.Bind(wx.EVT_BUTTON, self._on_support_surface)
-        self.user_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_user())
         self.reset_button.Bind(wx.EVT_BUTTON, self._on_reset_layout)
-        self.overview_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_overview())
-        self.detailed_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_detailed())
         self.expand_list_button.Bind(wx.EVT_BUTTON, lambda _event: self._go_overview())
         self.overview_search.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self._on_overview_search)
         self.overview_search.Bind(wx.EVT_TEXT_ENTER, self._on_overview_search)
@@ -52,16 +51,47 @@ class SmartViewMixin(OverviewBoardMixin):
         self._bind_detailed_events()
         self._bind_user_events()
 
-    def _sync_view_buttons(self) -> None:
-        for button, label, view in (
-            (self.overview_button, "List", "smart"),
-            (self.detailed_button, "Detailed", "detailed"),
-            (self.user_button, "User", "user"),
-        ):
-            selected = self.current_view == view
-            button.SetLabel(f"● {label}" if selected else label)
-            button.SetFont(self._view_button_active_font if selected else self._view_button_default_font)
-            button.SetToolTip(f"Current view: {label}" if selected else f"Open {label} view")
+    def _sync_view_tab(self) -> None:
+        target = _VIEW_TAB_INDEX.get(self.current_view, 0)
+        if self.view_book.GetSelection() != target:
+            self.view_book.ChangeSelection(target)
+
+    def _on_view_tab_changed(self, event: wx.BookCtrlEvent) -> None:
+        index = event.GetSelection()
+        if index == _VIEW_TAB_INDEX["detailed"]:
+            self._go_detailed()
+        elif index == _VIEW_TAB_INDEX["user"]:
+            self._go_user()
+        else:
+            self._go_overview()
+        event.Skip()
+
+    def _view_cache_key(self, view: str) -> tuple[Any, ...]:
+        detailed_columns = tuple(self.layout_state.detailed_columns.get("visible") or [])
+        return (view, str(self.selected_ref or ""), str(self.selected_keyword or ""), self.search_query, detailed_columns)
+
+    def _is_view_rendered(self, view: str) -> bool:
+        return self._rendered_view_keys.get(view) == self._view_cache_key(view)
+
+    def _mark_current_view_rendered(self) -> None:
+        self._rendered_view_keys[self.current_view] = self._view_cache_key(self.current_view)
+
+    def _refresh_current_if_needed(self) -> None:
+        if not self._is_view_rendered(self.current_view):
+            self._refresh_all()
+            return
+        self._update_title_for_current_view()
+        self._sync_view_tab()
+        self.root_sizer.Layout()
+        self.Layout()
+
+    def _update_title_for_current_view(self) -> None:
+        if self.current_view == "user":
+            self.title.SetLabel("AAAAT · User")
+        elif self.current_view == "detailed":
+            self.title.SetLabel("AAAAT · Detailed")
+        else:
+            self.title.SetLabel("AAAAT · Smart")
 
     def _show_overview(self) -> None:
         self.current_view = "smart"
@@ -69,18 +99,14 @@ class SmartViewMixin(OverviewBoardMixin):
         self.selected_ref = None
         self.overview_panel.Show()
         self.focus_panel.Hide()
-        self.detailed_panel.Hide()
-        self.user_panel.Hide()
-        self._sync_view_buttons()
+        self._sync_view_tab()
 
     def _show_focus(self) -> None:
         self.current_view = "smart"
         self.layout_state.selected_view = "smart"
         self.overview_panel.Hide()
         self.focus_panel.Show()
-        self.detailed_panel.Hide()
-        self.user_panel.Hide()
-        self._sync_view_buttons()
+        self._sync_view_tab()
         if not self._focus_layout_applied:
             wx.CallAfter(self._apply_focus_layout, False)
 
@@ -109,20 +135,18 @@ class SmartViewMixin(OverviewBoardMixin):
         self.Freeze()
         try:
             self._reload_projection()
-            if self.current_view == "user" and self.user_panel.IsShown():
+            if self.current_view == "user":
                 self._refresh_user_view()
-                self.title.SetLabel("AAAAT · User")
-            elif self.current_view == "detailed" and self.detailed_panel.IsShown():
+            elif self.current_view == "detailed":
                 self._refresh_detailed_view()
-                self.title.SetLabel("AAAAT · Detailed")
             elif self.overview_panel.IsShown():
                 self._refresh_overview_cards()
-                self.title.SetLabel("AAAAT · Smart")
             else:
                 self._refresh_nav_list()
                 self._refresh_focus_modules()
-                self.title.SetLabel("AAAAT · Smart")
-            self._sync_view_buttons()
+            self._update_title_for_current_view()
+            self._sync_view_tab()
+            self._mark_current_view_rendered()
             self.root_sizer.Layout()
             self.Layout()
         finally:
@@ -200,7 +224,9 @@ class SmartViewMixin(OverviewBoardMixin):
         if not can_write(self.mode) or not self.selected_ref:
             return
         self.command_service.save_note(str(self.selected_ref), body)
+        self._rendered_view_keys.clear()
         self._reload_projection()
+        self._mark_current_view_rendered()
 
     def _refresh_right_context(self, detail: dict[str, Any]) -> None:
         self.right_sizer.Clear(delete_windows=True)
@@ -309,13 +335,13 @@ class SmartViewMixin(OverviewBoardMixin):
         self.selected_ref = ref
         self.layout_state.selected_candidature_ref = ref
         self._show_focus()
-        self._refresh_all()
+        self._refresh_current_if_needed()
 
     def _go_overview(self) -> None:
         self.expanded_overview_ref = None
         self.layout_state.selected_candidature_ref = None
         self._show_overview()
-        self._refresh_all()
+        self._refresh_current_if_needed()
 
     def _on_overview_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = self.overview_search.GetValue()
@@ -345,6 +371,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.layout_state.selected_keyword = term
         self._reload_projection()
         self._refresh_right_context(self._selected_detail() or {})
+        self._mark_current_view_rendered()
         if refresh_center:
             self._refresh_focus_modules()
 
@@ -352,11 +379,14 @@ class SmartViewMixin(OverviewBoardMixin):
         wx.MessageBox("This desktop slice keeps candidature creation in existing flows.", "AAAAT Desktop")
 
     def _on_reset_layout(self, _event: wx.Event) -> None:
+        current_view = self.current_view
         self.layout_state = self.layout_state.default()
+        self.layout_state.selected_view = current_view
         self.center_card_state.reset()
         self.focus_left_width = DEFAULT_FOCUS_LEFT
         self.focus_right_width = DEFAULT_FOCUS_RIGHT
         self._focus_layout_applied = False
+        self._rendered_view_keys.clear()
         if self.focus_splitter.IsSplit():
             self.focus_splitter.SetSashPosition(self.focus_left_width)
         if self.content_splitter.IsSplit():
