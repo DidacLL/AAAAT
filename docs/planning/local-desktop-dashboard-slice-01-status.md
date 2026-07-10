@@ -6,16 +6,17 @@ PR: `#37`
 ## Classification
 
 ```text
-READY_FOR_FIFTH_MANUAL_WX_SMART_VIEW_VERIFICATION
+READY_FOR_SPRINT_CLOSE_MANUAL_VERIFICATION
 ```
 
-The current Smart View direction is a local desktop call cockpit, not a CRUD dashboard. Recent verification exposed three further UX constraints:
+The current Smart View direction is a local desktop call cockpit, not a CRUD dashboard. Recent verification added two final sprint-close UX constraints:
 
 ```text
-central panel must dominate the focus view
-right panel must stay narrow and secondary
-literal offer/source text is first-class factual context, not a normal short module
+notes must be fixed at the bottom of the central panel
+keywords in central text must link to a right-pane definition module
 ```
+
+This matches the source PDF interaction model: navigate by candidature/call signal first, then use linked technical terms as fast jumps into a definition surface.
 
 ## Corrected Smart View UX contract
 
@@ -44,12 +45,12 @@ The first click gives more recognition information without collapsing the list. 
 
 ### Focus mode hierarchy
 
-Focus mode now prioritizes the center:
+Focus mode prioritizes the center:
 
 ```text
 left: narrow candidature navigation strip
-center: dominant call cockpit and source reader
-right: narrow secondary context
+center: dominant call cockpit, source reader, and fixed notes band
+right: narrow keyword definition / secondary context
 ```
 
 The right panel default is intentionally small. Previously saved large right-panel widths are clamped during this development slice.
@@ -58,39 +59,49 @@ The right panel default is intentionally small. Previously saved large right-pan
 
 A candidature may include a long literal offer text. That text is factual source material and often the strongest visual memory from the application process.
 
-Smart View therefore exposes it as a center reader:
+Smart View exposes it as a center reader:
 
 ```text
 Source · compact excerpt
-expanded: full-width read-only text area with the literal source text
+expanded: full-width source reader with linked glossary terms
 ```
 
 This avoids pushing long source text into small right-column modules or two-column cards where it becomes unreadable.
 
+### Notes band
+
+Notes are not a right-pane module. Notes are fixed at the bottom of the central panel:
+
+```text
+center top: call cockpit and source reader
+center bottom: notes band, about 20 percent of center height
+```
+
+The notes band is always reachable while reading the source text and does not steal the right-pane keyword definition surface.
+
+### Keyword definition interaction
+
+Technical keywords are not passive chips. Terms inside central text are links:
+
+```text
+click keyword in center text -> right pane shows definition
+```
+
+The right pane is dedicated to the active keyword definition, with small keyword shortcut buttons and secondary artifacts below.
+
 ### Center content structure
 
-The center no longer uses the odd two-column collapsible grid for the main modules. It uses:
+The center uses:
 
 ```text
 hero: company / role / chips
-call cockpit: Recognize / Pitch / Ask / Watch
-source reader: literal offer text
-secondary center modules: Now / Later / Offer
+call cockpit: Recognize / Pitch / Ask / Watch, with linked terms
+source reader: literal offer text, with linked terms
+secondary center modules: Now / Later / Offer, with linked terms
+bottom band: Notes
 ```
 
-This keeps the central content readable and avoids row-level collapse behavior where one element affects a whole visual line.
-
-### Right context is secondary
-
-The right column contains compact secondary modules only:
-
-```text
-Notes
-Keywords
-Artifacts
-```
-
-Notes are editable, but they must not dominate the workspace.
+This keeps the central content readable and preserves the PDF-originated idea of linked technical terms everywhere.
 
 ## Implemented
 
@@ -117,10 +128,12 @@ Notes are editable, but they must not dominate the workspace.
   - Keeps overview cards horizontal and wrapping.
   - Keeps staged card click behavior.
   - Shrinks/clamps the right context width.
-  - Removes the center two-column collapsible module grid.
   - Adds a dominant center call cockpit.
-  - Adds a full-width read-only source reader for long literal offer/source text.
-  - Keeps notes, keywords, and artifacts in the right secondary context.
+  - Adds a full-width source reader for long literal offer/source text.
+  - Renders center text through `wx.html.HtmlWindow` so glossary terms can be clickable.
+  - Moves notes into a fixed bottom band in the central panel.
+  - Dedicates the right pane to keyword definitions and secondary artifacts.
+  - Updates the right definition module when a linked center term is clicked.
   - Reduces redraw churn by refreshing only the active surface and using `Freeze()`/`Thaw()`.
 
 ### Demo feeder
@@ -153,7 +166,7 @@ Notes are editable, but they must not dominate the workspace.
   - Smart View right-context size guard.
   - Desktop adapter import without wx.
   - Optional desktop package metadata.
-  - Source-level guard for staged-card behavior, source reader, and removal of the center grid.
+  - Source-level guard for staged-card behavior, source reader, notes band, clickable keyword links, right-context definition refresh, and removal of the old right-notes module.
   - Demo feeder creation, long raw source text, and idempotency.
   - Agent runtime boundary.
 
@@ -184,27 +197,30 @@ first click expands a card in place
 second click opens focus mode
 focus center is visibly the dominant workspace
 right context is narrow and secondary
-center no longer feels like a strange two-column collapse grid
 call cockpit is readable at a glance
 source excerpt is visible as factual memory cue
-expanding Source opens a full-width read-only source reader
+expanding Source opens a full-width source reader
 long literal offer text remains readable when expanded
-notes stay in the right column and do not dominate
+notes are fixed at the bottom of the center panel
+notes occupy roughly the bottom band, not the right pane
+technical terms in center text are clickable
+clicking a center term updates the right keyword definition
+right pane is useful as a definition surface
 search includes source/recognition text
 panes are resizable
-Reset restores narrow-right proportions
+Reset restores narrow-right and bottom-notes proportions
 layout state persists after restart
 agent runtime remains unchanged
 ```
 
 ## Review decision
 
-Do not classify as `PRODUCT_READY_TO_REVIEW` yet.
+Do not classify as `PRODUCT_READY_TO_REVIEW` until this manual verification passes.
 
 Use:
 
 ```text
-READY_FOR_FIFTH_MANUAL_WX_SMART_VIEW_VERIFICATION
+READY_FOR_SPRINT_CLOSE_MANUAL_VERIFICATION
 ```
 
 If this verification fails, classify as:
@@ -213,4 +229,4 @@ If this verification fails, classify as:
 BLOCKED_BY_UX_REGRESSION
 ```
 
-If this verification passes, the next implementation slice should be Detailed View table/grid.
+If this verification passes, close this Smart View sprint and start the next implementation slice with Detailed View table/grid.
