@@ -24,7 +24,7 @@ class DashboardLayoutState:
     selected_keyword: str | None = None
     pane_layout: dict[str, dict[str, int]] = field(
         default_factory=lambda: {
-            "smart": {"left": 320, "right": 360},
+            "smart": {"left": 210, "right": 260},
             "detailed": {"left": 280, "right": 340},
         }
     )
