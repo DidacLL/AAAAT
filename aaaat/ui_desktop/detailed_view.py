@@ -61,8 +61,7 @@ class DetailedViewMixin:
         self.focus_panel.Hide()
         self.detailed_panel.Show()
         self.user_panel.Hide()
-        self.root_sizer.Layout()
-        self.Layout()
+        self._sync_view_buttons()
 
     def _go_detailed(self) -> None:
         self._show_detailed()
