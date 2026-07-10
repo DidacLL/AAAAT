@@ -210,9 +210,9 @@ class DesktopDashboardFrame(wx.Frame):
         self._overview_card_refs = []
         apps = self._filtered_summaries()
         if not apps:
-            self._overview_cards_sizer.Add(self._empty_message(self.overview_scroll, "No matching candidatures."), 0, wx.ALL | wx.EXPAND, 12)
+            self.overview_cards_sizer.Add(self._empty_message(self.overview_scroll, "No matching candidatures."), 0, wx.ALL | wx.EXPAND, 12)
         for item in apps:
-            self._overview_cards_sizer.Add(self._candidature_card(item), 0, wx.BOTTOM | wx.EXPAND, 10)
+            self.overview_cards_sizer.Add(self._candidature_card(item), 0, wx.BOTTOM | wx.EXPAND, 10)
         self.overview_scroll.Layout()
         self.overview_scroll.FitInside()
 
@@ -383,11 +383,13 @@ class DesktopDashboardFrame(wx.Frame):
 
     def _selected_detail(self) -> dict[str, Any] | None:
         detail = self.projection["smart"].get("selected_candidature_detail")
-        if detail and self.selected_ref and str(detail.get("ref")) == str(self.selected_ref):
-            return detail
-        if detail and self.selected_ref is None:
+        if not detail:
             return None
-        return detail if detail else None
+        if self.selected_ref is None:
+            return None
+        if str(detail.get("ref")) != str(self.selected_ref):
+            return None
+        return detail
 
     def _chips(self, detail: dict[str, Any]) -> str:
         parts = [str(detail.get("status") or ""), str(detail.get("priority") or ""), str(detail.get("location") or ""), str(detail.get("remote_mode") or "")]
