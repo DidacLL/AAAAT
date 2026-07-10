@@ -8,9 +8,10 @@ from pathlib import Path
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_contains_private_values
 from aaaat.dashboard_modules import default_module_registry, modules_for_view, validate_module_registry
 from aaaat.dashboard_projection import build_dashboard_projection
-from aaaat.db import add_raw_intake, connect, create_application, init_db, list_applications, list_raw_intake
+from aaaat.db import add_raw_intake, connect, create_application, init_db, list_applications, list_raw_intake, set_profile_variable
 from aaaat.demo_seed import seed
 from aaaat.payload import dashboard_payload
+from aaaat.profile_facts import create_profile_fact
 from aaaat.security import Mode
 
 
@@ -90,6 +91,37 @@ class LocalDesktopDashboardProjectionTests(unittest.TestCase):
         self.assertEqual(detailed["selected_row"]["ref"], app["id"])
         self.assertIn("generate_cv", [action["id"] for action in detailed["toolbox_actions"]])
 
+    def test_user_projection_exposes_existing_local_profile_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                set_profile_variable(conn, "profile.display_name", "Ada Lovelace")
+                set_profile_variable(conn, "profile.email", "ada@example.test")
+                create_profile_fact(
+                    conn,
+                    fact_type="skill",
+                    title="Python backend",
+                    body="Builds local-first backend tooling.",
+                    tags=["python", "backend"],
+                    visibility="professional",
+                    exposure="summarized",
+                    use_for_cv=True,
+                    use_for_cover_letter=True,
+                    use_for_agent_context=True,
+                    use_for_dashboard=True,
+                    source="user",
+                )
+                payload = dashboard_payload(conn, include_raw=True)
+
+        projection = build_dashboard_projection(payload, Mode.FULL, view="user")
+        user = projection["user"]
+
+        self.assertEqual(projection["view_state"]["current_view"], "user")
+        self.assertIn("Ada Lovelace", [item["value"] for item in user["profile_variables"]])
+        self.assertTrue(any(item["title"] == "Python backend" for item in user["profile_facts"]))
+        self.assertGreaterEqual(user["profile_summary"]["variable_count"], 2)
+        self.assertIn("profile_summary", user["workspace_modules"])
+
     def test_projection_respects_read_only_permissions(self):
         payload, app = self.payload()
 
@@ -103,6 +135,75 @@ class LocalDesktopDashboardProjectionTests(unittest.TestCase):
         self.payload()
 
         self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
+
+
+class LocalDesktopUserViewFieldTests(unittest.TestCase):
+    def projection(self):
+        return {
+            "user": {
+                "profile_summary": {"variable_count": 2, "fact_count": 1, "ready_for_templates": False},
+                "profile_variables": [
+                    {"key": "profile.display_name", "value": "Ada Lovelace"},
+                    {"key": "profile.email", "value": "ada@example.test"},
+                    {"key": "profile.preference.tone", "value": "brief"},
+                ],
+                "profile_variable_records": [
+                    {"key": "profile.display_name", "exposure": "placeholder", "updated_at": "2026-01-01T00:00:00+00:00"},
+                ],
+                "profile_facts": [
+                    {
+                        "fact_type": "skill",
+                        "title": "Python backend",
+                        "body": "Builds local-first backend tooling.",
+                        "source": "user",
+                        "review_state": "active",
+                        "usage": {"cv": True, "cover_letter": True, "agent_context": True, "market_research": False, "dashboard": True},
+                    }
+                ],
+                "template_summary": {"missing_profile_variables": ["profile.summary.default"]},
+                "career_summary": {"configured": False, "note": "No dedicated local CareerPlan record is projected yet."},
+                "settings_summary": {"storage_mode": "local", "privacy": "local-first"},
+                "workspace_modules": ["profile_summary", "career_summary", "template_summary", "settings_summary"],
+            }
+        }
+
+    def test_user_view_source_has_grouped_sections(self):
+        from aaaat.ui_desktop.user_fields import FIELD_GROUPS, grouped_user_fields
+
+        groups = grouped_user_fields(self.projection())
+
+        self.assertEqual([group["title"] for group in groups], FIELD_GROUPS)
+        for title in (
+            "Identity",
+            "Preferences",
+            "Application defaults",
+            "Profile facts",
+            "Research/context",
+            "Generated or derived context",
+            "Raw/source/provenance",
+        ):
+            self.assertIn(title, [group["title"] for group in groups])
+
+    def test_user_view_renders_useful_profile_values_and_facts(self):
+        from aaaat.ui_desktop.user_fields import grouped_user_fields
+
+        rendered = "\n".join(str(field["value"]) for group in grouped_user_fields(self.projection()) for field in group["fields"])
+
+        self.assertIn("Ada Lovelace", rendered)
+        self.assertIn("ada@example.test", rendered)
+        self.assertIn("Python backend", rendered)
+        self.assertIn("Template ready: no", rendered)
+
+    def test_unsupported_or_read_only_user_fields_are_not_storage_updates(self):
+        from aaaat.ui_desktop.user_fields import collect_writable_user_changes
+
+        changes = collect_writable_user_changes(
+            {"profile.display_name": "Ada", "raw_provenance": "old"},
+            {"profile.display_name": "Ada L.", "raw_provenance": "new", "unsupported": "new"},
+            {"profile.display_name": "profile.display_name", "raw_provenance": None, "unsupported": "profile.unsupported"},
+        )
+
+        self.assertEqual(changes, {"profile.display_name": "Ada L."})
 
 
 class LocalDesktopDashboardLayoutTests(unittest.TestCase):
@@ -190,6 +291,17 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("DesktopCommandService", source)
         self.assertIn('argparse.ArgumentParser(prog="aaaat-desktop")', source)
 
+    def test_user_view_is_reachable_from_desktop_frame(self):
+        main_window = Path("aaaat/ui_desktop/main_window.py").read_text(encoding="utf-8")
+        smart_view = Path("aaaat/ui_desktop/smart_view.py").read_text(encoding="utf-8")
+        user_view = Path("aaaat/ui_desktop/user_view.py").read_text(encoding="utf-8")
+
+        self.assertIn("UserViewMixin", main_window)
+        self.assertIn("_build_user_surface", main_window)
+        self.assertIn("self.user_button", main_window)
+        self.assertIn("self._go_user", smart_view)
+        self.assertIn('self.current_view = "user"', user_view)
+
     def test_wx_imports_remain_isolated_to_desktop_ui_modules(self):
         allowed = {Path("aaaat/ui_desktop")}
         offenders = []
@@ -214,11 +326,12 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
 
         self.assertIn("class DesktopDashboardFrame", source)
         self.assertIn("SmartViewMixin", source)
+        self.assertIn("UserViewMixin", source)
         self.assertIn("_build_menu", source)
         self.assertIn("_build_shell", source)
         self.assertIn("center_notes_panel", source)
         self.assertIn("wx.WrapSizer(wx.HORIZONTAL)", source)
-        self.assertLess(len(source.splitlines()), 230)
+        self.assertLess(len(source.splitlines()), 235)
         self.assertNotIn("update_application", source)
         self.assertNotIn("apply_center_card_state_patch", source)
 
@@ -250,6 +363,19 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("EVT_HTML_LINK_CLICKED", links)
         self.assertIn("update_application", services)
         self.assertNotIn("connect(", notes_band)
+
+    def test_user_view_writes_go_through_desktop_command_service(self):
+        user_view = Path("aaaat/ui_desktop/user_view.py").read_text(encoding="utf-8")
+        user_panel = Path("aaaat/ui_desktop/user_panel.py").read_text(encoding="utf-8")
+        services = Path("aaaat/ui_desktop/services.py").read_text(encoding="utf-8")
+
+        self.assertIn("command_service.update_profile_variables", user_view)
+        self.assertIn("collect_writable_user_changes", user_panel)
+        self.assertIn("Cancel/Revert", user_panel)
+        self.assertIn("update_profile_variables", services)
+        self.assertIn("set_profile_variable", services)
+        self.assertNotIn("connect(", user_panel)
+        self.assertNotIn("update_application", user_panel)
 
     def test_card_state_patch_is_removed(self):
         app_source = Path("aaaat/ui_desktop/app.py").read_text(encoding="utf-8")
