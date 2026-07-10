@@ -59,7 +59,8 @@ class SmartViewMixin(OverviewBoardMixin):
             (self.user_button, "User", "user"),
         ):
             selected = self.current_view == view
-            button.SetLabel(f"[{label}]" if selected else label)
+            button.SetLabel(f"● {label}" if selected else label)
+            button.SetFont(self._view_button_active_font if selected else self._view_button_default_font)
             button.SetToolTip(f"Current view: {label}" if selected else f"Open {label} view")
 
     def _show_overview(self) -> None:
