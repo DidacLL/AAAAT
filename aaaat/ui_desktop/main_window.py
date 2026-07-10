@@ -17,8 +17,8 @@ from aaaat.security import Mode, can_write
 
 
 RIGHT_MODULES = ["keywords", "artifacts"]
-DEFAULT_FOCUS_LEFT = 210
-DEFAULT_FOCUS_RIGHT = 210
+DEFAULT_FOCUS_LEFT = 220
+DEFAULT_FOCUS_RIGHT = 220
 DEFAULT_WINDOW_SIZE = (1280, 780)
 DEFAULT_CENTER_NOTES_HEIGHT = 150
 OVERVIEW_CARD_SIZE = (390, 168)
@@ -51,9 +51,11 @@ class DesktopDashboardFrame(wx.Frame):
         self.selected_keyword = layout_state.selected_keyword
         self.search_query = ""
         self.expanded_overview_ref: str | None = None
+        self.expanded_center_cards: set[str] = {"call", "now"}
+        self._focus_layout_applied = False
         self.focus_left_width = int(layout_state.pane_layout.get("smart", {}).get("left", DEFAULT_FOCUS_LEFT))
         saved_right = int(layout_state.pane_layout.get("smart", {}).get("right", DEFAULT_FOCUS_RIGHT))
-        self.focus_right_width = min(saved_right, 230)
+        self.focus_right_width = min(saved_right, 240)
 
         self._list_refs: list[str] = []
         self._overview_card_refs: list[str] = []
@@ -131,8 +133,8 @@ class DesktopDashboardFrame(wx.Frame):
         self.right_scroll = wx.ScrolledWindow(self.content_splitter)
         self.right_scroll.SetScrollRate(8, 12)
         self.focus_splitter.SplitVertically(self.nav_panel, self.content_splitter, self.focus_left_width)
-        center_width = max(780, DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width)
-        self.content_splitter.SplitVertically(self.center_panel, self.right_scroll, center_width)
+        initial_center_width = DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width
+        self.content_splitter.SplitVertically(self.center_panel, self.right_scroll, max(640, initial_center_width))
         sizer.Add(self.focus_splitter, 1, wx.EXPAND)
 
         self._build_nav_panel()
@@ -204,6 +206,29 @@ class DesktopDashboardFrame(wx.Frame):
         self.overview_panel.Hide()
         self.focus_panel.Show()
         self.root_sizer.Layout()
+        self.Layout()
+        if not self._focus_layout_applied:
+            wx.CallAfter(self._apply_focus_layout, False)
+
+    def _apply_focus_layout(self, force: bool) -> None:
+        if not self.focus_panel.IsShown() or (self._focus_layout_applied and not force):
+            return
+        total_width = max(DEFAULT_WINDOW_SIZE[0], int(self.focus_panel.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0]))
+        left = max(170, min(260, int(total_width * 0.20)))
+        right = max(170, min(260, int(total_width * 0.20)))
+        content_width = max(480, total_width - left)
+        center = max(360, content_width - right)
+        if self.focus_splitter.IsSplit():
+            self.focus_splitter.SetSashPosition(left)
+        if self.content_splitter.IsSplit():
+            self.content_splitter.SetSashPosition(center)
+        center_height = int(self.center_panel.GetClientSize().GetHeight() or DEFAULT_WINDOW_SIZE[1])
+        notes_height = max(120, min(190, int(center_height * 0.20)))
+        if self.center_splitter.IsSplit():
+            self.center_splitter.SetSashPosition(max(220, center_height - notes_height))
+        self.focus_left_width = left
+        self.focus_right_width = right
+        self._focus_layout_applied = True
         self.Layout()
 
     def _refresh_all(self) -> None:
@@ -367,11 +392,11 @@ class DesktopDashboardFrame(wx.Frame):
             return
 
         self._add_hero(detail)
-        self._add_call_priority_panel(detail)
-        self._add_source_reader(detail)
-        self._add_content_module(self.center_scroll, self.center_sizer, "Now", detail.get("prepare_first"), expanded=True)
-        self._add_content_module(self.center_scroll, self.center_sizer, "Later", detail.get("prepare_later"), expanded=False)
-        self._add_content_module(self.center_scroll, self.center_sizer, "Offer", detail.get("offer_snapshot"), expanded=False)
+        self._add_call_card(detail)
+        self._add_source_card(detail)
+        self._add_center_card("now", "Now", detail.get("prepare_first"), expanded_by_default=True, min_height=92)
+        self._add_center_card("later", "Later", detail.get("prepare_later"), expanded_by_default=False, min_height=92)
+        self._add_center_card("offer", "Offer", detail.get("offer_snapshot"), expanded_by_default=False, min_height=92)
         self._add_notes_band()
         self._refresh_right_context(detail)
 
@@ -395,68 +420,100 @@ class DesktopDashboardFrame(wx.Frame):
         hero_sizer.Add(chips, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
         self.center_sizer.Add(hero, 0, wx.BOTTOM | wx.EXPAND, 8)
 
-    def _add_call_priority_panel(self, detail: dict[str, Any]) -> None:
-        panel = wx.Panel(self.center_scroll, style=wx.BORDER_SIMPLE)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        panel.SetSizer(sizer)
-        title = wx.StaticText(panel, label="Call cockpit")
-        title.SetFont(title.GetFont().Bold().Larger())
-        sizer.Add(title, 0, wx.ALL | wx.EXPAND, 8)
-
-        grid = wx.FlexGridSizer(rows=2, cols=2, vgap=8, hgap=12)
-        grid.AddGrowableCol(0, 1)
-        grid.AddGrowableCol(1, 1)
+    def _add_call_card(self, detail: dict[str, Any]) -> None:
         blocks = [
             ("Recognize", detail.get("call_signals") or detail.get("source_excerpt") or "No signal yet."),
             ("Pitch", detail.get("pitch") or "No pitch yet."),
             ("Ask", detail.get("smart_question") or "No question yet."),
             ("Watch", detail.get("risk_to_avoid") or "No risk note yet."),
         ]
-        for heading, body in blocks:
-            block = wx.Panel(panel)
-            block_sizer = wx.BoxSizer(wx.VERTICAL)
-            block.SetSizer(block_sizer)
-            label = wx.StaticText(block, label=heading)
-            label.SetFont(label.GetFont().Bold())
-            html_body = self._html_text_window(block, self._clip(body, 220), min_height=72)
-            block_sizer.Add(label, 0, wx.BOTTOM | wx.EXPAND, 2)
-            block_sizer.Add(html_body, 1, wx.EXPAND, 2)
-            grid.Add(block, 1, wx.EXPAND)
-        sizer.Add(grid, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+        summary = " · ".join(self._clip(body, 46) for _heading, body in blocks[:2] if body)
+        panel, body_sizer = self._center_card_shell("call", "Call cockpit", summary or "recognition, pitch, question, risk")
+        if self._center_card_is_expanded("call", True):
+            grid = wx.FlexGridSizer(rows=2, cols=2, vgap=8, hgap=12)
+            grid.AddGrowableCol(0, 1)
+            grid.AddGrowableCol(1, 1)
+            for heading, body in blocks:
+                block = wx.Panel(panel)
+                block_sizer = wx.BoxSizer(wx.VERTICAL)
+                block.SetSizer(block_sizer)
+                label = wx.StaticText(block, label=heading)
+                label.SetFont(label.GetFont().Bold())
+                html_body = self._html_text_window(block, self._clip(body, 220), min_height=72)
+                block_sizer.Add(label, 0, wx.BOTTOM | wx.EXPAND, 2)
+                block_sizer.Add(html_body, 1, wx.EXPAND, 2)
+                grid.Add(block, 1, wx.EXPAND)
+            body_sizer.Add(grid, 1, wx.ALL | wx.EXPAND, 8)
         self.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
 
-    def _add_source_reader(self, detail: dict[str, Any]) -> None:
+    def _add_source_card(self, detail: dict[str, Any]) -> None:
         source_text = str(detail.get("source_text") or "")
         source_excerpt = str(detail.get("source_excerpt") or source_text or "No source text stored yet.")
-        label = f"Source · {self._clip(source_excerpt, 110)}"
-        module = wx.CollapsiblePane(self.center_scroll, label=label)
-        module.Collapse(True)
-        pane = module.GetPane()
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        pane.SetSizer(sizer)
-        heading = wx.StaticText(pane, label=f"Literal offer/source text · {len(source_text)} chars")
-        heading.SetFont(heading.GetFont().Bold())
-        reader = self._html_text_window(pane, source_text or source_excerpt, min_height=300)
-        sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
-        sizer.Add(reader, 1, wx.ALL | wx.EXPAND, 8)
-        module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_scrollers())
-        self.center_sizer.Add(module, 0, wx.BOTTOM | wx.EXPAND, 8)
+        panel, body_sizer = self._center_card_shell("source", "Source", source_excerpt)
+        if self._center_card_is_expanded("source", False):
+            heading = wx.StaticText(panel, label=f"Literal offer/source text · {len(source_text)} chars")
+            heading.SetFont(heading.GetFont().Bold())
+            reader = self._html_text_window(panel, source_text or source_excerpt, min_height=310)
+            body_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+            body_sizer.Add(reader, 1, wx.ALL | wx.EXPAND, 8)
+        self.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
 
-    def _add_content_module(self, parent: wx.Window, target_sizer: wx.Sizer, title: str, body: Any, *, expanded: bool) -> None:
+    def _add_center_card(self, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int) -> None:
         text = str(body or "")
-        label = title if not text else f"{title} · {self._clip(text, 90)}"
-        module = wx.CollapsiblePane(parent, label=label)
-        module.Collapse(not expanded)
-        pane = module.GetPane()
-        pane_sizer = wx.BoxSizer(wx.VERTICAL)
-        pane.SetSizer(pane_sizer)
-        heading = wx.StaticText(pane, label=title)
-        heading.SetFont(heading.GetFont().Bold())
-        content = self._html_text_window(pane, text or "—", min_height=80)
-        pane_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
-        pane_sizer.Add(content, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
-        module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_scrollers())
-        target_sizer.Add(module, 0, wx.BOTTOM | wx.EXPAND, 6)
+        panel, body_sizer = self._center_card_shell(card_id, title, text or "—")
+        if self._center_card_is_expanded(card_id, expanded_by_default):
+            content = self._html_text_window(panel, text or "—", min_height=min_height)
+            body_sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
+        self.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
+
+    def _center_card_shell(self, card_id: str, title: str, summary: str) -> tuple[wx.Panel, wx.BoxSizer]:
+        expanded = self._center_card_is_expanded(card_id, card_id in {"call", "now"})
+        panel = wx.Panel(self.center_scroll, style=wx.BORDER_SIMPLE)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        panel.SetSizer(sizer)
+        header = wx.BoxSizer(wx.HORIZONTAL)
+        title_label = wx.StaticText(panel, label=title)
+        title_label.SetFont(title_label.GetFont().Bold().Larger())
+        summary_label = wx.StaticText(panel, label=self._clip(summary, 115))
+        summary_label.Wrap(620)
+        toggle_label = wx.StaticText(panel, label="▾" if expanded else "▸")
+        toggle_label.SetFont(toggle_label.GetFont().Bold().Larger())
+        header.Add(toggle_label, 0, wx.ALL | wx.ALIGN_TOP, 8)
+        header.Add(title_label, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_TOP, 8)
+        header.Add(summary_label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 8)
+        sizer.Add(header, 0, wx.EXPAND)
+        body_sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(body_sizer, 0, wx.EXPAND)
+        self._bind_center_card_click(panel, card_id)
+        return panel, body_sizer
+
+    def _center_card_is_expanded(self, card_id: str, default: bool) -> bool:
+        if card_id in self.expanded_center_cards:
+            return True
+        if not self.expanded_center_cards and default:
+            return True
+        return False
+
+    def _bind_center_card_click(self, window: wx.Window, card_id: str) -> None:
+        if isinstance(window, wx.html.HtmlWindow) or isinstance(window, wx.TextCtrl):
+            return
+        window.SetCursor(wx.Cursor(wx.CURSOR_HAND))
+        window.Bind(wx.EVT_LEFT_UP, lambda _event, selected_card=card_id: self._toggle_center_card(selected_card))
+        for child in window.GetChildren():
+            if isinstance(child, wx.Window):
+                self._bind_center_card_click(child, card_id)
+
+    def _toggle_center_card(self, card_id: str) -> None:
+        if card_id in self.expanded_center_cards:
+            self.expanded_center_cards.remove(card_id)
+        else:
+            self.expanded_center_cards.add(card_id)
+        self.Freeze()
+        try:
+            self._refresh_focus_modules()
+            self.Layout()
+        finally:
+            self.Thaw()
 
     def _add_notes_band(self) -> None:
         primary_note = self.projection["smart"].get("primary_note") or {}
@@ -481,6 +538,22 @@ class DesktopDashboardFrame(wx.Frame):
         self._add_content_module(self.right_scroll, self.right_sizer, "Artifacts", self._artifacts_text(), expanded=False)
         self.right_scroll.Layout()
         self.right_scroll.FitInside()
+
+    def _add_content_module(self, parent: wx.Window, target_sizer: wx.Sizer, title: str, body: Any, *, expanded: bool) -> None:
+        text = str(body or "")
+        label = title if not text else f"{title} · {self._clip(text, 90)}"
+        module = wx.CollapsiblePane(parent, label=label)
+        module.Collapse(not expanded)
+        pane = module.GetPane()
+        pane_sizer = wx.BoxSizer(wx.VERTICAL)
+        pane.SetSizer(pane_sizer)
+        heading = wx.StaticText(pane, label=title)
+        heading.SetFont(heading.GetFont().Bold())
+        content = self._html_text_window(pane, text or "—", min_height=80)
+        pane_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+        pane_sizer.Add(content, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+        module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_scrollers())
+        target_sizer.Add(module, 0, wx.BOTTOM | wx.EXPAND, 6)
 
     def _add_keywords_module(self, detail: dict[str, Any]) -> None:
         terms = self._terms_for_detail(detail)
@@ -691,7 +764,6 @@ class DesktopDashboardFrame(wx.Frame):
             self._refresh_right_context(detail)
 
     def _on_select_keyword(self, _event: wx.CommandEvent) -> None:
-        # Legacy handler kept for compatibility with older list-based keyword UI.
         return
 
     def _on_save_note(self, _event: wx.CommandEvent) -> None:
@@ -711,16 +783,10 @@ class DesktopDashboardFrame(wx.Frame):
         wx.MessageBox(f"{label} opens as a compact dialog in the next slice.", "AAAAT", wx.OK | wx.ICON_INFORMATION, self)
 
     def _on_reset_layout(self, _event: wx.Event) -> None:
-        self.focus_left_width = DEFAULT_FOCUS_LEFT
-        self.focus_right_width = DEFAULT_FOCUS_RIGHT
-        if self.focus_splitter.IsSplit():
-            self.focus_splitter.SetSashPosition(DEFAULT_FOCUS_LEFT)
-        if self.content_splitter.IsSplit():
-            self.content_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[0] - DEFAULT_FOCUS_LEFT - DEFAULT_FOCUS_RIGHT)
-        if self.center_splitter.IsSplit():
-            self.center_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[1] - DEFAULT_CENTER_NOTES_HEIGHT - 90)
-        self.layout_state.pane_layout.setdefault("smart", {})["left"] = DEFAULT_FOCUS_LEFT
-        self.layout_state.pane_layout.setdefault("smart", {})["right"] = DEFAULT_FOCUS_RIGHT
+        self._focus_layout_applied = False
+        self._apply_focus_layout(True)
+        self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_left_width
+        self.layout_state.pane_layout.setdefault("smart", {})["right"] = self.focus_right_width
         self.layout_state.save(self.layout_path)
         self.Layout()
 
@@ -732,7 +798,7 @@ class DesktopDashboardFrame(wx.Frame):
             if self.focus_splitter.IsSplit():
                 self.layout_state.pane_layout.setdefault("smart", {})["left"] = max(1, int(self.focus_splitter.GetSashPosition()))
             if self.right_scroll:
-                self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(1, min(230, int(self.right_scroll.GetSize().GetWidth())))
+                self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(1, min(240, int(self.right_scroll.GetSize().GetWidth())))
             self.layout_state.save(self.layout_path)
         finally:
             event.Skip()
