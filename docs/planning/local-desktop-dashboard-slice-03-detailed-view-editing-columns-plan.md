@@ -1,31 +1,51 @@
-# Local Desktop Dashboard Slice 03 Detailed View Editing and Column Controls Plan
+# Local Desktop Dashboard Slice 03 Detailed View Full Editor and Column Controls Plan
 
 Branch: `didacll/local-desktop-dashboard`
 
-Depends on:
+## Corrected closure rule
+
+Detailed View is not just a selected-row summary. It is the complete candidature inspection and editing surface.
+
+The slice is not closable while the right panel only edits a small allowlist of fields and omits other meaningful candidature fields.
+
+Correct rule:
 
 ```text
-SMART_VIEW_APPROVED
-DETAILED_VIEW_FOUNDATION_VISUALLY_ACCEPTED
+Smart View = recruiter-call cockpit / panic-mode summary
+Detailed View = complete candidature inspection and editing surface
 ```
 
-## Objective
+Detailed View must show every meaningful projected field for the selected candidature, grouped clearly. Every safely writable field must be editable. Only internal IDs, timestamps, provenance, immutable raw intake, generated/derived values without a storage target, and unsafe/unsupported fields should remain read-only.
 
-Refine the wx Detailed View after local visual verification.
+## Current state
 
-The foundation is accepted: Detailed View opens, rows are useful, row selection updates the right panel, and Open in Smart View works. The missing review items are:
+Implemented and accepted as direction:
 
 ```text
-1. The table needs a way to hide/show columns, or move columns if that is easier.
-2. The selected candidature shown in the right panel should be easy to edit.
+Detailed View opens
+projected rows are useful
+row selection updates the right panel
+Open in Smart View works
+column hide/show exists
+visible columns persist through DashboardLayoutState.detailed_columns
+limited right-panel editing exists for an initial field set
 ```
 
-Prefer hide/show columns over drag-reordering if that is simpler and more stable in wx. Column reordering may be added only if it stays small and reliable.
+But the current right panel is incomplete for closing the Detailed View slice because it does not yet act as the full candidature editor.
 
-## Classification target
+## Classification
+
+Current:
 
 ```text
-READY_FOR_DETAILED_VIEW_EDITING_MANUAL_VERIFICATION
+DETAILED_VIEW_LIMITED_EDITING_INCOMPLETE
+DETAILED_VIEW_FULL_EDITOR_REQUIRED_BEFORE_SLICE_CLOSE
+```
+
+Target:
+
+```text
+READY_FOR_DETAILED_VIEW_FULL_EDITOR_MANUAL_VERIFICATION
 ```
 
 If Smart View regresses or the desktop/runtime boundary is crossed, classify as:
@@ -47,88 +67,137 @@ BLOCKED_BY_DESKTOP_BOUNDARY_REGRESSION
 - Do not add heavy dependencies.
 - Do not turn Detailed View into a speculative admin framework.
 
-## Column controls
+## Required right-panel behavior
 
-Implement the simpler option first:
+The selected candidature panel must become a grouped full record editor.
+
+Recommended groups:
 
 ```text
-Detailed View column hide/show controls
+Identity
+- company
+- role
+- status
+- priority
+
+Logistics
+- location
+- remote_mode
+- source
+- source_url
+
+Workflow
+- next_action
+- deadlines/dates if present
+- review/application state if present
+
+Notes and call prep
+- notes
+- call signals
+- pitch
+- risks to avoid
+- smart question
+- prepare first
+- prepare later
+
+Research and context
+- company research
+- technical reading
+- keywords
+- glossary-linked terms
+
+Artifacts and generated material
+- generated artifacts
+- cover letter drafts
+- CV variants
+- interview guides
+- form answers
+
+Offer and compensation
+- offer snapshot
+- compensation fields if present
+
+Raw/source
+- raw intake
+- source excerpt
+- source text
 ```
 
-Recommended behavior:
+These groups may be adjusted to match the actual projection/data model, but the rule is: do not omit meaningful fields merely because they were not part of the first editable subset.
+
+## Editability rule
+
+Editable:
+
+```text
+user-maintained candidature fields
+workflow/status/priority/next-action fields
+URLs/source labels
+notes
+editable research/prep text where storage already exists
+other projected fields that cleanly map to local storage
+```
+
+Read-only:
+
+```text
+internal refs/IDs
+created_at/updated_at
+provenance fields
+derived summaries without a storage target
+generated artifact metadata unless artifact-state editing already exists
+immutable raw intake/source material if the app treats it as source evidence
+unsupported fields that cannot be safely written yet
+```
+
+Read-only fields must still be visible where useful. They should not be silently omitted.
+
+## Column controls
+
+Column hide/show is already the preferred path and should remain.
+
+Required behavior:
 
 ```text
 - Default columns remain useful on first launch.
-- User can hide/show supported columns from the Detailed View toolbar or a small local menu/dialog.
-- Visible column choices persist locally if an existing layout/state mechanism can store them cleanly.
-- If persistence is not already clean, keep the choice session-local and document that persistence remains a later enhancement.
-- Rebuild the wx table from the selected visible columns rather than adding complex column mutation behavior.
+- User can hide/show supported columns from the Detailed View UI.
+- Visible column choices persist through the existing layout state when available.
+- Rebuild the wx table from selected visible columns.
+- Do not add fragile drag-reordering unless it is small and reliable.
 ```
-
-Column movement/reordering is optional. Do not implement it if wx support requires fragile platform-specific code.
-
-## Editable selected detail panel
-
-Make the right/detail panel an editable local form for the selected candidature.
-
-Recommended behavior:
-
-```text
-- Selecting a row loads editable fields into the right panel.
-- The panel clearly separates editable fields from read-only/source-derived context.
-- User can save changes explicitly.
-- Save refreshes the projection and keeps selection stable when possible.
-- Cancel/Revert returns the panel to the projected values.
-- Open in Smart View still opens the selected candidature.
-```
-
-The editable set should cover the values currently shown in the selected candidature detail panel where the existing data model supports updates. Prefer practical coverage over a generic schema editor.
-
-Candidate editable fields:
-
-```text
-company
-role
-status
-priority
-location
-remote_mode
-source
-source_url
-next_action
-notes / primary note if already supported by the local notes command path
-```
-
-Do not silently invent storage for unsupported fields. If a field is projected but not safely writable yet, render it read-only and mark it as a later enhancement.
 
 ## Mutation boundary
 
-All writes must go through a tiny local desktop command service.
+All writes must go through local desktop command plumbing.
 
-Extend `aaaat/ui_desktop/services.py` if needed:
+Expected service boundary:
 
 ```text
 DesktopCommandService.save_note(candidature_ref, body)
 DesktopCommandService.update_candidature_fields(candidature_ref, changes)
 ```
 
-This is local UI plumbing only. It is not an agent API and not a broad dashboard CRUD surface.
+If more writable groups require more local commands, add tiny explicit commands to `DesktopCommandService`. Do not let widgets call broad DB write functions directly.
 
-Widgets must not call broad DB write functions directly.
+This remains local desktop UI plumbing only. It is not an agent API and not a broad external CRUD surface.
 
 ## Suggested file ownership
 
 ```text
 aaaat/ui_desktop/detailed_view.py
-- orchestrates table, column controls, detail panel, refresh, selection stability
+- orchestrates table, column controls, full editor panel, refresh, selection stability
 
 aaaat/ui_desktop/detail_table.py
 - owns visible-column model and row rendering
 - exposes selected candidature ref
 
 aaaat/ui_desktop/detail_panel.py
-- owns editable selected-candidature form
+- owns grouped full selected-candidature editor
+- renders writable fields as controls and read-only fields as read-only context
 - emits save/cancel/open-in-smart callbacks
+
+aaaat/ui_desktop/detail_columns.py
+- owns visible-column helpers
 
 aaaat/ui_desktop/services.py
 - owns local update command boundary
@@ -137,35 +206,41 @@ aaaat/ui_desktop/main_window.py
 - remains shell-only
 ```
 
-Add a tiny `detail_columns.py` or `detail_editing.py` only if it keeps the code smaller. Do not create a framework.
+Add a tiny helper such as `detail_fields.py` only if it keeps field grouping/editability rules explicit and testable. Do not create a framework.
 
 ## Tests to add or extend
 
 ```text
-- DetailTable supports visible column selection without wx where possible, or with source-level guards if wx is unavailable.
-- Column hide/show controls are present in Detailed View source.
-- main_window.py remains shell-only and does not absorb column/edit logic.
-- DetailPanel exposes editable fields and explicit save/cancel behavior.
-- DetailPanel writes through DesktopCommandService, not direct DB calls.
-- DesktopCommandService has a small update_candidature_fields command.
-- Saving selected candidature changes refreshes projection or calls the refresh path.
+- DetailPanel shows grouped sections for the complete selected candidature.
+- DetailPanel does not silently omit meaningful projected fields.
+- Writable projected fields are rendered/editable where storage supports them.
+- Read-only fields remain visible and intentionally read-only.
+- Save collects all changed writable fields through DesktopCommandService.
+- Unsupported fields are not passed to storage updates.
+- Cancel/Revert restores projected values without saving.
+- Column hide/show behavior remains covered.
+- main_window.py remains shell-only and does not absorb full-editor logic.
+- DetailPanel does not import/use direct DB writes.
 - Smart View guards still pass.
 - card_state_patch.py remains absent.
 - wx imports remain isolated to ui_desktop.
 - runtime boundary tests still pass.
 ```
 
-Avoid tests for exact pixel widths, exact column order after local interaction, or wx platform-specific drag behavior.
+Avoid tests for exact pixel widths, exact visual styling, exact temporary fake data names, or wx platform-specific drag behavior.
 
 ## Acceptance criteria
 
 ```text
 - Smart View manual behavior remains unchanged.
 - Detailed View still opens and shows projected candidature rows.
-- User can hide/show Detailed View columns, or a simpler stable equivalent is implemented.
-- Selected candidature detail panel is editable for supported fields.
-- Edits save through DesktopCommandService or an equivalent tiny local desktop command boundary.
+- Column hide/show still works and persists through existing layout state.
+- Selected candidature right panel shows the complete meaningful candidature record in grouped sections.
+- All safely writable projected fields are editable.
+- Read-only fields are intentionally visible and read-only, not omitted.
+- Save persists all edited writable fields through DesktopCommandService or tiny explicit local commands.
 - Widgets do not write directly through broad DB calls.
+- Cancel/Revert restores projected values.
 - Selection remains stable after save where practical.
 - Open in Smart View still works after edits.
 - main_window.py remains shell-only.
@@ -190,11 +265,14 @@ Verify:
 1. Smart View still behaves as approved.
 2. Detailed View opens from the toolbar.
 3. Rows remain readable and useful.
-4. Column hide/show works and does not break selection.
-5. Selecting a row loads editable values in the right panel.
-6. Editing supported fields and saving updates the selected candidature.
-7. Cancel/Revert restores projected values before save.
-8. Saved edits remain visible after refresh/reselect.
-9. Open in Smart View opens the edited candidature.
-10. No new external mutation surface is introduced.
+4. Column hide/show works and persists.
+5. Selecting a row loads a grouped full candidature record in the right panel.
+6. All meaningful fields are visible.
+7. Writable fields are editable.
+8. Read-only fields are visible and clearly not editable.
+9. Editing several fields across groups and saving updates the candidature.
+10. Cancel/Revert restores projected values before save.
+11. Saved edits remain visible after refresh/reselect/restart where storage supports it.
+12. Open in Smart View opens the edited candidature.
+13. No new external mutation surface is introduced.
 ```
