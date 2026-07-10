@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 from typing import Any
 
@@ -46,3 +47,15 @@ def launch_desktop_dashboard(storage: str | Path = ".private", *, read_only: boo
     frame.Show()
     app.MainLoop()
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="aaaat-desktop")
+    parser.add_argument("--storage", default=".private")
+    parser.add_argument("--read-only", action="store_true")
+    args = parser.parse_args(argv)
+    return launch_desktop_dashboard(args.storage, read_only=args.read_only)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
