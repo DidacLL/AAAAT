@@ -4,6 +4,8 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
+from .scrolling import bind_parent_wheel_scroll
+
 OVERVIEW_CARD_SIZE = (390, 168)
 EXPANDED_CARD_SIZE = (790, 250)
 
@@ -23,6 +25,7 @@ class OverviewBoardMixin:
             self.overview_cards_sizer.Add(self._candidature_card(item), 0, wx.ALL | wx.EXPAND, 8)
         self.overview_scroll.Layout()
         self.overview_scroll.FitInside()
+        bind_parent_wheel_scroll(self.overview_scroll, self.overview_scroll)
 
     def _candidature_card(self, item: dict[str, Any]) -> wx.Panel:
         ref = str(item.get("ref"))
