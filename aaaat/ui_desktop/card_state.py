@@ -27,6 +27,9 @@ class CenterCardState:
         state = {card_id: card_id in expanded_ids for card_id in DEFAULT_CENTER_CARD_STATES}
         return cls(state)
 
+    def reset(self) -> None:
+        self.expanded = dict(DEFAULT_CENTER_CARD_STATES)
+
     def is_expanded(self, card_id: str, default: bool = False) -> bool:
         if card_id not in self.expanded:
             self.expanded[card_id] = bool(default)
