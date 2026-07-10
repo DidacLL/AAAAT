@@ -9,9 +9,11 @@ PR: `#37`
 READY_FOR_SPRINT_CLOSE_MANUAL_VERIFICATION
 ```
 
-The current Smart View direction is a local desktop call cockpit, not a CRUD dashboard. Recent verification added two final sprint-close UX constraints:
+The current Smart View direction is a local desktop call cockpit, not a CRUD dashboard. Recent verification added sprint-close UX constraints:
 
 ```text
+center content should use expandable cards, not title-row-only expanders
+focus mode should default near 20 / 60 / 20 across left / center / right
 notes must be fixed at the bottom of the central panel
 keywords in central text must link to a right-pane definition module
 ```
@@ -48,22 +50,41 @@ The first click gives more recognition information without collapsing the list. 
 Focus mode prioritizes the center:
 
 ```text
-left: narrow candidature navigation strip
-center: dominant call cockpit, source reader, and fixed notes band
-right: narrow keyword definition / secondary context
+left: narrow candidature navigation strip, about 20 percent
+center: dominant card workspace and fixed notes band, about 60 percent
+right: narrow keyword definition / secondary context, about 20 percent
 ```
 
-The right panel default is intentionally small. Previously saved large right-panel widths are clamped during this development slice.
+The split is applied after the wx frame is realized so the right pane does not fall back to half of the remaining width. User resizing remains possible after the initial/default layout is applied.
+
+### Center card behavior
+
+The center must not feel like a title-row accordion. It uses card surfaces:
+
+```text
+click anywhere on a center card -> expand/collapse that card
+linked terms inside card text remain clickable -> update right definition pane
+```
+
+Cards currently include:
+
+```text
+Call cockpit
+Source
+Now
+Later
+Offer
+```
 
 ### Literal offer/source text
 
 A candidature may include a long literal offer text. That text is factual source material and often the strongest visual memory from the application process.
 
-Smart View exposes it as a center reader:
+Smart View exposes it as a center card:
 
 ```text
-Source · compact excerpt
-expanded: full-width source reader with linked glossary terms
+Source card collapsed: compact excerpt
+Source card expanded: full-width source reader with linked glossary terms
 ```
 
 This avoids pushing long source text into small right-column modules or two-column cards where it becomes unreadable.
@@ -73,7 +94,7 @@ This avoids pushing long source text into small right-column modules or two-colu
 Notes are not a right-pane module. Notes are fixed at the bottom of the central panel:
 
 ```text
-center top: call cockpit and source reader
+center top: card workspace
 center bottom: notes band, about 20 percent of center height
 ```
 
@@ -88,20 +109,6 @@ click keyword in center text -> right pane shows definition
 ```
 
 The right pane is dedicated to the active keyword definition, with small keyword shortcut buttons and secondary artifacts below.
-
-### Center content structure
-
-The center uses:
-
-```text
-hero: company / role / chips
-call cockpit: Recognize / Pitch / Ask / Watch, with linked terms
-source reader: literal offer text, with linked terms
-secondary center modules: Now / Later / Offer, with linked terms
-bottom band: Notes
-```
-
-This keeps the central content readable and preserves the PDF-originated idea of linked technical terms everywhere.
 
 ## Implemented
 
@@ -126,10 +133,13 @@ This keeps the central content readable and preserves the PDF-originated idea of
 
 - `aaaat/ui_desktop/main_window.py`
   - Keeps overview cards horizontal and wrapping.
-  - Keeps staged card click behavior.
-  - Shrinks/clamps the right context width.
-  - Adds a dominant center call cockpit.
-  - Adds a full-width source reader for long literal offer/source text.
+  - Keeps staged overview-card click behavior.
+  - Applies near 20/60/20 focus proportions after the frame is realized.
+  - Uses center cards instead of title-row-only expanders for the main center content.
+  - Lets center cards expand/collapse by clicking anywhere on the card surface.
+  - Keeps linked glossary terms inside center card text clickable.
+  - Adds a dominant center call cockpit card.
+  - Adds a source card for long literal offer/source text.
   - Renders center text through `wx.html.HtmlWindow` so glossary terms can be clickable.
   - Moves notes into a fixed bottom band in the central panel.
   - Dedicates the right pane to keyword definitions and secondary artifacts.
@@ -166,7 +176,7 @@ This keeps the central content readable and preserves the PDF-originated idea of
   - Smart View right-context size guard.
   - Desktop adapter import without wx.
   - Optional desktop package metadata.
-  - Source-level guard for staged-card behavior, source reader, notes band, clickable keyword links, right-context definition refresh, and removal of the old right-notes module.
+  - Source-level guard for staged-card behavior, center cards, source card, notes band, clickable keyword links, delayed 20/60/20 layout, right-context definition refresh, and removal of the old right-notes module.
   - Demo feeder creation, long raw source text, and idempotency.
   - Agent runtime boundary.
 
@@ -195,9 +205,11 @@ Verify:
 overview cards distribute horizontally and wrap
 first click expands a card in place
 second click opens focus mode
+focus starts near 20/60/20 for left/center/right
+right pane does not start at half of the remaining content area
 focus center is visibly the dominant workspace
-right context is narrow and secondary
-call cockpit is readable at a glance
+center modules behave like expandable cards
+clicking anywhere on a center card expands/collapses it
 source excerpt is visible as factual memory cue
 expanding Source opens a full-width source reader
 long literal offer text remains readable when expanded
@@ -208,7 +220,7 @@ clicking a center term updates the right keyword definition
 right pane is useful as a definition surface
 search includes source/recognition text
 panes are resizable
-Reset restores narrow-right and bottom-notes proportions
+Reset restores 20/60/20 and bottom-notes proportions
 layout state persists after restart
 agent runtime remains unchanged
 ```
