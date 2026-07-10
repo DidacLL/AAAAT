@@ -169,6 +169,8 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("CollapsiblePane", source)
         self.assertIn("Reset layout", source)
         self.assertIn("DEFAULT_FOCUS_RIGHT = 260", source)
+        self.assertIn("overview_cards_sizer", source)
+        self.assertNotIn("_overview_cards_sizer", source)
 
 
 class LocalDesktopDashboardRuntimeBoundaryTests(unittest.TestCase):
