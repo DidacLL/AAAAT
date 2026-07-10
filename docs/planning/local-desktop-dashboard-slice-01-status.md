@@ -6,12 +6,76 @@ PR: `#37`
 ## Classification
 
 ```text
-READY_FOR_MANUAL_WX_SMART_VIEW_VERIFICATION
+READY_FOR_SECOND_MANUAL_WX_SMART_VIEW_VERIFICATION
 ```
 
-The first local desktop dashboard slice now includes both the toolkit-neutral foundation and a wxPython Smart View adapter.
+The first wx Smart View attempt was rejected as `BLOCKED_BY_UX_REGRESSION`: it looked more professional than the browser version, but still behaved like a conventional three-column admin screen. The Smart View requirement is not a CRUD dashboard. It is a panic-mode call cockpit.
 
-## Implemented
+This revision refactors the Smart View around the corrected UX contract below.
+
+## Corrected Smart View UX contract
+
+### Recognition before administration
+
+The no-selection state must be an overview board. Candidatures are shown as readable cards that make recognition fast:
+
+```text
+company
+role
+status / priority / keywords
+short identifying signal
+```
+
+This overview uses most of the available space until a candidature is selected.
+
+### Focus after selection
+
+After selection, the UI changes shape:
+
+```text
+left: narrow candidature navigation strip
+center: selected candidature call context
+right: small secondary context column
+```
+
+The left strip remains usable for fast switching. Expanding it returns to the overview board.
+
+### Space economy
+
+Smart View must avoid field-name-heavy administrative presentation. It should expose concise call-useful content first:
+
+```text
+Pitch
+Ask
+Watch
+Now
+Later
+Offer
+```
+
+Long content is clipped in summaries and available by expanding the module.
+
+### Resizing and expansion
+
+- Panels are resizable through splitters.
+- Modules are collapsible/expandable.
+- Collapsed modules show a compact title/summary.
+- The right context column is deliberately smaller than the center.
+- A reset-layout action restores the default proportions.
+
+### Right context is secondary
+
+The right column is not the main workspace. It contains compact secondary modules:
+
+```text
+Notes
+Keywords
+Artifacts
+```
+
+Notes are editable, but not allowed to consume the main workspace by default.
+
+## Implemented in the corrected revision
 
 ### Toolkit-neutral foundation
 
@@ -29,6 +93,7 @@ The first local desktop dashboard slice now includes both the toolkit-neutral fo
 - `aaaat/dashboard_layout.py`
   - Persists selected view, selected candidature reference, selected keyword, pane sizes, visible modules, and Detailed View columns.
   - Stores layout/selection only, not private professional values or note bodies.
+  - Defaults Smart View to a narrow focus nav and smaller right context.
 
 ### wx desktop Smart View adapter
 
@@ -38,26 +103,19 @@ The first local desktop dashboard slice now includes both the toolkit-neutral fo
   - Builds projection before creating the desktop frame.
 
 - `aaaat/ui_desktop/main_window.py`
-  - Implements the first Smart View desktop window.
-  - Uses a readable three-region layout:
-
-    ```text
-    left: compact candidature list
-    center: selected candidature operational detail
-    right: context modules
-    ```
-
+  - Implements overview mode with large candidature cards.
+  - Implements focus mode with a narrow left navigation strip, large center context, and smaller right context.
   - Supports candidature selection.
-  - Supports search/filter over the candidature list.
-  - Shows selected candidature focus detail.
-  - Provides one primary note editor per selected candidature.
+  - Supports search/filter in both overview and focus navigation.
+  - Uses compact call-context modules instead of field-name-heavy record display.
+  - Uses collapsible/expandable modules for center and right content.
+  - Provides one primary note editor in the secondary right context.
   - Saves primary note changes in full local mode.
   - Disables note editing in read-only mode.
-  - Provides right context modules for notes, keywords, artifacts, call card, company research, form answers, and agent suggestions.
   - Supports keyword selection and definition display.
-  - Supports module visibility toggling through the Modules menu.
-  - Persists selected view, selected candidature, selected keyword, visible modules, and pane sizes on close.
-  - Provides File menu support-surface entries for new candidature and profile/settings as reachable dialogs/placeholders, without occupying Smart View.
+  - Persists selected view, selected candidature, selected keyword, and pane sizes on close.
+  - Provides a reset-layout action.
+  - Provides File menu support-surface entries for new candidature and profile/settings as reachable placeholders, without occupying Smart View.
 
 ### Launch surfaces
 
@@ -74,16 +132,18 @@ The first local desktop dashboard slice now includes both the toolkit-neutral fo
   - Read-only permission projection.
   - Toolkit-neutral projection import behavior.
   - Layout state round-trip and file persistence.
+  - Smart View default proportion guard.
   - Module registry validation.
   - Desktop adapter import without wx.
   - Optional desktop package metadata.
+  - Source-level guard for overview/focus/collapsible/reset behavior.
   - Agent runtime boundary.
 
 ## Not implemented yet
 
 - Full Detailed View wx table/grid.
 - Full User View wx workspace.
-- Full Welcome View wx onboarding surface.
+- Full Welcome View onboarding surface.
 - Real new-candidature/profile/settings desktop dialogs.
 - Desktop packaging beyond launcher scripts.
 - Browser dashboard removal or deprecation.
@@ -95,24 +155,31 @@ Run after installing the desktop extra:
 ```bash
 python -m pip install -e .[desktop]
 aaaat init
-aaaat app create --company "Example Co" --role "Backend Engineer"
+aaaat app create --company "Example Co" --role "Backend Engineer" --status meeting --priority high
+aaaat app create --company "Other Co" --role "Platform Engineer" --status draft --priority normal
 aaaat-desktop
 ```
 
 Verify:
 
 ```text
-app window starts
-Smart View renders
-candidature list is readable
-selecting a candidature updates central detail
+app opens into an overview board, not a tiny list
+candidature cards are recognizable at one glance
+company, role, and keywords are visually easy to scan
+selecting a card enters focus mode
+focus mode collapses the candidature list into a narrow left strip
+Expand/List returns to the overview board
+center area gets most visual space
+right context is smaller and secondary
+center modules are collapsible/expandable
+right modules are collapsible/expandable
+long content appears as compact summaries before expansion
 primary note editing works in full mode
-right context module switching works
-keyword selection preserves selected candidature
-module visibility can change through the Modules menu
-pane resizing works
-layout state persists after restart
 read-only launch disables note editing
+search/filter works in overview and focus navigation
+panes are resizable
+Reset restores layout proportions
+layout state persists after restart
 agent runtime remains unchanged
 ```
 
@@ -123,7 +190,13 @@ Do not classify as `PRODUCT_READY_TO_REVIEW` yet.
 Use:
 
 ```text
-READY_FOR_MANUAL_WX_SMART_VIEW_VERIFICATION
+READY_FOR_SECOND_MANUAL_WX_SMART_VIEW_VERIFICATION
 ```
 
-If manual wx verification passes, the next implementation slice should be Detailed View table/grid.
+If this verification fails, classify as:
+
+```text
+BLOCKED_BY_UX_REGRESSION
+```
+
+If this verification passes, the next implementation slice should be Detailed View table/grid.
