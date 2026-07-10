@@ -5,113 +5,164 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from aaaat.db import connect, create_application, init_db, upsert_glossary_term
+from aaaat.db import connect, create_application, get_application, init_db, update_application, upsert_glossary_term
 
 
 COMPANIES = [
-    ("NexaLedger", "Backend Engineer", ["Python", "FastAPI", "PostgreSQL", "Payments"], "Fintech ledger migration, recruiter Maria, asks about reconciliation"),
-    ("OrbitOps", "Platform Engineer", ["Kubernetes", "Terraform", "Python", "Observability"], "Infra scale-up, SRE-heavy call, wants ownership examples"),
-    ("LumenAI", "ML Backend Engineer", ["Python", "LLM", "RAG", "Vector DB"], "Agentic-search product, screening likely around retrieval systems"),
-    ("CivicStack", "Software Engineer", ["Django", "PostgreSQL", "APIs", "GovTech"], "Public-sector workflow tooling, values clarity and reliability"),
-    ("Northbank", "Automation Engineer", ["Python", "Banking Ops", "ETL", "Controls"], "Banking operations automation, highlight risk controls"),
-    ("BlueHarbor", "Data Platform Engineer", ["Airflow", "Python", "SQL", "AWS"], "Data platform modernization, likely batch orchestration questions"),
-    ("SignalForge", "Agentic Systems Engineer", ["Agents", "Tool Use", "Python", "SQLite"], "Small AI tooling team, cares about provider-agnostic design"),
-    ("AsterCloud", "Cloud Backend Developer", ["Python", "Azure", "Docker", "Messaging"], "Cloud migration team, ask about async jobs and cost"),
-    ("MosaicHR", "Product Engineer", ["Python", "React", "APIs", "B2B SaaS"], "HR workflow SaaS, balance backend depth with product sense"),
-    ("VerdeGrid", "Energy Software Engineer", ["Python", "Optimization", "IoT", "APIs"], "Energy grid optimization, domain learning matters"),
-    ("QuantaRisk", "Risk Tools Developer", ["Python", "SQL", "Dashboards", "Risk"], "Internal risk tooling, conservative technical culture"),
-    ("HelioWorks", "Integration Engineer", ["REST", "Python", "ETL", "CRM"], "Integrations-heavy role, emphasize debugging and ownership"),
+    "Northstar Robotics",
+    "Aster Cloud",
+    "Boreal Systems",
+    "Lumen Bioinformatics",
+    "Cobalt Finance",
+    "Helio Mobility",
+    "Nimble Grid",
+    "Atlas Security",
+    "Fjord Analytics",
+    "Vector Health",
+    "Quanta Retail",
+    "Mosaic AI",
 ]
 
-STATUSES = ["draft", "applied", "meeting", "interview", "waiting", "offer", "rejected"]
+ROLES = [
+    "Backend Engineer",
+    "Platform Engineer",
+    "Python Developer",
+    "Automation Engineer",
+    "Data Platform Engineer",
+    "Infrastructure Engineer",
+    "Developer Tools Engineer",
+    "Technical Product Engineer",
+]
+
+STACKS = [
+    ["Python", "FastAPI", "PostgreSQL", "Docker"],
+    ["Python", "Django", "Redis", "AWS"],
+    ["Python", "ETL", "Airflow", "BigQuery"],
+    ["Go", "Kubernetes", "gRPC", "Observability"],
+    ["TypeScript", "Node", "PostgreSQL", "Queues"],
+    ["Python", "LLM", "RAG", "SQLite"],
+    ["Linux", "Terraform", "CI/CD", "Azure"],
+    ["Python", "Data", "APIs", "Pandas"],
+]
+
+STATUSES = ["draft", "applied", "screening", "meeting", "technical", "offer-risk", "paused"]
 PRIORITIES = ["high", "normal", "low"]
-LOCATIONS = ["Madrid", "Barcelona", "Remote EU", "Hybrid Madrid", "Valencia", "Remote Spain"]
-REMOTE_MODES = ["remote", "hybrid", "onsite", "remote-first"]
-SOURCES = ["LinkedIn", "Wellfound", "Company site", "Recruiter inbound", "Referral", "InfoJobs"]
+SOURCES = ["LinkedIn recruiter", "Welcome to the Jungle", "Company careers", "Referral", "Cold inbound", "Otta", "RemoteOK"]
+LOCATIONS = ["Barcelona", "Madrid", "Remote EU", "Berlin", "Amsterdam", "London", "Paris", "Hybrid Barcelona"]
+REMOTE = ["remote", "hybrid", "onsite", "remote EU"]
 
 GLOSSARY = {
     "Python": "Use concrete examples: APIs, automation scripts, CLIs, data workflows, and local-first tooling.",
     "FastAPI": "Mention typed endpoints, validation, local service boundaries, and simple deployment.",
     "PostgreSQL": "Focus on relational modeling, migrations, indexing, and reliable transactional behavior.",
-    "Payments": "Keep compliance and reconciliation language conservative. Do not overclaim direct payment-provider ownership.",
     "Kubernetes": "Describe operational familiarity and debugging, not platform-guru claims unless evidence exists.",
     "Terraform": "Talk about reproducibility, reviewable infrastructure changes, and cautious rollout.",
     "Observability": "Mention logs, metrics, traces, and fast incident narrowing.",
     "LLM": "Keep provider-agnostic framing. Emphasize controlled context and user approval.",
     "RAG": "Describe retrieval boundaries, source grounding, and avoiding raw private-data leakage.",
-    "Vector DB": "Frame as search infrastructure; discuss chunking, metadata, and evaluation.",
-    "Banking Ops": "Strong fit: operations knowledge plus automation. Keep terminology precise.",
     "SQLite": "Local-first persistence, simple deployment, and avoiding database-server dependency.",
 }
 
 
-def seed(storage: str | Path, *, count: int, reset: bool) -> list[dict[str, Any]]:
+def build_record(index: int) -> dict[str, Any]:
+    company = COMPANIES[index % len(COMPANIES)]
+    role = ROLES[index % len(ROLES)]
+    keywords = list(STACKS[index % len(STACKS)])
+    status = STATUSES[index % len(STATUSES)]
+    priority = PRIORITIES[index % len(PRIORITIES)]
+    source = SOURCES[index % len(SOURCES)]
+    location = LOCATIONS[index % len(LOCATIONS)]
+    remote_mode = REMOTE[index % len(REMOTE)]
+    focus = keywords[0]
+    secondary = keywords[1] if len(keywords) > 1 else "systems"
+
+    record = {
+        "id": f"demo-smart-{index + 1:03d}",
+        "company": f"{company} {index + 1}" if index >= len(COMPANIES) else company,
+        "role": role,
+        "status": status,
+        "priority": priority,
+        "source": source,
+        "source_url": f"https://example.invalid/jobs/{index + 1:03d}",
+        "location": location,
+        "remote_mode": remote_mode,
+        "next_action": f"Call: identify them by {focus}/{secondary}, ask about ownership and delivery pressure.",
+        "notes": f"Recruiter-call scratchpad for {company}. Mention local-first tooling, pragmatic architecture, and concrete delivery examples.",
+        "call_signals": f"They mentioned {focus}, {secondary}, and a small team needing autonomy. Listen for product/platform split.",
+        "technical_reading": f"Review one recent article about {focus} scaling and prepare a short trade-off answer around {secondary}.",
+        "pitch": f"Position as a pragmatic engineer who can own {focus} systems, reduce ambiguity, and ship maintainable tooling without overengineering.",
+        "smart_question": f"What is the first {focus} problem this role must improve in the first 90 days?",
+        "risks_to_avoid": "Do not sound like a pure framework specialist; keep examples grounded in outcomes, maintainability, and team leverage.",
+        "prepare_first": f"Prepare one STAR story about {focus}, one about debugging production behavior, and one about simplifying a messy workflow.",
+        "prepare_later": "If advanced, inspect company product docs, funding/news context, and likely team topology before technical interview.",
+        "offer_snapshot": f"Likely senior IC scope. Watch for unclear salary band, relocation expectation, and ownership without authority.",
+        "company_research": f"{company} appears in this demo as a realistic target with a mixed product/platform need. Treat as call-prep material, not factual research.",
+        "form_answers": f"Why interested: the role combines {focus}, product impact, and clean internal tooling. Availability: flexible. Work mode: {remote_mode}.",
+        "keywords": keywords,
+    }
+
+    if index % 7 == 0:
+        record["form_answers"] = ""
+    if index % 9 == 0:
+        record["technical_reading"] = ""
+    if index % 11 == 0:
+        record["offer_snapshot"] = ""
+    return record
+
+
+def upsert_application(conn: sqlite3.Connection, record: dict[str, Any]) -> str:
+    app_id = str(record["id"])
+    try:
+        get_application(conn, app_id)
+    except KeyError:
+        create_application(conn, **record)
+        return "created"
+
+    update_fields = dict(record)
+    update_fields.pop("id", None)
+    update_application(conn, app_id, **update_fields)
+    return "updated"
+
+
+def seed(storage: str | Path, count: int = 48, *, reset: bool = False) -> dict[str, int]:
     init_db(storage)
+    created = 0
+    updated = 0
     with connect(storage) as conn:
         if reset:
             _clear_seed_data(conn)
         for term, definition in GLOSSARY.items():
             upsert_glossary_term(conn, term, definition, "demo")
-        created = []
         for index in range(count):
-            company, role, keywords, signal = COMPANIES[index % len(COMPANIES)]
-            suffix = index // len(COMPANIES)
-            display_company = company if suffix == 0 else f"{company} {suffix + 1}"
-            app = create_application(
-                conn,
-                company=display_company,
-                role=role,
-                status=STATUSES[index % len(STATUSES)],
-                priority=PRIORITIES[index % len(PRIORITIES)],
-                source=SOURCES[index % len(SOURCES)],
-                source_url=f"https://example.invalid/jobs/{company.lower()}-{index}",
-                location=LOCATIONS[index % len(LOCATIONS)],
-                remote_mode=REMOTE_MODES[index % len(REMOTE_MODES)],
-                next_action=_maybe_blank(index, f"Prepare recruiter call: verify scope, team size, and interview process for {display_company}."),
-                notes=_maybe_blank(index + 1, f"Recognize by: {signal}. Keep answer crisp; do not drift into admin details during the call."),
-                call_signals=_maybe_blank(index + 2, signal),
-                technical_reading=_maybe_blank(index + 3, f"Review {keywords[0]} and {keywords[1]} examples before the call."),
-                pitch=_maybe_blank(index + 4, f"I build local-first Python systems that turn messy workflows into reliable, reviewable tools. For {display_company}, I would emphasize pragmatic delivery and clear boundaries."),
-                smart_question=_maybe_blank(index + 5, "What would make the first 90 days successful, and which part of the platform needs the most immediate ownership?"),
-                risks_to_avoid=_maybe_blank(index + 6, "Do not oversell frontend depth. Avoid claiming production ownership of areas not directly evidenced."),
-                prepare_first=_maybe_blank(index + 7, f"Prepare a 45-second story about {keywords[0]} plus a concrete debugging/ownership example."),
-                prepare_later=_maybe_blank(index + 8, "Read the engineering blog, check funding/product maturity, and map likely interview stages."),
-                offer_snapshot=_maybe_blank(index + 9, f"Target: practical backend/platform role. Compensation and seniority still unknown for {display_company}."),
-                company_research=_maybe_blank(index + 10, f"{display_company} appears to need reliable delivery, compact communication, and strong ownership in a small-to-medium product team."),
-                form_answers=_maybe_blank(index + 11, "Why this role: local-first/product-minded engineering, backend ownership, and clear user impact. Availability: flexible."),
-                keywords=keywords,
-            )
-            created.append(app)
-        return created
-
-
-def _maybe_blank(index: int, value: str) -> str:
-    # Keep most data complete, but leave realistic holes for visual testing.
-    return "" if index % 13 == 0 else value
+            result = upsert_application(conn, build_record(index))
+            if result == "created":
+                created += 1
+            else:
+                updated += 1
+    return {"created": created, "updated": updated, "total": count}
 
 
 def _clear_seed_data(conn: sqlite3.Connection) -> None:
     conn.execute("DELETE FROM application_keywords")
-    conn.execute("DELETE FROM generated_artifacts")
     conn.execute("DELETE FROM tasks")
     conn.execute("DELETE FROM todos")
     conn.execute("DELETE FROM text_blobs")
     conn.execute("DELETE FROM notes")
     conn.execute("DELETE FROM raw_intake")
+    conn.execute("DELETE FROM generated_artifacts")
     conn.execute("DELETE FROM applications")
     conn.commit()
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="aaaat-seed-desktop-demo")
+    parser = argparse.ArgumentParser(description="Seed AAAAT with realistic Smart View demo candidatures.")
     parser.add_argument("--storage", default=".private")
-    parser.add_argument("--count", type=int, default=36)
+    parser.add_argument("--count", type=int, default=48)
     parser.add_argument("--reset", action="store_true")
     args = parser.parse_args(argv)
-
-    created = seed(args.storage, count=max(1, args.count), reset=args.reset)
-    print(f"Seeded {len(created)} demo candidatures into {args.storage}")
-    print("Run: aaaat-desktop")
+    summary = seed(args.storage, max(1, args.count), reset=args.reset)
+    print(f"Seeded Smart View demo data: {summary['created']} created, {summary['updated']} updated, {summary['total']} total.")
+    print("Launch with: aaaat-desktop")
     return 0
 
 
