@@ -37,7 +37,7 @@ class LocalDesktopDashboardProjectionTests(unittest.TestCase):
                 form_answers="Draft form answer",
                 keywords=["Python"],
             )
-            add_raw_intake(conn, app["id"], "Literal offer text with responsibilities, requirements, interview process, and source clues." * 8, created_by="test")
+            add_raw_intake(conn, app["id"], "Literal offer text with responsibilities, requirements, interview process, Python, RAG, Docker, and source clues." * 8, created_by="test")
             payload = dashboard_payload(conn, include_raw=True)
         return payload, app
 
@@ -186,6 +186,7 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("CollapsiblePane", source)
         self.assertIn("Reset layout", source)
         self.assertIn("DEFAULT_FOCUS_RIGHT = 210", source)
+        self.assertIn("DEFAULT_CENTER_NOTES_HEIGHT", source)
         self.assertIn("overview_cards_sizer", source)
         self.assertIn("wx.WrapSizer(wx.HORIZONTAL)", source)
         self.assertIn("_bind_card_click", source)
@@ -195,10 +196,16 @@ class LocalDesktopDashboardAdapterTests(unittest.TestCase):
         self.assertIn("Click again to open Smart View", source)
         self.assertIn("_add_source_reader", source)
         self.assertIn("Literal offer/source text", source)
-        self.assertIn("wx.TE_READONLY", source)
+        self.assertIn("wx.html.HtmlWindow", source)
+        self.assertIn("kw:", source)
+        self.assertIn("_on_keyword_html_link", source)
+        self.assertIn("_refresh_right_context", source)
+        self.assertIn("_add_notes_band", source)
+        self.assertIn("center_notes_panel", source)
         self.assertIn("Freeze()", source)
         self.assertNotIn("center_grid = wx.FlexGridSizer", source)
         self.assertNotIn("_overview_cards_sizer", source)
+        self.assertNotIn("_add_note_module", source)
 
 
 class LocalDesktopDashboardSeedTests(unittest.TestCase):
