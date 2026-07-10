@@ -32,7 +32,7 @@ def _tags(html):
 
 @unittest.skipUnless(JINJA_AVAILABLE, "Jinja2 is not installed")
 class DashboardSmartViewTests(unittest.TestCase):
-    def smart_model(self, mode=Mode.FULL, *, context_module="notes", selected_keyword="Python"):
+    def smart_model(self, mode=Mode.FULL, *, context_module="notes", selected_keyword="Python", selected=True):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         init_db(tmp.name)
@@ -79,18 +79,19 @@ class DashboardSmartViewTests(unittest.TestCase):
                 payload,
                 mode,
                 view="smartView",
-                selected_application_id=app["id"],
+                selected_application_id=app["id"] if selected else None,
                 selected_keyword=selected_keyword,
                 selected_context_module=context_module,
                 conn=conn,
             )
         return payload, model, app
 
-    def test_left_panel_uses_compact_projection_summaries(self):
+    def test_left_panel_uses_meaningful_projection_summaries_and_collapses_when_selected(self):
         _, model, _ = self.smart_model()
         html = render_dashboard_fragment("candidature-list", model)
 
         self.assertIn('data-smart-candidature-list', html)
+        self.assertIn('data-module-state="collapsed"', html)
         self.assertIn('data-smart-candidature-summary', html)
         self.assertIn("Smart Projection Co", html)
         self.assertIn("Backend Platform Engineer", html)
@@ -98,6 +99,7 @@ class DashboardSmartViewTests(unittest.TestCase):
         self.assertIn("high", html)
         self.assertIn("Prepare recruiter call", html)
         self.assertIn("LinkedIn", html)
+        self.assertIn("Barcelona", html)
         self.assertIn('data-artifact-state-indicator', html)
         self.assertIn('data-keyword="Python"', html)
         self.assertNotIn("Primary Smart note value", html)
@@ -105,6 +107,12 @@ class DashboardSmartViewTests(unittest.TestCase):
         self.assertNotIn("Senior backend role focused on local-first tooling", html)
         self.assertNotIn("Company builds developer productivity tools", html)
         self.assertNotIn("/dashboard/actions/raw-offer-intake", html)
+
+    def test_left_panel_starts_expanded_when_no_candidature_is_selected(self):
+        _, model, _ = self.smart_model(selected=False)
+        html = render_dashboard_fragment("candidature-list", model)
+        self.assertIn('data-module-state="expanded"', html)
+        self.assertIn('data-smart-candidature-summary', html)
 
     def test_central_panel_renders_scan_safe_selected_operational_detail(self):
         _, model, _ = self.smart_model()
@@ -128,6 +136,7 @@ class DashboardSmartViewTests(unittest.TestCase):
         self.assertIn('data-panel-default="collapsed"', html)
         self.assertIn('data-operational-field="offer_snapshot"', html)
         self.assertIn('data-operational-field="artifact_state_summary"', html)
+        self.assertNotIn('data-smart-compact-search', html)
         self.assertNotIn('data-document-actions', html)
         self.assertNotIn('data-generative-actions', html)
         self.assertNotIn('/dashboard/actions/raw-offer-intake', html)
@@ -199,6 +208,7 @@ class DashboardSmartViewTests(unittest.TestCase):
             self.assertIn("@click", button)
             self.assertIn(":aria-selected", button)
             self.assertTrue(button.get("hx-get", "").startswith("/dashboard/fragments/inspector"))
+            self.assertEqual(button.get("hx-target"), '[aria-label="Context"]')
         for label in ("Notes", "Keywords", "Artifacts", "Call card", "Company research", "Form answers", "Agent suggestions"):
             self.assertIn(label, html)
         self.assertIn('data-smart-context-panel="artifacts"', html)
@@ -232,6 +242,7 @@ class DashboardSmartViewTests(unittest.TestCase):
         self.assertIn('data-keyword-panel', html)
         self.assertIn("Programming language used for backend services.", html)
         self.assertIn('hx-get="/dashboard/fragments/inspector?view=smartView', html)
+        self.assertNotIn('aria-label="Inspector"', html)
 
 
 @unittest.skipUnless(FASTAPI_AVAILABLE, "FastAPI/httpx test dependencies are not installed")
