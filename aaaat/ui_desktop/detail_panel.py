@@ -8,6 +8,7 @@ from .detail_fields import collect_writable_changes, grouped_detail_fields
 from .scrolling import bind_parent_wheel_scroll
 
 EditableSaveCallback = Callable[[str, dict[str, str]], None]
+DeleteCallback = Callable[[str], None]
 
 
 class DetailPanel(wx.ScrolledWindow):
@@ -18,11 +19,13 @@ class DetailPanel(wx.ScrolledWindow):
         parent: wx.Window,
         *,
         on_save: EditableSaveCallback,
+        on_delete: DeleteCallback,
         on_cancel: Callable[[], None],
         on_open_smart: Callable[[], None],
     ) -> None:
         super().__init__(parent)
         self.on_save = on_save
+        self.on_delete = on_delete
         self.on_cancel = on_cancel
         self.on_open_smart = on_open_smart
         self._current_ref: str | None = None
@@ -72,13 +75,16 @@ class DetailPanel(wx.ScrolledWindow):
         actions = wx.BoxSizer(wx.HORIZONTAL)
         save = wx.Button(self, label="Save")
         cancel = wx.Button(self, label="Cancel/Revert")
+        delete = wx.Button(self, label="Delete")
         open_smart = wx.Button(self, label="Open in Smart View")
         save.Enable(can_edit)
         cancel.Enable(can_edit)
+        delete.Enable(can_edit)
         save.Bind(wx.EVT_BUTTON, self._on_save)
         cancel.Bind(wx.EVT_BUTTON, self._on_cancel)
+        delete.Bind(wx.EVT_BUTTON, self._on_delete)
         open_smart.Bind(wx.EVT_BUTTON, lambda _event: self.on_open_smart())
-        for control in (save, cancel, open_smart):
+        for control in (save, cancel, delete, open_smart):
             actions.Add(control, 0, wx.ALL | wx.EXPAND, 4)
         self.sizer.Add(actions, 0, wx.ALL | wx.EXPAND, 6)
 
@@ -139,6 +145,10 @@ class DetailPanel(wx.ScrolledWindow):
         changes = collect_writable_changes(self._original_values, current_values, self._field_storage_keys)
         if changes:
             self.on_save(self._current_ref, changes)
+
+    def _on_delete(self, _event: wx.CommandEvent) -> None:
+        if self._current_ref:
+            self.on_delete(self._current_ref)
 
     def _on_cancel(self, _event: wx.CommandEvent) -> None:
         for key, control in self._controls.items():
