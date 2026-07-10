@@ -16,6 +16,7 @@ RIGHT_MODULES = ["notes", "keywords", "artifacts"]
 DEFAULT_FOCUS_LEFT = 210
 DEFAULT_FOCUS_RIGHT = 260
 DEFAULT_WINDOW_SIZE = (1280, 780)
+OVERVIEW_CARD_SIZE = (390, 160)
 
 
 class DesktopDashboardFrame(wx.Frame):
@@ -112,7 +113,7 @@ class DesktopDashboardFrame(wx.Frame):
 
         self.overview_scroll = wx.ScrolledWindow(self.overview_panel)
         self.overview_scroll.SetScrollRate(8, 16)
-        self.overview_cards_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.overview_cards_sizer = wx.WrapSizer(wx.HORIZONTAL)
         self.overview_scroll.SetSizer(self.overview_cards_sizer)
         sizer.Add(self.overview_scroll, 1, wx.EXPAND)
 
@@ -212,44 +213,53 @@ class DesktopDashboardFrame(wx.Frame):
         if not apps:
             self.overview_cards_sizer.Add(self._empty_message(self.overview_scroll, "No matching candidatures."), 0, wx.ALL | wx.EXPAND, 12)
         for item in apps:
-            self.overview_cards_sizer.Add(self._candidature_card(item), 0, wx.BOTTOM | wx.EXPAND, 10)
+            self.overview_cards_sizer.Add(self._candidature_card(item), 0, wx.ALL, 8)
         self.overview_scroll.Layout()
         self.overview_scroll.FitInside()
 
     def _candidature_card(self, item: dict[str, Any]) -> wx.Panel:
+        ref = str(item.get("ref"))
         card = wx.Panel(self.overview_scroll, style=wx.BORDER_SIMPLE)
-        sizer = wx.BoxSizer(wx.VERTICAL)
+        card.SetMinSize(OVERVIEW_CARD_SIZE)
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
         card.SetSizer(sizer)
 
-        top = wx.BoxSizer(wx.HORIZONTAL)
-        title_box = wx.BoxSizer(wx.VERTICAL)
-        company = wx.StaticText(card, label=str(item.get("company") or "Untitled"))
+        left = wx.BoxSizer(wx.VERTICAL)
+        right = wx.BoxSizer(wx.VERTICAL)
+
+        company = wx.StaticText(card, label=self._clip(item.get("company") or "Untitled", 34))
         company.SetFont(company.GetFont().Bold().Larger())
-        role = wx.StaticText(card, label=str(item.get("role") or "Role"))
+        role = wx.StaticText(card, label=self._clip(item.get("role") or "Role", 44))
         role.SetFont(role.GetFont().Bold())
-        title_box.Add(company, 0, wx.BOTTOM | wx.EXPAND, 2)
-        title_box.Add(role, 0, wx.EXPAND, 2)
-        open_button = wx.Button(card, label="Open", size=(68, -1))
-        top.Add(title_box, 1, wx.ALL | wx.EXPAND, 8)
-        top.Add(open_button, 0, wx.ALL | wx.ALIGN_TOP, 8)
-        sizer.Add(top, 0, wx.EXPAND)
-
         chips = "  ".join([str(item.get("status") or ""), str(item.get("priority") or ""), *[f"#{keyword}" for keyword in item.get("keywords") or []]])
-        if chips.strip():
-            sizer.Add(wx.StaticText(card, label=chips), 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+        chip_label = wx.StaticText(card, label=self._clip(chips, 80))
+        chip_label.Wrap(205)
 
-        identifier_parts = [str(item.get("source") or ""), str(item.get("next_action") or ""), str(item.get("deadline_or_last_contact") or "")]
-        identifier = " · ".join(part for part in identifier_parts if part)
-        if identifier:
-            text = wx.StaticText(card, label=self._clip(identifier, 130))
-            text.Wrap(880)
-            sizer.Add(text, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+        left.Add(company, 0, wx.BOTTOM | wx.EXPAND, 4)
+        left.Add(role, 0, wx.BOTTOM | wx.EXPAND, 6)
+        left.Add(chip_label, 0, wx.EXPAND, 0)
 
-        ref = str(item.get("ref"))
-        open_button.Bind(wx.EVT_BUTTON, lambda _event, selected=ref: self._select_ref(selected))
-        card.Bind(wx.EVT_LEFT_DCLICK, lambda _event, selected=ref: self._select_ref(selected))
+        signal = item.get("call_signals") or item.get("next_action") or item.get("source") or "No call signal yet."
+        signal_text = wx.StaticText(card, label=self._clip(signal, 96))
+        signal_text.Wrap(155)
+        meta_parts = [str(item.get("source") or ""), str(item.get("deadline_or_last_contact") or ""), str(item.get("artifacts_state") or "")]
+        meta = wx.StaticText(card, label=self._clip(" · ".join(part for part in meta_parts if part), 76))
+        meta.Wrap(155)
+        right.Add(signal_text, 1, wx.BOTTOM | wx.EXPAND, 8)
+        right.Add(meta, 0, wx.EXPAND, 0)
+
+        sizer.Add(left, 1, wx.ALL | wx.EXPAND, 10)
+        sizer.Add(right, 1, wx.TOP | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
+        self._bind_card_selection(card, ref)
         self._overview_card_refs.append(ref)
         return card
+
+    def _bind_card_selection(self, window: wx.Window, ref: str) -> None:
+        window.SetCursor(wx.Cursor(wx.CURSOR_HAND))
+        window.Bind(wx.EVT_LEFT_UP, lambda _event, selected=ref: self._select_ref(selected))
+        for child in window.GetChildren():
+            self._bind_card_selection(child, ref)
 
     def _refresh_nav_list(self) -> None:
         apps = self._filtered_summaries()
@@ -374,6 +384,7 @@ class DesktopDashboardFrame(wx.Frame):
                     str(item.get("status") or ""),
                     str(item.get("priority") or ""),
                     str(item.get("next_action") or ""),
+                    str(item.get("call_signals") or ""),
                     " ".join(str(keyword) for keyword in item.get("keywords") or []),
                 ]
             ).lower()
