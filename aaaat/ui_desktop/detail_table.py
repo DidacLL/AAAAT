@@ -4,6 +4,8 @@ from typing import Any, Callable
 
 import wx  # type: ignore[import-not-found]
 
+from .detail_columns import column_title, normalize_visible_columns
+
 
 class DetailTable(wx.Panel):
     """Projected candidature rows for the desktop Detailed View."""
@@ -12,6 +14,7 @@ class DetailTable(wx.Panel):
         super().__init__(parent)
         self.on_select = on_select
         self._refs: list[str] = []
+        self._visible_columns: list[str] = []
         self._rendering = False
 
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -20,21 +23,31 @@ class DetailTable(wx.Panel):
         self.table.Bind(wx.EVT_LIST_ITEM_SELECTED, self._on_selected)
         sizer.Add(self.table, 1, wx.EXPAND)
 
-    def render(self, detailed: dict[str, Any], *, selected_ref: str | None) -> None:
+    @property
+    def selected_ref(self) -> str | None:
+        index = self.table.GetFirstSelected()
+        if 0 <= index < len(self._refs):
+            return self._refs[index]
+        return None
+
+    @property
+    def visible_columns(self) -> list[str]:
+        return list(self._visible_columns)
+
+    def render(self, detailed: dict[str, Any], *, selected_ref: str | None, visible_columns: list[str] | None = None) -> None:
         self._rendering = True
         try:
             self.table.DeleteAllItems()
             self.table.DeleteAllColumns()
             self._refs = []
 
-            available = {str(column.get("id")): column for column in detailed.get("available_columns") or []}
-            visible = [column_id for column_id in detailed.get("column_order") or detailed.get("visible_columns") or [] if column_id in available]
-            if not visible:
-                visible = ["company", "role", "status", "priority", "next_action", "artifacts_state"]
+            available_columns = [column for column in detailed.get("available_columns") or [] if isinstance(column, dict)]
+            visible = normalize_visible_columns(available_columns, visible_columns or detailed.get("column_order") or detailed.get("visible_columns"))
+            self._visible_columns = visible
             for index, column_id in enumerate(visible):
-                title = str(available.get(column_id, {}).get("title") or column_id.replace("_", " ").title())
+                title = column_title(available_columns, column_id)
                 self.table.InsertColumn(index, title)
-                self.table.SetColumnWidth(index, 150 if column_id in {"company", "role", "next_action"} else 105)
+                self.table.SetColumnWidth(index, 170 if column_id in {"company", "role", "next_action"} else 112)
 
             rows = self._filtered_rows(detailed)
             for row_index, row in enumerate(rows):
