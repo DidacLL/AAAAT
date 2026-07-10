@@ -60,6 +60,7 @@ class DetailedViewMixin:
         self.overview_panel.Hide()
         self.focus_panel.Hide()
         self.detailed_panel.Show()
+        self.user_panel.Hide()
         self.root_sizer.Layout()
         self.Layout()
 
