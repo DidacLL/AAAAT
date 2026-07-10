@@ -104,6 +104,8 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.profile_button = self.user_button
         self.reset_button = wx.Button(self.toolbar, label="Reset", size=(68, -1))
         self.new_button = wx.Button(self.toolbar, label="+", size=(40, -1))
+        self._view_button_default_font = self.overview_button.GetFont()
+        self._view_button_active_font = self._view_button_default_font.Bold()
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
         for control in (self.mode_chip, self.overview_button, self.detailed_button, self.user_button, self.reset_button, self.new_button):
