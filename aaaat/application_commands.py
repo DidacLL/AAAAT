@@ -36,7 +36,7 @@ class ApplicationCommandService:
     def save_primary_note(self, candidature_ref: str, body: str) -> dict[str, Any]:
         result = self.update_candidature_fields(candidature_ref, {"notes": body})
         if result is None:
-            raise CommandNotFoundError(f"Candidature not found: {candidature_ref}")
+            raise CommandValidationError("Primary note update requires a change")
         return result
 
     def update_candidature_fields(
@@ -56,11 +56,11 @@ class ApplicationCommandService:
         }
         if not safe_changes:
             return None
-        with connect(self.storage_path) as conn:
-            result = update_application(conn, candidature_ref, **safe_changes)
-        if result is None:
-            raise CommandNotFoundError(f"Candidature not found: {candidature_ref}")
-        return result
+        try:
+            with connect(self.storage_path) as conn:
+                return update_application(conn, candidature_ref, **safe_changes)
+        except KeyError as exc:
+            raise CommandNotFoundError(f"Candidature not found: {candidature_ref}") from exc
 
     def delete_candidature(self, candidature_ref: str) -> bool:
         if not candidature_ref:
