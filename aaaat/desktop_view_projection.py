@@ -58,6 +58,12 @@ def build_desktop_view_projection(
 
     if current_view == "welcome":
         projection["welcome"] = _welcome_projection(payload, apps)
+        # The current wx shell presents the empty state through Smart overview.
+        projection["smart"] = _smart_projection(payload, apps, selected, glossary, selected_keyword_value)
+        projection["glossary"] = {
+            "terms": glossary,
+            "selected": _glossary_definition(glossary, selected_keyword_value),
+        }
     elif current_view == "user":
         projection["user"] = _user_projection(payload)
     elif current_view == "detailed":
