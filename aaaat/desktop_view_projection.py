@@ -10,15 +10,18 @@ from .dashboard_projection import (
     _glossary_definition,
     _layout,
     _permissions,
+    _profile_fact_items,
+    _profile_variable_items,
+    _profile_variable_record_items,
     _selected_application,
     _smart_projection,
-    _user_projection,
     _welcome_projection,
     normalize_desktop_view,
 )
 from .security import Mode
 
 _AVAILABLE_VIEWS = ["welcome", "smart", "detailed", "user"]
+_USER_WORKSPACE_SECTIONS = ["profile_summary", "career_summary", "template_summary", "settings_summary"]
 
 
 def build_desktop_view_projection(
@@ -58,17 +61,11 @@ def build_desktop_view_projection(
 
     if current_view == "welcome":
         projection["welcome"] = _welcome_projection(payload, apps)
-        # The current wx shell presents the empty state through Smart overview.
         projection["smart"] = _smart_projection(payload, apps, selected, glossary, selected_keyword_value)
-        projection["glossary"] = {
-            "terms": glossary,
-            "selected": _glossary_definition(glossary, selected_keyword_value),
-        }
+        projection["glossary"] = _glossary_projection(glossary, selected_keyword_value)
     elif current_view == "user":
-        projection["user"] = _user_projection(payload)
+        projection["user"] = _desktop_user_projection(payload)
     elif current_view == "detailed":
-        # The full-record editor intentionally reuses selected-candidature
-        # summaries from Smart View, but does not build Welcome or User data.
         projection["smart"] = _smart_projection(payload, apps, selected, glossary, selected_keyword_value)
         projection["detailed"] = _detailed_projection(
             payload,
@@ -77,28 +74,58 @@ def build_desktop_view_projection(
             _column_state(layout),
             search_query or "",
         )
-        projection["glossary"] = {
-            "terms": glossary,
-            "selected": _glossary_definition(glossary, selected_keyword_value),
-        }
+        projection["glossary"] = _glossary_projection(glossary, selected_keyword_value)
     else:
         projection["smart"] = _smart_projection(payload, apps, selected, glossary, selected_keyword_value)
-        projection["glossary"] = {
-            "terms": glossary,
-            "selected": _glossary_definition(glossary, selected_keyword_value),
-        }
+        projection["glossary"] = _glossary_projection(glossary, selected_keyword_value)
 
     return projection
 
 
-def install_desktop_projection_compatibility() -> None:
-    """Route legacy desktop imports through the active-view builder.
+def _glossary_projection(glossary: list[dict[str, Any]], selected_keyword: str | None) -> dict[str, Any]:
+    return {
+        "terms": glossary,
+        "selected": _glossary_definition(glossary, selected_keyword),
+    }
 
-    The wx adapter historically imports ``build_dashboard_projection`` directly.
-    Installing this alias during desktop bootstrap avoids a risky widget rewrite
-    while ensuring initial loads and subsequent refreshes use the same projection
-    semantics. Non-desktop callers retain the legacy compatibility builder.
-    """
+
+def _desktop_user_projection(payload: dict[str, Any]) -> dict[str, Any]:
+    profile_variables = payload.get("profile_variables") or {}
+    variable_records = list(payload.get("profile_variable_records") or [])
+    profile_facts = list(payload.get("profile_facts") or [])
+    profile_context = payload.get("profile_context_dashboard") or {}
+    missing = list(payload.get("missing_profile_variables") or [])
+    return {
+        "profile_summary": {
+            "variable_count": len(profile_variables),
+            "fact_count": len(profile_facts),
+            "missing_variables": list(missing),
+            "ready_for_templates": not bool(missing),
+        },
+        "profile_variables": _profile_variable_items(profile_variables),
+        "profile_variable_records": _profile_variable_record_items(variable_records),
+        "profile_facts": _profile_fact_items(profile_facts),
+        "profile_context": profile_context,
+        "career_summary": {
+            "configured": bool(payload.get("career_plan") or payload.get("career_strategy")),
+            "has_strategy": bool(payload.get("career_strategy")),
+            "note": "No dedicated local CareerPlan record is projected yet." if not payload.get("career_plan") else "CareerPlan data available.",
+        },
+        "template_summary": {
+            "missing_profile_variables": list(missing),
+            "artifact_types": ["cv", "cover_letter"],
+        },
+        "settings_summary": {
+            "storage_mode": "local",
+            "privacy": "local-first",
+            "agent_workflows": "optional",
+        },
+        "workspace_modules": list(_USER_WORKSPACE_SECTIONS),
+    }
+
+
+def install_desktop_projection_compatibility() -> None:
+    """Route legacy wx reload imports through the active-view builder."""
 
     from . import dashboard_projection
 
