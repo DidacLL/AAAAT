@@ -1,69 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
+from aaaat.candidature_fields import (
+    CANDIDATURE_FIELD_GROUPS,
+    CANDIDATURE_FIELD_SPECS,
+    MEANINGFUL_PROJECTED_FIELD_KEYS,
+    WRITABLE_CANDIDATURE_STORAGE_KEYS,
+    CandidatureFieldSpec,
+)
 
-@dataclass(frozen=True)
-class DetailFieldSpec:
-    group: str
-    key: str
-    label: str
-    editable: bool = False
-    storage_key: str | None = None
-    multiline: bool = False
-    read_only_reason: str = ""
-
-
-FIELD_GROUPS = [
-    "Identity",
-    "Logistics",
-    "Workflow",
-    "Notes and call prep",
-    "Research and context",
-    "Artifacts and generated material",
-    "Offer and compensation",
-    "Raw/source",
-]
-
-DETAIL_FIELD_SPECS = [
-    DetailFieldSpec("Identity", "ref", "Candidature ref", read_only_reason="Internal identifier"),
-    DetailFieldSpec("Identity", "company", "Company", editable=True, storage_key="company"),
-    DetailFieldSpec("Identity", "role", "Role", editable=True, storage_key="role"),
-    DetailFieldSpec("Identity", "keywords", "Keywords", editable=True, storage_key="keywords", multiline=True),
-    DetailFieldSpec("Logistics", "location", "Location", editable=True, storage_key="location"),
-    DetailFieldSpec("Logistics", "remote_mode", "Remote", editable=True, storage_key="remote_mode"),
-    DetailFieldSpec("Logistics", "source", "Source label", editable=True, storage_key="source"),
-    DetailFieldSpec("Logistics", "source_url", "Source URL", editable=True, storage_key="source_url"),
-    DetailFieldSpec("Workflow", "status", "Status", editable=True, storage_key="status"),
-    DetailFieldSpec("Workflow", "priority", "Priority", editable=True, storage_key="priority"),
-    DetailFieldSpec("Workflow", "next_action", "Next action", editable=True, storage_key="next_action", multiline=True),
-    DetailFieldSpec("Workflow", "deadline", "Next date", read_only_reason="Projected date field has no safe local write target yet"),
-    DetailFieldSpec("Workflow", "last_contact", "Last activity", read_only_reason="Projected activity timestamp/context"),
-    DetailFieldSpec("Workflow", "task_queue", "Task queue", read_only_reason="Derived review queue summary"),
-    DetailFieldSpec("Notes and call prep", "notes", "Notes", editable=True, storage_key="notes", multiline=True),
-    DetailFieldSpec("Notes and call prep", "call_signals", "Call signals", editable=True, storage_key="call_signals", multiline=True),
-    DetailFieldSpec("Notes and call prep", "pitch", "Pitch", editable=True, storage_key="pitch", multiline=True),
-    DetailFieldSpec("Notes and call prep", "smart_question", "Smart question", editable=True, storage_key="smart_question", multiline=True),
-    DetailFieldSpec("Notes and call prep", "risk_to_avoid", "Risk to avoid", editable=True, storage_key="risks_to_avoid", multiline=True),
-    DetailFieldSpec("Notes and call prep", "prepare_first", "Prepare first", editable=True, storage_key="prepare_first", multiline=True),
-    DetailFieldSpec("Notes and call prep", "prepare_later", "Prepare later", editable=True, storage_key="prepare_later", multiline=True),
-    DetailFieldSpec("Research and context", "company_research", "Company research", editable=True, storage_key="company_research", multiline=True),
-    DetailFieldSpec("Research and context", "form_answers", "Form answers", editable=True, storage_key="form_answers", multiline=True),
-    DetailFieldSpec("Artifacts and generated material", "artifacts_state", "Artifacts state", read_only_reason="Generated artifact metadata"),
-    DetailFieldSpec("Artifacts and generated material", "artifacts_count", "Artifacts count", read_only_reason="Derived artifact count"),
-    DetailFieldSpec("Artifacts and generated material", "artifacts_items", "Artifacts", read_only_reason="Generated artifact metadata"),
-    DetailFieldSpec("Offer and compensation", "offer_snapshot", "Offer snapshot", editable=True, storage_key="offer_snapshot", multiline=True),
-    DetailFieldSpec("Raw/source", "source_excerpt", "Source excerpt", read_only_reason="Projected source evidence excerpt"),
-    DetailFieldSpec("Raw/source", "source_text", "Raw/source text", read_only_reason="Immutable source evidence"),
-    DetailFieldSpec("Raw/source", "source_length", "Source length", read_only_reason="Derived source length"),
-    DetailFieldSpec("Raw/source", "source_has_raw", "Has raw intake", read_only_reason="Source provenance"),
-    DetailFieldSpec("Raw/source", "created_at", "Created", read_only_reason="Timestamp"),
-    DetailFieldSpec("Raw/source", "updated_at", "Updated", read_only_reason="Timestamp"),
-]
-
-MEANINGFUL_PROJECTED_FIELD_KEYS = {spec.key for spec in DETAIL_FIELD_SPECS}
-WRITABLE_DETAIL_STORAGE_KEYS = {spec.storage_key for spec in DETAIL_FIELD_SPECS if spec.editable and spec.storage_key}
+DetailFieldSpec = CandidatureFieldSpec
+FIELD_GROUPS = CANDIDATURE_FIELD_GROUPS
+DETAIL_FIELD_SPECS = CANDIDATURE_FIELD_SPECS
+WRITABLE_DETAIL_STORAGE_KEYS = WRITABLE_CANDIDATURE_STORAGE_KEYS
 
 
 def build_detail_record(projection: dict[str, Any]) -> dict[str, Any]:
@@ -113,12 +63,18 @@ def grouped_detail_fields(projection: dict[str, Any]) -> list[dict[str, Any]]:
                 "storage_key": spec.storage_key,
                 "multiline": spec.multiline,
                 "read_only_reason": spec.read_only_reason,
+                "value_kind": spec.value_kind,
+                "choices": spec.choices,
             })
         groups.append({"title": group_name, "fields": fields})
     return groups
 
 
-def collect_writable_changes(original_values: dict[str, str], current_values: dict[str, str], field_map: dict[str, str | None]) -> dict[str, str]:
+def collect_writable_changes(
+    original_values: dict[str, str],
+    current_values: dict[str, str],
+    field_map: dict[str, str | None],
+) -> dict[str, str]:
     changes: dict[str, str] = {}
     for field_key, current in current_values.items():
         storage_key = field_map.get(field_key)
