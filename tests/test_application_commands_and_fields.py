@@ -3,6 +3,7 @@ import unittest
 
 from aaaat.application_commands import (
     ApplicationCommandService,
+    CommandNotFoundError,
     CommandValidationError,
 )
 from aaaat.candidature_fields import (
@@ -58,11 +59,15 @@ class ApplicationCommandServiceTests(unittest.TestCase):
             {"company": "After", "keywords": " Python, SQLite\nPython,  HTMX "},
         )
         self.assertEqual(updated["company"], "After")
-        self.assertEqual(updated["keywords"], ["Python", "SQLite", "HTMX"])
+        self.assertEqual(updated["keywords"], ["HTMX", "Python", "SQLite"])
 
     def test_rejects_read_only_or_unknown_fields(self):
         with self.assertRaises(CommandValidationError):
             self.service.update_candidature_fields(self.app["id"], {"created_at": "tomorrow"})
+
+    def test_missing_candidature_uses_application_error(self):
+        with self.assertRaises(CommandNotFoundError):
+            self.service.update_candidature_fields("app_missing", {"company": "Nope"})
 
     def test_empty_changes_do_not_write(self):
         self.assertIsNone(self.service.update_candidature_fields(self.app["id"], {}))
