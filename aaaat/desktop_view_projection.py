@@ -83,3 +83,20 @@ def build_desktop_view_projection(
         }
 
     return projection
+
+
+def install_desktop_projection_compatibility() -> None:
+    """Route legacy desktop imports through the active-view builder.
+
+    The wx adapter historically imports ``build_dashboard_projection`` directly.
+    Installing this alias during desktop bootstrap avoids a risky widget rewrite
+    while ensuring initial loads and subsequent refreshes use the same projection
+    semantics. Non-desktop callers retain the legacy compatibility builder.
+    """
+
+    from . import dashboard_projection
+
+    dashboard_projection.build_dashboard_projection = build_desktop_view_projection
+
+
+install_desktop_projection_compatibility()
