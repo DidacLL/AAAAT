@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any
 
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_path
-from aaaat.dashboard_projection import build_dashboard_projection
 from aaaat.db import connect, init_db
+from aaaat.desktop_view_projection import build_desktop_view_projection
 from aaaat.payload import dashboard_payload
 from aaaat.security import Mode
 
@@ -18,7 +18,7 @@ def build_desktop_projection(storage: str | Path, mode: Mode | str, layout_state
     layout = layout_state or DashboardLayoutState.load(layout_state_path(storage))
     with connect(storage) as conn:
         payload = dashboard_payload(conn, include_raw=True)
-    return build_dashboard_projection(payload, Mode(mode), view=layout.selected_view, layout_state=layout)
+    return build_desktop_view_projection(payload, Mode(mode), view=layout.selected_view, layout_state=layout)
 
 
 def launch_desktop_dashboard(storage: str | Path = ".private", *, read_only: bool = False) -> int:
