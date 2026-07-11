@@ -1,5 +1,18 @@
 from __future__ import annotations
 
+"""Desktop rendering helpers for the canonical candidature field policy.
+
+Canonical groups: Identity, Logistics, Workflow, Notes and call prep,
+Research and context, Artifacts and generated material,
+Offer and compensation, Raw/source.
+
+Canonical writable fields include company, role, status, priority, location,
+remote_mode, source, source_url, next_action, notes, call_signals, pitch,
+smart_question, risks_to_avoid, prepare_first, prepare_later, offer_snapshot,
+company_research, form_answers, and keywords. Definitions live in
+``aaaat.candidature_fields``; this module only adapts projected values for wx.
+"""
+
 from typing import Any
 
 from aaaat.candidature_fields import (
