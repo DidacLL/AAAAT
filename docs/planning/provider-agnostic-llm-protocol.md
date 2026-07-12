@@ -21,7 +21,7 @@ AAAAT bounded task/context
 
 The protocol is provider-neutral. Adapters translate requests and responses only.
 
-## Current slice
+## Implemented slice
 
 - versioned `LlmTaskRequest` and `LlmTaskResponse`;
 - conversion from the existing bounded agent task context;
@@ -29,28 +29,73 @@ The protocol is provider-neutral. Adapters translate requests and responses only
 - required structured-result validation;
 - provider capability contract;
 - provider-neutral conversation engine;
-- fake-provider behavioral tests.
+- OpenAI-compatible chat-completions adapter implemented with the Python standard library;
+- environment/CLI configuration without database secret persistence;
+- end-to-end execution of an existing task handle;
+- validated result submission through the existing suggested-review task result flow;
+- fake-provider and local HTTP-server behavioral tests.
 
-## Non-goals for this slice
+## Configuration
 
-- provider SDK dependency;
-- direct database writes from an adapter or model;
+Required values can be supplied through environment variables:
+
+```text
+AAAAT_LLM_PROVIDER=openai-compatible
+AAAAT_LLM_MODEL=<provider model name>
+AAAAT_LLM_BASE_URL=<provider root URL before /v1/chat/completions>
+AAAAT_LLM_API_KEY=<optional bearer token>
+AAAAT_LLM_TIMEOUT_SECONDS=60
+```
+
+Secrets remain process configuration. The runtime does not write API keys to AAAAT storage, task results, or model prompts.
+
+Equivalent command-line overrides are available through `aaaat-llm`.
+
+## Execute a queued task
+
+First obtain a bounded task handle using the existing agent interface:
+
+```bash
+aaaat --storage .private agent next
+```
+
+Then execute that task through the configured provider:
+
+```bash
+AAAAT_LLM_MODEL=my-model \
+AAAAT_LLM_BASE_URL=http://127.0.0.1:11434 \
+aaaat-llm --storage .private run taskh_...
+```
+
+The command:
+
+1. rebuilds the bounded context from the opaque task handle;
+2. sends only the protocol request to the provider;
+3. validates the returned JSON object;
+4. stores it as a suggested task result;
+5. leaves application of the result to AAAAT's existing review/apply path.
+
+It does not mutate the candidature directly.
+
+## Current non-goals
+
 - autonomous multi-agent planning;
+- direct database writes from an adapter or model;
 - browser UI;
 - prompt marketplace or plugin system;
 - provider-specific business logic;
-- conversation persistence before the execution protocol is accepted.
+- persistent conversation threads before task execution and review are accepted;
+- automatic application of LLM output.
 
 ## Next vertical slice
 
-1. Add a local OpenAI-compatible HTTP adapter using the standard library or an already accepted lightweight HTTP dependency.
-2. Add provider configuration through environment/config values without storing secrets in the database.
-3. Execute one existing queued AAAAT task through the engine.
-4. Submit the validated response through the existing task-result path.
-5. Surface the pending proposal in the desktop UI for human review.
-6. Apply only through the existing AAAAT task binding.
+1. Add desktop controls to execute an eligible queued task.
+2. Surface provider status, validation errors, and usage metadata.
+3. Show the suggested result in the existing review area.
+4. Allow explicit human apply/reject actions through existing task bindings.
+5. Add a second adapter only after the first end-to-end UX is accepted.
 
-Recommended first task type: `company_research` or recruiter-call preparation derived from the current Smart View fields.
+Recommended first release task type: `company_research`, followed by recruiter-call preparation derived from the current Smart View fields.
 
 ## Independence from PR #38
 
@@ -62,4 +107,4 @@ This branch depends on existing PR #37 contracts:
 - internal review/apply flow;
 - no broad entity-ID mutation authority.
 
-It does not depend on PR #38 field-policy extraction, active-view projection changes, or desktop adapter hardening. Later integration may reuse PR #38 application commands, but the protocol must remain independent of them.
+It does not depend on PR #38 field-policy extraction, active-view projection changes, or desktop adapter hardening. Later integration may reuse PR #38 application commands, but the protocol remains independent of them.
