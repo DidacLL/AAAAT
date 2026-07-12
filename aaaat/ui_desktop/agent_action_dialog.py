@@ -14,7 +14,7 @@ _ACTION_BY_KEY = {action.key: action for action in ACTIONS}
 
 
 class AgentActionDialog(wx.Dialog):
-    """One user request for one candidature; protocol details stay secondary."""
+    """One supplementary preparation request for one candidature."""
 
     def __init__(
         self,
@@ -53,14 +53,14 @@ class AgentActionDialog(wx.Dialog):
         root.Add(description, 0, wx.ALL | wx.EXPAND, 14)
 
         primary = wx.BoxSizer(wx.HORIZONTAL)
-        self.ask_button = wx.Button(self, label="Ask AI")
+        self.ask_button = wx.Button(self, label="Prepare")
         self.ask_button.SetDefault()
         self.configure_button = wx.Button(self, label="AI connection…")
         primary.Add(self.ask_button, 0, wx.RIGHT, 8)
         primary.Add(self.configure_button, 0)
         root.Add(primary, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 14)
 
-        alternatives = wx.CollapsiblePane(self, label="Other ways to use this request")
+        alternatives = wx.CollapsiblePane(self, label="Other ways")
         alternative_panel = alternatives.GetPane()
         alternative_sizer = wx.BoxSizer(wx.HORIZONTAL)
         alternative_panel.SetSizer(alternative_sizer)
@@ -143,7 +143,7 @@ class AgentActionDialog(wx.Dialog):
     def _on_ask(self, _event) -> None:
         command = self._agent_command()
         if not command:
-            self.status.SetLabel("Connect your preferred AI once, then use this button from any candidature.")
+            self.status.SetLabel("Connect your preferred AI once, then use this action from any candidature.")
             self._on_configure(None)
             return
         task = self._ensure_task()
@@ -214,14 +214,14 @@ class AgentActionDialog(wx.Dialog):
             return
         try:
             self.task = self.service.update_result(self.task["id"], self.result_text.GetValue())
-            if self.action_key == "draft_cover_letter":
+            if self.action_key in {"draft_cv", "draft_cover_letter"}:
                 self.service.render_cover_letter(self.task["id"])
             self.task = self.service.apply_result(self.task["id"])
         except DesktopAgentWorkflowError as exc:
             self.status.SetLabel(str(exc))
             return
         self.on_changed()
-        self.status.SetLabel("Done. The candidature has been updated.")
+        self.status.SetLabel("Done. The prepared result is now available in this candidature.")
         self._reload()
 
     def _on_discard(self, _event) -> None:
