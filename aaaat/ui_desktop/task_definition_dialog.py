@@ -23,9 +23,11 @@ from aaaat.task_definitions import (
 from .agent_workflow import DESKTOP_TASK_TYPES
 
 _TASK_LABELS = {
-    "field_inference": "Complete application details",
-    "company_research": "Research the company",
-    "draft_cv": "Prepare a tailored CV",
+    "field_inference": "Analyze the full candidature from the offer",
+    "company_research": "Research company context",
+    "career_plan_review": "Evaluate fit against my career path",
+    "draft_form_responses": "Prepare application form answers when a form is stored",
+    "draft_cv": "Prepare a role-specific CV",
     "draft_cover_letter": "Prepare a cover letter",
 }
 
@@ -117,7 +119,7 @@ class TaskDefinitionDialog(wx.Dialog):
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self.service = service
-        self.task_types = list(DESKTOP_TASK_TYPES)
+        self.task_types = list(SUPPORTED_GENERATION_TASKS)
 
         root = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(root)
@@ -127,8 +129,8 @@ class TaskDefinitionDialog(wx.Dialog):
         explanation = wx.StaticText(
             self,
             label=(
-                "Choose what AAAAT prepares automatically after you paste a job offer. "
-                "Advanced users can also edit the underlying task definitions and templates."
+                "AAAAT analyzes each pasted offer into the complete candidature workspace. "
+                "Choose which additional preparation should run automatically. Document generation is optional."
             ),
         )
         explanation.Wrap(790)
@@ -143,7 +145,7 @@ class TaskDefinitionDialog(wx.Dialog):
         policy_panel.SetSizer(policy_sizer)
         policy_note = wx.StaticText(
             policy_panel,
-            label="For each new job offer, prepare:",
+            label="Automatic preparation for each new offer:",
         )
         policy_note.SetFont(policy_note.GetFont().Bold())
         policy_sizer.Add(policy_note, 0, wx.ALL, 12)
@@ -155,6 +157,12 @@ class TaskDefinitionDialog(wx.Dialog):
             checkbox.Enable(can_write)
             self.policy_checks[task_type] = checkbox
             policy_sizer.Add(checkbox, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+        glossary_note = wx.StaticText(
+            policy_panel,
+            label="Missing definitions for keywords extracted from the offer are prepared automatically after analysis.",
+        )
+        glossary_note.Wrap(760)
+        policy_sizer.Add(glossary_note, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
         save_policy = wx.Button(policy_panel, label="Save automatic preparation")
         save_policy.Enable(can_write)
         save_policy.Bind(wx.EVT_BUTTON, self._on_save_policy)
@@ -166,12 +174,12 @@ class TaskDefinitionDialog(wx.Dialog):
         advanced_panel.SetSizer(advanced_sizer)
         advanced_note = wx.StaticText(
             advanced_panel,
-            label="Advanced: edit the raw configuration for one task type.",
+            label="Advanced: edit the raw configuration for one preparation type.",
         )
         advanced_sizer.Add(advanced_note, 0, wx.ALL, 8)
         self.task_choice = wx.Choice(
             advanced_panel,
-            choices=[DESKTOP_TASK_TYPES[key][0] for key in self.task_types],
+            choices=[_TASK_LABELS[key] for key in self.task_types],
         )
         self.task_choice.SetSelection(0)
         advanced_sizer.Add(self.task_choice, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
