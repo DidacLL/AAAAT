@@ -4,6 +4,9 @@ import sqlite3
 from typing import Any
 
 from ..agent_access import build_agent_task_context
+from ..career_plans import career_plan_context
+from ..candidatures import get_candidature_details
+from ..db import application_keywords, get_application
 from ..task_definitions import task_definition_snapshot
 
 PACKET_VERSION = "aaaat.task_packet.v2"
@@ -30,6 +33,26 @@ def build_task_packet(conn: sqlite3.Connection, task_handle: str) -> dict[str, A
             "variable_mapping": definition.get("artifact_mapping", {}),
         },
     }
+    input_context = task_context.get("input_context", task_context.get("context", {}))
+    if stored_task.get("task_type") == "career_plan_review" and stored_task.get("application_id"):
+        application_id = str(stored_task["application_id"])
+        app = get_application(conn, application_id)
+        details = get_candidature_details(conn, application_id)
+        input_context = {
+            "candidature": {
+                "company": app.get("company", ""),
+                "role": app.get("role", ""),
+                "location": app.get("location", ""),
+                "remote_mode": app.get("remote_mode", ""),
+                "salary_expectation": details.get("salary_expectation", ""),
+                "description": details.get("description", ""),
+                "strengths": details.get("strengths", ""),
+                "tech_stack": details.get("tech_stack", ""),
+                "keywords": application_keywords(conn, application_id),
+                "current_valuation": details.get("valuation", ""),
+            },
+            "career_plan_context": career_plan_context(conn, "career_plan_review", scope="agent"),
+        }
     return {
         "packet_version": PACKET_VERSION,
         "task_handle": handle,
@@ -37,7 +60,7 @@ def build_task_packet(conn: sqlite3.Connection, task_handle: str) -> dict[str, A
         "title": task.get("title", ""),
         "instructions": instructions,
         "purpose": task_context.get("purpose", ""),
-        "input_context": task_context.get("input_context", task_context.get("context", {})),
+        "input_context": input_context,
         "output_contract": output_contract,
         "response_format": definition["response_format"],
         "allowed_actions": task_context.get("allowed_actions", []),
