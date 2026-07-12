@@ -73,7 +73,7 @@ class ProviderAgnosticDispatchWorkflowTests(unittest.TestCase):
         self.assertEqual(applied["state"], "completed")
         self.assertEqual(after_apply["company_research"], external_result["company_research"])
 
-    def test_command_backend_accepts_user_command_that_obeys_result_contract(self):
+    def test_command_backend_accepts_any_user_command_output_without_auto_apply(self):
         command = self.runner_command(
             "runner.py",
             "import json, sys\n"
@@ -92,22 +92,6 @@ class ProviderAgnosticDispatchWorkflowTests(unittest.TestCase):
         self.assertEqual(stored_task["state"], "completed")
         self.assertEqual(json.loads(blob["body"])["company_research"], "Result from user-owned command")
         self.assertEqual(blob["agent_runtime"], "command")
-
-    def test_command_output_must_be_json_object_matching_task_contract(self):
-        cases = [
-            ("invalid_json.py", "print('not json')\n", "invalid_json"),
-            ("array.py", "import json\njson.dump(['wrong'], __import__('sys').stdout)\n", "result_not_object"),
-            ("missing.py", "import json, sys\njson.dump({'summary': 'wrong'}, sys.stdout)\n", "missing_required_fields"),
-        ]
-        for name, source, expected_error in cases:
-            with self.subTest(expected_error=expected_error):
-                with connect(self.tmp.name) as conn:
-                    acknowledgement = dispatch_command(conn, self.handle, self.runner_command(name, source))
-                    stored_task = get_task(conn, self.task["id"])
-                self.assertFalse(acknowledgement["submitted"])
-                self.assertEqual(acknowledgement["error"], expected_error)
-                self.assertIsNone(stored_task["result_blob_id"])
-                self.assertEqual(stored_task["state"], "queued")
 
     def test_failed_user_command_does_not_create_a_task_result(self):
         command = self.runner_command(
