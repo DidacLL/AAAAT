@@ -6,8 +6,9 @@ from pathlib import Path
 from aaaat.artifacts import get_artifact
 from aaaat.candidatures import create_candidature, get_candidature
 from aaaat.db import connect, init_db, set_profile_variable
+from aaaat.tasks import get_task
 from aaaat.text_blobs import get_text_blob
-from aaaat.ui_desktop.agent_workflow import DesktopAgentWorkflowService
+from aaaat.ui_desktop.agent_workflow import DesktopAgentWorkflowError, DesktopAgentWorkflowService
 
 
 class DesktopAgentWorkflowTests(unittest.TestCase):
@@ -55,6 +56,19 @@ class DesktopAgentWorkflowTests(unittest.TestCase):
 
         self.assertEqual(after["company_research"], "External research result")
         self.assertEqual(applied_blob["review_state"], "applied")
+
+    def test_import_rejects_result_that_does_not_match_task_contract(self):
+        task = self.service.create_task(self.candidature["id"], "company_research")
+        with self.assertRaises(DesktopAgentWorkflowError):
+            self.service.submit_result_file(
+                task["id"],
+                self.write_result("invalid-research.json", {"summary": "wrong shape"}),
+            )
+
+        with connect(self.tmp.name) as conn:
+            stored = get_task(conn, task["id"])
+        self.assertEqual(stored["state"], "queued")
+        self.assertIsNone(stored["result_blob_id"])
 
     def test_cover_letter_result_renders_local_artifact_then_reviews_on_apply(self):
         task = self.service.create_task(self.candidature["id"], "draft_cover_letter")
