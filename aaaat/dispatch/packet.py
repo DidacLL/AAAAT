@@ -22,21 +22,24 @@ def build_task_packet(conn: sqlite3.Connection, task_handle: str) -> dict[str, A
         "default": definition["instructions"],
         "definition_version": definition["version"],
     }
+    output_contract = {
+        **task_context.get("output_contract", {}),
+        "task_definition_version": definition["version"],
+        "artifact": {
+            "template": definition.get("artifact_template", ""),
+            "variable_mapping": definition.get("artifact_mapping", {}),
+        },
+    }
     return {
         "packet_version": PACKET_VERSION,
         "task_handle": handle,
         "task_type": task.get("task_type", ""),
         "title": definition.get("title") or task.get("title", ""),
-        "definition_version": definition["version"],
         "instructions": instructions,
         "purpose": task_context.get("purpose", ""),
         "input_context": task_context.get("input_context", task_context.get("context", {})),
-        "output_contract": task_context.get("output_contract", {}),
+        "output_contract": output_contract,
         "response_format": definition["response_format"],
-        "artifact_contract": {
-            "template": definition.get("artifact_template", ""),
-            "variable_mapping": definition.get("artifact_mapping", {}),
-        },
         "allowed_actions": task_context.get("allowed_actions", []),
         "privacy_notes": task_context.get("privacy_notes", []),
         "callback_instructions": callback_instructions(handle),
