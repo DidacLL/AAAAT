@@ -12,15 +12,12 @@ from ..agent_access import submit_agent_task_result, task_result_ack
 
 
 def dispatch_command(conn: sqlite3.Connection, task_handle: str, cmd: str) -> dict[str, Any]:
-    """Send one task packet to a user-configured command and submit stdout as the result."""
+    """Send one task packet to a user-configured command and submit valid JSON stdout."""
     if not cmd.strip():
         raise ValueError("Command dispatch requires --cmd")
     packet = build_task_packet(conn, task_handle)
     packet_json = json.dumps(packet, indent=2, sort_keys=True) + "\n"
-    completed = run_backend_command(
-        cmd,
-        packet_json,
-    )
+    completed = run_backend_command(cmd, packet_json)
     acknowledgement: dict[str, Any] = {
         "backend": "command",
         "task_handle": task_handle,
@@ -35,11 +32,26 @@ def dispatch_command(conn: sqlite3.Connection, task_handle: str, cmd: str) -> di
         acknowledgement["error"] = "empty_stdout"
         return acknowledgement
 
+    try:
+        result = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        acknowledgement["error"] = "invalid_json"
+        return acknowledgement
+    if not isinstance(result, dict):
+        acknowledgement["error"] = "result_not_object"
+        return acknowledgement
+    required = set(packet.get("response_format", {}).get("required") or [])
+    missing = sorted(required - result.keys())
+    if missing:
+        acknowledgement["error"] = "missing_required_fields"
+        acknowledgement["missing_fields"] = missing
+        return acknowledgement
+
     acknowledgement["submitted"] = True
     task = submit_agent_task_result(
         conn,
         task_handle,
-        completed.stdout,
+        json.dumps(result, ensure_ascii=False, sort_keys=True),
         agent_name="command",
         agent_runtime="command",
     )
