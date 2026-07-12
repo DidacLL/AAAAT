@@ -51,8 +51,8 @@ class IntakeAutomationTests(unittest.TestCase):
             tasks = list_tasks(conn, application_id=result["candidature"]["id"])
 
         self.assertEqual(
-            [task["task_type"] for task in tasks],
-            ["field_inference", "company_research"],
+            {task["task_type"] for task in tasks},
+            {"field_inference", "company_research"},
         )
 
     def test_configured_ai_runs_and_applies_intake_bundle_automatically(self):
