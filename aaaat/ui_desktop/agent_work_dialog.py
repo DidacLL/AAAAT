@@ -10,7 +10,7 @@ from .agent_workflow import DESKTOP_TASK_TYPES, DesktopAgentWorkflowError, Deskt
 
 
 class AgentWorkDialog(wx.Dialog):
-    """Small desktop workflow for dispatch, review, apply, and cover-letter render."""
+    """Desktop workflow for dispatch, review, apply, and cover-letter render."""
 
     def __init__(
         self,
@@ -21,7 +21,7 @@ class AgentWorkDialog(wx.Dialog):
         can_write: bool,
         on_changed,
     ) -> None:
-        super().__init__(parent, title="Agent work", size=(780, 620), style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        super().__init__(parent, title="Agent work", size=(860, 660), style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.service = service
         self.candidature_ref = candidature_ref
         self.can_write = can_write
@@ -45,14 +45,24 @@ class AgentWorkDialog(wx.Dialog):
         action_row = wx.BoxSizer(wx.HORIZONTAL)
         self.export_button = wx.Button(self, label="Export packet")
         self.import_button = wx.Button(self, label="Import result")
+        self.save_edit_button = wx.Button(self, label="Save edit")
         self.render_button = wx.Button(self, label="Render cover letter")
+        self.open_button = wx.Button(self, label="Open artifact")
         self.apply_button = wx.Button(self, label="Apply")
         self.reject_button = wx.Button(self, label="Reject")
-        for button in (self.export_button, self.import_button, self.render_button, self.apply_button, self.reject_button):
+        for button in (
+            self.export_button,
+            self.import_button,
+            self.save_edit_button,
+            self.render_button,
+            self.open_button,
+            self.apply_button,
+            self.reject_button,
+        ):
             action_row.Add(button, 0, wx.RIGHT, 6)
         root.Add(action_row, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
-        self.result_text = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
+        self.result_text = wx.TextCtrl(self, style=wx.TE_MULTILINE)
         root.Add(self.result_text, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         self.status = wx.StaticText(self, label="")
@@ -65,16 +75,15 @@ class AgentWorkDialog(wx.Dialog):
         self.task_list.Bind(wx.EVT_LISTBOX, self._on_select)
         self.export_button.Bind(wx.EVT_BUTTON, self._on_export)
         self.import_button.Bind(wx.EVT_BUTTON, self._on_import)
+        self.save_edit_button.Bind(wx.EVT_BUTTON, self._on_save_edit)
         self.render_button.Bind(wx.EVT_BUTTON, self._on_render)
+        self.open_button.Bind(wx.EVT_BUTTON, self._on_open)
         self.apply_button.Bind(wx.EVT_BUTTON, self._on_apply)
         self.reject_button.Bind(wx.EVT_BUTTON, self._on_reject)
         close_button.Bind(wx.EVT_BUTTON, lambda _event: self.EndModal(wx.ID_CLOSE))
 
         self.create_button.Enable(can_write)
         self.import_button.Enable(can_write)
-        self.render_button.Enable(can_write)
-        self.apply_button.Enable(can_write)
-        self.reject_button.Enable(can_write)
         self._reload()
 
     def _selected_task(self) -> dict[str, Any] | None:
@@ -86,6 +95,7 @@ class AgentWorkDialog(wx.Dialog):
         labels = [
             f"{task['title']} · {task['state']}"
             + (f" · {task['review_state']}" if task.get("review_state") else "")
+            + (" · artifact" if task.get("artifact_id") else "")
             for task in self.tasks
         ]
         self.task_list.Set(labels)
@@ -103,6 +113,9 @@ class AgentWorkDialog(wx.Dialog):
         task = self._selected_task()
         if not task:
             self.result_text.SetValue("")
+            self.result_text.SetEditable(False)
+            for button in (self.save_edit_button, self.render_button, self.open_button, self.apply_button, self.reject_button):
+                button.Enable(False)
             return
         body = str(task.get("result_body") or "")
         try:
@@ -111,9 +124,23 @@ class AgentWorkDialog(wx.Dialog):
         except json.JSONDecodeError:
             pass
         self.result_text.SetValue(body)
-        self.render_button.Enable(self.can_write and task.get("task_type") == "draft_cover_letter" and bool(task.get("result_blob_id")))
-        self.apply_button.Enable(self.can_write and bool(task.get("result_blob_id") or task.get("artifact_id")))
-        self.reject_button.Enable(self.can_write and bool(task.get("result_blob_id")))
+        editable = self.can_write and task.get("review_state") == "suggested"
+        self.result_text.SetEditable(editable)
+        self.save_edit_button.Enable(editable)
+        self.render_button.Enable(
+            self.can_write
+            and task.get("task_type") == "draft_cover_letter"
+            and bool(task.get("result_blob_id"))
+            and task.get("review_state") == "suggested"
+        )
+        self.open_button.Enable(bool(task.get("artifact_id")))
+        can_apply = self.can_write and task.get("review_state") == "suggested"
+        if task.get("task_type") == "draft_cover_letter":
+            can_apply = can_apply and bool(task.get("artifact_id"))
+        else:
+            can_apply = can_apply and bool(task.get("result_blob_id"))
+        self.apply_button.Enable(can_apply)
+        self.reject_button.Enable(self.can_write and task.get("review_state") == "suggested")
 
     def _run(self, operation, *, success: str, task_id: str | None = None) -> None:
         try:
@@ -166,6 +193,16 @@ class AgentWorkDialog(wx.Dialog):
             task_id=task["id"],
         )
 
+    def _on_save_edit(self, _event) -> None:
+        task = self._selected_task()
+        if not task:
+            return
+        self._run(
+            lambda: self.service.update_result(task["id"], self.result_text.GetValue()),
+            success="Edited result saved for review.",
+            task_id=task["id"],
+        )
+
     def _on_render(self, _event) -> None:
         task = self._selected_task()
         if not task:
@@ -175,6 +212,20 @@ class AgentWorkDialog(wx.Dialog):
             success="Cover-letter artifact rendered locally.",
             task_id=task["id"],
         )
+
+    def _on_open(self, _event) -> None:
+        task = self._selected_task()
+        if not task:
+            return
+        try:
+            path = self.service.artifact_path(task["id"])
+        except (DesktopAgentWorkflowError, ValueError, KeyError, OSError) as exc:
+            self.status.SetLabel(str(exc))
+            return
+        if not wx.LaunchDefaultApplication(str(path)):
+            self.status.SetLabel(f"Could not open artifact: {path}")
+            return
+        self.status.SetLabel(f"Opened artifact: {path}")
 
     def _on_apply(self, _event) -> None:
         task = self._selected_task()
