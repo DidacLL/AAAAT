@@ -24,22 +24,5 @@ jobs:
         run: python -B -m unittest tests.test_dashboard_views tests.test_dashboard_modes tests.test_static_export
       - name: MCP descriptor validation
         run: python -B -m aaaat.cli mcp-validate
-      - name: Capture full discovery result
-        shell: bash
-        run: |
-          set +e
-          python -B -m unittest discover -s tests > full-discovery.log 2>&1
-          echo $? > full-discovery.exit
-          exit 0
-      - name: Upload full discovery diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: full-discovery
-          path: |
-            full-discovery.log
-            full-discovery.exit
-      - name: Enforce full discovery result
-        run: |
-          cat full-discovery.log
-          test "$(cat full-discovery.exit)" = "0"
+      - name: Full unittest discovery
+        run: python -B -m unittest discover -s tests
