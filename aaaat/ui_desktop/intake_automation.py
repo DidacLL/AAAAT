@@ -40,8 +40,8 @@ class IntakeAutomationService:
         with connect(self.storage_path) as conn:
             candidature = create_candidature(
                 conn,
-                company=company.strip() or "New application",
-                role=role.strip() or "Role to identify",
+                company=company.strip(),
+                role=role.strip(),
                 raw_offer=offer,
                 status="draft",
                 priority="normal",
@@ -65,7 +65,7 @@ class IntakeAutomationService:
                 pending.append(task_type)
                 continue
             try:
-                result = self.workflow.run_command(task["id"], command)
+                self.workflow.run_command(task["id"], command)
                 if task_type in {"draft_cv", "draft_cover_letter"}:
                     self.workflow.render_cover_letter(task["id"])
                 self.workflow.apply_result(task["id"])
