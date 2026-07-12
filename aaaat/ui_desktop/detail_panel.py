@@ -23,7 +23,7 @@ class DetailPanel(wx.ScrolledWindow):
         on_cancel: Callable[[], None],
         on_open_smart: Callable[[], None],
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent, style=wx.VSCROLL)
         self.on_save = on_save
         self.on_delete = on_delete
         self.on_cancel = on_cancel
@@ -34,9 +34,10 @@ class DetailPanel(wx.ScrolledWindow):
         self._controls: dict[str, wx.TextCtrl] = {}
         self._editing = False
         self._projection: dict[str, Any] = {}
-        self.SetScrollRate(8, 12)
+        self.SetScrollRate(0, 12)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.sizer)
+        self.Bind(wx.EVT_SIZE, self._on_size)
 
     def render(self, projection: dict[str, Any], *, can_edit: bool = True) -> None:
         self._projection = projection
@@ -51,8 +52,7 @@ class DetailPanel(wx.ScrolledWindow):
             if not selected:
                 self._current_ref = None
                 self._add_empty()
-                self.Layout()
-                self.FitInside()
+                self._fit_width()
                 bind_parent_wheel_scroll(self, self)
                 return
 
@@ -61,8 +61,8 @@ class DetailPanel(wx.ScrolledWindow):
             title.SetFont(title.GetFont().Bold().Larger().Larger())
             role = wx.StaticText(self, label=str(selected.get("role") or "Untitled Role"))
             role.SetFont(role.GetFont().Bold().Larger())
-            self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
-            self.sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
+            self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
+            self.sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
 
             self._add_actions()
             for group in grouped_detail_fields(projection):
@@ -70,37 +70,39 @@ class DetailPanel(wx.ScrolledWindow):
                 if writable:
                     self._add_group(str(group.get("title") or "Details"), writable)
 
-            self.Layout()
-            self.FitInside()
+            self._fit_width()
             bind_parent_wheel_scroll(self, self)
         finally:
             self.Thaw()
 
     def _add_actions(self) -> None:
-        actions = wx.BoxSizer(wx.HORIZONTAL)
+        actions = wx.WrapSizer(wx.HORIZONTAL)
         if self._editing:
             save = wx.Button(self, label="Save changes")
             cancel = wx.Button(self, label="Cancel")
             save.Bind(wx.EVT_BUTTON, self._on_save)
             cancel.Bind(wx.EVT_BUTTON, self._on_cancel)
-            actions.Add(save, 0, wx.RIGHT, 6)
-            actions.Add(cancel, 0, wx.RIGHT, 6)
+            actions.Add(save, 0, wx.RIGHT | wx.BOTTOM, 6)
+            actions.Add(cancel, 0, wx.RIGHT | wx.BOTTOM, 6)
         else:
             edit = wx.Button(self, label="Edit")
             edit.Bind(wx.EVT_BUTTON, self._on_edit)
-            actions.Add(edit, 0, wx.RIGHT, 6)
+            actions.Add(edit, 0, wx.RIGHT | wx.BOTTOM, 6)
         delete = wx.Button(self, label="Delete")
         open_smart = wx.Button(self, label="Open in Smart View")
         delete.Bind(wx.EVT_BUTTON, self._on_delete)
         open_smart.Bind(wx.EVT_BUTTON, lambda _event: self.on_open_smart())
-        actions.Add(delete, 0, wx.RIGHT, 6)
-        actions.Add(open_smart, 0)
-        self.sizer.Add(actions, 0, wx.ALL, 12)
+        actions.Add(delete, 0, wx.RIGHT | wx.BOTTOM, 6)
+        actions.Add(open_smart, 0, wx.BOTTOM, 6)
+        self.sizer.Add(actions, 0, wx.ALL | wx.EXPAND, 12)
 
     def _add_group(self, title: str, fields: list[dict[str, Any]]) -> None:
         heading = wx.StaticText(self, label=title)
         heading.SetFont(heading.GetFont().Bold().Larger())
-        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
+        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
+        grid = wx.FlexGridSizer(cols=2, vgap=8, hgap=18)
+        grid.AddGrowableCol(0, 1)
+        grid.AddGrowableCol(1, 1)
         for field in fields:
             key = str(field.get("key") or "")
             label = str(field.get("label") or key)
@@ -108,10 +110,33 @@ class DetailPanel(wx.ScrolledWindow):
             storage_key = str(field.get("storage_key") or "")
             self._field_storage_keys[key] = storage_key
             self._original_values[key] = value
-            if self._editing:
-                self._add_editor(key, label, value, multiline=bool(field.get("multiline")))
-            else:
-                self._add_value(label, value)
+            multiline = bool(field.get("multiline"))
+            container = self._field_container(key, label, value, multiline=multiline)
+            grid.Add(container, 1 if multiline else 0, wx.EXPAND)
+            if multiline:
+                grid.Add((0, 0))
+        self.sizer.Add(grid, 0, wx.ALL | wx.EXPAND, 12)
+
+    def _field_container(self, key: str, label: str, value: str, *, multiline: bool) -> wx.Panel:
+        panel = wx.Panel(self)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        panel.SetSizer(sizer)
+        heading = wx.StaticText(panel, label=label)
+        heading.SetFont(heading.GetFont().Bold())
+        sizer.Add(heading, 0, wx.BOTTOM | wx.EXPAND, 3)
+        if self._editing:
+            style = wx.TE_MULTILINE if multiline else 0
+            editor = wx.TextCtrl(panel, value=value, style=style)
+            if multiline:
+                height = 150 if key in {"company_research", "form_answers", "offer_snapshot"} else 96
+                editor.SetMinSize((-1, height))
+            self._controls[key] = editor
+            sizer.Add(editor, 1 if multiline else 0, wx.EXPAND)
+        else:
+            body = wx.StaticText(panel, label=value or "—")
+            body.Wrap(max(180, self.GetClientSize().GetWidth() // 2 - 42))
+            sizer.Add(body, 0, wx.EXPAND)
+        return panel
 
     def _add_empty(self) -> None:
         title = wx.StaticText(self, label="No candidature selected")
@@ -120,26 +145,23 @@ class DetailPanel(wx.ScrolledWindow):
         self.sizer.Add(title, 0, wx.ALL, 12)
         self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
 
-    def _add_value(self, label: str, value: str) -> None:
-        heading = wx.StaticText(self, label=label)
-        heading.SetFont(heading.GetFont().Bold())
-        body = wx.StaticText(self, label=value or "—")
-        body.Wrap(520)
-        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
-        self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+    def _on_size(self, event: wx.SizeEvent) -> None:
+        self._fit_width()
+        event.Skip()
 
-    def _add_editor(self, key: str, label: str, value: str, *, multiline: bool) -> None:
-        heading = wx.StaticText(self, label=label)
-        heading.SetFont(heading.GetFont().Bold())
-        style = wx.TE_MULTILINE if multiline else 0
-        editor = wx.TextCtrl(self, value=value, style=style)
-        editor.SetMaxSize((620, -1))
-        if multiline:
-            height = 150 if key in {"company_research", "form_answers", "offer_snapshot"} else 92
-            editor.SetMinSize((420, height))
-        self._controls[key] = editor
-        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
-        self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+    def _fit_width(self) -> None:
+        width = max(1, self.GetClientSize().GetWidth())
+        wrap_width = max(180, width // 2 - 42)
+        for child in self.GetChildren():
+            if isinstance(child, wx.StaticText):
+                child.Wrap(max(180, width - 28))
+            elif isinstance(child, wx.Panel):
+                for nested in child.GetChildren():
+                    if isinstance(nested, wx.StaticText):
+                        nested.Wrap(wrap_width)
+        self.Layout()
+        height = max(self.GetClientSize().GetHeight(), self.GetBestVirtualSize().GetHeight())
+        self.SetVirtualSize((width, height))
 
     def _on_edit(self, _event: wx.CommandEvent) -> None:
         self._editing = True
