@@ -42,3 +42,9 @@ jobs:
         run: python -m pip install -e .[desktop,test]
       - name: Construct desktop frame
         run: python -B tests/desktop_launch_smoke.py
+      - name: Upload desktop launch traceback
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-launch-error
+          path: desktop-launch-error.txt
