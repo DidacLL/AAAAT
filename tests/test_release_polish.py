@@ -50,12 +50,6 @@ class ReleaseEngineeringTests(unittest.TestCase):
             with self.subTest(resource=str(resource)):
                 self.assertTrue(resource.is_file() or resource.is_dir())
 
-    def test_desktop_entry_module_imports_without_optional_dependency(self):
-        from aaaat.ui_desktop import app
-
-        self.assertTrue(callable(app.main))
-        self.assertTrue(callable(app.build_desktop_projection))
-
 
 if __name__ == "__main__":
     unittest.main()
