@@ -18,9 +18,9 @@ from .overview_board import OverviewBoardMixin
 from .scrolling import bind_parent_wheel_scroll
 from .wx_html_links import KeywordHtmlLinker
 
-DEFAULT_FOCUS_LEFT = 220
-DEFAULT_FOCUS_RIGHT = 260
-DEFAULT_WINDOW_SIZE = (1280, 780)
+DEFAULT_FOCUS_LEFT = 230
+DEFAULT_FOCUS_RIGHT = 330
+DEFAULT_WINDOW_SIZE = (1440, 860)
 DEFAULT_CENTER_NOTES_HEIGHT = 150
 _VIEW_TAB_INDEX = {"smart": 0, "detailed": 1, "user": 2}
 
@@ -30,7 +30,10 @@ class SmartViewMixin(OverviewBoardMixin):
 
     def _init_smart_view_helpers(self) -> None:
         self.center_cards = CenterCardBuilder(self)
-        self.keyword_linker = KeywordHtmlLinker(known_terms=self._known_terms, select_keyword=lambda term: self._select_keyword(term, refresh_center=False))
+        self.keyword_linker = KeywordHtmlLinker(
+            known_terms=self._known_terms,
+            select_keyword=lambda term: self._select_keyword(term, refresh_center=False),
+        )
 
     def _bind_shell_events(self) -> None:
         self.Bind(wx.EVT_CLOSE, self._on_close)
@@ -63,6 +66,9 @@ class SmartViewMixin(OverviewBoardMixin):
             self._go_detailed()
         elif index == _VIEW_TAB_INDEX["user"]:
             self._go_user()
+        elif self.selected_ref:
+            self._show_focus()
+            self._refresh_current_if_needed()
         else:
             self._go_overview()
         event.Skip()
@@ -70,7 +76,14 @@ class SmartViewMixin(OverviewBoardMixin):
     def _view_cache_key(self, view: str) -> tuple[Any, ...]:
         detailed_columns = tuple(self.layout_state.detailed_columns.get("visible") or [])
         smart_surface = self._smart_surface if view == "smart" else ""
-        return (view, smart_surface, str(self.selected_ref or ""), str(self.selected_keyword or ""), self.search_query, detailed_columns)
+        return (
+            view,
+            smart_surface,
+            str(self.selected_ref or ""),
+            str(self.selected_keyword or ""),
+            self.search_query,
+            detailed_columns,
+        )
 
     def _is_view_rendered(self, view: str) -> bool:
         return self._rendered_view_keys.get(view) == self._view_cache_key(view)
@@ -104,6 +117,8 @@ class SmartViewMixin(OverviewBoardMixin):
                 self.overview_scroll.FitInside()
             else:
                 self.focus_panel.Layout()
+                self._fit_vertical_scroll(self.center_body_scroll)
+                self._fit_vertical_scroll(self.right_scroll)
         elif self.current_view == "detailed":
             self.detailed_panel.Layout()
         elif self.current_view == "user":
@@ -112,6 +127,12 @@ class SmartViewMixin(OverviewBoardMixin):
         self.root_sizer.Layout()
         self.root.Layout()
         self.Layout()
+
+    @staticmethod
+    def _fit_vertical_scroll(window: wx.ScrolledWindow) -> None:
+        width = max(1, window.GetClientSize().GetWidth())
+        window.SetVirtualSize((width, max(window.GetBestVirtualSize().GetHeight(), window.GetClientSize().GetHeight())))
+        window.Layout()
 
     def _show_overview(self) -> None:
         self.current_view = "smart"
@@ -136,18 +157,18 @@ class SmartViewMixin(OverviewBoardMixin):
         if not self.focus_panel.IsShown() or (self._focus_layout_applied and not force):
             return
         total_width = max(DEFAULT_WINDOW_SIZE[0], int(self.focus_panel.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0]))
-        left = max(170, min(260, int(total_width * 0.20)))
-        right = max(220, min(300, int(total_width * 0.22)))
-        content_width = max(480, total_width - left)
-        center = max(360, content_width - right)
+        left = max(210, min(280, int(total_width * 0.18)))
+        right = max(300, min(380, int(total_width * 0.24)))
+        content_width = max(720, total_width - left)
+        center = max(520, content_width - right)
         if self.focus_splitter.IsSplit():
             self.focus_splitter.SetSashPosition(left)
         if self.content_splitter.IsSplit():
             self.content_splitter.SetSashPosition(center)
         center_height = int(self.center_panel.GetClientSize().GetHeight() or DEFAULT_WINDOW_SIZE[1])
-        notes_height = max(120, min(190, int(center_height * 0.20)))
+        notes_height = max(120, min(180, int(center_height * 0.18)))
         if self.center_splitter.IsSplit():
-            self.center_splitter.SetSashPosition(max(220, center_height - notes_height))
+            self.center_splitter.SetSashPosition(max(260, center_height - notes_height))
         self.focus_left_width = left
         self.focus_right_width = right
         self._focus_layout_applied = True
@@ -186,8 +207,10 @@ class SmartViewMixin(OverviewBoardMixin):
             search_query=self.search_query,
             layout_state=self.layout_state,
         )
-        if self.selected_ref and not self._selected_detail() and not self._detailed_selected_row():
-            self.selected_ref = None
+        projected_ref = self.projection.get("view_state", {}).get("selected_candidature_ref")
+        if projected_ref:
+            self.selected_ref = str(projected_ref)
+            self.layout_state.selected_candidature_ref = self.selected_ref
 
     def _refresh_nav_list(self) -> None:
         apps = self._filtered_summaries()
@@ -209,8 +232,8 @@ class SmartViewMixin(OverviewBoardMixin):
         detail = self._selected_detail()
         if not detail:
             self.center_sizer.Add(self._empty_message(self.center_scroll, "Select a candidature."), 0, wx.ALL | wx.EXPAND, 12)
-            self.center_scroll.Layout()
-            self.right_scroll.Layout()
+            self._fit_vertical_scroll(self.center_scroll)
+            self._fit_vertical_scroll(self.right_scroll)
             bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
             return
 
@@ -226,8 +249,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.center_scroll.Layout()
         self.center_scroll.FitInside()
         self.center_notes_panel.Layout()
-        self.right_scroll.Layout()
-        self.right_scroll.FitInside()
+        self._fit_vertical_scroll(self.right_scroll)
         bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
         bind_parent_wheel_scroll(self.right_scroll, self.right_scroll)
 
@@ -268,8 +290,7 @@ class SmartViewMixin(OverviewBoardMixin):
             on_select=lambda term: self._select_keyword(term, refresh_center=False),
         )
         pane.render_content_module("Artifacts", self._artifacts_text(), expanded=False)
-        self.right_scroll.Layout()
-        self.right_scroll.FitInside()
+        self._fit_vertical_scroll(self.right_scroll)
         bind_parent_wheel_scroll(self.right_scroll, self.right_scroll)
 
     def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
@@ -335,13 +356,10 @@ class SmartViewMixin(OverviewBoardMixin):
         self.nav_search.SetValue("")
         self._refresh_all()
 
-    def _on_select_nav(self, _event: wx.CommandEvent) -> None:
-        index = self.nav_list.GetSelection()
+    def _on_select_nav(self, event: wx.CommandEvent) -> None:
+        index = event.GetSelection()
         if 0 <= index < len(self._list_refs):
-            self.selected_ref = self._list_refs[index]
-            self.layout_state.selected_candidature_ref = self.selected_ref
-            self.center_card_state.reset()
-            self._refresh_all()
+            self._select_ref(self._list_refs[index])
 
     def _go_overview(self) -> None:
         self._show_overview()
@@ -360,18 +378,20 @@ class SmartViewMixin(OverviewBoardMixin):
         self._mark_current_view_rendered()
 
     def _selected_detail(self) -> dict[str, Any] | None:
-        detail = self.projection.get("smart", {}).get("selected_candidature")
-        return detail if isinstance(detail, dict) else None
+        detail = self.projection.get("smart", {}).get("selected_candidature_detail")
+        if not isinstance(detail, dict):
+            return None
+        if self.selected_ref and str(detail.get("ref")) != str(self.selected_ref):
+            return None
+        return detail
 
     def _artifacts_text(self) -> str:
-        detail = self._selected_detail() or {}
-        artifacts = detail.get("artifacts") or []
-        if not artifacts:
+        summary = self.projection.get("smart", {}).get("artifact_summary") or {}
+        items = summary.get("items") or []
+        if not items:
             return "No artifacts yet."
-        lines = []
-        for item in artifacts:
-            if isinstance(item, dict):
-                lines.append(str(item.get("label") or item.get("artifact_type") or "Artifact"))
-            else:
-                lines.append(str(item))
-        return "\n".join(lines)
+        return "\n".join(
+            self._clip(f"{item.get('artifact_type', 'artifact')} · {item.get('label', '')}", 90)
+            for item in items
+            if isinstance(item, dict)
+        )
