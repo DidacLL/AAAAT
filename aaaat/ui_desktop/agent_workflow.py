@@ -10,7 +10,7 @@ from aaaat.db import connect
 from aaaat.dispatch.command import run_backend_command
 from aaaat.dispatch.manual import dispatch_manual
 from aaaat.dispatch.packet import build_task_packet
-from aaaat.task_definitions import snapshot_task_definition, task_definition_snapshot
+from aaaat.task_definitions import get_task_definition, snapshot_task_definition, task_definition_snapshot
 from aaaat.tasks import apply_task_result, create_task, get_task, list_tasks, update_task
 from aaaat.templates import render_document_artifact, safe_artifact_output_path
 from aaaat.text_blobs import get_text_blob, update_text_blob
@@ -33,14 +33,15 @@ class DesktopAgentWorkflowService:
     def create_task(self, candidature_ref: str, task_type: str) -> dict[str, Any]:
         if task_type not in DESKTOP_TASK_TYPES:
             raise DesktopAgentWorkflowError(f"Unsupported desktop task type: {task_type}")
-        title, instructions, context_hint = DESKTOP_TASK_TYPES[task_type]
+        _default_title, _default_instructions, context_hint = DESKTOP_TASK_TYPES[task_type]
         with connect(self.storage_path) as conn:
+            definition = get_task_definition(conn, task_type)
             task = create_task(
                 conn,
                 task_type,
-                title,
+                str(definition["title"]),
                 application_id=candidature_ref,
-                instructions=instructions,
+                instructions=str(definition["instructions"]),
                 context_hint=context_hint,
                 created_by="user",
             )
