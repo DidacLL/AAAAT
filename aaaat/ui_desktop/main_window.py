@@ -12,6 +12,7 @@ from .agent_action_dialog import AgentActionDialog
 from .agent_workflow import DesktopAgentWorkflowService
 from .card_state import CenterCardState
 from .detailed_view import DetailedViewMixin
+from .frame_support import FrameSupportMixin
 from .intake_automation import IntakeAutomationService
 from .new_candidature_dialog import NewCandidatureDialog
 from .services import DesktopCommandService
@@ -21,7 +22,7 @@ from .user_view import UserViewMixin
 RIGHT_MODULES = ["keywords", "artifacts"]
 
 
-class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx.Frame):
+class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, FrameSupportMixin, wx.Frame):
     """Top-level wx desktop frame for Smart, Detailed, and User desktop views."""
 
     def __init__(
