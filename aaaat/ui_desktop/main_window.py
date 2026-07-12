@@ -12,6 +12,8 @@ from .agent_action_dialog import AgentActionDialog
 from .agent_workflow import DesktopAgentWorkflowService
 from .card_state import CenterCardState
 from .detailed_view import DetailedViewMixin
+from .intake_automation import IntakeAutomationService
+from .new_candidature_dialog import NewCandidatureDialog
 from .services import DesktopCommandService
 from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
 from .user_view import UserViewMixin
@@ -40,6 +42,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.layout_path = Path(layout_path)
         self.command_service = command_service or DesktopCommandService(storage_path)
         self.agent_workflow_service = DesktopAgentWorkflowService(storage_path)
+        self.intake_automation_service = IntakeAutomationService(storage_path)
         self.current_view = str(projection.get("view_state", {}).get("current_view") or layout_state.selected_view or "smart")
         if self.current_view not in {"smart", "detailed", "user"}:
             self.current_view = "smart"
@@ -76,7 +79,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
     def _build_menu(self) -> None:
         menu_bar = wx.MenuBar()
         file_menu = wx.Menu()
-        self.new_candidature_item = file_menu.Append(wx.ID_NEW, "New…")
+        self.new_candidature_item = file_menu.Append(wx.ID_NEW, "New application…")
         self.profile_item = file_menu.Append(wx.ID_ANY, "User/Profile")
         file_menu.AppendSeparator()
         self.reset_layout_item = file_menu.Append(wx.ID_ANY, "Reset layout")
@@ -104,11 +107,37 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.title.SetFont(self.title.GetFont().Bold().Larger())
         self.reset_button = wx.Button(self.toolbar, label="Reset", size=(68, -1))
         self.new_button = wx.Button(self.toolbar, label="+", size=(40, -1))
+        self.new_button.SetToolTip("Add a job offer")
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
         for control in (self.reset_button, self.new_button):
             toolbar_sizer.Add(control, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         self.root_sizer.Add(self.toolbar, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
+
+    def _on_support_surface(self, _event: wx.Event) -> None:
+        dialog = NewCandidatureDialog(
+            self,
+            service=self.intake_automation_service,
+            on_created=self._on_candidature_created,
+        )
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
+
+    def _on_candidature_created(self, result: dict[str, Any]) -> None:
+        candidature = result.get("candidature") or {}
+        ref = str(candidature.get("id") or candidature.get("ref") or "")
+        self.selected_ref = ref or None
+        self.layout_state.selected_candidature_ref = self.selected_ref
+        self.current_view = "smart"
+        self.layout_state.selected_view = "smart"
+        self._rendered_view_keys.clear()
+        if self.selected_ref:
+            self._show_focus()
+        else:
+            self._show_overview()
+        self._refresh_all()
 
     def _open_candidature_action(self, action_key: str) -> None:
         detail = self._selected_detail() or self._detailed_selected_row() or {}
