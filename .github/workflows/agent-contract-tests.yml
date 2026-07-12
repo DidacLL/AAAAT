@@ -12,6 +12,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Compile Python sources
+        run: python -m compileall -q aaaat tests
       - name: Install package with test dependencies
         run: python -m pip install -e .[test]
       - name: Agent authority and runtime contracts
@@ -28,3 +30,15 @@ jobs:
         run: python -B -m aaaat.cli mcp-validate
       - name: Full unittest discovery
         run: python -B -m unittest discover -s tests
+
+  desktop-launch-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install desktop package
+        run: python -m pip install -e .[desktop,test]
+      - name: Construct desktop frame
+        run: python -B tests/desktop_launch_smoke.py
