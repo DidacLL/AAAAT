@@ -3,7 +3,7 @@ from __future__ import annotations
 import wx  # type: ignore[import-not-found]
 
 from aaaat.security import can_write
-
+from .task_definition_dialog import TaskDefinitionDialog, TaskDefinitionEditorService
 from .user_panel import UserPanel
 
 
@@ -18,6 +18,7 @@ class UserViewMixin:
             self.user_panel,
             on_save=self._save_user_edits,
             on_cancel=self._cancel_user_edits,
+            on_advanced_task_definitions=self._open_task_definition_editor,
         )
         sizer.Add(self.user_content, 1, wx.ALL | wx.EXPAND, 0)
         self.view_book.AddPage(self.user_panel, "User")
@@ -54,3 +55,14 @@ class UserViewMixin:
     def _cancel_user_edits(self) -> None:
         self._refresh_user_view()
         self._mark_current_view_rendered()
+
+    def _open_task_definition_editor(self) -> None:
+        dialog = TaskDefinitionDialog(
+            self,
+            service=TaskDefinitionEditorService(self.storage_path),
+            can_write=can_write(self.mode),
+        )
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
