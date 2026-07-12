@@ -45,7 +45,14 @@ class DesktopAgentWorkflowService:
                 context_hint=context_hint,
                 created_by="user",
             )
-            snapshot_task_definition(conn, task)
+            snapshot = snapshot_task_definition(conn, task)
+            if task.get("title") != snapshot["title"] or task.get("instructions") != snapshot["instructions"]:
+                task = update_task(
+                    conn,
+                    task["id"],
+                    title=str(snapshot["title"]),
+                    instructions=str(snapshot["instructions"]),
+                )
             return self._task_view(task, conn=conn)
 
     def list_tasks(self, candidature_ref: str) -> list[dict[str, Any]]:
