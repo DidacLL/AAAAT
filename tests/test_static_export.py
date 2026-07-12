@@ -11,10 +11,10 @@ class StaticExportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "demo.html"
             result = export_static_demo(output)
+            self.assertTrue(output.exists())
+            self.assertEqual(Path(result), output)
             html = output.read_text(encoding="utf-8")
 
-        self.assertTrue(output.exists())
-        self.assertEqual(Path(result), output)
         self.assertGreater(len(html), 500)
         self.assertNotIn("data-write-control", html)
         self.assertNotIn(".private", html)
