@@ -72,8 +72,6 @@ class OpenAiCompatibleProviderTests(unittest.TestCase):
         }
 
     def test_adapter_sends_json_contract_and_parses_structured_response(self):
-        from aaaat.llm_protocol import request_from_agent_context
-
         with LocalProviderServer() as server:
             provider = OpenAiCompatibleProvider(OpenAiCompatibleConfig(
                 base_url=server.base_url,
@@ -105,6 +103,25 @@ class OpenAiCompatibleProviderTests(unittest.TestCase):
         self.assertEqual(config.model, "local-model")
         self.assertEqual(config.timeout_seconds, 12.0)
         self.assertEqual(provider.config.api_key, "ephemeral-secret")
+
+    def test_cli_arguments_override_environment_configuration(self):
+        from aaaat.llm_cli import build_parser, config_from_args
+
+        args = build_parser().parse_args([
+            "--provider", "openai-compatible",
+            "--model", "override-model",
+            "--base-url", "http://127.0.0.1:9999",
+            "--api-key", "cli-secret",
+            "run", "taskh_0123456789abcdef",
+        ])
+        config = config_from_args(args, {
+            "AAAAT_LLM_MODEL": "env-model",
+            "AAAAT_LLM_BASE_URL": "http://env.invalid",
+        })
+
+        self.assertEqual(config.model, "override-model")
+        self.assertEqual(config.base_url, "http://127.0.0.1:9999")
+        self.assertEqual(config.api_key, "cli-secret")
 
 
 class LlmTaskSubmissionTests(unittest.TestCase):
