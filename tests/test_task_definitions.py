@@ -29,6 +29,12 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
                 role="Platform Engineer",
                 raw_offer="Platform role",
             )
+            self.other_candidature = create_candidature(
+                conn,
+                company="Second Definition Co",
+                role="Backend Engineer",
+                raw_offer="Backend role",
+            )
         self.service = DesktopAgentWorkflowService(self.tmp.name)
 
     def result_file(self, name, payload):
@@ -58,7 +64,7 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
                 },
             )
 
-        second = self.service.create_task(self.candidature["id"], "company_research")
+        second = self.service.create_task(self.other_candidature["id"], "company_research")
         with connect(self.tmp.name) as conn:
             first_packet_after = build_task_packet(conn, first["task_handle"])
             second_packet = build_task_packet(conn, second["task_handle"])
@@ -108,9 +114,7 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
                         "schema": {"opening_paragraph": "string"},
                     },
                     "artifact_template": "cover-letter",
-                    "artifact_mapping": {
-                        "opening_paragraph": "artifact.cover_letter.opening"
-                    },
+                    "artifact_mapping": {"opening_paragraph": "artifact.cover_letter.opening"},
                 },
             )
 
@@ -153,7 +157,7 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
 
         with connect(self.tmp.name) as conn:
             reset = reset_task_definition(conn, "company_research")
-        default_task = self.service.create_task(self.candidature["id"], "company_research")
+        default_task = self.service.create_task(self.other_candidature["id"], "company_research")
 
         with connect(self.tmp.name) as conn:
             customized_packet = build_task_packet(conn, customized["task_handle"])
