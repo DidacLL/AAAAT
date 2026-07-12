@@ -5,6 +5,8 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 import wx.html  # type: ignore[import-not-found]
 
+from .candidature_actions import add_candidature_actions
+
 
 class CenterCardBuilder:
     """Build Smart View center cards and integrate explicit card state."""
@@ -24,6 +26,7 @@ class CenterCardBuilder:
         hero_sizer.Add(company, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
         hero_sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
         hero_sizer.Add(chips, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
+        add_candidature_actions(hero, hero_sizer, self.owner._open_candidature_action, compact=True)
         self.owner.center_sizer.Add(hero, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def add_call_card(self, detail: dict[str, Any]) -> None:
@@ -77,17 +80,19 @@ class CenterCardBuilder:
         panel = wx.Panel(self.owner.center_scroll, style=wx.BORDER_SIMPLE)
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
+        header_panel = wx.Panel(panel)
         header = wx.BoxSizer(wx.HORIZONTAL)
-        title_label = wx.StaticText(panel, label=title)
+        header_panel.SetSizer(header)
+        title_label = wx.StaticText(header_panel, label=title)
         title_label.SetFont(title_label.GetFont().Bold().Larger())
-        summary_label = wx.StaticText(panel, label=self.owner._clip(summary, 115))
+        summary_label = wx.StaticText(header_panel, label=self.owner._clip(summary, 115))
         summary_label.Wrap(620)
-        toggle_label = wx.StaticText(panel, label="▾" if expanded else "▸")
+        toggle_label = wx.StaticText(header_panel, label="▾" if expanded else "▸")
         toggle_label.SetFont(toggle_label.GetFont().Bold().Larger())
         header.Add(toggle_label, 0, wx.ALL | wx.ALIGN_TOP, 8)
         header.Add(title_label, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_TOP, 8)
         header.Add(summary_label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 8)
-        sizer.Add(header, 0, wx.EXPAND)
+        sizer.Add(header_panel, 0, wx.EXPAND)
         body_sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(body_sizer, 0, wx.EXPAND)
         self.bind_click(panel, card_id)
@@ -97,7 +102,7 @@ class CenterCardBuilder:
         return self.owner.center_card_state.is_expanded(card_id, default)
 
     def bind_click(self, window: wx.Window, card_id: str) -> None:
-        if isinstance(window, wx.html.HtmlWindow) or isinstance(window, wx.TextCtrl):
+        if isinstance(window, wx.TextCtrl):
             return
         window.SetCursor(wx.Cursor(wx.CURSOR_HAND))
 
