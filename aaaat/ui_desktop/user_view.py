@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import wx  # type: ignore[import-not-found]
 
-from aaaat.security import can_write
 from .task_definition_dialog import TaskDefinitionDialog, TaskDefinitionEditorService
 from .user_panel import UserPanel
 
 
 class UserViewMixin:
-    """User/Profile View foundation for local desktop profile context."""
+    """User/Profile View for local identity and reusable professional context."""
 
     def _build_user_surface(self) -> None:
         self.user_panel = wx.Panel(self.view_book)
@@ -38,14 +37,12 @@ class UserViewMixin:
     def _refresh_user_view(self) -> None:
         self.user_panel.Freeze()
         try:
-            self.user_content.render(self.projection, can_edit=can_write(self.mode))
+            self.user_content.render(self.projection)
             self.user_panel.Layout()
         finally:
             self.user_panel.Thaw()
 
     def _save_user_edits(self, changes: dict[str, str]) -> None:
-        if not can_write(self.mode):
-            return
         self.command_service.update_profile_variables(changes)
         self._rendered_view_keys.clear()
         self._reload_projection()
@@ -60,7 +57,6 @@ class UserViewMixin:
         dialog = TaskDefinitionDialog(
             self,
             service=TaskDefinitionEditorService(self.storage_path),
-            can_write=can_write(self.mode),
         )
         try:
             dialog.ShowModal()
