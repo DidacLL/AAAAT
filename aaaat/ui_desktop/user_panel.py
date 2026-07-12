@@ -19,10 +19,12 @@ class UserPanel(wx.ScrolledWindow):
         *,
         on_save: EditableUserSaveCallback,
         on_cancel: Callable[[], None],
+        on_advanced_task_definitions: Callable[[], None],
     ) -> None:
         super().__init__(parent)
         self.on_save = on_save
         self.on_cancel = on_cancel
+        self.on_advanced_task_definitions = on_advanced_task_definitions
         self._original_values: dict[str, str] = {}
         self._field_storage_keys: dict[str, str | None] = {}
         self._controls: dict[str, wx.TextCtrl] = {}
@@ -43,6 +45,10 @@ class UserPanel(wx.ScrolledWindow):
             body.Wrap(720)
             self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
             self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+
+            advanced = wx.Button(self, label="Advanced task definitions and templates…")
+            advanced.Bind(wx.EVT_BUTTON, lambda _event: self.on_advanced_task_definitions())
+            self.sizer.Add(advanced, 0, wx.ALL, 10)
 
             if has_editable_user_fields(projection):
                 self._add_actions(can_edit)
