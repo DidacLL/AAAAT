@@ -62,10 +62,47 @@ def default_definition(task_type: str) -> dict[str, Any]:
         "artifact_mapping": {},
         "is_custom": False,
     }
-    if task_type == "draft_cover_letter":
+    if task_type == "field_inference":
         definition.update(
             {
-                "title": "Draft cover letter",
+                "title": "Analyze candidature",
+                "instructions": (
+                    "Analyze the complete bounded job-offer source and fill every supported candidature field that can be grounded in it. "
+                    "Cover company, role, source, URL, location, remote mode, salary, publication date, description, offer snapshot, "
+                    "technical stack, meaningful keywords, strengths, risks to avoid, questions to ask, recruiter-call recognition signals, "
+                    "pitch, smart question, prepare-first and prepare-later guidance, next action, and a 0-100 valuation when evidence permits. "
+                    "Preserve non-empty user data unless replace_existing is explicitly requested."
+                ),
+            }
+        )
+    elif task_type == "company_research":
+        definition.update(
+            {
+                "title": "Research company context",
+                "instructions": (
+                    "Prepare concise company research for this specific role: business model, products, market, engineering context, "
+                    "culture signals, relevant recent facts when available, recruiter-call implications, useful questions, and material risks."
+                ),
+            }
+        )
+    elif task_type == "career_plan_review":
+        definition.update(
+            {
+                "title": "Evaluate career fit",
+                "instructions": (
+                    "Evaluate this candidature against the bounded career plan and professional priorities. Explain strategic fit, gaps, "
+                    "trade-offs, growth potential, risks, recommended priority, and concrete next actions."
+                ),
+            }
+        )
+    elif task_type == "keyword_definition":
+        definition.update({"title": "Define candidature keyword"})
+    elif task_type == "draft_form_responses":
+        definition.update({"title": "Prepare application form answers"})
+    elif task_type == "draft_cover_letter":
+        definition.update(
+            {
+                "title": "Prepare cover letter",
                 "artifact_template": "cover-letter",
                 "artifact_mapping": {"cover_letter_body": "artifact.cover_letter.body"},
             }
@@ -73,7 +110,7 @@ def default_definition(task_type: str) -> dict[str, Any]:
     elif task_type == "draft_cv":
         definition.update(
             {
-                "title": "Draft CV adaptation",
+                "title": "Prepare role-specific CV",
                 "artifact_template": "cv",
                 "artifact_mapping": {"cv_positioning": "artifact.cv.positioning"},
             }
