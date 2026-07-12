@@ -7,6 +7,7 @@ from typing import Any
 from aaaat.agent_access import response_format, submit_agent_task_result, task_handle
 from aaaat.artifacts import get_artifact
 from aaaat.db import connect
+from aaaat.dispatch.command import dispatch_command
 from aaaat.dispatch.manual import dispatch_manual
 from aaaat.tasks import apply_task_result, create_task, get_task, list_tasks, update_task
 from aaaat.templates import render_document_artifact, safe_artifact_output_path
@@ -68,6 +69,16 @@ class DesktopAgentWorkflowService:
             task = get_task(conn, task_id)
             result = dispatch_manual(conn, self.storage_path, task_handle(task))
         return Path(result["packet_path"])
+
+    def run_command(self, task_id: str, command: str) -> dict[str, Any]:
+        with connect(self.storage_path) as conn:
+            task = get_task(conn, task_id)
+            acknowledgement = dispatch_command(conn, task_handle(task), command)
+            if not acknowledgement.get("submitted"):
+                detail = str(acknowledgement.get("error") or acknowledgement.get("stderr") or "Command did not return a result").strip()
+                raise DesktopAgentWorkflowError(detail)
+            completed = get_task(conn, task_id)
+            return self._task_view(completed, conn=conn)
 
     def submit_result_file(
         self,
