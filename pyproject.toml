@@ -18,7 +18,6 @@ desktop = ["wxPython"]
 aaaat = "aaaat.cli:main"
 aaaat-desktop = "aaaat.ui_desktop.app:main"
 aaaat-seed-desktop-demo = "aaaat.demo_seed:main"
-aaaat-llm = "aaaat.llm_cli:main"
 
 [tool.setuptools]
 packages = ["aaaat", "aaaat.dispatch", "aaaat.ui_desktop"]
