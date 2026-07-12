@@ -4,6 +4,7 @@ from typing import Any, Callable
 
 import wx  # type: ignore[import-not-found]
 
+from .candidature_actions import add_candidature_actions
 from .detail_fields import collect_writable_changes, grouped_detail_fields
 from .scrolling import bind_parent_wheel_scroll
 
@@ -12,7 +13,7 @@ DeleteCallback = Callable[[str], None]
 
 
 class DetailPanel(wx.ScrolledWindow):
-    """Grouped full selected-candidature editor for the desktop Detailed View."""
+    """Selected candidature details with explicit display and edit states."""
 
     def __init__(
         self,
@@ -22,21 +23,26 @@ class DetailPanel(wx.ScrolledWindow):
         on_delete: DeleteCallback,
         on_cancel: Callable[[], None],
         on_open_smart: Callable[[], None],
+        on_action: Callable[[str], None],
     ) -> None:
         super().__init__(parent)
         self.on_save = on_save
         self.on_delete = on_delete
         self.on_cancel = on_cancel
         self.on_open_smart = on_open_smart
+        self.on_action = on_action
         self._current_ref: str | None = None
         self._original_values: dict[str, str] = {}
         self._field_storage_keys: dict[str, str | None] = {}
         self._controls: dict[str, wx.TextCtrl] = {}
+        self._editing = False
+        self._projection: dict[str, Any] = {}
         self.SetScrollRate(8, 12)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.sizer)
 
-    def render(self, projection: dict[str, Any], *, can_edit: bool) -> None:
+    def render(self, projection: dict[str, Any], *, can_edit: bool = True) -> None:
+        self._projection = projection
         self.Freeze()
         try:
             self.sizer.Clear(delete_windows=True)
@@ -58,12 +64,15 @@ class DetailPanel(wx.ScrolledWindow):
             title.SetFont(title.GetFont().Bold().Larger().Larger())
             role = wx.StaticText(self, label=str(selected.get("role") or "Untitled Role"))
             role.SetFont(role.GetFont().Bold().Larger())
-            self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-            self.sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+            self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
+            self.sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
 
-            self._add_actions(can_edit)
+            self._add_actions()
+            add_candidature_actions(self, self.sizer, self.on_action, compact=True)
             for group in grouped_detail_fields(projection):
-                self._add_group(group, can_edit=can_edit)
+                writable = [field for field in group.get("fields") or [] if field.get("storage_key")]
+                if writable:
+                    self._add_group(str(group.get("title") or "Details"), writable)
 
             self.Layout()
             self.FitInside()
@@ -71,72 +80,74 @@ class DetailPanel(wx.ScrolledWindow):
         finally:
             self.Thaw()
 
-    def _add_actions(self, can_edit: bool) -> None:
+    def _add_actions(self) -> None:
         actions = wx.BoxSizer(wx.HORIZONTAL)
-        save = wx.Button(self, label="Save")
-        cancel = wx.Button(self, label="Cancel/Revert")
+        if self._editing:
+            save = wx.Button(self, label="Save changes")
+            cancel = wx.Button(self, label="Cancel")
+            save.Bind(wx.EVT_BUTTON, self._on_save)
+            cancel.Bind(wx.EVT_BUTTON, self._on_cancel)
+            actions.Add(save, 0, wx.RIGHT, 6)
+            actions.Add(cancel, 0, wx.RIGHT, 6)
+        else:
+            edit = wx.Button(self, label="Edit")
+            edit.Bind(wx.EVT_BUTTON, self._on_edit)
+            actions.Add(edit, 0, wx.RIGHT, 6)
         delete = wx.Button(self, label="Delete")
         open_smart = wx.Button(self, label="Open in Smart View")
-        save.Enable(can_edit)
-        cancel.Enable(can_edit)
-        delete.Enable(can_edit)
-        save.Bind(wx.EVT_BUTTON, self._on_save)
-        cancel.Bind(wx.EVT_BUTTON, self._on_cancel)
         delete.Bind(wx.EVT_BUTTON, self._on_delete)
         open_smart.Bind(wx.EVT_BUTTON, lambda _event: self.on_open_smart())
-        for control in (save, cancel, delete, open_smart):
-            actions.Add(control, 0, wx.ALL | wx.EXPAND, 4)
-        self.sizer.Add(actions, 0, wx.ALL | wx.EXPAND, 6)
+        actions.Add(delete, 0, wx.RIGHT, 6)
+        actions.Add(open_smart, 0)
+        self.sizer.Add(actions, 0, wx.ALL, 12)
 
-    def _add_group(self, group: dict[str, Any], *, can_edit: bool) -> None:
-        heading = wx.StaticText(self, label=str(group.get("title") or "Detail"))
+    def _add_group(self, title: str, fields: list[dict[str, Any]]) -> None:
+        heading = wx.StaticText(self, label=title)
         heading.SetFont(heading.GetFont().Bold().Larger())
-        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        for field in group.get("fields") or []:
+        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
+        for field in fields:
             key = str(field.get("key") or "")
             label = str(field.get("label") or key)
             value = str(field.get("value") or "")
-            storage_key = field.get("storage_key")
-            editable = bool(field.get("editable")) and bool(storage_key)
-            self._field_storage_keys[key] = str(storage_key) if storage_key else None
+            storage_key = str(field.get("storage_key") or "")
+            self._field_storage_keys[key] = storage_key
             self._original_values[key] = value
-            if editable:
-                self._add_editor(key, label, value, multiline=bool(field.get("multiline")), can_edit=can_edit)
+            if self._editing:
+                self._add_editor(key, label, value, multiline=bool(field.get("multiline")))
             else:
-                reason = str(field.get("read_only_reason") or "Read-only")
-                self._add_read_only_field(label, value, reason)
+                self._add_value(label, value)
 
     def _add_empty(self) -> None:
         title = wx.StaticText(self, label="No candidature selected")
         title.SetFont(title.GetFont().Bold().Larger())
-        body = wx.StaticText(self, label="Select a row to inspect and edit the complete supported candidature record.")
-        body.Wrap(300)
-        self.sizer.Add(title, 0, wx.ALL | wx.EXPAND, 10)
-        self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        body = wx.StaticText(self, label="Select a row to inspect a candidature.")
+        self.sizer.Add(title, 0, wx.ALL, 12)
+        self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
 
-    def _add_editor(self, key: str, label: str, value: str, *, multiline: bool, can_edit: bool) -> None:
+    def _add_value(self, label: str, value: str) -> None:
+        heading = wx.StaticText(self, label=label)
+        heading.SetFont(heading.GetFont().Bold())
+        body = wx.StaticText(self, label=value or "—")
+        body.Wrap(500)
+        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
+        self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+
+    def _add_editor(self, key: str, label: str, value: str, *, multiline: bool) -> None:
         heading = wx.StaticText(self, label=label)
         heading.SetFont(heading.GetFont().Bold())
         style = wx.TE_MULTILINE if multiline else 0
         editor = wx.TextCtrl(self, value=value, style=style)
-        editor.Enable(can_edit)
+        editor.SetMaxSize((560, -1))
         if multiline:
-            height = 130 if key in {"source_text", "company_research", "form_answers", "offer_snapshot"} else 92
-            editor.SetMinSize((-1, height))
+            height = 150 if key in {"company_research", "form_answers", "offer_snapshot"} else 92
+            editor.SetMinSize((420, height))
         self._controls[key] = editor
-        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
+        self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
 
-    def _add_read_only_field(self, label: str, value: str, reason: str) -> None:
-        heading = wx.StaticText(self, label=f"{label} · read-only")
-        heading.SetFont(heading.GetFont().Bold())
-        body = wx.StaticText(self, label=value or "—")
-        body.Wrap(310)
-        hint = wx.StaticText(self, label=reason)
-        hint.Wrap(310)
-        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 10)
-        self.sizer.Add(hint, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+    def _on_edit(self, _event: wx.CommandEvent) -> None:
+        self._editing = True
+        self.render(self._projection)
 
     def _on_save(self, _event: wx.CommandEvent) -> None:
         if not self._current_ref:
@@ -145,12 +156,12 @@ class DetailPanel(wx.ScrolledWindow):
         changes = collect_writable_changes(self._original_values, current_values, self._field_storage_keys)
         if changes:
             self.on_save(self._current_ref, changes)
+        self._editing = False
 
     def _on_delete(self, _event: wx.CommandEvent) -> None:
         if self._current_ref:
             self.on_delete(self._current_ref)
 
     def _on_cancel(self, _event: wx.CommandEvent) -> None:
-        for key, control in self._controls.items():
-            control.SetValue(self._original_values.get(key, ""))
+        self._editing = False
         self.on_cancel()
