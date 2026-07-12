@@ -1,58 +1,76 @@
-from pathlib import Path
+import sys
+import tempfile
 import unittest
 
+from aaaat.dashboard_layout import DashboardLayoutState
+from aaaat.db import connect, create_application, get_application, init_db
+from aaaat.security import Mode
 
-class LocalDesktopWxScrollAndRefreshTests(unittest.TestCase):
-    def test_child_widgets_forward_wheel_events_to_parent_scrollers(self):
-        scrolling = Path("aaaat/ui_desktop/scrolling.py").read_text(encoding="utf-8")
-        smart_view = Path("aaaat/ui_desktop/smart_view.py").read_text(encoding="utf-8")
-        overview = Path("aaaat/ui_desktop/overview_board.py").read_text(encoding="utf-8")
-        detail_panel = Path("aaaat/ui_desktop/detail_panel.py").read_text(encoding="utf-8")
-        user_panel = Path("aaaat/ui_desktop/user_panel.py").read_text(encoding="utf-8")
 
-        self.assertIn("bind_parent_wheel_scroll", scrolling)
-        self.assertIn("wx.EVT_MOUSEWHEEL", scrolling)
-        self.assertIn("scrolled_parent.Scroll", scrolling)
-        self.assertIn("wx.TextCtrl", scrolling)
-        self.assertIn("wx.TE_MULTILINE", scrolling)
-        self.assertIn("StopPropagation", scrolling)
-        self.assertIn("bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)", smart_view)
-        self.assertIn("bind_parent_wheel_scroll(self.right_scroll, self.right_scroll)", smart_view)
-        self.assertIn("bind_parent_wheel_scroll(self.overview_scroll, self.overview_scroll)", overview)
-        self.assertIn("bind_parent_wheel_scroll(self, self)", detail_panel)
-        self.assertIn("bind_parent_wheel_scroll(self, self)", user_panel)
+class DesktopStateAndRefreshContractTests(unittest.TestCase):
+    def test_center_cards_can_change_independently_and_all_collapse(self):
+        from aaaat.ui_desktop.card_state import DEFAULT_CENTER_CARD_STATES, CenterCardState
 
-    def test_user_cancel_revert_restores_projected_values_without_saving(self):
-        user_panel = Path("aaaat/ui_desktop/user_panel.py").read_text(encoding="utf-8")
+        state = CenterCardState.default()
+        initial = {card_id: state.is_expanded(card_id) for card_id in DEFAULT_CENTER_CARD_STATES}
+        first = next(iter(DEFAULT_CENTER_CARD_STATES))
+        state.toggle(first)
 
-        self.assertIn("def _on_cancel", user_panel)
-        self.assertIn("control.SetValue(self._original_values.get", user_panel)
-        self.assertIn("self.on_cancel()", user_panel)
-        self.assertNotIn("self.on_save", user_panel[user_panel.index("def _on_cancel") :])
+        self.assertNotEqual(state.is_expanded(first), initial[first])
+        for card_id in DEFAULT_CENTER_CARD_STATES:
+            state.set_expanded(card_id, False)
+        self.assertEqual(state.expanded_ids(), set())
 
-    def test_detailed_selection_refreshes_are_frozen_to_prevent_intermediate_paint(self):
-        detailed_view = Path("aaaat/ui_desktop/detailed_view.py").read_text(encoding="utf-8")
-        detail_table = Path("aaaat/ui_desktop/detail_table.py").read_text(encoding="utf-8")
-        detail_panel = Path("aaaat/ui_desktop/detail_panel.py").read_text(encoding="utf-8")
+    def test_cancel_contract_can_restore_projected_user_values_without_writes(self):
+        from aaaat.ui_desktop.user_fields import collect_writable_user_changes
 
-        self.assertIn("self.detailed_panel.Freeze()", detailed_view)
-        self.assertIn("self.detailed_panel.Thaw()", detailed_view)
-        self.assertIn("self.Freeze()", detail_table)
-        self.assertIn("self.Thaw()", detail_table)
-        self.assertIn("self.Freeze()", detail_panel)
-        self.assertIn("self.Thaw()", detail_panel)
-        self.assertIn("_rendering = True", detail_table)
-        self.assertIn("if self._rendering", detail_table)
+        projected = {"profile.display_name": "Ada", "profile.email": "ada@example.test"}
+        edited = {"profile.display_name": "Ada Edited", "profile.email": "ada@example.test"}
+        field_map = {
+            "profile.display_name": "profile.display_name",
+            "profile.email": "profile.email",
+        }
 
-    def test_shell_and_runtime_boundaries_stay_clear(self):
-        main_window = Path("aaaat/ui_desktop/main_window.py").read_text(encoding="utf-8")
-        projection = Path("aaaat/dashboard_projection.py").read_text(encoding="utf-8")
+        self.assertEqual(
+            collect_writable_user_changes(projected, edited, field_map),
+            {"profile.display_name": "Ada Edited"},
+        )
+        self.assertEqual(collect_writable_user_changes(projected, projected, field_map), {})
 
-        self.assertNotIn("EVT_MOUSEWHEEL", main_window)
-        self.assertNotIn("bind_parent_wheel_scroll", main_window)
-        self.assertNotIn("Freeze()", main_window)
-        self.assertNotIn("import wx", projection)
-        self.assertFalse(Path("aaaat/ui_desktop/card_state_patch.py").exists())
+    def test_save_then_reload_returns_durable_candidature_state(self):
+        from aaaat.ui_desktop.services import DesktopCommandService
+        from aaaat.ui_desktop.app import build_desktop_projection
+
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                app = create_application(conn, company="Before", role="Engineer", notes="Old note")
+            service = DesktopCommandService(tmp)
+            service.update_candidature_fields(app["id"], {"company": "After", "notes": "New note"})
+
+            state = DashboardLayoutState.default()
+            state.selected_view = "detailed"
+            state.selected_candidature_ref = app["id"]
+            projection = build_desktop_projection(tmp, Mode.FULL, state)
+            with connect(tmp) as conn:
+                stored = get_application(conn, app["id"])
+
+        self.assertEqual(stored["company"], "After")
+        self.assertEqual(stored["notes"], "New note")
+        self.assertEqual(projection["detailed"]["selected_row"]["company"], "After")
+        self.assertEqual(projection["view_state"]["selected_candidature_ref"], app["id"])
+
+    def test_core_desktop_modules_import_without_wx(self):
+        from aaaat.ui_desktop import app
+        from aaaat.ui_desktop import card_state, detail_columns, detail_fields, services, user_fields
+
+        self.assertIsNotNone(app.build_desktop_projection)
+        self.assertIsNotNone(card_state.CenterCardState)
+        self.assertIsNotNone(detail_columns.normalize_visible_columns)
+        self.assertIsNotNone(detail_fields.collect_writable_changes)
+        self.assertIsNotNone(services.DesktopCommandService)
+        self.assertIsNotNone(user_fields.collect_writable_user_changes)
+        self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
 
 
 if __name__ == "__main__":

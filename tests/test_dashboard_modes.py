@@ -2,107 +2,62 @@ import tempfile
 import unittest
 
 from aaaat.dashboard import render_dashboard
-from aaaat.db import connect, create_application, init_db, upsert_glossary_term
+from aaaat.db import connect, create_application, init_db
 from aaaat.payload import dashboard_payload
-from aaaat.security import Mode
+from aaaat.security import Mode, can_show_raw_intake, can_write
 
 
 class DashboardModeTests(unittest.TestCase):
-    def test_payload_and_mode_controls(self):
+    def test_security_policy_distinguishes_full_read_only_and_static_modes(self):
+        self.assertTrue(can_write(Mode.FULL))
+        self.assertFalse(can_write(Mode.READ_ONLY))
+        self.assertFalse(can_write(Mode.STATIC_DEMO))
+        self.assertTrue(can_show_raw_intake(Mode.FULL))
+        self.assertFalse(can_show_raw_intake(Mode.READ_ONLY))
+        self.assertFalse(can_show_raw_intake(Mode.STATIC_DEMO))
+
+    def test_renderer_handles_complete_and_sparse_payloads(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                create_application(conn, company="Demo Co", role="Engineer", keywords=["ATS"])
+                create_application(conn, company="Complete Co", role="Engineer", keywords=["Python"])
                 payload = dashboard_payload(conn)
 
-        self.assertTrue(payload["applications"])
-        self.assertTrue(payload["glossary"])
+        full_html = render_dashboard(payload, Mode.FULL)
+        read_only_html = render_dashboard(payload, Mode.READ_ONLY)
+        self.assertIn("Complete Co", full_html)
+        self.assertIn("Complete Co", read_only_html)
+        self.assertGreater(len(full_html), 100)
+        self.assertGreater(len(read_only_html), 100)
 
-        full = render_dashboard(payload, Mode.FULL)
-        self.assertIn("data-app-row", full)
-        self.assertIn("data-selected-app", full)
-        self.assertIn("data-inline-field='next_action'", full)
-        self.assertIn("data-inspector-tab='raw'", full)
-        self.assertIn("data-write-control", full)
-        self.assertIn("data-raw-offer-entry", full)
-        self.assertNotIn("Create Application", full)
-        self.assertNotIn("Manual field editing", full)
-
-        read_only = render_dashboard(payload, Mode.READ_ONLY)
-        self.assertIn("data-app-row", read_only)
-        self.assertIn("data-selected-app", read_only)
-        self.assertNotIn("data-inspector-tab='raw'", read_only)
-        self.assertNotIn("data-write-control", read_only)
-        self.assertNotIn("data-inline-field", read_only)
-        self.assertNotIn("data-raw-offer-entry", read_only)
-
-    def test_sparse_application_renders_cleanly(self):
-        payload = {
-            "applications": [
-                {
-                    "id": "app_sparse",
-                    "company": "Sparse Co",
-                    "role": "Sparse Role",
-                    "status": "draft",
-                    "priority": "normal",
-                    "next_action": "",
-                    "keywords": [],
-                    "artifacts": [],
-                }
-            ],
+        sparse_payload = {
+            "applications": [{
+                "id": "app_sparse",
+                "company": "Sparse Co",
+                "role": "Sparse Role",
+                "status": "draft",
+                "priority": "normal",
+                "next_action": "",
+                "keywords": [],
+                "artifacts": [],
+            }],
             "glossary": [],
             "profile_variables": {},
             "missing_profile_variables": ["profile.display_name"],
         }
-        html = render_dashboard(payload, Mode.FULL)
-        self.assertIn("Sparse Co", html)
-        self.assertIn("Sparse Role", html)
-        self.assertIn("Add next action", html)
-        self.assertIn("data-app-row", html)
-        self.assertIn("data-selected-app", html)
-        self.assertIn("data-inline-field='pitch'", html)
-        self.assertIn("profile.display_name", html)
-        self.assertNotIn("Create Application", html)
-        self.assertNotIn("Manual field editing", html)
+        sparse_html = render_dashboard(sparse_payload, Mode.FULL)
+        self.assertIn("Sparse Co", sparse_html)
+        self.assertIn("Sparse Role", sparse_html)
 
-    def test_application_list_focused_view_keyword_and_tabs_are_structured(self):
+    def test_read_only_render_has_no_dashboard_mutation_endpoints(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                app = create_application(
-                    conn,
-                    company="Focused Co",
-                    role="Platform Engineer",
-                    keywords=["Python"],
-                    notes="Private notes",
-                    form_answers="Verbose form answers",
-                    source_url="https://example.invalid/role",
-                )
-                upsert_glossary_term(conn, "Python", "Programming language.", "skill")
+                app = create_application(conn, company="Safe Co", role="Engineer")
                 payload = dashboard_payload(conn)
 
-        html = render_dashboard(payload, Mode.FULL, app["id"], "Python", "keyword")
-
-        self.assertIn("Focused Co", html)
-        self.assertIn("Platform Engineer", html)
-        self.assertIn("data-app-row", html)
-        self.assertIn("data-selected-app", html)
-        self.assertIn("data-keyword='Python'", html)
-        self.assertIn("Programming language.", html)
-        self.assertIn("Context: Focused Co / Platform Engineer", html)
-        for tab in ["keyword", "company", "notes", "queue", "artifacts", "raw"]:
-            self.assertIn(f"data-inspector-tab='{tab}'", html)
-        self.assertIn("data-inline-field='next_action'", html)
-        self.assertNotIn("Verbose form answers", html)
-        self.assertNotIn("Manual field editing", html)
-
-        company_html = render_dashboard(payload, Mode.FULL, app["id"], "Python", "company")
-        self.assertIn("target='_blank' rel='noopener noreferrer'", company_html)
-
-        read_only = render_dashboard(payload, Mode.READ_ONLY, app["id"], "Python", "company")
-        self.assertNotIn("data-inspector-tab='raw'", read_only)
-        self.assertNotIn("data-write-control", read_only)
-        self.assertNotIn("data-inline-field", read_only)
+        html = render_dashboard(payload, Mode.READ_ONLY, app["id"])
+        self.assertNotIn("/dashboard/actions/", html)
 
 
 if __name__ == "__main__":

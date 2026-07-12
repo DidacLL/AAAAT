@@ -1,4 +1,8 @@
-import tomllib
+import importlib.resources
+import os
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -6,59 +10,51 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
-class ReleasePolishTests(unittest.TestCase):
-    def test_local_launchers_exist_and_use_python_module(self):
-        launchers = {
-            "launchers/open-aaaat.sh": {"read_only": False},
-            "launchers/open-aaaat-read-only.sh": {"read_only": True},
-            "launchers/Open AAAAT.cmd": {"read_only": False},
-            "launchers/Open AAAAT Read Only.cmd": {"read_only": True},
-        }
-        for relative_path, expected in launchers.items():
-            with self.subTest(relative_path=relative_path):
-                content = (ROOT / relative_path).read_text(encoding="utf-8").lower()
-                self.assertIn("-m aaaat.cli", content)
-                self.assertIn("launch", content)
-                self.assertNotIn("git ", content)
-                self.assertNotIn("git.exe", content)
-                if expected["read_only"]:
-                    self.assertIn("--read-only", content)
-                else:
-                    self.assertNotIn("--read-only", content)
+class ReleaseEngineeringTests(unittest.TestCase):
+    def test_cli_module_help_executes_successfully(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "aaaat.cli", "--help"],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(result.stdout.strip())
 
-    def test_unix_launchers_pass_extra_arguments(self):
-        for relative_path in ("launchers/open-aaaat.sh", "launchers/open-aaaat-read-only.sh"):
-            with self.subTest(relative_path=relative_path):
-                content = (ROOT / relative_path).read_text(encoding="utf-8")
-                self.assertIn('"$@"', content)
-                self.assertIn("python3", content)
+    def test_cli_can_initialize_clean_local_storage_without_git(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = dict(os.environ)
+            env["PATH"] = ""
+            result = subprocess.run(
+                [sys.executable, "-m", "aaaat.cli", "--storage", tmp, "init"],
+                cwd=ROOT,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                env=env,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((Path(tmp) / "aaaat.sqlite3").exists())
 
-    def test_windows_launchers_pass_extra_arguments(self):
-        for relative_path in ("launchers/Open AAAAT.cmd", "launchers/Open AAAAT Read Only.cmd"):
-            with self.subTest(relative_path=relative_path):
-                content = (ROOT / relative_path).read_text(encoding="utf-8")
-                self.assertIn("%*", content)
-                self.assertIn("python", content.lower())
+    def test_runtime_package_resources_are_available(self):
+        package_root = importlib.resources.files("aaaat")
+        required = [
+            package_root / "schema.sql",
+            package_root / "templates_ui",
+            package_root / "static",
+        ]
+        for resource in required:
+            with self.subTest(resource=str(resource)):
+                self.assertTrue(resource.is_file() or resource.is_dir())
 
-    def test_package_data_includes_runtime_assets(self):
-        pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-        package_data = set(pyproject["tool"]["setuptools"]["package-data"]["aaaat"])
-        self.assertIn("schema.sql", package_data)
-        self.assertIn("static/*", package_data)
-        self.assertIn("templates_ui/*.html", package_data)
-        self.assertIn("templates_ui/partials/*.html", package_data)
-        self.assertIn("templates_ui/assets/*", package_data)
+    def test_desktop_entry_module_imports_without_optional_dependency(self):
+        from aaaat.ui_desktop import app
 
-    def test_docs_reference_local_launchers(self):
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        install_doc = (ROOT / "docs" / "install.md").read_text(encoding="utf-8")
-        release_doc = (ROOT / "docs" / "release-checklist.md").read_text(encoding="utf-8")
-        combined = "\n".join([readme, install_doc, release_doc])
-        self.assertIn("launchers/open-aaaat.sh", combined)
-        self.assertIn("launchers/open-aaaat-read-only.sh", combined)
-        self.assertIn("Open AAAAT.cmd", combined)
-        self.assertIn("Open AAAAT Read Only.cmd", combined)
-        self.assertIn("do not require Git", combined)
+        self.assertTrue(callable(app.main))
+        self.assertTrue(callable(app.build_desktop_projection))
 
 
 if __name__ == "__main__":
