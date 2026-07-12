@@ -80,7 +80,7 @@ class DesktopAgentWorkflowTests(unittest.TestCase):
         self.assertEqual(artifact["review_state"], "reviewed")
         self.assertEqual(blob["review_state"], "applied")
 
-    def test_reject_marks_result_rejected_and_does_not_change_candidature(self):
+    def test_reject_archives_result_and_does_not_change_candidature(self):
         task = self.service.create_task(self.candidature["id"], "company_research")
         submitted = self.service.submit_result_file(
             task["id"],
@@ -93,7 +93,8 @@ class DesktopAgentWorkflowTests(unittest.TestCase):
             blob = get_text_blob(conn, submitted["result_blob_id"])
 
         self.assertEqual(rejected["state"], "cancelled")
-        self.assertEqual(blob["review_state"], "rejected")
+        self.assertEqual(blob["review_state"], "archived")
+        self.assertIn("Rejected by user", blob["notes"])
         self.assertEqual(candidature["company_research"], "")
 
 
