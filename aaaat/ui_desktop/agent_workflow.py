@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from aaaat.agent_access import submit_agent_task_result, task_handle
+from aaaat.agent_access import response_format, submit_agent_task_result, task_handle
 from aaaat.db import connect
 from aaaat.dispatch.manual import dispatch_manual
 from aaaat.tasks import apply_task_result, create_task, get_task, list_tasks, update_task
@@ -86,6 +86,10 @@ class DesktopAgentWorkflowService:
 
         with connect(self.storage_path) as conn:
             task = get_task(conn, task_id)
+            required = set(response_format(task).get("required") or [])
+            missing = required - result.keys()
+            if missing:
+                raise DesktopAgentWorkflowError(f"Missing required result fields: {sorted(missing)}")
             completed = submit_agent_task_result(
                 conn,
                 task_handle(task),
