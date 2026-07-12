@@ -5,8 +5,6 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 import wx.html  # type: ignore[import-not-found]
 
-from .candidature_actions import add_candidature_actions
-
 
 class CenterCardBuilder:
     """Build Smart View center cards and integrate explicit card state."""
@@ -26,7 +24,6 @@ class CenterCardBuilder:
         hero_sizer.Add(company, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
         hero_sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
         hero_sizer.Add(chips, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
-        add_candidature_actions(hero, hero_sizer, self.owner._open_candidature_action, compact=True)
         self.owner.center_sizer.Add(hero, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def add_call_card(self, detail: dict[str, Any]) -> None:
@@ -34,7 +31,7 @@ class CenterCardBuilder:
             ("Recognize", detail.get("call_signals") or detail.get("source_excerpt") or "No signal yet."),
             ("Pitch", detail.get("pitch") or "No pitch yet."),
             ("Ask", detail.get("smart_question") or "No question yet."),
-            ("Watch", detail.get("risk_to_avoid") or "No risk note yet."),
+            ("Watch", detail.get("risk_to_avoid") or detail.get("risks_to_avoid") or "No risk note yet."),
         ]
         summary = " · ".join(self.owner._clip(body, 46) for _heading, body in blocks[:2] if body)
         panel, body_sizer = self.card_shell("call", "Call cockpit", summary or "recognition, pitch, question, risk")
@@ -106,12 +103,11 @@ class CenterCardBuilder:
             return
         window.SetCursor(wx.Cursor(wx.CURSOR_HAND))
 
-        def on_click(event: wx.Event, selected_card: str = card_id) -> None:
+        def on_click(event: wx.MouseEvent, selected_card: str = card_id) -> None:
             self.toggle(selected_card)
-            if hasattr(event, "StopPropagation"):
-                event.StopPropagation()
+            event.Skip(False)
 
-        window.Bind(wx.EVT_LEFT_UP, on_click)
+        window.Bind(wx.EVT_LEFT_DOWN, on_click)
         for child in window.GetChildren():
             if isinstance(child, wx.Window):
                 self.bind_click(child, card_id)
