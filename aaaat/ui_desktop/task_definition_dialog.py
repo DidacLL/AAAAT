@@ -7,6 +7,11 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 
 from aaaat.db import connect
+from aaaat.generation_policy import (
+    SUPPORTED_GENERATION_TASKS,
+    default_generation_tasks,
+    save_default_generation_tasks,
+)
 from aaaat.task_definitions import (
     TaskDefinitionError,
     get_editable_template,
@@ -17,12 +22,27 @@ from aaaat.task_definitions import (
 )
 from .agent_workflow import DESKTOP_TASK_TYPES
 
+_TASK_LABELS = {
+    "field_inference": "Complete application details",
+    "company_research": "Research the company",
+    "draft_cv": "Prepare a tailored CV",
+    "draft_cover_letter": "Prepare a cover letter",
+}
+
 
 class TaskDefinitionEditorService:
-    """Load and save the advanced raw task configuration."""
+    """Load and save automatic-generation policy and advanced raw task configuration."""
 
     def __init__(self, storage_path: str | Path) -> None:
         self.storage_path = str(storage_path)
+
+    def load_policy(self) -> list[str]:
+        with connect(self.storage_path) as conn:
+            return default_generation_tasks(conn)
+
+    def save_policy(self, task_types: list[str]) -> list[str]:
+        with connect(self.storage_path) as conn:
+            return save_default_generation_tasks(conn, task_types)
 
     def load(self, task_type: str) -> dict[str, Any]:
         with connect(self.storage_path) as conn:
@@ -87,12 +107,12 @@ class TaskDefinitionEditorService:
 
 
 class TaskDefinitionDialog(wx.Dialog):
-    """Advanced raw configuration, kept outside the normal candidature workflow."""
+    """Automatic intake policy plus advanced raw task configuration."""
 
     def __init__(self, parent: wx.Window, *, service: TaskDefinitionEditorService, can_write: bool = True) -> None:
         super().__init__(
             parent,
-            title="Advanced AI and template configuration",
+            title="AI and document configuration",
             size=(850, 680),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
@@ -102,40 +122,73 @@ class TaskDefinitionDialog(wx.Dialog):
         root = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(root)
 
-        heading = wx.StaticText(self, label="Advanced configuration")
+        heading = wx.StaticText(self, label="AI and document configuration")
         heading.SetFont(heading.GetFont().Bold().Larger().Larger())
         explanation = wx.StaticText(
             self,
             label=(
-                "Most users never need this screen. It exposes the raw task definition and the linked "
-                "template for users who deliberately customize their AI workflow."
+                "Choose what AAAAT prepares automatically after you paste a job offer. "
+                "Advanced users can also edit the underlying task definitions and templates."
             ),
         )
         explanation.Wrap(790)
         root.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 14)
         root.Add(explanation, 0, wx.ALL | wx.EXPAND, 14)
 
-        self.task_choice = wx.Choice(
-            self,
-            choices=[DESKTOP_TASK_TYPES[key][0] for key in self.task_types],
-        )
-        self.task_choice.SetSelection(0)
-        root.Add(self.task_choice, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 14)
-
-        self.status = wx.StaticText(self, label="")
-        root.Add(self.status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 14)
-
         notebook = wx.Notebook(self)
         root.Add(notebook, 1, wx.LEFT | wx.RIGHT | wx.EXPAND, 14)
 
-        definition_panel = wx.Panel(notebook)
+        policy_panel = wx.Panel(notebook)
+        policy_sizer = wx.BoxSizer(wx.VERTICAL)
+        policy_panel.SetSizer(policy_sizer)
+        policy_note = wx.StaticText(
+            policy_panel,
+            label="For each new job offer, prepare:",
+        )
+        policy_note.SetFont(policy_note.GetFont().Bold())
+        policy_sizer.Add(policy_note, 0, wx.ALL, 12)
+        self.policy_checks: dict[str, wx.CheckBox] = {}
+        selected = set(self.service.load_policy())
+        for task_type in SUPPORTED_GENERATION_TASKS:
+            checkbox = wx.CheckBox(policy_panel, label=_TASK_LABELS[task_type])
+            checkbox.SetValue(task_type in selected)
+            checkbox.Enable(can_write)
+            self.policy_checks[task_type] = checkbox
+            policy_sizer.Add(checkbox, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+        save_policy = wx.Button(policy_panel, label="Save automatic preparation")
+        save_policy.Enable(can_write)
+        save_policy.Bind(wx.EVT_BUTTON, self._on_save_policy)
+        policy_sizer.Add(save_policy, 0, wx.ALL, 12)
+        notebook.AddPage(policy_panel, "Automatic preparation")
+
+        advanced_panel = wx.Panel(notebook)
+        advanced_sizer = wx.BoxSizer(wx.VERTICAL)
+        advanced_panel.SetSizer(advanced_sizer)
+        advanced_note = wx.StaticText(
+            advanced_panel,
+            label="Advanced: edit the raw configuration for one task type.",
+        )
+        advanced_sizer.Add(advanced_note, 0, wx.ALL, 8)
+        self.task_choice = wx.Choice(
+            advanced_panel,
+            choices=[DESKTOP_TASK_TYPES[key][0] for key in self.task_types],
+        )
+        self.task_choice.SetSelection(0)
+        advanced_sizer.Add(self.task_choice, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+        self.status = wx.StaticText(advanced_panel, label="")
+        advanced_sizer.Add(self.status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+
+        raw_notebook = wx.Notebook(advanced_panel)
+        advanced_sizer.Add(raw_notebook, 1, wx.EXPAND)
+
+        definition_panel = wx.Panel(raw_notebook)
         definition_sizer = wx.BoxSizer(wx.VERTICAL)
         definition_panel.SetSizer(definition_sizer)
         self.definition_text = wx.TextCtrl(definition_panel, style=wx.TE_MULTILINE)
         definition_sizer.Add(self.definition_text, 1, wx.ALL | wx.EXPAND, 8)
-        notebook.AddPage(definition_panel, "Task definition JSON")
+        raw_notebook.AddPage(definition_panel, "Task definition JSON")
 
-        template_panel = wx.Panel(notebook)
+        template_panel = wx.Panel(raw_notebook)
         template_sizer = wx.BoxSizer(wx.VERTICAL)
         template_panel.SetSizer(template_sizer)
         variables_label = wx.StaticText(template_panel, label="Required template variables, one per line")
@@ -147,22 +200,23 @@ class TaskDefinitionDialog(wx.Dialog):
         template_sizer.Add(self.required_variables_text, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
         template_sizer.Add(template_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         template_sizer.Add(self.template_body_text, 1, wx.ALL | wx.EXPAND, 8)
-        notebook.AddPage(template_panel, "Linked template")
+        raw_notebook.AddPage(template_panel, "Linked template")
 
-        actions = wx.BoxSizer(wx.HORIZONTAL)
-        save = wx.Button(self, label="Save configuration")
-        reset = wx.Button(self, label="Restore default")
-        close = wx.Button(self, wx.ID_CLOSE, "Close")
+        advanced_actions = wx.BoxSizer(wx.HORIZONTAL)
+        save = wx.Button(advanced_panel, label="Save advanced configuration")
+        reset = wx.Button(advanced_panel, label="Restore task default")
         save.Enable(can_write)
         reset.Enable(can_write)
         self.definition_text.Enable(can_write)
         self.required_variables_text.Enable(can_write)
         self.template_body_text.Enable(can_write)
-        actions.Add(save, 0, wx.RIGHT, 6)
-        actions.Add(reset, 0, wx.RIGHT, 6)
-        actions.AddStretchSpacer(1)
-        actions.Add(close, 0)
-        root.Add(actions, 0, wx.ALL | wx.EXPAND, 14)
+        advanced_actions.Add(save, 0, wx.RIGHT, 6)
+        advanced_actions.Add(reset, 0)
+        advanced_sizer.Add(advanced_actions, 0, wx.ALL, 8)
+        notebook.AddPage(advanced_panel, "Advanced")
+
+        close = wx.Button(self, wx.ID_CLOSE, "Close")
+        root.Add(close, 0, wx.ALL | wx.ALIGN_RIGHT, 14)
 
         self.task_choice.Bind(wx.EVT_CHOICE, lambda _event: self._load())
         save.Bind(wx.EVT_BUTTON, self._on_save)
@@ -181,6 +235,11 @@ class TaskDefinitionDialog(wx.Dialog):
         self.template_body_text.SetValue(str(template.get("body") or ""))
         state = "custom" if loaded.get("is_custom") else "default"
         self.status.SetLabel(f"Version {loaded['version']} · {state}")
+
+    def _on_save_policy(self, _event) -> None:
+        selected = [task_type for task_type, checkbox in self.policy_checks.items() if checkbox.GetValue()]
+        self.service.save_policy(selected)
+        wx.MessageBox("Automatic preparation updated.", "AAAAT", wx.OK | wx.ICON_INFORMATION, self)
 
     def _on_save(self, _event) -> None:
         try:
