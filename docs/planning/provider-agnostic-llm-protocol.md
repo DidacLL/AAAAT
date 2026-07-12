@@ -32,14 +32,15 @@ For the selected candidature, the desktop now supports:
 
 1. creating company-research, field-completion, or cover-letter tasks;
 2. exporting the bounded packet to the local outbox and clipboard;
-3. importing one structured JSON result;
-4. validating required result fields before storage;
-5. displaying the result and review state;
-6. editing and revalidating the result before apply;
-7. explicitly applying or rejecting the result;
-8. rendering a cover-letter TeX artifact locally;
-9. opening the rendered artifact through the operating system;
-10. refreshing Smart/Detailed projections after changes.
+3. running an optional user-owned command that reads the packet from stdin and writes JSON to stdout;
+4. importing one structured JSON result manually;
+5. validating command and imported results before storage;
+6. displaying the result and review state;
+7. editing and revalidating the result before apply;
+8. explicitly applying or rejecting the result;
+9. rendering a cover-letter TeX artifact locally;
+10. opening the rendered artifact through the operating system;
+11. refreshing Smart/Detailed projections after changes.
 
 Cover-letter tasks cannot be applied until an artifact has been rendered. Editing a cover-letter result after rendering detaches the stale artifact and requires a fresh render.
 
@@ -48,18 +49,18 @@ Cover-letter tasks cannot be applied until an artifact has been rendered. Editin
 Tests execute the actual workflows rather than declarations:
 
 - company research remains suggested and leaves the candidature unchanged until explicit apply;
+- a user-owned command can complete the same desktop task without provider-specific code;
+- command failures, invalid JSON, non-object JSON, and missing fields leave the task queued without a result;
 - edited results remain suggested and the edited value is what gets applied;
 - invalid imports and invalid edits do not replace the stored valid result;
 - cover letters require a rendered artifact before apply;
 - rendered artifact paths resolve to real local files;
 - editing after render invalidates the stale task-to-artifact binding;
-- rejected results are archived and never mutate the candidature;
-- manual and command dispatch backends preserve their durable success/failure behavior.
+- rejected results are archived and never mutate the candidature.
 
 ## Remaining before release acceptance
 
-- manual wx acceptance of layout, clipboard, file dialogs, refresh, and OS artifact opening;
-- decide whether the user-configured command backend belongs in the initial desktop dialog or remains an advanced CLI workflow;
+- manual wx acceptance of layout, clipboard, file dialogs, command invocation feedback, refresh, and OS artifact opening;
 - clean-install wheel validation and release packaging;
 - release documentation and demonstration data/video.
 
