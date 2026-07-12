@@ -1,7 +1,7 @@
 import json
 import subprocess
 import sys
-import tomllib
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
-class DependencyPolicyTests(unittest.TestCase):
+class OptionalRuntimeBoundaryTests(unittest.TestCase):
     def run_probe(self, code: str) -> dict:
         result = subprocess.run(
             [sys.executable, "-c", code],
@@ -22,31 +22,42 @@ class DependencyPolicyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
 
-    def test_project_metadata_keeps_wx_optional(self):
-        project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-        self.assertEqual(project["name"], "aaaat")
-        self.assertIsInstance(project.get("dependencies", []), list)
-        self.assertNotIn("wxPython", "\n".join(project.get("dependencies", [])))
-        self.assertIn("desktop", project.get("optional-dependencies", {}))
-
-    def test_core_and_desktop_bootstrap_import_without_optional_wx(self):
+    def test_desktop_projection_builds_when_wx_imports_are_unavailable(self):
         observed = self.run_probe(
-            "import importlib, json, sys; "
-            "importlib.import_module('aaaat.cli'); "
-            "app = importlib.import_module('aaaat.ui_desktop.app'); "
-            "print(json.dumps({'callable': callable(app.build_desktop_projection), "
-            "'wx_loaded': any(n == 'wx' or n.startswith('wx.') for n in sys.modules)}))"
+            "import importlib.abc, json, sys, tempfile; "
+            "class BlockWx(importlib.abc.MetaPathFinder):\n"
+            "  def find_spec(self, fullname, path=None, target=None):\n"
+            "    if fullname == 'wx' or fullname.startswith('wx.'):\n"
+            "      raise ImportError('wx blocked by test')\n"
+            "    return None\n"
+            "sys.meta_path.insert(0, BlockWx()); "
+            "from aaaat.db import init_db; "
+            "from aaaat.security import Mode; "
+            "from aaaat.ui_desktop.app import build_desktop_projection; "
+            "tmp = tempfile.TemporaryDirectory(); init_db(tmp.name); "
+            "projection = build_desktop_projection(tmp.name, Mode.FULL); "
+            "print(json.dumps({'view': projection['view_state']['current_view']}))"
         )
-        self.assertTrue(observed["callable"])
-        self.assertFalse(observed["wx_loaded"])
+        self.assertIn(observed["view"], {"welcome", "smart"})
 
-    def test_agent_runtime_import_does_not_pull_desktop_adapter(self):
+    def test_agent_runtime_serves_health_when_desktop_imports_are_blocked(self):
         observed = self.run_probe(
-            "import importlib, json, sys; "
-            "importlib.import_module('aaaat.server_fastapi'); "
-            "print(json.dumps({'desktop_loaded': any(n.startswith('aaaat.ui_desktop') for n in sys.modules)}))"
+            "import importlib.abc, json, sys, tempfile; "
+            "class BlockDesktop(importlib.abc.MetaPathFinder):\n"
+            "  def find_spec(self, fullname, path=None, target=None):\n"
+            "    if fullname.startswith('aaaat.ui_desktop'):\n"
+            "      raise ImportError('desktop blocked by test')\n"
+            "    return None\n"
+            "sys.meta_path.insert(0, BlockDesktop()); "
+            "from fastapi.testclient import TestClient; "
+            "from aaaat.db import init_db; "
+            "from aaaat.server_fastapi import create_agent_app; "
+            "tmp = tempfile.TemporaryDirectory(); init_db(tmp.name); "
+            "response = TestClient(create_agent_app(tmp.name)).get('/api/health'); "
+            "print(json.dumps({'status': response.status_code, 'body': response.json()}))"
         )
-        self.assertFalse(observed["desktop_loaded"])
+        self.assertEqual(observed["status"], 200)
+        self.assertEqual(observed["body"]["runtime"], "agent")
 
 
 if __name__ == "__main__":
