@@ -31,6 +31,7 @@ The protocol is provider-neutral. Adapters translate requests and responses only
 - provider-neutral conversation engine;
 - OpenAI-compatible chat-completions adapter implemented with the Python standard library;
 - environment/CLI configuration without database secret persistence;
+- `aaaat-llm` executable entry point;
 - end-to-end execution of an existing task handle;
 - validated result submission through the existing suggested-review task result flow;
 - fake-provider and local HTTP-server behavioral tests.
@@ -76,6 +77,23 @@ The command:
 5. leaves application of the result to AAAAT's existing review/apply path.
 
 It does not mutate the candidature directly.
+
+## Validation status
+
+The first complete adapter/runtime slice passed the repository Agent Contract Tests and full unittest discovery before the final CLI-configuration test addition. The branch remains draft until the latest head is green.
+
+Behavioral coverage includes:
+
+- request and response protocol validation;
+- internal-ID rejection in nested structures;
+- task-handle correlation;
+- required result-field enforcement;
+- provider capability enforcement;
+- real local HTTP transport and JSON parsing;
+- bearer-token header handling without prompt leakage;
+- environment and CLI configuration precedence;
+- task-result persistence as `suggested`;
+- provider/model provenance on the stored result.
 
 ## Current non-goals
 
