@@ -11,9 +11,10 @@ from .db import connect, new_id, row_to_dict, utc_now
 from .dispatch.command import run_backend_command
 from .task_registry import task_definition, validate_task_snapshot
 from .tasks import apply_task_result, get_task, update_task
-from .templates import render_document_artifact, safe_artifact_output_path
+from .templates import safe_artifact_output_path
 from .text_blobs import get_text_blob, update_text_blob
 from .workspace_config import effective_task_snapshot, load_settings
+from .workspace_render import render_workspace_artifact
 
 
 class TaskWorkflowError(ValueError):
@@ -141,10 +142,7 @@ class TaskWorkflowService:
                 "response_format": task["response_format"],
                 "allowed_actions": context.get("allowed_actions", []),
                 "privacy_notes": context.get("privacy_notes", []),
-                "callback_instructions": {
-                    "auto_apply": False,
-                    "submit_with": "the opaque task_handle",
-                },
+                "callback_instructions": {"auto_apply": False, "submit_with": "the opaque task_handle"},
             }
 
     def run_configured(self, task_id: str) -> dict[str, Any]:
@@ -230,8 +228,7 @@ class TaskWorkflowService:
                     raise TaskWorkflowError("Task has no result")
                 update_text_blob(conn, task["result_blob_id"], review_state="applied")
                 return self.view_task(task, conn=conn)
-            applied = decode_task(apply_task_result(conn, task_id))
-            return self.view_task(applied, conn=conn)
+            return self.view_task(decode_task(apply_task_result(conn, task_id)), conn=conn)
 
     def render_artifact(self, task_id: str, *, compile_pdf: bool = False) -> dict[str, Any]:
         with connect(self.storage_path) as conn:
@@ -254,14 +251,14 @@ class TaskWorkflowService:
                     raise TaskWorkflowError(f"Generated result requires {result_key}")
                 extra[str(template_key)] = value
             output_path = safe_artifact_output_path(self.storage_path, task.get("application_id"), template_name)
-            rendered = render_document_artifact(
+            rendered = render_workspace_artifact(
                 conn,
+                self.storage_path,
                 template_name,
                 output_path,
                 task.get("application_id"),
                 extra,
                 compile_pdf=compile_pdf,
-                storage_path=self.storage_path,
             )
             updated = decode_task(update_task(conn, task_id, artifact_id=rendered["artifact_id"]))
             return {"task": self.view_task(updated, conn=conn), "artifact": rendered}
@@ -271,18 +268,21 @@ class TaskWorkflowService:
             task = decode_task(get_task(conn, task_id))
             if task.get("result_blob_id"):
                 update_text_blob(conn, task["result_blob_id"], review_state="archived", notes="Rejected by user.")
-            cancelled = decode_task(update_task(conn, task_id, state="cancelled", notes="Result rejected by user."))
-            return self.view_task(cancelled, conn=conn)
+            return self.view_task(
+                decode_task(update_task(conn, task_id, state="cancelled", notes="Result rejected by user.")),
+                conn=conn,
+            )
 
     def retry(self, task_id: str) -> dict[str, Any]:
         with connect(self.storage_path) as conn:
-            task = decode_task(update_task(conn, task_id, state="queued", notes=""))
-            return self.view_task(task, conn=conn)
+            return self.view_task(decode_task(update_task(conn, task_id, state="queued", notes="")), conn=conn)
 
     def mark_failed(self, task_id: str, message: str) -> dict[str, Any]:
         with connect(self.storage_path) as conn:
-            task = decode_task(update_task(conn, task_id, state="blocked", notes=message))
-            return self.view_task(task, conn=conn)
+            return self.view_task(
+                decode_task(update_task(conn, task_id, state="blocked", notes=message)),
+                conn=conn,
+            )
 
     @staticmethod
     def _validate_result(task: Mapping[str, Any], result: Mapping[str, Any]) -> None:
