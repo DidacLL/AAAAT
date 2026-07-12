@@ -21,7 +21,7 @@ class AgentWorkDialog(wx.Dialog):
         can_write: bool,
         on_changed,
     ) -> None:
-        super().__init__(parent, title="Agent work", size=(860, 660), style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        super().__init__(parent, title="Agent work", size=(900, 700), style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.service = service
         self.candidature_ref = candidature_ref
         self.can_write = can_write
@@ -38,6 +38,14 @@ class AgentWorkDialog(wx.Dialog):
         create_row.Add(self.task_type, 1, wx.RIGHT | wx.EXPAND, 6)
         create_row.Add(self.create_button, 0)
         root.Add(create_row, 0, wx.ALL | wx.EXPAND, 10)
+
+        command_row = wx.BoxSizer(wx.HORIZONTAL)
+        self.command_text = wx.TextCtrl(self, value="", style=wx.TE_PROCESS_ENTER)
+        self.command_text.SetHint("Optional user command: reads task packet from stdin and writes JSON to stdout")
+        self.run_command_button = wx.Button(self, label="Run command")
+        command_row.Add(self.command_text, 1, wx.RIGHT | wx.EXPAND, 6)
+        command_row.Add(self.run_command_button, 0)
+        root.Add(command_row, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         self.task_list = wx.ListBox(self)
         root.Add(self.task_list, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
@@ -72,6 +80,8 @@ class AgentWorkDialog(wx.Dialog):
         root.Add(close_button, 0, wx.ALL | wx.ALIGN_RIGHT, 10)
 
         self.create_button.Bind(wx.EVT_BUTTON, self._on_create)
+        self.run_command_button.Bind(wx.EVT_BUTTON, self._on_run_command)
+        self.command_text.Bind(wx.EVT_TEXT_ENTER, self._on_run_command)
         self.task_list.Bind(wx.EVT_LISTBOX, self._on_select)
         self.export_button.Bind(wx.EVT_BUTTON, self._on_export)
         self.import_button.Bind(wx.EVT_BUTTON, self._on_import)
@@ -84,6 +94,8 @@ class AgentWorkDialog(wx.Dialog):
 
         self.create_button.Enable(can_write)
         self.import_button.Enable(can_write)
+        self.run_command_button.Enable(can_write)
+        self.command_text.Enable(can_write)
         self._reload()
 
     def _selected_task(self) -> dict[str, Any] | None:
@@ -141,6 +153,9 @@ class AgentWorkDialog(wx.Dialog):
             can_apply = can_apply and bool(task.get("result_blob_id"))
         self.apply_button.Enable(can_apply)
         self.reject_button.Enable(self.can_write and task.get("review_state") == "suggested")
+        can_dispatch = self.can_write and task.get("state") in {"queued", "claimed", "in_progress", "blocked"}
+        self.run_command_button.Enable(can_dispatch)
+        self.command_text.Enable(can_dispatch)
 
     def _run(self, operation, *, success: str, task_id: str | None = None) -> None:
         try:
@@ -160,6 +175,18 @@ class AgentWorkDialog(wx.Dialog):
         self._run(
             lambda: self.service.create_task(self.candidature_ref, task_type),
             success="Task ready for dispatch.",
+        )
+
+    def _on_run_command(self, _event) -> None:
+        task = self._selected_task()
+        command = self.command_text.GetValue().strip()
+        if not task or not command:
+            self.status.SetLabel("Select a queued task and enter a command.")
+            return
+        self._run(
+            lambda: self.service.run_command(task["id"], command),
+            success="Command result stored for review.",
+            task_id=task["id"],
         )
 
     def _on_select(self, _event) -> None:
