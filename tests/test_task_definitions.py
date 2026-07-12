@@ -42,6 +42,10 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
         path.write_text(json.dumps(payload), encoding="utf-8")
         return path
 
+    @staticmethod
+    def definition_version(packet):
+        return packet["output_contract"]["task_definition_version"]
+
     def test_existing_task_keeps_snapshot_when_global_definition_changes(self):
         first = self.service.create_task(self.candidature["id"], "company_research")
         first_packet_before = self.service.export_packet(first["id"])
@@ -73,10 +77,10 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
             second_packet = build_task_packet(conn, second["task_handle"])
 
         self.assertEqual(saved["version"], 2)
-        self.assertEqual(before["definition_version"], 1)
-        self.assertEqual(first_packet_after["definition_version"], 1)
+        self.assertEqual(self.definition_version(before), 1)
+        self.assertEqual(self.definition_version(first_packet_after), 1)
         self.assertIn("company_research", first_packet_after["response_format"]["required"])
-        self.assertEqual(second_packet["definition_version"], 2)
+        self.assertEqual(self.definition_version(second_packet), 2)
         self.assertEqual(second_packet["title"], "Investigate employer")
         self.assertIn("employer_brief", second_packet["response_format"]["required"])
         self.assertEqual(second_packet["allowed_actions"], ["context", "submit"])
@@ -130,9 +134,9 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
         task = self.service.create_task(self.candidature["id"], "draft_cover_letter")
         packet_path = self.service.export_packet(task["id"])
         packet = json.loads(packet_path.read_text(encoding="utf-8"))
-        self.assertEqual(packet["definition_version"], definition["version"])
+        self.assertEqual(self.definition_version(packet), definition["version"])
         self.assertEqual(
-            packet["artifact_contract"]["variable_mapping"],
+            packet["output_contract"]["artifact"]["variable_mapping"],
             {"opening_paragraph": "artifact.cover_letter.opening"},
         )
 
