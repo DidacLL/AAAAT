@@ -6,9 +6,9 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 
 from aaaat.dashboard_layout import DashboardLayoutState
-from aaaat.security import Mode, can_write
+from aaaat.security import Mode
 
-from .agent_work_dialog import AgentWorkDialog
+from .agent_action_dialog import AgentActionDialog
 from .agent_workflow import DesktopAgentWorkflowService
 from .card_state import CenterCardState
 from .detailed_view import DetailedViewMixin
@@ -34,7 +34,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
     ) -> None:
         super().__init__(None, title="AAAAT — Desktop", size=DEFAULT_WINDOW_SIZE)
         self.storage_path = storage_path
-        self.mode = Mode(mode)
+        self.mode = Mode.FULL
         self.projection = projection
         self.layout_state = layout_state
         self.layout_path = Path(layout_path)
@@ -60,7 +60,6 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._build_menu()
         self._build_shell()
         self._bind_shell_events()
-        self.agent_button.Bind(wx.EVT_BUTTON, self._on_agent_work)
         self._show_initial_view()
         self._refresh_all()
 
@@ -103,25 +102,27 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.toolbar.SetSizer(toolbar_sizer)
         self.title = wx.StaticText(self.toolbar, label="AAAAT")
         self.title.SetFont(self.title.GetFont().Bold().Larger())
-        self.mode_chip = wx.StaticText(self.toolbar, label="read-only" if self.mode == Mode.READ_ONLY else "local")
-        self.agent_button = wx.Button(self.toolbar, label="Agent work")
         self.reset_button = wx.Button(self.toolbar, label="Reset", size=(68, -1))
         self.new_button = wx.Button(self.toolbar, label="+", size=(40, -1))
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
-        for control in (self.mode_chip, self.agent_button, self.reset_button, self.new_button):
+        for control in (self.reset_button, self.new_button):
             toolbar_sizer.Add(control, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         self.root_sizer.Add(self.toolbar, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
 
-    def _on_agent_work(self, _event) -> None:
-        if not self.selected_ref:
-            wx.MessageBox("Select a candidature first.", "Agent work", wx.OK | wx.ICON_INFORMATION, self)
+    def _open_candidature_action(self, action_key: str) -> None:
+        detail = self._selected_detail() or self._detailed_selected_row() or {}
+        ref = str(detail.get("ref") or self.selected_ref or "")
+        if not ref:
             return
-        dialog = AgentWorkDialog(
+        company = str(detail.get("company") or "Untitled company")
+        role = str(detail.get("role") or "Untitled role")
+        dialog = AgentActionDialog(
             self,
             service=self.agent_workflow_service,
-            candidature_ref=str(self.selected_ref),
-            can_write=can_write(self.mode),
+            candidature_ref=ref,
+            candidature_label=f"{company} · {role}",
+            action_key=action_key,
             on_changed=self._on_agent_work_changed,
         )
         try:
@@ -186,7 +187,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.nav_search.ShowSearchButton(True)
         self.nav_search.ShowCancelButton(True)
         self.nav_list = wx.ListBox(self.nav_panel)
-        self.expand_list_button = wx.Button(self.nav_panel, label="Expand")
+        self.expand_list_button = wx.Button(self.nav_panel, label="All applications")
         sizer.Add(self.nav_search, 0, wx.ALL | wx.EXPAND, 4)
         sizer.Add(self.nav_list, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
         sizer.Add(self.expand_list_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
