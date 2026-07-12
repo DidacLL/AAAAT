@@ -5,7 +5,7 @@ import unittest
 from aaaat.dashboard_views import dashboard_view_model, normalize_view, render_dashboard_view
 from aaaat.db import connect, create_application, init_db
 from aaaat.payload import dashboard_payload
-from aaaat.security import Mode
+from aaaat.security import Mode, can_show_raw_intake, can_write
 
 
 JINJA_AVAILABLE = importlib.util.find_spec("jinja2") is not None
@@ -21,11 +21,7 @@ class DashboardViewNormalizationTests(unittest.TestCase):
 
 @unittest.skipUnless(JINJA_AVAILABLE, "Jinja2 is not installed")
 class LegacyBrowserRendererBehaviorTests(unittest.TestCase):
-    """Minimal compatibility coverage for the non-canonical browser renderer.
-
-    The local wx dashboard is the current product UI. These tests intentionally
-    avoid freezing HTML structure, wording, CSS hooks, or panel composition.
-    """
+    """Minimal compatibility coverage for the non-canonical browser renderer."""
 
     def make_payload(self):
         tmp = tempfile.TemporaryDirectory()
@@ -69,7 +65,7 @@ class LegacyBrowserRendererBehaviorTests(unittest.TestCase):
                 self.assertIn("Renderer Co", html)
                 self.assertIn("Engineer", html)
 
-    def test_read_only_model_disables_writes_and_raw_intake(self):
+    def test_read_only_model_preserves_mode_and_central_policy_disables_access(self):
         payload, app = self.make_payload()
         model = dashboard_view_model(
             payload,
@@ -78,8 +74,9 @@ class LegacyBrowserRendererBehaviorTests(unittest.TestCase):
             selected_application_id=app["id"],
         )
 
-        self.assertFalse(model["permissions"]["can_write"])
-        self.assertFalse(model["permissions"]["can_show_raw_intake"])
+        self.assertEqual(model["mode"], Mode.READ_ONLY)
+        self.assertFalse(can_write(model["mode"]))
+        self.assertFalse(can_show_raw_intake(model["mode"]))
 
     def test_read_only_render_does_not_expose_human_mutation_routes(self):
         payload, app = self.make_payload()
@@ -89,7 +86,6 @@ class LegacyBrowserRendererBehaviorTests(unittest.TestCase):
             view="detailedView",
             selected_application_id=app["id"],
         )
-
         self.assertNotIn("/dashboard/actions/", html)
 
 
