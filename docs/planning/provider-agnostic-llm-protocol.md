@@ -1,128 +1,156 @@
-# Provider-agnostic LLM protocol
+# Provider-agnostic external host protocol
 
 Status: parallel feature branch from PR #37 head `97b2e474d4c609002a4c786f81c60446e3b0be5e`.
 
-## Objective
+## Correct product boundary
 
-Add the release-critical communication layer between AAAAT and external LLM providers without coupling provider SDKs to storage, UI composition, or agent mutation authority.
+AAAAT is not an LLM wrapper, inference runtime, provider SDK host, or credential manager.
+
+AAAAT owns:
+
+- private local domain data;
+- bounded task creation and internal binding;
+- purpose-scoped context;
+- privacy and exposure policy;
+- output contracts and validation;
+- provenance storage;
+- human review state;
+- deterministic application of accepted results;
+- local rendering and artifact lifecycle.
+
+The external agent or host environment owns:
+
+- reasoning and generation;
+- inference execution;
+- provider and model selection;
+- credentials and API keys;
+- network policy;
+- retries, streaming, and provider-specific transport.
+
+AAAAT must work without a model, provider account, API key, provider SDK, HTTP server, or external network.
 
 ## Architecture
 
 ```text
-AAAAT bounded task/context
-→ LlmTaskRequest
-→ LlmConversationEngine
-→ LlmProvider adapter
-→ provider API or local model
-→ LlmTaskResponse
-→ protocol validation
-→ existing AAAAT review/apply flow
+AAAAT domain task
+→ opaque task handle
+→ bounded host task packet
+→ external host / preferred agent
+→ structured host result
+→ AAAAT validation
+→ suggested review state
+→ explicit local apply
 ```
 
-The protocol is provider-neutral. Adapters translate requests and responses only.
+The external host may use OpenAI, Anthropic, Gemini, Ollama, llama.cpp, a local model, a remote model, or no model at all. AAAAT neither knows nor needs to know how inference is executed.
 
 ## Implemented slice
 
-- versioned `LlmTaskRequest` and `LlmTaskResponse`;
-- conversion from the existing bounded agent task context;
+- `HostTaskPacket`: versioned provider-neutral work packet built from the existing bounded agent context;
+- `HostTaskResult`: structured result with optional generic provenance;
 - recursive rejection of internal entity identifiers;
-- required structured-result validation;
-- provider capability contract;
-- provider-neutral conversation engine;
-- OpenAI-compatible chat-completions adapter implemented with the Python standard library;
-- environment/CLI configuration without database secret persistence;
-- `aaaat-llm` executable entry point;
-- end-to-end execution of an existing task handle;
-- validated result submission through the existing suggested-review task result flow;
-- fake-provider and local HTTP-server behavioral tests.
+- required result-field validation against the task response format;
+- action allowlist limited to `context` and `submit`;
+- generic provenance fields without provider-specific requirements;
+- machine-readable compatibility descriptor;
+- compatibility validation that enforces operation without API keys or provider SDKs;
+- behavioral tests for bounded context, provenance, required fields, ID leakage, and ownership boundaries.
 
-## Configuration
+## Passive integration surfaces
 
-Required values can be supplied through environment variables:
+AAAAT continues to expose passive surfaces that an external host may choose:
 
 ```text
-AAAAT_LLM_PROVIDER=openai-compatible
-AAAAT_LLM_MODEL=<provider model name>
-AAAAT_LLM_BASE_URL=<provider root URL before /v1/chat/completions>
-AAAAT_LLM_API_KEY=<optional bearer token>
-AAAAT_LLM_TIMEOUT_SECONDS=60
+folder-readable guides
+CLI task envelopes and packets
+local agent HTTP runtime
+MCP descriptor
+bounded action packets
+in-process service calls
+structured files or subprocess exchange
 ```
 
-Secrets remain process configuration. The runtime does not write API keys to AAAAT storage, task results, or model prompts.
+HTTP and MCP are adapters, not the core protocol.
 
-Equivalent command-line overrides are available through `aaaat-llm`.
+## Compatibility descriptor
 
-## Execute a queued task
+`aaaat.compatibility.compatibility_descriptor()` declares:
 
-First obtain a bounded task handle using the existing agent interface:
+- stable task and context contracts;
+- supported passive integration modes;
+- privacy assumptions;
+- artifact review semantics;
+- AAAAT versus host ownership;
+- operation without provider credentials;
+- explicit non-capabilities such as API-key storage and inference orchestration.
 
-```bash
-aaaat --storage .private agent next
+A CLI exposure may be added after the descriptor shape is reviewed. The descriptor itself remains callable in-process and serializable as JSON.
+
+## Provenance
+
+External hosts may optionally report:
+
+```text
+source_type
+agent_name
+agent_runtime
+model_provider
+model_id
+host_environment
+internet_access_used
 ```
 
-Then execute that task through the configured provider:
+These fields are provenance only. They are not configuration, required credentials, or execution authority.
 
-```bash
-AAAAT_LLM_MODEL=my-model \
-AAAAT_LLM_BASE_URL=http://127.0.0.1:11434 \
-aaaat-llm --storage .private run taskh_...
-```
+## Security invariants
 
-The command:
+- task handles are opaque callback handles, not database IDs;
+- internal application, candidature, artifact, profile, note, todo, blob, path, and storage identifiers are forbidden;
+- host output cannot directly mutate arbitrary records;
+- AAAAT validates result shape before storage/application;
+- result application uses AAAAT's internal task binding;
+- generated results remain suggested until explicitly reviewed/applied;
+- external transmission is decided by the host, not silently performed by AAAAT.
 
-1. rebuilds the bounded context from the opaque task handle;
-2. sends only the protocol request to the provider;
-3. validates the returned JSON object;
-4. stores it as a suggested task result;
-5. leaves application of the result to AAAAT's existing review/apply path.
+## Removed after principles review
 
-It does not mutate the candidature directly.
+The following were explicitly removed from this branch because they violate AAAAT's product definition:
 
-## Validation status
+- OpenAI-compatible HTTP transport;
+- provider adapter runtime;
+- provider endpoint configuration;
+- model-name configuration;
+- API-key environment variables and CLI flags;
+- `aaaat-llm` inference command;
+- in-process conversation engine;
+- provider cost estimation and capability negotiation.
 
-The first complete adapter/runtime slice passed the repository Agent Contract Tests and full unittest discovery before the final CLI-configuration test addition. The branch remains draft until the latest head is green.
+These responsibilities belong to whichever external agent or host the user already prefers.
 
-Behavioral coverage includes:
+## Next release slice
 
-- request and response protocol validation;
-- internal-ID rejection in nested structures;
-- task-handle correlation;
-- required result-field enforcement;
-- provider capability enforcement;
-- real local HTTP transport and JSON parsing;
-- bearer-token header handling without prompt leakage;
-- environment and CLI configuration precedence;
-- task-result persistence as `suggested`;
-- provider/model provenance on the stored result.
+The next useful integration work should connect the existing desktop UI to AAAAT tasks, not to a provider:
 
-## Current non-goals
+1. show eligible queued tasks for the selected candidature;
+2. export/copy a bounded host packet;
+3. explain how the preferred external agent can consume it;
+4. accept a structured result through the existing submit surface;
+5. display provenance and validation status;
+6. expose explicit human apply/reject controls;
+7. keep manual workflows fully functional without any agent.
 
-- autonomous multi-agent planning;
-- direct database writes from an adapter or model;
-- browser UI;
-- prompt marketplace or plugin system;
-- provider-specific business logic;
-- persistent conversation threads before task execution and review are accepted;
-- automatic application of LLM output.
-
-## Next vertical slice
-
-1. Add desktop controls to execute an eligible queued task.
-2. Surface provider status, validation errors, and usage metadata.
-3. Show the suggested result in the existing review area.
-4. Allow explicit human apply/reject actions through existing task bindings.
-5. Add a second adapter only after the first end-to-end UX is accepted.
-
-Recommended first release task type: `company_research`, followed by recruiter-call preparation derived from the current Smart View fields.
+This demonstrates AAAAT's utility while preserving genuine provider and host agnosticism.
 
 ## Independence from PR #38
 
-This branch depends on existing PR #37 contracts:
+This branch depends only on established PR #37 contracts:
 
 - opaque task handles;
-- bounded agent contexts;
+- bounded contexts;
 - response formats;
-- internal review/apply flow;
-- no broad entity-ID mutation authority.
+- output contracts;
+- privacy notes;
+- narrow acknowledgements;
+- internal review/apply ownership.
 
-It does not depend on PR #38 field-policy extraction, active-view projection changes, or desktop adapter hardening. Later integration may reuse PR #38 application commands, but the protocol remains independent of them.
+It does not depend on PR #38's field-policy, projection, or desktop command changes.
