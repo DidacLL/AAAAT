@@ -24,11 +24,11 @@ AAAAT task
 → explicit apply_task_result()
 ```
 
-The existing `aaaat.dispatch.packet`, `aaaat.dispatch.manual`, and `aaaat.dispatch.command` modules already implement the first provider-neutral foundations. This branch does not add a duplicate host protocol, provider SDK, credential store, or inference client.
+The existing `aaaat.dispatch.packet`, `aaaat.dispatch.manual`, and `aaaat.dispatch.command` modules already implement the first provider-neutral foundations. This branch does not add a duplicate host protocol, provider SDK, credential store, compatibility declaration, or inference client.
 
 ## Test correction
 
-Earlier tests on this branch asserted declarations and absences: API-key ownership booleans, provider non-capabilities, blacklist key scans, and a self-validating compatibility descriptor. Those tests were removed because they did not exercise AAAAT software.
+Earlier tests on this branch asserted declarations and absences: API-key ownership booleans, provider non-capabilities, blacklist key scans, and a self-validating compatibility descriptor. Those tests and their supporting production code were removed because they did not exercise AAAAT software.
 
 The replacement tests execute supported workflows:
 
@@ -41,6 +41,8 @@ The replacement tests execute supported workflows:
 7. verify the candidature changes only after explicit apply.
 
 A second workflow executes a user-owned command that consumes the packet over stdin and returns JSON over stdout. A failing command is also tested to ensure no result is created.
+
+Optional-runtime tests were also corrected: they now block wx or desktop imports and execute the desktop projection or agent health workflow, rather than merely inspecting loaded modules or metadata declarations.
 
 ## Current release direction
 
