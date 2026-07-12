@@ -57,7 +57,32 @@ class DesktopAgentWorkflowTests(unittest.TestCase):
         self.assertEqual(after["company_research"], "External research result")
         self.assertEqual(applied_blob["review_state"], "applied")
 
-    def test_import_rejects_result_that_does_not_match_task_contract(self):
+    def test_user_can_edit_valid_result_before_apply(self):
+        task = self.service.create_task(self.candidature["id"], "company_research")
+        submitted = self.service.submit_result_file(
+            task["id"],
+            self.write_result("research-edit.json", {"company_research": "Initial research"}),
+        )
+        edited = self.service.update_result(
+            task["id"],
+            json.dumps({"company_research": "Reviewed and edited research"}),
+        )
+
+        with connect(self.tmp.name) as conn:
+            blob = get_text_blob(conn, submitted["result_blob_id"])
+            before = get_candidature(conn, self.candidature["id"])
+
+        self.assertEqual(edited["review_state"], "suggested")
+        self.assertEqual(json.loads(blob["body"])["company_research"], "Reviewed and edited research")
+        self.assertIn("Edited by user", blob["notes"])
+        self.assertEqual(before["company_research"], "")
+
+        self.service.apply_result(task["id"])
+        with connect(self.tmp.name) as conn:
+            after = get_candidature(conn, self.candidature["id"])
+        self.assertEqual(after["company_research"], "Reviewed and edited research")
+
+    def test_import_and_edit_reject_results_that_do_not_match_task_contract(self):
         task = self.service.create_task(self.candidature["id"], "company_research")
         with self.assertRaises(DesktopAgentWorkflowError):
             self.service.submit_result_file(
@@ -65,12 +90,20 @@ class DesktopAgentWorkflowTests(unittest.TestCase):
                 self.write_result("invalid-research.json", {"summary": "wrong shape"}),
             )
 
+        valid = self.service.submit_result_file(
+            task["id"],
+            self.write_result("valid-research.json", {"company_research": "Valid"}),
+        )
+        with self.assertRaises(DesktopAgentWorkflowError):
+            self.service.update_result(task["id"], json.dumps({"summary": "wrong shape"}))
+
         with connect(self.tmp.name) as conn:
             stored = get_task(conn, task["id"])
-        self.assertEqual(stored["state"], "queued")
-        self.assertIsNone(stored["result_blob_id"])
+            blob = get_text_blob(conn, valid["result_blob_id"])
+        self.assertEqual(stored["state"], "completed")
+        self.assertEqual(json.loads(blob["body"]), {"company_research": "Valid"})
 
-    def test_cover_letter_result_renders_local_artifact_then_reviews_on_apply(self):
+    def test_cover_letter_requires_render_then_opens_and_reviews_artifact(self):
         task = self.service.create_task(self.candidature["id"], "draft_cover_letter")
         submitted = self.service.submit_result_file(
             task["id"],
@@ -79,9 +112,13 @@ class DesktopAgentWorkflowTests(unittest.TestCase):
                 {"cover_letter_body": "My experience matches the role and its platform challenges."},
             ),
         )
-        rendered = self.service.render_cover_letter(task["id"])
 
-        tex_path = Path(rendered["artifact"]["tex_path"])
+        with self.assertRaises(DesktopAgentWorkflowError):
+            self.service.apply_result(task["id"])
+
+        rendered = self.service.render_cover_letter(task["id"])
+        tex_path = self.service.artifact_path(task["id"])
+        self.assertEqual(tex_path, Path(rendered["artifact"]["tex_path"]))
         self.assertTrue(tex_path.exists())
         self.assertIn("My experience matches the role", tex_path.read_text(encoding="utf-8"))
         self.assertEqual(submitted["review_state"], "suggested")
@@ -93,6 +130,25 @@ class DesktopAgentWorkflowTests(unittest.TestCase):
 
         self.assertEqual(artifact["review_state"], "reviewed")
         self.assertEqual(blob["review_state"], "applied")
+
+    def test_editing_cover_letter_after_render_requires_a_fresh_artifact(self):
+        task = self.service.create_task(self.candidature["id"], "draft_cover_letter")
+        self.service.submit_result_file(
+            task["id"],
+            self.write_result("cover-letter-stale.json", {"cover_letter_body": "First version"}),
+        )
+        self.service.render_cover_letter(task["id"])
+        edited = self.service.update_result(
+            task["id"],
+            json.dumps({"cover_letter_body": "Second version"}),
+        )
+
+        self.assertIsNone(edited["artifact_id"])
+        with self.assertRaises(DesktopAgentWorkflowError):
+            self.service.apply_result(task["id"])
+
+        rendered = self.service.render_cover_letter(task["id"])
+        self.assertIn("Second version", Path(rendered["artifact"]["tex_path"]).read_text(encoding="utf-8"))
 
     def test_reject_archives_result_and_does_not_change_candidature(self):
         task = self.service.create_task(self.candidature["id"], "company_research")
