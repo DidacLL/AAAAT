@@ -1,4 +1,5 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -31,6 +32,11 @@ class DesktopAgentWorkflowTests(unittest.TestCase):
         path.write_text(json.dumps(payload), encoding="utf-8")
         return path
 
+    def write_runner(self, name, source):
+        path = Path(self.tmp.name) / name
+        path.write_text(source, encoding="utf-8")
+        return f'"{sys.executable}" "{path}"'
+
     def test_company_research_stays_suggested_until_explicit_apply(self):
         task = self.service.create_task(self.candidature["id"], "company_research")
         packet = self.service.export_packet(task["id"])
@@ -56,6 +62,36 @@ class DesktopAgentWorkflowTests(unittest.TestCase):
 
         self.assertEqual(after["company_research"], "External research result")
         self.assertEqual(applied_blob["review_state"], "applied")
+
+    def test_user_owned_command_can_complete_desktop_task(self):
+        task = self.service.create_task(self.candidature["id"], "company_research")
+        command = self.write_runner(
+            "desktop-runner.py",
+            "import json, sys\n"
+            "packet = json.load(sys.stdin)\n"
+            "assert packet['task_type'] == 'company_research'\n"
+            "json.dump({'company_research': 'Desktop command result'}, sys.stdout)\n",
+        )
+        completed = self.service.run_command(task["id"], command)
+
+        self.assertEqual(completed["state"], "completed")
+        self.assertEqual(completed["review_state"], "suggested")
+        self.assertEqual(json.loads(completed["result_body"])["company_research"], "Desktop command result")
+        self.assertEqual(completed["agent_runtime"], "command")
+
+    def test_user_owned_command_failure_leaves_desktop_task_queued(self):
+        task = self.service.create_task(self.candidature["id"], "company_research")
+        command = self.write_runner(
+            "desktop-invalid-runner.py",
+            "import json, sys\njson.dump({'summary': 'wrong shape'}, sys.stdout)\n",
+        )
+        with self.assertRaises(DesktopAgentWorkflowError):
+            self.service.run_command(task["id"], command)
+
+        with connect(self.tmp.name) as conn:
+            stored = get_task(conn, task["id"])
+        self.assertEqual(stored["state"], "queued")
+        self.assertIsNone(stored["result_blob_id"])
 
     def test_user_can_edit_valid_result_before_apply(self):
         task = self.service.create_task(self.candidature["id"], "company_research")
