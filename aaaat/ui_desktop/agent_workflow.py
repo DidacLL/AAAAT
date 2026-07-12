@@ -16,9 +16,36 @@ from aaaat.templates import render_document_artifact, safe_artifact_output_path
 from aaaat.text_blobs import get_text_blob, update_text_blob
 
 DESKTOP_TASK_TYPES = {
-    "company_research": ("Research company", "Prepare concise company research for review.", "candidature:company_research"),
-    "field_inference": ("Complete candidature fields", "Infer missing candidature fields from bounded source material.", "candidature:field_inference"),
-    "draft_cover_letter": ("Draft cover letter", "Draft a cover-letter body for local rendering and review.", "artifact:cover_letter"),
+    "field_inference": (
+        "Analyze candidature",
+        "Extract and prepare the complete candidature model from the bounded offer source.",
+        "candidature:field_inference",
+    ),
+    "company_research": (
+        "Research company",
+        "Prepare concise company research for this role and candidature.",
+        "candidature:company_research",
+    ),
+    "career_plan_review": (
+        "Evaluate career fit",
+        "Evaluate this candidature against the user's bounded career plan and priorities.",
+        "candidature:career_plan_review",
+    ),
+    "draft_form_responses": (
+        "Prepare form answers",
+        "Draft answers for the stored application form when one is present.",
+        "blob:form_responses",
+    ),
+    "draft_cv": (
+        "Prepare CV",
+        "Prepare role-specific CV positioning and render inputs.",
+        "artifact:cv",
+    ),
+    "draft_cover_letter": (
+        "Prepare cover letter",
+        "Prepare a cover-letter body and render inputs.",
+        "artifact:cover_letter",
+    ),
 }
 
 
