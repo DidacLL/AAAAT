@@ -4,7 +4,6 @@ from typing import Any, Callable
 
 import wx  # type: ignore[import-not-found]
 
-from .candidature_actions import add_candidature_actions
 from .detail_fields import collect_writable_changes, grouped_detail_fields
 from .scrolling import bind_parent_wheel_scroll
 
@@ -23,14 +22,12 @@ class DetailPanel(wx.ScrolledWindow):
         on_delete: DeleteCallback,
         on_cancel: Callable[[], None],
         on_open_smart: Callable[[], None],
-        on_action: Callable[[str], None],
     ) -> None:
         super().__init__(parent)
         self.on_save = on_save
         self.on_delete = on_delete
         self.on_cancel = on_cancel
         self.on_open_smart = on_open_smart
-        self.on_action = on_action
         self._current_ref: str | None = None
         self._original_values: dict[str, str] = {}
         self._field_storage_keys: dict[str, str | None] = {}
@@ -68,7 +65,6 @@ class DetailPanel(wx.ScrolledWindow):
             self.sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
 
             self._add_actions()
-            add_candidature_actions(self, self.sizer, self.on_action, compact=True)
             for group in grouped_detail_fields(projection):
                 writable = [field for field in group.get("fields") or [] if field.get("storage_key")]
                 if writable:
@@ -128,7 +124,7 @@ class DetailPanel(wx.ScrolledWindow):
         heading = wx.StaticText(self, label=label)
         heading.SetFont(heading.GetFont().Bold())
         body = wx.StaticText(self, label=value or "—")
-        body.Wrap(500)
+        body.Wrap(520)
         self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
         self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
 
@@ -137,7 +133,7 @@ class DetailPanel(wx.ScrolledWindow):
         heading.SetFont(heading.GetFont().Bold())
         style = wx.TE_MULTILINE if multiline else 0
         editor = wx.TextCtrl(self, value=value, style=style)
-        editor.SetMaxSize((560, -1))
+        editor.SetMaxSize((620, -1))
         if multiline:
             height = 150 if key in {"company_research", "form_answers", "offer_snapshot"} else 92
             editor.SetMinSize((420, height))
