@@ -9,14 +9,16 @@ COMPATIBILITY_DESCRIPTOR_VERSION = "1"
 
 
 def compatibility_descriptor() -> dict[str, Any]:
-    """Describe AAAAT's stable embedding and passive-agent capabilities.
+    """Describe AAAAT's internal embedding and passive-agent capabilities.
 
-    The descriptor deliberately contains no provider, model, endpoint, credential,
-    or inference-runtime configuration. External hosts decide how reasoning runs.
+    This is a conservative first-party compatibility descriptor. It deliberately
+    contains no provider, model, endpoint, credential, or inference-runtime
+    configuration. External hosts decide how reasoning runs.
     """
 
     return {
         "descriptor_version": COMPATIBILITY_DESCRIPTOR_VERSION,
+        "stability": "internal_first_party",
         "application": {
             "name": "AAAAT",
             "version": __version__,
@@ -109,6 +111,7 @@ def validate_compatibility_descriptor(descriptor: dict[str, Any] | None = None) 
     value = descriptor or compatibility_descriptor()
     required = {
         "descriptor_version",
+        "stability",
         "application",
         "ownership",
         "integration_modes",
