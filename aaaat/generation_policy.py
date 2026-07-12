@@ -6,13 +6,23 @@ from typing import Iterable
 
 from .db import profile_variables, set_profile_variable
 
+# The default intake pipeline covers the candidature model and operational use:
+# structured offer extraction, recruiter-call preparation, company context,
+# career-path fit/valuation, and dynamic keyword completion. Document generation
+# remains optional because it depends on the actual application and user choice.
 DEFAULT_GENERATION_TASKS = (
     "field_inference",
     "company_research",
+    "career_plan_review",
+)
+SUPPORTED_GENERATION_TASKS = (
+    "field_inference",
+    "company_research",
+    "career_plan_review",
+    "draft_form_responses",
     "draft_cv",
     "draft_cover_letter",
 )
-SUPPORTED_GENERATION_TASKS = DEFAULT_GENERATION_TASKS
 PROFILE_KEY = "agent.default_generation_tasks"
 
 
