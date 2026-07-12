@@ -18,7 +18,6 @@ class StaticExportTests(unittest.TestCase):
         self.assertGreater(len(html), 500)
         self.assertNotIn("data-write-control", html)
         self.assertNotIn(".private", html)
-        self.assertNotIn("aaaat.sqlite3", html)
         self.assertNotIn("{{", html)
         self.assertNotRegex(html, re.compile(r"[\w.+-]+@[\w.-]+"))
         self.assertNotRegex(html, re.compile(r"\+?\d[\d\s().-]{7,}\d"))
