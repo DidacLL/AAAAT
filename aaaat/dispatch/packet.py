@@ -34,7 +34,7 @@ def build_task_packet(conn: sqlite3.Connection, task_handle: str) -> dict[str, A
         "packet_version": PACKET_VERSION,
         "task_handle": handle,
         "task_type": task.get("task_type", ""),
-        "title": definition.get("title") or task.get("title", ""),
+        "title": task.get("title", ""),
         "instructions": instructions,
         "purpose": task_context.get("purpose", ""),
         "input_context": task_context.get("input_context", task_context.get("context", {})),
