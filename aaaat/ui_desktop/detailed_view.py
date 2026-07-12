@@ -4,16 +4,18 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
+from .candidature_sidebar import CandidatureSidebar
 from .detail_columns import available_column_ids, column_title, normalize_visible_columns
 from .detail_panel import DetailPanel
 from .detail_table import DetailTable
 
 DEFAULT_DETAILED_FRAME_WIDTH = 1280
-DEFAULT_DETAILED_RIGHT = 420
+DEFAULT_DETAILED_LIST = 430
+DEFAULT_DETAILED_SIDEBAR = 280
 
 
 class DetailedViewMixin:
-    """Detailed View for batch review with a bounded detail panel."""
+    """Detailed View for batch review with bounded center and right-side context."""
 
     def _build_detailed_surface(self) -> None:
         self.detailed_panel = wx.Panel(self.view_book)
@@ -33,19 +35,28 @@ class DetailedViewMixin:
         sizer.Add(toolbar, 0, wx.EXPAND)
 
         self.detailed_splitter = wx.SplitterWindow(self.detailed_panel, style=wx.SP_LIVE_UPDATE)
-        self.detailed_splitter.SetMinimumPaneSize(300)
+        self.detailed_splitter.SetMinimumPaneSize(260)
         self.detail_table = DetailTable(self.detailed_splitter, on_select=self._select_detailed_ref)
+
+        self.detailed_context_splitter = wx.SplitterWindow(self.detailed_splitter, style=wx.SP_LIVE_UPDATE)
+        self.detailed_context_splitter.SetMinimumPaneSize(240)
         self.detail_panel = DetailPanel(
-            self.detailed_splitter,
+            self.detailed_context_splitter,
             on_save=self._save_detail_edits,
             on_delete=self._delete_selected_candidature,
             on_cancel=self._cancel_detail_edits,
             on_open_smart=self._open_selected_in_smart,
+        )
+        self.detailed_sidebar = CandidatureSidebar(
+            self.detailed_context_splitter,
             on_action=self._open_candidature_action,
         )
-        saved_right = int(self.layout_state.pane_layout.get("detailed", {}).get("right", DEFAULT_DETAILED_RIGHT))
-        width = max(620, DEFAULT_DETAILED_FRAME_WIDTH - max(360, saved_right))
-        self.detailed_splitter.SplitVertically(self.detail_table, self.detail_panel, width)
+        self.detailed_context_splitter.SplitVertically(
+            self.detail_panel,
+            self.detailed_sidebar,
+            max(420, DEFAULT_DETAILED_FRAME_WIDTH - DEFAULT_DETAILED_LIST - DEFAULT_DETAILED_SIDEBAR),
+        )
+        self.detailed_splitter.SplitVertically(self.detail_table, self.detailed_context_splitter, DEFAULT_DETAILED_LIST)
         sizer.Add(self.detailed_splitter, 1, wx.EXPAND)
         self.view_book.AddPage(self.detailed_panel, "Detailed")
 
@@ -73,6 +84,8 @@ class DetailedViewMixin:
             visible_columns = self._visible_detailed_columns(detailed)
             self.detail_table.render(detailed, selected_ref=self.selected_ref, visible_columns=visible_columns)
             self.detail_panel.render(self.projection)
+            selected = detailed.get("selected_row")
+            self.detailed_sidebar.render(selected if isinstance(selected, dict) else None)
             self.detailed_panel.Layout()
         finally:
             self.detailed_panel.Thaw()
