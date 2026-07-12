@@ -137,7 +137,12 @@ class DesktopAgentWorkflowService:
         with connect(self.storage_path) as conn:
             task = get_task(conn, task_id)
             if task.get("result_blob_id"):
-                update_text_blob(conn, task["result_blob_id"], review_state="rejected")
+                update_text_blob(
+                    conn,
+                    task["result_blob_id"],
+                    review_state="archived",
+                    notes="Rejected by user.",
+                )
             rejected = update_task(conn, task_id, state="cancelled", notes="Result rejected by user.")
             return self._task_view(rejected, conn=conn)
 
