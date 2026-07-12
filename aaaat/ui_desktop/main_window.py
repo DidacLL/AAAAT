@@ -6,8 +6,10 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 
 from aaaat.dashboard_layout import DashboardLayoutState
-from aaaat.security import Mode
+from aaaat.security import Mode, can_write
 
+from .agent_work_dialog import AgentWorkDialog
+from .agent_workflow import DesktopAgentWorkflowService
 from .card_state import CenterCardState
 from .detailed_view import DetailedViewMixin
 from .services import DesktopCommandService
@@ -37,6 +39,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.layout_state = layout_state
         self.layout_path = Path(layout_path)
         self.command_service = command_service or DesktopCommandService(storage_path)
+        self.agent_workflow_service = DesktopAgentWorkflowService(storage_path)
         self.current_view = str(projection.get("view_state", {}).get("current_view") or layout_state.selected_view or "smart")
         if self.current_view not in {"smart", "detailed", "user"}:
             self.current_view = "smart"
@@ -57,6 +60,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._build_menu()
         self._build_shell()
         self._bind_shell_events()
+        self.agent_button.Bind(wx.EVT_BUTTON, self._on_agent_work)
         self._show_initial_view()
         self._refresh_all()
 
@@ -100,13 +104,34 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.title = wx.StaticText(self.toolbar, label="AAAAT")
         self.title.SetFont(self.title.GetFont().Bold().Larger())
         self.mode_chip = wx.StaticText(self.toolbar, label="read-only" if self.mode == Mode.READ_ONLY else "local")
+        self.agent_button = wx.Button(self.toolbar, label="Agent work")
         self.reset_button = wx.Button(self.toolbar, label="Reset", size=(68, -1))
         self.new_button = wx.Button(self.toolbar, label="+", size=(40, -1))
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
-        for control in (self.mode_chip, self.reset_button, self.new_button):
+        for control in (self.mode_chip, self.agent_button, self.reset_button, self.new_button):
             toolbar_sizer.Add(control, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         self.root_sizer.Add(self.toolbar, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
+
+    def _on_agent_work(self, _event) -> None:
+        if not self.selected_ref:
+            wx.MessageBox("Select a candidature first.", "Agent work", wx.OK | wx.ICON_INFORMATION, self)
+            return
+        dialog = AgentWorkDialog(
+            self,
+            service=self.agent_workflow_service,
+            candidature_ref=str(self.selected_ref),
+            can_write=can_write(self.mode),
+            on_changed=self._on_agent_work_changed,
+        )
+        try:
+            dialog.ShowModal()
+        finally:
+            dialog.Destroy()
+
+    def _on_agent_work_changed(self) -> None:
+        self._rendered_view_keys.clear()
+        self._refresh_all()
 
     def _build_view_book(self) -> None:
         self.view_book = wx.Notebook(self.root, style=wx.NB_TOP)
