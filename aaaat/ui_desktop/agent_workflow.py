@@ -7,8 +7,9 @@ from typing import Any
 from aaaat.agent_access import response_format, submit_agent_task_result, task_handle
 from aaaat.artifacts import get_artifact
 from aaaat.db import connect
-from aaaat.dispatch.command import dispatch_command
+from aaaat.dispatch.command import run_backend_command
 from aaaat.dispatch.manual import dispatch_manual
+from aaaat.dispatch.packet import build_task_packet
 from aaaat.tasks import apply_task_result, create_task, get_task, list_tasks, update_task
 from aaaat.templates import render_document_artifact, safe_artifact_output_path
 from aaaat.text_blobs import get_text_blob, update_text_blob
@@ -71,14 +72,32 @@ class DesktopAgentWorkflowService:
         return Path(result["packet_path"])
 
     def run_command(self, task_id: str, command: str) -> dict[str, Any]:
+        if not command.strip():
+            raise DesktopAgentWorkflowError("Command is required")
         with connect(self.storage_path) as conn:
             task = get_task(conn, task_id)
-            acknowledgement = dispatch_command(conn, task_handle(task), command)
-            if not acknowledgement.get("submitted"):
-                detail = str(acknowledgement.get("error") or acknowledgement.get("stderr") or "Command did not return a result").strip()
-                raise DesktopAgentWorkflowError(detail)
-            completed = get_task(conn, task_id)
-            return self._task_view(completed, conn=conn)
+            packet = build_task_packet(conn, task_handle(task))
+            completed = run_backend_command(command, json.dumps(packet, indent=2, sort_keys=True) + "\n")
+            if completed.returncode != 0:
+                raise DesktopAgentWorkflowError((completed.stderr or f"Command exited with {completed.returncode}").strip())
+            if not completed.stdout.strip():
+                raise DesktopAgentWorkflowError("Command returned no result")
+            try:
+                result = json.loads(completed.stdout)
+            except json.JSONDecodeError as exc:
+                raise DesktopAgentWorkflowError("Command result must be valid JSON") from exc
+            if not isinstance(result, dict):
+                raise DesktopAgentWorkflowError("Command result must be one JSON object")
+            self._validate_result(task, result)
+            completed_task = submit_agent_task_result(
+                conn,
+                task_handle(task),
+                json.dumps(result, ensure_ascii=False, sort_keys=True),
+                result_title=f"Command result: {task['title']}",
+                agent_name="command",
+                agent_runtime="command",
+            )
+            return self._task_view(completed_task, conn=conn)
 
     def submit_result_file(
         self,
