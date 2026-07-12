@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from aaaat.candidatures import create_candidature
-from aaaat.db import connect, profile_variables
+from aaaat.db import connect, profile_variables, update_application
 from aaaat.generation_policy import default_generation_tasks
 from aaaat.task_definitions import get_task_definition, snapshot_task_definition
 from aaaat.tasks import create_task, update_task
@@ -36,12 +36,14 @@ class IntakeAutomationService:
         offer = offer_text.strip()
         if not offer:
             raise ValueError("Paste the job offer text first")
+        company_value = company.strip()
+        role_value = role.strip()
 
         with connect(self.storage_path) as conn:
             candidature = create_candidature(
                 conn,
-                company=company.strip(),
-                role=role.strip(),
+                company=company_value,
+                role=role_value,
                 raw_offer=offer,
                 status="draft",
                 priority="normal",
@@ -52,6 +54,13 @@ class IntakeAutomationService:
                 include_cover_letter_task=False,
                 include_form_responses_task=False,
             )
+            placeholder_updates: dict[str, str] = {}
+            if not company_value:
+                placeholder_updates["company"] = ""
+            if not role_value:
+                placeholder_updates["role"] = ""
+            if placeholder_updates:
+                candidature = update_application(conn, candidature["id"], **placeholder_updates)
             task_types = default_generation_tasks(conn)
             command = str(profile_variables(conn).get("agent.command") or "").strip()
             tasks = [self._create_configured_task(conn, candidature["id"], task_type) for task_type in task_types]
