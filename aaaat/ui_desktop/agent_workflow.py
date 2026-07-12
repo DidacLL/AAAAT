@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from aaaat.agent_access import response_format, submit_agent_task_result, task_handle
+from aaaat.artifacts import get_artifact
 from aaaat.db import connect
 from aaaat.dispatch.manual import dispatch_manual
 from aaaat.tasks import apply_task_result, create_task, get_task, list_tasks, update_task
@@ -81,25 +82,37 @@ class DesktopAgentWorkflowService:
             result = json.loads(Path(result_path).read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise DesktopAgentWorkflowError("Result file must contain one valid JSON object") from exc
+        return self._submit_result(
+            task_id,
+            result,
+            agent_name=agent_name,
+            agent_runtime=agent_runtime,
+            model_provider=model_provider,
+        )
+
+    def update_result(self, task_id: str, result_text: str) -> dict[str, Any]:
+        try:
+            result = json.loads(result_text)
+        except json.JSONDecodeError as exc:
+            raise DesktopAgentWorkflowError("Edited result must contain one valid JSON object") from exc
         if not isinstance(result, dict):
-            raise DesktopAgentWorkflowError("Result file must contain one JSON object")
+            raise DesktopAgentWorkflowError("Edited result must contain one JSON object")
 
         with connect(self.storage_path) as conn:
             task = get_task(conn, task_id)
-            required = set(response_format(task).get("required") or [])
-            missing = required - result.keys()
-            if missing:
-                raise DesktopAgentWorkflowError(f"Missing required result fields: {sorted(missing)}")
-            completed = submit_agent_task_result(
+            if not task.get("result_blob_id"):
+                raise DesktopAgentWorkflowError("Task has no result to edit")
+            self._validate_result(task, result)
+            update_text_blob(
                 conn,
-                task_handle(task),
-                json.dumps(result, ensure_ascii=False, sort_keys=True),
-                result_title=f"External result: {task['title']}",
-                agent_name=agent_name,
-                agent_runtime=agent_runtime,
-                model_provider=model_provider,
+                task["result_blob_id"],
+                body=json.dumps(result, ensure_ascii=False, sort_keys=True),
+                review_state="suggested",
+                notes="Edited by user before apply.",
             )
-            return self._task_view(completed, conn=conn)
+            if task.get("task_type") == "draft_cover_letter" and task.get("artifact_id"):
+                task = update_task(conn, task_id, artifact_id=None)
+            return self._task_view(task, conn=conn)
 
     def render_cover_letter(self, task_id: str, *, compile_pdf: bool = False) -> dict[str, Any]:
         with connect(self.storage_path) as conn:
@@ -132,8 +145,22 @@ class DesktopAgentWorkflowService:
             updated = update_task(conn, task_id, artifact_id=rendered["artifact_id"])
             return {"task": self._task_view(updated, conn=conn), "artifact": rendered}
 
+    def artifact_path(self, task_id: str) -> Path:
+        with connect(self.storage_path) as conn:
+            task = get_task(conn, task_id)
+            if not task.get("artifact_id"):
+                raise DesktopAgentWorkflowError("Task has no rendered artifact")
+            artifact = get_artifact(conn, task["artifact_id"])
+        path = Path(str(artifact.get("path") or ""))
+        if not path.exists():
+            raise DesktopAgentWorkflowError("Rendered artifact file no longer exists")
+        return path
+
     def apply_result(self, task_id: str) -> dict[str, Any]:
         with connect(self.storage_path) as conn:
+            task = get_task(conn, task_id)
+            if task.get("task_type") == "draft_cover_letter" and not task.get("artifact_id"):
+                raise DesktopAgentWorkflowError("Render the cover-letter artifact before applying it")
             applied = apply_task_result(conn, task_id)
             return self._task_view(applied, conn=conn)
 
@@ -150,14 +177,50 @@ class DesktopAgentWorkflowService:
             rejected = update_task(conn, task_id, state="cancelled", notes="Result rejected by user.")
             return self._task_view(rejected, conn=conn)
 
+    def _submit_result(
+        self,
+        task_id: str,
+        result: Any,
+        *,
+        agent_name: str,
+        agent_runtime: str,
+        model_provider: str,
+    ) -> dict[str, Any]:
+        if not isinstance(result, dict):
+            raise DesktopAgentWorkflowError("Result must contain one JSON object")
+        with connect(self.storage_path) as conn:
+            task = get_task(conn, task_id)
+            self._validate_result(task, result)
+            completed = submit_agent_task_result(
+                conn,
+                task_handle(task),
+                json.dumps(result, ensure_ascii=False, sort_keys=True),
+                result_title=f"External result: {task['title']}",
+                agent_name=agent_name,
+                agent_runtime=agent_runtime,
+                model_provider=model_provider,
+            )
+            return self._task_view(completed, conn=conn)
+
+    @staticmethod
+    def _validate_result(task: dict[str, Any], result: dict[str, Any]) -> None:
+        required = set(response_format(task).get("required") or [])
+        missing = required - result.keys()
+        if missing:
+            raise DesktopAgentWorkflowError(f"Missing required result fields: {sorted(missing)}")
+
     @staticmethod
     def _task_view(task: dict[str, Any], *, conn=None) -> dict[str, Any]:
         result_body = ""
         review_state = ""
+        artifact_path = ""
         if conn is not None and task.get("result_blob_id"):
             blob = get_text_blob(conn, task["result_blob_id"])
             result_body = str(blob.get("body") or "")
             review_state = str(blob.get("review_state") or "")
+        if conn is not None and task.get("artifact_id"):
+            artifact = get_artifact(conn, task["artifact_id"])
+            artifact_path = str(artifact.get("path") or "")
         return {
             "id": task["id"],
             "task_handle": task_handle(task),
@@ -167,6 +230,7 @@ class DesktopAgentWorkflowService:
             "priority": task.get("priority", ""),
             "result_blob_id": task.get("result_blob_id"),
             "artifact_id": task.get("artifact_id"),
+            "artifact_path": artifact_path,
             "result_body": result_body,
             "review_state": review_state,
             "agent_name": task.get("agent_name", ""),
