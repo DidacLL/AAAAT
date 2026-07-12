@@ -9,9 +9,9 @@ from .detail_columns import available_column_ids, column_title, normalize_visibl
 from .detail_panel import DetailPanel
 from .detail_table import DetailTable
 
-DEFAULT_DETAILED_FRAME_WIDTH = 1280
-DEFAULT_DETAILED_LIST = 430
-DEFAULT_DETAILED_SIDEBAR = 280
+DEFAULT_DETAILED_FRAME_WIDTH = 1440
+DEFAULT_DETAILED_LIST = 360
+DEFAULT_DETAILED_SIDEBAR = 340
 
 
 class DetailedViewMixin:
@@ -39,7 +39,7 @@ class DetailedViewMixin:
         self.detail_table = DetailTable(self.detailed_splitter, on_select=self._select_detailed_ref)
 
         self.detailed_context_splitter = wx.SplitterWindow(self.detailed_splitter, style=wx.SP_LIVE_UPDATE)
-        self.detailed_context_splitter.SetMinimumPaneSize(240)
+        self.detailed_context_splitter.SetMinimumPaneSize(280)
         self.detail_panel = DetailPanel(
             self.detailed_context_splitter,
             on_save=self._save_detail_edits,
@@ -51,14 +51,22 @@ class DetailedViewMixin:
             self.detailed_context_splitter,
             on_action=self._open_candidature_action,
         )
+        center_width = DEFAULT_DETAILED_FRAME_WIDTH - DEFAULT_DETAILED_LIST - DEFAULT_DETAILED_SIDEBAR
         self.detailed_context_splitter.SplitVertically(
             self.detail_panel,
             self.detailed_sidebar,
-            max(420, DEFAULT_DETAILED_FRAME_WIDTH - DEFAULT_DETAILED_LIST - DEFAULT_DETAILED_SIDEBAR),
+            max(560, center_width),
         )
-        self.detailed_splitter.SplitVertically(self.detail_table, self.detailed_context_splitter, DEFAULT_DETAILED_LIST)
+        self.detailed_context_splitter.SetSashGravity(0.68)
+        self.detailed_splitter.SplitVertically(
+            self.detail_table,
+            self.detailed_context_splitter,
+            DEFAULT_DETAILED_LIST,
+        )
+        self.detailed_splitter.SetSashGravity(0.25)
         sizer.Add(self.detailed_splitter, 1, wx.EXPAND)
         self.view_book.AddPage(self.detailed_panel, "Detailed")
+        self.detailed_panel.Bind(wx.EVT_SIZE, self._on_detailed_size)
 
     def _bind_detailed_events(self) -> None:
         self.detailed_search.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self._on_detailed_search)
@@ -86,9 +94,25 @@ class DetailedViewMixin:
             self.detail_panel.render(self.projection)
             selected = detailed.get("selected_row")
             self.detailed_sidebar.render(selected if isinstance(selected, dict) else None)
+            self._apply_detailed_layout()
             self.detailed_panel.Layout()
         finally:
             self.detailed_panel.Thaw()
+
+    def _on_detailed_size(self, event: wx.SizeEvent) -> None:
+        wx.CallAfter(self._apply_detailed_layout)
+        event.Skip()
+
+    def _apply_detailed_layout(self) -> None:
+        width = max(DEFAULT_DETAILED_FRAME_WIDTH, self.detailed_panel.GetClientSize().GetWidth())
+        list_width = max(300, min(420, int(width * 0.25)))
+        remaining = max(680, width - list_width)
+        sidebar_width = max(300, min(380, int(width * 0.24)))
+        center_width = max(480, remaining - sidebar_width)
+        if self.detailed_splitter.IsSplit():
+            self.detailed_splitter.SetSashPosition(list_width)
+        if self.detailed_context_splitter.IsSplit():
+            self.detailed_context_splitter.SetSashPosition(center_width)
 
     def _visible_detailed_columns(self, detailed: dict[str, Any]) -> list[str]:
         available_columns = [column for column in detailed.get("available_columns") or [] if isinstance(column, dict)]
@@ -183,6 +207,7 @@ class DetailedViewMixin:
         self.current_view = "smart"
         self.layout_state.selected_view = "smart"
         self._show_focus()
+        self._rendered_view_keys.pop("smart", None)
         self._refresh_current_if_needed()
 
     def _on_detailed_search(self, _event: wx.CommandEvent) -> None:
