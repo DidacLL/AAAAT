@@ -71,9 +71,6 @@ class IntakeAutomationService:
         pending: list[str] = []
         failed: dict[str, str] = {}
 
-        # Field inference is executed first because it fills the complete candidature
-        # model: offer facts, operational call material, strengths, risks, questions,
-        # stack, keywords, and valuation. Later stages consume those results.
         tasks.sort(key=lambda task: 0 if task["task_type"] == "field_inference" else 1)
         for task in tasks:
             self._process_task(task, command, completed, pending, failed)
@@ -91,8 +88,6 @@ class IntakeAutomationService:
                         include_form_responses=False,
                     )
 
-        # Keyword definitions are data-driven: only keywords extracted from this offer
-        # and missing from the global glossary become tasks.
         with connect(self.storage_path) as conn:
             keyword_tasks = [
                 task
@@ -120,7 +115,7 @@ class IntakeAutomationService:
         failed: dict[str, str],
     ) -> None:
         task_type = str(task["task_type"])
-        label = str(task.get("context_hint") or task_type)
+        label = str(task.get("context_hint") or task_type) if task_type == "keyword_definition" else task_type
         if not command:
             pending.append(label)
             return
