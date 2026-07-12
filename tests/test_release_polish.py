@@ -1,4 +1,5 @@
 import importlib.resources
+import os
 import subprocess
 import sys
 import tempfile
@@ -24,14 +25,16 @@ class ReleaseEngineeringTests(unittest.TestCase):
 
     def test_cli_can_initialize_clean_local_storage_without_git(self):
         with tempfile.TemporaryDirectory() as tmp:
+            env = dict(os.environ)
+            env["PATH"] = ""
             result = subprocess.run(
-                [sys.executable, "-m", "aaaat.cli", "init", "--storage", tmp],
+                [sys.executable, "-m", "aaaat.cli", "--storage", tmp, "init"],
                 cwd=ROOT,
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=False,
-                env={"PATH": ""},
+                env=env,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue((Path(tmp) / "aaaat.sqlite3").exists())
