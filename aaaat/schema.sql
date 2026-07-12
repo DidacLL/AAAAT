@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
   value TEXT NOT NULL
 );
 
-INSERT OR IGNORE INTO schema_meta(key, value) VALUES ('schema_version', '1');
+INSERT OR IGNORE INTO schema_meta(key, value) VALUES ('schema_version', '2');
 
 CREATE TABLE IF NOT EXISTS applications (
   id TEXT PRIMARY KEY,
@@ -174,6 +174,10 @@ CREATE TABLE IF NOT EXISTS tasks (
   task_type TEXT NOT NULL,
   title TEXT NOT NULL,
   instructions TEXT NOT NULL DEFAULT '',
+  definition_version INTEGER NOT NULL DEFAULT 1,
+  response_format TEXT NOT NULL DEFAULT '{}',
+  artifact_template TEXT NOT NULL DEFAULT '',
+  artifact_mapping TEXT NOT NULL DEFAULT '{}',
   state TEXT NOT NULL DEFAULT 'queued',
   priority TEXT NOT NULL DEFAULT 'normal',
   context_hint TEXT DEFAULT '',
