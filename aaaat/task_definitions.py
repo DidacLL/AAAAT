@@ -6,14 +6,15 @@ from typing import Any, Mapping
 
 from .db import get_template, row_to_dict, utc_now
 
-EDITABLE_FIELDS = {
-    "title",
-    "instructions",
-    "response_format",
-    "artifact_template",
-    "artifact_mapping",
-}
+EDITABLE_FIELDS = {"title", "instructions", "response_format", "artifact_template", "artifact_mapping"}
 ARTIFACT_TASK_TYPES = {"draft_cover_letter", "draft_cv"}
+FIXED_APPLY_FIELDS = {
+    "field_inference": {"fields"},
+    "company_research": {"company_research"},
+    "keyword_definition": {"definition"},
+    "draft_form_responses": {"form_answers"},
+    "career_plan_review": {"review"},
+}
 
 
 class TaskDefinitionError(ValueError):
@@ -48,7 +49,6 @@ def ensure_task_definition_schema(conn: sqlite3.Connection) -> None:
 def default_definition(task_type: str) -> dict[str, Any]:
     from .agent_access import DEFAULT_TASK_INSTRUCTIONS, response_format
 
-    task = {"task_type": task_type}
     definition = {
         "task_type": task_type,
         "version": 1,
@@ -57,7 +57,7 @@ def default_definition(task_type: str) -> dict[str, Any]:
             task_type,
             "Complete the bounded AAAAT task using only the supplied task context.",
         ),
-        "response_format": response_format(task),
+        "response_format": response_format({"task_type": task_type}),
         "artifact_template": "",
         "artifact_mapping": {},
         "is_custom": False,
@@ -103,11 +103,7 @@ def list_task_definitions(conn: sqlite3.Connection, task_types: list[str]) -> li
     return [get_task_definition(conn, task_type) for task_type in task_types]
 
 
-def save_task_definition(
-    conn: sqlite3.Connection,
-    task_type: str,
-    values: Mapping[str, Any],
-) -> dict[str, Any]:
+def save_task_definition(conn: sqlite3.Connection, task_type: str, values: Mapping[str, Any]) -> dict[str, Any]:
     unknown = set(values) - EDITABLE_FIELDS
     if unknown:
         raise TaskDefinitionError(f"Unsupported task definition fields: {sorted(unknown)}")
@@ -115,7 +111,6 @@ def save_task_definition(
     candidate = {**current, **dict(values), "task_type": task_type, "is_custom": True}
     _validate_definition(candidate)
     version = int(current["version"]) + 1
-    now = utc_now()
     conn.execute(
         """INSERT INTO task_definitions(
           task_type, version, title, instructions, response_format,
@@ -137,7 +132,7 @@ def save_task_definition(
             json.dumps(candidate["response_format"], sort_keys=True),
             candidate["artifact_template"],
             json.dumps(candidate["artifact_mapping"], sort_keys=True),
-            now,
+            utc_now(),
         ),
     )
     conn.commit()
@@ -168,13 +163,7 @@ def snapshot_task_definition(conn: sqlite3.Connection, task: Mapping[str, Any]) 
         """INSERT INTO task_definition_snapshots(
           task_id, task_type, version, definition_json, created_at
         ) VALUES (?, ?, ?, ?, ?)""",
-        (
-            task_id,
-            snapshot["task_type"],
-            snapshot["version"],
-            json.dumps(snapshot, sort_keys=True),
-            utc_now(),
-        ),
+        (task_id, snapshot["task_type"], snapshot["version"], json.dumps(snapshot, sort_keys=True), utc_now()),
     )
     conn.commit()
     return snapshot
@@ -204,11 +193,11 @@ def save_editable_template(
     if not body.strip():
         raise TaskDefinitionError("Template body cannot be empty")
     required = [str(item).strip() for item in required_variables if str(item).strip()]
-    conn.execute(
+    cursor = conn.execute(
         "UPDATE templates SET body = ?, required_variables = ?, updated_at = ? WHERE name = ?",
         (body, json.dumps(required), utc_now(), template_name),
     )
-    if conn.total_changes == 0:
+    if cursor.rowcount == 0:
         raise TaskDefinitionError(f"Template not found: {template_name}")
     conn.commit()
     return get_editable_template(conn, template_name)
@@ -231,12 +220,23 @@ def _validate_definition(definition: Mapping[str, Any]) -> None:
     missing_schema = set(required) - schema.keys()
     if missing_schema:
         raise TaskDefinitionError(f"Required fields missing from schema: {sorted(missing_schema)}")
+
+    task_type = str(definition.get("task_type") or "")
+    fixed_fields = FIXED_APPLY_FIELDS.get(task_type, set())
+    missing_fixed = fixed_fields - set(required)
+    if missing_fixed:
+        raise TaskDefinitionError(
+            f"Deterministic apply for {task_type} requires fields: {sorted(missing_fixed)}"
+        )
+
     mapping = definition.get("artifact_mapping") or {}
     if not isinstance(mapping, Mapping) or not all(isinstance(key, str) and isinstance(value, str) for key, value in mapping.items()):
         raise TaskDefinitionError("Artifact mapping must map result fields to template variables")
     template = str(definition.get("artifact_template") or "")
-    if template and str(definition.get("task_type")) not in ARTIFACT_TASK_TYPES:
+    if template and task_type not in ARTIFACT_TASK_TYPES:
         raise TaskDefinitionError("Only artifact tasks may select a document template")
+    if task_type in ARTIFACT_TASK_TYPES and template and not mapping:
+        raise TaskDefinitionError("Artifact tasks with a template require a result mapping")
     missing_result_fields = set(mapping) - schema.keys()
     if missing_result_fields:
         raise TaskDefinitionError(f"Artifact mapping references unknown result fields: {sorted(missing_result_fields)}")
