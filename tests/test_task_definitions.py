@@ -53,11 +53,14 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
                 "company_research",
                 {
                     "title": "Investigate employer",
-                    "instructions": "Return a compact employer briefing focused on engineering culture.",
+                    "instructions": "Return company research plus a compact engineering-culture briefing.",
                     "response_format": {
                         "type": "json_object",
-                        "required": ["employer_brief"],
-                        "schema": {"employer_brief": "string"},
+                        "required": ["company_research", "employer_brief"],
+                        "schema": {
+                            "company_research": "string",
+                            "employer_brief": "string",
+                        },
                     },
                     "artifact_template": "",
                     "artifact_mapping": {},
@@ -86,11 +89,17 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
         with self.assertRaises(DesktopAgentWorkflowError):
             self.service.submit_result_file(
                 second["id"],
-                self.result_file("second-wrong.json", {"company_research": "Wrong contract"}),
+                self.result_file("second-wrong.json", {"company_research": "Missing custom field"}),
             )
         accepted = self.service.submit_result_file(
             second["id"],
-            self.result_file("second.json", {"employer_brief": "Customized contract result"}),
+            self.result_file(
+                "second.json",
+                {
+                    "company_research": "Customized contract result",
+                    "employer_brief": "Engineering culture summary",
+                },
+            ),
         )
         self.assertEqual(accepted["definition_version"], 2)
 
@@ -143,11 +152,14 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
                 "company_research",
                 {
                     "title": "Custom research",
-                    "instructions": "Return custom_research.",
+                    "instructions": "Return the normal research plus custom_research.",
                     "response_format": {
                         "type": "json_object",
-                        "required": ["custom_research"],
-                        "schema": {"custom_research": "string"},
+                        "required": ["company_research", "custom_research"],
+                        "schema": {
+                            "company_research": "string",
+                            "custom_research": "string",
+                        },
                     },
                     "artifact_template": "",
                     "artifact_mapping": {},
@@ -167,6 +179,7 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
         self.assertFalse(reset["is_custom"])
         self.assertFalse(effective["is_custom"])
         self.assertIn("custom_research", customized_packet["response_format"]["required"])
+        self.assertNotIn("custom_research", default_packet["response_format"]["required"])
         self.assertIn("company_research", default_packet["response_format"]["required"])
 
     def test_definition_rejects_mapping_to_unknown_result_field(self):
@@ -185,6 +198,25 @@ class VersionedTaskDefinitionWorkflowTests(unittest.TestCase):
                         },
                         "artifact_template": "cover-letter",
                         "artifact_mapping": {"missing": "artifact.cover_letter.body"},
+                    },
+                )
+
+    def test_definition_cannot_remove_field_required_by_deterministic_apply(self):
+        with connect(self.tmp.name) as conn:
+            with self.assertRaises(TaskDefinitionError):
+                save_task_definition(
+                    conn,
+                    "company_research",
+                    {
+                        "title": "Unsafe rename",
+                        "instructions": "Return employer_brief.",
+                        "response_format": {
+                            "type": "json_object",
+                            "required": ["employer_brief"],
+                            "schema": {"employer_brief": "string"},
+                        },
+                        "artifact_template": "",
+                        "artifact_mapping": {},
                     },
                 )
 
