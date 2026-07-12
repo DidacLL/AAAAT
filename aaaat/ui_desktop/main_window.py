@@ -66,6 +66,19 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._show_initial_view()
         self._refresh_all()
 
+    def _on_close(self, event: wx.CloseEvent) -> None:
+        self.layout_state.selected_view = self.current_view
+        self.layout_state.selected_candidature_ref = self.selected_ref
+        self.layout_state.selected_keyword = self.selected_keyword
+        if hasattr(self, "focus_splitter") and self.focus_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("smart", {})["left"] = max(1, self.focus_splitter.GetSashPosition())
+        if hasattr(self, "content_splitter") and self.content_splitter.IsSplit():
+            width = self.content_splitter.GetClientSize().GetWidth()
+            sash = self.content_splitter.GetSashPosition()
+            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(1, width - sash)
+        self.layout_state.save(self.layout_path)
+        event.Skip()
+
     def _show_initial_view(self) -> None:
         if self.current_view == "user":
             self._show_user()
