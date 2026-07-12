@@ -9,7 +9,7 @@ from typing import Any
 
 
 DEFAULT_PRIVATE_DIR = ".private"
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 APPLICATION_UPDATE_FIELDS = {
     "company",
     "role",
@@ -71,10 +71,35 @@ def init_db(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
     target = db_path(path)
     with connect(path) as conn:
         conn.executescript(Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"))
+        migrate_schema(conn)
         ensure_schema_version(conn)
         seed_defaults(conn)
         check_schema_version(conn)
+    from .workspace_config import ensure_workspace_config
+
+    ensure_workspace_config(path)
     return target
+
+
+def migrate_schema(conn: sqlite3.Connection) -> None:
+    row = conn.execute("SELECT value FROM schema_meta WHERE key = 'schema_version'").fetchone()
+    version = str(row["value"]) if row else "1"
+    if version == SCHEMA_VERSION:
+        return
+    if version != "1":
+        raise RuntimeError(f"Unsupported AAAAT schema version {version}; expected 1 or {SCHEMA_VERSION}")
+    task_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+    migrations = {
+        "definition_version": "ALTER TABLE tasks ADD COLUMN definition_version INTEGER NOT NULL DEFAULT 1",
+        "response_format": "ALTER TABLE tasks ADD COLUMN response_format TEXT NOT NULL DEFAULT '{}'",
+        "artifact_template": "ALTER TABLE tasks ADD COLUMN artifact_template TEXT NOT NULL DEFAULT ''",
+        "artifact_mapping": "ALTER TABLE tasks ADD COLUMN artifact_mapping TEXT NOT NULL DEFAULT '{}'",
+    }
+    for column, statement in migrations.items():
+        if column not in task_columns:
+            conn.execute(statement)
+    conn.execute("UPDATE schema_meta SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,))
+    conn.commit()
 
 
 def ensure_schema_version(conn: sqlite3.Connection) -> None:
@@ -213,8 +238,8 @@ def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
     app_id = fields.pop("id", None) or new_id("app")
     data = {
         "id": app_id,
-        "company": fields.get("company") or "Untitled Company",
-        "role": fields.get("role") or "Untitled Role",
+        "company": str(fields.get("company") or ""),
+        "role": str(fields.get("role") or ""),
         "status": fields.get("status") or "draft",
         "priority": fields.get("priority") or "normal",
         "source": fields.get("source") or "",
@@ -263,7 +288,6 @@ def delete_application(conn: sqlite3.Connection, app_id: str) -> bool:
     row = conn.execute("SELECT id FROM applications WHERE id = ?", (app_id,)).fetchone()
     if row is None:
         return False
-
     artifact_rows = conn.execute("SELECT id FROM generated_artifacts WHERE application_id = ?", (app_id,)).fetchall()
     artifact_ids = [str(row["id"]) for row in artifact_rows]
     if artifact_ids:
@@ -276,7 +300,6 @@ def delete_application(conn: sqlite3.Connection, app_id: str) -> bool:
             WHERE application_id = ?""",
             [*artifact_ids, *artifact_ids, app_id],
         )
-
     conn.execute("DELETE FROM candidature_details WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM raw_intake WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM application_keywords WHERE application_id = ?", (app_id,))
@@ -340,14 +363,27 @@ def add_raw_intake(conn: sqlite3.Connection, application_id: str, content: str, 
     return item
 
 
+def update_latest_raw_intake(conn: sqlite3.Connection, application_id: str, content: str) -> dict[str, Any]:
+    row = conn.execute(
+        "SELECT id FROM raw_intake WHERE application_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+        (application_id,),
+    ).fetchone()
+    if row is None:
+        return add_raw_intake(conn, application_id, content, "user")
+    conn.execute("UPDATE raw_intake SET content = ? WHERE id = ?", (content, row["id"]))
+    conn.commit()
+    updated = conn.execute("SELECT * FROM raw_intake WHERE id = ?", (row["id"],)).fetchone()
+    return row_to_dict(updated)
+
+
 def create_raw_offer_intake(conn: sqlite3.Connection, content: str, created_by: str = "user") -> dict[str, Any]:
     app = create_application(
         conn,
-        company="Pending extraction",
-        role="Pending role",
+        company="",
+        role="",
         status="intake",
         priority="normal",
-        next_action="Extract raw offer details",
+        next_action="Review extracted offer details",
     )
     intake = add_raw_intake(conn, app["id"], content, created_by)
     app["raw_intake"] = [intake]
