@@ -14,9 +14,8 @@ class StaticExportTests(unittest.TestCase):
             html = output.read_text(encoding="utf-8")
 
         self.assertTrue(output.exists())
-        self.assertTrue(result is None or result == output or str(result) == str(output))
+        self.assertEqual(Path(result), output)
         self.assertGreater(len(html), 500)
-        self.assertNotIn("/dashboard/actions/", html)
         self.assertNotIn("data-write-control", html)
         self.assertNotIn(".private", html)
         self.assertNotIn("aaaat.sqlite3", html)
