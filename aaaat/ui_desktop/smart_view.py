@@ -10,6 +10,7 @@ from aaaat.db import connect
 from aaaat.payload import dashboard_payload
 from aaaat.security import can_write
 
+from .candidature_actions import add_candidature_actions
 from .center_cards import CenterCardBuilder
 from .keyword_pane import KeywordPane
 from .notes_band import NotesBand
@@ -18,7 +19,7 @@ from .scrolling import bind_parent_wheel_scroll
 from .wx_html_links import KeywordHtmlLinker
 
 DEFAULT_FOCUS_LEFT = 220
-DEFAULT_FOCUS_RIGHT = 220
+DEFAULT_FOCUS_RIGHT = 260
 DEFAULT_WINDOW_SIZE = (1280, 780)
 DEFAULT_CENTER_NOTES_HEIGHT = 150
 _VIEW_TAB_INDEX = {"smart": 0, "detailed": 1, "user": 2}
@@ -136,7 +137,7 @@ class SmartViewMixin(OverviewBoardMixin):
             return
         total_width = max(DEFAULT_WINDOW_SIZE[0], int(self.focus_panel.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0]))
         left = max(170, min(260, int(total_width * 0.20)))
-        right = max(170, min(260, int(total_width * 0.20)))
+        right = max(220, min(300, int(total_width * 0.22)))
         content_width = max(480, total_width - left)
         center = max(360, content_width - right)
         if self.focus_splitter.IsSplit():
@@ -250,6 +251,7 @@ class SmartViewMixin(OverviewBoardMixin):
 
     def _refresh_right_context(self, detail: dict[str, Any]) -> None:
         self.right_sizer.Clear(delete_windows=True)
+        add_candidature_actions(self.right_scroll, self.right_sizer, self._open_candidature_action, compact=False)
         terms = self._terms_for_detail(detail)
         definition = self.projection["smart"].get("selected_keyword_definition") or {}
         selected = str(definition.get("term") or self.selected_keyword or (terms[0] if terms else ""))
@@ -319,117 +321,57 @@ class SmartViewMixin(OverviewBoardMixin):
                 result.append(item)
         return result
 
-    def _selected_detail(self) -> dict[str, Any] | None:
-        detail = self.projection["smart"].get("selected_candidature_detail")
-        if not detail or self.selected_ref is None:
-            return None
-        if str(detail.get("ref")) != str(self.selected_ref):
-            return None
-        return detail
-
-    def _chips(self, detail: dict[str, Any]) -> str:
-        parts = [str(detail.get("status") or ""), str(detail.get("priority") or ""), str(detail.get("location") or ""), str(detail.get("remote_mode") or "")]
-        parts.extend(f"#{keyword}" for keyword in detail.get("keywords") or [])
-        return "  ".join(part for part in parts if part)
-
-    def _artifacts_text(self) -> str:
-        summary = self.projection["smart"].get("artifact_summary") or {}
-        items = summary.get("items") or []
-        if not items:
-            return "No artifacts yet."
-        return "\n".join(self._clip(f"{item.get('artifact_type', 'artifact')} · {item.get('label', '')}", 90) for item in items)
-
-    def _empty_message(self, parent: wx.Window, text: str) -> wx.StaticText:
-        label = wx.StaticText(parent, label=text)
-        label.SetFont(label.GetFont().Bold())
-        return label
-
-    def _clip(self, value: Any, limit: int) -> str:
-        text = " ".join(str(value or "").split())
-        if len(text) <= limit:
-            return text
-        return text[: max(0, limit - 1)].rstrip() + "…"
-
-    def _select_ref(self, ref: str) -> None:
-        self.expanded_overview_ref = None
-        self.selected_ref = ref
-        self.layout_state.selected_candidature_ref = ref
-        self._show_focus()
-        self._refresh_current_if_needed()
-
-    def _go_overview(self) -> None:
-        self.expanded_overview_ref = None
-        self.layout_state.selected_candidature_ref = None
-        self._show_overview()
-        self._refresh_current_if_needed()
-
     def _on_overview_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = self.overview_search.GetValue()
-        self.expanded_overview_ref = None
-        self.nav_search.SetValue(self.search_query)
-        self._rendered_view_keys.pop("smart", None)
         self._refresh_all()
 
     def _on_nav_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = self.nav_search.GetValue()
-        self.overview_search.SetValue(self.search_query)
-        self._rendered_view_keys.pop("smart", None)
         self._refresh_all()
 
     def _on_clear_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = ""
-        self.expanded_overview_ref = None
         self.overview_search.SetValue("")
         self.nav_search.SetValue("")
-        self._rendered_view_keys.pop("smart", None)
         self._refresh_all()
 
-    def _on_select_nav(self, event: wx.CommandEvent) -> None:
-        index = event.GetSelection()
+    def _on_select_nav(self, _event: wx.CommandEvent) -> None:
+        index = self.nav_list.GetSelection()
         if 0 <= index < len(self._list_refs):
-            self._select_ref(self._list_refs[index])
+            self.selected_ref = self._list_refs[index]
+            self.layout_state.selected_candidature_ref = self.selected_ref
+            self.center_card_state.reset()
+            self._refresh_all()
 
-    def _select_keyword(self, term: str, *, refresh_center: bool) -> None:
+    def _go_overview(self) -> None:
+        self._show_overview()
+        self._refresh_all()
+
+    def _select_keyword(self, term: str, *, refresh_center: bool = True) -> None:
         self.selected_keyword = term
         self.layout_state.selected_keyword = term
         self._reload_projection()
-        self._refresh_right_context(self._selected_detail() or {})
-        self._mark_current_view_rendered()
         if refresh_center:
             self._refresh_focus_modules()
+        else:
+            detail = self._selected_detail()
+            if detail:
+                self._refresh_right_context(detail)
+        self._mark_current_view_rendered()
 
-    def _on_support_surface(self, _event: wx.Event) -> None:
-        wx.MessageBox("This desktop slice keeps candidature creation in existing flows.", "AAAAT Desktop")
+    def _selected_detail(self) -> dict[str, Any] | None:
+        detail = self.projection.get("smart", {}).get("selected_candidature")
+        return detail if isinstance(detail, dict) else None
 
-    def _on_reset_layout(self, _event: wx.Event) -> None:
-        current_view = self.current_view
-        self.layout_state = self.layout_state.default()
-        self.layout_state.selected_view = current_view
-        self.center_card_state.reset()
-        self.focus_left_width = DEFAULT_FOCUS_LEFT
-        self.focus_right_width = DEFAULT_FOCUS_RIGHT
-        self._focus_layout_applied = False
-        self._rendered_view_keys.clear()
-        if self.focus_splitter.IsSplit():
-            self.focus_splitter.SetSashPosition(self.focus_left_width)
-        if self.content_splitter.IsSplit():
-            self.content_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width)
-        if self.center_splitter.IsSplit():
-            self.center_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[1] - DEFAULT_CENTER_NOTES_HEIGHT - 90)
-        self._refresh_all()
-
-    def _on_close(self, event: wx.CloseEvent) -> None:
-        self.layout_state.selected_view = self.current_view
-        self.layout_state.selected_candidature_ref = self.selected_ref
-        self.layout_state.selected_keyword = self.selected_keyword
-        self.layout_state.search_query = self.search_query
-        if self.focus_splitter.IsSplit():
-            self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
-        if self.content_splitter.IsSplit():
-            total = max(1, self.content_splitter.GetClientSize().GetWidth())
-            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(160, total - self.content_splitter.GetSashPosition())
-        if hasattr(self, "detailed_splitter") and self.detailed_splitter.IsSplit():
-            total = max(1, self.detailed_splitter.GetClientSize().GetWidth())
-            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(220, total - self.detailed_splitter.GetSashPosition())
-        self.layout_state.save(self.layout_path)
-        event.Skip()
+    def _artifacts_text(self) -> str:
+        detail = self._selected_detail() or {}
+        artifacts = detail.get("artifacts") or []
+        if not artifacts:
+            return "No artifacts yet."
+        lines = []
+        for item in artifacts:
+            if isinstance(item, dict):
+                lines.append(str(item.get("label") or item.get("artifact_type") or "Artifact"))
+            else:
+                lines.append(str(item))
+        return "\n".join(lines)
