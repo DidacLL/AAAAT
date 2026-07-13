@@ -29,35 +29,36 @@ class DetailedViewMixin:
         self.detailed_search = wx.SearchCtrl(self.detailed_panel, style=wx.TE_PROCESS_ENTER)
         self.detailed_search.ShowSearchButton(True)
         self.detailed_search.ShowCancelButton(True)
-        self.detailed_columns_button = wx.Button(self.detailed_panel, label="Columns…", size=(92, -1))
+        self.detailed_columns_button = wx.Button(self.detailed_panel, label="Columns…")
         toolbar.Add(label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar.Add(self.detailed_search, 1, wx.ALL | wx.EXPAND, 6)
         toolbar.Add(self.detailed_columns_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         sizer.Add(toolbar, 0, wx.EXPAND)
 
         self.detailed_splitter = wx.SplitterWindow(self.detailed_panel, style=wx.SP_LIVE_UPDATE)
-        self.detailed_splitter.SetMinimumPaneSize(260)
+        self.detailed_splitter.SetMinimumPaneSize(1)
         self.detail_table = DetailTable(self.detailed_splitter, on_select=self._select_detailed_ref)
         self.detailed_body_splitter = wx.SplitterWindow(self.detailed_splitter, style=wx.SP_LIVE_UPDATE)
-        self.detailed_body_splitter.SetMinimumPaneSize(280)
+        self.detailed_body_splitter.SetMinimumPaneSize(1)
         self.detail_body_panel = CandidatureDetailBodyPanel(
             self.detailed_body_splitter,
             on_save=self._save_candidature_panel_edits,
             on_action=self._on_candidature_panel_action,
             on_keyword_select=self._select_detailed_keyword,
+            on_add_keyword=self._add_keyword_to_candidature,
         )
         self.detail_options_panel = CandidatureOptionsPanel(
             self.detailed_body_splitter,
             on_action=self._on_candidature_panel_action,
             on_delete=self._delete_candidature_from_panel,
-            on_open_smart=self._open_selected_in_smart,
             on_keyword_select=self._select_detailed_keyword,
+            on_add_keyword=self._add_keyword_to_candidature,
+            on_save_keyword_definition=self._save_keyword_definition,
         )
 
-        saved_left = int(self.layout_state.pane_layout.get("detailed", {}).get("left", DEFAULT_DETAILED_LEFT))
-        saved_right = int(self.layout_state.pane_layout.get("detailed", {}).get("right", DEFAULT_DETAILED_RIGHT))
-        left_width = max(260, min(saved_left, 430))
-        center_width = max(560, DEFAULT_DETAILED_FRAME_WIDTH - left_width - max(260, min(saved_right, 380)))
+        initial_width = max(1, int(self.GetClientSize().GetWidth() or DEFAULT_DETAILED_FRAME_WIDTH))
+        left_width = max(1, int(initial_width * 0.24))
+        center_width = max(1, int(initial_width * 0.54))
         self.detailed_splitter.SplitVertically(self.detail_table, self.detailed_body_splitter, left_width)
         self.detailed_body_splitter.SplitVertically(self.detail_body_panel, self.detail_options_panel, center_width)
         sizer.Add(self.detailed_splitter, 1, wx.EXPAND)
@@ -137,14 +138,6 @@ class DetailedViewMixin:
         self.detail_options_panel.render(self.projection, can_edit=can_write(self.mode), view_name="detailed")
         self.SetStatusText(f"Keyword: {term}")
         self._mark_current_view_rendered()
-
-    def _open_selected_in_smart(self) -> None:
-        if not self.selected_ref:
-            return
-        self.current_view = "smart"
-        self.layout_state.selected_view = "smart"
-        self._show_focus()
-        self._refresh_current_if_needed()
 
     def _on_detailed_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = self.detailed_search.GetValue()
