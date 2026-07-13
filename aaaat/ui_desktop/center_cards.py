@@ -54,24 +54,23 @@ class CenterCardBuilder:
         self.add_full_text_drawers(detail)
 
     def add_visible_briefing(self, detail: dict[str, Any]) -> None:
-        posting = self._source_text(detail)
         pitch = self._first_text(detail, "pitch", "role_strategy")
         snapshot = self._first_text(detail, "offer_snapshot", "description")
         support = self._visible_support_blocks(
             [
-                ("Ask", detail.get("smart_question"), 130),
-                ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 130),
-                ("Recognize", self._first_text(detail, "call_signals", "source_excerpt"), 130),
-                ("Company", detail.get("company_research"), 135),
-                ("Fit", detail.get("candidature_evaluation"), 135),
-                ("Strategy", detail.get("role_strategy"), 135),
-                ("Evidence", detail.get("strengths"), 125),
-                ("Questions", detail.get("questions_to_ask"), 125),
-                ("Stack", detail.get("tech_stack"), 115),
-                ("Recruiter", detail.get("recruiter_material"), 135),
+                ("Ask", detail.get("smart_question")),
+                ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid")),
+                ("Recognize", self._first_text(detail, "call_signals", "source_excerpt")),
+                ("Company", detail.get("company_research")),
+                ("Fit", detail.get("candidature_evaluation")),
+                ("Strategy", detail.get("role_strategy")),
+                ("Evidence", detail.get("strengths")),
+                ("Questions", detail.get("questions_to_ask")),
+                ("Stack", detail.get("tech_stack")),
+                ("Recruiter", detail.get("recruiter_material")),
             ]
         )
-        if not any([posting.strip(), pitch.strip(), snapshot.strip(), support]):
+        if not any([pitch.strip(), snapshot.strip(), support]):
             return
 
         panel = wx.Panel(self.owner.center_scroll)
@@ -80,29 +79,19 @@ class CenterCardBuilder:
         panel.SetSizer(sizer)
 
         top = wx.BoxSizer(wx.HORIZONTAL)
-        if posting.strip():
+        if pitch.strip():
             top.Add(
-                self._call_block(panel, "Posting", posting, 540, min_height=132, emphasis="high", line_chars=56, max_lines=4),
-                3,
+                self._call_block(panel, "Pitch", pitch, min_height=74, emphasis="high", line_chars=68),
+                1,
                 wx.RIGHT | wx.EXPAND,
                 12,
             )
-        right = wx.BoxSizer(wx.VERTICAL)
-        if pitch.strip():
-            right.Add(
-                self._call_block(panel, "Pitch", pitch, 220, min_height=64, emphasis="medium", line_chars=34, max_lines=2),
-                0,
-                wx.BOTTOM | wx.EXPAND,
-                8,
-            )
         if snapshot.strip():
-            right.Add(
-                self._call_block(panel, "Snapshot", snapshot, 220, min_height=64, emphasis="medium", line_chars=34, max_lines=2),
-                0,
+            top.Add(
+                self._call_block(panel, "Snapshot", snapshot, min_height=74, emphasis="medium", line_chars=68),
+                1,
                 wx.EXPAND,
             )
-        if right.GetItemCount():
-            top.Add(right, 2, wx.EXPAND)
         if top.GetItemCount():
             sizer.Add(top, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
 
@@ -114,9 +103,9 @@ class CenterCardBuilder:
             for col in range(columns):
                 grid.AddGrowableCol(col, 1)
             grid_panel.SetSizer(grid)
-            for label, text, limit in support:
+            for label, text in support:
                 grid.Add(
-                    self._call_block(grid_panel, label, text, limit, min_height=54, emphasis="support", line_chars=38, max_lines=2),
+                    self._call_block(grid_panel, label, text, min_height=54, emphasis="support", line_chars=54),
                     1,
                     wx.EXPAND,
                 )
@@ -165,12 +154,10 @@ class CenterCardBuilder:
         parent: wx.Window,
         label: str,
         value: str,
-        limit: int,
         *,
         min_height: int,
         emphasis: str,
         line_chars: int,
-        max_lines: int,
     ) -> wx.Panel:
         block = wx.Panel(parent)
         block.SetMinSize((1, min_height))
@@ -183,7 +170,7 @@ class CenterCardBuilder:
             title_font = title_font.Larger()
         title.SetFont(title_font)
 
-        body = wx.StaticText(block, label=self._snippet_text(value, limit, line_chars=line_chars, max_lines=max_lines))
+        body = wx.StaticText(block, label=self._complete_visible_text(value, line_chars=line_chars))
         body.SetMinSize((1, -1))
         body_font = body.GetFont()
         if emphasis == "high":
@@ -291,31 +278,23 @@ class CenterCardBuilder:
         ]
         return " · ".join(part for part in parts if part)
 
-    def _visible_support_blocks(self, specs: list[tuple[str, Any, int]]) -> list[tuple[str, str, int]]:
-        visible: list[tuple[str, str, int]] = []
-        for label, value, limit in specs:
+    def _visible_support_blocks(self, specs: list[tuple[str, Any]]) -> list[tuple[str, str]]:
+        visible: list[tuple[str, str]] = []
+        for label, value in specs:
             text = str(value or "").strip()
             if text:
-                visible.append((label, text, limit))
+                visible.append((label, text))
         return visible
 
     def _support_columns(self) -> int:
         width = int(self.owner.center_scroll.GetClientSize().GetWidth() or 760)
         return 2 if width >= 620 else 1
 
-    def _snippet_text(self, value: str, limit: int, *, line_chars: int, max_lines: int) -> str:
+    def _complete_visible_text(self, value: str, *, line_chars: int) -> str:
         text = " ".join(str(value or "").split())
-        truncated = False
-        if len(text) > limit:
-            text = text[: max(0, limit - 1)].rstrip()
-            truncated = True
-        lines = textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False) or ["—"]
-        if len(lines) > max_lines:
-            lines = lines[:max_lines]
-            truncated = True
-        if truncated:
-            lines[-1] = lines[-1].rstrip(" …") + "…"
-        return "\n".join(lines)
+        if not text:
+            return "—"
+        return "\n".join(textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False))
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
