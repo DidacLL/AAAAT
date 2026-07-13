@@ -48,8 +48,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_card_state = CenterCardState.default()
         self._focus_layout_applied = False
         self.focus_left_width = int(layout_state.pane_layout.get("smart", {}).get("left", DEFAULT_FOCUS_LEFT))
-        saved_right = int(layout_state.pane_layout.get("smart", {}).get("right", DEFAULT_FOCUS_RIGHT))
-        self.focus_right_width = max(300, min(saved_right, 400))
+        self.focus_right_width = int(layout_state.pane_layout.get("smart", {}).get("right", DEFAULT_FOCUS_RIGHT))
         self._list_refs: list[str] = []
         self._overview_card_refs: list[str] = []
         self._rendered_view_keys: dict[str, tuple[Any, ...]] = {}
@@ -105,8 +104,8 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.title = wx.StaticText(self.toolbar, label="AAAAT")
         self.title.SetFont(self.title.GetFont().Bold().Larger())
         self.mode_chip = wx.StaticText(self.toolbar, label="read-only" if self.mode == Mode.READ_ONLY else "local")
-        self.reset_button = wx.Button(self.toolbar, label="Reset", size=(68, -1))
-        self.new_button = wx.Button(self.toolbar, label="+", size=(40, -1))
+        self.reset_button = wx.Button(self.toolbar, label="Reset")
+        self.new_button = wx.Button(self.toolbar, label="+")
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
         for control in (self.mode_chip, self.reset_button, self.new_button):
@@ -118,7 +117,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.smart_panel = wx.Panel(self.view_book)
         self.smart_sizer = wx.BoxSizer(wx.VERTICAL)
         self.smart_panel.SetSizer(self.smart_sizer)
-        self.view_book.AddPage(self.smart_panel, "Smart")
+        self.view_book.AddPage(self.smart_panel, "List")
         self.root_sizer.Add(self.view_book, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
 
     def _build_overview_surface(self) -> None:
@@ -141,10 +140,10 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.focus_panel.SetSizer(sizer)
         self.focus_splitter = wx.SplitterWindow(self.focus_panel, style=wx.SP_LIVE_UPDATE)
-        self.focus_splitter.SetMinimumPaneSize(150)
+        self.focus_splitter.SetMinimumPaneSize(1)
         self.nav_panel = wx.Panel(self.focus_splitter)
         self.content_splitter = wx.SplitterWindow(self.focus_splitter, style=wx.SP_LIVE_UPDATE)
-        self.content_splitter.SetMinimumPaneSize(220)
+        self.content_splitter.SetMinimumPaneSize(1)
         self.center_panel = wx.Panel(self.content_splitter)
         self.smart_right_panel = CandidatureOptionsPanel(
             self.content_splitter,
@@ -153,9 +152,11 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
             on_open_smart=lambda: None,
             on_keyword_select=lambda term: self._select_keyword(term, refresh_center=False),
         )
-        self.focus_splitter.SplitVertically(self.nav_panel, self.content_splitter, self.focus_left_width)
-        initial_center_width = DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width
-        self.content_splitter.SplitVertically(self.center_panel, self.smart_right_panel, max(560, initial_center_width))
+        initial_width = max(1, int(self.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0]))
+        initial_left = max(1, int(initial_width * 0.18))
+        initial_center = max(1, int(initial_width * 0.64))
+        self.focus_splitter.SplitVertically(self.nav_panel, self.content_splitter, initial_left)
+        self.content_splitter.SplitVertically(self.center_panel, self.smart_right_panel, initial_center)
         sizer.Add(self.focus_splitter, 1, wx.EXPAND)
         self.smart_sizer.Add(self.focus_panel, 1, wx.ALL | wx.EXPAND, 6)
 
@@ -178,14 +179,14 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
         self.center_panel.SetSizer(panel_sizer)
         self.center_splitter = wx.SplitterWindow(self.center_panel, style=wx.SP_LIVE_UPDATE)
-        self.center_splitter.SetMinimumPaneSize(110)
+        self.center_splitter.SetMinimumPaneSize(1)
         self.center_body_scroll = wx.ScrolledWindow(self.center_splitter, style=wx.VSCROLL)
         self.center_body_scroll.SetScrollRate(0, 12)
         self.center_notes_panel = wx.Panel(self.center_splitter, style=wx.BORDER_SIMPLE)
         self.center_splitter.SplitHorizontally(
             self.center_body_scroll,
             self.center_notes_panel,
-            DEFAULT_WINDOW_SIZE[1] - DEFAULT_CENTER_NOTES_HEIGHT - 90,
+            int(DEFAULT_WINDOW_SIZE[1] * 0.76),
         )
         self.center_splitter.SetSashGravity(0.78)
         panel_sizer.Add(self.center_splitter, 1, wx.EXPAND)
@@ -205,11 +206,11 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
             self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
         if self.content_splitter.IsSplit():
             total = max(1, self.content_splitter.GetClientSize().GetWidth())
-            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(260, total - self.content_splitter.GetSashPosition())
+            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(1, total - self.content_splitter.GetSashPosition())
         if hasattr(self, "detailed_splitter") and self.detailed_splitter.IsSplit():
-            self.layout_state.pane_layout.setdefault("detailed", {})["left"] = max(260, self.detailed_splitter.GetSashPosition())
+            self.layout_state.pane_layout.setdefault("detailed", {})["left"] = max(1, self.detailed_splitter.GetSashPosition())
         if hasattr(self, "detailed_body_splitter") and self.detailed_body_splitter.IsSplit():
             total = max(1, self.detailed_body_splitter.GetClientSize().GetWidth())
-            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(260, total - self.detailed_body_splitter.GetSashPosition())
+            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(1, total - self.detailed_body_splitter.GetSashPosition())
         self.layout_state.save(self.layout_path)
         event.Skip()
