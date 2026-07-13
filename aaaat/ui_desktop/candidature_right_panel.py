@@ -34,7 +34,6 @@ FIELD_ACTIONS: dict[str, tuple[str, str, str]] = {
     "valuation": ("infer_fields", "Infer", "Reinfer"),
     "role_strategy": ("regenerate_strategy", "Draft", "Refresh"),
     "company_research": ("update_company_research", "Research", "Refresh"),
-    "technical_reading": ("infer_fields", "Infer", "Reinfer"),
     "call_signals": ("infer_fields", "Infer", "Reinfer"),
     "pitch": ("infer_fields", "Draft", "Refresh"),
     "smart_question": ("infer_fields", "Draft", "Refresh"),
@@ -88,9 +87,12 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
                     heading = wx.StaticText(self, label=str(group.get("title") or "Candidature"))
                     heading.SetFont(heading.GetFont().Bold().Larger())
                     self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
+                    field_panel = wx.Panel(self)
+                    field_sizer = wx.WrapSizer(wx.HORIZONTAL)
+                    field_panel.SetSizer(field_sizer)
                     for field in fields:
                         editor = InlineFieldEditor(
-                            self,
+                            field_panel,
                             field=field,
                             can_edit=self._can_edit,
                             allow_action=True,
@@ -100,7 +102,9 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
                             on_keyword_select=self.on_keyword_select,
                             on_add_keyword=self._add_keyword,
                         )
-                        self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+                        editor.SetMinSize((self._field_card_width(), -1))
+                        field_sizer.Add(editor, 0, wx.ALL, 6)
+                    self.sizer.Add(field_panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
             self.Layout()
             self.FitInside()
             bind_parent_wheel_scroll(self, self)
@@ -147,6 +151,14 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
 
     def _wrap_width(self) -> int:
         return max(260, int(self.GetClientSize().GetWidth() or 640) - 36)
+
+    def _field_card_width(self) -> int:
+        width = int(self.GetClientSize().GetWidth() or 720)
+        if width >= 1180:
+            return max(320, int((width - 70) / 3))
+        if width >= 760:
+            return max(340, int((width - 54) / 2))
+        return max(280, width - 36)
 
 
 class CandidatureOptionsPanel(wx.ScrolledWindow):
@@ -211,7 +223,7 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
         detail = _selected_detail(projection)
         title = wx.StaticText(self, label="Selected")
         title.SetFont(title.GetFont().Bold().Larger())
-        body = wx.StaticText(self, label="\n".join(part for part in (str(detail.get("company") or ""), str(detail.get("role") or ""), str(detail.get("next_action") or "")) if part))
+        body = wx.StaticText(self, label="\n".join(part for part in (str(detail.get("company") or ""), str(detail.get("role") or "")) if part))
         body.Wrap(self._wrap_width())
         self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
         self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
@@ -415,9 +427,18 @@ class InlineFieldEditor(wx.Panel):
 
     def _render_edit(self) -> None:
         self.sizer.Clear(delete_windows=True)
+        header = wx.BoxSizer(wx.HORIZONTAL)
         label = wx.StaticText(self, label=str(self.field.get("label") or self.field.get("key") or "Field"))
         label.SetFont(label.GetFont().Bold())
-        self.sizer.Add(label, 0, wx.ALL | wx.EXPAND, 6)
+        header.Add(label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
+        save = wx.Button(self, label="Save")
+        cancel = wx.Button(self, label="Cancel")
+        save.Bind(wx.EVT_BUTTON, self._save)
+        cancel.Bind(wx.EVT_BUTTON, self._cancel)
+        header.Add(save, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
+        header.Add(cancel, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
+        self.sizer.Add(header, 0, wx.EXPAND)
+
         choices = [str(item) for item in self.field.get("choices") or []]
         if choices:
             editor: wx.Control = wx.Choice(self, choices=choices)
@@ -426,22 +447,17 @@ class InlineFieldEditor(wx.Panel):
             except Exception:
                 pass
         else:
-            style = wx.TE_MULTILINE if self.field.get("multiline") else 0
+            long_text = bool(self.field.get("multiline") or "\n" in self._value or len(self._value) > 80)
+            style = wx.TE_MULTILINE if long_text else 0
             editor = wx.TextCtrl(self, value=self._value, style=style)
-            if self.field.get("multiline"):
-                editor.SetMinSize((-1, max(96, min(220, 48 + len(self._value) // 5))))
+            if long_text:
+                editor.SetMinSize((self._editor_width(), self._editor_height()))
+            else:
+                editor.SetMinSize((min(420, self._editor_width()), -1))
         self._editor = editor
-        self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
-        buttons = wx.BoxSizer(wx.HORIZONTAL)
-        save = wx.Button(self, label="Save")
-        cancel = wx.Button(self, label="Cancel")
-        save.Bind(wx.EVT_BUTTON, self._save)
-        cancel.Bind(wx.EVT_BUTTON, self._cancel)
-        buttons.AddStretchSpacer(1)
-        buttons.Add(save, 0, wx.ALL, 4)
-        buttons.Add(cancel, 0, wx.ALL, 4)
-        self.sizer.Add(buttons, 0, wx.EXPAND)
+        self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         self.Layout()
+        self.Fit()
 
     def _start_edit(self, _event: wx.CommandEvent) -> None:
         self.on_begin_edit(self)
@@ -504,6 +520,12 @@ class InlineFieldEditor(wx.Panel):
 
     def _wrap_width(self) -> int:
         return max(220, int(self.GetClientSize().GetWidth() or 520) - 24)
+
+    def _editor_width(self) -> int:
+        return max(280, min(680, self._wrap_width()))
+
+    def _editor_height(self) -> int:
+        return max(132, min(300, 96 + len(self._value) // 6))
 
     def _on_size(self, event: wx.SizeEvent) -> None:
         if not self._editing:
