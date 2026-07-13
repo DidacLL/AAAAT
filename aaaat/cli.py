@@ -10,27 +10,8 @@ from .agent_access import build_agent_task_context, next_agent_task_envelope, su
 from .agent_actions import get_agent_context_bundle, submit_agent_action
 from .agent_guides import agent_guide
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
-from .career_plans import (
-    archive_career_plan,
-    career_plan_context,
-    create_career_plan,
-    get_career_plan,
-    list_career_plans,
-    update_career_plan,
-)
-from .db import (
-    add_raw_intake,
-    connect,
-    create_application,
-    create_raw_offer_intake,
-    get_application,
-    init_db,
-    list_applications,
-    required_profile_variables,
-    set_profile_variable,
-    update_application,
-    upsert_glossary_term,
-)
+from .career_plans import archive_career_plan, career_plan_context, create_career_plan, get_career_plan, list_career_plans, update_career_plan
+from .db import add_raw_intake, connect, create_application, create_raw_offer_intake, get_application, init_db, list_applications, required_profile_variables, set_profile_variable, update_application, upsert_glossary_term
 from .dispatch.command import dispatch_command
 from .dispatch.manual import dispatch_manual
 from .dispatch.packet import build_task_packet
@@ -38,14 +19,7 @@ from .keywords import add_keyword_alias, create_keyword_note
 from .local_data import create_local_backup
 from .notes import create_note, list_notes
 from .privacy import list_variables, set_variable
-from .profile_facts import (
-    archive_profile_fact,
-    create_profile_fact,
-    get_profile_fact,
-    list_profile_facts,
-    profile_context,
-    update_profile_fact,
-)
+from .profile_facts import archive_profile_fact, create_profile_fact, get_profile_fact, list_profile_facts, profile_context, update_profile_fact
 from .provider_adapters import visible_adapters
 from .search import SearchUnavailable, rebuild_index, search
 from .task_runner import TaskRunner
@@ -66,15 +40,11 @@ APPLICATION_FIELDS = (
     "source-url",
     "location",
     "remote-mode",
-    "next-action",
     "notes",
     "call-signals",
-    "technical-reading",
     "pitch",
     "smart-question",
     "risks-to-avoid",
-    "prepare-first",
-    "prepare-later",
     "offer-snapshot",
     "company-research",
     "form-answers",
@@ -333,11 +303,7 @@ def _json(value: Any) -> None:
 
 def _provided_fields(args: argparse.Namespace, allowed: tuple[str, ...] | set[str]) -> dict[str, Any]:
     values = vars(args)
-    return {
-        key.replace("-", "_"): value
-        for key, value in values.items()
-        if key.replace("_", "-") in allowed and value is not None
-    }
+    return {key.replace("-", "_"): value for key, value in values.items() if key.replace("_", "-") in allowed and value is not None}
 
 
 def _adapter_settings(args: argparse.Namespace) -> dict[str, Any]:
