@@ -83,7 +83,7 @@ class CenterCardBuilder:
         self.bind_click(panel, card_id)
 
     def card_shell(self, card_id: str, title: str, summary: str) -> tuple[wx.Panel, wx.BoxSizer]:
-        expanded = self.is_expanded(card_id, card_id in {"call", "now"})
+        expanded = self.is_expanded(card_id, card_id == "call")
         panel = wx.Panel(self.owner.center_scroll, style=wx.BORDER_SIMPLE)
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
@@ -111,9 +111,12 @@ class CenterCardBuilder:
         window.SetCursor(wx.Cursor(wx.CURSOR_HAND))
 
         def on_click(event: wx.Event, selected_card: str = card_id) -> None:
-            self.toggle(selected_card)
+            target = event.GetEventObject()
+            if isinstance(target, wx.Window) and target.HasCapture():
+                target.ReleaseMouse()
             if hasattr(event, "StopPropagation"):
                 event.StopPropagation()
+            wx.CallAfter(self.toggle, selected_card)
 
         window.Bind(wx.EVT_LEFT_UP, on_click)
         for child in window.GetChildren():
@@ -121,6 +124,8 @@ class CenterCardBuilder:
                 self.bind_click(child, card_id)
 
     def toggle(self, card_id: str) -> None:
+        if not getattr(self.owner, "center_scroll", None):
+            return
         self.owner.center_card_state.toggle(card_id, False)
         self.owner.Freeze()
         try:
