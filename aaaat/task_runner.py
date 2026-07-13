@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
+from .career_plans import career_plan_context
+from .candidatures import get_candidature
 from .db import connect
 from .tasks import apply_task_result, get_task, update_task
 from .workspace_config import load_workspace_config
@@ -32,6 +34,27 @@ class TaskRunner:
                 raise TaskRunnerError(f"Task cannot run from state {task.get('state')}")
             update_task(conn, task_id, state="in_progress", notes="")
             context = build_agent_task_context(conn, task_handle(task))
+            if task.get("task_type") == "career_plan_review" and task.get("application_id"):
+                candidature = get_candidature(conn, str(task["application_id"]), include_related=False)
+                bounded = {
+                    "company": candidature.get("company", ""),
+                    "role": candidature.get("role", ""),
+                    "status": candidature.get("status", ""),
+                    "priority": candidature.get("priority", ""),
+                    "location": candidature.get("location", ""),
+                    "remote_mode": candidature.get("remote_mode", ""),
+                    "offer_summary": candidature.get("offer_snapshot", ""),
+                    "keywords": candidature.get("keywords", []),
+                    "details": {
+                        key: candidature.get("details", {}).get(key)
+                        for key in ("salary_expectation", "strengths", "tech_stack", "valuation")
+                    },
+                }
+                context["context"] = {
+                    "candidature": bounded,
+                    "career_plan_context": career_plan_context(conn, "career_plan_review", scope="agent"),
+                }
+                context["input_context"] = context["context"]
         try:
             completed = subprocess.run(
                 command,
