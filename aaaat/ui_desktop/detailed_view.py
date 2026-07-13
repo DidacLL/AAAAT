@@ -158,6 +158,8 @@ class DetailedViewMixin:
         self.layout_state.selected_candidature_ref = ref
         self._rendered_view_keys.clear()
         self._reload_projection()
+        self._refresh_detailed_view()
+        self._mark_current_view_rendered()
 
     def _delete_selected_candidature(self, ref: str) -> None:
         if not ref:
