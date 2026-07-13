@@ -7,23 +7,25 @@ import wx.html  # type: ignore[import-not-found]
 
 
 class CenterCardBuilder:
-    """Build Smart View center cards and integrate explicit card state."""
+    """Build Smart View cards with one explicit full-surface toggle behavior."""
+
+    INTERACTIVE_TYPES = (wx.TextCtrl, wx.Button, wx.Choice, wx.ComboBox, wx.ListBox, wx.html.HtmlWindow)
 
     def __init__(self, owner: Any) -> None:
         self.owner = owner
 
     def add_hero(self, detail: dict[str, Any]) -> None:
         hero = wx.Panel(self.owner.center_scroll)
-        hero_sizer = wx.BoxSizer(wx.VERTICAL)
-        hero.SetSizer(hero_sizer)
-        company = wx.StaticText(hero, label=str(detail.get("company") or "Untitled"))
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        hero.SetSizer(sizer)
+        company = wx.StaticText(hero, label=str(detail.get("company") or "Company"))
         company.SetFont(company.GetFont().Bold().Larger().Larger())
         role = wx.StaticText(hero, label=str(detail.get("role") or "Role"))
         role.SetFont(role.GetFont().Bold().Larger())
         chips = wx.StaticText(hero, label=self.owner._chips(detail))
-        hero_sizer.Add(company, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
-        hero_sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
-        hero_sizer.Add(chips, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
+        sizer.Add(company, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+        sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+        sizer.Add(chips, 0, wx.ALL | wx.EXPAND, 8)
         self.owner.center_sizer.Add(hero, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def add_call_card(self, detail: dict[str, Any]) -> None:
@@ -45,11 +47,13 @@ class CenterCardBuilder:
                 block.SetSizer(block_sizer)
                 label = wx.StaticText(block, label=heading)
                 label.SetFont(label.GetFont().Bold())
-                html_body = self.owner._html_text_window(block, self.owner._clip(body, 220), min_height=72)
+                text = wx.StaticText(block, label=self.owner._clip(body, 420))
+                text.Wrap(360)
                 block_sizer.Add(label, 0, wx.BOTTOM | wx.EXPAND, 2)
-                block_sizer.Add(html_body, 1, wx.EXPAND, 2)
+                block_sizer.Add(text, 0, wx.EXPAND, 2)
                 grid.Add(block, 1, wx.EXPAND)
-            body_sizer.Add(grid, 1, wx.ALL | wx.EXPAND, 8)
+            body_sizer.Add(grid, 0, wx.ALL | wx.EXPAND, 8)
+        self._bind_card_surface(panel, "call")
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def add_source_card(self, detail: dict[str, Any]) -> None:
@@ -59,17 +63,22 @@ class CenterCardBuilder:
         if self.is_expanded("source", False):
             heading = wx.StaticText(panel, label=f"Literal offer/source text · {len(source_text)} chars")
             heading.SetFont(heading.GetFont().Bold())
-            reader = self.owner._html_text_window(panel, source_text or source_excerpt, min_height=310)
+            text = wx.StaticText(panel, label=source_text or source_excerpt)
+            text.Wrap(760)
             body_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
-            body_sizer.Add(reader, 1, wx.ALL | wx.EXPAND, 8)
+            body_sizer.Add(text, 0, wx.ALL | wx.EXPAND, 8)
+        self._bind_card_surface(panel, "source")
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def add_center_card(self, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int) -> None:
-        text = str(body or "")
-        panel, body_sizer = self.card_shell(card_id, title, text or "—")
+        text_value = str(body or "")
+        panel, body_sizer = self.card_shell(card_id, title, text_value or "—")
         if self.is_expanded(card_id, expanded_by_default):
-            content = self.owner._html_text_window(panel, text or "—", min_height=min_height)
-            body_sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
+            text = wx.StaticText(panel, label=text_value or "—")
+            text.Wrap(760)
+            text.SetMinSize((-1, min_height))
+            body_sizer.Add(text, 0, wx.ALL | wx.EXPAND, 8)
+        self._bind_card_surface(panel, card_id)
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def card_shell(self, card_id: str, title: str, summary: str) -> tuple[wx.Panel, wx.BoxSizer]:
@@ -77,39 +86,38 @@ class CenterCardBuilder:
         panel = wx.Panel(self.owner.center_scroll, style=wx.BORDER_SIMPLE)
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
-        header = wx.BoxSizer(wx.HORIZONTAL)
-        title_label = wx.StaticText(panel, label=title)
+        header = wx.Panel(panel)
+        header_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        header.SetSizer(header_sizer)
+        toggle = wx.StaticText(header, label="▾" if expanded else "▸")
+        toggle.SetFont(toggle.GetFont().Bold().Larger())
+        title_label = wx.StaticText(header, label=title)
         title_label.SetFont(title_label.GetFont().Bold().Larger())
-        summary_label = wx.StaticText(panel, label=self.owner._clip(summary, 115))
-        summary_label.Wrap(620)
-        toggle_label = wx.StaticText(panel, label="▾" if expanded else "▸")
-        toggle_label.SetFont(toggle_label.GetFont().Bold().Larger())
-        header.Add(toggle_label, 0, wx.ALL | wx.ALIGN_TOP, 8)
-        header.Add(title_label, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_TOP, 8)
-        header.Add(summary_label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 8)
+        summary_label = wx.StaticText(header, label=self.owner._clip(summary, 150))
+        summary_label.Wrap(700)
+        header_sizer.Add(toggle, 0, wx.ALL | wx.ALIGN_TOP, 8)
+        header_sizer.Add(title_label, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_TOP, 8)
+        header_sizer.Add(summary_label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 8)
         sizer.Add(header, 0, wx.EXPAND)
         body_sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(body_sizer, 0, wx.EXPAND)
-        self.bind_click(panel, card_id)
         return panel, body_sizer
 
     def is_expanded(self, card_id: str, default: bool) -> bool:
         return self.owner.center_card_state.is_expanded(card_id, default)
 
-    def bind_click(self, window: wx.Window, card_id: str) -> None:
-        if isinstance(window, wx.html.HtmlWindow) or isinstance(window, wx.TextCtrl):
+    def _bind_card_surface(self, window: wx.Window, card_id: str) -> None:
+        if isinstance(window, self.INTERACTIVE_TYPES):
             return
         window.SetCursor(wx.Cursor(wx.CURSOR_HAND))
 
-        def on_click(event: wx.Event, selected_card: str = card_id) -> None:
+        def on_click(event: wx.MouseEvent, selected_card: str = card_id) -> None:
             self.toggle(selected_card)
-            if hasattr(event, "StopPropagation"):
-                event.StopPropagation()
+            event.Skip(False)
 
         window.Bind(wx.EVT_LEFT_UP, on_click)
         for child in window.GetChildren():
-            if isinstance(child, wx.Window):
-                self.bind_click(child, card_id)
+            self._bind_card_surface(child, card_id)
 
     def toggle(self, card_id: str) -> None:
         self.owner.center_card_state.toggle(card_id, False)
