@@ -54,8 +54,14 @@ class CenterCardBuilder:
     def add_visible_briefing(self, detail: dict[str, Any]) -> None:
         primary = [
             (
+                "Published excerpt",
+                self._source_text(detail),
+                360,
+                92,
+            ),
+            (
                 "Role snapshot",
-                self._first_text(detail, "offer_snapshot", "description", "source_excerpt"),
+                self._first_text(detail, "offer_snapshot", "description"),
                 280,
                 86,
             ),
@@ -87,15 +93,15 @@ class CenterCardBuilder:
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
         if primary_visible:
-            sizer.Add(self._make_grid(panel, primary_visible, 2), 0, wx.ALL | wx.EXPAND, 4)
+            sizer.Add(self._make_grid(panel, primary_visible, 3), 0, wx.ALL | wx.EXPAND, 4)
         if support_visible:
             sizer.Add(self._make_grid(panel, support_visible, 3), 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
     def add_full_text_drawers(self, detail: dict[str, Any]) -> None:
         drawers = [
-            ("source", "Source text", detail.get("source_text") or detail.get("source_excerpt"), False, 260),
-            ("description", "Role description", detail.get("description"), False, 220),
+            ("original", "Original posting", self._source_text(detail), True, 240),
+            ("description", "Published role text", detail.get("description"), False, 220),
             ("snapshot", "Role snapshot", detail.get("offer_snapshot"), False, 180),
             ("signals", "Recognition signals", detail.get("call_signals"), False, 170),
             ("pitch", "Pitch", detail.get("pitch"), False, 170),
@@ -137,7 +143,7 @@ class CenterCardBuilder:
 
     def add_center_card(self, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int) -> None:
         text = str(body or "")
-        panel, body_sizer = self.card_shell(card_id, title, text or "—")
+        panel, body_sizer = self.card_shell(card_id, title, text or "—", expanded_by_default=expanded_by_default)
         if self.is_expanded(card_id, expanded_by_default):
             content = self.owner._html_text_window(panel, text or "—", min_height=min_height)
             content.SetMinSize((-1, min_height))
@@ -145,8 +151,8 @@ class CenterCardBuilder:
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
         self.bind_click(panel, card_id)
 
-    def card_shell(self, card_id: str, title: str, summary: str) -> tuple[wx.Panel, wx.BoxSizer]:
-        expanded = self.is_expanded(card_id, False)
+    def card_shell(self, card_id: str, title: str, summary: str, *, expanded_by_default: bool = False) -> tuple[wx.Panel, wx.BoxSizer]:
+        expanded = self.is_expanded(card_id, expanded_by_default)
         panel = wx.Panel(self.owner.center_scroll, style=wx.BORDER_SIMPLE)
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
@@ -216,6 +222,9 @@ class CenterCardBuilder:
             if text:
                 return text
         return ""
+
+    def _source_text(self, detail: dict[str, Any]) -> str:
+        return self._first_text(detail, "source_text", "source_excerpt", "description")
 
     def _logistics_text(self, detail: dict[str, Any]) -> str:
         parts = [
