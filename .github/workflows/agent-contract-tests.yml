@@ -15,7 +15,7 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q aaaat tests
       - name: Install package with test dependencies
-        run: python -m pip install -e .[test]
+        run: python -m pip install -q -e .[test]
       - name: Rebuilt intake and task architecture
         run: python -B -m unittest tests.test_v1_rebuild_architecture
       - name: Agent authority and runtime contracts
@@ -29,7 +29,21 @@ jobs:
       - name: MCP descriptor validation
         run: python -B -m aaaat.cli mcp-validate
       - name: Full unittest discovery
-        run: python -B -m unittest discover -s tests
+        id: discovery
+        shell: bash
+        run: |
+          set +e
+          python -B -m unittest discover -s tests > full-discovery.log 2>&1
+          status=$?
+          cat full-discovery.log
+          exit $status
+      - name: Upload discovery diagnostics
+        if: failure() && steps.discovery.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-discovery
+          path: full-discovery.log
+          retention-days: 1
 
   desktop-frame-construction:
     runs-on: windows-latest
@@ -39,6 +53,6 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install desktop package
-        run: python -m pip install -e .[desktop,test]
+        run: python -m pip install -q -e .[desktop,test]
       - name: Construct real desktop frame
         run: python -B tests/desktop_frame_construction.py
