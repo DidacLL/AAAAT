@@ -55,5 +55,5 @@ class NewCandidatureDialog(wx.Dialog):
         except (ValueError, OSError) as exc:
             self.error.SetLabel(str(exc))
             return
-        self.on_created(result)
         self.EndModal(wx.ID_OK)
+        wx.CallAfter(self.on_created, result)
