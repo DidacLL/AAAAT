@@ -52,6 +52,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.expanded_overview_ref: str | None = None
         self.center_card_state = CenterCardState.default()
         self._focus_layout_applied = False
+        self._focus_layout_pending = False
         self.focus_left_width = int(layout_state.pane_layout.get("smart", {}).get("left", DEFAULT_FOCUS_LEFT))
         self.focus_right_width = int(layout_state.pane_layout.get("smart", {}).get("right", 320))
         self._list_refs: list[str] = []
@@ -308,23 +309,33 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
             deficit = 420 - center
             right = max(240, right - deficit)
             center = width - left - right
-        if self.focus_splitter.IsSplit():
+        if self.focus_splitter.IsSplit() and abs(self.focus_splitter.GetSashPosition() - left) > 1:
             self.focus_splitter.SetSashPosition(left)
         if self.content_splitter.IsSplit():
-            self.content_splitter.SetSashPosition(max(360, center))
+            target_center = max(360, center)
+            if abs(self.content_splitter.GetSashPosition() - target_center) > 1:
+                self.content_splitter.SetSashPosition(target_center)
         height = int(self.center_panel.GetClientSize().GetHeight())
         if height > 0 and self.center_splitter.IsSplit():
             notes_height = max(120, min(180, round(height * 0.18)))
-            self.center_splitter.SetSashPosition(max(240, height - notes_height))
+            target_notes = max(240, height - notes_height)
+            if abs(self.center_splitter.GetSashPosition() - target_notes) > 1:
+                self.center_splitter.SetSashPosition(target_notes)
         self.focus_left_width = left
         self.focus_right_width = right
         self._focus_layout_applied = True
-        if force:
-            self._layout_current_surface()
 
     def _on_focus_size(self, event: wx.SizeEvent) -> None:
-        wx.CallAfter(self._apply_focus_layout, True)
+        if not self._focus_layout_pending:
+            self._focus_layout_pending = True
+            wx.CallAfter(self._run_pending_focus_layout)
         event.Skip()
+
+    def _run_pending_focus_layout(self) -> None:
+        self._focus_layout_pending = False
+        if self.IsBeingDeleted() or not self.focus_panel.IsShown():
+            return
+        self._apply_focus_layout(True)
 
     def _on_close(self, event: wx.CloseEvent) -> None:
         if not self._confirm_navigation():
