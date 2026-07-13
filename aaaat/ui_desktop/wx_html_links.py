@@ -16,9 +16,9 @@ class KeywordHtmlLinker:
         self._known_terms = known_terms
         self._select_keyword = select_keyword
 
-    def make_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
+    def make_window(self, parent: wx.Window, text: str, *, min_height: int, scrollable: bool = False) -> wx.html.HtmlWindow:
         style = wx.BORDER_NONE
-        if hasattr(wx.html, "HW_SCROLLBAR_NEVER"):
+        if not scrollable and hasattr(wx.html, "HW_SCROLLBAR_NEVER"):
             style |= wx.html.HW_SCROLLBAR_NEVER
         window = wx.html.HtmlWindow(parent, style=style)
         window.SetMinSize((-1, min_height))
