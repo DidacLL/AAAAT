@@ -231,6 +231,23 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._refresh_all()
         self.SetStatusText("Created candidature from pasted posting")
 
+    def _on_reset_layout(self, _event: wx.Event) -> None:
+        self.layout_state = DashboardLayoutState.default()
+        self.layout_state.selected_view = "smart"
+        self.layout_state.selected_candidature_ref = None
+        self.layout_state.selected_keyword = None
+        self.selected_ref = None
+        self.selected_keyword = None
+        self.search_query = ""
+        self.expanded_overview_ref = None
+        self.center_card_state.reset()
+        self._focus_layout_applied = False
+        self._rendered_view_keys.clear()
+        self.layout_state.save(self.layout_path)
+        self._show_overview()
+        self._refresh_all()
+        self.SetStatusText("Layout reset")
+
     def _delete_candidature_from_panel(self, ref: str) -> None:
         if not can_write(self.mode) or not ref:
             return
