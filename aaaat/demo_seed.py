@@ -35,7 +35,7 @@ ROLES = [
 ]
 
 STACKS = [
-    ["Python", "FastAPI", "PostgreSQL", "Docker"],
+    ["Python", "APIs", "PostgreSQL", "Docker"],
     ["Python", "Django", "Redis", "AWS"],
     ["Python", "ETL", "Airflow", "BigQuery"],
     ["Go", "Kubernetes", "gRPC", "Observability"],
@@ -45,7 +45,6 @@ STACKS = [
     ["Python", "Data", "APIs", "Pandas"],
 ]
 
-STATUSES = ["draft", "applied", "screening", "meeting", "technical", "offer-risk", "paused"]
 PRIORITIES = ["high", "normal", "low"]
 SOURCES = ["LinkedIn recruiter", "Welcome to the Jungle", "Company careers", "Referral", "Cold inbound", "Otta", "RemoteOK"]
 LOCATIONS = ["Barcelona", "Madrid", "Remote EU", "Berlin", "Amsterdam", "London", "Paris", "Hybrid Barcelona"]
@@ -53,7 +52,7 @@ REMOTE = ["remote", "hybrid", "onsite", "remote EU"]
 
 GLOSSARY = {
     "Python": "Use concrete examples: APIs, automation scripts, CLIs, data workflows, and local-first tooling.",
-    "FastAPI": "Mention typed endpoints, validation, local service boundaries, and simple deployment.",
+    "APIs": "Mention clear boundaries, contracts, validation, documentation, and operational ownership.",
     "PostgreSQL": "Focus on relational modeling, migrations, indexing, and reliable transactional behavior.",
     "Kubernetes": "Describe operational familiarity and debugging, not platform-guru claims unless evidence exists.",
     "Terraform": "Talk about reproducibility, reviewable infrastructure changes, and cautious rollout.",
@@ -68,7 +67,7 @@ def build_record(index: int) -> dict[str, Any]:
     company = COMPANIES[index % len(COMPANIES)]
     role = ROLES[index % len(ROLES)]
     keywords = list(STACKS[index % len(STACKS)])
-    status = STATUSES[index % len(STATUSES)]
+    status = "closed" if index % 13 == 12 else "active"
     priority = PRIORITIES[index % len(PRIORITIES)]
     source = SOURCES[index % len(SOURCES)]
     location = LOCATIONS[index % len(LOCATIONS)]
@@ -86,16 +85,12 @@ def build_record(index: int) -> dict[str, Any]:
         "source_url": f"https://example.invalid/jobs/{index + 1:03d}",
         "location": location,
         "remote_mode": remote_mode,
-        "next_action": f"Call: identify them by {focus}/{secondary}, ask about ownership and delivery pressure.",
         "notes": f"Recruiter-call scratchpad for {company}. Mention local-first tooling, pragmatic architecture, and concrete delivery examples.",
         "call_signals": f"They mentioned {focus}, {secondary}, and a small team needing autonomy. Listen for product/platform split.",
-        "technical_reading": f"Review one recent article about {focus} scaling and prepare a short trade-off answer around {secondary}.",
         "pitch": f"Position as a pragmatic engineer who can own {focus} systems, reduce ambiguity, and ship maintainable tooling without overengineering.",
         "smart_question": f"What is the first {focus} problem this role must improve in the first 90 days?",
         "risks_to_avoid": "Do not sound like a pure framework specialist; keep examples grounded in outcomes, maintainability, and team leverage.",
-        "prepare_first": f"Prepare one STAR story about {focus}, one about debugging production behavior, and one about simplifying a messy workflow.",
-        "prepare_later": "If advanced, inspect company product docs, funding/news context, and likely team topology before technical interview.",
-        "offer_snapshot": f"Likely senior IC scope. Watch for unclear salary band, relocation expectation, and ownership without authority.",
+        "offer_snapshot": f"Likely senior IC scope. Watch for unclear salary band, relocation expectation, and ownership without authority. Current stack includes {', '.join(keywords)}.",
         "company_research": f"{company} appears in this demo as a realistic target with a mixed product/platform need. Treat as call-prep material, not factual research.",
         "form_answers": f"Why interested: the role combines {focus}, product impact, and clean internal tooling. Availability: flexible. Work mode: {remote_mode}.",
         "keywords": keywords,
@@ -103,8 +98,6 @@ def build_record(index: int) -> dict[str, Any]:
 
     if index % 7 == 0:
         record["form_answers"] = ""
-    if index % 9 == 0:
-        record["technical_reading"] = ""
     if index % 11 == 0:
         record["offer_snapshot"] = ""
     return record
