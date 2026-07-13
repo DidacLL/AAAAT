@@ -55,6 +55,7 @@ class CenterCardBuilder:
                 grid.Add(block, 1, wx.EXPAND)
             body_sizer.Add(grid, 1, wx.ALL | wx.EXPAND, 8)
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
+        self.bind_click(panel, "call")
 
     def add_source_card(self, detail: dict[str, Any]) -> None:
         source_text = str(detail.get("source_text") or "")
@@ -69,6 +70,7 @@ class CenterCardBuilder:
             body_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
             body_sizer.Add(reader, 1, wx.ALL | wx.EXPAND, 8)
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
+        self.bind_click(panel, "source")
 
     def add_center_card(self, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int) -> None:
         text = str(body or "")
@@ -78,6 +80,7 @@ class CenterCardBuilder:
             content.SetMinSize((-1, min_height))
             body_sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
+        self.bind_click(panel, card_id)
 
     def card_shell(self, card_id: str, title: str, summary: str) -> tuple[wx.Panel, wx.BoxSizer]:
         expanded = self.is_expanded(card_id, card_id in {"call", "now"})
@@ -104,7 +107,7 @@ class CenterCardBuilder:
         return self.owner.center_card_state.is_expanded(card_id, default)
 
     def bind_click(self, window: wx.Window, card_id: str) -> None:
-        if isinstance(window, wx.html.HtmlWindow) or isinstance(window, wx.TextCtrl):
+        if isinstance(window, wx.TextCtrl):
             return
         window.SetCursor(wx.Cursor(wx.CURSOR_HAND))
 
