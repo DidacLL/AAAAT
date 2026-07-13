@@ -1,6 +1,6 @@
 # CLI
 
-## Profile / CV Data
+## Profile and CV data
 
 `variables` store scalar placeholders such as `profile.display_name` or `profile.email`.
 `profile_facts` store structured professional/CV facts for future CV adaptation, cover letters, fit reasoning, recruiter prep, form answers, and market context.
@@ -12,7 +12,7 @@ Examples:
 aaaat profile fact add --type skill --title Python --body "Backend APIs and automation." --visibility professional --exposure summarized --use-for-cv --use-for-agent-context
 aaaat profile fact list
 aaaat profile fact show fact_123
-aaaat profile fact update fact_123 --exposure placeholder --no-use-for-market-research
+aaaat profile fact update fact_123 --exposure placeholder
 aaaat profile fact archive fact_123
 aaaat profile context --purpose cv_generation
 aaaat career-plan add --body "Target local-first developer tooling roles." --objectives "senior backend" --constraints "remote-friendly" --target-markets "EU" --target-roles "Backend Engineer"
@@ -34,17 +34,17 @@ python -m aaaat.cli backup
 
 By default this writes a timestamped zip under `.private/backups/` containing the SQLite database and files under `.private/artifacts/`. To write elsewhere, pass `--output <path>` and `--force`; without `--force`, AAAAT refuses backup targets outside the configured local storage path.
 
-Stable local commands:
+## Desktop and local commands
 
 ```bash
 python -m aaaat.cli init
+aaaat-desktop
+aaaat-desktop --read-only
+aaaat-seed-desktop-demo --reset --count 24
 python -m aaaat.cli backup
 python -m aaaat.cli backup --output /safe/private/backups --force
-python -m aaaat.cli launch
-python -m aaaat.cli launch --read-only
-python -m aaaat.cli launch --agent-api
 python -m aaaat.cli app create --company "Example Co" --role "Backend Engineer"
-python -m aaaat.cli app update <id> --next-action "Call recruiter" --keywords "ATS, Python"
+python -m aaaat.cli app update <id> --status active --keywords "ATS, Python"
 python -m aaaat.cli app list
 python -m aaaat.cli app show <id>
 python -m aaaat.cli intake add <id> --content "..."
@@ -54,22 +54,21 @@ python -m aaaat.cli profile missing
 python -m aaaat.cli profile set display_name "Local User"
 python -m aaaat.cli career-plan add --body "Target backend automation roles" --target-roles "Backend Engineer" --target-markets "EU"
 python -m aaaat.cli career-plan list
-python -m aaaat.cli review-queue
-python -m aaaat.cli review-queue <application_id>
 python -m aaaat.cli artifact list <id>
 python -m aaaat.cli artifact save --application-id <id> --type cover_letter --path local/cover.pdf --label "Cover letter"
 python -m aaaat.cli artifact update-state <artifact_id> --state reviewed --notes "Ready"
 python -m aaaat.cli render cv
-python -m aaaat.cli render cover-letter <id>
-python -m aaaat.cli export static-demo outputs/static-demo.html
+python -m aaaat.cli render cover-letter <id> --body "Draft body"
 python -m aaaat.cli agent-guide
 ```
 
 Broad local CLI commands remain available for human/admin maintenance, but they are not the agent runtime contract.
 
-`intake raw-offer` is a human/local AAAAT-originated flow. It creates a placeholder application with `company = "Pending extraction"`, `role = "Pending role"`, `status = "intake"`, and a user-created raw intake record. The deterministic review queue can then ask an agent to work on bounded task context.
+`intake raw-offer` is a human/local AAAAT-originated flow. It creates a placeholder active candidature with `company = "Pending extraction"`, `role = "Pending role"`, and a user-created raw intake record. Follow-up preparation work is represented as bounded tasks.
 
-Agent-facing runtime capabilities are task-handle and action-session scoped:
+## Agent-facing runtime
+
+Agent-facing capabilities are task-handle and action-session scoped:
 
 ```bash
 python -m aaaat.cli agent next
@@ -81,6 +80,8 @@ python -m aaaat.cli agent context-bundle --purpose cover_letter
 python -m aaaat.cli agent context-bundle --purpose career_plan_review
 python -m aaaat.cli agent action submit --input-file action.json
 python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'
+python -m aaaat.cli mcp-descriptor
+python -m aaaat.cli mcp-validate
 ```
 
 `task_handle` is an opaque task endpoint handle only. It must not equal or be treated as a local task row ID, application ID, candidature ID, profile fact ID, artifact ID, or other entity mutation authority. Agent submit acknowledgements return only status, task handle/state, and next hints.
@@ -89,20 +90,7 @@ Task packets and task contexts are self-contained for supported AAAAT task types
 
 Agent context bundles may include active career plans for `cover_letter`, `cv_generation`, `candidature_fit`, `market_research`, `recruiter_call`, `form_answers`, and `career_plan_review`. They expose `plan_ref`, not career-plan row IDs.
 
-The HTTP agent runtime exposes the stricter machine-facing route set:
-
-```text
-GET  /api/health
-GET  /api/agent/tasks/next
-GET  /api/agent/tasks/{task_handle}/context
-POST /api/agent/tasks/{task_handle}/result
-POST /api/agent/context-bundle
-POST /api/agent/actions
-```
-
-The agent runtime does not expose dashboard routes, broad entity lists, claim/release endpoints, or entity-ID mutation APIs.
-
-The agent action-session capability supports LLM-app-originated work, not raw-offer upload or object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
+The agent action-session capability supports LLM-app-originated work, not broad object CRUD. The LLM first asks for purpose-scoped context, then submits one bounded action.
 
 The LLM-app-originated action may carry already-inferred candidature fields, company research, form answers, cover-letter body text, render requests, and optional `requested_tasks` for bounded follow-up work. AAAAT stores supplied values, renders local artifacts itself, and queues only non-duplicate requested tasks it supports.
 
@@ -114,7 +102,7 @@ For cover letters and CVs, the agent supplies data used by AAAAT templates. AAAA
 
 The agent is not the user. Agent-written text should land in explicit fields, task results, form answers, research/preparation fields, render inputs, or bounded future-task requests, not in human note commands.
 
-Durable production-sprint local commands:
+## Additional local maintenance commands
 
 ```bash
 python -m aaaat.cli task create --application-id <id> --type company_research --title "Research company"
