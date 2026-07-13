@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS applications (
   id TEXT PRIMARY KEY,
   company TEXT NOT NULL,
   role TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'draft',
+  status TEXT NOT NULL DEFAULT 'active',
   priority TEXT NOT NULL DEFAULT 'normal',
   source TEXT DEFAULT '',
   source_url TEXT DEFAULT '',
