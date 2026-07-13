@@ -26,9 +26,11 @@ class UserPanel(wx.ScrolledWindow):
         self._original_values: dict[str, str] = {}
         self._field_storage_keys: dict[str, str | None] = {}
         self._controls: dict[str, wx.TextCtrl] = {}
+        self._wrap_targets: list[wx.StaticText] = []
         self.SetScrollRate(0, 12)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.sizer)
+        self.Bind(wx.EVT_SIZE, self._on_size)
 
     def render(self, projection: dict[str, Any], *, can_edit: bool) -> None:
         self.Freeze()
@@ -37,11 +39,12 @@ class UserPanel(wx.ScrolledWindow):
             self._controls = {}
             self._original_values = {}
             self._field_storage_keys = {}
+            self._wrap_targets = []
             title = wx.StaticText(self, label="Profile")
             title.SetFont(title.GetFont().Bold().Larger().Larger())
             body = wx.StaticText(self, label="Professional identity and defaults used for local CVs, letters, forms and preparation material.")
-            body.Wrap(self._wrap_width())
-            self.Bind(wx.EVT_SIZE, lambda event, target=body: self._wrap_on_resize(event, target))
+            self._wrap_label(body)
+            self._wrap_targets.append(body)
             self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
             self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
 
@@ -108,6 +111,17 @@ class UserPanel(wx.ScrolledWindow):
     def _wrap_width(self) -> int:
         return max(260, int(self.GetClientSize().GetWidth() or 760) - 28)
 
-    def _wrap_on_resize(self, event: wx.SizeEvent, target: wx.StaticText) -> None:
-        target.Wrap(self._wrap_width())
+    def _on_size(self, event: wx.SizeEvent) -> None:
+        live_targets: list[wx.StaticText] = []
+        for target in self._wrap_targets:
+            try:
+                if target and not target.IsBeingDeleted():
+                    self._wrap_label(target)
+                    live_targets.append(target)
+            except RuntimeError:
+                continue
+        self._wrap_targets = live_targets
         event.Skip()
+
+    def _wrap_label(self, target: wx.StaticText) -> None:
+        target.Wrap(self._wrap_width())
