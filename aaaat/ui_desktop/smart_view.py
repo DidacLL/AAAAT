@@ -17,7 +17,7 @@ from .scrolling import bind_parent_wheel_scroll
 from .wx_html_links import KeywordHtmlLinker
 
 DEFAULT_FOCUS_LEFT = 220
-DEFAULT_FOCUS_RIGHT = 360
+DEFAULT_FOCUS_RIGHT = 220
 DEFAULT_WINDOW_SIZE = (1280, 780)
 DEFAULT_CENTER_NOTES_HEIGHT = 150
 _VIEW_TAB_INDEX = {"smart": 0, "detailed": 1, "user": 2}
@@ -132,25 +132,25 @@ class SmartViewMixin(OverviewBoardMixin):
         self.overview_panel.Hide()
         self.focus_panel.Show()
         self._sync_view_tab()
-        if not self._focus_layout_applied:
-            wx.CallAfter(self._apply_focus_layout, False)
+        wx.CallAfter(self._apply_focus_layout, False)
 
     def _apply_focus_layout(self, force: bool) -> None:
         if not self.focus_panel.IsShown() or (self._focus_layout_applied and not force):
             return
-        total_width = max(DEFAULT_WINDOW_SIZE[0], int(self.focus_panel.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0]))
-        left = max(170, min(280, int(total_width * 0.18)))
-        right = max(300, min(400, int(total_width * 0.28)))
-        content_width = max(680, total_width - left)
-        center = max(480, content_width - right)
+        total_width = int(self.focus_panel.GetClientSize().GetWidth() or self.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0])
+        total_width = max(1, total_width)
+        left = max(1, int(total_width * 0.18))
+        right = max(1, int(total_width * 0.18))
+        center = max(1, total_width - left - right)
         if self.focus_splitter.IsSplit():
             self.focus_splitter.SetSashPosition(left)
         if self.content_splitter.IsSplit():
             self.content_splitter.SetSashPosition(center)
-        center_height = int(self.center_panel.GetClientSize().GetHeight() or DEFAULT_WINDOW_SIZE[1])
-        notes_height = max(120, min(190, int(center_height * 0.20)))
+        center_height = int(self.center_panel.GetClientSize().GetHeight() or self.GetClientSize().GetHeight() or DEFAULT_WINDOW_SIZE[1])
+        center_height = max(1, center_height)
+        notes_height = max(1, int(center_height * 0.20))
         if self.center_splitter.IsSplit():
-            self.center_splitter.SetSashPosition(max(220, center_height - notes_height))
+            self.center_splitter.SetSashPosition(max(1, center_height - notes_height))
         self.focus_left_width = left
         self.focus_right_width = right
         self._focus_layout_applied = True
@@ -218,8 +218,6 @@ class SmartViewMixin(OverviewBoardMixin):
 
         self.center_cards.add_hero(detail)
         self.center_cards.add_call_card(detail)
-        self.center_cards.add_center_card("strategy", "Strategy", detail.get("role_strategy"), expanded_by_default=True, min_height=118)
-        self.center_cards.add_center_card("evaluation", "Evaluation", detail.get("candidature_evaluation"), expanded_by_default=True, min_height=118)
         self.center_cards.add_source_card(detail)
         self.center_cards.add_center_card("now", "Now", detail.get("prepare_first"), expanded_by_default=True, min_height=92)
         self.center_cards.add_center_card("later", "Later", detail.get("prepare_later"), expanded_by_default=False, min_height=92)
@@ -450,13 +448,6 @@ class SmartViewMixin(OverviewBoardMixin):
         self.focus_right_width = DEFAULT_FOCUS_RIGHT
         self._focus_layout_applied = False
         self._rendered_view_keys.clear()
-        if self.focus_splitter.IsSplit():
-            self.focus_splitter.SetSashPosition(self.focus_left_width)
-        if self.content_splitter.IsSplit():
-            self.content_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width)
-        if self.center_splitter.IsSplit():
-            self.center_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[1] - DEFAULT_CENTER_NOTES_HEIGHT - 90)
-        self.SetStatusText("Layout reset")
         self._refresh_all()
 
     def _on_close(self, event: wx.CloseEvent) -> None:
@@ -468,9 +459,11 @@ class SmartViewMixin(OverviewBoardMixin):
             self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
         if self.content_splitter.IsSplit():
             total = max(1, self.content_splitter.GetClientSize().GetWidth())
-            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(260, total - self.content_splitter.GetSashPosition())
+            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(1, total - self.content_splitter.GetSashPosition())
         if hasattr(self, "detailed_splitter") and self.detailed_splitter.IsSplit():
-            total = max(1, self.detailed_splitter.GetClientSize().GetWidth())
-            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(260, total - self.detailed_splitter.GetSashPosition())
+            self.layout_state.pane_layout.setdefault("detailed", {})["left"] = max(1, self.detailed_splitter.GetSashPosition())
+        if hasattr(self, "detailed_body_splitter") and self.detailed_body_splitter.IsSplit():
+            total = max(1, self.detailed_body_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(1, total - self.detailed_body_splitter.GetSashPosition())
         self.layout_state.save(self.layout_path)
         event.Skip()
