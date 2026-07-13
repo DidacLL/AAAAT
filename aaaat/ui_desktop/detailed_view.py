@@ -19,7 +19,6 @@ class DetailedViewMixin:
         self.detailed_panel = wx.Panel(self.view_book)
         root = wx.BoxSizer(wx.VERTICAL)
         self.detailed_panel.SetSizer(root)
-
         toolbar = wx.BoxSizer(wx.HORIZONTAL)
         label = wx.StaticText(self.detailed_panel, label="Detailed View")
         label.SetFont(label.GetFont().Bold().Larger())
@@ -75,18 +74,22 @@ class DetailedViewMixin:
 
     def _refresh_detailed_view(self) -> None:
         detailed = self.projection.get("detailed") or {}
+        record = self.command_service.get_candidature_record(self.selected_ref) if self.selected_ref else None
         self.detailed_panel.Freeze()
         try:
             if self.detailed_search.GetValue() != self.search_query:
                 self.detailed_search.SetValue(self.search_query)
             visible_columns = self._visible_detailed_columns(detailed)
             self.detail_table.render(detailed, selected_ref=self.selected_ref, visible_columns=visible_columns)
-            self.detail_panel.render(self.projection, can_edit=can_write(self.mode))
+            self.detail_panel.render(self.projection, can_edit=can_write(self.mode), record=record)
             self._refresh_detailed_sidebar()
             self._apply_detailed_layout()
             self.detailed_panel.Layout()
         finally:
             self.detailed_panel.Thaw()
+
+    def _confirm_detail_navigation(self) -> bool:
+        return not hasattr(self, "detail_panel") or self.detail_panel.confirm_navigation()
 
     def _on_detailed_size(self, event: wx.SizeEvent) -> None:
         wx.CallAfter(self._apply_detailed_layout)
@@ -98,33 +101,27 @@ class DetailedViewMixin:
             return
         list_width = max(280, min(400, round(width * 0.24)))
         sidebar_width = max(280, min(380, round(width * 0.23)))
-        remaining = max(420, width - list_width)
-        center_width = max(420, remaining - sidebar_width)
+        center_width = max(420, width - list_width - sidebar_width)
         if self.detailed_splitter.IsSplit():
             self.detailed_splitter.SetSashPosition(list_width)
         if self.detailed_content_splitter.IsSplit():
             self.detailed_content_splitter.SetSashPosition(center_width)
 
     def _visible_detailed_columns(self, detailed: dict[str, Any]) -> list[str]:
-        available_columns = [column for column in detailed.get("available_columns") or [] if isinstance(column, dict)]
+        available = [column for column in detailed.get("available_columns") or [] if isinstance(column, dict)]
         configured = self.layout_state.detailed_columns.get("visible") or detailed.get("visible_columns") or []
-        return normalize_visible_columns(available_columns, configured)
+        return normalize_visible_columns(available, configured)
 
     def _on_choose_detailed_columns(self, _event: wx.CommandEvent) -> None:
         detailed = self.projection.get("detailed") or {}
-        available_columns = [column for column in detailed.get("available_columns") or [] if isinstance(column, dict)]
-        ids = available_column_ids(available_columns)
+        available = [column for column in detailed.get("available_columns") or [] if isinstance(column, dict)]
+        ids = available_column_ids(available)
         if not ids:
             return
         current = set(self._visible_detailed_columns(detailed))
-        dialog = wx.MultiChoiceDialog(
-            self.detailed_panel,
-            "Choose visible Detailed View columns",
-            "Detailed View columns",
-            [column_title(available_columns, column_id) for column_id in ids],
-        )
+        dialog = wx.MultiChoiceDialog(self.detailed_panel, "Choose visible columns", "Detailed View columns", [column_title(available, item) for item in ids])
         try:
-            dialog.SetSelections([index for index, column_id in enumerate(ids) if column_id in current])
+            dialog.SetSelections([index for index, item in enumerate(ids) if item in current])
             if dialog.ShowModal() != wx.ID_OK:
                 return
             selected = [ids[index] for index in dialog.GetSelections()]
@@ -141,7 +138,7 @@ class DetailedViewMixin:
         self._mark_current_view_rendered()
 
     def _select_detailed_ref(self, ref: str) -> None:
-        if not ref:
+        if not ref or not self._confirm_detail_navigation():
             return
         self.selected_ref = ref
         self.layout_state.selected_candidature_ref = ref
@@ -166,12 +163,7 @@ class DetailedViewMixin:
             return
         row = self._detailed_selected_row() or {}
         label = " ".join(part for part in (str(row.get("company") or ""), str(row.get("role") or "")) if part).strip() or ref
-        confirmed = wx.MessageBox(
-            f"Delete candidature '{label}'?\n\nThis removes the local candidature record and related local rows.",
-            "Delete candidature",
-            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
-            self.detailed_panel,
-        )
+        confirmed = wx.MessageBox(f"Delete candidature '{label}'?", "Delete candidature", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING, self.detailed_panel)
         if confirmed != wx.YES or not self.command_service.delete_candidature(ref):
             return
         self.selected_ref = None
@@ -186,7 +178,7 @@ class DetailedViewMixin:
         self._mark_current_view_rendered()
 
     def _open_selected_in_smart(self) -> None:
-        if not self.selected_ref:
+        if not self.selected_ref or not self._confirm_detail_navigation():
             return
         self.layout_state.selected_candidature_ref = self.selected_ref
         self._show_focus()
