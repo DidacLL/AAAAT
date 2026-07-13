@@ -9,154 +9,137 @@ class DetailFieldSpec:
     group: str
     key: str
     label: str
-    editable: bool = False
     storage_key: str | None = None
     multiline: bool = False
-    read_only_reason: str = ""
+
+    @property
+    def editable(self) -> bool:
+        return self.storage_key is not None
 
 
-FIELD_GROUPS = [
+FIELD_GROUPS = (
     "Identity",
     "Logistics",
     "Workflow",
-    "Notes and call prep",
-    "Research and context",
-    "Artifacts and generated material",
+    "Call preparation",
     "Offer and compensation",
-    "Raw/source",
-]
+    "Research and context",
+    "Application material",
+    "Provenance",
+)
 
-DETAIL_FIELD_SPECS = [
-    DetailFieldSpec("Identity", "ref", "Candidature ref", read_only_reason="Internal identifier"),
-    DetailFieldSpec("Identity", "company", "Company", editable=True, storage_key="company"),
-    DetailFieldSpec("Identity", "role", "Role", editable=True, storage_key="role"),
-    DetailFieldSpec("Identity", "keywords", "Keywords", editable=True, storage_key="keywords", multiline=True),
-    DetailFieldSpec("Logistics", "location", "Location", editable=True, storage_key="location"),
-    DetailFieldSpec("Logistics", "remote_mode", "Remote", editable=True, storage_key="remote_mode"),
-    DetailFieldSpec("Logistics", "source", "Source label", editable=True, storage_key="source"),
-    DetailFieldSpec("Logistics", "source_url", "Source URL", editable=True, storage_key="source_url"),
-    DetailFieldSpec("Workflow", "status", "Status", editable=True, storage_key="status"),
-    DetailFieldSpec("Workflow", "priority", "Priority", editable=True, storage_key="priority"),
-    DetailFieldSpec("Workflow", "next_action", "Next action", editable=True, storage_key="next_action", multiline=True),
-    DetailFieldSpec("Workflow", "deadline", "Next date", read_only_reason="Projected date field has no safe local write target yet"),
-    DetailFieldSpec("Workflow", "last_contact", "Last activity", read_only_reason="Projected activity timestamp/context"),
-    DetailFieldSpec("Workflow", "task_queue", "Task queue", read_only_reason="Derived review queue summary"),
-    DetailFieldSpec("Notes and call prep", "notes", "Notes", editable=True, storage_key="notes", multiline=True),
-    DetailFieldSpec("Notes and call prep", "call_signals", "Call signals", editable=True, storage_key="call_signals", multiline=True),
-    DetailFieldSpec("Notes and call prep", "pitch", "Pitch", editable=True, storage_key="pitch", multiline=True),
-    DetailFieldSpec("Notes and call prep", "smart_question", "Smart question", editable=True, storage_key="smart_question", multiline=True),
-    DetailFieldSpec("Notes and call prep", "risk_to_avoid", "Risk to avoid", editable=True, storage_key="risks_to_avoid", multiline=True),
-    DetailFieldSpec("Notes and call prep", "prepare_first", "Prepare first", editable=True, storage_key="prepare_first", multiline=True),
-    DetailFieldSpec("Notes and call prep", "prepare_later", "Prepare later", editable=True, storage_key="prepare_later", multiline=True),
-    DetailFieldSpec("Research and context", "company_research", "Company research", editable=True, storage_key="company_research", multiline=True),
-    DetailFieldSpec("Research and context", "form_answers", "Form answers", editable=True, storage_key="form_answers", multiline=True),
-    DetailFieldSpec("Artifacts and generated material", "artifacts_state", "Artifacts state", read_only_reason="Generated artifact metadata"),
-    DetailFieldSpec("Artifacts and generated material", "artifacts_count", "Artifacts count", read_only_reason="Derived artifact count"),
-    DetailFieldSpec("Artifacts and generated material", "artifacts_items", "Artifacts", read_only_reason="Generated artifact metadata"),
-    DetailFieldSpec("Offer and compensation", "offer_snapshot", "Offer snapshot", editable=True, storage_key="offer_snapshot", multiline=True),
-    DetailFieldSpec("Raw/source", "source_excerpt", "Source excerpt", read_only_reason="Projected source evidence excerpt"),
-    DetailFieldSpec("Raw/source", "source_text", "Raw/source text", read_only_reason="Immutable source evidence"),
-    DetailFieldSpec("Raw/source", "source_length", "Source length", read_only_reason="Derived source length"),
-    DetailFieldSpec("Raw/source", "source_has_raw", "Has raw intake", read_only_reason="Source provenance"),
-    DetailFieldSpec("Raw/source", "created_at", "Created", read_only_reason="Timestamp"),
-    DetailFieldSpec("Raw/source", "updated_at", "Updated", read_only_reason="Timestamp"),
-]
+DETAIL_FIELD_SPECS = (
+    DetailFieldSpec("Identity", "company", "Company", "company"),
+    DetailFieldSpec("Identity", "role", "Role", "role"),
+    DetailFieldSpec("Identity", "description", "Role description", "description", True),
+    DetailFieldSpec("Identity", "keywords", "Keywords", "keywords", True),
+    DetailFieldSpec("Identity", "tech_stack", "Technical stack", "tech_stack", True),
+    DetailFieldSpec("Logistics", "location", "Location", "location"),
+    DetailFieldSpec("Logistics", "remote_mode", "Remote mode", "remote_mode"),
+    DetailFieldSpec("Logistics", "salary_expectation", "Salary / compensation", "salary_expectation"),
+    DetailFieldSpec("Logistics", "publication_date", "Publication date", "publication_date"),
+    DetailFieldSpec("Logistics", "application_date", "Application date", "application_date"),
+    DetailFieldSpec("Logistics", "source", "Source", "source"),
+    DetailFieldSpec("Logistics", "source_url", "Source URL", "source_url"),
+    DetailFieldSpec("Workflow", "status", "Status", "status"),
+    DetailFieldSpec("Workflow", "priority", "Priority", "priority"),
+    DetailFieldSpec("Workflow", "next_action", "Next action", "next_action", True),
+    DetailFieldSpec("Workflow", "valuation", "Valuation", "valuation"),
+    DetailFieldSpec("Call preparation", "call_signals", "Call signals", "call_signals", True),
+    DetailFieldSpec("Call preparation", "pitch", "Pitch", "pitch", True),
+    DetailFieldSpec("Call preparation", "smart_question", "Primary question", "smart_question", True),
+    DetailFieldSpec("Call preparation", "risks_to_avoid", "Risks to avoid", "risks_to_avoid", True),
+    DetailFieldSpec("Call preparation", "questions_to_ask", "Questions to ask", "questions_to_ask", True),
+    DetailFieldSpec("Call preparation", "prepare_first", "Prepare first", "prepare_first", True),
+    DetailFieldSpec("Call preparation", "prepare_later", "Prepare later", "prepare_later", True),
+    DetailFieldSpec("Call preparation", "strengths", "Strengths / fit", "strengths", True),
+    DetailFieldSpec("Call preparation", "technical_reading", "Technical reading", "technical_reading", True),
+    DetailFieldSpec("Offer and compensation", "offer_snapshot", "Offer summary", "offer_snapshot", True),
+    DetailFieldSpec("Offer and compensation", "source_text", "Original offer text", "source_text", True),
+    DetailFieldSpec("Research and context", "company_research", "Company research", "company_research", True),
+    DetailFieldSpec("Application material", "raw_application_form", "Application form", "raw_application_form", True),
+    DetailFieldSpec("Application material", "form_answers", "Form answers", "form_answers", True),
+    DetailFieldSpec("Application material", "artifacts_items", "Artifacts"),
+    DetailFieldSpec("Provenance", "ref", "Candidature reference"),
+    DetailFieldSpec("Provenance", "created_at", "Created"),
+    DetailFieldSpec("Provenance", "updated_at", "Updated"),
+    DetailFieldSpec("Provenance", "source_length", "Source length"),
+)
 
-MEANINGFUL_PROJECTED_FIELD_KEYS = {spec.key for spec in DETAIL_FIELD_SPECS}
-WRITABLE_DETAIL_STORAGE_KEYS = {spec.storage_key for spec in DETAIL_FIELD_SPECS if spec.editable and spec.storage_key}
-
-
-def build_detail_record(projection: dict[str, Any]) -> dict[str, Any]:
-    detailed = projection.get("detailed") or {}
-    smart = projection.get("smart") or {}
-    row = detailed.get("selected_row") or {}
-    selected = smart.get("selected_candidature_detail") or {}
-    primary_note = smart.get("primary_note") or {}
-    source_text = smart.get("source_text") or {}
-    artifact_summary = smart.get("artifact_summary") or {}
-    company_research = smart.get("company_research") or {}
-    form_answers = smart.get("form_answers") or {}
-    task_queue = detailed.get("task_queue_summary") or {}
-
-    record: dict[str, Any] = {}
-    record.update(row)
-    record.update(selected)
-    record["ref"] = selected.get("ref") or row.get("ref")
-    record["keywords"] = _keywords(selected.get("keywords") or row.get("keywords"))
-    record["notes"] = primary_note.get("body") or row.get("notes_excerpt") or ""
-    record["company_research"] = company_research.get("body") or ""
-    record["form_answers"] = form_answers.get("body") or ""
-    record["source_text"] = source_text.get("body") or selected.get("source_text") or ""
-    record["source_excerpt"] = source_text.get("excerpt") or selected.get("source_excerpt") or row.get("source_excerpt") or ""
-    record["source_length"] = source_text.get("length") if source_text.get("length") is not None else selected.get("source_length") or ""
-    record["source_has_raw"] = source_text.get("has_raw") if source_text.get("has_raw") is not None else ""
-    record["artifacts_count"] = artifact_summary.get("count", 0)
-    record["artifacts_state"] = artifact_summary.get("state") or row.get("artifacts_state") or ""
-    record["artifacts_items"] = _artifact_items(artifact_summary.get("items") or [])
-    record["task_queue"] = _task_queue(task_queue)
-    return record
+WRITABLE_DETAIL_STORAGE_KEYS = {spec.storage_key for spec in DETAIL_FIELD_SPECS if spec.storage_key}
 
 
-def grouped_detail_fields(projection: dict[str, Any]) -> list[dict[str, Any]]:
-    record = build_detail_record(projection)
-    groups: list[dict[str, Any]] = []
-    for group_name in FIELD_GROUPS:
-        fields = []
-        for spec in DETAIL_FIELD_SPECS:
-            if spec.group != group_name:
-                continue
-            fields.append({
-                "key": spec.key,
-                "label": spec.label,
-                "value": _string_value(record.get(spec.key)),
-                "editable": spec.editable,
-                "storage_key": spec.storage_key,
-                "multiline": spec.multiline,
-                "read_only_reason": spec.read_only_reason,
-            })
-        groups.append({"title": group_name, "fields": fields})
-    return groups
+def build_detail_record(projection: dict[str, Any], record: dict[str, Any] | None = None) -> dict[str, Any]:
+    if record is not None:
+        result = dict(record)
+    else:
+        detailed = projection.get("detailed") or {}
+        smart = projection.get("smart") or {}
+        result = dict(detailed.get("selected_row") or {})
+        result.update(smart.get("selected_candidature_detail") or {})
+        result["notes"] = str((smart.get("primary_note") or {}).get("body") or result.get("notes") or "")
+        result["source_text"] = str((smart.get("source_text") or {}).get("body") or result.get("source_text") or "")
+        result["company_research"] = str((smart.get("company_research") or {}).get("body") or result.get("company_research") or "")
+        result["form_answers"] = str((smart.get("form_answers") or {}).get("body") or result.get("form_answers") or "")
+        result["artifacts_items"] = _artifact_items((smart.get("artifact_summary") or {}).get("items") or [])
+    details = result.get("details")
+    if isinstance(details, dict):
+        result.update(details)
+    if "risk_to_avoid" in result and "risks_to_avoid" not in result:
+        result["risks_to_avoid"] = result.get("risk_to_avoid")
+    result["keywords"] = _string_value(result.get("keywords"))
+    result["artifacts_items"] = result.get("artifacts_items") or _artifact_items(result.get("artifacts") or [])
+    result["source_length"] = result.get("source_length") or len(str(result.get("source_text") or ""))
+    return result
 
 
-def collect_writable_changes(original_values: dict[str, str], current_values: dict[str, str], field_map: dict[str, str | None]) -> dict[str, str]:
-    changes: dict[str, str] = {}
-    for field_key, current in current_values.items():
-        storage_key = field_map.get(field_key)
-        if not storage_key:
-            continue
-        if current != original_values.get(field_key, ""):
-            changes[storage_key] = current
-    return changes
+def grouped_detail_fields(projection: dict[str, Any], record: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    resolved = build_detail_record(projection, record)
+    return [
+        {
+            "title": group,
+            "fields": [
+                {
+                    "key": spec.key,
+                    "label": spec.label,
+                    "value": _string_value(resolved.get(spec.key)),
+                    "editable": spec.editable,
+                    "storage_key": spec.storage_key,
+                    "multiline": spec.multiline,
+                }
+                for spec in DETAIL_FIELD_SPECS
+                if spec.group == group
+            ],
+        }
+        for group in FIELD_GROUPS
+    ]
+
+
+def collect_writable_changes(
+    original_values: dict[str, str],
+    current_values: dict[str, str],
+    field_map: dict[str, str | None],
+) -> dict[str, str]:
+    return {
+        storage_key: current
+        for field_key, current in current_values.items()
+        if (storage_key := field_map.get(field_key)) and current != original_values.get(field_key, "")
+    }
 
 
 def unrepresented_meaningful_fields(projection: dict[str, Any]) -> set[str]:
-    record_keys = set(build_detail_record(projection)) & MEANINGFUL_PROJECTED_FIELD_KEYS
-    rendered_keys = {field["key"] for group in grouped_detail_fields(projection) for field in group["fields"]}
-    return record_keys - rendered_keys
-
-
-def _keywords(value: Any) -> str:
-    if isinstance(value, str):
-        return value
-    return ", ".join(str(item) for item in (value or []) if str(item).strip())
+    rendered = {spec.key for spec in DETAIL_FIELD_SPECS}
+    return set(build_detail_record(projection)) - rendered - {"details", "artifacts", "tasks", "todos", "notes_records", "text_blobs", "domain_type"}
 
 
 def _artifact_items(items: list[Any]) -> str:
-    labels = []
+    rows = []
     for item in items:
         if isinstance(item, dict):
-            labels.append(" · ".join(str(part) for part in (item.get("artifact_type"), item.get("label")) if part))
-        else:
-            labels.append(str(item))
-    return "\n".join(label for label in labels if label)
-
-
-def _task_queue(summary: dict[str, Any]) -> str:
-    groups = summary.get("groups") or {}
-    parts = [f"{key}: {value}" for key, value in groups.items()]
-    if parts:
-        return f"{summary.get('count', 0)} items · " + ", ".join(parts)
-    return f"{summary.get('count', 0)} items"
+            rows.append(" · ".join(str(value) for value in (item.get("artifact_type"), item.get("label"), item.get("review_state")) if value))
+        elif str(item).strip():
+            rows.append(str(item))
+    return "\n".join(rows)
 
 
 def _string_value(value: Any) -> str:
@@ -165,5 +148,5 @@ def _string_value(value: Any) -> str:
     if isinstance(value, bool):
         return "yes" if value else "no"
     if isinstance(value, list):
-        return _keywords(value)
+        return ", ".join(str(item) for item in value if str(item).strip())
     return str(value)
