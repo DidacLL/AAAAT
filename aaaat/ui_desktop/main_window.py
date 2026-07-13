@@ -149,8 +149,9 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
             self.content_splitter,
             on_action=self._on_candidature_panel_action,
             on_delete=self._delete_candidature_from_panel,
-            on_open_smart=lambda: None,
             on_keyword_select=lambda term: self._select_keyword(term, refresh_center=False),
+            on_add_keyword=self._add_keyword_to_candidature,
+            on_save_keyword_definition=self._save_keyword_definition,
         )
         initial_width = max(1, int(self.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0]))
         initial_left = max(1, int(initial_width * 0.18))
