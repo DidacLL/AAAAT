@@ -93,9 +93,10 @@ class DetailedProjectionBehaviorTests(DetailedViewFixture):
         self.assertTrue({"company", "role", "status", "notes", "source_text", "created_at"}.issubset(fields))
         self.assertTrue(fields["company"]["editable"])
         self.assertTrue(fields["notes"]["editable"])
-        self.assertFalse(fields["source_text"]["editable"])
+        self.assertTrue(fields["source_text"]["editable"])
         self.assertFalse(fields["created_at"]["editable"])
         self.assertIn("company", WRITABLE_DETAIL_STORAGE_KEYS)
+        self.assertIn("source_text", WRITABLE_DETAIL_STORAGE_KEYS)
         self.assertNotIn("created_at", WRITABLE_DETAIL_STORAGE_KEYS)
 
     def test_change_collection_omits_unchanged_and_read_only_values(self):
