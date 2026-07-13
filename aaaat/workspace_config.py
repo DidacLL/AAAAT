@@ -4,12 +4,16 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .provider_adapters import DEFAULT_ADAPTER_ID, adapter_definition, validate_adapter_settings
 from .task_registry import TASK_DEFINITIONS, automatic_task_types, task_snapshot, validate_task_snapshot
 
 
 DEFAULT_SETTINGS = {
     "automatic_preparation": list(automatic_task_types()),
-    "runner_command": [],
+    "provider_adapter": {
+        "id": DEFAULT_ADAPTER_ID,
+        "settings": {},
+    },
 }
 
 
@@ -58,9 +62,20 @@ def load_workspace_config(storage_path: str | Path) -> dict[str, Any]:
     if unknown:
         raise ValueError("Unknown automatic preparation tasks: " + ", ".join(unknown))
 
-    command = value.get("runner_command", [])
-    if not isinstance(command, list) or any(not isinstance(item, str) or not item.strip() for item in command):
-        raise ValueError("Runner command must contain non-empty command arguments")
+    adapter_value = value.get("provider_adapter")
+    if adapter_value is None and "runner_command" in value:
+        legacy_command = value.get("runner_command") or []
+        adapter_value = {
+            "id": "custom_command" if legacy_command else DEFAULT_ADAPTER_ID,
+            "settings": {"command": legacy_command} if legacy_command else {},
+        }
+    if adapter_value is None:
+        adapter_value = DEFAULT_SETTINGS["provider_adapter"]
+    if not isinstance(adapter_value, dict):
+        raise ValueError("Provider adapter settings are invalid")
+    adapter_id = str(adapter_value.get("id") or DEFAULT_ADAPTER_ID)
+    adapter_definition(adapter_id)
+    adapter_settings = validate_adapter_settings(adapter_id, adapter_value.get("settings"))
 
     overrides = {
         task_type: load_task_definition_override(storage_path, task_type)
@@ -69,7 +84,10 @@ def load_workspace_config(storage_path: str | Path) -> dict[str, Any]:
     }
     return {
         "automatic_preparation": list(dict.fromkeys(automatic)),
-        "runner_command": list(command),
+        "provider_adapter": {
+            "id": adapter_id,
+            "settings": adapter_settings,
+        },
         "task_overrides": overrides,
     }
 
@@ -78,17 +96,22 @@ def save_workspace_settings(
     storage_path: str | Path,
     *,
     automatic_preparation: list[str],
-    runner_command: list[str],
+    provider_adapter_id: str,
+    provider_adapter_settings: dict[str, Any] | None = None,
 ) -> Path:
     unknown = [task_type for task_type in automatic_preparation if task_type not in TASK_DEFINITIONS]
     if unknown:
         raise ValueError("Unknown automatic preparation tasks: " + ", ".join(unknown))
-    command = [str(item).strip() for item in runner_command if str(item).strip()]
+    adapter_definition(provider_adapter_id)
+    adapter_settings = validate_adapter_settings(provider_adapter_id, provider_adapter_settings)
     target = config_path(storage_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "automatic_preparation": list(dict.fromkeys(automatic_preparation)),
-        "runner_command": command,
+        "provider_adapter": {
+            "id": provider_adapter_id,
+            "settings": adapter_settings,
+        },
     }
     target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return target
