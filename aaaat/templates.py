@@ -4,6 +4,7 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -125,6 +126,13 @@ def render_tex_to_file(
     return target
 
 
+def versioned_output_path(output_path: str | Path) -> Path:
+    target = Path(output_path)
+    suffix = target.suffix or ".tex"
+    stem = target.stem or "artifact"
+    return target.with_name(f"{stem}-{uuid.uuid4().hex[:12]}{suffix}")
+
+
 def storage_artifact_root(storage_path: str | Path, application_id: str | None) -> Path:
     base = Path(storage_path)
     if base.suffix:
@@ -196,7 +204,8 @@ def render_document_artifact(
     compile_pdf: bool = False,
     save_version: bool = False,
 ) -> dict[str, Any]:
-    tex_path = render_tex_to_file(conn, name, output_path, application_id, extra)
+    target_output = versioned_output_path(output_path) if save_version else Path(output_path)
+    tex_path = render_tex_to_file(conn, name, target_output, application_id, extra)
     artifact_path = tex_path
     pdf_status = "not_requested"
     pdf_path: str | None = None
