@@ -9,12 +9,13 @@ from aaaat.dashboard_layout import DashboardLayoutState
 from aaaat.security import Mode
 
 from .card_state import CenterCardState
+from .candidature_right_panel import CandidatureRightPanel
 from .detailed_view import DetailedViewMixin
 from .services import DesktopCommandService
 from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
 from .user_view import UserViewMixin
 
-RIGHT_MODULES = ["keywords", "artifacts"]
+RIGHT_MODULES = ["overview", "evaluation", "keywords", "material", "actions"]
 
 
 class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx.Frame):
@@ -48,7 +49,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._focus_layout_applied = False
         self.focus_left_width = int(layout_state.pane_layout.get("smart", {}).get("left", DEFAULT_FOCUS_LEFT))
         saved_right = int(layout_state.pane_layout.get("smart", {}).get("right", DEFAULT_FOCUS_RIGHT))
-        self.focus_right_width = min(saved_right, 240)
+        self.focus_right_width = max(260, min(saved_right, 420))
         self._list_refs: list[str] = []
         self._overview_card_refs: list[str] = []
         self._rendered_view_keys: dict[str, tuple[Any, ...]] = {}
@@ -113,7 +114,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.smart_panel = wx.Panel(self.view_book)
         self.smart_sizer = wx.BoxSizer(wx.VERTICAL)
         self.smart_panel.SetSizer(self.smart_sizer)
-        self.view_book.AddPage(self.smart_panel, "List")
+        self.view_book.AddPage(self.smart_panel, "Smart")
         self.root_sizer.Add(self.view_book, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
 
     def _build_overview_surface(self) -> None:
@@ -139,20 +140,23 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.focus_splitter.SetMinimumPaneSize(150)
         self.nav_panel = wx.Panel(self.focus_splitter)
         self.content_splitter = wx.SplitterWindow(self.focus_splitter, style=wx.SP_LIVE_UPDATE)
-        self.content_splitter.SetMinimumPaneSize(160)
+        self.content_splitter.SetMinimumPaneSize(220)
         self.center_panel = wx.Panel(self.content_splitter)
-        self.right_scroll = wx.ScrolledWindow(self.content_splitter)
-        self.right_scroll.SetScrollRate(8, 12)
+        self.smart_right_panel = CandidatureRightPanel(
+            self.content_splitter,
+            on_save=self._save_candidature_panel_edits,
+            on_action=self._on_candidature_panel_action,
+            on_delete=self._delete_candidature_from_panel,
+            on_open_smart=lambda: None,
+        )
         self.focus_splitter.SplitVertically(self.nav_panel, self.content_splitter, self.focus_left_width)
         initial_center_width = DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width
-        self.content_splitter.SplitVertically(self.center_panel, self.right_scroll, max(640, initial_center_width))
+        self.content_splitter.SplitVertically(self.center_panel, self.smart_right_panel, max(560, initial_center_width))
         sizer.Add(self.focus_splitter, 1, wx.EXPAND)
         self.smart_sizer.Add(self.focus_panel, 1, wx.ALL | wx.EXPAND, 6)
 
         self._build_nav_panel()
         self._build_center_panel()
-        self.right_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.right_scroll.SetSizer(self.right_sizer)
 
     def _build_nav_panel(self) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
