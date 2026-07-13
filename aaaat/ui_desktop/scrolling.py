@@ -6,12 +6,16 @@ _BOUND_SCROLL_ATTR = "_aaaat_parent_wheel_scroll_bound_to"
 
 
 def bind_parent_wheel_scroll(root: wx.Window, scrolled_parent: wx.ScrolledWindow) -> None:
-    """Forward mouse-wheel events from non-scrolling child widgets to a parent scroller."""
+    """Forward wheel events from simple child widgets to their owning scroller.
+
+    Nested scrolling controls are ownership boundaries. Their internal widget trees
+    belong to wx and must not be traversed or rebound by the parent adapter.
+    """
 
     for child in root.GetChildren():
         if not isinstance(child, wx.Window):
             continue
-        if _keeps_own_wheel_scroll(child):
+        if _owns_wheel_scroll(child):
             continue
         if getattr(child, _BOUND_SCROLL_ATTR, None) != id(scrolled_parent):
             child.Bind(wx.EVT_MOUSEWHEEL, lambda event, target=scrolled_parent: _scroll_parent(event, target))
@@ -19,7 +23,9 @@ def bind_parent_wheel_scroll(root: wx.Window, scrolled_parent: wx.ScrolledWindow
         bind_parent_wheel_scroll(child, scrolled_parent)
 
 
-def _keeps_own_wheel_scroll(window: wx.Window) -> bool:
+def _owns_wheel_scroll(window: wx.Window) -> bool:
+    if isinstance(window, wx.ScrolledWindow):
+        return True
     if not isinstance(window, wx.TextCtrl):
         return False
     if not bool(window.GetWindowStyleFlag() & wx.TE_MULTILINE):
