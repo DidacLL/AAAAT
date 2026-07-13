@@ -88,9 +88,6 @@ class DetailedViewMixin:
         finally:
             self.detailed_panel.Thaw()
 
-    def _confirm_detail_navigation(self) -> bool:
-        return not hasattr(self, "detail_panel") or self.detail_panel.confirm_navigation()
-
     def _on_detailed_size(self, event: wx.SizeEvent) -> None:
         wx.CallAfter(self._apply_detailed_layout)
         event.Skip()
@@ -141,7 +138,7 @@ class DetailedViewMixin:
         self._mark_current_view_rendered()
 
     def _select_detailed_ref(self, ref: str) -> None:
-        if not ref or not self._confirm_detail_navigation():
+        if not ref or not self._confirm_pending_edits():
             return
         self.selected_ref = ref
         self.layout_state.selected_candidature_ref = ref
@@ -185,7 +182,7 @@ class DetailedViewMixin:
         self._refresh_detailed_view()
 
     def _open_selected_in_smart(self) -> None:
-        if not self.selected_ref or not self._confirm_detail_navigation():
+        if not self.selected_ref or not self._confirm_pending_edits():
             return
         self._show_focus()
         self._rendered_view_keys.pop("smart", None)
