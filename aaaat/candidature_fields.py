@@ -46,7 +46,6 @@ CANDIDATURE_FIELD_SPECS = (
     CandidatureFieldSpec("Overview", "role", "Role", editable=True, storage_key="role"),
     CandidatureFieldSpec("Overview", "status", "Lifecycle", editable=True, storage_key="status", value_kind="choice", choices=ALLOWED_STATUSES),
     CandidatureFieldSpec("Overview", "priority", "User priority", editable=True, storage_key="priority"),
-    CandidatureFieldSpec("Overview", "source", "Lead source", editable=True, storage_key="source"),
     CandidatureFieldSpec("Overview", "source_url", "URL", editable=True, storage_key="source_url", value_kind="url"),
     CandidatureFieldSpec("Overview", "location", "Location", editable=True, storage_key="location"),
     CandidatureFieldSpec("Overview", "remote_mode", "Remote arrangement", editable=True, storage_key="remote_mode"),
