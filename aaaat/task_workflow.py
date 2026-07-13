@@ -7,10 +7,10 @@ from typing import Any, Mapping
 
 from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
 from .artifacts import get_artifact
-from .db import connect, new_id, row_to_dict, utc_now
+from .db import connect, row_to_dict
 from .dispatch.command import run_backend_command
 from .task_registry import task_definition, validate_task_snapshot
-from .tasks import apply_task_result, get_task, update_task
+from .tasks import apply_task_result, create_task as create_domain_task, get_task, update_task
 from .templates import safe_artifact_output_path
 from .text_blobs import get_text_blob, update_text_blob
 from .workspace_config import effective_task_snapshot, load_settings
@@ -54,56 +54,22 @@ class TaskWorkflowService:
         validate_task_snapshot(snapshot)
         hint = context_hint if context_hint is not None else str(snapshot.get("context_hint") or "")
         with connect(self.storage_path) as conn:
-            if not force_new:
-                row = conn.execute(
-                    """SELECT * FROM tasks
-                    WHERE application_id = ? AND task_type = ? AND context_hint = ?
-                      AND state IN ('queued', 'claimed', 'in_progress', 'blocked')
-                    ORDER BY created_at DESC, rowid DESC LIMIT 1""",
-                    (candidature_ref, task_type, hint),
-                ).fetchone()
-                if row is not None:
-                    return self.view_task(decode_task(row), conn=conn)
-            now = utc_now()
-            item = {
-                "id": new_id("task"),
-                "application_id": candidature_ref,
-                "task_type": task_type,
-                "title": str(snapshot["title"]),
-                "instructions": str(snapshot["instructions"]),
-                "definition_version": int(snapshot.get("version") or 1),
-                "response_format": json.dumps(snapshot["response_format"], sort_keys=True),
-                "artifact_template": str(snapshot.get("artifact_template") or ""),
-                "artifact_mapping": json.dumps(snapshot.get("artifact_mapping") or {}, sort_keys=True),
-                "state": "queued",
-                "priority": priority,
-                "context_hint": hint,
-                "created_by": created_by,
-                "agent_name": "",
-                "agent_runtime": "",
-                "result_blob_id": None,
-                "artifact_id": None,
-                "created_at": now,
-                "updated_at": now,
-                "completed_at": "",
-                "notes": "",
-            }
-            conn.execute(
-                """INSERT INTO tasks(
-                  id, application_id, task_type, title, instructions,
-                  definition_version, response_format, artifact_template, artifact_mapping,
-                  state, priority, context_hint, created_by, agent_name, agent_runtime,
-                  result_blob_id, artifact_id, created_at, updated_at, completed_at, notes
-                ) VALUES (
-                  :id, :application_id, :task_type, :title, :instructions,
-                  :definition_version, :response_format, :artifact_template, :artifact_mapping,
-                  :state, :priority, :context_hint, :created_by, :agent_name, :agent_runtime,
-                  :result_blob_id, :artifact_id, :created_at, :updated_at, :completed_at, :notes
-                )""",
-                item,
+            task = create_domain_task(
+                conn,
+                task_type,
+                str(snapshot["title"]),
+                application_id=candidature_ref,
+                instructions=str(snapshot["instructions"]),
+                priority=priority,
+                context_hint=hint,
+                created_by=created_by,
+                idempotent=not force_new,
+                definition_version=int(snapshot.get("version") or 1),
+                response_format=dict(snapshot.get("response_format") or {}),
+                artifact_template=str(snapshot.get("artifact_template") or ""),
+                artifact_mapping=dict(snapshot.get("artifact_mapping") or {}),
             )
-            conn.commit()
-            return self.view_task(decode_task(item), conn=conn)
+            return self.view_task(decode_task(task), conn=conn)
 
     def list_tasks(self, candidature_ref: str) -> list[dict[str, Any]]:
         with connect(self.storage_path) as conn:
