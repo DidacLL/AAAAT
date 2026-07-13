@@ -4,25 +4,21 @@
       "id": "demo_app_1",
       "company": "Northstar Systems",
       "role": "Backend Engineer",
-      "status": "interview",
+      "status": "active",
       "priority": "high",
       "source": "Demo board",
       "source_url": "https://example.invalid/job/backend",
       "location": "Remote",
       "remote_mode": "hybrid",
-      "next_action": "Prepare screening call",
-      "notes": "Fake demo application.",
-      "call_signals": "Ask about API ownership and delivery cadence.",
-      "technical_reading": "Read public API docs.",
+      "notes": "Fake demo candidature for local UI validation.",
+      "call_signals": "API ownership, delivery cadence, service quality ownership.",
       "pitch": "I build reliable backend services and practical internal tools.",
       "smart_question": "What service quality signals does the team track weekly?",
       "risks_to_avoid": "Do not overstate domain experience.",
-      "prepare_first": "Role pitch and salary range.",
-      "prepare_later": "System design examples.",
-      "offer_snapshot": "No offer yet.",
-      "company_research": "Demo company with fake data.",
+      "offer_snapshot": "Backend role focused on API ownership, internal tooling, and production service quality.",
+      "company_research": "Demo company with fake data. Product appears to require reliable backend operations and cross-functional delivery.",
       "form_answers": "Available on request.",
-      "keywords": ["ATS", "Screening call"],
+      "keywords": ["API ownership", "Service quality", "Screening call"],
       "artifacts": [
         {
           "label": "Demo cover letter",
@@ -34,13 +30,18 @@
   ],
   "glossary": [
     {
-      "term": "ATS",
-      "definition": "Applicant tracking system used to collect and filter applications.",
-      "category": "recruiting"
+      "term": "API ownership",
+      "definition": "Responsibility for the design, reliability, documentation, and evolution of an API surface.",
+      "category": "engineering"
+    },
+    {
+      "term": "Service quality",
+      "definition": "Operational health of a service, including reliability, observability, defects, latency, and maintainability.",
+      "category": "engineering"
     },
     {
       "term": "Screening call",
-      "definition": "Early recruiter conversation focused on fit, logistics, and next steps.",
+      "definition": "Early recruiter conversation focused on fit, logistics, compensation, availability, and next process steps.",
       "category": "call"
     }
   ],
