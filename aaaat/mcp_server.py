@@ -4,7 +4,7 @@ from __future__ import annotations
 
 This module intentionally builds descriptor/tool/prompt schema data only. It does
 not start or implement an MCP transport loop. External adapters may map the
-emitted schema to AAAAT CLI commands or to the local agent HTTP runtime.
+emitted schema to AAAAT CLI commands or local task packets.
 """
 
 from typing import Any
@@ -14,7 +14,7 @@ PROTOCOL_VERSION = "2025-06-18"
 
 
 CONTRACT_DESCRIPTION = (
-    "Descriptor-only MCP-compatible AAAAT operation. No dashboard HTML, broad CRUD, or entity-ID mutation authority. "
+    "Descriptor-only MCP-compatible AAAAT operation. No HTTP runtime, dashboard HTML, broad CRUD, or entity-ID mutation authority. "
     "Task contexts and packets include task_handle, task_type, title, instructions, purpose, input_context, "
     "output_contract, response_format, allowed_actions, and privacy_notes."
 )
@@ -25,24 +25,9 @@ def mcp_descriptor() -> dict[str, Any]:
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {"resources": {}, "tools": {}, "prompts": {}},
         "resources": [
-            {
-                "uri": "aaaat://agent/tasks/next",
-                "name": "agent-next-task",
-                "title": "Next Pending Agent Task Handle",
-                "mimeType": "application/json",
-            },
-            {
-                "uri": "aaaat://agent/tasks/{task_handle}/context",
-                "name": "agent-task-context",
-                "title": "Bounded Agent Task Context With Response Format",
-                "mimeType": "application/json",
-            },
-            {
-                "uri": "aaaat://agent/context-bundle",
-                "name": "agent-context-bundle",
-                "title": "Purpose-Scoped Agent Context Bundle",
-                "mimeType": "application/json",
-            },
+            {"uri": "aaaat://agent/tasks/next", "name": "agent-next-task", "title": "Next Pending Agent Task Handle", "mimeType": "application/json"},
+            {"uri": "aaaat://agent/tasks/{task_handle}/context", "name": "agent-task-context", "title": "Bounded Agent Task Context With Response Format", "mimeType": "application/json"},
+            {"uri": "aaaat://agent/context-bundle", "name": "agent-context-bundle", "title": "Purpose-Scoped Agent Context Bundle", "mimeType": "application/json"},
             {"uri": "aaaat://agent-guide", "name": "agent-guide", "title": "Capability-Scoped Agent Guide", "mimeType": "text/markdown"},
         ],
         "tools": [
@@ -54,16 +39,9 @@ def mcp_descriptor() -> dict[str, Any]:
                 ["task_handle", "result_json"],
             ),
             tool("get_agent_context_bundle", {"purpose": "string"}, ["purpose"]),
-            tool(
-                "submit_agent_action",
-                {"action": "object", "agent_name": "string", "agent_runtime": "string", "model_provider": "string"},
-                ["action"],
-            ),
+            tool("submit_agent_action", {"action": "object", "agent_name": "string", "agent_runtime": "string", "model_provider": "string"}, ["action"]),
         ],
-        "prompts": [
-            prompt("complete_agent_task", ["task_handle"]),
-            prompt("review_task_context", ["task_handle"]),
-        ],
+        "prompts": [prompt("complete_agent_task", ["task_handle"]), prompt("review_task_context", ["task_handle"])],
     }
 
 
@@ -72,11 +50,7 @@ def tool(name: str, properties: dict[str, str], required: list[str]) -> dict[str
         "name": name,
         "title": name.replace("_", " ").title(),
         "description": f"{CONTRACT_DESCRIPTION} Operation: {name.replace('_', ' ')}.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {key: {"type": kind} for key, kind in properties.items()},
-            "required": required,
-        },
+        "inputSchema": {"type": "object", "properties": {key: {"type": kind} for key, kind in properties.items()}, "required": required},
     }
 
 
