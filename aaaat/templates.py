@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
-import sqlite3
 import shutil
+import sqlite3
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -18,6 +18,10 @@ LOG_LIMIT = 40000
 
 
 class TemplateVariableError(ValueError):
+    pass
+
+
+class RenderFailure(RuntimeError):
     pass
 
 
@@ -175,6 +179,13 @@ def compile_pdf_with_pdflatex(tex_path: str | Path, *, timeout: int = 30) -> dic
         return {"pdf_status": "timeout", "pdf_path": None, "log_path": str(log_path)}
 
 
+def _raise_pdf_failure(status: str, log_path: str | None) -> None:
+    detail = f"pdflatex {status}"
+    if log_path:
+        detail = f"{detail}; see {log_path}"
+    raise RenderFailure(detail)
+
+
 def render_document_artifact(
     conn: sqlite3.Connection,
     name: str,
@@ -196,15 +207,10 @@ def render_document_artifact(
         pdf_status = compile_result["pdf_status"]
         pdf_path = compile_result["pdf_path"]
         log_path = compile_result["log_path"]
-        if pdf_status == "success" and pdf_path:
-            artifact_path = Path(pdf_path)
-            notes = "Rendered local TeX template and compiled with pdflatex."
-        elif pdf_status == "unavailable":
-            notes = "Rendered local TeX template; pdflatex unavailable, keeping TeX artifact."
-        elif pdf_status == "timeout":
-            notes = "Rendered local TeX template; pdflatex timed out, keeping TeX artifact."
-        else:
-            notes = "Rendered local TeX template; pdflatex failed, keeping TeX artifact."
+        if pdf_status != "success" or not pdf_path:
+            _raise_pdf_failure(pdf_status, log_path)
+        artifact_path = Path(pdf_path)
+        notes = "Rendered local TeX template and compiled with pdflatex."
     artifact = artifacts.save_or_update_draft_artifact(
         conn,
         application_id,
