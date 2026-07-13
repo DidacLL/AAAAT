@@ -9,7 +9,7 @@ from aaaat.dashboard_layout import DashboardLayoutState
 from aaaat.security import Mode
 
 from .card_state import CenterCardState
-from .candidature_right_panel import CandidatureRightPanel
+from .candidature_right_panel import CandidatureOptionsPanel
 from .detailed_view import DetailedViewMixin
 from .services import DesktopCommandService
 from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
@@ -54,12 +54,16 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._overview_card_refs: list[str] = []
         self._rendered_view_keys: dict[str, tuple[Any, ...]] = {}
 
-        self._init_smart_view_helpers()
-        self._build_menu()
-        self._build_shell()
-        self._bind_shell_events()
-        self._show_initial_view()
-        self._refresh_all()
+        self.Freeze()
+        try:
+            self._init_smart_view_helpers()
+            self._build_menu()
+            self._build_shell()
+            self._bind_shell_events()
+            self._show_initial_view()
+            self._refresh_all()
+        finally:
+            self.Thaw()
 
     def _show_initial_view(self) -> None:
         if self.current_view == "user":
@@ -142,12 +146,12 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.content_splitter = wx.SplitterWindow(self.focus_splitter, style=wx.SP_LIVE_UPDATE)
         self.content_splitter.SetMinimumPaneSize(220)
         self.center_panel = wx.Panel(self.content_splitter)
-        self.smart_right_panel = CandidatureRightPanel(
+        self.smart_right_panel = CandidatureOptionsPanel(
             self.content_splitter,
-            on_save=self._save_candidature_panel_edits,
             on_action=self._on_candidature_panel_action,
             on_delete=self._delete_candidature_from_panel,
             on_open_smart=lambda: None,
+            on_keyword_select=lambda term: self._select_keyword(term, refresh_center=False),
         )
         self.focus_splitter.SplitVertically(self.nav_panel, self.content_splitter, self.focus_left_width)
         initial_center_width = DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width
@@ -191,3 +195,21 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_notes_sizer = wx.BoxSizer(wx.VERTICAL)
         self.center_notes_panel.SetSizer(self.center_notes_sizer)
         self.center_scroll = self.center_body_scroll
+
+    def _on_close(self, event: wx.CloseEvent) -> None:
+        self.layout_state.selected_view = self.current_view
+        self.layout_state.selected_candidature_ref = self.selected_ref
+        self.layout_state.selected_keyword = self.selected_keyword
+        self.layout_state.search_query = self.search_query
+        if self.focus_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
+        if self.content_splitter.IsSplit():
+            total = max(1, self.content_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(260, total - self.content_splitter.GetSashPosition())
+        if hasattr(self, "detailed_splitter") and self.detailed_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("detailed", {})["left"] = max(260, self.detailed_splitter.GetSashPosition())
+        if hasattr(self, "detailed_body_splitter") and self.detailed_body_splitter.IsSplit():
+            total = max(1, self.detailed_body_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(260, total - self.detailed_body_splitter.GetSashPosition())
+        self.layout_state.save(self.layout_path)
+        event.Skip()
