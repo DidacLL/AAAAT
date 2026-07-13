@@ -45,6 +45,7 @@ DETAIL_FIELD_SPECS = (
     DetailFieldSpec("Workflow", "priority", "Priority", "priority"),
     DetailFieldSpec("Workflow", "next_action", "Next action", "next_action", True),
     DetailFieldSpec("Workflow", "valuation", "Valuation", "valuation"),
+    DetailFieldSpec("Call preparation", "notes", "Notes", "notes", True),
     DetailFieldSpec("Call preparation", "call_signals", "Call signals", "call_signals", True),
     DetailFieldSpec("Call preparation", "pitch", "Pitch", "pitch", True),
     DetailFieldSpec("Call preparation", "smart_question", "Primary question", "smart_question", True),
