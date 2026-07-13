@@ -6,7 +6,7 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 
 from aaaat.dashboard_layout import DashboardLayoutState
-from aaaat.security import Mode
+from aaaat.security import Mode, can_write
 
 from .card_state import CenterCardState
 from .candidature_right_panel import CandidatureOptionsPanel
@@ -197,6 +197,35 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_notes_sizer = wx.BoxSizer(wx.VERTICAL)
         self.center_notes_panel.SetSizer(self.center_notes_sizer)
         self.center_scroll = self.center_body_scroll
+
+    def _delete_candidature_from_panel(self, ref: str) -> None:
+        if not can_write(self.mode) or not ref:
+            return
+        confirmed = wx.MessageBox(
+            "Delete this candidature and its local related data?",
+            "Delete candidature",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+            self,
+        )
+        if confirmed != wx.YES:
+            return
+        if not self.command_service.delete_candidature(ref):
+            self.SetStatusText("Delete failed")
+            return
+        if str(self.selected_ref or "") == str(ref):
+            self.selected_ref = None
+            self.layout_state.selected_candidature_ref = None
+        self.center_card_state.collapse_all()
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        if self.current_view == "detailed":
+            self._refresh_detailed_view()
+        elif self.current_view == "smart":
+            self._show_overview()
+            self._refresh_all()
+        else:
+            self._refresh_all()
+        self.SetStatusText("Deleted candidature")
 
     def _on_close(self, event: wx.CloseEvent) -> None:
         self.layout_state.selected_view = self.current_view
