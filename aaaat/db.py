@@ -28,10 +28,10 @@ APPLICATION_UPDATE_FIELDS = {
     "risks_to_avoid",
     "offer_snapshot",
     "company_research",
-    "form_answers",
 }
 
 CANDIDATURE_DETAIL_MIGRATION_COLUMNS = {
+    "form_answers": "TEXT DEFAULT ''",
     "candidature_evaluation": "TEXT DEFAULT ''",
     "role_strategy": "TEXT DEFAULT ''",
     "cv_material": "TEXT DEFAULT ''",
@@ -259,7 +259,6 @@ def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
         "risks_to_avoid": fields.get("risks_to_avoid") or "",
         "offer_snapshot": fields.get("offer_snapshot") or "",
         "company_research": fields.get("company_research") or "",
-        "form_answers": fields.get("form_answers") or "",
         "created_at": now,
         "updated_at": now,
     }
@@ -306,6 +305,9 @@ def delete_application(conn: sqlite3.Connection, app_id: str) -> bool:
             [*artifact_ids, *artifact_ids, app_id],
         )
 
+    conn.execute("DELETE FROM tasks WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM todos WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM text_blobs WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM candidature_details WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM raw_intake WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM application_keywords WHERE application_id = ?", (app_id,))
