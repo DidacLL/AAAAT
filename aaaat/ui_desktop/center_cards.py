@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import textwrap
-from typing import Any, Callable
+from typing import Any
 
 import wx  # type: ignore[import-not-found]
 import wx.html  # type: ignore[import-not-found]
@@ -81,7 +80,7 @@ class CenterCardBuilder:
         top = wx.BoxSizer(wx.HORIZONTAL)
         if posting.strip():
             top.Add(
-                self._call_block(panel, "Posting", posting, 650, "original", min_height=118, emphasis="high", line_chars=86),
+                self._call_block(panel, "Posting", posting, 650, min_height=124, emphasis="high"),
                 3,
                 wx.RIGHT | wx.EXPAND,
                 12,
@@ -90,14 +89,14 @@ class CenterCardBuilder:
         right = wx.BoxSizer(wx.VERTICAL)
         if pitch.strip():
             right.Add(
-                self._call_block(panel, "Pitch", pitch, 390, "pitch_full", min_height=54, emphasis="medium", line_chars=58),
+                self._call_block(panel, "Pitch", pitch, 390, min_height=58, emphasis="medium"),
                 0,
                 wx.BOTTOM | wx.EXPAND,
                 8,
             )
         if snapshot.strip():
             right.Add(
-                self._call_block(panel, "Snapshot", snapshot, 350, "snapshot_full", min_height=54, emphasis="medium", line_chars=58),
+                self._call_block(panel, "Snapshot", snapshot, 350, min_height=58, emphasis="medium"),
                 0,
                 wx.EXPAND,
                 0,
@@ -115,9 +114,9 @@ class CenterCardBuilder:
             for col in range(columns):
                 grid.AddGrowableCol(col, 1)
             grid_panel.SetSizer(grid)
-            for target_card, label, text, limit in support:
+            for _target_card, label, text, limit in support:
                 grid.Add(
-                    self._call_block(grid_panel, label, text, limit, target_card, min_height=0, emphasis="support", line_chars=54),
+                    self._call_block(grid_panel, label, text, limit, min_height=46, emphasis="support"),
                     1,
                     wx.EXPAND,
                     0,
@@ -128,24 +127,24 @@ class CenterCardBuilder:
 
     def add_full_text_drawers(self, detail: dict[str, Any]) -> None:
         drawers = [
-            ("original", "Original posting", self._source_text(detail), False, 260, 760),
-            ("description", "Published role text", detail.get("description"), False, 220, 760),
-            ("snapshot_full", "Role snapshot", detail.get("offer_snapshot"), False, 180, 620),
-            ("signals", "Recognition signals", detail.get("call_signals"), False, 170, 620),
-            ("pitch_full", "Pitch", detail.get("pitch"), False, 170, 620),
-            ("questions", "Questions", detail.get("questions_to_ask") or detail.get("smart_question"), False, 170, 620),
-            ("risks", "Risks to avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), False, 170, 620),
-            ("strengths", "Evidence", detail.get("strengths"), False, 170, 620),
-            ("company_full", "Company context", detail.get("company_research"), False, 200, 620),
-            ("fit_full", "Fit assessment", detail.get("candidature_evaluation"), False, 180, 620),
-            ("strategy_full", "Application strategy", detail.get("role_strategy"), False, 180, 620),
-            ("recruiter_full", "Recruiter material", detail.get("recruiter_material"), False, 180, 620),
-            ("stack_full", "Stack", detail.get("tech_stack"), False, 150, 520),
+            ("original", "Original posting", self._source_text(detail), False, 260),
+            ("description", "Published role text", detail.get("description"), False, 220),
+            ("snapshot_full", "Role snapshot", detail.get("offer_snapshot"), False, 180),
+            ("signals", "Recognition signals", detail.get("call_signals"), False, 170),
+            ("pitch_full", "Pitch", detail.get("pitch"), False, 170),
+            ("questions", "Questions", detail.get("questions_to_ask") or detail.get("smart_question"), False, 170),
+            ("risks", "Risks to avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), False, 170),
+            ("strengths", "Evidence", detail.get("strengths"), False, 170),
+            ("company_full", "Company context", detail.get("company_research"), False, 200),
+            ("fit_full", "Fit assessment", detail.get("candidature_evaluation"), False, 180),
+            ("strategy_full", "Application strategy", detail.get("role_strategy"), False, 180),
+            ("recruiter_full", "Recruiter material", detail.get("recruiter_material"), False, 180),
+            ("stack_full", "Stack", detail.get("tech_stack"), False, 150),
         ]
         visible = [
-            (card_id, title, str(body).strip(), expanded, min_height, width)
-            for card_id, title, body, expanded, min_height, width in drawers
-            if str(body or "").strip() and self.is_expanded(card_id, expanded)
+            (card_id, title, str(body).strip(), expanded, min_height)
+            for card_id, title, body, expanded, min_height in drawers
+            if str(body or "").strip()
         ]
         if not visible:
             return
@@ -153,27 +152,16 @@ class CenterCardBuilder:
         panel.SetMinSize((1, -1))
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
-        for card_id, title, text, expanded, min_height, width in visible:
+        for card_id, title, text, expanded, min_height in visible:
             sizer.Add(
-                self.build_center_card(panel, card_id, title, text, expanded_by_default=expanded, min_height=min_height, width=width),
+                self.build_center_card(panel, card_id, title, text, expanded_by_default=expanded, min_height=min_height),
                 0,
                 wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND,
                 4,
             )
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
 
-    def _call_block(
-        self,
-        parent: wx.Window,
-        label: str,
-        value: str,
-        limit: int,
-        target_card: str,
-        *,
-        min_height: int,
-        emphasis: str,
-        line_chars: int,
-    ) -> wx.Panel:
+    def _call_block(self, parent: wx.Window, label: str, value: str, limit: int, *, min_height: int, emphasis: str) -> wx.Panel:
         block = wx.Panel(parent)
         block.SetMinSize((1, min_height if min_height > 0 else -1))
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -185,53 +173,59 @@ class CenterCardBuilder:
             title_font = title_font.Larger()
         title.SetFont(title_font)
 
-        body = wx.StaticText(block, label=self._snippet_text(value, limit, line_chars=line_chars))
-        body.SetMinSize((1, -1))
-        body_font = body.GetFont()
-        if emphasis == "high":
-            body_font = body_font.Larger()
-        body.SetFont(body_font)
-        self._bind_wrap(block, body, 8)
-
+        body = self._snippet_control(block, self._snippet_text(value, limit), emphasis=emphasis)
         sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
         sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
-        self.bind_click(block, target_card)
         return block
 
-    def build_center_card(self, parent: wx.Window, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int, width: int) -> wx.Panel:
+    def _snippet_control(self, parent: wx.Window, text: str, *, emphasis: str) -> wx.TextCtrl:
+        style = wx.TE_MULTILINE | wx.TE_READONLY | wx.BORDER_NONE | getattr(wx, "TE_WORDWRAP", 0) | getattr(wx, "TE_NO_VSCROLL", 0)
+        control = wx.TextCtrl(parent, value=text, style=style)
+        control.SetEditable(False)
+        control.SetMinSize((1, self._snippet_height(emphasis)))
+        control.SetBackgroundColour(parent.GetBackgroundColour())
+        control.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
+        if emphasis == "high":
+            control.SetFont(control.GetFont().Larger())
+        return control
+
+    def _snippet_height(self, emphasis: str) -> int:
+        if emphasis == "high":
+            return 92
+        if emphasis == "medium":
+            return 42
+        return 34
+
+    def build_center_card(self, parent: wx.Window, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int) -> wx.Panel:
         text = str(body or "")
-        panel, body_sizer = self.card_shell(parent, card_id, title, text or "—", expanded_by_default=expanded_by_default, width=width)
-        if self.is_expanded(card_id, expanded_by_default):
+        expanded = self.is_expanded(card_id, expanded_by_default)
+        panel = wx.Panel(parent, style=wx.BORDER_SIMPLE)
+        panel.SetMinSize((1, -1))
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        panel.SetSizer(sizer)
+
+        header = wx.Panel(panel)
+        header_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        header.SetSizer(header_sizer)
+        toggle_label = wx.StaticText(header, label="▾" if expanded else "▸")
+        toggle_label.SetFont(toggle_label.GetFont().Bold().Larger())
+        title_label = wx.StaticText(header, label=title)
+        title_label.SetFont(title_label.GetFont().Bold())
+        header_sizer.Add(toggle_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
+        header_sizer.Add(title_label, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_CENTER_VERTICAL, 6)
+        header_sizer.AddStretchSpacer(1)
+        sizer.Add(header, 0, wx.EXPAND)
+        self.bind_click(header, card_id)
+
+        if expanded:
             content = self.owner._html_text_window(panel, text or "—", min_height=min_height)
-            content.SetMinSize((max(360, width - 20), min_height))
-            body_sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
-        self.bind_click(panel, card_id)
+            content.SetMinSize((1, min_height))
+            sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
         return panel
 
     def add_center_card(self, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int) -> None:
-        card = self.build_center_card(self.owner.center_scroll, card_id, title, body, expanded_by_default=expanded_by_default, min_height=min_height, width=760)
+        card = self.build_center_card(self.owner.center_scroll, card_id, title, body, expanded_by_default=expanded_by_default, min_height=min_height)
         self.owner.center_sizer.Add(card, 0, wx.BOTTOM | wx.EXPAND, 8)
-
-    def card_shell(self, parent: wx.Window, card_id: str, title: str, summary: str, *, expanded_by_default: bool = False, width: int = 760) -> tuple[wx.Panel, wx.BoxSizer]:
-        expanded = self.is_expanded(card_id, expanded_by_default)
-        panel = wx.Panel(parent, style=wx.BORDER_SIMPLE)
-        panel.SetMinSize((min(width, 760), -1))
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        panel.SetSizer(sizer)
-        header = wx.BoxSizer(wx.HORIZONTAL)
-        toggle_label = wx.StaticText(panel, label="▾" if expanded else "▸")
-        toggle_label.SetFont(toggle_label.GetFont().Bold().Larger())
-        title_label = wx.StaticText(panel, label=title)
-        title_label.SetFont(title_label.GetFont().Bold())
-        summary_label = wx.StaticText(panel, label=self._snippet_text(summary, 220, line_chars=76))
-        header.Add(toggle_label, 0, wx.ALL | wx.ALIGN_TOP, 6)
-        header.Add(title_label, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_TOP, 6)
-        header.Add(summary_label, 1, wx.ALL | wx.ALIGN_TOP, 6)
-        sizer.Add(header, 0, wx.EXPAND)
-        body_sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(body_sizer, 0, wx.EXPAND)
-        self._bind_wrap(panel, summary_label, 190)
-        return panel, body_sizer
 
     def is_expanded(self, card_id: str, default: bool) -> bool:
         return self.owner.center_card_state.is_expanded(card_id, default)
@@ -308,13 +302,11 @@ class CenterCardBuilder:
         width = int(self.owner.center_scroll.GetClientSize().GetWidth() or 760)
         return 2 if width >= 620 else 1
 
-    def _snippet_text(self, value: str, limit: int, *, line_chars: int | None = None) -> str:
+    def _snippet_text(self, value: str, limit: int) -> str:
         text = " ".join(str(value or "").split())
-        if len(text) > limit:
-            text = text[: max(0, limit - 1)].rstrip() + "…"
-        if line_chars:
-            return "\n".join(textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False))
-        return text
+        if len(text) <= limit:
+            return text
+        return text[: max(0, limit - 1)].rstrip() + "…"
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
