@@ -145,10 +145,11 @@ class UserPanel(wx.ScrolledWindow):
         self._capture()
         changes = collect_writable_user_changes(self._original_values, self._draft_values, self._field_storage_keys)
         if changes:
-            self.on_save(changes)
-        self._original_values.update(self._draft_values)
+            self._original_values.update(self._draft_values)
         self._draft_values = {}
         self._editing = False
+        if changes:
+            self.on_save(changes)
 
     def _on_edit(self, _event: wx.CommandEvent) -> None:
         self._editing = True
