@@ -5,13 +5,13 @@ from typing import Any
 
 from .candidatures import create_candidature, get_candidature
 from .db import application_keywords, connect, update_application
-from .task_registry import task_definition
+from .task_registry import task_definition, task_snapshot
 from .tasks import create_task
-from .workspace_config import load_workspace_config, task_instructions
+from .workspace_config import load_workspace_config
 
 
 class IntakeService:
-    """Create a candidature from one offer and plan its configured preparation."""
+    """Create one candidature from an offer and plan its configured preparation."""
 
     def __init__(self, storage_path: str | Path) -> None:
         self.storage_path = str(storage_path)
@@ -29,6 +29,7 @@ class IntakeService:
             raise ValueError("Job offer text is required")
         company_value = str(company or "").strip()
         role_value = str(role or "").strip()
+        form_value = str(raw_application_form or "").strip()
         config = load_workspace_config(self.storage_path)
         with connect(self.storage_path) as conn:
             candidature = create_candidature(
@@ -38,7 +39,7 @@ class IntakeService:
                 status="intake",
                 priority="normal",
                 raw_offer=source,
-                raw_application_form=str(raw_application_form or "").strip(),
+                raw_application_form=form_value,
                 include_field_inference_task=False,
                 include_company_research_task=False,
                 include_keyword_detection_task=False,
@@ -53,12 +54,11 @@ class IntakeService:
                 omitted["role"] = ""
             if omitted:
                 update_application(conn, candidature["id"], **omitted)
-            tasks = []
+
             requested = list(config["automatic_preparation"])
-            if raw_application_form.strip() and "draft_form_responses" not in requested:
+            if form_value and "draft_form_responses" not in requested:
                 requested.append("draft_form_responses")
-            for task_type in requested:
-                tasks.append(self._create_task(conn, candidature["id"], task_type, idempotent=True))
+            tasks = [self._create_task(conn, candidature["id"], task_type, config, idempotent=True) for task_type in requested]
             return {
                 "candidature": get_candidature(conn, candidature["id"]),
                 "tasks": tasks,
@@ -66,10 +66,12 @@ class IntakeService:
             }
 
     def create_task(self, application_id: str, task_type: str, *, force_new: bool = False) -> dict[str, Any]:
+        config = load_workspace_config(self.storage_path)
         with connect(self.storage_path) as conn:
-            return self._create_task(conn, application_id, task_type, idempotent=not force_new)
+            return self._create_task(conn, application_id, task_type, config, idempotent=not force_new)
 
     def create_missing_keyword_tasks(self, application_id: str) -> list[dict[str, Any]]:
+        config = load_workspace_config(self.storage_path)
         with connect(self.storage_path) as conn:
             known = {
                 str(row["term"]): str(row["definition"] or "")
@@ -79,30 +81,44 @@ class IntakeService:
             for keyword in application_keywords(conn, application_id):
                 if known.get(keyword, "").strip():
                     continue
-                definition = task_definition("keyword_definition")
                 tasks.append(
-                    create_task(
+                    self._create_task(
                         conn,
-                        definition.task_type,
-                        f"Define keyword: {keyword}",
-                        application_id=application_id,
-                        instructions=task_instructions(self.storage_path, definition.task_type, definition.instructions),
-                        priority=definition.priority,
-                        context_hint=f"keyword:{keyword}",
+                        application_id,
+                        "keyword_definition",
+                        config,
                         idempotent=True,
+                        title=f"Define keyword: {keyword}",
+                        context_hint=f"keyword:{keyword}",
                     )
                 )
             return tasks
 
-    def _create_task(self, conn: Any, application_id: str, task_type: str, *, idempotent: bool) -> dict[str, Any]:
+    def _create_task(
+        self,
+        conn: Any,
+        application_id: str,
+        task_type: str,
+        config: dict[str, Any],
+        *,
+        idempotent: bool,
+        title: str | None = None,
+        context_hint: str | None = None,
+    ) -> dict[str, Any]:
         definition = task_definition(task_type)
+        override = config["task_overrides"].get(task_type)
+        snapshot = task_snapshot(task_type, override if isinstance(override, dict) else None)
         return create_task(
             conn,
             definition.task_type,
-            definition.title,
+            title or str(snapshot["title"]),
             application_id=application_id,
-            instructions=task_instructions(self.storage_path, definition.task_type, definition.instructions),
+            instructions=str(snapshot["instructions"]),
             priority=definition.priority,
-            context_hint=definition.context_hint,
+            context_hint=context_hint if context_hint is not None else str(snapshot["context_hint"]),
             idempotent=idempotent,
+            definition_version=int(snapshot["version"]),
+            response_format=dict(snapshot["response_format"]),
+            artifact_template=str(snapshot["artifact_template"]),
+            artifact_mapping=dict(snapshot["artifact_mapping"]),
         )
