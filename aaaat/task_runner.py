@@ -6,10 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
-from .career_plans import career_plan_context
-from .candidatures import get_candidature
 from .db import connect
-from .tasks import apply_task_result, get_task, update_task
+from .tasks import get_task, update_task
 from .workspace_config import load_workspace_config
 
 
@@ -28,33 +26,14 @@ class TaskRunner:
         command = list(config["runner_command"])
         if not command:
             raise TaskRunnerError("No runner command is configured in aaaat-config.json")
+
         with connect(self.storage_path) as conn:
             task = get_task(conn, task_id)
             if task.get("state") not in {"queued", "blocked"}:
                 raise TaskRunnerError(f"Task cannot run from state {task.get('state')}")
             update_task(conn, task_id, state="in_progress", notes="")
             context = build_agent_task_context(conn, task_handle(task))
-            if task.get("task_type") == "career_plan_review" and task.get("application_id"):
-                candidature = get_candidature(conn, str(task["application_id"]), include_related=False)
-                bounded = {
-                    "company": candidature.get("company", ""),
-                    "role": candidature.get("role", ""),
-                    "status": candidature.get("status", ""),
-                    "priority": candidature.get("priority", ""),
-                    "location": candidature.get("location", ""),
-                    "remote_mode": candidature.get("remote_mode", ""),
-                    "offer_summary": candidature.get("offer_snapshot", ""),
-                    "keywords": candidature.get("keywords", []),
-                    "details": {
-                        key: candidature.get("details", {}).get(key)
-                        for key in ("salary_expectation", "strengths", "tech_stack", "valuation")
-                    },
-                }
-                context["context"] = {
-                    "candidature": bounded,
-                    "career_plan_context": career_plan_context(conn, "career_plan_review", scope="agent"),
-                }
-                context["input_context"] = context["context"]
+
         try:
             completed = subprocess.run(
                 command,
@@ -66,14 +45,17 @@ class TaskRunner:
         except OSError as exc:
             self._block(task_id, str(exc))
             raise TaskRunnerError(str(exc)) from exc
+
         if completed.returncode != 0:
             message = (completed.stderr or completed.stdout or f"Runner exited with {completed.returncode}").strip()
             self._block(task_id, message)
             raise TaskRunnerError(message)
+
         body = completed.stdout.strip()
         if not body:
             self._block(task_id, "Runner returned no result")
             raise TaskRunnerError("Runner returned no result")
+
         with connect(self.storage_path) as conn:
             submitted = submit_agent_task_result(
                 conn,
@@ -81,8 +63,8 @@ class TaskRunner:
                 body,
                 agent_runtime="configured-command",
             )
-            applied = apply_task_result(conn, task_id)
-            return {"submitted": submitted, "task": applied}
+            task = get_task(conn, task_id)
+            return {"submitted": submitted, "task": task}
 
     def _block(self, task_id: str, message: str) -> None:
         with connect(self.storage_path) as conn:
