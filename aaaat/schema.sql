@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS glossary_terms (
 );
 
 CREATE TABLE IF NOT EXISTS application_keywords (
-  application_id TEXT NOT NULL REFERENCES glossary_terms(term),
+  application_id TEXT NOT NULL REFERENCES applications(id),
   term TEXT NOT NULL REFERENCES glossary_terms(term),
   PRIMARY KEY(application_id, term)
 );
