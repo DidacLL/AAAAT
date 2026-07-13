@@ -79,6 +79,15 @@ CREATE TABLE IF NOT EXISTS generated_artifacts (
   notes TEXT DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS artifact_events (
+  id TEXT PRIMARY KEY,
+  artifact_id TEXT NOT NULL REFERENCES generated_artifacts(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  actor TEXT NOT NULL DEFAULT 'system',
+  notes TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS profile_variables (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
