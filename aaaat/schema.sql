@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS applications (
   risks_to_avoid TEXT DEFAULT '',
   offer_snapshot TEXT DEFAULT '',
   company_research TEXT DEFAULT '',
-  form_answers TEXT DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -104,6 +103,7 @@ CREATE TABLE IF NOT EXISTS candidature_details (
   publication_date TEXT DEFAULT '',
   application_date TEXT DEFAULT '',
   raw_application_form TEXT DEFAULT '',
+  form_answers TEXT DEFAULT '',
   cv_sent_artifact_id TEXT REFERENCES generated_artifacts(id),
   cover_letter_artifact_id TEXT REFERENCES generated_artifacts(id),
   strengths TEXT DEFAULT '',
