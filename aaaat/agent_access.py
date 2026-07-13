@@ -34,13 +34,13 @@ TASK_PURPOSES = {
     "career_plan_review": "career_plan_review",
 }
 DEFAULT_TASK_INSTRUCTIONS = {
-    "field_inference": "Infer missing candidature fields from bounded source material. Return supported fields only.",
+    "field_inference": "Infer missing candidature fields from bounded source material. Return supported fields only; do not infer lifecycle, user priority, lead source, or generated material bodies.",
     "company_research": "Prepare concise company research relevant to the candidature and role.",
     "keyword_definition": "Define the keyword for this job-search context.",
     "draft_form_responses": "Draft application form responses using only the supplied form prompt and bounded profile context.",
     "draft_cv": "Suggest CV positioning and role-specific adaptation notes. AAAAT renders final files locally.",
     "draft_cover_letter": "Draft a cover-letter body. AAAAT renders final files locally.",
-    "career_plan_review": "Review the bounded career plan context and propose concrete improvements or next actions.",
+    "career_plan_review": "Review the bounded career plan context and propose concrete improvements.",
 }
 
 
@@ -121,7 +121,7 @@ def _writes_description(task_type: str) -> str:
         "draft_form_responses": "Application form answers. Become current when the field is empty, otherwise remain history.",
         "draft_cv": "CV positioning/adaptation content. AAAAT renders final files locally.",
         "draft_cover_letter": "Cover-letter body. AAAAT renders final files locally.",
-        "career_plan_review": "Career-plan review and suggested next actions.",
+        "career_plan_review": "Career-plan review.",
     }.get(task_type, "General bounded task result.")
 
 
@@ -134,7 +134,7 @@ def response_format(task: dict[str, Any]) -> dict[str, Any]:
         "draft_form_responses": {"type": "json_object", "required": ["form_answers"], "schema": {"form_answers": "string or object", "assumptions": "optional string"}},
         "draft_cv": {"type": "json_object", "required": ["cv_positioning"], "schema": {"cv_positioning": "string", "adaptation_notes": "optional string"}},
         "draft_cover_letter": {"type": "json_object", "required": ["cover_letter_body"], "schema": {"cover_letter_body": "string", "assumptions": "optional string"}},
-        "career_plan_review": {"type": "json_object", "required": ["review"], "schema": {"review": "string", "suggested_next_actions": "optional array"}},
+        "career_plan_review": {"type": "json_object", "required": ["review"], "schema": {"review": "string"}},
     }
     return formats.get(task_type, {"type": "json_object", "required": ["result"], "schema": {"result": "string or object matching task instructions"}})
 
@@ -201,15 +201,18 @@ def _task_context(conn: sqlite3.Connection, task: dict[str, Any]) -> dict[str, A
         if task_type == "field_inference":
             source = "\n\n".join(item["content"] for item in list_raw_intake(conn, application_id))
             keys = (
-                "company", "role", "status", "priority", "source", "source_url", "location", "remote_mode",
-                "next_action", "pitch", "smart_question", "risks_to_avoid", "prepare_first", "prepare_later",
-                "offer_snapshot", "company_research", "form_answers",
+                "company", "role", "source_url", "location", "remote_mode",
+                "pitch", "smart_question", "risks_to_avoid", "offer_snapshot", "company_research",
             )
-            detail_keys = ("description", "salary_expectation", "publication_date", "application_date", "raw_application_form", "strengths", "questions_to_ask", "tech_stack", "valuation")
+            detail_keys = (
+                "description", "salary_expectation", "publication_date", "application_date", "raw_application_form",
+                "strengths", "questions_to_ask", "tech_stack", "valuation", "candidature_evaluation",
+                "role_strategy", "recruiter_material",
+            )
             all_fields = {**{key: app.get(key, "") for key in keys}, **{key: details.get(key, "") for key in detail_keys}}
             return {"source_material": source, "missing_fields": sorted(k for k, v in all_fields.items() if not str(v or "").strip()), "protected_fields": sorted(k for k, v in all_fields.items() if str(v or "").strip())}
         if task_type == "company_research":
-            return {"company": app.get("company", ""), "role": app.get("role", ""), "source_url": app.get("source_url", "")}
+            return {"company": app.get("company", ""), "role": app.get("role", ""), "url": app.get("source_url", "")}
         if task_type == "keyword_definition":
             return {"keyword": keyword_from_context(task.get("context_hint", "")), "role_hint": app.get("role", "")}
         if task_type == "draft_form_responses":
@@ -218,12 +221,9 @@ def _task_context(conn: sqlite3.Connection, task: dict[str, Any]) -> dict[str, A
             return {"company": app.get("company", ""), "role": app.get("role", ""), "keywords": application_keywords(conn, application_id), "profile_context": profile_context(conn, "cv_generation", scope="agent")}
         if task_type == "draft_cover_letter":
             return {"company": app.get("company", ""), "role": app.get("role", ""), "keywords": application_keywords(conn, application_id), "profile_context": profile_context(conn, "cover_letter", scope="agent")}
-        return {"company": app.get("company", ""), "role": app.get("role", ""), "context_hint": safe_context_hint(task.get("context_hint"))}
-    if task_type == "keyword_definition":
-        return {"keyword": keyword_from_context(task.get("context_hint", ""))}
     if task_type == "career_plan_review":
-        return {"career_plan_context": career_plan_context(conn, "career_plan_review", scope="agent")}
-    return {"context_hint": safe_context_hint(task.get("context_hint"))}
+        return {"career_plan": career_plan_context(conn, purpose="career_plan_review", scope="agent")}
+    return {"task_notes": task.get("notes", "")}
 
 
 def scrub_forbidden_agent_context(value: Any) -> Any:
@@ -236,7 +236,7 @@ def scrub_forbidden_agent_context(value: Any) -> Any:
 
 def submit_agent_task_result(
     conn: sqlite3.Connection,
-    task_handle: str,
+    task_handle_value: str,
     result_body: str,
     *,
     result_title: str = "",
@@ -244,28 +244,7 @@ def submit_agent_task_result(
     agent_runtime: str = "",
     model_provider: str = "",
 ) -> dict[str, Any]:
-    return complete_task(
-        conn,
-        task_id_for_handle(conn, task_handle),
-        result_body=result_body,
-        result_title=result_title,
-        agent_name=agent_name,
-        agent_runtime=agent_runtime,
-        model_provider=model_provider,
-    )
-
-
-def claim_agent_task(conn: sqlite3.Connection, task_handle: str, *, agent_name: str = "", agent_runtime: str = "") -> dict[str, Any]:
-    task_id = task_id_for_handle(conn, task_handle)
-    task = get_task(conn, task_id)
-    if task.get("state") not in {"queued", "blocked", "failed"}:
-        raise ValueError("Only queued, blocked, or failed tasks can be claimed")
-    return task_envelope(update_task(conn, task_id, state="claimed", agent_name=agent_name, agent_runtime=agent_runtime))
-
-
-def release_agent_task(conn: sqlite3.Connection, task_handle: str) -> dict[str, Any]:
-    task_id = task_id_for_handle(conn, task_handle)
-    task = get_task(conn, task_id)
-    if task.get("state") not in {"claimed", "in_progress", "blocked", "failed"}:
-        raise ValueError("Only claimed, in-progress, blocked, or failed tasks can be released")
-    return task_envelope(update_task(conn, task_id, state="queued", agent_name="", agent_runtime=""))
+    task = get_task_for_handle(conn, task_handle_value)
+    if "submit" not in allowed_actions(task):
+        raise ValueError(f"Task is not accepting results in state {task.get('state')}")
+    return complete_task(conn, task["id"], result_body=result_body, result_title=result_title, agent_name=agent_name, agent_runtime=agent_runtime, model_provider=model_provider)
