@@ -36,7 +36,6 @@ APPLICATION_FIELDS = (
     "role",
     "status",
     "priority",
-    "source",
     "source-url",
     "location",
     "remote-mode",
@@ -47,7 +46,6 @@ APPLICATION_FIELDS = (
     "risks-to-avoid",
     "offer-snapshot",
     "company-research",
-    "form-answers",
     "keywords",
 )
 
