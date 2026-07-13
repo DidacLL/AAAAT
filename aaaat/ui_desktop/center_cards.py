@@ -7,7 +7,9 @@ import wx.html  # type: ignore[import-not-found]
 
 
 class CenterCardBuilder:
-    """Build Smart View center cards and integrate explicit card state."""
+    """Build Smart View center cards and bind complete non-interactive surfaces."""
+
+    INTERACTIVE_TYPES = (wx.TextCtrl, wx.Button, wx.Choice, wx.ComboBox, wx.ListBox)
 
     def __init__(self, owner: Any) -> None:
         self.owner = owner
@@ -31,7 +33,7 @@ class CenterCardBuilder:
             ("Recognize", detail.get("call_signals") or detail.get("source_excerpt") or "No signal yet."),
             ("Pitch", detail.get("pitch") or "No pitch yet."),
             ("Ask", detail.get("smart_question") or "No question yet."),
-            ("Watch", detail.get("risk_to_avoid") or "No risk note yet."),
+            ("Watch", detail.get("risk_to_avoid") or detail.get("risks_to_avoid") or "No risk note yet."),
         ]
         summary = " · ".join(self.owner._clip(body, 46) for _heading, body in blocks[:2] if body)
         panel, body_sizer = self.card_shell("call", "Call cockpit", summary or "recognition, pitch, question, risk")
@@ -50,6 +52,7 @@ class CenterCardBuilder:
                 block_sizer.Add(html_body, 1, wx.EXPAND, 2)
                 grid.Add(block, 1, wx.EXPAND)
             body_sizer.Add(grid, 1, wx.ALL | wx.EXPAND, 8)
+        self.bind_click(panel, "call")
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def add_source_card(self, detail: dict[str, Any]) -> None:
@@ -62,6 +65,7 @@ class CenterCardBuilder:
             reader = self.owner._html_text_window(panel, source_text or source_excerpt, min_height=310)
             body_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
             body_sizer.Add(reader, 1, wx.ALL | wx.EXPAND, 8)
+        self.bind_click(panel, "source")
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def add_center_card(self, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int) -> None:
@@ -70,6 +74,7 @@ class CenterCardBuilder:
         if self.is_expanded(card_id, expanded_by_default):
             content = self.owner._html_text_window(panel, text or "—", min_height=min_height)
             body_sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
+        self.bind_click(panel, card_id)
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def card_shell(self, card_id: str, title: str, summary: str) -> tuple[wx.Panel, wx.BoxSizer]:
@@ -90,21 +95,19 @@ class CenterCardBuilder:
         sizer.Add(header, 0, wx.EXPAND)
         body_sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(body_sizer, 0, wx.EXPAND)
-        self.bind_click(panel, card_id)
         return panel, body_sizer
 
     def is_expanded(self, card_id: str, default: bool) -> bool:
         return self.owner.center_card_state.is_expanded(card_id, default)
 
     def bind_click(self, window: wx.Window, card_id: str) -> None:
-        if isinstance(window, wx.html.HtmlWindow) or isinstance(window, wx.TextCtrl):
+        if isinstance(window, self.INTERACTIVE_TYPES):
             return
         window.SetCursor(wx.Cursor(wx.CURSOR_HAND))
 
         def on_click(event: wx.Event, selected_card: str = card_id) -> None:
             self.toggle(selected_card)
-            if hasattr(event, "StopPropagation"):
-                event.StopPropagation()
+            event.Skip(False)
 
         window.Bind(wx.EVT_LEFT_UP, on_click)
         for child in window.GetChildren():
