@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from .candidatures import create_candidature, get_candidature
-from .db import application_keywords, connect
+from .db import application_keywords, connect, update_application
 from .task_registry import task_definition
 from .tasks import create_task
 from .workspace_config import load_workspace_config, task_instructions
@@ -27,12 +27,14 @@ class IntakeService:
         source = str(offer_text or "").strip()
         if not source:
             raise ValueError("Job offer text is required")
+        company_value = str(company or "").strip()
+        role_value = str(role or "").strip()
         config = load_workspace_config(self.storage_path)
         with connect(self.storage_path) as conn:
             candidature = create_candidature(
                 conn,
-                company=str(company or "").strip(),
-                role=str(role or "").strip(),
+                company=company_value,
+                role=role_value,
                 status="intake",
                 priority="normal",
                 raw_offer=source,
@@ -44,6 +46,13 @@ class IntakeService:
                 include_cover_letter_task=False,
                 include_form_responses_task=False,
             )
+            omitted: dict[str, str] = {}
+            if not company_value:
+                omitted["company"] = ""
+            if not role_value:
+                omitted["role"] = ""
+            if omitted:
+                update_application(conn, candidature["id"], **omitted)
             tasks = []
             requested = list(config["automatic_preparation"])
             if raw_application_form.strip() and "draft_form_responses" not in requested:
