@@ -100,7 +100,6 @@ class CenterCardBuilder:
         body_sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(body_sizer, 0, wx.EXPAND)
         self._bind_wrap(panel, summary_label, 240)
-        self.bind_click(panel, card_id)
         return panel, body_sizer
 
     def is_expanded(self, card_id: str, default: bool) -> bool:
