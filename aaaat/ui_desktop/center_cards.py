@@ -59,16 +59,16 @@ class CenterCardBuilder:
         snapshot = self._first_text(detail, "offer_snapshot", "description")
         support = self._visible_support_blocks(
             [
-                ("Ask", detail.get("smart_question"), 145),
-                ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 150),
-                ("Recognize", self._first_text(detail, "call_signals", "source_excerpt"), 155),
-                ("Company", detail.get("company_research"), 170),
-                ("Fit", detail.get("candidature_evaluation"), 170),
-                ("Strategy", detail.get("role_strategy"), 170),
-                ("Evidence", detail.get("strengths"), 160),
-                ("Questions", detail.get("questions_to_ask"), 160),
-                ("Stack", detail.get("tech_stack"), 140),
-                ("Recruiter", detail.get("recruiter_material"), 170),
+                ("Ask", detail.get("smart_question"), 130),
+                ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 130),
+                ("Recognize", self._first_text(detail, "call_signals", "source_excerpt"), 130),
+                ("Company", detail.get("company_research"), 135),
+                ("Fit", detail.get("candidature_evaluation"), 135),
+                ("Strategy", detail.get("role_strategy"), 135),
+                ("Evidence", detail.get("strengths"), 125),
+                ("Questions", detail.get("questions_to_ask"), 125),
+                ("Stack", detail.get("tech_stack"), 115),
+                ("Recruiter", detail.get("recruiter_material"), 135),
             ]
         )
         if not any([posting.strip(), pitch.strip(), snapshot.strip(), support]):
@@ -81,12 +81,26 @@ class CenterCardBuilder:
 
         top = wx.BoxSizer(wx.HORIZONTAL)
         if posting.strip():
-            top.Add(self._call_block(panel, "Posting", posting, 650, min_height=128, emphasis="high", line_chars=76), 3, wx.RIGHT | wx.EXPAND, 12)
+            top.Add(
+                self._call_block(panel, "Posting", posting, 540, min_height=132, emphasis="high", line_chars=56, max_lines=4),
+                3,
+                wx.RIGHT | wx.EXPAND,
+                12,
+            )
         right = wx.BoxSizer(wx.VERTICAL)
         if pitch.strip():
-            right.Add(self._call_block(panel, "Pitch", pitch, 390, min_height=60, emphasis="medium", line_chars=48), 0, wx.BOTTOM | wx.EXPAND, 8)
+            right.Add(
+                self._call_block(panel, "Pitch", pitch, 220, min_height=64, emphasis="medium", line_chars=34, max_lines=2),
+                0,
+                wx.BOTTOM | wx.EXPAND,
+                8,
+            )
         if snapshot.strip():
-            right.Add(self._call_block(panel, "Snapshot", snapshot, 350, min_height=60, emphasis="medium", line_chars=48), 0, wx.EXPAND)
+            right.Add(
+                self._call_block(panel, "Snapshot", snapshot, 220, min_height=64, emphasis="medium", line_chars=34, max_lines=2),
+                0,
+                wx.EXPAND,
+            )
         if right.GetItemCount():
             top.Add(right, 2, wx.EXPAND)
         if top.GetItemCount():
@@ -101,7 +115,11 @@ class CenterCardBuilder:
                 grid.AddGrowableCol(col, 1)
             grid_panel.SetSizer(grid)
             for label, text, limit in support:
-                grid.Add(self._call_block(grid_panel, label, text, limit, min_height=52, emphasis="support", line_chars=52), 1, wx.EXPAND)
+                grid.Add(
+                    self._call_block(grid_panel, label, text, limit, min_height=54, emphasis="support", line_chars=38, max_lines=2),
+                    1,
+                    wx.EXPAND,
+                )
             sizer.Add(grid_panel, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
 
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
@@ -134,7 +152,12 @@ class CenterCardBuilder:
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
         for card_id, title, text, expanded, min_height in visible:
-            sizer.Add(self.build_center_card(panel, card_id, title, text, expanded_by_default=expanded, min_height=min_height), 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
+            sizer.Add(
+                self.build_center_card(panel, card_id, title, text, expanded_by_default=expanded, min_height=min_height),
+                0,
+                wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND,
+                4,
+            )
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
 
     def _call_block(
@@ -147,6 +170,7 @@ class CenterCardBuilder:
         min_height: int,
         emphasis: str,
         line_chars: int,
+        max_lines: int,
     ) -> wx.Panel:
         block = wx.Panel(parent)
         block.SetMinSize((1, min_height))
@@ -159,13 +183,12 @@ class CenterCardBuilder:
             title_font = title_font.Larger()
         title.SetFont(title_font)
 
-        body = wx.StaticText(block, label=self._snippet_text(value, limit, line_chars=line_chars))
+        body = wx.StaticText(block, label=self._snippet_text(value, limit, line_chars=line_chars, max_lines=max_lines))
         body.SetMinSize((1, -1))
         body_font = body.GetFont()
         if emphasis == "high":
             body_font = body_font.Larger()
         body.SetFont(body_font)
-        self._bind_wrap(block, body, 8)
 
         sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
         sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
@@ -193,7 +216,7 @@ class CenterCardBuilder:
         self.bind_click(header, card_id)
 
         if expanded:
-            content = self.owner._html_text_window(panel, text or "—", min_height=min_height)
+            content = self.owner._html_text_window(panel, text or "—", min_height=min_height, scrollable=True)
             content.SetMinSize((1, min_height))
             sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
         return panel
@@ -280,13 +303,19 @@ class CenterCardBuilder:
         width = int(self.owner.center_scroll.GetClientSize().GetWidth() or 760)
         return 2 if width >= 620 else 1
 
-    def _snippet_text(self, value: str, limit: int, *, line_chars: int | None = None) -> str:
+    def _snippet_text(self, value: str, limit: int, *, line_chars: int, max_lines: int) -> str:
         text = " ".join(str(value or "").split())
+        truncated = False
         if len(text) > limit:
-            text = text[: max(0, limit - 1)].rstrip() + "…"
-        if line_chars:
-            return "\n".join(textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False))
-        return text
+            text = text[: max(0, limit - 1)].rstrip()
+            truncated = True
+        lines = textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False) or ["—"]
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            truncated = True
+        if truncated:
+            lines[-1] = lines[-1].rstrip(" …") + "…"
+        return "\n".join(lines)
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
@@ -297,6 +326,7 @@ class CenterCardBuilder:
                 if label and not label.IsBeingDeleted():
                     width = max(180, int(parent.GetClientSize().GetWidth() or 360) - padding)
                     label.Wrap(width)
+                    parent.Layout()
             except RuntimeError:
                 pass
 
