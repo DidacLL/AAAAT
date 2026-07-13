@@ -8,23 +8,12 @@ from .artifacts import update_artifact_state
 from .db import application_keywords, get_application, new_id, row_to_dict, upsert_glossary_term, utc_now
 from .text_blobs import create_text_blob, get_text_blob, update_text_blob
 
-
-TASK_STATES = {"queued", "claimed", "in_progress", "blocked", "completed", "cancelled"}
-OPEN_TASK_STATES = {"queued", "claimed", "in_progress", "blocked"}
+TASK_STATES = {"queued", "claimed", "in_progress", "blocked", "completed", "failed", "cancelled"}
+OPEN_TASK_STATES = {"queued", "claimed", "in_progress", "blocked", "failed"}
 INITIAL_OPTIONAL_TASKS = {
-    "cv": ("draft_cv", "Draft CV adaptation", "Prepare a CV adaptation suggestion for review.", "artifact:cv"),
-    "cover_letter": (
-        "draft_cover_letter",
-        "Draft cover letter",
-        "Prepare a cover letter suggestion for review.",
-        "artifact:cover_letter",
-    ),
-    "form_responses": (
-        "draft_form_responses",
-        "Draft form responses",
-        "Prepare application form response suggestions for review.",
-        "blob:form_responses",
-    ),
+    "cv": ("draft_cv", "Prepare CV", "Prepare role-specific CV positioning for local rendering.", "artifact:cv"),
+    "cover_letter": ("draft_cover_letter", "Prepare cover letter", "Prepare cover-letter body text for local rendering.", "artifact:cover_letter"),
+    "form_responses": ("draft_form_responses", "Prepare form answers", "Prepare application form answers.", "blob:form_responses"),
 }
 
 
@@ -86,37 +75,27 @@ def create_task(
     return item
 
 
-def find_open_task(
-    conn: sqlite3.Connection,
-    application_id: str | None,
-    task_type: str,
-    context_hint: str,
-) -> dict[str, Any] | None:
+def find_open_task(conn: sqlite3.Connection, application_id: str | None, task_type: str, context_hint: str) -> dict[str, Any] | None:
+    states = tuple(OPEN_TASK_STATES)
+    placeholders = ", ".join("?" for _ in states)
     if application_id is None:
         row = conn.execute(
-            """SELECT * FROM tasks
-            WHERE application_id IS NULL AND task_type = ? AND context_hint = ?
-              AND state IN ('queued', 'claimed', 'in_progress', 'blocked')
+            f"""SELECT * FROM tasks
+            WHERE application_id IS NULL AND task_type = ? AND context_hint = ? AND state IN ({placeholders})
             ORDER BY created_at LIMIT 1""",
-            (task_type, context_hint),
+            (task_type, context_hint, *states),
         ).fetchone()
     else:
         row = conn.execute(
-            """SELECT * FROM tasks
-            WHERE application_id = ? AND task_type = ? AND context_hint = ?
-              AND state IN ('queued', 'claimed', 'in_progress', 'blocked')
+            f"""SELECT * FROM tasks
+            WHERE application_id = ? AND task_type = ? AND context_hint = ? AND state IN ({placeholders})
             ORDER BY created_at LIMIT 1""",
-            (application_id, task_type, context_hint),
+            (application_id, task_type, context_hint, *states),
         ).fetchone()
     return row_to_dict(row) if row else None
 
 
-def list_tasks(
-    conn: sqlite3.Connection,
-    *,
-    application_id: str | None = None,
-    state: str | None = None,
-) -> list[dict[str, Any]]:
+def list_tasks(conn: sqlite3.Connection, *, application_id: str | None = None, state: str | None = None) -> list[dict[str, Any]]:
     clauses = []
     params: list[str] = []
     if application_id is not None:
@@ -191,14 +170,14 @@ def complete_task(
             application_id=task.get("application_id"),
             title=result_title or task.get("title", ""),
             source_context=f"task:{task_id}",
-            review_state="suggested",
+            review_state="current",
             created_by="agent" if agent_name or agent_runtime else "user",
             agent_name=agent_name,
             agent_runtime=agent_runtime,
             model_provider=model_provider,
         )
         result_blob_id = blob["id"]
-    return update_task(
+    update_task(
         conn,
         task_id,
         state="completed",
@@ -208,6 +187,12 @@ def complete_task(
         agent_name=agent_name or task.get("agent_name", ""),
         agent_runtime=agent_runtime or task.get("agent_runtime", ""),
     )
+    try:
+        return apply_task_result(conn, task_id)
+    except ValueError as exc:
+        existing = get_task(conn, task_id)
+        update_task(conn, task_id, notes=(str(existing.get("notes") or "") + "\nResult kept as history: " + str(exc)).strip())
+        return get_task(conn, task_id)
 
 
 def apply_task_result(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
@@ -227,33 +212,21 @@ def apply_task_result(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
     if application_id and task_type == "field_inference":
         applied, notes = apply_field_inference(conn, application_id, result_body)
     elif application_id and task_type == "company_research":
-        applied, notes = apply_single_field_result(
-            conn,
-            application_id,
-            "company_research",
-            result_body,
-            default_title="Company research result",
-        )
+        applied, notes = apply_single_field_result(conn, application_id, "company_research", result_body, default_title="Company research result")
     elif task_type == "keyword_definition":
         term = keyword_from_context(task.get("context_hint", ""))
         if not term:
             raise ValueError("Keyword definition task requires context_hint=keyword:{term}")
         applied, notes = apply_keyword_definition(conn, term, result_body)
     elif application_id and task_type == "draft_form_responses":
-        applied, notes = apply_single_field_result(
-            conn,
-            application_id,
-            "form_answers",
-            result_body,
-            default_title="Form response draft",
-        )
+        applied, notes = apply_single_field_result(conn, application_id, "form_answers", result_body, default_title="Form response draft")
     elif artifact_id and task_type in {"draft_cv", "draft_cover_letter"}:
-        update_artifact_state(conn, artifact_id, "reviewed", "Applied from completed task result.")
+        update_artifact_state(conn, artifact_id, "reviewed", "Current generated artifact from completed task result.")
         applied = True
-        notes = [f"Reviewed artifact {artifact_id}; not marked submitted."]
+        notes = [f"Marked generated artifact current/reviewed: {artifact_id}."]
 
     if result_blob_id:
-        update_text_blob(conn, result_blob_id, review_state="applied" if applied else "reviewed")
+        update_text_blob(conn, result_blob_id, review_state="current" if applied else "history")
     if notes:
         existing_notes = str(task.get("notes") or "").strip()
         suffix = "Apply notes: " + "; ".join(notes)
@@ -296,9 +269,8 @@ def apply_field_inference(conn: sqlite3.Connection, application_id: str, result_
     from .candidatures import update_candidature
 
     parsed, replace = parse_task_result(result_body)
-    fields = parsed
-    if not isinstance(fields, dict):
-        return False, ["Plain text field inference result kept as reviewable text blob."]
+    if not isinstance(parsed, dict):
+        return False, ["Plain text field inference result kept as non-current history."]
     allowed = {
         "company",
         "role",
@@ -333,24 +305,23 @@ def apply_field_inference(conn: sqlite3.Connection, application_id: str, result_
     }
     current = get_candidature_for_apply(conn, application_id)
     updates: dict[str, Any] = {}
-    skipped: list[str] = []
-    for key, value in fields.items():
+    stale: list[str] = []
+    for key, value in parsed.items():
         if key not in allowed:
             continue
-        existing = current.get(key)
-        if replace or is_empty_value(existing):
+        if replace or is_empty_value(current.get(key)):
             updates[key] = value
         else:
-            skipped.append(key)
+            stale.append(key)
     if updates:
         update_candidature(conn, application_id, **updates)
     notes = []
     if updates:
-        notes.append("Filled empty fields: " + ", ".join(sorted(updates)))
-    if skipped:
-        notes.append("Skipped non-empty fields: " + ", ".join(sorted(skipped)))
-    if not updates and not skipped:
-        notes.append("No supported field inference fields found.")
+        notes.append("Current fields updated: " + ", ".join(sorted(updates)))
+    if stale:
+        notes.append("Stale against user/current edits, kept as history: " + ", ".join(sorted(stale)))
+    if not updates and not stale:
+        notes.append("No supported field inference fields found; kept as history.")
     return bool(updates), notes
 
 
@@ -363,14 +334,7 @@ def get_candidature_for_apply(conn: sqlite3.Connection, application_id: str) -> 
     return current
 
 
-def apply_single_field_result(
-    conn: sqlite3.Connection,
-    application_id: str,
-    field_name: str,
-    result_body: str,
-    *,
-    default_title: str,
-) -> tuple[bool, list[str]]:
+def apply_single_field_result(conn: sqlite3.Connection, application_id: str, field_name: str, result_body: str, *, default_title: str) -> tuple[bool, list[str]]:
     from .candidatures import update_candidature
 
     parsed, replace = parse_task_result(result_body)
@@ -378,19 +342,19 @@ def apply_single_field_result(
     current = get_candidature_for_apply(conn, application_id)
     if replace or is_empty_value(current.get(field_name)):
         update_candidature(conn, application_id, **{field_name: value})
-        return True, [f"Filled {field_name}."]
+        return True, [f"Current {field_name} updated."]
     create_text_blob(
         conn,
         field_name,
         value,
         application_id=application_id,
         title=default_title,
-        source_context=f"conflict:{field_name}",
-        review_state="suggested",
+        source_context=f"stale:{field_name}",
+        review_state="history",
         created_by="agent",
-        notes=f"Kept as suggestion because {field_name} already had content.",
+        notes=f"Non-current because {field_name} already had user/current content.",
     )
-    return False, [f"Skipped non-empty {field_name}; saved suggestion text blob."]
+    return False, [f"Stale {field_name}; saved as non-current history."]
 
 
 def apply_keyword_definition(conn: sqlite3.Connection, term: str, result_body: str) -> tuple[bool, list[str]]:
@@ -403,8 +367,8 @@ def apply_keyword_definition(conn: sqlite3.Connection, term: str, result_body: s
         if isinstance(parsed, dict) and parsed.get("category"):
             category = str(parsed["category"])
         upsert_glossary_term(conn, term, definition, category)
-        return True, [f"Saved keyword definition for {term}."]
-    return False, [f"Skipped existing keyword definition for {term}."]
+        return True, [f"Current keyword definition saved for {term}."]
+    return False, [f"Existing keyword definition kept; new result is non-current history for {term}."]
 
 
 def keyword_from_context(context_hint: str) -> str:
@@ -426,65 +390,17 @@ def ensure_initial_tasks(
     app = get_application(conn, application_id)
     created: list[dict[str, Any]] = []
     if include_field_inference:
-        created.append(
-            create_task(
-                conn,
-                "field_inference",
-                "Infer candidature fields",
-                application_id=application_id,
-                instructions="Extract structured candidature fields from raw offer and form intake.",
-                priority="high",
-                context_hint="candidature:field_inference",
-            )
-        )
+        created.append(create_task(conn, "field_inference", "Analyze candidature", application_id=application_id, instructions="Extract structured candidature fields from raw offer and form intake.", priority="high", context_hint="candidature:field_inference"))
     if include_company_research and not str(app.get("company_research") or "").strip():
-        created.append(
-            create_task(
-                conn,
-                "company_research",
-                "Research company context",
-                application_id=application_id,
-                instructions="Prepare company research as a suggestion for human review.",
-                priority="normal",
-                context_hint="candidature:company_research",
-            )
-        )
-    glossary = {
-        row["term"]: row["definition"]
-        for row in conn.execute("SELECT term, definition FROM glossary_terms").fetchall()
-    }
+        created.append(create_task(conn, "company_research", "Research company context", application_id=application_id, instructions="Prepare company research for the current candidature.", priority="normal", context_hint="candidature:company_research"))
+    glossary = {row["term"]: row["definition"] for row in conn.execute("SELECT term, definition FROM glossary_terms").fetchall()}
     if include_keyword_detection:
         for keyword in application_keywords(conn, application_id):
             if not str(glossary.get(keyword) or "").strip():
-                created.append(
-                    create_task(
-                        conn,
-                        "keyword_definition",
-                        f"Define keyword: {keyword}",
-                        application_id=application_id,
-                        instructions=f"Define {keyword} for this candidature context.",
-                        priority="medium",
-                        context_hint=f"keyword:{keyword}",
-                    )
-                )
-    optional = {
-        "cv": include_cv,
-        "cover_letter": include_cover_letter,
-        "form_responses": include_form_responses,
-    }
+                created.append(create_task(conn, "keyword_definition", f"Define keyword: {keyword}", application_id=application_id, instructions=f"Define {keyword} for this candidature context.", priority="medium", context_hint=f"keyword:{keyword}"))
+    optional = {"cv": include_cv, "cover_letter": include_cover_letter, "form_responses": include_form_responses}
     for key, enabled in optional.items():
-        if not enabled:
-            continue
-        task_type, title, instructions, context_hint = INITIAL_OPTIONAL_TASKS[key]
-        created.append(
-            create_task(
-                conn,
-                task_type,
-                title,
-                application_id=application_id,
-                instructions=instructions,
-                priority="normal",
-                context_hint=context_hint,
-            )
-        )
+        if enabled:
+            task_type, title, instructions, context_hint = INITIAL_OPTIONAL_TASKS[key]
+            created.append(create_task(conn, task_type, title, application_id=application_id, instructions=instructions, priority="normal", context_hint=context_hint))
     return created
