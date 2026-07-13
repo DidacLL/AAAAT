@@ -216,12 +216,14 @@ class DetailPanel(wx.ScrolledWindow):
         if not self._current_ref:
             return
         self._capture_controls()
+        ref = self._current_ref
         changes = collect_writable_changes(self._original_values, self._draft_values, self._field_storage_keys)
         if changes:
-            self.on_save(self._current_ref, changes)
             self._original_values.update(self._draft_values)
         self._draft_values = {}
         self._editing = False
+        if changes:
+            self.on_save(ref, changes)
 
     def _on_edit(self, _event: wx.CommandEvent) -> None:
         self._editing = True
