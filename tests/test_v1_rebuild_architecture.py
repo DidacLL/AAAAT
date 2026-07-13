@@ -117,7 +117,11 @@ class V1RebuildArchitectureTests(unittest.TestCase):
         self.assertEqual(row["company_research"], "Bounded company research")
 
     def test_document_task_renders_from_workspace_template(self):
-        intake = IntakeService(self.storage).create_from_offer("Python role")
+        intake = IntakeService(self.storage).create_from_offer(
+            "Python role at Example Co",
+            company="Example Co",
+            role="Python Engineer",
+        )
         task = TaskWorkflowService(self.storage).create_task(
             intake["candidature"]["id"],
             "draft_cover_letter",
