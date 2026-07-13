@@ -113,7 +113,7 @@ class DetailedViewMixin:
     def _visible_detailed_columns(self, detailed: dict[str, Any]) -> list[str]:
         available = [column for column in detailed.get("available_columns") or [] if isinstance(column, dict)]
         configured = self.layout_state.detailed_columns.get("visible") or detailed.get("visible_columns") or []
-        return normalize_visible_columns(configured, available)
+        return normalize_visible_columns(available, configured)
 
     def _on_choose_detailed_columns(self, _event: wx.CommandEvent) -> None:
         detailed = self.projection.get("detailed") or {}
