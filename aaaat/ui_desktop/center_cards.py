@@ -52,43 +52,76 @@ class CenterCardBuilder:
         self.add_full_text_drawers(detail)
 
     def add_visible_briefing(self, detail: dict[str, Any]) -> None:
-        tiles = [
-            ("Recognize", detail.get("call_signals") or detail.get("source_excerpt"), 190, 62),
-            ("Pitch", detail.get("pitch"), 240, 62),
-            ("Ask", detail.get("smart_question"), 200, 62),
-            ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 200, 62),
-            ("Strengths", detail.get("strengths"), 200, 62),
-            ("Questions", detail.get("questions_to_ask"), 200, 62),
+        primary = [
+            (
+                "Role snapshot",
+                self._first_text(detail, "offer_snapshot", "description", "source_excerpt"),
+                280,
+                86,
+            ),
+            (
+                "Pitch",
+                self._first_text(detail, "pitch", "role_strategy"),
+                280,
+                86,
+            ),
+        ]
+        support = [
+            ("Recognize", self._first_text(detail, "call_signals", "source_excerpt"), 190, 62),
+            ("Ask", detail.get("smart_question"), 190, 62),
+            ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 190, 62),
             ("Fit", detail.get("candidature_evaluation"), 210, 66),
             ("Strategy", detail.get("role_strategy"), 210, 66),
             ("Company context", detail.get("company_research"), 210, 66),
+            ("Evidence", detail.get("strengths"), 200, 62),
+            ("Questions", detail.get("questions_to_ask"), 200, 62),
             ("Stack", detail.get("tech_stack"), 160, 52),
+            ("Recruiter material", detail.get("recruiter_material"), 210, 66),
         ]
-        visible = [(label, str(value).strip(), limit, height) for label, value, limit, height in tiles if str(value or "").strip()]
-        if not visible:
+        primary_visible = self._visible_tiles(primary)
+        support_visible = self._visible_tiles(support)
+        if not primary_visible and not support_visible:
             return
+
         panel = wx.Panel(self.owner.center_scroll, style=wx.BORDER_SIMPLE)
-        grid = wx.FlexGridSizer(rows=0, cols=3, vgap=6, hgap=8)
-        for col in range(3):
-            grid.AddGrowableCol(col, 1)
-        panel.SetSizer(grid)
-        for label, value, limit, min_height in visible:
-            grid.Add(self._make_tile(panel, label, value, limit, min_height), 1, wx.ALL | wx.EXPAND, 6)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        panel.SetSizer(sizer)
+        if primary_visible:
+            sizer.Add(self._make_grid(panel, primary_visible, 2), 0, wx.ALL | wx.EXPAND, 4)
+        if support_visible:
+            sizer.Add(self._make_grid(panel, support_visible, 3), 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
     def add_full_text_drawers(self, detail: dict[str, Any]) -> None:
         drawers = [
             ("source", "Source text", detail.get("source_text") or detail.get("source_excerpt"), False, 260),
             ("description", "Role description", detail.get("description"), False, 220),
+            ("snapshot", "Role snapshot", detail.get("offer_snapshot"), False, 180),
+            ("signals", "Recognition signals", detail.get("call_signals"), False, 170),
+            ("pitch", "Pitch", detail.get("pitch"), False, 170),
+            ("questions", "Questions", detail.get("questions_to_ask") or detail.get("smart_question"), False, 170),
+            ("risks", "Risks to avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), False, 170),
+            ("strengths", "Evidence", detail.get("strengths"), False, 170),
             ("company", "Company context", detail.get("company_research"), False, 200),
             ("fit", "Fit assessment", detail.get("candidature_evaluation"), False, 180),
             ("strategy", "Application strategy", detail.get("role_strategy"), False, 180),
             ("recruiter", "Recruiter material", detail.get("recruiter_material"), False, 180),
+            ("stack", "Stack", detail.get("tech_stack"), False, 150),
         ]
         for card_id, title, body, expanded, min_height in drawers:
             text = str(body or "").strip()
             if text:
                 self.add_center_card(card_id, title, text, expanded_by_default=expanded, min_height=min_height)
+
+    def _make_grid(self, parent: wx.Window, visible: list[tuple[str, str, int, int]], columns: int) -> wx.Panel:
+        panel = wx.Panel(parent)
+        grid = wx.FlexGridSizer(rows=0, cols=max(1, columns), vgap=6, hgap=8)
+        for col in range(max(1, columns)):
+            grid.AddGrowableCol(col, 1)
+        panel.SetSizer(grid)
+        for label, value, limit, min_height in visible:
+            grid.Add(self._make_tile(panel, label, value, limit, min_height), 1, wx.ALL | wx.EXPAND, 4)
+        return panel
 
     def _make_tile(self, parent: wx.Window, label: str, value: str, limit: int, min_height: int) -> wx.Panel:
         tile = wx.Panel(parent)
@@ -177,6 +210,13 @@ class CenterCardBuilder:
         finally:
             self.owner.Thaw()
 
+    def _first_text(self, detail: dict[str, Any], *keys: str) -> str:
+        for key in keys:
+            text = str(detail.get(key) or "").strip()
+            if text:
+                return text
+        return ""
+
     def _logistics_text(self, detail: dict[str, Any]) -> str:
         parts = [
             str(detail.get("remote_mode") or "").strip(),
@@ -184,6 +224,9 @@ class CenterCardBuilder:
             str(detail.get("salary_expectation") or "").strip(),
         ]
         return " · ".join(part for part in parts if part)
+
+    def _visible_tiles(self, specs: list[tuple[str, Any, int, int]]) -> list[tuple[str, str, int, int]]:
+        return [(label, str(value).strip(), limit, height) for label, value, limit, height in specs if str(value or "").strip()]
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
