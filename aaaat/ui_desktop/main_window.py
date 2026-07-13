@@ -15,13 +15,13 @@ from .card_state import CenterCardState
 from .detailed_view import DetailedViewMixin
 from .new_candidature_dialog import NewCandidatureDialog
 from .services import DesktopCommandService
-from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
+from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_WINDOW_SIZE, SmartViewMixin
 from .task_worker import DesktopTaskWorker
 from .user_view import UserViewMixin
 
 
 class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx.Frame):
-    """Top-level wx desktop frame. Existing view mixins own navigation and rendering."""
+    """Top-level workspace; frame state is the only navigation authority."""
 
     def __init__(
         self,
@@ -236,10 +236,12 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         selected = dict(detail or self._selected_detail() or self._detailed_selected_row() or {})
         if not selected or not self.selected_ref:
             return None
+        record = self.command_service.get_candidature_record(self.selected_ref)
+        selected.update(record)
         smart = self.projection.get("smart", {})
         selected["company_research"] = str((smart.get("company_research") or {}).get("body") or selected.get("company_research") or "")
         selected["form_answers"] = str((smart.get("form_answers") or {}).get("body") or selected.get("form_answers") or "")
-        selected["artifacts"] = list((smart.get("artifact_summary") or {}).get("items") or [])
+        selected["artifacts"] = list((smart.get("artifact_summary") or {}).get("items") or record.get("artifacts") or [])
         selected["keyword_definitions"] = {
             str(item.get("term")): str(item.get("definition") or "")
             for item in self.projection.get("glossary", {}).get("terms") or []
@@ -257,6 +259,89 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         tasks = self.assistance_service.list_tasks(self.selected_ref) if self.selected_ref else []
         self.detailed_sidebar.render(detail, tasks)
 
+    def _confirm_navigation(self) -> bool:
+        if self.current_view == "detailed" and not self._confirm_detail_navigation():
+            return False
+        if self.current_view == "user" and not self._confirm_user_navigation():
+            return False
+        return True
+
+    def _on_view_tab_changed(self, event: wx.BookCtrlEvent) -> None:
+        if not self._confirm_navigation():
+            self._sync_view_tab()
+            return
+        index = event.GetSelection()
+        if index == 1:
+            self._go_detailed()
+        elif index == 2:
+            self._go_user()
+        elif self.selected_ref:
+            self._show_focus()
+            self._rendered_view_keys.pop("smart", None)
+            self._refresh_current_if_needed()
+        else:
+            self._go_overview()
+        event.Skip()
+
+    def _go_user(self) -> None:
+        if not self._confirm_navigation():
+            return
+        self._show_user()
+        self._refresh_current_if_needed()
+
+    def _go_detailed(self) -> None:
+        if not self._confirm_navigation():
+            return
+        self._show_detailed()
+        self._refresh_current_if_needed()
+
+    def _apply_focus_layout(self, force: bool = False) -> None:
+        if not self.focus_panel.IsShown():
+            return
+        width = int(self.focus_panel.GetClientSize().GetWidth())
+        if width <= 0:
+            return
+        left = max(180, min(260, round(width * 0.17)))
+        right = max(280, min(380, round(width * 0.24)))
+        center = width - left - right
+        if center < 420:
+            deficit = 420 - center
+            right = max(240, right - deficit)
+            center = width - left - right
+        if self.focus_splitter.IsSplit():
+            self.focus_splitter.SetSashPosition(left)
+        if self.content_splitter.IsSplit():
+            self.content_splitter.SetSashPosition(max(360, center))
+        height = int(self.center_panel.GetClientSize().GetHeight())
+        if height > 0 and self.center_splitter.IsSplit():
+            notes_height = max(120, min(180, round(height * 0.18)))
+            self.center_splitter.SetSashPosition(max(240, height - notes_height))
+        self.focus_left_width = left
+        self.focus_right_width = right
+        self._focus_layout_applied = True
+        if force:
+            self._layout_current_surface()
+
     def _on_focus_size(self, event: wx.SizeEvent) -> None:
         wx.CallAfter(self._apply_focus_layout, True)
+        event.Skip()
+
+    def _on_close(self, event: wx.CloseEvent) -> None:
+        if not self._confirm_navigation():
+            event.Veto()
+            return
+        self.layout_state.selected_view = self.current_view
+        self.layout_state.selected_candidature_ref = self.selected_ref
+        self.layout_state.selected_keyword = self.selected_keyword
+        if self.focus_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
+        if self.content_splitter.IsSplit():
+            total = max(1, self.content_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(240, total - self.content_splitter.GetSashPosition())
+        if self.detailed_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("detailed", {})["left"] = self.detailed_splitter.GetSashPosition()
+        if self.detailed_content_splitter.IsSplit():
+            total = max(1, self.detailed_content_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(240, total - self.detailed_content_splitter.GetSashPosition())
+        self.layout_state.save(self.layout_path)
         event.Skip()
