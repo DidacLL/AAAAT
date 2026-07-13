@@ -5,7 +5,7 @@ from typing import Any
 
 from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
 from aaaat.candidatures import update_candidature
-from aaaat.db import add_raw_intake, connect, delete_application, set_profile_variable
+from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, set_profile_variable, upsert_glossary_term
 from aaaat.tasks import create_task
 
 SUPPORTED_DETAIL_EDIT_FIELDS = set(WRITABLE_CANDIDATURE_STORAGE_KEYS)
@@ -21,14 +21,62 @@ SUPPORTED_PROFILE_VARIABLE_FIELDS = {
 }
 
 _ACTION_TASKS = {
-    "regenerate_evaluation": ("field_inference", "Regenerate offer evaluation", "Regenerate the current candidature evaluation from retained source and current editable data.", "candidature:field_inference", "high"),
-    "regenerate_strategy": ("career_plan_review", "Regenerate role strategy", "Produce or refresh the role-specific strategy using current candidature, profile and career context.", "candidature:role_strategy", "high"),
-    "update_company_research": ("company_research", "Update company research", "Refresh company research and recruiter-call context.", "candidature:company_research", "normal"),
-    "regenerate_keywords": ("field_inference", "Regenerate technical keywords", "Refresh the meaningful keyword list from retained source and current candidature data.", "candidature:keywords", "normal"),
-    "prepare_form_answers": ("draft_form_responses", "Prepare form answers", "Generate application-form answers from the stored form, profile and current strategy.", "blob:form_responses", "normal"),
-    "generate_cv": ("draft_cv", "Generate tailored CV", "Generate CV material using the current evaluation, strategy, candidature data and profile.", "artifact:cv", "normal"),
-    "generate_cover_letter": ("draft_cover_letter", "Generate cover letter", "Generate cover-letter material using the current evaluation, strategy, candidature data and profile.", "artifact:cover_letter", "normal"),
-    "prepare_recruiter_call": ("recruiter_call_material", "Prepare recruiter-call material", "Generate concise recruiter-call or interview material for this candidature.", "call:recruiter", "normal"),
+    "infer_fields": (
+        "field_inference",
+        "Infer candidature fields",
+        "Infer every supported candidature field that can be grounded in the retained raw offer, current candidature data and bounded user profile. Preserve non-empty user edits unless the task result explicitly justifies a replacement.",
+        "candidature:field_inference",
+        "high",
+    ),
+    "regenerate_strategy": (
+        "career_plan_review",
+        "Draft role strategy",
+        "Produce or refresh the role-specific strategy using current candidature, profile and career context.",
+        "candidature:role_strategy",
+        "high",
+    ),
+    "update_company_research": (
+        "company_research",
+        "Research company",
+        "Refresh company research and recruiter-call context.",
+        "candidature:company_research",
+        "normal",
+    ),
+    "regenerate_keywords": (
+        "field_inference",
+        "Extract candidature keywords",
+        "Extract meaningful technical, product, domain and recruiting keywords from the retained raw offer and current candidature data. Preserve manually-added keywords.",
+        "candidature:keywords",
+        "normal",
+    ),
+    "prepare_form_answers": (
+        "draft_form_responses",
+        "Draft form answers",
+        "Generate application-form answers from the stored form, profile and current strategy.",
+        "blob:form_responses",
+        "normal",
+    ),
+    "generate_cv": (
+        "draft_cv",
+        "Draft CV material",
+        "Generate CV material using the current evaluation, strategy, candidature data and profile.",
+        "artifact:cv",
+        "normal",
+    ),
+    "generate_cover_letter": (
+        "draft_cover_letter",
+        "Draft cover letter",
+        "Generate cover-letter material using the current evaluation, strategy, candidature data and profile.",
+        "artifact:cover_letter",
+        "normal",
+    ),
+    "prepare_recruiter_call": (
+        "recruiter_call_material",
+        "Prepare recruiter-call material",
+        "Generate concise recruiter-call or interview material for this candidature.",
+        "call:recruiter",
+        "normal",
+    ),
 }
 
 
@@ -52,6 +100,24 @@ class DesktopCommandService:
             if safe_changes:
                 return update_candidature(conn, candidature_ref, **safe_changes)
             return update_candidature(conn, candidature_ref)
+
+    def add_keyword(self, candidature_ref: str, term: str, definition: str = "") -> dict[str, Any] | None:
+        cleaned = str(term or "").strip()
+        if not candidature_ref or not cleaned:
+            return None
+        with connect(self.storage_path) as conn:
+            terms = application_keywords(conn, candidature_ref)
+            if cleaned not in terms:
+                terms.append(cleaned)
+            upsert_glossary_term(conn, cleaned, str(definition or ""))
+            return update_candidature(conn, candidature_ref, keywords=terms)
+
+    def save_keyword_definition(self, term: str, definition: str) -> dict[str, Any] | None:
+        cleaned = str(term or "").strip()
+        if not cleaned:
+            return None
+        with connect(self.storage_path) as conn:
+            return upsert_glossary_term(conn, cleaned, str(definition or ""))
 
     def queue_candidature_action(self, candidature_ref: str, action_id: str) -> dict[str, Any] | None:
         spec = _ACTION_TASKS.get(action_id)
