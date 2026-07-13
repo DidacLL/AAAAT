@@ -10,7 +10,7 @@ import wx.html  # type: ignore[import-not-found]
 
 
 class KeywordHtmlLinker:
-    """Render glossary-aware wx.html text and route kw: links."""
+    """Render glossary-aware rich text and route keyword links."""
 
     def __init__(self, *, known_terms: Callable[[], list[str]], select_keyword: Callable[[str], None]) -> None:
         self._known_terms = known_terms
@@ -24,6 +24,7 @@ class KeywordHtmlLinker:
         window.SetMinSize((-1, min_height))
         window.SetPage(self.to_html(text))
         window.Bind(wx.html.EVT_HTML_LINK_CLICKED, self.on_link)
+        setattr(window, "_aaaat_link_activated", False)
         return window
 
     def to_html(self, text: str) -> str:
@@ -48,10 +49,14 @@ class KeywordHtmlLinker:
         return f"<html><body><font size='2'>{body}</font></body></html>"
 
     def on_link(self, event: wx.html.HtmlLinkEvent) -> None:
+        window = event.GetEventObject()
         href = event.GetLinkInfo().GetHref()
         if not href.startswith("kw:"):
             event.Skip()
             return
+        if isinstance(window, wx.Window):
+            setattr(window, "_aaaat_link_activated", True)
+            wx.CallLater(150, lambda: setattr(window, "_aaaat_link_activated", False))
         self._select_keyword(unquote(href[3:]))
 
     def _canonical_term(self, term: str) -> str:
