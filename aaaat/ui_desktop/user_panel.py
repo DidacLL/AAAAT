@@ -150,10 +150,11 @@ class UserPanel(wx.ScrolledWindow):
     def _on_save(self, _event: wx.CommandEvent) -> None:
         current = {key: control.GetValue() for key, control in self._controls.items()}
         changes = collect_writable_user_changes(self._original_values, current, self._field_storage_keys)
+        self._editing = False
         if changes:
             self.on_save(changes)
-        self._editing = False
-        self.render(self._projection)
+        else:
+            self.render(self._projection)
 
     def _on_cancel(self, _event: wx.CommandEvent) -> None:
         self._editing = False
