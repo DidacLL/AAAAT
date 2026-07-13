@@ -2,7 +2,7 @@
 
 AAAAT is scoped as a single-user local application. Private data is stored under `.private/` by default, or under the path passed with `--storage`.
 
-AAAAT is local-first. Its production target is a single user running the app on a local machine with private data stored locally.
+AAAAT is local-first. Its production target is a single user running the desktop app on a local machine with private data stored locally.
 
 ## Default storage
 
@@ -38,7 +38,7 @@ AAAAT stores a lightweight metadata row in SQLite:
 schema_meta.schema_version = 1
 ```
 
-This is a startup compatibility check, not a migration framework. The project intentionally does not use Alembic or enterprise migration machinery for the local MVP.
+This is a startup compatibility check, not a heavy migration framework.
 
 The SQLite database is initialized idempotently. Running `aaaat init` or commands that call initialization again should not duplicate seed glossary terms, templates, or schema metadata.
 
@@ -84,12 +84,12 @@ A plain directory copy is still acceptable for manual maintenance, but the CLI b
 
 Restore is intentionally manual for now:
 
-1. Stop the AAAAT dashboard or agent runtime.
+1. Stop the AAAAT desktop app.
 2. Move the current `.private/aaaat.sqlite3` aside.
 3. Extract `aaaat.sqlite3` from the chosen backup zip into `.private/`.
 4. Extract the `artifacts/` directory from the same backup into `.private/artifacts/` if needed.
 5. Run `python -m aaaat.cli init` once to verify the schema metadata and default seed rows.
-6. Launch read-only first and inspect the dashboard before making new changes.
+6. Launch read-only first and inspect the desktop app before making new changes.
 
 Example:
 
@@ -99,23 +99,24 @@ unzip .private/backups/aaaat-backup-20260708T120000Z.zip -d .private-restored
 cp .private-restored/aaaat.sqlite3 .private/aaaat.sqlite3
 cp -a .private-restored/artifacts .private/ 2>/dev/null || true
 python -m aaaat.cli init
-python -m aaaat.cli launch --read-only
+aaaat-desktop --read-only
 ```
 
 Keep backup zips private. They may contain the full local job-search database and rendered artifacts.
 
-## Static demo data
+## Demo data
 
-Static demo export is separate from private storage:
+Fake desktop data can be generated locally for UI validation:
 
 ```bash
-aaaat export static-demo outputs/static-demo.html
+aaaat-seed-desktop-demo --reset --count 24
+aaaat-desktop
 ```
 
-The static exporter reads `examples/demo_payload.json`. It must remain fake/private-safe and must not read `.private/`.
+The demo seed writes fake local data to the selected storage path. Do not mix real job-search data into demo storage if you plan to share screenshots or logs.
 
 ## Privacy limits
 
-AAAAT reduces accidental over-exposure through local defaults, ignored private paths, read-only mode, static fake-data demo export, and bounded agent-compatible surfaces.
+AAAAT reduces accidental over-exposure through local defaults, ignored private paths, read-only desktop mode, and bounded agent-compatible surfaces.
 
-AAAAT cannot fully protect private data from software or agents that can read your filesystem, inspect `.private/`, modify the source code, use your shell privileges, or access the running local dashboard with your permissions.
+AAAAT cannot fully protect private data from software or agents that can read your filesystem, inspect `.private/`, modify the source code, or use your shell privileges.
