@@ -13,30 +13,19 @@ KeywordCallback = Callable[[str], None]
 DeleteCallback = Callable[[str], None]
 
 FIELD_ACTIONS: dict[str, tuple[str, str, str]] = {
-    "candidature_evaluation": ("regenerate_evaluation", "Generate", "Regenerate"),
-    "role_strategy": ("regenerate_strategy", "Generate", "Regenerate"),
-    "company_research": ("update_company_research", "Research", "Refresh"),
-    "keywords": ("regenerate_keywords", "Generate", "Regenerate"),
-    "form_answers": ("prepare_form_answers", "Generate", "Regenerate"),
-    "cv_material": ("generate_cv", "Generate CV", "Regenerate CV"),
-    "cover_letter_material": ("generate_cover_letter", "Generate letter", "Regenerate letter"),
-    "recruiter_material": ("prepare_recruiter_call", "Generate prep", "Regenerate prep"),
+    "candidature_evaluation": ("regenerate_evaluation", "Infer from offer", "Refresh from offer"),
+    "role_strategy": ("regenerate_strategy", "Draft strategy", "Refresh strategy"),
+    "company_research": ("update_company_research", "Research company", "Refresh research"),
+    "keywords": ("regenerate_keywords", "Extract keywords", "Refresh keywords"),
+    "form_answers": ("prepare_form_answers", "Draft answers", "Refresh answers"),
+    "cv_material": ("generate_cv", "Draft CV", "Refresh CV"),
+    "cover_letter_material": ("generate_cover_letter", "Draft letter", "Refresh letter"),
+    "recruiter_material": ("prepare_recruiter_call", "Prepare call", "Refresh prep"),
 }
-
-RAIL_ACTIONS = (
-    ("regenerate_evaluation", "Evaluation"),
-    ("regenerate_strategy", "Strategy"),
-    ("update_company_research", "Company research"),
-    ("regenerate_keywords", "Keywords"),
-    ("prepare_form_answers", "Form answers"),
-    ("generate_cv", "CV material"),
-    ("generate_cover_letter", "Cover letter"),
-    ("prepare_recruiter_call", "Call prep"),
-)
 
 
 class CandidatureDetailBodyPanel(wx.ScrolledWindow):
-    """Central Detailed View body: all candidature fields, grouped and editable."""
+    """Central Detailed View body: grouped candidature fields with inline edit/generate controls."""
 
     def __init__(
         self,
@@ -132,7 +121,7 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
 
 
 class CandidatureOptionsPanel(wx.ScrolledWindow):
-    """Right-side working options rail for selected candidature context and actions."""
+    """Right-side context rail. Smart stays read-only; generation belongs beside Detailed fields."""
 
     def __init__(
         self,
@@ -164,10 +153,14 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
             self.sizer.Clear(delete_windows=True)
             if not self._current_ref:
                 self._add_empty()
+            elif view_name == "smart":
+                self._add_keyword_context(projection)
+                self._add_artifact_context(projection)
             else:
                 self._add_selection_summary(projection)
                 self._add_keyword_context(projection)
-                self._add_actions()
+                self._add_artifact_context(projection)
+                self._add_record_options()
             self.Layout()
             self.FitInside()
             bind_parent_wheel_scroll(self, self)
@@ -175,9 +168,9 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
             self.Thaw()
 
     def _add_empty(self) -> None:
-        title = wx.StaticText(self, label="Options")
+        title = wx.StaticText(self, label="Context")
         title.SetFont(title.GetFont().Bold().Larger())
-        body = wx.StaticText(self, label="Select a candidature to see context and actions.")
+        body = wx.StaticText(self, label="Select a candidature to see keyword and material context.")
         body.Wrap(self._wrap_width())
         self.sizer.Add(title, 0, wx.ALL | wx.EXPAND, 10)
         self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
@@ -190,49 +183,72 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
         body.Wrap(self._wrap_width())
         self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
         self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
-        if self._view_name == "detailed":
-            open_button = wx.Button(self, label="Open in Smart")
-            open_button.Bind(wx.EVT_BUTTON, lambda _event: self.on_open_smart())
-            delete_button = wx.Button(self, label="Delete candidature")
-            delete_button.Enable(self._can_edit)
-            delete_button.Bind(wx.EVT_BUTTON, lambda _event: self.on_delete(self._current_ref))
-            self.sizer.Add(open_button, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-            self.sizer.Add(delete_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
     def _add_keyword_context(self, projection: dict[str, Any]) -> None:
         detail = _selected_detail(projection)
         terms = _keyword_terms(detail.get("keywords"))
         selected = str((projection.get("view_state") or {}).get("selected_keyword") or "").strip() or (terms[0] if terms else "")
         definition = _keyword_definition(projection, selected)
-        heading = wx.StaticText(self, label="Keyword context")
-        heading.SetFont(heading.GetFont().Bold().Larger())
-        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        selected_label = wx.StaticText(self, label=selected or "No keyword selected")
-        selected_label.SetFont(selected_label.GetFont().Bold())
-        body = wx.StaticText(self, label=str(definition.get("definition") or "Click a highlighted term or keyword chip to inspect it here."))
-        selected_label.Wrap(self._wrap_width())
+        label = f"Keyword · {selected}" if selected else "Keyword"
+        module = wx.CollapsiblePane(self, label=label)
+        module.Collapse(False)
+        pane = module.GetPane()
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        pane.SetSizer(sizer)
+        title = wx.StaticText(pane, label=selected or "No keyword selected")
+        title.SetFont(title.GetFont().Bold())
+        body = wx.StaticText(pane, label=str(definition.get("definition") or "Click a highlighted term or keyword chip to inspect it here."))
+        title.Wrap(self._wrap_width())
         body.Wrap(self._wrap_width())
-        self.sizer.Add(selected_label, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        sizer.Add(title, 0, wx.ALL | wx.EXPAND, 6)
+        sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
         if terms:
-            chips_panel = wx.Panel(self)
+            chips_panel = wx.Panel(pane)
             chips = wx.WrapSizer(wx.HORIZONTAL)
             chips_panel.SetSizer(chips)
             for term in terms:
-                button = wx.Button(chips_panel, label=term, size=(-1, 26))
+                button = wx.Button(chips_panel, label=term)
                 button.Bind(wx.EVT_BUTTON, lambda _event, selected_term=term: self.on_keyword_select(selected_term))
                 chips.Add(button, 0, wx.ALL, 2)
-            self.sizer.Add(chips_panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+            sizer.Add(chips_panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
+        module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_inside())
+        self.sizer.Add(module, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
 
-    def _add_actions(self) -> None:
-        heading = wx.StaticText(self, label="Actions")
-        heading.SetFont(heading.GetFont().Bold().Larger())
-        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        for action_id, label in RAIL_ACTIONS:
-            button = wx.Button(self, label=label)
-            button.Enable(self._can_edit)
-            button.Bind(wx.EVT_BUTTON, lambda _event, selected=action_id: self.on_action(self._current_ref, selected))
-            self.sizer.Add(button, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+    def _add_artifact_context(self, projection: dict[str, Any]) -> None:
+        summary = (projection.get("smart") or {}).get("artifact_summary") or {}
+        items = summary.get("items") or []
+        text = "No material yet."
+        if items:
+            rows = []
+            for item in items[:5]:
+                if isinstance(item, dict):
+                    rows.append(" · ".join(str(part) for part in (item.get("artifact_type"), item.get("label"), item.get("review_state")) if part))
+                else:
+                    rows.append(str(item))
+            text = "\n".join(rows)
+        module = wx.CollapsiblePane(self, label="Material")
+        module.Collapse(True)
+        pane = module.GetPane()
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        pane.SetSizer(sizer)
+        body = wx.StaticText(pane, label=text)
+        body.Wrap(self._wrap_width())
+        sizer.Add(body, 0, wx.ALL | wx.EXPAND, 6)
+        module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_inside())
+        self.sizer.Add(module, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+
+    def _add_record_options(self) -> None:
+        label = wx.StaticText(self, label="Record")
+        label.SetFont(label.GetFont().Bold().Larger())
+        delete_button = wx.Button(self, label="Delete candidature")
+        delete_button.Enable(self._can_edit)
+        delete_button.Bind(wx.EVT_BUTTON, lambda _event: self.on_delete(self._current_ref))
+        self.sizer.Add(label, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+        self.sizer.Add(delete_button, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+
+    def _fit_inside(self) -> None:
+        self.Layout()
+        self.FitInside()
 
     def _wrap_width(self) -> int:
         return max(180, int(self.GetClientSize().GetWidth() or 300) - 24)
@@ -283,11 +299,11 @@ class InlineFieldEditor(wx.Panel):
         header.Add(label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         if self.action_spec:
             _action_id, empty_label, filled_label = self.action_spec
-            action = wx.Button(self, label=filled_label if self._value.strip() else empty_label, size=(112, -1))
+            action = wx.Button(self, label=filled_label if self._value.strip() else empty_label)
             action.Bind(wx.EVT_BUTTON, self._queue_action)
             header.Add(action, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         if self.can_edit:
-            edit = wx.Button(self, label="Edit", size=(58, -1))
+            edit = wx.Button(self, label="Edit")
             edit.Bind(wx.EVT_BUTTON, self._start_edit)
             header.Add(edit, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         self.sizer.Add(header, 0, wx.EXPAND)
@@ -313,7 +329,7 @@ class InlineFieldEditor(wx.Panel):
         chips = wx.WrapSizer(wx.HORIZONTAL)
         chips_panel.SetSizer(chips)
         for term in terms:
-            button = wx.Button(chips_panel, label=term, size=(-1, 26))
+            button = wx.Button(chips_panel, label=term)
             button.Bind(wx.EVT_BUTTON, lambda _event, selected_term=term: self.on_keyword_select(selected_term))
             chips.Add(button, 0, wx.ALL, 2)
         self.sizer.Add(chips_panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
@@ -442,6 +458,4 @@ def _keyword_definition(projection: dict[str, Any], selected: str) -> dict[str, 
     return {"term": selected, "definition": "", "category": ""}
 
 
-# Backwards-compatible name for older imports. New code should choose the body
-# or options class explicitly.
 CandidatureRightPanel = CandidatureOptionsPanel
