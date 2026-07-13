@@ -19,12 +19,16 @@ class IntakeAssistanceTests(unittest.TestCase):
         return tmp.name
 
     def write_config(self, storage, *, automatic, command=None):
+        adapter = (
+            {"id": "custom_command", "settings": {"command": command}}
+            if command
+            else {"id": "external_agent", "settings": {}}
+        )
         config_path(storage).write_text(
             json.dumps(
                 {
                     "automatic_preparation": automatic,
-                    "runner_command": command or [],
-                    "task_overrides": {},
+                    "provider_adapter": adapter,
                 }
             ),
             encoding="utf-8",
@@ -40,6 +44,7 @@ class IntakeAssistanceTests(unittest.TestCase):
             [task["task_type"] for task in result["tasks"]],
             ["field_inference", "company_research", "career_plan_review"],
         )
+        self.assertFalse(result["runner_configured"])
         self.assertFalse(any(task["task_type"] in {"draft_cv", "draft_cover_letter"} for task in result["tasks"]))
 
     def test_form_answers_are_conditional(self):
@@ -57,6 +62,7 @@ class IntakeAssistanceTests(unittest.TestCase):
         service = IntakeService(storage)
         result = service.create_from_offer("Backend role in Madrid")
         task_id = result["tasks"][0]["id"]
+        self.assertTrue(result["runner_configured"])
 
         TaskRunner(storage).run(task_id)
         with connect(storage) as conn:
