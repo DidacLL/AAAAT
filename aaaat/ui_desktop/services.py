@@ -29,7 +29,7 @@ SUPPORTED_PROFILE_VARIABLE_FIELDS = {
     "profile.portfolio_url",
     "profile.summary.default",
 }
-SUPPORTED_DETAIL_EDIT_FIELDS = set(APPLICATION_UPDATE_FIELDS) | set(CANDIDATURE_DETAIL_FIELDS) | {"keywords"}
+SUPPORTED_DETAIL_EDIT_FIELDS = set(APPLICATION_UPDATE_FIELDS) | set(CANDIDATURE_DETAIL_FIELDS) | {"keywords", "source_text"}
 
 
 class DesktopCommandService:
