@@ -5,6 +5,7 @@ from typing import Any
 
 from .candidatures import create_candidature, get_candidature
 from .db import application_keywords, connect, update_application
+from .provider_adapters import adapter_can_run_automatically
 from .task_registry import task_definition
 from .tasks import create_task
 from .workspace_config import effective_task_snapshot, load_workspace_config
@@ -59,10 +60,11 @@ class IntakeService:
             if form_value and "draft_form_responses" not in requested:
                 requested.append("draft_form_responses")
             tasks = [self._create_task(conn, candidature["id"], task_type, config, idempotent=True) for task_type in requested]
+            adapter_id = str(config["provider_adapter"]["id"])
             return {
                 "candidature": get_candidature(conn, candidature["id"]),
                 "tasks": tasks,
-                "runner_configured": bool(config["runner_command"]),
+                "runner_configured": adapter_can_run_automatically(adapter_id),
             }
 
     def create_task(self, application_id: str, task_type: str, *, force_new: bool = False) -> dict[str, Any]:
