@@ -47,7 +47,6 @@ STACKS = [
 ]
 
 PRIORITIES = ["high", "normal", "low"]
-LEAD_SOURCES = ["LinkedIn recruiter", "Welcome to the Jungle", "Company careers", "Referral", "Cold inbound", "Otta", "RemoteOK"]
 LOCATIONS = ["Barcelona", "Madrid", "Remote EU", "Berlin", "Amsterdam", "London", "Paris", "Hybrid Barcelona"]
 REMOTE = ["remote", "hybrid", "onsite", "remote EU"]
 
@@ -70,7 +69,6 @@ def build_record(index: int) -> dict[str, Any]:
     keywords = list(STACKS[index % len(STACKS)])
     status = "closed" if index % 13 == 12 else "active"
     priority = PRIORITIES[index % len(PRIORITIES)]
-    lead_source = LEAD_SOURCES[index % len(LEAD_SOURCES)]
     location = LOCATIONS[index % len(LOCATIONS)]
     remote_mode = REMOTE[index % len(REMOTE)]
     focus = keywords[0]
@@ -80,7 +78,6 @@ def build_record(index: int) -> dict[str, Any]:
         "role": role,
         "status": status,
         "priority": priority,
-        "source": lead_source,
         "source_url": f"https://example.invalid/jobs/{index + 1:03d}",
         "location": location,
         "remote_mode": remote_mode,
@@ -133,7 +130,7 @@ Interview process
 The first call is a recruiter screen focused on motivation, salary range, remote expectations, and recent backend/platform work. The second step is a technical conversation with two engineers. Later steps may include a small system-design exercise and a conversation with the hiring manager.
 
 Signals to remember
-This is the offer text that would visually identify {company} during a call: the posting mentioned {focus}, {secondary}, ownership, and a team trying to reduce operational friction without building a large platform team.
+The posting emphasized {focus}, {secondary}, ownership, and a team trying to reduce operational friction without building a large platform team.
 
 Open questions
 - What is broken enough that the first hire should improve it immediately?
@@ -171,8 +168,8 @@ def _find_seed_application_id(conn: sqlite3.Connection, record: dict[str, Any]) 
         if row:
             return str(row["id"])
     row = conn.execute(
-        "SELECT id FROM applications WHERE company = ? AND role = ? AND source = ?",
-        (record.get("company", ""), record.get("role", ""), record.get("source", "")),
+        "SELECT id FROM applications WHERE company = ? AND role = ?",
+        (record.get("company", ""), record.get("role", "")),
     ).fetchone()
     return str(row["id"]) if row else ""
 
