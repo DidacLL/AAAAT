@@ -292,7 +292,6 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.layout_state.selected_view = self.current_view
         self.layout_state.selected_candidature_ref = self.selected_ref
         self.layout_state.selected_keyword = self.selected_keyword
-        self.layout_state.search_query = self.search_query
         if self.focus_splitter.IsSplit():
             self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
         if self.content_splitter.IsSplit():
