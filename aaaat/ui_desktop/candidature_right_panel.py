@@ -10,17 +10,39 @@ from .scrolling import bind_parent_wheel_scroll
 FieldSaveCallback = Callable[[str, dict[str, str]], None]
 ActionCallback = Callable[[str, str], None]
 KeywordCallback = Callable[[str], None]
+AddKeywordCallback = Callable[[str, str, str], None]
+SaveKeywordDefinitionCallback = Callable[[str, str], None]
 DeleteCallback = Callable[[str], None]
 
 FIELD_ACTIONS: dict[str, tuple[str, str, str]] = {
-    "candidature_evaluation": ("regenerate_evaluation", "Infer from offer", "Refresh from offer"),
-    "role_strategy": ("regenerate_strategy", "Draft strategy", "Refresh strategy"),
-    "company_research": ("update_company_research", "Research company", "Refresh research"),
-    "keywords": ("regenerate_keywords", "Extract keywords", "Refresh keywords"),
-    "form_answers": ("prepare_form_answers", "Draft answers", "Refresh answers"),
+    "company": ("infer_fields", "Infer", "Reinfer"),
+    "role": ("infer_fields", "Infer", "Reinfer"),
+    "source": ("infer_fields", "Infer", "Reinfer"),
+    "source_url": ("infer_fields", "Infer", "Reinfer"),
+    "location": ("infer_fields", "Infer", "Reinfer"),
+    "remote_mode": ("infer_fields", "Infer", "Reinfer"),
+    "salary_expectation": ("infer_fields", "Infer", "Reinfer"),
+    "publication_date": ("infer_fields", "Infer", "Reinfer"),
+    "application_date": ("infer_fields", "Infer", "Reinfer"),
+    "description": ("infer_fields", "Infer", "Reinfer"),
+    "offer_snapshot": ("infer_fields", "Infer", "Reinfer"),
+    "candidature_evaluation": ("infer_fields", "Infer fit", "Refresh fit"),
+    "strengths": ("infer_fields", "Infer", "Reinfer"),
+    "risks_to_avoid": ("infer_fields", "Infer", "Reinfer"),
+    "questions_to_ask": ("infer_fields", "Infer", "Reinfer"),
+    "tech_stack": ("infer_fields", "Infer", "Reinfer"),
+    "valuation": ("infer_fields", "Infer", "Reinfer"),
+    "role_strategy": ("regenerate_strategy", "Draft", "Refresh"),
+    "company_research": ("update_company_research", "Research", "Refresh"),
+    "technical_reading": ("infer_fields", "Infer", "Reinfer"),
+    "call_signals": ("infer_fields", "Infer", "Reinfer"),
+    "pitch": ("infer_fields", "Draft", "Refresh"),
+    "smart_question": ("infer_fields", "Draft", "Refresh"),
+    "recruiter_material": ("prepare_recruiter_call", "Prepare", "Refresh"),
+    "keywords": ("regenerate_keywords", "Extract", "Refresh"),
+    "form_answers": ("prepare_form_answers", "Draft", "Refresh"),
     "cv_material": ("generate_cv", "Draft CV", "Refresh CV"),
     "cover_letter_material": ("generate_cover_letter", "Draft letter", "Refresh letter"),
-    "recruiter_material": ("prepare_recruiter_call", "Prepare call", "Refresh prep"),
 }
 
 
@@ -34,11 +56,13 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
         on_save: FieldSaveCallback,
         on_action: ActionCallback,
         on_keyword_select: KeywordCallback | None = None,
+        on_add_keyword: AddKeywordCallback | None = None,
     ) -> None:
         super().__init__(parent, style=wx.VSCROLL)
         self.on_save = on_save
         self.on_action = on_action
         self.on_keyword_select = on_keyword_select or (lambda _term: None)
+        self.on_add_keyword = on_add_keyword or (lambda _ref, _term, _definition: None)
         self._current_ref = ""
         self._can_edit = False
         self._active_editor: InlineFieldEditor | None = None
@@ -74,6 +98,7 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
                             on_action=self._queue_field_action,
                             on_begin_edit=self._begin_field_edit,
                             on_keyword_select=self.on_keyword_select,
+                            on_add_keyword=self._add_keyword,
                         )
                         self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
             self.Layout()
@@ -111,6 +136,10 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
         if self._current_ref and action_id:
             self.on_action(self._current_ref, action_id)
 
+    def _add_keyword(self, term: str, definition: str) -> None:
+        if self._current_ref and term.strip():
+            self.on_add_keyword(self._current_ref, term, definition)
+
     def _begin_field_edit(self, editor: "InlineFieldEditor") -> None:
         if self._active_editor is not None and self._active_editor is not editor:
             self._active_editor.close_editor()
@@ -121,7 +150,7 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
 
 
 class CandidatureOptionsPanel(wx.ScrolledWindow):
-    """Right-side context rail. Smart stays read-only; generation belongs beside Detailed fields."""
+    """Right-side context rail for selected keyword/material and Detailed record options."""
 
     def __init__(
         self,
@@ -129,14 +158,16 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
         *,
         on_action: ActionCallback,
         on_delete: DeleteCallback,
-        on_open_smart: Callable[[], None] | None = None,
         on_keyword_select: KeywordCallback | None = None,
+        on_add_keyword: AddKeywordCallback | None = None,
+        on_save_keyword_definition: SaveKeywordDefinitionCallback | None = None,
     ) -> None:
         super().__init__(parent, style=wx.VSCROLL)
         self.on_action = on_action
         self.on_delete = on_delete
-        self.on_open_smart = on_open_smart or (lambda: None)
         self.on_keyword_select = on_keyword_select or (lambda _term: None)
+        self.on_add_keyword = on_add_keyword or (lambda _ref, _term, _definition: None)
+        self.on_save_keyword_definition = on_save_keyword_definition or (lambda _term, _definition: None)
         self._current_ref = ""
         self._can_edit = False
         self._view_name = "smart"
@@ -150,15 +181,16 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
             self._current_ref = _selected_ref(projection)
             self._can_edit = bool(can_edit)
             self._view_name = view_name
+            self._projection = projection
             self.sizer.Clear(delete_windows=True)
             if not self._current_ref:
                 self._add_empty()
             elif view_name == "smart":
-                self._add_keyword_context(projection)
+                self._add_keyword_context(projection, editable=False)
                 self._add_artifact_context(projection)
             else:
                 self._add_selection_summary(projection)
-                self._add_keyword_context(projection)
+                self._add_keyword_context(projection, editable=True)
                 self._add_artifact_context(projection)
                 self._add_record_options()
             self.Layout()
@@ -184,7 +216,7 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
         self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
         self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-    def _add_keyword_context(self, projection: dict[str, Any]) -> None:
+    def _add_keyword_context(self, projection: dict[str, Any], *, editable: bool) -> None:
         detail = _selected_detail(projection)
         terms = _keyword_terms(detail.get("keywords"))
         selected = str((projection.get("view_state") or {}).get("selected_keyword") or "").strip() or (terms[0] if terms else "")
@@ -211,6 +243,16 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
                 button.Bind(wx.EVT_BUTTON, lambda _event, selected_term=term: self.on_keyword_select(selected_term))
                 chips.Add(button, 0, wx.ALL, 2)
             sizer.Add(chips_panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
+        if editable and self._can_edit:
+            controls = wx.BoxSizer(wx.HORIZONTAL)
+            add = wx.Button(pane, label="Add keyword")
+            edit = wx.Button(pane, label="Edit definition")
+            edit.Enable(bool(selected))
+            add.Bind(wx.EVT_BUTTON, lambda _event: self._dialog_add_keyword())
+            edit.Bind(wx.EVT_BUTTON, lambda _event, selected_term=selected, current=str(definition.get("definition") or ""): self._dialog_edit_definition(selected_term, current))
+            controls.Add(add, 0, wx.ALL, 3)
+            controls.Add(edit, 0, wx.ALL, 3)
+            sizer.Add(controls, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 3)
         module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_inside())
         self.sizer.Add(module, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
 
@@ -240,11 +282,42 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
     def _add_record_options(self) -> None:
         label = wx.StaticText(self, label="Record")
         label.SetFont(label.GetFont().Bold().Larger())
-        delete_button = wx.Button(self, label="Delete candidature")
+        delete_button = wx.Button(self, label="Delete")
         delete_button.Enable(self._can_edit)
         delete_button.Bind(wx.EVT_BUTTON, lambda _event: self.on_delete(self._current_ref))
         self.sizer.Add(label, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        self.sizer.Add(delete_button, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+        self.sizer.Add(delete_button, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+
+    def _dialog_add_keyword(self) -> None:
+        if not self._current_ref:
+            return
+        term_dialog = wx.TextEntryDialog(self, "Keyword", "Add keyword")
+        try:
+            if term_dialog.ShowModal() != wx.ID_OK:
+                return
+            term = term_dialog.GetValue().strip()
+        finally:
+            term_dialog.Destroy()
+        if not term:
+            return
+        definition_dialog = wx.TextEntryDialog(self, "Definition text shown when this keyword appears.", "Keyword definition", "")
+        try:
+            definition = definition_dialog.GetValue() if definition_dialog.ShowModal() == wx.ID_OK else ""
+        finally:
+            definition_dialog.Destroy()
+        self.on_add_keyword(self._current_ref, term, definition)
+
+    def _dialog_edit_definition(self, term: str, current: str) -> None:
+        if not term:
+            return
+        dialog = wx.TextEntryDialog(self, "Definition text shown when this keyword appears.", f"Define {term}", current)
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            definition = dialog.GetValue()
+        finally:
+            dialog.Destroy()
+        self.on_save_keyword_definition(term, definition)
 
     def _fit_inside(self) -> None:
         self.Layout()
@@ -268,6 +341,7 @@ class InlineFieldEditor(wx.Panel):
         on_action: Callable[[str], None],
         on_begin_edit: Callable[["InlineFieldEditor"], None],
         on_keyword_select: KeywordCallback | None = None,
+        on_add_keyword: Callable[[str, str], None] | None = None,
     ) -> None:
         super().__init__(parent, style=wx.BORDER_SIMPLE)
         self.field = field
@@ -277,6 +351,7 @@ class InlineFieldEditor(wx.Panel):
         self.on_action = on_action
         self.on_begin_edit = on_begin_edit
         self.on_keyword_select = on_keyword_select or (lambda _term: None)
+        self.on_add_keyword = on_add_keyword or (lambda _term, _definition: None)
         self._value = str(field.get("value") or "")
         self._status = ""
         self._editing = False
@@ -302,6 +377,10 @@ class InlineFieldEditor(wx.Panel):
             action = wx.Button(self, label=filled_label if self._value.strip() else empty_label)
             action.Bind(wx.EVT_BUTTON, self._queue_action)
             header.Add(action, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
+        if str(self.field.get("key") or "") == "keywords" and self.can_edit:
+            add = wx.Button(self, label="Add")
+            add.Bind(wx.EVT_BUTTON, self._dialog_add_keyword)
+            header.Add(add, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         if self.can_edit:
             edit = wx.Button(self, label="Edit")
             edit.Bind(wx.EVT_BUTTON, self._start_edit)
@@ -390,6 +469,25 @@ class InlineFieldEditor(wx.Panel):
         self._status = "Queued."
         self._render_view()
 
+    def _dialog_add_keyword(self, _event: wx.CommandEvent) -> None:
+        term_dialog = wx.TextEntryDialog(self, "Keyword", "Add keyword")
+        try:
+            if term_dialog.ShowModal() != wx.ID_OK:
+                return
+            term = term_dialog.GetValue().strip()
+        finally:
+            term_dialog.Destroy()
+        if not term:
+            return
+        definition_dialog = wx.TextEntryDialog(self, "Definition text shown when this keyword appears.", "Keyword definition", "")
+        try:
+            definition = definition_dialog.GetValue() if definition_dialog.ShowModal() == wx.ID_OK else ""
+        finally:
+            definition_dialog.Destroy()
+        self.on_add_keyword(term, definition)
+        self._status = f"Added keyword: {term}"
+        self._render_view()
+
     def _read_editor_value(self) -> str:
         editor = getattr(self, "_editor", None)
         if isinstance(editor, wx.Choice):
@@ -430,9 +528,7 @@ def _selected_detail(projection: dict[str, Any]) -> dict[str, Any]:
 
 
 def _show_field_in_body(field: dict[str, Any]) -> bool:
-    key = str(field.get("key") or "")
-    value = str(field.get("value") or "")
-    return bool(field.get("editable")) or bool(value.strip()) or key in {"company", "role", "status", "role_strategy", "candidature_evaluation", "keywords"}
+    return bool(field.get("editable"))
 
 
 def _keyword_terms(value: Any) -> list[str]:
@@ -458,4 +554,6 @@ def _keyword_definition(projection: dict[str, Any], selected: str) -> dict[str, 
     return {"term": selected, "definition": "", "category": ""}
 
 
+# Backwards-compatible name for older imports. New code should choose the body
+# or options class explicitly.
 CandidatureRightPanel = CandidatureOptionsPanel
