@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS glossary_terms (
 );
 
 CREATE TABLE IF NOT EXISTS application_keywords (
-  application_id TEXT NOT NULL REFERENCES applications(id),
+  application_id TEXT NOT NULL REFERENCES glossary_terms(term),
   term TEXT NOT NULL REFERENCES glossary_terms(term),
   PRIMARY KEY(application_id, term)
 );
@@ -114,6 +114,12 @@ CREATE TABLE IF NOT EXISTS candidature_details (
   questions_to_ask TEXT DEFAULT '',
   tech_stack TEXT DEFAULT '',
   valuation INTEGER,
+  candidature_evaluation TEXT DEFAULT '',
+  role_strategy TEXT DEFAULT '',
+  cv_material TEXT DEFAULT '',
+  cover_letter_material TEXT DEFAULT '',
+  recruiter_material TEXT DEFAULT '',
+  material_sent_notes TEXT DEFAULT '',
   updated_at TEXT NOT NULL
 );
 
