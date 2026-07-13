@@ -21,15 +21,11 @@ APPLICATION_UPDATE_FIELDS = {
     "source_url",
     "location",
     "remote_mode",
-    "next_action",
     "notes",
     "call_signals",
-    "technical_reading",
     "pitch",
     "smart_question",
     "risks_to_avoid",
-    "prepare_first",
-    "prepare_later",
     "offer_snapshot",
     "company_research",
     "form_answers",
@@ -189,7 +185,7 @@ Company & {{ application.company }}\\
 Role & {{ application.role }}\\
 Keywords & {{ application.keywords }}\\
 Pitch & {{ application.pitch }}\\
-Preparation & {{ application.prepare_first }}\\
+Fit & {{ application.candidature_evaluation }}\\
 \end{tabularx}
 \sectionrule{Notes}
 {{ application.notes }}
@@ -256,15 +252,11 @@ def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
         "source_url": fields.get("source_url") or "",
         "location": fields.get("location") or "",
         "remote_mode": fields.get("remote_mode") or "",
-        "next_action": fields.get("next_action") or "",
         "notes": fields.get("notes") or "",
         "call_signals": fields.get("call_signals") or "",
-        "technical_reading": fields.get("technical_reading") or "",
         "pitch": fields.get("pitch") or "",
         "smart_question": fields.get("smart_question") or "",
         "risks_to_avoid": fields.get("risks_to_avoid") or "",
-        "prepare_first": fields.get("prepare_first") or "",
-        "prepare_later": fields.get("prepare_later") or "",
         "offer_snapshot": fields.get("offer_snapshot") or "",
         "company_research": fields.get("company_research") or "",
         "form_answers": fields.get("form_answers") or "",
@@ -384,7 +376,6 @@ def create_raw_offer_intake(conn: sqlite3.Connection, content: str, created_by: 
         role="Pending role",
         status=ACTIVE_STATUS,
         priority="normal",
-        next_action="Extract raw offer details",
     )
     intake = add_raw_intake(conn, app["id"], content, created_by)
     app["raw_intake"] = [intake]
