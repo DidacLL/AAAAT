@@ -276,6 +276,13 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         wx.CallAfter(self._apply_focus_layout, True)
         event.Skip()
 
+    def _confirm_pending_edits(self) -> bool:
+        if self.current_view == "detailed" and hasattr(self, "detail_panel"):
+            return self.detail_panel.confirm_navigation()
+        if self.current_view == "user" and hasattr(self, "user_content"):
+            return self.user_content.confirm_navigation()
+        return True
+
     def _on_reset_layout(self, _event: wx.Event) -> None:
         self.layout_state = DashboardLayoutState.default()
         self.layout_state.selected_view = self.current_view
@@ -289,6 +296,10 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._refresh_all()
 
     def _on_close(self, event: wx.CloseEvent) -> None:
+        if not self._confirm_pending_edits():
+            if event.CanVeto():
+                event.Veto()
+            return
         self.layout_state.selected_view = self.current_view
         self.layout_state.selected_candidature_ref = self.selected_ref
         self.layout_state.selected_keyword = self.selected_keyword
