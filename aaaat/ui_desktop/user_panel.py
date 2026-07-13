@@ -33,17 +33,19 @@ class UserPanel(wx.ScrolledWindow):
         self._editing = False
         self._projection: dict[str, Any] = {}
         self._original_values: dict[str, str] = {}
+        self._draft_values: dict[str, str] = {}
         self._field_storage_keys: dict[str, str | None] = {}
         self._controls: dict[str, wx.TextCtrl] = {}
 
     def render(self, projection: dict[str, Any]) -> None:
         self._projection = projection
+        if not self._editing and not self._draft_values:
+            self._original_values = {}
+            self._field_storage_keys = {}
         self.Freeze()
         try:
             self.sizer.Clear(delete_windows=True)
             self._controls = {}
-            self._original_values = {}
-            self._field_storage_keys = {}
             title = wx.StaticText(self, label="User/Profile")
             title.SetFont(title.GetFont().Bold().Larger().Larger())
             description = wx.StaticText(
@@ -67,6 +69,31 @@ class UserPanel(wx.ScrolledWindow):
             bind_parent_wheel_scroll(self, self)
         finally:
             self.Thaw()
+
+    def has_unsaved_changes(self) -> bool:
+        self._capture_controls()
+        return any(
+            self._draft_values.get(key, self._original_values.get(key, "")) != self._original_values.get(key, "")
+            for key, storage_key in self._field_storage_keys.items()
+            if storage_key
+        )
+
+    def confirm_navigation(self) -> bool:
+        if not self.has_unsaved_changes():
+            return True
+        choice = wx.MessageBox(
+            "Save profile changes before leaving this view?",
+            "Unsaved profile changes",
+            wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION,
+            self,
+        )
+        if choice == wx.CANCEL:
+            return False
+        if choice == wx.YES:
+            self._save_current()
+        else:
+            self._discard_draft()
+        return True
 
     def _add_actions(self) -> None:
         actions = wx.WrapSizer(wx.HORIZONTAL)
@@ -98,8 +125,10 @@ class UserPanel(wx.ScrolledWindow):
             label = str(field.get("label") or key)
             value = str(field.get("value") or "")
             storage_key = str(field.get("storage_key") or "") or None
-            self._original_values[key] = value
+            if key not in self._original_values:
+                self._original_values[key] = value
             self._field_storage_keys[key] = storage_key
+            current = self._draft_values.get(key, value)
             panel = wx.Panel(self)
             sizer = wx.BoxSizer(wx.VERTICAL)
             panel.SetSizer(sizer)
@@ -108,13 +137,14 @@ class UserPanel(wx.ScrolledWindow):
             sizer.Add(heading_label, 0, wx.BOTTOM | wx.EXPAND, 3)
             if self._editing:
                 multiline = bool(field.get("multiline"))
-                control = wx.TextCtrl(panel, value=value, style=wx.TE_MULTILINE if multiline else 0)
+                control = wx.TextCtrl(panel, value=current, style=wx.TE_MULTILINE if multiline else 0)
                 if multiline:
                     control.SetMinSize((-1, 120))
+                control.Bind(wx.EVT_TEXT, lambda _event, field_key=key, editor=control: self._set_draft(field_key, editor.GetValue()))
                 self._controls[key] = control
                 sizer.Add(control, 1 if multiline else 0, wx.EXPAND)
             else:
-                body = wx.StaticText(panel, label=value or "—")
+                body = wx.StaticText(panel, label=current or "—")
                 body.Wrap(460)
                 sizer.Add(body, 0, wx.EXPAND)
             grid.Add(panel, 1, wx.EXPAND)
@@ -143,19 +173,35 @@ class UserPanel(wx.ScrolledWindow):
         self.sizer.Add(explanation, 0, wx.ALL | wx.EXPAND, 14)
         self.sizer.Add(actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 14)
 
-    def _on_edit(self, _event: wx.CommandEvent) -> None:
-        self._editing = True
-        self.render(self._projection)
+    def _set_draft(self, key: str, value: str) -> None:
+        self._draft_values[key] = value
 
-    def _on_save(self, _event: wx.CommandEvent) -> None:
-        current = {key: control.GetValue() for key, control in self._controls.items()}
-        changes = collect_writable_user_changes(self._original_values, current, self._field_storage_keys)
+    def _capture_controls(self) -> None:
+        for key, control in self._controls.items():
+            self._draft_values[key] = control.GetValue()
+
+    def _save_current(self) -> None:
+        self._capture_controls()
+        changes = collect_writable_user_changes(self._original_values, self._draft_values, self._field_storage_keys)
+        self._original_values.update(self._draft_values)
+        self._draft_values = {}
         self._editing = False
         if changes:
             self.on_save(changes)
         else:
             self.render(self._projection)
 
-    def _on_cancel(self, _event: wx.CommandEvent) -> None:
+    def _discard_draft(self) -> None:
+        self._draft_values = {}
         self._editing = False
         self.render(self._projection)
+
+    def _on_edit(self, _event: wx.CommandEvent) -> None:
+        self._editing = True
+        self.render(self._projection)
+
+    def _on_save(self, _event: wx.CommandEvent) -> None:
+        self._save_current()
+
+    def _on_cancel(self, _event: wx.CommandEvent) -> None:
+        self._discard_draft()
