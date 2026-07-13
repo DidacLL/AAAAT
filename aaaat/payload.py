@@ -4,6 +4,7 @@ import sqlite3
 from typing import Any
 
 from .artifacts import list_artifacts
+from .candidatures import get_candidature_details
 from .db import list_applications, list_glossary, list_raw_intake, profile_variables, required_profile_variables
 from .privacy import list_variables, resolve_variables
 from .profile_facts import list_profile_facts, profile_context
@@ -14,6 +15,7 @@ def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> di
     glossary = list_glossary(conn)
     apps = sorted_applications(list_applications(conn), glossary)
     for app in apps:
+        app["details"] = get_candidature_details(conn, app["id"])
         app["artifacts"] = list_artifacts(conn, app["id"])
         app["last_activity"] = app.get("updated_at") or app.get("created_at") or ""
         app["next_action_date"] = next_action_date(app)
