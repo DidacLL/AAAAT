@@ -9,7 +9,7 @@ from .user_fields import collect_writable_user_changes, grouped_user_fields
 
 
 class UserPanel(wx.ScrolledWindow):
-    """Reusable professional profile with explicit editing and local configuration access."""
+    """Reusable professional profile with explicit editing and preparation settings."""
 
     def __init__(
         self,
@@ -17,12 +17,12 @@ class UserPanel(wx.ScrolledWindow):
         *,
         on_save: Callable[[dict[str, str]], None],
         on_cancel: Callable[[], None],
-        on_open_config: Callable[[], None],
+        on_open_settings: Callable[[], None],
     ) -> None:
         super().__init__(parent, style=wx.VSCROLL)
         self.on_save = on_save
         self.on_cancel = on_cancel
-        self.on_open_config = on_open_config
+        self.on_open_settings = on_open_settings
         self.SetScrollRate(0, 12)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.sizer)
@@ -52,14 +52,21 @@ class UserPanel(wx.ScrolledWindow):
                 if fields:
                     self._add_group(str(group.get("title") or "Profile"), fields, can_edit)
 
-            config_heading = wx.StaticText(self, label="AI preparation configuration")
-            config_heading.SetFont(config_heading.GetFont().Bold().Larger())
-            config_body = wx.StaticText(self, label="The external runner, automatic preparation and advanced task instruction overrides are stored in a transparent local JSON file.")
-            open_config = wx.Button(self, label="Open AAAAT configuration")
-            open_config.Bind(wx.EVT_BUTTON, lambda _event: self.on_open_config())
-            self.sizer.Add(config_heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 14)
-            self.sizer.Add(config_body, 0, wx.ALL | wx.EXPAND, 14)
-            self.sizer.Add(open_config, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 14)
+            settings_heading = wx.StaticText(self, label="Candidature preparation")
+            settings_heading.SetFont(settings_heading.GetFont().Bold().Larger())
+            settings_body = wx.StaticText(
+                self,
+                label=(
+                    "Choose which analyses AAAAT prepares automatically and configure the external LLM runner. "
+                    "Advanced users can inspect or edit the exact JSON contract for each task from inside the settings dialog."
+                ),
+            )
+            settings_body.Wrap(760)
+            open_settings = wx.Button(self, label="Preparation settings…")
+            open_settings.Bind(wx.EVT_BUTTON, lambda _event: self.on_open_settings())
+            self.sizer.Add(settings_heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 14)
+            self.sizer.Add(settings_body, 0, wx.ALL | wx.EXPAND, 14)
+            self.sizer.Add(open_settings, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 14)
             self.Layout()
             self.FitInside()
             bind_parent_wheel_scroll(self, self)
