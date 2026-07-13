@@ -94,7 +94,7 @@ def build_dashboard_projection(
         "smart": _smart_projection(payload, apps, selected, glossary, selected_keyword_value),
         "detailed": _detailed_projection(payload, apps, selected, column_state, search_query or ""),
         "glossary": {"terms": glossary, "selected": _glossary_definition(glossary, selected_keyword_value)},
-        "modules": {view_name: [_module_to_dict(module) for module in modules_for_view(view_name)] for view_name in ("welcome", "smart", "detailed", "user")},
+        "modules": {view_name: [_module_to_dict(module, view_name=view_name) for module in modules_for_view(view_name)] for view_name in ("welcome", "smart", "detailed", "user")},
         "layout_state": layout.to_dict(),
     }
 
@@ -201,11 +201,8 @@ def _smart_projection(payload: dict[str, Any], apps: list[dict[str, Any]], selec
         "selected_candidature_detail": selected_detail,
         "primary_note": _primary_note(selected),
         "context_modules": [
-            {"id": "overview", "title": "Overview", "selected": True},
-            {"id": "evaluation_strategy", "title": "Evaluation & Strategy", "selected": False},
-            {"id": "keywords", "title": "Keywords", "selected": False},
-            {"id": "material", "title": "Material", "selected": False},
-            {"id": "actions", "title": "Actions", "selected": False},
+            {"id": "keywords", "title": "Keywords", "selected": True},
+            {"id": "artifacts", "title": "Material", "selected": False},
         ],
         "selected_keyword_definition": _glossary_definition(glossary, selected_keyword),
         "artifact_summary": _artifact_summary(selected),
@@ -343,14 +340,7 @@ def _detailed_row(app: dict[str, Any] | None) -> dict[str, Any] | None:
 
 def _toolbox_actions(selected: dict[str, Any] | None) -> list[dict[str, str]]:
     if selected:
-        return [
-            {"id": "regenerate_evaluation", "label": "Regenerate offer evaluation"},
-            {"id": "regenerate_strategy", "label": "Regenerate role strategy"},
-            {"id": "update_company_research", "label": "Update company research"},
-            {"id": "prepare_form_answers", "label": "Prepare form answers"},
-            {"id": "generate_cv", "label": "Generate tailored CV"},
-            {"id": "generate_cover_letter", "label": "Generate cover letter"},
-        ]
+        return []
     return [
         {"id": "career_path", "label": "Career path"},
         {"id": "strategy", "label": "Strategy"},
@@ -385,5 +375,17 @@ def _items_summary(items: list[Any]) -> dict[str, Any]:
     return {"count": len(items), "items": items[:5]}
 
 
-def _module_to_dict(module: Any) -> dict[str, Any]:
-    return {"module_id": module.module_id, "title": module.title, "view": module.view, "region": module.region, "required": module.required, "optional": module.optional}
+def _module_to_dict(module: Any, *, view_name: str) -> dict[str, Any]:
+    supported_views = tuple(getattr(module, "supported_views", ()) or ())
+    visibility = dict(getattr(module, "default_visibility_by_view", {}) or {})
+    regions = dict(getattr(module, "default_region_by_view", {}) or {})
+    visible = bool(visibility.get(view_name, True))
+    return {
+        "module_id": str(getattr(module, "module_id", "")),
+        "title": str(getattr(module, "title", "")),
+        "view": view_name,
+        "supported_views": list(supported_views),
+        "region": str(regions.get(view_name, "center")),
+        "required": visible,
+        "optional": not visible,
+    }
