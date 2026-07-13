@@ -37,7 +37,11 @@ class SmartViewMixin(OverviewBoardMixin):
         self.Bind(wx.EVT_CLOSE, self._on_close)
         self.Bind(wx.EVT_MENU, lambda _event: self.Close(), id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self._on_support_surface, self.new_candidature_item)
-        self.Bind(wx.EVT_MENU, lambda _event: self._go_user(), self.profile_item)
+        self.Bind(
+            wx.EVT_MENU,
+            lambda _event: self._go_user() if self._confirm_pending_edits() else None,
+            self.profile_item,
+        )
         self.Bind(wx.EVT_MENU, self._on_reset_layout, self.reset_layout_item)
         self.view_book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self._on_view_tab_changed)
         self.new_button.Bind(wx.EVT_BUTTON, self._on_support_surface)
@@ -59,13 +63,15 @@ class SmartViewMixin(OverviewBoardMixin):
             self.view_book.ChangeSelection(target)
 
     def _on_view_tab_changed(self, event: wx.BookCtrlEvent) -> None:
+        if not self._confirm_pending_edits():
+            wx.CallAfter(self._sync_view_tab)
+            event.Skip()
+            return
         index = event.GetSelection()
         if index == _VIEW_TAB_INDEX["detailed"]:
-            if self._confirm_detail_navigation():
-                self._go_detailed()
+            self._go_detailed()
         elif index == _VIEW_TAB_INDEX["user"]:
-            if self._confirm_detail_navigation():
-                self._go_user()
+            self._go_user()
         elif self.selected_ref:
             self._show_focus()
             self._refresh_current_if_needed()
@@ -310,11 +316,11 @@ class SmartViewMixin(OverviewBoardMixin):
 
     def _on_select_nav(self, event: wx.CommandEvent) -> None:
         index = event.GetSelection()
-        if 0 <= index < len(self._list_refs) and self._confirm_detail_navigation():
+        if 0 <= index < len(self._list_refs) and self._confirm_pending_edits():
             self._select_ref(self._list_refs[index])
 
     def _go_overview(self) -> None:
-        if not self._confirm_detail_navigation():
+        if not self._confirm_pending_edits():
             return
         self.expanded_overview_ref = None
         self._show_overview()
