@@ -52,32 +52,30 @@ class CenterCardBuilder:
         self.add_full_text_drawers(detail)
 
     def add_visible_briefing(self, detail: dict[str, Any]) -> None:
-        primary = [
-            ("posting", "Posting", self._source_text(detail), 360, 118, 260),
-            ("snapshot", "Snapshot", self._first_text(detail, "offer_snapshot", "description"), 300, 112, 220),
-            ("pitch", "Pitch", self._first_text(detail, "pitch", "role_strategy"), 300, 112, 220),
+        snippets = [
+            ("original", "Posting", self._source_text(detail), 260, 330),
+            ("snapshot_full", "Snapshot", self._first_text(detail, "offer_snapshot", "description"), 210, 300),
+            ("pitch_full", "Pitch", self._first_text(detail, "pitch", "role_strategy"), 210, 300),
+            ("signals", "Recognize", self._first_text(detail, "call_signals", "source_excerpt"), 150, 250),
+            ("questions", "Ask", detail.get("smart_question"), 150, 250),
+            ("risks", "Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 150, 250),
+            ("fit_full", "Fit", detail.get("candidature_evaluation"), 170, 260),
+            ("strategy_full", "Strategy", detail.get("role_strategy"), 170, 260),
+            ("company_full", "Company", detail.get("company_research"), 170, 260),
+            ("strengths", "Evidence", detail.get("strengths"), 160, 250),
+            ("questions", "Questions", detail.get("questions_to_ask"), 160, 250),
+            ("stack_full", "Stack", detail.get("tech_stack"), 130, 220),
+            ("recruiter_full", "Recruiter", detail.get("recruiter_material"), 170, 260),
         ]
-        support = [
-            ("recognize", "Recognize", self._first_text(detail, "call_signals", "source_excerpt"), 210, 88, 190),
-            ("ask", "Ask", detail.get("smart_question"), 210, 88, 180),
-            ("avoid", "Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 210, 88, 180),
-            ("fit", "Fit", detail.get("candidature_evaluation"), 230, 92, 200),
-            ("strategy", "Strategy", detail.get("role_strategy"), 230, 92, 200),
-            ("company", "Company", detail.get("company_research"), 230, 92, 200),
-            ("evidence", "Evidence", detail.get("strengths"), 220, 88, 190),
-            ("questions", "Questions", detail.get("questions_to_ask"), 220, 88, 190),
-            ("stack", "Stack", detail.get("tech_stack"), 180, 78, 150),
-            ("recruiter", "Recruiter", detail.get("recruiter_material"), 230, 92, 200),
-        ]
-        visible = self._visible_tile_specs(primary + support)
+        visible = self._visible_snippets(snippets)
         if not visible:
             return
 
         panel = wx.Panel(self.owner.center_scroll)
         wrap = wx.WrapSizer(wx.HORIZONTAL)
         panel.SetSizer(wrap)
-        for spec in visible:
-            wrap.Add(self._make_tile(panel, *spec), 0, wx.ALL, 4)
+        for target_card, label, text, limit, width in visible:
+            wrap.Add(self._make_snippet(panel, target_card, label, text, limit, width), 0, wx.ALL, 3)
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
 
     def add_full_text_drawers(self, detail: dict[str, Any]) -> None:
@@ -106,30 +104,22 @@ class CenterCardBuilder:
             wrap.Add(self.build_center_card(panel, card_id, title, text, expanded_by_default=expanded, min_height=min_height, width=width), 0, wx.ALL, 4)
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
 
-    def _make_tile(self, parent: wx.Window, card_id: str, label: str, value: str, limit: int, collapsed_height: int, width: int) -> wx.Panel:
-        expanded = self.is_expanded(f"tile:{card_id}", False)
-        tile = wx.Panel(parent, style=wx.BORDER_SIMPLE)
+    def _make_snippet(self, parent: wx.Window, target_card: str, label: str, value: str, limit: int, width: int) -> wx.Panel:
+        tile = wx.Panel(parent)
         tile.SetMinSize((width, -1))
-        tile.SetMaxSize((width + 40, -1))
+        tile.SetMaxSize((width + 20, -1))
         sizer = wx.BoxSizer(wx.VERTICAL)
         tile.SetSizer(sizer)
 
-        header = wx.BoxSizer(wx.HORIZONTAL)
-        marker = wx.StaticText(tile, label="▾" if expanded else "▸")
-        marker.SetFont(marker.GetFont().Bold())
         title = wx.StaticText(tile, label=label)
-        title.SetFont(title.GetFont().Smaller())
-        header.Add(marker, 0, wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 4)
-        header.Add(title, 1, wx.ALIGN_CENTER_VERTICAL)
-        sizer.Add(header, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 6)
+        title.SetFont(title.GetFont().Bold().Smaller())
+        body = wx.StaticText(tile, label=self._snippet_text(value, limit))
+        body.SetFont(body.GetFont().Smaller())
+        self._bind_wrap(tile, body, 8)
 
-        body_text = value if expanded else self.owner._clip(value, limit)
-        body_height = max(collapsed_height, 180) if expanded else collapsed_height
-        body = self.owner._html_text_window(tile, body_text, min_height=body_height)
-        body.SetMinSize((width - 14, body_height))
-        body.SetMaxSize((width - 14, body_height if not expanded else -1))
-        sizer.Add(body, 0, wx.ALL | wx.EXPAND, 6)
-        self.bind_click(tile, f"tile:{card_id}")
+        sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
+        sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
+        self.bind_click(tile, target_card)
         return tile
 
     def build_center_card(self, parent: wx.Window, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int, width: int) -> wx.Panel:
@@ -158,14 +148,15 @@ class CenterCardBuilder:
         toggle_label.SetFont(toggle_label.GetFont().Bold().Larger())
         title_label = wx.StaticText(panel, label=title)
         title_label.SetFont(title_label.GetFont().Bold())
-        summary_label = wx.StaticText(panel, label=self.owner._clip(summary, 220))
-        header.Add(toggle_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
-        header.Add(title_label, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_CENTER_VERTICAL, 6)
-        header.Add(summary_label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
+        summary_label = wx.StaticText(panel, label=self._snippet_text(summary, 180))
+        summary_label.SetFont(summary_label.GetFont().Smaller())
+        header.Add(toggle_label, 0, wx.ALL | wx.ALIGN_TOP, 6)
+        header.Add(title_label, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_TOP, 6)
+        header.Add(summary_label, 1, wx.ALL | wx.ALIGN_TOP, 6)
         sizer.Add(header, 0, wx.EXPAND)
         body_sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(body_sizer, 0, wx.EXPAND)
-        self._bind_wrap(panel, summary_label, 220)
+        self._bind_wrap(panel, summary_label, 170)
         return panel, body_sizer
 
     def is_expanded(self, card_id: str, default: bool) -> bool:
@@ -231,13 +222,19 @@ class CenterCardBuilder:
         ]
         return " · ".join(part for part in parts if part)
 
-    def _visible_tile_specs(self, specs: list[tuple[str, str, Any, int, int, int]]) -> list[tuple[str, str, str, int, int, int]]:
-        visible: list[tuple[str, str, str, int, int, int]] = []
-        for card_id, label, value, limit, height, width in specs:
+    def _visible_snippets(self, specs: list[tuple[str, str, Any, int, int]]) -> list[tuple[str, str, str, int, int]]:
+        visible: list[tuple[str, str, str, int, int]] = []
+        for target_card, label, value, limit, width in specs:
             text = str(value or "").strip()
             if text:
-                visible.append((card_id, label, text, limit, height, width))
+                visible.append((target_card, label, text, limit, width))
         return visible
+
+    def _snippet_text(self, value: str, limit: int) -> str:
+        text = " ".join(str(value or "").split())
+        if len(text) <= limit:
+            return text
+        return text[: max(0, limit - 1)].rstrip() + "…"
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
@@ -246,7 +243,7 @@ class CenterCardBuilder:
         def wrap(_event: wx.SizeEvent) -> None:
             try:
                 if label and not label.IsBeingDeleted():
-                    width = max(200, int(parent.GetClientSize().GetWidth() or 360) - padding)
+                    width = max(160, int(parent.GetClientSize().GetWidth() or 300) - padding)
                     label.Wrap(width)
             except RuntimeError:
                 pass
@@ -254,6 +251,6 @@ class CenterCardBuilder:
 
         parent.Bind(wx.EVT_SIZE, wrap)
         try:
-            label.Wrap(max(200, int(parent.GetClientSize().GetWidth() or 360) - padding))
+            label.Wrap(max(160, int(parent.GetClientSize().GetWidth() or 300) - padding))
         except RuntimeError:
             pass
