@@ -110,6 +110,8 @@ class CenterCardBuilder:
             event.Skip(False)
 
         window.Bind(wx.EVT_LEFT_UP, on_click)
+        if isinstance(window, wx.html.HtmlWindow):
+            return
         for child in window.GetChildren():
             if isinstance(child, wx.Window):
                 self.bind_click(child, card_id)
