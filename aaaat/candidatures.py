@@ -26,6 +26,7 @@ CANDIDATURE_DETAIL_FIELDS = {
     "publication_date",
     "application_date",
     "raw_application_form",
+    "form_answers",
     "cv_sent_artifact_id",
     "cover_letter_artifact_id",
     "strengths",
