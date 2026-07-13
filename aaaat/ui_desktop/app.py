@@ -11,8 +11,12 @@ from aaaat.payload import dashboard_payload
 from aaaat.security import Mode
 
 
-def build_desktop_projection(storage: str | Path, mode: Mode | str, layout_state: DashboardLayoutState | None = None) -> dict[str, Any]:
-    """Build the current desktop projection without importing any GUI toolkit."""
+def build_desktop_projection(
+    storage: str | Path,
+    mode: Mode | str = Mode.FULL,
+    layout_state: DashboardLayoutState | None = None,
+) -> dict[str, Any]:
+    """Build the current desktop projection without importing the optional GUI toolkit."""
 
     init_db(storage)
     layout = layout_state or DashboardLayoutState.load(layout_state_path(storage))
@@ -21,32 +25,27 @@ def build_desktop_projection(storage: str | Path, mode: Mode | str, layout_state
     return build_dashboard_projection(payload, Mode(mode), view=layout.selected_view, layout_state=layout)
 
 
-def launch_desktop_dashboard(storage: str | Path = ".private", *, read_only: bool = False) -> int:
-    """Launch the local desktop dashboard.
-
-    wxPython is an optional desktop dependency. The import is deliberately kept
-    inside this function so tests and non-desktop AAAAT workflows do not require
-    wx or a graphical environment.
-    """
+def launch_desktop_dashboard(storage: str | Path = ".private") -> int:
+    """Launch the editable local desktop workspace."""
 
     try:
         import wx  # type: ignore[import-not-found]
-    except ModuleNotFoundError as exc:  # pragma: no cover - depends on optional dependency
-        raise RuntimeError("wxPython is required for the desktop dashboard. Install AAAAT with the desktop extra: pip install -e .[desktop]") from exc
+    except ModuleNotFoundError as exc:  # pragma: no cover - optional dependency
+        raise RuntimeError(
+            "wxPython is required for the desktop workspace. Install AAAAT with the desktop extra: pip install -e .[desktop]"
+        ) from exc
 
     from .main_window import DesktopDashboardFrame
     from .services import DesktopCommandService
 
-    mode = Mode.READ_ONLY if read_only else Mode.FULL
     init_db(storage)
     layout_path = layout_state_path(storage)
     layout = DashboardLayoutState.load(layout_path)
-    projection = build_desktop_projection(storage, mode, layout)
-
+    projection = build_desktop_projection(storage, Mode.FULL, layout)
     app = wx.App(False)
     frame = DesktopDashboardFrame(
         storage_path=str(storage),
-        mode=mode,
+        mode=Mode.FULL,
         projection=projection,
         layout_state=layout,
         layout_path=layout_path,
@@ -58,11 +57,10 @@ def launch_desktop_dashboard(storage: str | Path = ".private", *, read_only: boo
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="aaaat-desktop")
-    parser.add_argument("--storage", default=".private")
-    parser.add_argument("--read-only", action="store_true")
+    parser = argparse.ArgumentParser(prog="aaaat-desktop", description="Launch the local AAAAT desktop workspace.")
+    parser.add_argument("--storage", default=".private", help="AAAAT storage directory or SQLite database")
     args = parser.parse_args(argv)
-    return launch_desktop_dashboard(args.storage, read_only=args.read_only)
+    return launch_desktop_dashboard(args.storage)
 
 
 if __name__ == "__main__":
