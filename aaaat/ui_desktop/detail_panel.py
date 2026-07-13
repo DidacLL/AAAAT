@@ -59,6 +59,7 @@ class DetailPanel(wx.ScrolledWindow):
             self._field_storage_keys = {}
             if not ref:
                 self._add_empty()
+                self._finish_layout()
                 return
             company = str(resolved.get("company") or "Untitled Company")
             role = str(resolved.get("role") or "Untitled Role")
@@ -77,7 +78,7 @@ class DetailPanel(wx.ScrolledWindow):
                     self._add_compact_group(str(group.get("title")), fields, can_edit)
                 else:
                     self._add_long_group(str(group.get("title")), fields, can_edit)
-            self._fit_width()
+            self._finish_layout()
             bind_parent_wheel_scroll(self, self)
         finally:
             self.Thaw()
@@ -120,14 +121,18 @@ class DetailPanel(wx.ScrolledWindow):
             actions.Add(cancel, 0, wx.RIGHT | wx.BOTTOM, 6)
         else:
             edit = wx.Button(self, label="Edit")
+            save_notes = wx.Button(self, label="Save notes")
             edit.Enable(can_edit)
+            save_notes.Enable(can_edit)
             edit.Bind(wx.EVT_BUTTON, self._on_edit)
+            save_notes.Bind(wx.EVT_BUTTON, self._on_save)
             actions.Add(edit, 0, wx.RIGHT | wx.BOTTOM, 6)
+            actions.Add(save_notes, 0, wx.RIGHT | wx.BOTTOM, 6)
         delete = wx.Button(self, label="Delete")
         delete.Enable(can_edit)
         delete.Bind(wx.EVT_BUTTON, self._on_delete)
         open_smart = wx.Button(self, label="Open in Smart View")
-        open_smart.Bind(wx.EVT_BUTTON, lambda _event: self.on_open_smart())
+        open_smart.Bind(wx.EVT_BUTTON, self._on_open_smart)
         actions.Add(delete, 0, wx.RIGHT | wx.BOTTOM, 6)
         actions.Add(open_smart, 0, wx.BOTTOM, 6)
         self.sizer.Add(actions, 0, wx.ALL | wx.EXPAND, 12)
@@ -196,8 +201,6 @@ class DetailPanel(wx.ScrolledWindow):
             if multiline:
                 editor.SetMinSize((-1, 250 if key == "source_text" else 110))
             editor.Bind(wx.EVT_TEXT, lambda _event, field_key=key, control=editor: self._draft_values.__setitem__(field_key, control.GetValue()))
-            if always_editable:
-                editor.Bind(wx.EVT_KILL_FOCUS, self._on_notes_blur)
             self._controls[key] = editor
             sizer.Add(editor, 1 if multiline else 0, wx.EXPAND)
         else:
@@ -216,7 +219,7 @@ class DetailPanel(wx.ScrolledWindow):
         changes = collect_writable_changes(self._original_values, self._draft_values, self._field_storage_keys)
         if changes:
             self.on_save(self._current_ref, changes)
-        self._original_values.update(self._draft_values)
+            self._original_values.update(self._draft_values)
         self._draft_values = {}
         self._editing = False
 
@@ -232,24 +235,25 @@ class DetailPanel(wx.ScrolledWindow):
         self._editing = False
         self.on_cancel()
 
-    def _on_notes_blur(self, event: wx.FocusEvent) -> None:
-        if self._current_ref:
-            self._capture_controls()
-            notes = self._draft_values.get("notes", self._original_values.get("notes", ""))
-            if notes != self._original_values.get("notes", ""):
-                self.on_save(self._current_ref, {"notes": notes})
-                self._original_values["notes"] = notes
-                self._draft_values.pop("notes", None)
-        event.Skip()
+    def _on_open_smart(self, _event: wx.CommandEvent) -> None:
+        if self.confirm_navigation():
+            wx.CallAfter(self.on_open_smart)
 
     def _on_delete(self, _event: wx.CommandEvent) -> None:
         if self._current_ref and self.confirm_navigation():
-            self.on_delete(self._current_ref)
+            wx.CallAfter(self.on_delete, self._current_ref)
 
     def _add_empty(self) -> None:
         title = wx.StaticText(self, label="No candidature selected")
         title.SetFont(title.GetFont().Bold().Larger())
         self.sizer.Add(title, 0, wx.ALL, 12)
+
+    def _finish_layout(self) -> None:
+        self.Layout()
+        self.FitInside()
+        width = max(1, self.GetClientSize().GetWidth())
+        height = max(self.GetClientSize().GetHeight(), self.GetVirtualSize().GetHeight())
+        self.SetVirtualSize((width, height))
 
     def _on_size(self, event: wx.SizeEvent) -> None:
         wx.CallAfter(self._fit_width)
@@ -264,6 +268,4 @@ class DetailPanel(wx.ScrolledWindow):
                 for nested in child.GetChildren():
                     if isinstance(nested, wx.StaticText):
                         nested.Wrap(max(150, width // 2 - 36))
-        self.Layout()
-        self.FitInside()
-        self.SetVirtualSize((width, max(self.GetClientSize().GetHeight(), self.GetVirtualSize().GetHeight())))
+        self._finish_layout()
