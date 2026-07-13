@@ -11,14 +11,13 @@ from aaaat.payload import dashboard_payload
 from aaaat.security import can_write
 
 from .center_cards import CenterCardBuilder
-from .keyword_pane import KeywordPane
 from .notes_band import NotesBand
 from .overview_board import OverviewBoardMixin
 from .scrolling import bind_parent_wheel_scroll
 from .wx_html_links import KeywordHtmlLinker
 
 DEFAULT_FOCUS_LEFT = 220
-DEFAULT_FOCUS_RIGHT = 220
+DEFAULT_FOCUS_RIGHT = 360
 DEFAULT_WINDOW_SIZE = (1280, 780)
 DEFAULT_CENTER_NOTES_HEIGHT = 150
 _VIEW_TAB_INDEX = {"smart": 0, "detailed": 1, "user": 2}
@@ -135,10 +134,10 @@ class SmartViewMixin(OverviewBoardMixin):
         if not self.focus_panel.IsShown() or (self._focus_layout_applied and not force):
             return
         total_width = max(DEFAULT_WINDOW_SIZE[0], int(self.focus_panel.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0]))
-        left = max(170, min(260, int(total_width * 0.20)))
-        right = max(170, min(260, int(total_width * 0.20)))
-        content_width = max(480, total_width - left)
-        center = max(360, content_width - right)
+        left = max(170, min(280, int(total_width * 0.18)))
+        right = max(300, min(440, int(total_width * 0.30)))
+        content_width = max(680, total_width - left)
+        center = max(480, content_width - right)
         if self.focus_splitter.IsSplit():
             self.focus_splitter.SetSashPosition(left)
         if self.content_splitter.IsSplit():
@@ -204,17 +203,18 @@ class SmartViewMixin(OverviewBoardMixin):
     def _refresh_focus_modules(self) -> None:
         self.center_sizer.Clear(delete_windows=True)
         self.center_notes_sizer.Clear(delete_windows=True)
-        self.right_sizer.Clear(delete_windows=True)
         detail = self._selected_detail()
         if not detail:
             self.center_sizer.Add(self._empty_message(self.center_scroll, "Select a candidature."), 0, wx.ALL | wx.EXPAND, 12)
             self.center_scroll.Layout()
-            self.right_scroll.Layout()
+            self.smart_right_panel.render(self.projection, can_edit=can_write(self.mode), view_name="smart")
             bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
             return
 
         self.center_cards.add_hero(detail)
         self.center_cards.add_call_card(detail)
+        self.center_cards.add_center_card("strategy", "Strategy", detail.get("role_strategy"), expanded_by_default=True, min_height=118)
+        self.center_cards.add_center_card("evaluation", "Evaluation", detail.get("candidature_evaluation"), expanded_by_default=True, min_height=118)
         self.center_cards.add_source_card(detail)
         self.center_cards.add_center_card("now", "Now", detail.get("prepare_first"), expanded_by_default=True, min_height=92)
         self.center_cards.add_center_card("later", "Later", detail.get("prepare_later"), expanded_by_default=False, min_height=92)
@@ -225,10 +225,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.center_scroll.Layout()
         self.center_scroll.FitInside()
         self.center_notes_panel.Layout()
-        self.right_scroll.Layout()
-        self.right_scroll.FitInside()
         bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
-        bind_parent_wheel_scroll(self.right_scroll, self.right_scroll)
 
     def _add_notes_band(self) -> None:
         primary_note = self.projection["smart"].get("primary_note") or {}
@@ -248,27 +245,8 @@ class SmartViewMixin(OverviewBoardMixin):
         self._reload_projection()
         self._mark_current_view_rendered()
 
-    def _refresh_right_context(self, detail: dict[str, Any]) -> None:
-        self.right_sizer.Clear(delete_windows=True)
-        terms = self._terms_for_detail(detail)
-        definition = self.projection["smart"].get("selected_keyword_definition") or {}
-        selected = str(definition.get("term") or self.selected_keyword or (terms[0] if terms else ""))
-        pane = KeywordPane(
-            parent=self.right_scroll,
-            target_sizer=self.right_sizer,
-            html_text_window=lambda parent, text, min_height: self._html_text_window(parent, text, min_height=min_height),
-            clip=self._clip,
-        )
-        pane.render_keyword_module(
-            terms=terms,
-            selected=selected,
-            definition=definition,
-            on_select=lambda term: self._select_keyword(term, refresh_center=False),
-        )
-        pane.render_content_module("Artifacts", self._artifacts_text(), expanded=False)
-        self.right_scroll.Layout()
-        self.right_scroll.FitInside()
-        bind_parent_wheel_scroll(self.right_scroll, self.right_scroll)
+    def _refresh_right_context(self, _detail: dict[str, Any]) -> None:
+        self.smart_right_panel.render(self.projection, can_edit=can_write(self.mode), view_name="smart")
 
     def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
         return self.keyword_linker.make_window(parent, text, min_height=min_height)
@@ -398,6 +376,52 @@ class SmartViewMixin(OverviewBoardMixin):
         if refresh_center:
             self._refresh_focus_modules()
 
+    def _save_candidature_panel_edits(self, ref: str, changes: dict[str, str]) -> None:
+        if not can_write(self.mode) or not ref or not changes:
+            return
+        self.command_service.update_candidature_fields(ref, changes)
+        self.selected_ref = ref
+        self.layout_state.selected_candidature_ref = ref
+        self._rendered_view_keys.clear()
+        self._refresh_all()
+
+    def _on_candidature_panel_action(self, ref: str, action_id: str) -> None:
+        if not can_write(self.mode) or not ref:
+            return
+        task = self.command_service.queue_candidature_action(ref, action_id)
+        if task:
+            wx.MessageBox(f"Queued task: {task.get('title')}", "AAAAT task queued", wx.OK | wx.ICON_INFORMATION, self)
+            self._rendered_view_keys.clear()
+            self._refresh_all()
+
+    def _delete_candidature_from_panel(self, ref: str) -> None:
+        if not can_write(self.mode) or not ref:
+            return
+        label = ref
+        row = self._detailed_selected_row() or self._selected_detail() or {}
+        if row:
+            label = " ".join(part for part in (str(row.get("company") or ""), str(row.get("role") or "")) if part).strip() or ref
+        confirmed = wx.MessageBox(
+            f"Delete candidature '{label}'?\n\nThis removes the local candidature record and its local intake/notes/artifact rows.",
+            "Delete candidature",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+            self,
+        )
+        if confirmed != wx.YES:
+            return
+        if not self.command_service.delete_candidature(ref):
+            return
+        self.selected_ref = None
+        self.layout_state.selected_candidature_ref = None
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        rows = (self.projection.get("detailed") or {}).get("rows") or []
+        if rows:
+            self.selected_ref = str(rows[0].get("ref") or "") or None
+            self.layout_state.selected_candidature_ref = self.selected_ref
+            self._reload_projection()
+        self._refresh_all()
+
     def _on_support_surface(self, _event: wx.Event) -> None:
         wx.MessageBox("This desktop slice keeps candidature creation in existing flows.", "AAAAT Desktop")
 
@@ -427,9 +451,9 @@ class SmartViewMixin(OverviewBoardMixin):
             self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
         if self.content_splitter.IsSplit():
             total = max(1, self.content_splitter.GetClientSize().GetWidth())
-            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(160, total - self.content_splitter.GetSashPosition())
+            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(260, total - self.content_splitter.GetSashPosition())
         if hasattr(self, "detailed_splitter") and self.detailed_splitter.IsSplit():
             total = max(1, self.detailed_splitter.GetClientSize().GetWidth())
-            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(220, total - self.detailed_splitter.GetSashPosition())
+            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(260, total - self.detailed_splitter.GetSashPosition())
         self.layout_state.save(self.layout_path)
         event.Skip()
