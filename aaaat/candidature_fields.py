@@ -37,39 +37,42 @@ CANDIDATURE_FIELD_GROUPS = (
     "Recruiter call",
     "Keywords",
     "Material",
-    "Source",
+    "Source material",
 )
 
 
 CANDIDATURE_FIELD_SPECS = (
     CandidatureFieldSpec("Overview", "company", "Company", editable=True, storage_key="company"),
     CandidatureFieldSpec("Overview", "role", "Role", editable=True, storage_key="role"),
-    CandidatureFieldSpec("Overview", "status", "State", editable=True, storage_key="status", value_kind="choice", choices=ALLOWED_STATUSES),
-    CandidatureFieldSpec("Overview", "priority", "Priority", editable=True, storage_key="priority"),
-    CandidatureFieldSpec("Overview", "source", "Source", editable=True, storage_key="source"),
-    CandidatureFieldSpec("Overview", "source_url", "Source URL", editable=True, storage_key="source_url", value_kind="url"),
+    CandidatureFieldSpec("Overview", "status", "Lifecycle", editable=True, storage_key="status", value_kind="choice", choices=ALLOWED_STATUSES),
+    CandidatureFieldSpec("Overview", "priority", "User priority", editable=True, storage_key="priority"),
+    CandidatureFieldSpec("Overview", "source", "Lead source", editable=True, storage_key="source"),
+    CandidatureFieldSpec("Overview", "source_url", "URL", editable=True, storage_key="source_url", value_kind="url"),
     CandidatureFieldSpec("Overview", "location", "Location", editable=True, storage_key="location"),
     CandidatureFieldSpec("Overview", "remote_mode", "Remote arrangement", editable=True, storage_key="remote_mode"),
     CandidatureFieldSpec("Overview", "salary_expectation", "Compensation", editable=True, storage_key="salary_expectation"),
     CandidatureFieldSpec("Overview", "publication_date", "Publication date", editable=True, storage_key="publication_date", value_kind="date"),
     CandidatureFieldSpec("Overview", "application_date", "Application date", editable=True, storage_key="application_date", value_kind="date"),
-    CandidatureFieldSpec("Overview", "notes", "Notes", editable=True, storage_key="notes", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Overview", "description", "Job description", editable=True, storage_key="description", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Overview", "offer_snapshot", "Short offer summary", editable=True, storage_key="offer_snapshot", multiline=True, value_kind="multiline"),
+    CandidatureFieldSpec("Overview", "notes", "Primary notes", editable=True, storage_key="notes", multiline=True, value_kind="multiline"),
+    CandidatureFieldSpec("Overview", "offer_snapshot", "Call-useful role snapshot", editable=True, storage_key="offer_snapshot", multiline=True, value_kind="multiline"),
+
+    CandidatureFieldSpec("Source material", "source_text", "Original posting", editable=True, storage_key="source_text", multiline=True, value_kind="multiline"),
+    CandidatureFieldSpec("Source material", "description", "Published role text", editable=True, storage_key="description", multiline=True, value_kind="multiline"),
+    CandidatureFieldSpec("Source material", "raw_application_form", "Original application form", editable=True, storage_key="raw_application_form", multiline=True, value_kind="multiline"),
 
     CandidatureFieldSpec("Fit and preparation", "candidature_evaluation", "Fit assessment", editable=True, storage_key="candidature_evaluation", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Fit and preparation", "role_strategy", "Application strategy", editable=True, storage_key="role_strategy", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Fit and preparation", "strengths", "Relevant strengths", editable=True, storage_key="strengths", multiline=True, value_kind="multiline"),
+    CandidatureFieldSpec("Fit and preparation", "strengths", "Relevant evidence", editable=True, storage_key="strengths", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Fit and preparation", "risks_to_avoid", "Risks / material to avoid", editable=True, storage_key="risks_to_avoid", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Fit and preparation", "questions_to_ask", "Useful questions", editable=True, storage_key="questions_to_ask", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Fit and preparation", "tech_stack", "Technical stack", editable=True, storage_key="tech_stack", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Fit and preparation", "valuation", "Fit score /100", editable=True, storage_key="valuation", value_kind="summary"),
-    CandidatureFieldSpec("Fit and preparation", "company_research", "Company research", editable=True, storage_key="company_research", multiline=True, value_kind="multiline"),
+    CandidatureFieldSpec("Fit and preparation", "company_research", "Company context", editable=True, storage_key="company_research", multiline=True, value_kind="multiline"),
 
     CandidatureFieldSpec("Recruiter call", "call_signals", "Recognition signals", editable=True, storage_key="call_signals", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Recruiter call", "pitch", "Pitch", editable=True, storage_key="pitch", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Recruiter call", "smart_question", "Question to ask", editable=True, storage_key="smart_question", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Recruiter call", "recruiter_material", "Interview / recruiter notes", editable=True, storage_key="recruiter_material", multiline=True, value_kind="multiline"),
+    CandidatureFieldSpec("Recruiter call", "recruiter_material", "Recruiter material", editable=True, storage_key="recruiter_material", multiline=True, value_kind="multiline"),
 
     CandidatureFieldSpec("Keywords", "keywords", "Keywords", editable=True, storage_key="keywords", multiline=True, value_kind="tags"),
 
@@ -77,9 +80,6 @@ CANDIDATURE_FIELD_SPECS = (
     CandidatureFieldSpec("Material", "cv_material", "CV material", editable=True, storage_key="cv_material", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Material", "cover_letter_material", "Cover-letter material", editable=True, storage_key="cover_letter_material", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Material", "material_sent_notes", "Material already sent", editable=True, storage_key="material_sent_notes", multiline=True, value_kind="multiline"),
-
-    CandidatureFieldSpec("Source", "source_text", "Raw job offer / source material", editable=True, storage_key="source_text", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Source", "raw_application_form", "Original application form", editable=True, storage_key="raw_application_form", multiline=True, value_kind="multiline"),
 )
 
 
