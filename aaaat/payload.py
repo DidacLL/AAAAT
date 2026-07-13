@@ -8,7 +8,7 @@ from .candidatures import list_candidatures
 from .db import list_glossary, list_raw_intake, profile_variables, required_profile_variables
 from .privacy import list_variables, resolve_variables
 from .profile_facts import list_profile_facts, profile_context
-from .review_queue import next_action_date, review_queue, sorted_applications
+from .review_queue import review_queue, sorted_applications
 
 
 def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> dict[str, Any]:
@@ -17,7 +17,6 @@ def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> di
     for app in apps:
         app["artifacts"] = list_artifacts(conn, app["id"])
         app["last_activity"] = app.get("updated_at") or app.get("created_at") or ""
-        app["next_action_date"] = next_action_date(app)
         app["call_probability_label"] = "Call probability: pending signal model"
         if include_raw:
             app["raw_intake"] = list_raw_intake(conn, app["id"])
