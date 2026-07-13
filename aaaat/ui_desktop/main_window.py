@@ -117,7 +117,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.smart_panel = wx.Panel(self.view_book)
         self.smart_sizer = wx.BoxSizer(wx.VERTICAL)
         self.smart_panel.SetSizer(self.smart_sizer)
-        self.view_book.AddPage(self.smart_panel, "List")
+        self.view_book.AddPage(self.smart_panel, "Smart View")
         self.root_sizer.Add(self.view_book, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
 
     def _build_overview_surface(self) -> None:
