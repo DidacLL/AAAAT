@@ -12,6 +12,10 @@ class DetailFieldSpec:
     storage_key: str | None = None
     multiline: bool = False
 
+    @property
+    def editable(self) -> bool:
+        return self.storage_key is not None
+
 
 FIELD_GROUPS = [
     "Identity",
@@ -108,6 +112,7 @@ def grouped_detail_fields(projection: dict[str, Any]) -> list[dict[str, Any]]:
                     "key": spec.key,
                     "label": spec.label,
                     "value": _string_value(record.get(spec.key)),
+                    "editable": spec.editable,
                     "storage_key": spec.storage_key,
                     "multiline": spec.multiline,
                 }
