@@ -223,7 +223,12 @@ class CenterCardBuilder:
         return " · ".join(part for part in parts if part)
 
     def _visible_tiles(self, specs: list[tuple[str, Any, int, int]]) -> list[tuple[str, str, int, int]]:
-        return [(label, str(value).strip(), limit, height) for label, value, height, height in []]
+        visible: list[tuple[str, str, int, int]] = []
+        for label, value, limit, height in specs:
+            text = str(value or "").strip()
+            if text:
+                visible.append((label, text, limit, height))
+        return visible
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
