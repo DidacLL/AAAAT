@@ -15,8 +15,6 @@ from .services import DesktopCommandService
 from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
 from .user_view import UserViewMixin
 
-RIGHT_MODULES = ["overview", "evaluation", "keywords", "material", "actions"]
-
 
 class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx.Frame):
     """Top-level wx desktop frame for Smart, Detailed, and User desktop views."""
@@ -32,6 +30,8 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         command_service: DesktopCommandService | None = None,
     ) -> None:
         super().__init__(None, title="AAAAT — Desktop", size=DEFAULT_WINDOW_SIZE)
+        self.CreateStatusBar()
+        self.SetStatusText("Ready")
         self.storage_path = storage_path
         self.mode = Mode(mode)
         self.projection = projection
@@ -49,7 +49,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._focus_layout_applied = False
         self.focus_left_width = int(layout_state.pane_layout.get("smart", {}).get("left", DEFAULT_FOCUS_LEFT))
         saved_right = int(layout_state.pane_layout.get("smart", {}).get("right", DEFAULT_FOCUS_RIGHT))
-        self.focus_right_width = max(260, min(saved_right, 420))
+        self.focus_right_width = max(300, min(saved_right, 400))
         self._list_refs: list[str] = []
         self._overview_card_refs: list[str] = []
         self._rendered_view_keys: dict[str, tuple[Any, ...]] = {}
@@ -125,8 +125,8 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.overview_search.ShowSearchButton(True)
         self.overview_search.ShowCancelButton(True)
         sizer.Add(self.overview_search, 0, wx.BOTTOM | wx.EXPAND, 8)
-        self.overview_scroll = wx.ScrolledWindow(self.overview_panel)
-        self.overview_scroll.SetScrollRate(12, 12)
+        self.overview_scroll = wx.ScrolledWindow(self.overview_panel, style=wx.VSCROLL)
+        self.overview_scroll.SetScrollRate(0, 12)
         self.overview_cards_sizer = wx.WrapSizer(wx.HORIZONTAL)
         self.overview_scroll.SetSizer(self.overview_cards_sizer)
         sizer.Add(self.overview_scroll, 1, wx.EXPAND)
@@ -175,8 +175,8 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_panel.SetSizer(panel_sizer)
         self.center_splitter = wx.SplitterWindow(self.center_panel, style=wx.SP_LIVE_UPDATE)
         self.center_splitter.SetMinimumPaneSize(110)
-        self.center_body_scroll = wx.ScrolledWindow(self.center_splitter)
-        self.center_body_scroll.SetScrollRate(8, 12)
+        self.center_body_scroll = wx.ScrolledWindow(self.center_splitter, style=wx.VSCROLL)
+        self.center_body_scroll.SetScrollRate(0, 12)
         self.center_notes_panel = wx.Panel(self.center_splitter, style=wx.BORDER_SIMPLE)
         self.center_splitter.SplitHorizontally(
             self.center_body_scroll,
