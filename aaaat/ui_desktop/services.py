@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
-from aaaat.candidatures import update_candidature
+from aaaat.candidatures import create_candidature, update_candidature
 from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, set_profile_variable, upsert_glossary_term
 from aaaat.tasks import create_task
 
@@ -88,6 +88,24 @@ class DesktopCommandService:
 
     def save_note(self, candidature_ref: str, body: str) -> None:
         self.update_candidature_fields(candidature_ref, {"notes": body})
+
+    def create_raw_offer_candidature(self, raw_offer: str) -> dict[str, Any] | None:
+        text = str(raw_offer or "").strip()
+        if not text:
+            return None
+        with connect(self.storage_path) as conn:
+            return create_candidature(
+                conn,
+                company="Pending company",
+                role="Pending role",
+                status="active",
+                priority="normal",
+                raw_offer=text,
+                created_by="desktop",
+                include_field_inference_task=True,
+                include_company_research_task=False,
+                include_keyword_detection_task=True,
+            )
 
     def update_candidature_fields(self, candidature_ref: str, changes: dict[str, Any]) -> dict[str, Any] | None:
         safe_changes = {key: changes[key] for key in SUPPORTED_DETAIL_EDIT_FIELDS if key in changes}
