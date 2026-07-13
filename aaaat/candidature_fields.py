@@ -38,7 +38,6 @@ CANDIDATURE_FIELD_GROUPS = (
     "Keywords",
     "Material",
     "Source",
-    "System",
 )
 
 
@@ -59,17 +58,15 @@ CANDIDATURE_FIELD_SPECS = (
     CandidatureFieldSpec("Overview", "description", "Full description", editable=True, storage_key="description", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Overview", "offer_snapshot", "Offer summary", editable=True, storage_key="offer_snapshot", multiline=True, value_kind="multiline"),
 
-    CandidatureFieldSpec("Evaluation and strategy", "candidature_evaluation", "Candidature evaluation", editable=True, storage_key="candidature_evaluation", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Evaluation and strategy", "role_strategy", "Role-specific strategy", editable=True, storage_key="role_strategy", multiline=True, value_kind="multiline"),
+    CandidatureFieldSpec("Evaluation and strategy", "candidature_evaluation", "Fit assessment", editable=True, storage_key="candidature_evaluation", multiline=True, value_kind="multiline"),
+    CandidatureFieldSpec("Evaluation and strategy", "role_strategy", "Application strategy", editable=True, storage_key="role_strategy", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Evaluation and strategy", "strengths", "Relevant strengths", editable=True, storage_key="strengths", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Evaluation and strategy", "risks_to_avoid", "Risks / material to avoid", editable=True, storage_key="risks_to_avoid", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Evaluation and strategy", "questions_to_ask", "Useful questions", editable=True, storage_key="questions_to_ask", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Evaluation and strategy", "tech_stack", "Technical stack", editable=True, storage_key="tech_stack", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Evaluation and strategy", "valuation", "Valuation /100", editable=True, storage_key="valuation", value_kind="summary"),
+    CandidatureFieldSpec("Evaluation and strategy", "valuation", "Fit score /100", editable=True, storage_key="valuation", value_kind="summary"),
     CandidatureFieldSpec("Evaluation and strategy", "company_research", "Company research", editable=True, storage_key="company_research", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Evaluation and strategy", "technical_reading", "Technical reading", editable=True, storage_key="technical_reading", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Evaluation and strategy", "prepare_first", "Prepare first", editable=True, storage_key="prepare_first", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Evaluation and strategy", "prepare_later", "Prepare later", editable=True, storage_key="prepare_later", multiline=True, value_kind="multiline"),
 
     CandidatureFieldSpec("Recruiter call", "call_signals", "Recruiter-call signals", editable=True, storage_key="call_signals", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Recruiter call", "pitch", "Pitch", editable=True, storage_key="pitch", multiline=True, value_kind="multiline"),
@@ -82,20 +79,9 @@ CANDIDATURE_FIELD_SPECS = (
     CandidatureFieldSpec("Material", "cv_material", "CV-related material", editable=True, storage_key="cv_material", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Material", "cover_letter_material", "Cover-letter material", editable=True, storage_key="cover_letter_material", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Material", "material_sent_notes", "Material already sent", editable=True, storage_key="material_sent_notes", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Material", "artifacts_items", "Generated or attached material", read_only_reason="Generated artifact metadata", value_kind="multiline"),
-    CandidatureFieldSpec("Material", "artifacts_state", "Material state", read_only_reason="Derived artifact state", value_kind="summary"),
-    CandidatureFieldSpec("Material", "artifacts_count", "Material count", read_only_reason="Derived artifact count", value_kind="summary"),
 
     CandidatureFieldSpec("Source", "source_text", "Raw job offer / source material", editable=True, storage_key="source_text", multiline=True, value_kind="multiline"),
     CandidatureFieldSpec("Source", "raw_application_form", "Original application form", editable=True, storage_key="raw_application_form", multiline=True, value_kind="multiline"),
-    CandidatureFieldSpec("Source", "source_excerpt", "Source excerpt", read_only_reason="Projected source evidence excerpt", value_kind="multiline"),
-    CandidatureFieldSpec("Source", "source_length", "Source length", read_only_reason="Derived source length", value_kind="summary"),
-    CandidatureFieldSpec("Source", "source_has_raw", "Has raw intake", read_only_reason="Source provenance", value_kind="boolean"),
-
-    CandidatureFieldSpec("System", "ref", "Candidature ref", read_only_reason="Internal identifier", value_kind="summary"),
-    CandidatureFieldSpec("System", "task_queue", "Task queue", read_only_reason="Derived task summary", value_kind="summary"),
-    CandidatureFieldSpec("System", "created_at", "Created", read_only_reason="Timestamp", value_kind="timestamp"),
-    CandidatureFieldSpec("System", "updated_at", "Updated", read_only_reason="Timestamp", value_kind="timestamp"),
 )
 
 
