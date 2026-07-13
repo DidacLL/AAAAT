@@ -46,13 +46,17 @@ class DetailPanel(wx.ScrolledWindow):
         if ref != self._current_ref:
             self._editing = False
             self._draft_values = {}
+            self._original_values = {}
+            self._field_storage_keys = {}
+        elif not self._editing and not self._draft_values:
+            self._original_values = {}
+            self._field_storage_keys = {}
         self._current_ref = ref
         self._projection = projection
         self.Freeze()
         try:
             self.sizer.Clear(delete_windows=True)
             self._controls = {}
-            self._field_storage_keys = {}
             if not ref:
                 self._add_empty()
                 self._fit_width()
@@ -165,7 +169,7 @@ class DetailPanel(wx.ScrolledWindow):
         label = str(field.get("label") or key)
         value = str(field.get("value") or "")
         storage_key = str(field.get("storage_key") or "") or None
-        if key not in self._original_values or self._current_ref is None:
+        if key not in self._original_values:
             self._original_values[key] = value
         self._field_storage_keys[key] = storage_key
         current = self._draft_values.get(key, value)
@@ -205,11 +209,13 @@ class DetailPanel(wx.ScrolledWindow):
             return
         self._capture_controls()
         changes = collect_writable_changes(self._original_values, self._draft_values, self._field_storage_keys)
-        if changes:
-            self.on_save(self._current_ref, changes)
         self._original_values.update(self._draft_values)
         self._draft_values = {}
         self._editing = False
+        if changes:
+            self.on_save(self._current_ref, changes)
+        else:
+            self.render(self._projection)
 
     def _discard_draft(self) -> None:
         self._draft_values = {}
@@ -221,7 +227,6 @@ class DetailPanel(wx.ScrolledWindow):
 
     def _on_save(self, _event: wx.CommandEvent) -> None:
         self._save_current()
-        self.render(self._projection)
 
     def _on_cancel(self, _event: wx.CommandEvent) -> None:
         self._discard_draft()
@@ -232,9 +237,9 @@ class DetailPanel(wx.ScrolledWindow):
             self._capture_controls()
             notes = self._draft_values.get("notes", self._original_values.get("notes", ""))
             if notes != self._original_values.get("notes", ""):
-                self.on_save(self._current_ref, {"notes": notes})
                 self._original_values["notes"] = notes
                 self._draft_values.pop("notes", None)
+                self.on_save(self._current_ref, {"notes": notes})
         event.Skip()
 
     def _on_delete(self, _event: wx.CommandEvent) -> None:
