@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS applications (
   role TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active',
   priority TEXT NOT NULL DEFAULT 'normal',
-  source TEXT DEFAULT '',
   source_url TEXT DEFAULT '',
   location TEXT DEFAULT '',
   remote_mode TEXT DEFAULT '',
