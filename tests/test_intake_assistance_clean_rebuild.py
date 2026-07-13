@@ -6,7 +6,8 @@ import unittest
 from aaaat.db import connect, get_application, init_db, list_glossary
 from aaaat.intake import IntakeService
 from aaaat.task_runner import TaskRunner
-from aaaat.tasks import list_tasks
+from aaaat.tasks import apply_task_result, get_task, list_tasks
+from aaaat.text_blobs import get_text_blob
 from aaaat.workspace_config import config_path
 
 
@@ -31,8 +32,7 @@ class IntakeAssistanceTests(unittest.TestCase):
 
     def test_offer_intake_plans_comprehensive_defaults_without_documents(self):
         storage = self.make_storage()
-        service = IntakeService(storage)
-        result = service.create_from_offer("Backend role at Example Corp in Madrid. Salary 60k.")
+        result = IntakeService(storage).create_from_offer("Backend role at Example Corp in Madrid. Salary 60k.")
 
         self.assertEqual(result["candidature"]["status"], "intake")
         self.assertEqual(result["candidature"]["raw_intake"][0]["content"], "Backend role at Example Corp in Madrid. Salary 60k.")
@@ -47,17 +47,28 @@ class IntakeAssistanceTests(unittest.TestCase):
         result = IntakeService(storage).create_from_offer("Role offer", raw_application_form="Why do you want this role?")
         self.assertIn("draft_form_responses", [task["task_type"] for task in result["tasks"]])
 
-    def test_configured_runner_applies_fields_and_plans_missing_keyword_definition(self):
+    def test_runner_submits_suggestion_and_explicit_apply_updates_candidature(self):
         storage = self.make_storage()
         script = (
-            "import json,sys; p=json.load(sys.stdin); t=p['task']['task_type']; "
-            "out={'fields':{'company':'Example Corp','role':'Backend Engineer','location':'Madrid','salary_expectation':'60000','keywords':['Python','Event Sourcing'],'pitch':'Relevant backend experience','valuation':8}} "
-            "if t=='field_inference' else {'result':'ok'}; print(json.dumps(out))"
+            "import json,sys; p=json.load(sys.stdin); "
+            "print(json.dumps({'fields':{'company':'Example Corp','role':'Backend Engineer','location':'Madrid','salary_expectation':'60000','keywords':['Python','Event Sourcing'],'pitch':'Relevant backend experience','valuation':8}}))"
         )
         self.write_config(storage, automatic=["field_inference"], command=[sys.executable, "-c", script])
         service = IntakeService(storage)
         result = service.create_from_offer("Backend role in Madrid")
-        TaskRunner(storage).run(result["tasks"][0]["id"])
+        task_id = result["tasks"][0]["id"]
+
+        TaskRunner(storage).run(task_id)
+        with connect(storage) as conn:
+            before_apply = get_application(conn, result["candidature"]["id"])
+            submitted_task = get_task(conn, task_id)
+            submitted_blob = get_text_blob(conn, submitted_task["result_blob_id"])
+        self.assertEqual(before_apply["company"], "")
+        self.assertEqual(submitted_task["state"], "completed")
+        self.assertEqual(submitted_blob["review_state"], "suggested")
+
+        with connect(storage) as conn:
+            apply_task_result(conn, task_id)
         keyword_tasks = service.create_missing_keyword_tasks(result["candidature"]["id"])
 
         with connect(storage) as conn:
