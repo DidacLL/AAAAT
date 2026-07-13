@@ -46,51 +46,39 @@ class CenterCardBuilder:
         self.add_full_text_drawers(detail)
 
     def add_visible_briefing(self, detail: dict[str, Any]) -> None:
-        rows = [
-            (
-                "At a glance",
-                [
-                    ("Status", detail.get("status"), 60, 48),
-                    ("Priority", detail.get("priority"), 60, 48),
-                    ("Remote", detail.get("remote_mode"), 80, 48),
-                    ("Location", detail.get("location"), 80, 48),
-                    ("Comp", detail.get("salary_expectation"), 100, 48),
-                    ("Published", detail.get("publication_date"), 80, 48),
-                    ("Applied", detail.get("application_date"), 80, 48),
-                    ("Source", detail.get("source"), 110, 48),
-                    ("Artifacts", detail.get("artifacts_state"), 80, 48),
-                ],
-                4,
-            ),
-            (
-                "During the call",
-                [
-                    ("Recognize", detail.get("call_signals") or detail.get("source_excerpt"), 180, 62),
-                    ("Pitch", detail.get("pitch"), 220, 62),
-                    ("Ask", detail.get("smart_question"), 180, 62),
-                    ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 180, 62),
-                    ("Strengths", detail.get("strengths"), 180, 62),
-                    ("Questions", detail.get("questions_to_ask"), 180, 62),
-                ],
-                3,
-            ),
-            (
-                "Context",
-                [
-                    ("Fit", detail.get("candidature_evaluation"), 180, 62),
-                    ("Strategy", detail.get("role_strategy"), 180, 62),
-                    ("Company", detail.get("company_research"), 180, 62),
-                    ("Stack", detail.get("tech_stack"), 120, 50),
-                    ("Keywords", ", ".join(str(term) for term in detail.get("keywords") or []), 160, 50),
-                    ("Forms", detail.get("form_answers"), 160, 50),
-                ],
-                3,
-            ),
+        tiles = [
+            ("Status", detail.get("status"), 60, 44),
+            ("Priority", detail.get("priority"), 60, 44),
+            ("Remote", detail.get("remote_mode"), 80, 44),
+            ("Location", detail.get("location"), 80, 44),
+            ("Comp", detail.get("salary_expectation"), 100, 44),
+            ("Published", detail.get("publication_date"), 80, 44),
+            ("Applied", detail.get("application_date"), 80, 44),
+            ("Source", detail.get("source"), 110, 44),
+            ("Recognize", detail.get("call_signals") or detail.get("source_excerpt"), 180, 62),
+            ("Pitch", detail.get("pitch"), 220, 62),
+            ("Ask", detail.get("smart_question"), 180, 62),
+            ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 180, 62),
+            ("Strengths", detail.get("strengths"), 180, 62),
+            ("Questions", detail.get("questions_to_ask"), 180, 62),
+            ("Fit", detail.get("candidature_evaluation"), 180, 62),
+            ("Strategy", detail.get("role_strategy"), 180, 62),
+            ("Company", detail.get("company_research"), 180, 62),
+            ("Stack", detail.get("tech_stack"), 140, 50),
+            ("Keywords", ", ".join(str(term) for term in detail.get("keywords") or []), 160, 50),
+            ("Forms", detail.get("form_answers"), 160, 50),
         ]
-        for title, items, columns in rows:
-            visible = [(label, str(value).strip(), limit, height) for label, value, limit, height in items if str(value or "").strip()]
-            if visible:
-                self._add_tile_section(title, visible, columns)
+        visible = [(label, str(value).strip(), limit, height) for label, value, limit, height in tiles if str(value or "").strip()]
+        if not visible:
+            return
+        panel = wx.Panel(self.owner.center_scroll, style=wx.BORDER_SIMPLE)
+        grid = wx.FlexGridSizer(rows=0, cols=4, vgap=6, hgap=8)
+        for col in range(4):
+            grid.AddGrowableCol(col, 1)
+        panel.SetSizer(grid)
+        for label, value, limit, min_height in visible:
+            grid.Add(self._make_tile(panel, label, value, limit, min_height), 1, wx.ALL | wx.EXPAND, 6)
+        self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
     def add_full_text_drawers(self, detail: dict[str, Any]) -> None:
         drawers = [
@@ -109,20 +97,6 @@ class CenterCardBuilder:
             text = str(body or "").strip()
             if text:
                 self.add_center_card(card_id, title, text, expanded_by_default=expanded, min_height=min_height)
-
-    def _add_tile_section(self, title: str, visible: list[tuple[str, str, int, int]], columns: int) -> None:
-        heading = wx.StaticText(self.owner.center_scroll, label=title)
-        heading.SetFont(heading.GetFont().Bold())
-        self.owner.center_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
-
-        panel = wx.Panel(self.owner.center_scroll, style=wx.BORDER_SIMPLE)
-        grid = wx.FlexGridSizer(rows=0, cols=max(1, columns), vgap=6, hgap=8)
-        for col in range(max(1, columns)):
-            grid.AddGrowableCol(col, 1)
-        panel.SetSizer(grid)
-        for label, value, limit, min_height in visible:
-            grid.Add(self._make_tile(panel, label, value, limit, min_height), 1, wx.ALL | wx.EXPAND, 6)
-        self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
     def _make_tile(self, parent: wx.Window, label: str, value: str, limit: int, min_height: int) -> wx.Panel:
         tile = wx.Panel(parent)
@@ -184,7 +158,7 @@ class CenterCardBuilder:
             if hasattr(event, "StopPropagation"):
                 event.StopPropagation()
             if isinstance(target, wx.html.HtmlWindow):
-                wx.CallAfter(self._toggle_after_html_link_check, target, selected_card)
+                wx.CallLater(75, self._toggle_after_html_link_check, target, selected_card)
             else:
                 wx.CallAfter(self.toggle, selected_card)
 
