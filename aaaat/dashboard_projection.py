@@ -41,8 +41,6 @@ DETAILED_COLUMNS = [
     {"id": "role", "title": "Role", "source": "role"},
     {"id": "status", "title": "State", "source": "status"},
     {"id": "priority", "title": "Priority", "source": "priority"},
-    {"id": "next_action", "title": "Next action", "source": "next_action"},
-    {"id": "deadline", "title": "Next date", "source": "next_action_date"},
     {"id": "last_contact", "title": "Last activity", "source": "last_activity"},
     {"id": "source", "title": "Source", "source": "source"},
     {"id": "source_url", "title": "Source URL", "source": "source_url"},
@@ -234,7 +232,7 @@ def _column_state(layout: DashboardLayoutState) -> dict[str, list[str]]:
     visible = [item for item in layout.detailed_columns.get("visible", []) if item in available]
     order = [item for item in layout.detailed_columns.get("order", []) if item in available]
     if not visible:
-        visible = ["company", "role", "status", "priority", "next_action", "artifacts_state"]
+        visible = ["company", "role", "status", "priority", "location", "remote_mode", "keywords", "artifacts_state"]
     if not order:
         order = list(visible)
     for column_id in visible:
@@ -245,7 +243,7 @@ def _column_state(layout: DashboardLayoutState) -> dict[str, list[str]]:
 
 def _candidature_summary(app: dict[str, Any]) -> dict[str, Any]:
     source_text = _source_text(app)
-    return {"ref": app.get("id"), "company": app.get("company") or "Untitled Company", "role": app.get("role") or "Untitled Role", "status": app.get("status") or "active", "priority": app.get("priority") or "normal", "next_action": app.get("next_action") or "", "call_signals": app.get("call_signals") or "", "source_excerpt": source_text["excerpt"], "source_length": source_text["length"], "deadline_or_last_contact": app.get("next_action_date") or app.get("last_activity") or "", "source": app.get("source") or "", "keywords": list(app.get("keywords") or []), "artifacts_state": _artifact_state_label(app)}
+    return {"ref": app.get("id"), "company": app.get("company") or "Untitled Company", "role": app.get("role") or "Untitled Role", "status": app.get("status") or "active", "priority": app.get("priority") or "normal", "call_signals": app.get("call_signals") or "", "source_excerpt": source_text["excerpt"], "source_length": source_text["length"], "deadline_or_last_contact": app.get("last_activity") or "", "source": app.get("source") or "", "keywords": list(app.get("keywords") or []), "artifacts_state": _artifact_state_label(app)}
 
 
 def _selected_detail(app: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -266,7 +264,6 @@ def _selected_detail(app: dict[str, Any] | None) -> dict[str, Any] | None:
         "source_text": source_text["body"],
         "source_length": source_text["length"],
         "source_has_raw": source_text["has_raw"],
-        "next_action": app.get("next_action") or "",
         "notes": app.get("notes") or "",
         "call_signals": app.get("call_signals") or "",
         "last_activity": app.get("last_activity") or "",
@@ -274,9 +271,6 @@ def _selected_detail(app: dict[str, Any] | None) -> dict[str, Any] | None:
         "risks_to_avoid": app.get("risks_to_avoid") or "",
         "risk_to_avoid": app.get("risks_to_avoid") or "",
         "smart_question": app.get("smart_question") or "",
-        "technical_reading": app.get("technical_reading") or "",
-        "prepare_first": app.get("prepare_first") or "",
-        "prepare_later": app.get("prepare_later") or "",
         "offer_snapshot": app.get("offer_snapshot") or "",
         "company_research": app.get("company_research") or "",
         "form_answers": app.get("form_answers") or "",
@@ -297,7 +291,7 @@ def _primary_note(app: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def _call_card(app: dict[str, Any] | None) -> dict[str, str]:
-    return {"pitch": app.get("pitch", "") if app else "", "question": app.get("smart_question", "") if app else "", "avoid": app.get("risks_to_avoid", "") if app else "", "prepare_first": app.get("prepare_first", "") if app else "", "prepare_later": app.get("prepare_later", "") if app else "", "signals": app.get("call_signals", "") if app else ""}
+    return {"pitch": app.get("pitch", "") if app else "", "question": app.get("smart_question", "") if app else "", "avoid": app.get("risks_to_avoid", "") if app else "", "signals": app.get("call_signals", "") if app else ""}
 
 
 def _source_text(app: dict[str, Any] | None) -> dict[str, Any]:
@@ -334,7 +328,7 @@ def _detailed_row(app: dict[str, Any] | None) -> dict[str, Any] | None:
         return None
     selected = _selected_detail(app) or {}
     notes = app.get("notes") or ""
-    row = {**selected, "deadline": app.get("next_action_date") or "", "last_contact": app.get("last_activity") or "", "notes_excerpt": notes[:80]}
+    row = {**selected, "last_contact": app.get("last_activity") or "", "notes_excerpt": notes[:80]}
     return row
 
 
