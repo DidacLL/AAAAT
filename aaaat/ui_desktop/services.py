@@ -24,7 +24,7 @@ _ACTION_TASKS = {
     "regenerate_evaluation": ("field_inference", "Regenerate offer evaluation", "Regenerate the current candidature evaluation from retained source and current editable data.", "candidature:field_inference", "high"),
     "regenerate_strategy": ("career_plan_review", "Regenerate role strategy", "Produce or refresh the role-specific strategy using current candidature, profile and career context.", "candidature:role_strategy", "high"),
     "update_company_research": ("company_research", "Update company research", "Refresh company research and recruiter-call context.", "candidature:company_research", "normal"),
-    "regenerate_keywords": ("keyword_definition", "Regenerate keyword definitions", "Define missing or weak technical keywords for this candidature.", "keyword:all", "normal"),
+    "regenerate_keywords": ("field_inference", "Regenerate technical keywords", "Refresh the meaningful keyword list from retained source and current candidature data.", "candidature:keywords", "normal"),
     "prepare_form_answers": ("draft_form_responses", "Prepare form answers", "Generate application-form answers from the stored form, profile and current strategy.", "blob:form_responses", "normal"),
     "generate_cv": ("draft_cv", "Generate tailored CV", "Generate CV material using the current evaluation, strategy, candidature data and profile.", "artifact:cv", "normal"),
     "generate_cover_letter": ("draft_cover_letter", "Generate cover letter", "Generate cover-letter material using the current evaluation, strategy, candidature data and profile.", "artifact:cover_letter", "normal"),
