@@ -7,7 +7,7 @@ import wx.html  # type: ignore[import-not-found]
 
 
 class CenterCardBuilder:
-    """Build Smart View center cards and integrate explicit card state."""
+    """Build Smart View center cards and integrate explicit responsive card state."""
 
     def __init__(self, owner: Any) -> None:
         self.owner = owner
@@ -21,6 +21,9 @@ class CenterCardBuilder:
         role = wx.StaticText(hero, label=str(detail.get("role") or "Role"))
         role.SetFont(role.GetFont().Bold().Larger())
         chips = wx.StaticText(hero, label=self.owner._chips(detail))
+        self._bind_wrap(hero, company, 32)
+        self._bind_wrap(hero, role, 32)
+        self._bind_wrap(hero, chips, 32)
         hero_sizer.Add(company, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
         hero_sizer.Add(role, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
         hero_sizer.Add(chips, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
@@ -31,7 +34,7 @@ class CenterCardBuilder:
             ("Recognize", detail.get("call_signals") or detail.get("source_excerpt") or "No signal yet."),
             ("Pitch", detail.get("pitch") or "No pitch yet."),
             ("Ask", detail.get("smart_question") or "No question yet."),
-            ("Watch", detail.get("risk_to_avoid") or "No risk note yet."),
+            ("Watch", detail.get("risks_to_avoid") or detail.get("risk_to_avoid") or "No risk note yet."),
         ]
         summary = " · ".join(self.owner._clip(body, 46) for _heading, body in blocks[:2] if body)
         panel, body_sizer = self.card_shell("call", "Call cockpit", summary or "recognition, pitch, question, risk")
@@ -45,7 +48,8 @@ class CenterCardBuilder:
                 block.SetSizer(block_sizer)
                 label = wx.StaticText(block, label=heading)
                 label.SetFont(label.GetFont().Bold())
-                html_body = self.owner._html_text_window(block, self.owner._clip(body, 220), min_height=72)
+                html_body = self.owner._html_text_window(block, str(body or "—"), min_height=72)
+                html_body.SetMinSize((-1, 72))
                 block_sizer.Add(label, 0, wx.BOTTOM | wx.EXPAND, 2)
                 block_sizer.Add(html_body, 1, wx.EXPAND, 2)
                 grid.Add(block, 1, wx.EXPAND)
@@ -60,6 +64,8 @@ class CenterCardBuilder:
             heading = wx.StaticText(panel, label=f"Literal offer/source text · {len(source_text)} chars")
             heading.SetFont(heading.GetFont().Bold())
             reader = self.owner._html_text_window(panel, source_text or source_excerpt, min_height=310)
+            reader.SetMinSize((-1, 310))
+            self._bind_wrap(panel, heading, 24)
             body_sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
             body_sizer.Add(reader, 1, wx.ALL | wx.EXPAND, 8)
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
@@ -69,6 +75,7 @@ class CenterCardBuilder:
         panel, body_sizer = self.card_shell(card_id, title, text or "—")
         if self.is_expanded(card_id, expanded_by_default):
             content = self.owner._html_text_window(panel, text or "—", min_height=min_height)
+            content.SetMinSize((-1, min_height))
             body_sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
         self.owner.center_sizer.Add(panel, 0, wx.BOTTOM | wx.EXPAND, 8)
 
@@ -80,8 +87,7 @@ class CenterCardBuilder:
         header = wx.BoxSizer(wx.HORIZONTAL)
         title_label = wx.StaticText(panel, label=title)
         title_label.SetFont(title_label.GetFont().Bold().Larger())
-        summary_label = wx.StaticText(panel, label=self.owner._clip(summary, 115))
-        summary_label.Wrap(620)
+        summary_label = wx.StaticText(panel, label=self.owner._clip(summary, 220))
         toggle_label = wx.StaticText(panel, label="▾" if expanded else "▸")
         toggle_label.SetFont(toggle_label.GetFont().Bold().Larger())
         header.Add(toggle_label, 0, wx.ALL | wx.ALIGN_TOP, 8)
@@ -90,6 +96,7 @@ class CenterCardBuilder:
         sizer.Add(header, 0, wx.EXPAND)
         body_sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(body_sizer, 0, wx.EXPAND)
+        self._bind_wrap(panel, summary_label, 240)
         self.bind_click(panel, card_id)
         return panel, body_sizer
 
@@ -121,3 +128,12 @@ class CenterCardBuilder:
             self.owner.Layout()
         finally:
             self.owner.Thaw()
+
+    def _bind_wrap(self, parent: wx.Window, label: wx.StaticText, padding: int) -> None:
+        def wrap(_event: wx.SizeEvent) -> None:
+            width = max(200, int(parent.GetClientSize().GetWidth() or 360) - padding)
+            label.Wrap(width)
+            _event.Skip()
+
+        parent.Bind(wx.EVT_SIZE, wrap)
+        label.Wrap(max(200, int(parent.GetClientSize().GetWidth() or 360) - padding))
