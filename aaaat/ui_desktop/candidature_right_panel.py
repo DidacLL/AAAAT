@@ -17,7 +17,6 @@ DeleteCallback = Callable[[str], None]
 FIELD_ACTIONS: dict[str, tuple[str, str, str]] = {
     "company": ("infer_fields", "Infer", "Reinfer"),
     "role": ("infer_fields", "Infer", "Reinfer"),
-    "source": ("infer_fields", "Infer", "Reinfer"),
     "source_url": ("infer_fields", "Infer", "Reinfer"),
     "location": ("infer_fields", "Infer", "Reinfer"),
     "remote_mode": ("infer_fields", "Infer", "Reinfer"),
@@ -110,6 +109,7 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
             bind_parent_wheel_scroll(self, self)
         finally:
             self.Thaw()
+        wx.CallAfter(self._refresh_after_layout)
 
     def _add_empty(self) -> None:
         title = wx.StaticText(self, label="Select a candidature")
@@ -148,6 +148,15 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
         if self._active_editor is not None and self._active_editor is not editor:
             self._active_editor.close_editor()
         self._active_editor = editor
+
+    def _refresh_after_layout(self) -> None:
+        try:
+            self.Layout()
+            self.FitInside()
+            self.Refresh(eraseBackground=True)
+            self.Update()
+        except RuntimeError:
+            pass
 
     def _wrap_width(self) -> int:
         return max(260, int(self.GetClientSize().GetWidth() or 640) - 36)
@@ -356,6 +365,7 @@ class InlineFieldEditor(wx.Panel):
         on_add_keyword: Callable[[str, str], None] | None = None,
     ) -> None:
         super().__init__(parent, style=wx.BORDER_SIMPLE)
+        self.SetBackgroundStyle(wx.BG_STYLE_SYSTEM)
         self.field = field
         self.can_edit = bool(can_edit and field.get("editable") and field.get("storage_key"))
         self.action_spec = FIELD_ACTIONS.get(str(field.get("key") or "")) if allow_action else None
@@ -367,6 +377,7 @@ class InlineFieldEditor(wx.Panel):
         self._value = str(field.get("value") or "")
         self._status = ""
         self._editing = False
+        self._editor: wx.Control | None = None
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.sizer)
         self.Bind(wx.EVT_SIZE, self._on_size)
@@ -379,37 +390,42 @@ class InlineFieldEditor(wx.Panel):
             self._render_view()
 
     def _render_view(self) -> None:
-        self.sizer.Clear(delete_windows=True)
-        header = wx.BoxSizer(wx.HORIZONTAL)
-        label = wx.StaticText(self, label=str(self.field.get("label") or self.field.get("key") or "Field"))
-        label.SetFont(label.GetFont().Bold())
-        header.Add(label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
-        if self.action_spec:
-            _action_id, empty_label, filled_label = self.action_spec
-            action = wx.Button(self, label=filled_label if self._value.strip() else empty_label)
-            action.Bind(wx.EVT_BUTTON, self._queue_action)
-            header.Add(action, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
-        if str(self.field.get("key") or "") == "keywords" and self.can_edit:
-            add = wx.Button(self, label="Add")
-            add.Bind(wx.EVT_BUTTON, self._dialog_add_keyword)
-            header.Add(add, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
-        if self.can_edit:
-            edit = wx.Button(self, label="Edit")
-            edit.Bind(wx.EVT_BUTTON, self._start_edit)
-            header.Add(edit, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
-        self.sizer.Add(header, 0, wx.EXPAND)
-        if str(self.field.get("key") or "") == "keywords":
-            self._add_keyword_chips()
-        else:
-            display = self._display_value()
-            body = wx.StaticText(self, label=display or "—")
-            body.Wrap(self._wrap_width())
-            self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
-        if self._status:
-            status = wx.StaticText(self, label=self._status)
-            status.Wrap(self._wrap_width())
-            self.sizer.Add(status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
-        self.Layout()
+        self.Freeze()
+        try:
+            self._editor = None
+            self.sizer.Clear(delete_windows=True)
+            header = wx.BoxSizer(wx.HORIZONTAL)
+            label = wx.StaticText(self, label=str(self.field.get("label") or self.field.get("key") or "Field"))
+            label.SetFont(label.GetFont().Bold())
+            header.Add(label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
+            if self.action_spec:
+                _action_id, empty_label, filled_label = self.action_spec
+                action = wx.Button(self, label=filled_label if self._value.strip() else empty_label)
+                action.Bind(wx.EVT_BUTTON, self._queue_action)
+                header.Add(action, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
+            if str(self.field.get("key") or "") == "keywords" and self.can_edit:
+                add = wx.Button(self, label="Add")
+                add.Bind(wx.EVT_BUTTON, self._dialog_add_keyword)
+                header.Add(add, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
+            if self.can_edit:
+                edit = wx.Button(self, label="Edit")
+                edit.Bind(wx.EVT_BUTTON, self._start_edit)
+                header.Add(edit, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
+            self.sizer.Add(header, 0, wx.EXPAND)
+            if str(self.field.get("key") or "") == "keywords":
+                self._add_keyword_chips()
+            else:
+                display = self._display_value()
+                body = wx.StaticText(self, label=display or "—")
+                body.Wrap(self._wrap_width())
+                self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+            if self._status:
+                status = wx.StaticText(self, label=self._status)
+                status.Wrap(self._wrap_width())
+                self.sizer.Add(status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+        finally:
+            self.Thaw()
+        self._finish_render()
 
     def _add_keyword_chips(self) -> None:
         terms = _keyword_terms(self._value)
@@ -426,38 +442,41 @@ class InlineFieldEditor(wx.Panel):
         self.sizer.Add(chips_panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
     def _render_edit(self) -> None:
-        self.sizer.Clear(delete_windows=True)
-        header = wx.BoxSizer(wx.HORIZONTAL)
-        label = wx.StaticText(self, label=str(self.field.get("label") or self.field.get("key") or "Field"))
-        label.SetFont(label.GetFont().Bold())
-        header.Add(label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
-        save = wx.Button(self, label="Save")
-        cancel = wx.Button(self, label="Cancel")
-        save.Bind(wx.EVT_BUTTON, self._save)
-        cancel.Bind(wx.EVT_BUTTON, self._cancel)
-        header.Add(save, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
-        header.Add(cancel, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
-        self.sizer.Add(header, 0, wx.EXPAND)
+        self.Freeze()
+        try:
+            self.sizer.Clear(delete_windows=True)
+            header = wx.BoxSizer(wx.HORIZONTAL)
+            label = wx.StaticText(self, label=str(self.field.get("label") or self.field.get("key") or "Field"))
+            label.SetFont(label.GetFont().Bold())
+            header.Add(label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
+            save = wx.Button(self, label="Save")
+            cancel = wx.Button(self, label="Cancel")
+            save.Bind(wx.EVT_BUTTON, self._save)
+            cancel.Bind(wx.EVT_BUTTON, self._cancel)
+            header.Add(save, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
+            header.Add(cancel, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
+            self.sizer.Add(header, 0, wx.EXPAND)
 
-        choices = [str(item) for item in self.field.get("choices") or []]
-        if choices:
-            editor: wx.Control = wx.Choice(self, choices=choices)
-            try:
-                editor.SetStringSelection(self._value)
-            except Exception:
-                pass
-        else:
-            long_text = bool(self.field.get("multiline") or "\n" in self._value or len(self._value) > 80)
-            style = wx.TE_MULTILINE if long_text else 0
-            editor = wx.TextCtrl(self, value=self._value, style=style)
-            if long_text:
-                editor.SetMinSize((self._editor_width(), self._editor_height()))
+            choices = [str(item) for item in self.field.get("choices") or []]
+            if choices:
+                editor: wx.Control = wx.Choice(self, choices=choices)
+                try:
+                    editor.SetStringSelection(self._value)
+                except Exception:
+                    pass
             else:
-                editor.SetMinSize((min(420, self._editor_width()), -1))
-        self._editor = editor
-        self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
-        self.Layout()
-        self.Fit()
+                long_text = bool(self.field.get("multiline") or "\n" in self._value or len(self._value) > 80)
+                style = wx.TE_MULTILINE if long_text else 0
+                editor = wx.TextCtrl(self, value=self._value, style=style)
+                if long_text:
+                    editor.SetMinSize((self._editor_width(), self._editor_height()))
+                else:
+                    editor.SetMinSize((min(420, self._editor_width()), -1))
+            self._editor = editor
+            self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+        finally:
+            self.Thaw()
+        self._finish_render()
 
     def _start_edit(self, _event: wx.CommandEvent) -> None:
         self.on_begin_edit(self)
@@ -475,7 +494,7 @@ class InlineFieldEditor(wx.Panel):
 
     def _cancel(self, _event: wx.CommandEvent) -> None:
         self._editing = False
-        self._status = "Edit cancelled."
+        self._status = ""
         self._render_view()
 
     def _queue_action(self, _event: wx.CommandEvent) -> None:
@@ -505,7 +524,7 @@ class InlineFieldEditor(wx.Panel):
         self._render_view()
 
     def _read_editor_value(self) -> str:
-        editor = getattr(self, "_editor", None)
+        editor = self._editor
         if isinstance(editor, wx.Choice):
             return editor.GetStringSelection()
         if isinstance(editor, wx.TextCtrl):
@@ -517,6 +536,34 @@ class InlineFieldEditor(wx.Panel):
         if len(text) <= 1200:
             return text
         return text[:1200].rstrip() + "…"
+
+    def _finish_render(self) -> None:
+        self.Layout()
+        parent = self.GetParent()
+        if isinstance(parent, wx.Window):
+            parent.Layout()
+        scroller = parent.GetParent() if isinstance(parent, wx.Window) else None
+        if isinstance(scroller, wx.ScrolledWindow):
+            scroller.Layout()
+            scroller.FitInside()
+        self.Refresh(eraseBackground=True)
+        wx.CallAfter(self._refresh_after_render)
+
+    def _refresh_after_render(self) -> None:
+        try:
+            self.Layout()
+            parent = self.GetParent()
+            if isinstance(parent, wx.Window):
+                parent.Layout()
+            scroller = parent.GetParent() if isinstance(parent, wx.Window) else None
+            if isinstance(scroller, wx.ScrolledWindow):
+                scroller.Layout()
+                scroller.FitInside()
+                scroller.Refresh(eraseBackground=True)
+            self.Refresh(eraseBackground=True)
+            self.Update()
+        except RuntimeError:
+            pass
 
     def _wrap_width(self) -> int:
         return max(220, int(self.GetClientSize().GetWidth() or 520) - 24)
