@@ -28,7 +28,7 @@ def build_desktop_projection(
         view=layout.selected_view,
         selected_application_id=layout.selected_candidature_ref,
         selected_keyword=layout.selected_keyword,
-        search_query=layout.search_query,
+        search_query="",
         layout_state=layout,
     )
 
