@@ -57,7 +57,6 @@ def rebuild_index(conn: sqlite3.Connection) -> None:
         body = "\n".join(
             str(app.get(field) or "")
             for field in (
-                "source",
                 "source_url",
                 "location",
                 "remote_mode",
