@@ -3,12 +3,13 @@ from __future__ import annotations
 import wx  # type: ignore[import-not-found]
 
 from aaaat.security import can_write
+from aaaat.workspace_config import ensure_workspace_config
 
 from .user_panel import UserPanel
 
 
 class UserViewMixin:
-    """User/Profile View foundation for local desktop profile context."""
+    """User/Profile view for reusable professional context and local configuration."""
 
     def _build_user_surface(self) -> None:
         self.user_panel = wx.Panel(self.view_book)
@@ -18,8 +19,9 @@ class UserViewMixin:
             self.user_panel,
             on_save=self._save_user_edits,
             on_cancel=self._cancel_user_edits,
+            on_open_config=self._open_workspace_config,
         )
-        sizer.Add(self.user_content, 1, wx.ALL | wx.EXPAND, 0)
+        sizer.Add(self.user_content, 1, wx.EXPAND)
         self.view_book.AddPage(self.user_panel, "User")
 
     def _bind_user_events(self) -> None:
@@ -42,6 +44,9 @@ class UserViewMixin:
         finally:
             self.user_panel.Thaw()
 
+    def _confirm_user_navigation(self) -> bool:
+        return not hasattr(self, "user_content") or self.user_content.confirm_navigation()
+
     def _save_user_edits(self, changes: dict[str, str]) -> None:
         if not can_write(self.mode):
             return
@@ -54,3 +59,8 @@ class UserViewMixin:
     def _cancel_user_edits(self) -> None:
         self._refresh_user_view()
         self._mark_current_view_rendered()
+
+    def _open_workspace_config(self) -> None:
+        target = ensure_workspace_config(self.storage_path)
+        if not wx.LaunchDefaultApplication(str(target)):
+            wx.MessageBox(f"Could not open {target}", "AAAAT", wx.OK | wx.ICON_ERROR, self)
