@@ -198,6 +198,39 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_notes_panel.SetSizer(self.center_notes_sizer)
         self.center_scroll = self.center_body_scroll
 
+    def _on_support_surface(self, _event: wx.Event) -> None:
+        if not can_write(self.mode):
+            wx.MessageBox("Open the local writable desktop to add a candidature.", "Read-only mode", wx.OK | wx.ICON_INFORMATION, self)
+            return
+        dialog = wx.TextEntryDialog(
+            self,
+            "Paste the original job posting or application text.",
+            "New candidature",
+            "",
+            style=wx.OK | wx.CANCEL | wx.CENTRE | wx.TE_MULTILINE,
+        )
+        dialog.SetSize((720, 480))
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            raw_offer = dialog.GetValue().strip()
+        finally:
+            dialog.Destroy()
+        if not raw_offer:
+            return
+        created = self.command_service.create_raw_offer_candidature(raw_offer)
+        if not created:
+            self.SetStatusText("New candidature was not created")
+            return
+        self.selected_ref = str(created.get("id") or "")
+        self.layout_state.selected_candidature_ref = self.selected_ref
+        self.center_card_state.collapse_all()
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        self._show_focus()
+        self._refresh_all()
+        self.SetStatusText("Created candidature from pasted posting")
+
     def _delete_candidature_from_panel(self, ref: str) -> None:
         if not can_write(self.mode) or not ref:
             return
