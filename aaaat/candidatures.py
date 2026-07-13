@@ -32,6 +32,12 @@ CANDIDATURE_DETAIL_FIELDS = {
     "questions_to_ask",
     "tech_stack",
     "valuation",
+    "candidature_evaluation",
+    "role_strategy",
+    "cv_material",
+    "cover_letter_material",
+    "recruiter_material",
+    "material_sent_notes",
 }
 
 
@@ -99,6 +105,7 @@ def get_candidature(conn: sqlite3.Connection, application_id: str, *, include_re
     app = get_application(conn, application_id)
     app["domain_type"] = "Candidature"
     app["details"] = get_candidature_details(conn, application_id)
+    app.update(app["details"])
     if include_related:
         app["raw_intake"] = list_raw_intake(conn, application_id)
         app["artifacts"] = list_artifacts(conn, application_id)
