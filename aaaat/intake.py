@@ -5,9 +5,9 @@ from typing import Any
 
 from .candidatures import create_candidature, get_candidature
 from .db import application_keywords, connect, update_application
-from .task_registry import task_definition, task_snapshot
+from .task_registry import task_definition
 from .tasks import create_task
-from .workspace_config import load_workspace_config
+from .workspace_config import effective_task_snapshot, load_workspace_config
 
 
 class IntakeService:
@@ -106,8 +106,7 @@ class IntakeService:
         context_hint: str | None = None,
     ) -> dict[str, Any]:
         definition = task_definition(task_type)
-        override = config["task_overrides"].get(task_type)
-        snapshot = task_snapshot(task_type, override if isinstance(override, dict) else None)
+        snapshot = effective_task_snapshot(config, task_type)
         return create_task(
             conn,
             definition.task_type,
