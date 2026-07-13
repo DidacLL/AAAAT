@@ -9,10 +9,13 @@ from aaaat.db import (
     add_raw_intake,
     connect,
     create_application,
+    create_raw_offer_intake,
     get_schema_version,
     init_db,
+    list_applications,
     list_raw_intake,
 )
+from aaaat.demo_seed import seed as seed_desktop_demo
 from aaaat.local_data import create_local_backup
 
 
@@ -54,6 +57,34 @@ class DbTests(unittest.TestCase):
                 self.assertEqual(stored["source_context"], "application-context")
                 self.assertEqual(stored["review_state"], "reviewed")
                 self.assertEqual(stored["notes"], "")
+
+    def test_raw_offer_intake_creates_active_candidature_with_retained_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                app = create_raw_offer_intake(conn, "Acme needs a Python engineer", "user")
+                stored = list_applications(conn)[0]
+                intake = list_raw_intake(conn, app["id"])
+
+        self.assertEqual(stored["status"], "active")
+        self.assertEqual(stored["company"], "Pending extraction")
+        self.assertEqual(stored["role"], "Pending role")
+        self.assertEqual(len(intake), 1)
+        self.assertEqual(intake[0]["content"], "Acme needs a Python engineer")
+        self.assertEqual(intake[0]["created_by"], "user")
+
+    def test_desktop_demo_seed_creates_launchable_candidatures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            summary = seed_desktop_demo(tmp, count=3, reset=True)
+            with connect(tmp) as conn:
+                apps = list_applications(conn)
+                raw_counts = [len(list_raw_intake(conn, app["id"])) for app in apps]
+
+        self.assertEqual(summary, {"created": 3, "updated": 0, "total": 3})
+        self.assertEqual(len(apps), 3)
+        self.assertTrue(all(app["status"] in {"active", "closed"} for app in apps))
+        self.assertTrue(all(count == 1 for count in raw_counts))
+        self.assertTrue(any(app["keywords"] for app in apps))
 
     def test_schema_version_and_init_are_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
