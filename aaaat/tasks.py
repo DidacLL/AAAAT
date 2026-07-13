@@ -43,6 +43,10 @@ def create_task(
     agent_runtime: str = "",
     notes: str = "",
     idempotent: bool = True,
+    definition_version: int = 1,
+    response_format: dict[str, Any] | None = None,
+    artifact_template: str = "",
+    artifact_mapping: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     if state not in TASK_STATES:
         raise ValueError(f"Invalid task state: {state}")
@@ -57,6 +61,10 @@ def create_task(
         "task_type": task_type,
         "title": title,
         "instructions": instructions,
+        "definition_version": int(definition_version),
+        "response_format": json.dumps(response_format or {}, sort_keys=True),
+        "artifact_template": str(artifact_template or ""),
+        "artifact_mapping": json.dumps(artifact_mapping or {}, sort_keys=True),
         "state": state,
         "priority": priority,
         "context_hint": context_hint,
@@ -72,13 +80,15 @@ def create_task(
     }
     conn.execute(
         """INSERT INTO tasks(
-          id, application_id, task_type, title, instructions, state, priority,
-          context_hint, created_by, agent_name, agent_runtime, result_blob_id,
-          artifact_id, created_at, updated_at, completed_at, notes
+          id, application_id, task_type, title, instructions,
+          definition_version, response_format, artifact_template, artifact_mapping,
+          state, priority, context_hint, created_by, agent_name, agent_runtime,
+          result_blob_id, artifact_id, created_at, updated_at, completed_at, notes
         ) VALUES (
-          :id, :application_id, :task_type, :title, :instructions, :state, :priority,
-          :context_hint, :created_by, :agent_name, :agent_runtime, :result_blob_id,
-          :artifact_id, :created_at, :updated_at, :completed_at, :notes
+          :id, :application_id, :task_type, :title, :instructions,
+          :definition_version, :response_format, :artifact_template, :artifact_mapping,
+          :state, :priority, :context_hint, :created_by, :agent_name, :agent_runtime,
+          :result_blob_id, :artifact_id, :created_at, :updated_at, :completed_at, :notes
         )""",
         item,
     )
