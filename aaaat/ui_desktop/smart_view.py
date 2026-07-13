@@ -258,8 +258,8 @@ class SmartViewMixin(OverviewBoardMixin):
     def _refresh_right_context(self, _detail: dict[str, Any]) -> None:
         self.smart_right_panel.render(self.projection, can_edit=False, view_name="smart")
 
-    def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
-        return self.keyword_linker.make_window(parent, text, min_height=min_height)
+    def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int, scrollable: bool = False) -> wx.html.HtmlWindow:
+        return self.keyword_linker.make_window(parent, text, min_height=min_height, scrollable=scrollable)
 
     def _known_terms(self) -> list[str]:
         terms: set[str] = set()
