@@ -56,6 +56,11 @@ class SmartViewMixin(OverviewBoardMixin):
             self.view_book.ChangeSelection(target)
 
     def _on_view_tab_changed(self, event: wx.BookCtrlEvent) -> None:
+        if event.GetEventObject() is not self.view_book:
+            if hasattr(event, "StopPropagation"):
+                event.StopPropagation()
+            event.Skip(False)
+            return
         index = event.GetSelection()
         if index == _VIEW_TAB_INDEX["detailed"]:
             self._go_detailed()
@@ -135,7 +140,7 @@ class SmartViewMixin(OverviewBoardMixin):
             return
         total_width = max(DEFAULT_WINDOW_SIZE[0], int(self.focus_panel.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0]))
         left = max(170, min(280, int(total_width * 0.18)))
-        right = max(300, min(440, int(total_width * 0.30)))
+        right = max(300, min(400, int(total_width * 0.28)))
         content_width = max(680, total_width - left)
         center = max(480, content_width - right)
         if self.focus_splitter.IsSplit():
@@ -207,7 +212,7 @@ class SmartViewMixin(OverviewBoardMixin):
         if not detail:
             self.center_sizer.Add(self._empty_message(self.center_scroll, "Select a candidature."), 0, wx.ALL | wx.EXPAND, 12)
             self.center_scroll.Layout()
-            self.smart_right_panel.render(self.projection, can_edit=can_write(self.mode), view_name="smart")
+            self.smart_right_panel.render(self.projection, can_edit=False, view_name="smart")
             bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
             return
 
@@ -243,10 +248,11 @@ class SmartViewMixin(OverviewBoardMixin):
         self.command_service.save_note(str(self.selected_ref), body)
         self._rendered_view_keys.clear()
         self._reload_projection()
+        self.SetStatusText("Notes saved")
         self._mark_current_view_rendered()
 
     def _refresh_right_context(self, _detail: dict[str, Any]) -> None:
-        self.smart_right_panel.render(self.projection, can_edit=can_write(self.mode), view_name="smart")
+        self.smart_right_panel.render(self.projection, can_edit=False, view_name="smart")
 
     def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
         return self.keyword_linker.make_window(parent, text, min_height=min_height)
@@ -383,16 +389,25 @@ class SmartViewMixin(OverviewBoardMixin):
         self.selected_ref = ref
         self.layout_state.selected_candidature_ref = ref
         self._rendered_view_keys.clear()
-        self._refresh_all()
+        self._reload_projection()
+        if self.current_view == "detailed":
+            detailed = self.projection.get("detailed") or {}
+            self.detail_table.render(detailed, selected_ref=self.selected_ref, visible_columns=self._visible_detailed_columns(detailed))
+            self.detail_table.Layout()
+        elif self.current_view == "smart":
+            self._refresh_nav_list()
+        self.SetStatusText("Saved")
+        self._mark_current_view_rendered()
 
     def _on_candidature_panel_action(self, ref: str, action_id: str) -> None:
         if not can_write(self.mode) or not ref:
             return
         task = self.command_service.queue_candidature_action(ref, action_id)
         if task:
-            wx.MessageBox(f"Queued task: {task.get('title')}", "AAAAT task queued", wx.OK | wx.ICON_INFORMATION, self)
+            self.SetStatusText(f"Queued: {task.get('title')}")
             self._rendered_view_keys.clear()
-            self._refresh_all()
+            self._reload_projection()
+            self._mark_current_view_rendered()
 
     def _delete_candidature_from_panel(self, ref: str) -> None:
         if not can_write(self.mode) or not ref:
@@ -420,6 +435,7 @@ class SmartViewMixin(OverviewBoardMixin):
             self.selected_ref = str(rows[0].get("ref") or "") or None
             self.layout_state.selected_candidature_ref = self.selected_ref
             self._reload_projection()
+        self.SetStatusText("Candidature deleted")
         self._refresh_all()
 
     def _on_support_surface(self, _event: wx.Event) -> None:
@@ -440,6 +456,7 @@ class SmartViewMixin(OverviewBoardMixin):
             self.content_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width)
         if self.center_splitter.IsSplit():
             self.center_splitter.SetSashPosition(DEFAULT_WINDOW_SIZE[1] - DEFAULT_CENTER_NOTES_HEIGHT - 90)
+        self.SetStatusText("Layout reset")
         self._refresh_all()
 
     def _on_close(self, event: wx.CloseEvent) -> None:
