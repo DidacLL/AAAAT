@@ -35,6 +35,15 @@ APPLICATION_UPDATE_FIELDS = {
     "form_answers",
 }
 
+CANDIDATURE_DETAIL_MIGRATION_COLUMNS = {
+    "candidature_evaluation": "TEXT DEFAULT ''",
+    "role_strategy": "TEXT DEFAULT ''",
+    "cv_material": "TEXT DEFAULT ''",
+    "cover_letter_material": "TEXT DEFAULT ''",
+    "recruiter_material": "TEXT DEFAULT ''",
+    "material_sent_notes": "TEXT DEFAULT ''",
+}
+
 
 class AAAATConnection(sqlite3.Connection):
     def __exit__(self, exc_type, exc, traceback) -> bool:
@@ -74,6 +83,7 @@ def init_db(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
     with connect(path) as conn:
         conn.executescript(Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"))
         ensure_schema_version(conn)
+        ensure_candidature_detail_columns(conn)
         seed_defaults(conn)
         normalize_existing_application_statuses(conn)
         check_schema_version(conn)
@@ -85,6 +95,14 @@ def ensure_schema_version(conn: sqlite3.Connection) -> None:
         "INSERT OR IGNORE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
         (SCHEMA_VERSION,),
     )
+    conn.commit()
+
+
+def ensure_candidature_detail_columns(conn: sqlite3.Connection) -> None:
+    existing = {str(row["name"]) for row in conn.execute("PRAGMA table_info(candidature_details)").fetchall()}
+    for name, ddl in CANDIDATURE_DETAIL_MIGRATION_COLUMNS.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE candidature_details ADD COLUMN {name} {ddl}")
     conn.commit()
 
 
