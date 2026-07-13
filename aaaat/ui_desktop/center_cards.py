@@ -22,8 +22,14 @@ class CenterCardBuilder:
         company.SetFont(company.GetFont().Bold().Larger().Larger())
         role = wx.StaticText(hero, label=str(detail.get("role") or "Role"))
         role.SetFont(role.GetFont().Larger())
-        chips = wx.StaticText(hero, label=self.owner._chips(detail))
-        for control in (company, role, chips):
+        controls: list[wx.StaticText] = [company, role]
+
+        logistics = self._logistics_text(detail)
+        if logistics:
+            logistics_label = wx.StaticText(hero, label=logistics)
+            controls.append(logistics_label)
+
+        for control in controls:
             self._bind_wrap(hero, control, 32)
             identity.Add(control, 0, wx.BOTTOM | wx.EXPAND, 3)
         hero_sizer.Add(identity, 1, wx.ALL | wx.EXPAND, 8)
@@ -47,33 +53,23 @@ class CenterCardBuilder:
 
     def add_visible_briefing(self, detail: dict[str, Any]) -> None:
         tiles = [
-            ("Status", detail.get("status"), 60, 44),
-            ("Priority", detail.get("priority"), 60, 44),
-            ("Remote", detail.get("remote_mode"), 80, 44),
-            ("Location", detail.get("location"), 80, 44),
-            ("Comp", detail.get("salary_expectation"), 100, 44),
-            ("Published", detail.get("publication_date"), 80, 44),
-            ("Applied", detail.get("application_date"), 80, 44),
-            ("Source", detail.get("source"), 110, 44),
-            ("Recognize", detail.get("call_signals") or detail.get("source_excerpt"), 180, 62),
-            ("Pitch", detail.get("pitch"), 220, 62),
-            ("Ask", detail.get("smart_question"), 180, 62),
-            ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 180, 62),
-            ("Strengths", detail.get("strengths"), 180, 62),
-            ("Questions", detail.get("questions_to_ask"), 180, 62),
-            ("Fit", detail.get("candidature_evaluation"), 180, 62),
-            ("Strategy", detail.get("role_strategy"), 180, 62),
-            ("Company", detail.get("company_research"), 180, 62),
-            ("Stack", detail.get("tech_stack"), 140, 50),
-            ("Keywords", ", ".join(str(term) for term in detail.get("keywords") or []), 160, 50),
-            ("Forms", detail.get("form_answers"), 160, 50),
+            ("Recognize", detail.get("call_signals") or detail.get("source_excerpt"), 190, 62),
+            ("Pitch", detail.get("pitch"), 240, 62),
+            ("Ask", detail.get("smart_question"), 200, 62),
+            ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 200, 62),
+            ("Strengths", detail.get("strengths"), 200, 62),
+            ("Questions", detail.get("questions_to_ask"), 200, 62),
+            ("Fit", detail.get("candidature_evaluation"), 210, 66),
+            ("Strategy", detail.get("role_strategy"), 210, 66),
+            ("Company context", detail.get("company_research"), 210, 66),
+            ("Stack", detail.get("tech_stack"), 160, 52),
         ]
         visible = [(label, str(value).strip(), limit, height) for label, value, limit, height in tiles if str(value or "").strip()]
         if not visible:
             return
         panel = wx.Panel(self.owner.center_scroll, style=wx.BORDER_SIMPLE)
-        grid = wx.FlexGridSizer(rows=0, cols=4, vgap=6, hgap=8)
-        for col in range(4):
+        grid = wx.FlexGridSizer(rows=0, cols=3, vgap=6, hgap=8)
+        for col in range(3):
             grid.AddGrowableCol(col, 1)
         panel.SetSizer(grid)
         for label, value, limit, min_height in visible:
@@ -84,14 +80,10 @@ class CenterCardBuilder:
         drawers = [
             ("source", "Source text", detail.get("source_text") or detail.get("source_excerpt"), False, 260),
             ("description", "Role description", detail.get("description"), False, 220),
-            ("company", "Company research", detail.get("company_research"), False, 200),
+            ("company", "Company context", detail.get("company_research"), False, 200),
             ("fit", "Fit assessment", detail.get("candidature_evaluation"), False, 180),
             ("strategy", "Application strategy", detail.get("role_strategy"), False, 180),
             ("recruiter", "Recruiter material", detail.get("recruiter_material"), False, 180),
-            ("forms", "Form answers", detail.get("form_answers") or detail.get("raw_application_form"), False, 180),
-            ("cv", "CV material", detail.get("cv_material"), False, 180),
-            ("letter", "Cover letter material", detail.get("cover_letter_material"), False, 180),
-            ("sent", "Sent material notes", detail.get("material_sent_notes"), False, 150),
         ]
         for card_id, title, body, expanded, min_height in drawers:
             text = str(body or "").strip()
@@ -184,6 +176,14 @@ class CenterCardBuilder:
             self.owner.Layout()
         finally:
             self.owner.Thaw()
+
+    def _logistics_text(self, detail: dict[str, Any]) -> str:
+        parts = [
+            str(detail.get("remote_mode") or "").strip(),
+            str(detail.get("location") or "").strip(),
+            str(detail.get("salary_expectation") or "").strip(),
+        ]
+        return " · ".join(part for part in parts if part)
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
