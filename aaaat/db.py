@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .candidature_fields import ACTIVE_STATUS, normalize_candidature_status
+
 
 DEFAULT_PRIVATE_DIR = ".private"
 SCHEMA_VERSION = "1"
@@ -73,6 +75,7 @@ def init_db(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
         conn.executescript(Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"))
         ensure_schema_version(conn)
         seed_defaults(conn)
+        normalize_existing_application_statuses(conn)
         check_schema_version(conn)
     return target
 
@@ -96,6 +99,15 @@ def check_schema_version(conn: sqlite3.Connection) -> None:
     version = get_schema_version(conn)
     if version != SCHEMA_VERSION:
         raise RuntimeError(f"Unsupported AAAAT schema version {version}; expected {SCHEMA_VERSION}")
+
+
+def normalize_existing_application_statuses(conn: sqlite3.Connection) -> None:
+    rows = conn.execute("SELECT id, status FROM applications").fetchall()
+    for row in rows:
+        normalized = normalize_candidature_status(row["status"])
+        if normalized != row["status"]:
+            conn.execute("UPDATE applications SET status = ?, updated_at = ? WHERE id = ?", (normalized, utc_now(), row["id"]))
+    conn.commit()
 
 
 def seed_defaults(conn: sqlite3.Connection) -> None:
@@ -208,6 +220,11 @@ def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     return {key: row[key] for key in row.keys()}
 
 
+def _normalize_application_row(app: dict[str, Any]) -> dict[str, Any]:
+    app["status"] = normalize_candidature_status(app.get("status"))
+    return app
+
+
 def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any]:
     now = utc_now()
     app_id = fields.pop("id", None) or new_id("app")
@@ -215,7 +232,7 @@ def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
         "id": app_id,
         "company": fields.get("company") or "Untitled Company",
         "role": fields.get("role") or "Untitled Role",
-        "status": fields.get("status") or "draft",
+        "status": normalize_candidature_status(fields.get("status") or ACTIVE_STATUS),
         "priority": fields.get("priority") or "normal",
         "source": fields.get("source") or "",
         "source_url": fields.get("source_url") or "",
@@ -248,6 +265,8 @@ def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
 
 def update_application(conn: sqlite3.Connection, app_id: str, **fields: Any) -> dict[str, Any]:
     updates = {key: fields[key] for key in APPLICATION_UPDATE_FIELDS if key in fields}
+    if "status" in updates:
+        updates["status"] = normalize_candidature_status(updates["status"])
     if updates:
         updates["updated_at"] = utc_now()
         assignments = ", ".join(f"{key} = :{key}" for key in updates)
@@ -301,7 +320,7 @@ def set_application_keywords(conn: sqlite3.Connection, app_id: str, keywords: An
 
 def list_applications(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     rows = conn.execute("SELECT * FROM applications ORDER BY updated_at DESC").fetchall()
-    apps = [row_to_dict(row) for row in rows]
+    apps = [_normalize_application_row(row_to_dict(row)) for row in rows]
     for app in apps:
         app["keywords"] = application_keywords(conn, app["id"])
     return apps
@@ -311,7 +330,7 @@ def get_application(conn: sqlite3.Connection, app_id: str) -> dict[str, Any]:
     row = conn.execute("SELECT * FROM applications WHERE id = ?", (app_id,)).fetchone()
     if row is None:
         raise KeyError(f"Application not found: {app_id}")
-    app = row_to_dict(row)
+    app = _normalize_application_row(row_to_dict(row))
     app["keywords"] = application_keywords(conn, app_id)
     return app
 
@@ -345,7 +364,7 @@ def create_raw_offer_intake(conn: sqlite3.Connection, content: str, created_by: 
         conn,
         company="Pending extraction",
         role="Pending role",
-        status="intake",
+        status=ACTIVE_STATUS,
         priority="normal",
         next_action="Extract raw offer details",
     )
