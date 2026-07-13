@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
-from .db import connect
+from .db import connect, utc_now
 from .provider_adapters import adapter_definition
 from .tasks import get_task, update_task
 from .workspace_config import load_workspace_config
@@ -83,4 +83,8 @@ class TaskRunner:
         with connect(self.storage_path) as conn:
             current = get_task(conn, task_id)
             if current.get("state") != "cancelled":
-                update_task(conn, task_id, state="failed", notes=message[:4000])
+                conn.execute(
+                    "UPDATE tasks SET state = ?, notes = ?, updated_at = ? WHERE id = ?",
+                    ("failed", message[:4000], utc_now(), task_id),
+                )
+                conn.commit()
