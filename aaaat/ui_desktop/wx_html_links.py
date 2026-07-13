@@ -17,7 +17,10 @@ class KeywordHtmlLinker:
         self._select_keyword = select_keyword
 
     def make_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
-        window = wx.html.HtmlWindow(parent, style=wx.BORDER_NONE | wx.html.HW_SCROLLBAR_AUTO)
+        style = wx.BORDER_NONE
+        if hasattr(wx.html, "HW_SCROLLBAR_NEVER"):
+            style |= wx.html.HW_SCROLLBAR_NEVER
+        window = wx.html.HtmlWindow(parent, style=style)
         window.SetMinSize((-1, min_height))
         window.SetPage(self.to_html(text))
         window.Bind(wx.html.EVT_HTML_LINK_CLICKED, self.on_link)
