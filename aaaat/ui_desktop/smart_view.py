@@ -219,9 +219,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self.center_cards.add_hero(detail)
         self.center_cards.add_call_card(detail)
         self.center_cards.add_source_card(detail)
-        self.center_cards.add_center_card("now", "Now", detail.get("prepare_first"), expanded_by_default=True, min_height=92)
-        self.center_cards.add_center_card("later", "Later", detail.get("prepare_later"), expanded_by_default=False, min_height=92)
-        self.center_cards.add_center_card("offer", "Offer", detail.get("offer_snapshot"), expanded_by_default=False, min_height=92)
+        self.center_cards.add_center_card("offer", "Offer", detail.get("offer_snapshot") or detail.get("description"), expanded_by_default=False, min_height=92)
         self._add_notes_band()
         self._refresh_right_context(detail)
 
@@ -406,6 +404,36 @@ class SmartViewMixin(OverviewBoardMixin):
             self._rendered_view_keys.clear()
             self._reload_projection()
             self._mark_current_view_rendered()
+
+    def _add_keyword_to_candidature(self, ref: str, term: str, definition: str = "") -> None:
+        if not can_write(self.mode) or not ref or not term.strip():
+            return
+        self.command_service.add_keyword(ref, term, definition)
+        self.selected_keyword = term.strip()
+        self.layout_state.selected_keyword = self.selected_keyword
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        if self.current_view == "detailed":
+            self._refresh_detailed_view()
+        else:
+            self._refresh_right_context(self._selected_detail() or {})
+        self.SetStatusText(f"Keyword added: {self.selected_keyword}")
+        self._mark_current_view_rendered()
+
+    def _save_keyword_definition(self, term: str, definition: str) -> None:
+        if not can_write(self.mode) or not term.strip():
+            return
+        self.command_service.save_keyword_definition(term, definition)
+        self.selected_keyword = term.strip()
+        self.layout_state.selected_keyword = self.selected_keyword
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        if self.current_view == "detailed":
+            self._refresh_detailed_view()
+        else:
+            self._refresh_right_context(self._selected_detail() or {})
+        self.SetStatusText(f"Keyword definition saved: {self.selected_keyword}")
+        self._mark_current_view_rendered()
 
     def _delete_candidature_from_panel(self, ref: str) -> None:
         if not can_write(self.mode) or not ref:
