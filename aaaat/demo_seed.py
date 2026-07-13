@@ -5,7 +5,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from aaaat.db import add_raw_intake, connect, create_application, get_application, init_db, update_application, upsert_glossary_term
+from aaaat.candidatures import create_candidature, update_candidature
+from aaaat.db import add_raw_intake, connect, get_application, init_db, upsert_glossary_term
 
 
 COMPANIES = [
@@ -46,7 +47,7 @@ STACKS = [
 ]
 
 PRIORITIES = ["high", "normal", "low"]
-SOURCES = ["LinkedIn recruiter", "Welcome to the Jungle", "Company careers", "Referral", "Cold inbound", "Otta", "RemoteOK"]
+LEAD_SOURCES = ["LinkedIn recruiter", "Welcome to the Jungle", "Company careers", "Referral", "Cold inbound", "Otta", "RemoteOK"]
 LOCATIONS = ["Barcelona", "Madrid", "Remote EU", "Berlin", "Amsterdam", "London", "Paris", "Hybrid Barcelona"]
 REMOTE = ["remote", "hybrid", "onsite", "remote EU"]
 
@@ -69,19 +70,18 @@ def build_record(index: int) -> dict[str, Any]:
     keywords = list(STACKS[index % len(STACKS)])
     status = "closed" if index % 13 == 12 else "active"
     priority = PRIORITIES[index % len(PRIORITIES)]
-    source = SOURCES[index % len(SOURCES)]
+    lead_source = LEAD_SOURCES[index % len(LEAD_SOURCES)]
     location = LOCATIONS[index % len(LOCATIONS)]
     remote_mode = REMOTE[index % len(REMOTE)]
     focus = keywords[0]
     secondary = keywords[1] if len(keywords) > 1 else "systems"
-
     record = {
         "id": f"demo-smart-{index + 1:03d}",
         "company": f"{company} {index + 1}" if index >= len(COMPANIES) else company,
         "role": role,
         "status": status,
         "priority": priority,
-        "source": source,
+        "source": lead_source,
         "source_url": f"https://example.invalid/jobs/{index + 1:03d}",
         "location": location,
         "remote_mode": remote_mode,
@@ -95,7 +95,6 @@ def build_record(index: int) -> dict[str, Any]:
         "form_answers": f"Why interested: the role combines {focus}, product impact, and clean internal tooling. Availability: flexible. Work mode: {remote_mode}.",
         "keywords": keywords,
     }
-
     if index % 7 == 0:
         record["form_answers"] = ""
     if index % 11 == 0:
@@ -150,14 +149,13 @@ def upsert_application(conn: sqlite3.Connection, record: dict[str, Any], raw_off
     try:
         get_application(conn, app_id)
     except KeyError:
-        create_application(conn, **record)
+        create_candidature(conn, **record, include_field_inference_task=False, include_company_research_task=False, include_keyword_detection_task=False)
         result = "created"
     else:
         update_fields = dict(record)
         update_fields.pop("id", None)
-        update_application(conn, app_id, **update_fields)
+        update_candidature(conn, app_id, **update_fields)
         result = "updated"
-
     conn.execute("DELETE FROM raw_intake WHERE application_id = ? AND created_by = ?", (app_id, "demo_seed"))
     add_raw_intake(conn, app_id, raw_offer_text, created_by="demo_seed")
     return result
@@ -190,6 +188,7 @@ def _clear_seed_data(conn: sqlite3.Connection) -> None:
     conn.execute("DELETE FROM notes")
     conn.execute("DELETE FROM raw_intake")
     conn.execute("DELETE FROM generated_artifacts")
+    conn.execute("DELETE FROM candidature_details")
     conn.execute("DELETE FROM applications")
     conn.commit()
 
