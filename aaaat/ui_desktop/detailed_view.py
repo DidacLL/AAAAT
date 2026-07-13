@@ -6,16 +6,17 @@ import wx  # type: ignore[import-not-found]
 
 from aaaat.security import can_write
 
-from .candidature_right_panel import CandidatureRightPanel
+from .candidature_right_panel import CandidatureDetailBodyPanel, CandidatureOptionsPanel
 from .detail_columns import available_column_ids, column_title, normalize_visible_columns
 from .detail_table import DetailTable
 
 DEFAULT_DETAILED_FRAME_WIDTH = 1280
-DEFAULT_DETAILED_RIGHT = 420
+DEFAULT_DETAILED_LEFT = 330
+DEFAULT_DETAILED_RIGHT = 300
 
 
 class DetailedViewMixin:
-    """Detailed View foundation for table-first candidature review with a shared right panel."""
+    """Detailed View: candidature list/table, central field body, right options rail."""
 
     def _build_detailed_surface(self) -> None:
         self.detailed_panel = wx.Panel(self.view_book)
@@ -37,15 +38,28 @@ class DetailedViewMixin:
         self.detailed_splitter = wx.SplitterWindow(self.detailed_panel, style=wx.SP_LIVE_UPDATE)
         self.detailed_splitter.SetMinimumPaneSize(260)
         self.detail_table = DetailTable(self.detailed_splitter, on_select=self._select_detailed_ref)
-        self.detail_panel = CandidatureRightPanel(
-            self.detailed_splitter,
+        self.detailed_body_splitter = wx.SplitterWindow(self.detailed_splitter, style=wx.SP_LIVE_UPDATE)
+        self.detailed_body_splitter.SetMinimumPaneSize(280)
+        self.detail_body_panel = CandidatureDetailBodyPanel(
+            self.detailed_body_splitter,
             on_save=self._save_candidature_panel_edits,
+            on_action=self._on_candidature_panel_action,
+            on_keyword_select=self._select_detailed_keyword,
+        )
+        self.detail_options_panel = CandidatureOptionsPanel(
+            self.detailed_body_splitter,
             on_action=self._on_candidature_panel_action,
             on_delete=self._delete_candidature_from_panel,
             on_open_smart=self._open_selected_in_smart,
+            on_keyword_select=self._select_detailed_keyword,
         )
-        width = max(600, DEFAULT_DETAILED_FRAME_WIDTH - int(self.layout_state.pane_layout.get("detailed", {}).get("right", DEFAULT_DETAILED_RIGHT)))
-        self.detailed_splitter.SplitVertically(self.detail_table, self.detail_panel, width)
+
+        saved_left = int(self.layout_state.pane_layout.get("detailed", {}).get("left", DEFAULT_DETAILED_LEFT))
+        saved_right = int(self.layout_state.pane_layout.get("detailed", {}).get("right", DEFAULT_DETAILED_RIGHT))
+        left_width = max(260, min(saved_left, 430))
+        center_width = max(560, DEFAULT_DETAILED_FRAME_WIDTH - left_width - max(260, min(saved_right, 380)))
+        self.detailed_splitter.SplitVertically(self.detail_table, self.detailed_body_splitter, left_width)
+        self.detailed_body_splitter.SplitVertically(self.detail_body_panel, self.detail_options_panel, center_width)
         sizer.Add(self.detailed_splitter, 1, wx.EXPAND)
         self.view_book.AddPage(self.detailed_panel, "Detailed")
 
@@ -72,7 +86,8 @@ class DetailedViewMixin:
                 self.detailed_search.SetValue(self.search_query)
             visible_columns = self._visible_detailed_columns(detailed)
             self.detail_table.render(detailed, selected_ref=self.selected_ref, visible_columns=visible_columns)
-            self.detail_panel.render(self.projection, can_edit=can_write(self.mode), view_name="detailed")
+            self.detail_body_panel.render(self.projection, can_edit=can_write(self.mode))
+            self.detail_options_panel.render(self.projection, can_edit=can_write(self.mode), view_name="detailed")
             self.detailed_panel.Layout()
         finally:
             self.detailed_panel.Thaw()
@@ -113,6 +128,14 @@ class DetailedViewMixin:
         self.layout_state.selected_candidature_ref = ref
         self._reload_projection()
         self._refresh_detailed_view()
+        self._mark_current_view_rendered()
+
+    def _select_detailed_keyword(self, term: str) -> None:
+        self.selected_keyword = term
+        self.layout_state.selected_keyword = term
+        self._reload_projection()
+        self.detail_options_panel.render(self.projection, can_edit=can_write(self.mode), view_name="detailed")
+        self.SetStatusText(f"Keyword: {term}")
         self._mark_current_view_rendered()
 
     def _open_selected_in_smart(self) -> None:
