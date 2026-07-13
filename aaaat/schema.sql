@@ -211,6 +211,8 @@ CREATE TABLE IF NOT EXISTS todos (
   title TEXT NOT NULL,
   body TEXT NOT NULL DEFAULT '',
   state TEXT NOT NULL DEFAULT 'open',
+  pinned INTEGER NOT NULL DEFAULT 0,
+  due_at TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
