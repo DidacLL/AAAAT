@@ -379,8 +379,8 @@ def update_latest_raw_intake(conn: sqlite3.Connection, application_id: str, cont
 def create_raw_offer_intake(conn: sqlite3.Connection, content: str, created_by: str = "user") -> dict[str, Any]:
     app = create_application(
         conn,
-        company="",
-        role="",
+        company="Pending extraction",
+        role="Pending role",
         status="intake",
         priority="normal",
         next_action="Review extracted offer details",
