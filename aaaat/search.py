@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import sqlite3
 import re
+import sqlite3
 from typing import Any
 
 from .db import application_keywords, list_applications, list_raw_intake, row_to_dict
@@ -60,15 +60,11 @@ def rebuild_index(conn: sqlite3.Connection) -> None:
                 "source_url",
                 "location",
                 "remote_mode",
-                "next_action",
                 "notes",
                 "call_signals",
-                "technical_reading",
                 "pitch",
                 "smart_question",
                 "risks_to_avoid",
-                "prepare_first",
-                "prepare_later",
                 "offer_snapshot",
                 "company_research",
                 "form_answers",
