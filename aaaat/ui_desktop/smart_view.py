@@ -217,9 +217,9 @@ class SmartViewMixin(OverviewBoardMixin):
             return
 
         self.center_cards.add_hero(detail)
-        self.center_cards.add_call_card(detail)
+        self.center_cards.add_key_details(detail)
+        self.center_cards.add_interview_notes(detail)
         self.center_cards.add_source_card(detail)
-        self.center_cards.add_center_card("offer", "Offer", detail.get("offer_snapshot") or detail.get("description"), expanded_by_default=False, min_height=92)
         self._add_notes_band()
         self._refresh_right_context(detail)
 
@@ -230,12 +230,7 @@ class SmartViewMixin(OverviewBoardMixin):
 
     def _add_notes_band(self) -> None:
         primary_note = self.projection["smart"].get("primary_note") or {}
-        band = NotesBand(
-            parent=self.center_notes_panel,
-            target_sizer=self.center_notes_sizer,
-            can_save=can_write(self.mode),
-            on_save=self._save_note_body,
-        )
+        band = NotesBand(parent=self.center_notes_panel, target_sizer=self.center_notes_sizer, can_save=can_write(self.mode), on_save=self._save_note_body)
         self.note_text = band.render(str(primary_note.get("body") or ""))
 
     def _save_note_body(self, body: str) -> None:
@@ -289,7 +284,6 @@ class SmartViewMixin(OverviewBoardMixin):
                     str(item.get("role") or ""),
                     str(item.get("status") or ""),
                     str(item.get("priority") or ""),
-                    str(item.get("next_action") or ""),
                     str(item.get("call_signals") or ""),
                     str(item.get("source_excerpt") or ""),
                     " ".join(str(keyword) for keyword in item.get("keywords") or []),
