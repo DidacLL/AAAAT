@@ -6,6 +6,8 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 import wx.html  # type: ignore[import-not-found]
 
+_VISIBLE_LINE_BUDGET = 22
+
 
 class CenterCardBuilder:
     """Build Smart View center content for fast visual recall on desktop."""
@@ -54,23 +56,23 @@ class CenterCardBuilder:
         self.add_full_text_drawers(detail)
 
     def add_visible_briefing(self, detail: dict[str, Any]) -> None:
-        pitch = self._first_text(detail, "pitch", "role_strategy")
-        snapshot = self._first_text(detail, "offer_snapshot", "description")
-        support = self._visible_support_blocks(
-            [
-                ("Ask", detail.get("smart_question")),
-                ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid")),
-                ("Recognize", self._first_text(detail, "call_signals", "source_excerpt")),
-                ("Company", detail.get("company_research")),
-                ("Fit", detail.get("candidature_evaluation")),
-                ("Strategy", detail.get("role_strategy")),
-                ("Evidence", detail.get("strengths")),
-                ("Questions", detail.get("questions_to_ask")),
-                ("Stack", detail.get("tech_stack")),
-                ("Recruiter", detail.get("recruiter_material")),
-            ]
-        )
-        if not any([pitch.strip(), snapshot.strip(), support]):
+        candidates = [
+            ("Posting", self._source_text(detail), "high", 76, 5),
+            ("Pitch", self._first_text(detail, "pitch", "role_strategy"), "high", 68, 4),
+            ("Snapshot", self._first_text(detail, "offer_snapshot", "description"), "medium", 68, 4),
+            ("Ask", detail.get("smart_question"), "support", 54, 3),
+            ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), "support", 54, 3),
+            ("Recognize", self._first_text(detail, "call_signals", "source_excerpt"), "support", 54, 3),
+            ("Company", detail.get("company_research"), "support", 54, 3),
+            ("Fit", detail.get("candidature_evaluation"), "support", 54, 3),
+            ("Strategy", detail.get("role_strategy"), "support", 54, 3),
+            ("Evidence", detail.get("strengths"), "support", 54, 3),
+            ("Questions", detail.get("questions_to_ask"), "support", 54, 3),
+            ("Stack", detail.get("tech_stack"), "support", 54, 3),
+            ("Recruiter", detail.get("recruiter_material"), "support", 54, 3),
+        ]
+        visible = self._visible_call_sheet_blocks(candidates)
+        if not visible:
             return
 
         panel = wx.Panel(self.owner.center_scroll)
@@ -78,22 +80,27 @@ class CenterCardBuilder:
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
 
-        top = wx.BoxSizer(wx.HORIZONTAL)
-        if pitch.strip():
-            top.Add(
-                self._call_block(panel, "Pitch", pitch, min_height=74, emphasis="high", line_chars=68),
-                1,
-                wx.RIGHT | wx.EXPAND,
-                12,
-            )
-        if snapshot.strip():
-            top.Add(
-                self._call_block(panel, "Snapshot", snapshot, min_height=74, emphasis="medium", line_chars=68),
-                1,
-                wx.EXPAND,
-            )
-        if top.GetItemCount():
+        primary = [item for item in visible if item[2] in {"high", "medium"}]
+        support = [item for item in visible if item[2] == "support"]
+
+        if primary:
+            top = wx.BoxSizer(wx.HORIZONTAL)
+            for index, (label, text, emphasis, line_chars, lines) in enumerate(primary[:2]):
+                flags = wx.RIGHT | wx.EXPAND if index == 0 and len(primary[:2]) > 1 else wx.EXPAND
+                top.Add(
+                    self._call_block(panel, label, text, min_height=self._block_min_height(lines, emphasis), emphasis=emphasis, line_chars=line_chars),
+                    1,
+                    flags,
+                    12,
+                )
             sizer.Add(top, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+            for label, text, emphasis, line_chars, lines in primary[2:]:
+                sizer.Add(
+                    self._call_block(panel, label, text, min_height=self._block_min_height(lines, emphasis), emphasis=emphasis, line_chars=line_chars),
+                    0,
+                    wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND,
+                    8,
+                )
 
         if support:
             grid_panel = wx.Panel(panel)
@@ -103,9 +110,9 @@ class CenterCardBuilder:
             for col in range(columns):
                 grid.AddGrowableCol(col, 1)
             grid_panel.SetSizer(grid)
-            for label, text in support:
+            for label, text, emphasis, line_chars, lines in support:
                 grid.Add(
-                    self._call_block(grid_panel, label, text, min_height=54, emphasis="support", line_chars=54),
+                    self._call_block(grid_panel, label, text, min_height=self._block_min_height(lines, emphasis), emphasis=emphasis, line_chars=line_chars),
                     1,
                     wx.EXPAND,
                 )
@@ -278,12 +285,18 @@ class CenterCardBuilder:
         ]
         return " · ".join(part for part in parts if part)
 
-    def _visible_support_blocks(self, specs: list[tuple[str, Any]]) -> list[tuple[str, str]]:
-        visible: list[tuple[str, str]] = []
-        for label, value in specs:
+    def _visible_call_sheet_blocks(self, specs: list[tuple[str, Any, str, int, int]]) -> list[tuple[str, str, str, int, int]]:
+        visible: list[tuple[str, str, str, int, int]] = []
+        used_lines = 0
+        for label, value, emphasis, line_chars, max_lines in specs:
             text = str(value or "").strip()
-            if text:
-                visible.append((label, text))
+            if not text:
+                continue
+            lines = self._wrapped_line_count(text, line_chars=line_chars)
+            if lines > max_lines or used_lines + lines > _VISIBLE_LINE_BUDGET:
+                continue
+            visible.append((label, text, emphasis, line_chars, lines))
+            used_lines += lines
         return visible
 
     def _support_columns(self) -> int:
@@ -295,6 +308,16 @@ class CenterCardBuilder:
         if not text:
             return "—"
         return "\n".join(textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False))
+
+    def _wrapped_line_count(self, value: str, *, line_chars: int) -> int:
+        text = " ".join(str(value or "").split())
+        if not text:
+            return 1
+        return max(1, len(textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False)))
+
+    def _block_min_height(self, line_count: int, emphasis: str) -> int:
+        line_height = 20 if emphasis == "high" else 17
+        return 30 + max(1, line_count) * line_height
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
