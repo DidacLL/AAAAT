@@ -19,9 +19,6 @@ INITIAL_OPTIONAL_TASKS = {
 FIELD_INFERENCE_ALLOWED = {
     "company",
     "role",
-    "status",
-    "priority",
-    "source",
     "source_url",
     "location",
     "remote_mode",
@@ -31,7 +28,6 @@ FIELD_INFERENCE_ALLOWED = {
     "risks_to_avoid",
     "offer_snapshot",
     "company_research",
-    "form_answers",
     "description",
     "salary_expectation",
     "publication_date",
@@ -43,10 +39,7 @@ FIELD_INFERENCE_ALLOWED = {
     "valuation",
     "candidature_evaluation",
     "role_strategy",
-    "cv_material",
-    "cover_letter_material",
     "recruiter_material",
-    "material_sent_notes",
     "keywords",
 }
 
@@ -406,7 +399,7 @@ def ensure_initial_tasks(
                 "field_inference",
                 "Analyze candidature",
                 application_id=application_id,
-                instructions="Extract offer fields, evaluation, role strategy, keywords, risks, strengths and recruiter-call preparation from retained source material.",
+                instructions="Extract company, role, URL, logistics, literal role text, evaluation, strategy, keywords, risks, strengths and recruiter-call preparation from retained source material. Do not infer lifecycle, user priority, lead source, CV/letter bodies, sent-material notes, or form answers.",
                 priority="high",
                 context_hint="candidature:field_inference",
             )
