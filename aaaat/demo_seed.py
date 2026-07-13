@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from aaaat.candidatures import create_candidature, update_candidature
-from aaaat.db import add_raw_intake, connect, get_application, init_db, upsert_glossary_term
+from aaaat.db import add_raw_intake, connect, init_db, upsert_glossary_term
 
 
 COMPANIES = [
@@ -76,7 +76,6 @@ def build_record(index: int) -> dict[str, Any]:
     focus = keywords[0]
     secondary = keywords[1] if len(keywords) > 1 else "systems"
     record = {
-        "id": f"demo-smart-{index + 1:03d}",
         "company": f"{company} {index + 1}" if index >= len(COMPANIES) else company,
         "role": role,
         "status": status,
@@ -134,7 +133,7 @@ Interview process
 The first call is a recruiter screen focused on motivation, salary range, remote expectations, and recent backend/platform work. The second step is a technical conversation with two engineers. Later steps may include a small system-design exercise and a conversation with the hiring manager.
 
 Signals to remember
-This is the offer text that would visually identify {company} during a call: {record['source']} mentioned {focus}, {secondary}, ownership, and a team trying to reduce operational friction without building a large platform team.
+This is the offer text that would visually identify {company} during a call: the posting mentioned {focus}, {secondary}, ownership, and a team trying to reduce operational friction without building a large platform team.
 
 Open questions
 - What is broken enough that the first hire should improve it immediately?
@@ -145,20 +144,37 @@ Open questions
 
 
 def upsert_application(conn: sqlite3.Connection, record: dict[str, Any], raw_offer_text: str) -> str:
-    app_id = str(record["id"])
-    try:
-        get_application(conn, app_id)
-    except KeyError:
-        create_candidature(conn, **record, include_field_inference_task=False, include_company_research_task=False, include_keyword_detection_task=False)
-        result = "created"
-    else:
-        update_fields = dict(record)
-        update_fields.pop("id", None)
-        update_candidature(conn, app_id, **update_fields)
+    existing_id = _find_seed_application_id(conn, record)
+    if existing_id:
+        update_candidature(conn, existing_id, **record)
+        app_id = existing_id
         result = "updated"
+    else:
+        created = create_candidature(
+            conn,
+            **record,
+            include_field_inference_task=False,
+            include_company_research_task=False,
+            include_keyword_detection_task=False,
+        )
+        app_id = str(created["id"])
+        result = "created"
     conn.execute("DELETE FROM raw_intake WHERE application_id = ? AND created_by = ?", (app_id, "demo_seed"))
     add_raw_intake(conn, app_id, raw_offer_text, created_by="demo_seed")
     return result
+
+
+def _find_seed_application_id(conn: sqlite3.Connection, record: dict[str, Any]) -> str:
+    url = str(record.get("source_url") or "").strip()
+    if url:
+        row = conn.execute("SELECT id FROM applications WHERE source_url = ?", (url,)).fetchone()
+        if row:
+            return str(row["id"])
+    row = conn.execute(
+        "SELECT id FROM applications WHERE company = ? AND role = ? AND source = ?",
+        (record.get("company", ""), record.get("role", ""), record.get("source", "")),
+    ).fetchone()
+    return str(row["id"]) if row else ""
 
 
 def seed(storage: str | Path, count: int = 48, *, reset: bool = False) -> dict[str, int]:
