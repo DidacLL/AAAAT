@@ -36,6 +36,15 @@ class CenterCardBuilder:
 
         self.owner.center_sizer.Add(hero, 0, wx.BOTTOM | wx.EXPAND, 6)
 
+    def add_key_details(self, detail: dict[str, Any]) -> None:
+        self.add_visible_briefing(detail)
+
+    def add_interview_notes(self, _detail: dict[str, Any]) -> None:
+        return
+
+    def add_source_card(self, detail: dict[str, Any]) -> None:
+        self.add_full_text_drawers(detail)
+
     def add_visible_briefing(self, detail: dict[str, Any]) -> None:
         rows = [
             (
