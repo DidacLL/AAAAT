@@ -144,6 +144,19 @@ class DesktopCommandService:
         with connect(self.storage_path) as conn:
             return list_artifacts(conn, candidature_ref)
 
+    def update_artifact_details(self, artifact_id: str, *, label: str, notes: str) -> dict[str, Any] | None:
+        if not artifact_id:
+            return None
+        cleaned_label = str(label or "").strip()
+        with connect(self.storage_path) as conn:
+            current = get_artifact(conn, artifact_id)
+            conn.execute(
+                "UPDATE generated_artifacts SET label = ?, notes = ? WHERE id = ?",
+                (cleaned_label or str(current.get("label") or "Material"), str(notes or "").strip(), artifact_id),
+            )
+            conn.commit()
+            return get_artifact(conn, artifact_id)
+
     def set_artifact_state(self, artifact_id: str, state: str, notes: str = "") -> dict[str, Any] | None:
         if not artifact_id:
             return None
