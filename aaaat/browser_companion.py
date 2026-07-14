@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import struct
 import sys
@@ -28,13 +29,7 @@ def native_host_manifest(storage_path: str | Path, executable: str) -> dict[str,
 
 def browser_extension_bundle() -> dict[str, str]:
     return {
-        "manifest.json": json.dumps({
-            "manifest_version": 3,
-            "name": "AAAAT Browser Companion",
-            "version": "1.0.0",
-            "permissions": ["nativeMessaging", "activeTab", "scripting"],
-            "action": {"default_popup": "popup.html"},
-        }, indent=2),
+        "manifest.json": json.dumps({"manifest_version": 3, "name": "AAAAT Browser Companion", "version": "1.0.0", "permissions": ["nativeMessaging", "activeTab", "scripting"], "action": {"default_popup": "popup.html"}}, indent=2),
         "popup.html": "<!doctype html><meta charset='utf-8'><button id='send'>Send next AAAAT task</button><pre id='status'></pre><script src='popup.js'></script>",
         "popup.js": "const status=document.getElementById('status');document.getElementById('send').onclick=()=>{const p=chrome.runtime.connectNative('org.aaaat.browser_companion');p.onMessage.addListener(m=>status.textContent=JSON.stringify(m,null,2));p.postMessage({protocol:'aaaat.browser-native',protocol_version:1,action:'next_task'});};",
         "README.txt": "Load this unpacked extension, install the generated native-host manifest, then adapt page interaction in popup.js or a site-specific content script. Authentication remains in the browser. AAAAT exchanges bounded messages only.",
@@ -57,14 +52,7 @@ def dispatch_native_message(storage_path: str | Path, message: dict[str, Any]) -
             result = message.get("result")
             if not isinstance(result, dict):
                 return {"status": "error", "error": "result_must_be_object"}
-            acknowledgement = submit_agent_task_result(
-                conn,
-                handle,
-                json.dumps(result, ensure_ascii=False),
-                agent_name=str(message.get("agent_name") or "browser-companion")[:200],
-                agent_runtime="browser-native-messaging",
-                model_provider=str(message.get("model_provider") or "")[:200],
-            )
+            acknowledgement = submit_agent_task_result(conn, handle, json.dumps(result, ensure_ascii=False), agent_name=str(message.get("agent_name") or "browser-companion")[:200], agent_runtime="browser-native-messaging", model_provider=str(message.get("model_provider") or "")[:200])
             return {"status": "accepted", "acknowledgement": acknowledgement}
     return {"status": "error", "error": "unsupported_action"}
 
@@ -95,8 +83,23 @@ def run_native_host(storage_path: str | Path, input_stream: BinaryIO | None = No
         _write_message(target, response)
 
 
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="aaaat-browser-host", description="Run the port-free AAAAT browser native-messaging host.")
+    parser.add_argument("--storage", default=".private")
+    parser.add_argument("--print-manifest", action="store_true")
+    args = parser.parse_args(argv)
+    if args.print_manifest:
+        print(json.dumps(native_host_manifest(args.storage, sys.argv[0]), ensure_ascii=False, indent=2))
+        return 0
+    return run_native_host(args.storage)
+
+
 def _write_message(stream: BinaryIO, message: dict[str, Any]) -> None:
     body = json.dumps(message, ensure_ascii=False).encode("utf-8")
     stream.write(struct.pack("<I", len(body)))
     stream.write(body)
     stream.flush()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
