@@ -15,7 +15,9 @@ class UserVariableSpec:
 FIELD_GROUPS = [
     "Identity",
     "Professional links",
-    "Application defaults",
+    "Professional profile",
+    "Career direction",
+    "Writing preferences",
 ]
 
 WRITABLE_USER_VARIABLE_SPECS = [
@@ -26,7 +28,20 @@ WRITABLE_USER_VARIABLE_SPECS = [
     UserVariableSpec("Professional links", "profile.linkedin_url", "LinkedIn URL"),
     UserVariableSpec("Professional links", "profile.github_url", "GitHub URL"),
     UserVariableSpec("Professional links", "profile.portfolio_url", "Portfolio URL"),
-    UserVariableSpec("Application defaults", "profile.summary.default", "Default professional summary", multiline=True),
+    UserVariableSpec("Professional profile", "profile.summary.default", "Default professional summary", multiline=True),
+    UserVariableSpec("Professional profile", "profile.experience", "Reusable experience", multiline=True),
+    UserVariableSpec("Professional profile", "profile.education", "Education", multiline=True),
+    UserVariableSpec("Professional profile", "profile.skills", "Skills", multiline=True),
+    UserVariableSpec("Professional profile", "profile.projects", "Projects and evidence", multiline=True),
+    UserVariableSpec("Career direction", "profile.career.objectives", "Objectives", multiline=True),
+    UserVariableSpec("Career direction", "profile.career.constraints", "Constraints", multiline=True),
+    UserVariableSpec("Career direction", "profile.career.target_roles", "Target roles", multiline=True),
+    UserVariableSpec("Career direction", "profile.career.target_markets", "Target markets", multiline=True),
+    UserVariableSpec("Career direction", "profile.career.direction", "Career direction", multiline=True),
+    UserVariableSpec("Writing preferences", "profile.writing.tone", "Preferred tone", multiline=True),
+    UserVariableSpec("Writing preferences", "profile.writing.preferences", "Writing preferences", multiline=True),
+    UserVariableSpec("Writing preferences", "profile.cv.reusable_material", "Reusable CV material", multiline=True),
+    UserVariableSpec("Writing preferences", "profile.cover_letter.reusable_material", "Reusable cover-letter material", multiline=True),
 ]
 
 WRITABLE_USER_STORAGE_KEYS = {spec.key for spec in WRITABLE_USER_VARIABLE_SPECS}
