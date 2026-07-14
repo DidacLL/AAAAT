@@ -1,110 +1,42 @@
-# Annex B — HTTP and CLI Surface
+# Annex B — CLI and agent surface
 
 ## CLI: primary practical adapter
 
 Implemented task capability:
 
 ```bash
-python -m aaaat.cli agent tasks [--state queued]
-python -m aaaat.cli agent context <task_id>
-python -m aaaat.cli agent submit <task_id> --result-body "..."
-python -m aaaat.cli agent submit <task_id> --result-file result.json
-python -m aaaat.cli agent claim <task_id>
-python -m aaaat.cli agent release <task_id>
-```
-
-Planned intake/proposal capability:
-
-```bash
-python -m aaaat.cli agent intake raw-offer --content "..."
-python -m aaaat.cli agent intake raw-offer --file offer.txt
-python -m aaaat.cli agent intake submit-extraction <intake_id_or_task_id> --result-file fields.json
+python -m aaaat.cli agent next
+python -m aaaat.cli agent context <task_handle>
+python -m aaaat.cli agent packet <task_handle>
+python -m aaaat.cli agent submit <task_handle> --result-body "..."
+python -m aaaat.cli agent submit <task_handle> --result-file result.json
 ```
 
 The existing broad CLI commands may remain for human/local use. The `agent` subcommands are the recommended agent contract. They must be capability-scoped, schema-bound, and non-CRUD.
 
-## HTTP: capability-scoped adapter
+## Desktop launch
 
-Implemented task routes:
-
-```text
-GET  /api/health
-GET  /api/agent/tasks
-GET  /api/agent/tasks/{task_id}/context
-POST /api/agent/tasks/{task_id}/claim
-POST /api/agent/tasks/{task_id}/result
-POST /api/agent/tasks/{task_id}/release
-```
-
-Planned intake/proposal routes may be added under `/api/agent/*`:
-
-```text
-POST /api/agent/intake/raw-offer
-POST /api/agent/intake/{intake_id}/extraction
-```
-
-All agent routes must call narrow service-layer functions. Do not expose generic object routes.
-
-## Agent-only app/surface
-
-Refactor app construction minimally:
-
-```python
-create_app(storage='.private', mode=Mode.FULL, surface='dashboard')
-```
-
-Allowed values:
-
-- `surface='dashboard'`: current human dashboard behavior.
-- `surface='agent'`: only `/api/health` and capability-scoped `/api/agent/*` routes.
-
-In `surface='agent'`, the following must not be mounted:
-
-```text
-/
-/legacy
-/dashboard/fragments/*
-/intake
-/static/*
-/api/dashboard-payload
-/api/review-queue
-/api/applications
-/api/applications/{id}
-/api/applications/{id}/context
-/api/candidatures
-/api/candidatures/{id}
-/api/candidatures/{id}/context
-/api/tasks
-/api/tasks/{id}
-/api/tasks/{id}/complete
-/api/tasks/{id}/apply
-/api/todos
-/api/notes
-/api/text-blobs
-/api/keywords
-/api/search
-/api/variables
-/api/variables/{key}
-/api/profile/facts
-/api/profile/context
-/api/render/cv
-/api/render/cover-letter
-/api/artifacts
-/api/export/static-demo
-```
-
-## CLI launch
-
-Add:
+The canonical human runtime is the wx desktop app:
 
 ```bash
-python -m aaaat.cli launch --agent-api
+aaaat-desktop
 ```
 
-Behavior:
+The desktop is local and editable. Do not document or implement a separate read-only desktop/runtime mode.
 
-- `launch`: existing dashboard mode.
-- `launch --read-only`: existing read-only dashboard mode.
-- `launch --agent-api`: HTTP agent surface only.
+## Agent-compatible descriptor
 
-Do not make a combined dashboard+agent HTTP server the documented default.
+AAAAT currently provides descriptor/tool-schema compatibility through CLI commands:
+
+```bash
+python -m aaaat.cli mcp-descriptor
+python -m aaaat.cli mcp-validate
+```
+
+This is descriptor/tool-schema compatibility for local adapters. It is not a full MCP server transport and does not create a broad HTTP CRUD surface.
+
+## Agent boundary
+
+All agent-facing work must call narrow service-layer functions. Do not expose generic object routes or broad database browsing.
+
+Agent-facing surfaces must not expose dashboard/private CRUD/search/profile/render routes, dashboard payloads, arbitrary local IDs as mutation authority, raw variables, raw profile facts, or local storage paths.
