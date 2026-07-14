@@ -17,6 +17,7 @@ from .dispatch.manual import dispatch_manual
 from .dispatch.packet import build_task_packet
 from .keywords import add_keyword_alias, create_keyword_note
 from .local_data import create_local_backup
+from .mcp_server import mcp_descriptor, validate_descriptor
 from .notes import create_note, list_notes
 from .privacy import list_variables, set_variable
 from .profile_facts import archive_profile_fact, create_profile_fact, get_profile_fact, list_profile_facts, profile_context, update_profile_fact
@@ -28,7 +29,6 @@ from .templates import render_document_artifact
 from .text_blobs import create_text_blob, list_text_blobs
 from .todos import create_todo, list_todos, update_todo
 from .workspace_config import load_workspace_config, save_workspace_settings
-from .mcp_server import mcp_descriptor, validate_descriptor
 
 
 APPLICATION_FIELDS = (
@@ -168,7 +168,7 @@ def build_parser() -> argparse.ArgumentParser:
     profile_fact_add.add_argument("--use-for-cover-letter", action="store_true")
     profile_fact_add.add_argument("--use-for-agent-context", action="store_true")
     profile_fact_add.add_argument("--use-for-market-research", action="store_true")
-    profile_fact_add.add_argument("--no-dashboard", action="store_true")
+    profile_fact_add.add_argument("--hide-from-desktop", action="store_true")
     profile_fact.add_parser("list")
     profile_fact_show = profile_fact.add_parser("show")
     profile_fact_show.add_argument("id")
@@ -394,7 +394,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "profile" and args.profile_command == "context":
             _json(profile_context(conn, args.purpose, scope=args.scope))
         elif args.command == "profile" and args.profile_command == "fact" and args.fact_command == "add":
-            _json(create_profile_fact(conn, fact_type=args.fact_type, title=args.title, body=args.body, tags=args.tags, visibility=args.visibility, exposure=args.exposure, use_for_cv=args.use_for_cv, use_for_cover_letter=args.use_for_cover_letter, use_for_agent_context=args.use_for_agent_context, use_for_market_research=args.use_for_market_research, use_for_dashboard=not args.no_dashboard, source="cli"))
+            _json(create_profile_fact(conn, fact_type=args.fact_type, title=args.title, body=args.body, tags=args.tags, visibility=args.visibility, exposure=args.exposure, use_for_cv=args.use_for_cv, use_for_cover_letter=args.use_for_cover_letter, use_for_agent_context=args.use_for_agent_context, use_for_market_research=args.use_for_market_research, use_for_desktop=not args.hide_from_desktop, source="cli"))
         elif args.command == "profile" and args.profile_command == "fact" and args.fact_command == "list":
             _json(list_profile_facts(conn))
         elif args.command == "profile" and args.profile_command == "fact" and args.fact_command == "show":
