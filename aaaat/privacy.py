@@ -7,7 +7,7 @@ from .db import row_to_dict, utc_now
 
 
 EXPOSURES = {"raw", "redacted", "summarized", "placeholder", "denied"}
-RESOLUTION_SCOPES = {"local_render", "local_dashboard", "agent", "static_demo"}
+RESOLUTION_SCOPES = {"local", "agent"}
 CANONICAL_NAMESPACES = {"profile", "application", "artifact", "candidature"}
 
 
@@ -97,10 +97,8 @@ def list_variables(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 def resolve_variable_value(item: dict[str, Any], scope: str) -> str | None:
     if scope not in RESOLUTION_SCOPES:
         raise ValueError(f"Invalid variable resolution scope: {scope}")
-    if scope in {"local_render", "local_dashboard"}:
+    if scope == "local":
         return str(item.get("value") or "")
-    if scope == "static_demo":
-        return None
     exposure = item.get("exposure") or "placeholder"
     if exposure == "raw":
         return str(item.get("value") or "")
@@ -130,11 +128,11 @@ def resolve_variables(conn: sqlite3.Connection, scope: str) -> dict[str, str]:
 
 def profile_variables_compat(conn: sqlite3.Connection) -> dict[str, str]:
     migrate_profile_variables(conn)
-    return resolve_variables(conn, "local_render")
+    return resolve_variables(conn, "local")
 
 
 def required_profile_variables(conn: sqlite3.Connection, required: set[str]) -> list[str]:
-    existing = resolve_variables(conn, "local_render")
+    existing = resolve_variables(conn, "local")
     missing = []
     for key in sorted(required):
         canonical = canonical_variable_key(key)
