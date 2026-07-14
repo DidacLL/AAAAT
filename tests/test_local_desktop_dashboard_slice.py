@@ -7,8 +7,11 @@ from unittest.mock import patch
 
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_contains_private_values
 from aaaat.dashboard_projection import build_dashboard_projection
-from aaaat.db import connect, list_applications, list_raw_intake
+from aaaat.db import connect, get_profile_variable, list_applications, list_raw_intake
 from aaaat.demo_seed import seed
+from aaaat.tasks import list_tasks
+from aaaat.ui_desktop.services import DesktopCommandService
+from aaaat.ui_desktop.user_fields import WRITABLE_USER_STORAGE_KEYS, grouped_user_fields
 
 
 class DesktopReleaseReadinessSliceTests(unittest.TestCase):
@@ -106,6 +109,93 @@ class DesktopProjectionBehaviorTests(unittest.TestCase):
         available = {column["id"] for column in projection["detailed"]["available_columns"]}
         self.assertTrue({"company", "role", "status", "priority", "source_url"}.issubset(available))
         self.assertTrue(set(projection["detailed"]["visible_columns"]).issubset(available))
+
+
+class DesktopOfferFirstBehaviorTests(unittest.TestCase):
+    def test_raw_offer_creation_retains_optional_source_and_form(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = DesktopCommandService(tmp)
+            created = service.create_raw_offer_candidature(
+                "Original offer body",
+                company="Example Co",
+                role="Backend Engineer",
+                source_url="https://example.invalid/job",
+                raw_application_form="Why this role?",
+            )
+            self.assertIsNotNone(created)
+            with connect(tmp) as conn:
+                applications = list_applications(conn)
+                raw = list_raw_intake(conn, applications[0]["id"])
+
+        self.assertEqual(applications[0]["company"], "Example Co")
+        self.assertEqual(applications[0]["role"], "Backend Engineer")
+        self.assertEqual(applications[0]["source_url"], "https://example.invalid/job")
+        self.assertEqual(created["raw_application_form"], "Why this role?")
+        self.assertEqual(raw[0]["content"], "Original offer body")
+
+    def test_requested_documents_are_blocked_until_evaluation_and_strategy_exist(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = DesktopCommandService(tmp)
+            created = service.create_raw_offer_candidature(
+                "Original offer body",
+                request_cv=True,
+                request_cover_letter=True,
+            )
+            with connect(tmp) as conn:
+                tasks = list_tasks(conn, application_id=created["id"])
+
+        document_tasks = [task for task in tasks if task["task_type"] in {"draft_cv", "draft_cover_letter"}]
+        self.assertEqual({task["state"] for task in document_tasks}, {"blocked"})
+        self.assertTrue(all("evaluation" in task["notes"] and "strategy" in task["notes"] for task in document_tasks))
+
+    def test_document_action_queues_after_current_inputs_exist(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = DesktopCommandService(tmp)
+            created = service.create_raw_offer_candidature("Original offer body")
+            service.update_candidature_fields(
+                created["id"],
+                {"candidature_evaluation": "Strong fit", "role_strategy": "Emphasize backend ownership"},
+            )
+            task = service.queue_candidature_action(created["id"], "generate_cv")
+
+        self.assertEqual(task["state"], "queued")
+
+
+class DesktopUserWorkspaceBehaviorTests(unittest.TestCase):
+    def test_user_workspace_exposes_professional_and_career_fields(self):
+        projection = {"user": {"profile_variables": []}}
+        groups = grouped_user_fields(projection)
+        keys = {field["storage_key"] for group in groups for field in group["fields"]}
+
+        self.assertEqual(keys, WRITABLE_USER_STORAGE_KEYS)
+        self.assertTrue(
+            {
+                "profile.experience",
+                "profile.education",
+                "profile.skills",
+                "profile.career.objectives",
+                "profile.career.constraints",
+                "profile.writing.preferences",
+            }.issubset(keys)
+        )
+
+    def test_user_workspace_changes_persist_through_command_service(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = DesktopCommandService(tmp)
+            saved = service.update_profile_variables(
+                {
+                    "profile.experience": "Built local-first developer tools.",
+                    "profile.career.objectives": "Senior backend roles.",
+                    "unsupported": "ignored",
+                }
+            )
+            with connect(tmp) as conn:
+                experience = get_profile_variable(conn, "profile.experience")
+                objectives = get_profile_variable(conn, "profile.career.objectives")
+
+        self.assertEqual(set(saved), {"profile.experience", "profile.career.objectives"})
+        self.assertEqual(experience, "Built local-first developer tools.")
+        self.assertEqual(objectives, "Senior backend roles.")
 
 
 class DesktopLayoutBehaviorTests(unittest.TestCase):
