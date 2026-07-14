@@ -87,6 +87,8 @@ aaaat-upgrade --storage /path/to/private-aaaat
 aaaat-desktop --storage /path/to/private-aaaat
 ```
 
+The desktop launcher also applies supported idempotent v1 compatibility upgrades before loading the selected store. The explicit upgrade command remains useful for preflight verification and release maintenance.
+
 ## Demo data
 
 For local UI validation with fake candidatures:
