@@ -72,6 +72,22 @@ jobs:
         run: python -B -m unittest tests.test_desktop_profile_facts
       - name: Demo seed safety
         run: python -B -m unittest tests.test_demo_seed_safety
+      - name: Career plan behavior
+        run: python -B -m unittest tests.test_career_plans
+      - name: Agent action behavior
+        run: python -B -m unittest tests.test_agent_actions
+      - name: Dispatch behavior
+        run: python -B -m unittest tests.test_dispatch
+      - name: Command dispatch behavior
+        run: python -B -m unittest tests.test_dispatch_command
+      - name: Review queue behavior
+        run: python -B -m unittest tests.test_review_queue
+      - name: CLI and descriptor behavior
+        run: python -B -m unittest tests.test_cli_mcp
+      - name: Database and backup behavior
+        run: python -B -m unittest tests.test_db
+      - name: Dependency policy behavior
+        run: python -B -m unittest tests.test_dependency_policy
       - name: Release engineering behavior
         run: python -B -m unittest tests.test_release_polish
       - name: Repository hygiene behavior
