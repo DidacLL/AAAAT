@@ -1,19 +1,20 @@
-# Product Owner Original Intent - Non-Authoritative Guidance
+# Product Owner Original Intent — Deprecated Historical Record
 
-Status: historical product intent / guidance.
-Authority: advisory only.
+> **Deprecated for implementation and release decisions.** This file preserves early product vocabulary and intent only. The authoritative v1 requirements are now [`docs/requirements/v1-authoritative-requirements.md`](requirements/v1-authoritative-requirements.md). When any statement here differs from that specification, the authoritative requirements win.
+
+Status: deprecated historical product intent.
+Authority: none for current implementation or release acceptance.
 
 This document records the original Product Owner requirements and vocabulary for AAAAT. It is tracked openly because AAAAT is an open-source project and product prompts are part of the design history.
 
-This document is not a permanent source of truth. Later accepted decisions may supersede it, including:
-- architecture decision records;
-- implementation plans accepted by the maintainer;
-- issue discussions;
-- merged pull requests;
+This document is not a permanent source of truth. Later accepted decisions supersede it, including:
+- the authoritative v1 requirements;
+- explicit maintainer direction;
+- accepted wx behavior;
 - security/privacy corrections;
-- explicit maintainer direction.
+- bounded agent-authority corrections.
 
-When this document conflicts with a later accepted decision, the later decision wins. Keep this document as product context, not as an immutable contract.
+Keep this document as product context, not as a contract.
 
 ## Product Summary
 
