@@ -11,7 +11,7 @@ from aaaat.payload import dashboard_payload
 from aaaat.security import Mode
 
 
-def build_desktop_projection(storage: str | Path, mode: Mode | str, layout_state: DashboardLayoutState | None = None) -> dict[str, Any]:
+def build_desktop_projection(storage: str | Path, mode: Mode | str = Mode.FULL, layout_state: DashboardLayoutState | None = None) -> dict[str, Any]:
     """Build the current desktop projection without importing any GUI toolkit."""
 
     init_db(storage)
@@ -21,7 +21,7 @@ def build_desktop_projection(storage: str | Path, mode: Mode | str, layout_state
     return build_dashboard_projection(payload, Mode(mode), view=layout.selected_view, layout_state=layout)
 
 
-def launch_desktop_dashboard(storage: str | Path = ".private", *, read_only: bool = False) -> int:
+def launch_desktop_dashboard(storage: str | Path = ".private") -> int:
     """Launch the local desktop dashboard.
 
     wxPython is an optional desktop dependency. The import is deliberately kept
@@ -37,7 +37,7 @@ def launch_desktop_dashboard(storage: str | Path = ".private", *, read_only: boo
     from .main_window import DesktopDashboardFrame
     from .services import DesktopCommandService
 
-    mode = Mode.READ_ONLY if read_only else Mode.FULL
+    mode = Mode.FULL
     init_db(storage)
     layout_path = layout_state_path(storage)
     layout = DashboardLayoutState.load(layout_path)
@@ -60,9 +60,8 @@ def launch_desktop_dashboard(storage: str | Path = ".private", *, read_only: boo
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="aaaat-desktop")
     parser.add_argument("--storage", default=".private")
-    parser.add_argument("--read-only", action="store_true")
     args = parser.parse_args(argv)
-    return launch_desktop_dashboard(args.storage, read_only=args.read_only)
+    return launch_desktop_dashboard(args.storage)
 
 
 if __name__ == "__main__":
