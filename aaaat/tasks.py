@@ -236,7 +236,11 @@ def apply_task_result(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
     applied = False
     notes: list[str] = []
 
-    if application_id and task_type == "field_inference":
+    if artifact_id and task_type in {"draft_cv", "draft_cover_letter"}:
+        update_artifact_state(conn, artifact_id, "reviewed", "Current generated artifact from completed task result.")
+        applied = True
+        notes = [f"Marked generated artifact current/reviewed: {artifact_id}."]
+    elif application_id and task_type == "field_inference":
         applied, notes = apply_field_inference(conn, application_id, result_body)
     elif application_id and task_type == "company_research":
         applied, notes = apply_single_field_result(conn, application_id, "company_research", result_body, default_title="Company research result")
@@ -255,10 +259,6 @@ def apply_task_result(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
         applied, notes = apply_single_field_result(conn, application_id, "cover_letter_material", result_body, default_title="Cover letter material draft")
     elif application_id and task_type == "recruiter_call_material":
         applied, notes = apply_single_field_result(conn, application_id, "recruiter_material", result_body, default_title="Recruiter-call material")
-    elif artifact_id and task_type in {"draft_cv", "draft_cover_letter"}:
-        update_artifact_state(conn, artifact_id, "reviewed", "Current generated artifact from completed task result.")
-        applied = True
-        notes = [f"Marked generated artifact current/reviewed: {artifact_id}."]
 
     if result_blob_id:
         update_text_blob(conn, result_blob_id, review_state="current" if applied else "history")
