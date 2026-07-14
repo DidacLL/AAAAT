@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,8 @@ import wx  # type: ignore[import-not-found]
 
 from aaaat.assistance_service import (
     assistance_snapshot,
+    create_profile_completion_task,
+    run_integration_conformance,
     save_integration,
     use_manual_integration,
     use_recommended_local_integration,
@@ -25,6 +28,8 @@ class UserViewMixin:
 
     def _build_user_surface(self) -> None:
         self._task_worker: OwnedTaskWorker | None = None
+        self._task_progress: dict[str, dict[str, Any]] = {}
+        self._conformance_thread: threading.Thread | None = None
         self.user_panel = wx.Panel(self.view_book)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.user_panel.SetSizer(sizer)
@@ -48,6 +53,8 @@ class UserViewMixin:
             on_save_integration=self._save_integration,
             on_recommended=self._use_recommended_integration,
             on_manual=self._use_manual_integration,
+            on_conformance=self._run_conformance,
+            on_create_profile_task=self._create_profile_completion_task,
             on_run_task=self._run_assistance_task,
             on_retry_task=self._retry_assistance_task,
             on_cancel_task=self._cancel_assistance_task,
@@ -76,12 +83,19 @@ class UserViewMixin:
         self._show_user()
         self._refresh_current_if_needed()
 
+    def _assistance_snapshot(self) -> dict[str, Any]:
+        return assistance_snapshot(
+            self.storage_path,
+            include_advanced=True,
+            progress_by_task=self._task_progress,
+        )
+
     def _refresh_user_view(self) -> None:
         self.user_panel.Freeze()
         try:
             self.user_content.render(self.projection, can_edit=True)
             self._render_profile_facts()
-            self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+            self.assistance_panel.render(self._assistance_snapshot())
             self.user_panel.Layout()
         finally:
             self.user_panel.Thaw()
@@ -159,6 +173,36 @@ class UserViewMixin:
         self._schedule_assistance_refresh()
         return result
 
+    def _run_conformance(self) -> dict[str, Any]:
+        if self._conformance_thread and self._conformance_thread.is_alive():
+            return {"status": "running", "message": "Conformance test is already running."}
+        self._conformance_thread = threading.Thread(
+            target=self._conformance_work,
+            name="aaaat-runtime-conformance",
+            daemon=False,
+        )
+        self._conformance_thread.start()
+        self.SetStatusText("Runtime conformance test running")
+        return {"status": "running", "message": "Bounded conformance challenge started."}
+
+    def _conformance_work(self) -> None:
+        try:
+            result = run_integration_conformance(self.storage_path)
+        except Exception as exc:
+            result = {"status": "failed", "message": str(exc)}
+        wx.CallAfter(self._apply_conformance_result, result)
+
+    def _apply_conformance_result(self, result: dict[str, Any]) -> None:
+        self.SetStatusText(str(result.get("message") or result.get("status") or "Conformance complete"))
+        if self.current_view == "user":
+            self._refresh_user_view()
+
+    def _create_profile_completion_task(self) -> dict[str, Any]:
+        task = create_profile_completion_task(self.storage_path)
+        self.SetStatusText("Profile completion task ready")
+        self._schedule_assistance_refresh()
+        return task
+
     def _ensure_task_worker(self) -> OwnedTaskWorker:
         if self._task_worker is None:
             self._task_worker = OwnedTaskWorker(self.storage_path, on_event=self._on_task_worker_event)
@@ -179,8 +223,7 @@ class UserViewMixin:
         self._schedule_assistance_refresh()
 
     def _cancel_assistance_task(self, task_id: str) -> None:
-        worker = self._ensure_task_worker()
-        worker.cancel(task_id)
+        self._ensure_task_worker().cancel(task_id)
         self.SetStatusText("Assistance task cancelled")
         self._schedule_assistance_refresh()
 
@@ -188,8 +231,13 @@ class UserViewMixin:
         wx.CallAfter(self._apply_task_worker_event, dict(event))
 
     def _apply_task_worker_event(self, event: dict[str, Any]) -> None:
+        task_id = str(event.get("task_id") or "")
         state = str(event.get("state") or "")
         message = str(event.get("message") or "")
+        if task_id:
+            previous = self._task_progress.get(task_id) or {}
+            if int(event.get("sequence") or 0) >= int(previous.get("sequence") or 0):
+                self._task_progress[task_id] = dict(event)
         self.SetStatusText(message or f"Assistance task: {state}")
         self._rendered_view_keys.clear()
         self._reload_projection()
@@ -240,4 +288,6 @@ class UserViewMixin:
     def _stop_task_worker_on_close(self, event: wx.CloseEvent) -> None:
         if self._task_worker is not None:
             self._task_worker.stop(wait=True)
+        if self._conformance_thread and self._conformance_thread.is_alive():
+            self._conformance_thread.join(timeout=1)
         event.Skip()
