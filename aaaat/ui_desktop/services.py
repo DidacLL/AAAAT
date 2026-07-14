@@ -8,17 +8,10 @@ from aaaat.candidatures import create_candidature, update_candidature
 from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, set_profile_variable, upsert_glossary_term
 from aaaat.tasks import create_task
 
+from .user_fields import WRITABLE_USER_STORAGE_KEYS
+
 SUPPORTED_DETAIL_EDIT_FIELDS = set(WRITABLE_CANDIDATURE_STORAGE_KEYS)
-SUPPORTED_PROFILE_VARIABLE_FIELDS = {
-    "profile.display_name",
-    "profile.email",
-    "profile.phone",
-    "profile.location",
-    "profile.linkedin_url",
-    "profile.github_url",
-    "profile.portfolio_url",
-    "profile.summary.default",
-}
+SUPPORTED_PROFILE_VARIABLE_FIELDS = set(WRITABLE_USER_STORAGE_KEYS)
 
 _ACTION_TASKS = {
     "infer_fields": (
@@ -89,15 +82,27 @@ class DesktopCommandService:
     def save_note(self, candidature_ref: str, body: str) -> None:
         self.update_candidature_fields(candidature_ref, {"notes": body})
 
-    def create_raw_offer_candidature(self, raw_offer: str) -> dict[str, Any] | None:
+    def create_raw_offer_candidature(
+        self,
+        raw_offer: str,
+        *,
+        company: str = "",
+        role: str = "",
+        source_url: str = "",
+        raw_application_form: str = "",
+        request_cv: bool = False,
+        request_cover_letter: bool = False,
+    ) -> dict[str, Any] | None:
         text = str(raw_offer or "").strip()
         if not text:
             return None
         with connect(self.storage_path) as conn:
-            return create_candidature(
+            created = create_candidature(
                 conn,
-                company="Pending company",
-                role="Pending role",
+                company=str(company or "").strip() or "Pending company",
+                role=str(role or "").strip() or "Pending role",
+                source_url=str(source_url or "").strip(),
+                raw_application_form=str(raw_application_form or "").strip(),
                 status="active",
                 priority="normal",
                 raw_offer=text,
@@ -106,6 +111,12 @@ class DesktopCommandService:
                 include_company_research_task=False,
                 include_keyword_detection_task=True,
             )
+            candidature_ref = str(created.get("id") or "")
+            if request_cv:
+                self._create_action_task(conn, candidature_ref, "generate_cv")
+            if request_cover_letter:
+                self._create_action_task(conn, candidature_ref, "generate_cover_letter")
+            return created
 
     def update_candidature_fields(self, candidature_ref: str, changes: dict[str, Any]) -> dict[str, Any] | None:
         safe_changes = {key: changes[key] for key in SUPPORTED_DETAIL_EDIT_FIELDS if key in changes}
@@ -138,22 +149,27 @@ class DesktopCommandService:
             return upsert_glossary_term(conn, cleaned, str(definition or ""))
 
     def queue_candidature_action(self, candidature_ref: str, action_id: str) -> dict[str, Any] | None:
+        if not candidature_ref:
+            return None
+        with connect(self.storage_path) as conn:
+            return self._create_action_task(conn, candidature_ref, action_id)
+
+    def _create_action_task(self, conn: Any, candidature_ref: str, action_id: str) -> dict[str, Any] | None:
         spec = _ACTION_TASKS.get(action_id)
         if not spec or not candidature_ref:
             return None
         task_type, title, instructions, context_hint, priority = spec
-        with connect(self.storage_path) as conn:
-            return create_task(
-                conn,
-                task_type,
-                title,
-                application_id=candidature_ref,
-                instructions=instructions,
-                priority=priority,
-                context_hint=context_hint,
-                created_by="desktop",
-                idempotent=False,
-            )
+        return create_task(
+            conn,
+            task_type,
+            title,
+            application_id=candidature_ref,
+            instructions=instructions,
+            priority=priority,
+            context_hint=context_hint,
+            created_by="desktop",
+            idempotent=False,
+        )
 
     def delete_candidature(self, candidature_ref: str) -> bool:
         if not candidature_ref:
