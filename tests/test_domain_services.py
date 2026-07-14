@@ -22,7 +22,6 @@ class DomainServiceTests(unittest.TestCase):
                 item = get_variable(conn, "profile.display_name")
                 local = resolve_variables(conn, "local")
                 agent = resolve_variables(conn, "agent")
-
         self.assertEqual(item["value"], "Local Candidate")
         self.assertEqual(local["profile.display_name"], "Local Candidate")
         self.assertEqual(agent["profile.display_name"], "{{ profile.display_name }}")
@@ -38,7 +37,6 @@ class DomainServiceTests(unittest.TestCase):
                 set_variable(conn, "denied_value", "secret", exposure="denied")
                 agent = resolve_variables(conn, "agent")
                 local = resolve_variables(conn, "local")
-
         self.assertEqual(agent["profile.raw_value"], "secret")
         self.assertEqual(agent["profile.redacted_value"], "[redacted]")
         self.assertEqual(agent["profile.summary_value"], "safe summary")
@@ -65,7 +63,6 @@ class DomainServiceTests(unittest.TestCase):
                 create_note(conn, "Human note", application_id=candidature["id"])
                 create_text_blob(conn, "company_research", "Research draft", application_id=candidature["id"])
                 loaded = get_candidature(conn, candidature["id"])
-
         self.assertEqual(len(first), len(second))
         self.assertTrue({"field_inference", "company_research", "keyword_definition", "draft_cover_letter"}.issubset({item["task_type"] for item in second}))
         self.assertEqual(loaded["domain_type"], "Candidature")
@@ -89,12 +86,11 @@ class DomainServiceTests(unittest.TestCase):
                 task = create_task(conn, "field_inference", "Review offer details", application_id=candidature["id"], context_hint="candidature:field_inference")
                 completed = complete_task(conn, task["id"], result_body='{"fields": {"pitch": "Generated pitch", "location": "Remote"}}')
                 loaded = get_candidature(conn, candidature["id"])
-
         self.assertEqual(loaded["pitch"], "Human pitch")
         self.assertEqual(loaded["location"], "Remote")
         self.assertIn("Stale against user/current edits", completed["notes"])
 
-    def test_supported_text_results_apply_without_overwriting_conflicts(self):
+    def test_conflicting_text_result_remains_history(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -103,23 +99,34 @@ class DomainServiceTests(unittest.TestCase):
                     company="Result Co",
                     role="Engineer",
                     company_research="Human research",
-                    keywords=["KnownTerm", "NewTerm"],
                     include_field_inference_task=False,
                     include_company_research_task=False,
                     include_keyword_detection_task=False,
                 )
-                conn.execute("INSERT INTO glossary_terms(term, definition, category) VALUES ('KnownTerm', 'Human definition', 'skill')")
-                conn.commit()
-                research = create_task(conn, "company_research", "Update company context", application_id=candidature["id"], context_hint="candidature:company_research")
-                complete_task(conn, research["id"], result_body="Generated research")
-                definition = create_task(conn, "keyword_definition", "Define term", application_id=candidature["id"], context_hint="keyword:NewTerm")
-                complete_task(conn, definition["id"], result_body='{"definition": "New definition"}')
+                task = create_task(conn, "company_research", "Update company context", application_id=candidature["id"], context_hint="candidature:company_research")
+                completed = complete_task(conn, task["id"], result_body="Generated research")
                 loaded = get_candidature(conn, candidature["id"])
                 blobs = list_text_blobs(conn, candidature["id"])
-                glossary = {item["term"]: item["definition"] for item in list_keywords(conn)}
-
         self.assertEqual(loaded["company_research"], "Human research")
-        self.assertTrue(any(item["body"] == "Generated research" and item["review_state"] == "history" for item in blobs))
+        self.assertIn("Stale company_research", completed["notes"])
+        self.assertTrue(any(item["blob_type"] == "company_research" and item["review_state"] == "history" for item in blobs))
+
+    def test_keyword_result_updates_empty_definition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                candidature = create_candidature(
+                    conn,
+                    company="Keyword Co",
+                    role="Engineer",
+                    keywords=["NewTerm"],
+                    include_field_inference_task=False,
+                    include_company_research_task=False,
+                    include_keyword_detection_task=False,
+                )
+                task = create_task(conn, "keyword_definition", "Define term", application_id=candidature["id"], context_hint="keyword:NewTerm")
+                complete_task(conn, task["id"], result_body='{"definition": "New definition"}')
+                glossary = {item["term"]: item["definition"] for item in list_keywords(conn)}
         self.assertEqual(glossary["NewTerm"], "New definition")
 
     def test_artifact_backed_document_result_becomes_reviewed(self):
@@ -138,7 +145,6 @@ class DomainServiceTests(unittest.TestCase):
                 task = create_task(conn, "draft_cv", "Prepare tailored CV", application_id=candidature["id"], context_hint="artifact:cv")
                 complete_task(conn, task["id"], artifact_id=artifact["id"])
                 loaded = get_candidature(conn, candidature["id"])
-
         current = next(item for item in loaded["artifacts"] if item["id"] == artifact["id"])
         self.assertEqual(current["review_state"], "reviewed")
 
@@ -164,7 +170,6 @@ class DomainServiceTests(unittest.TestCase):
                 todo_state = list_todos(conn, candidature["id"])[0]["state"]
                 note_type = list_notes(conn, candidature["id"])[0]["note_type"]
                 blob_type = list_text_blobs(conn, candidature["id"])[0]["blob_type"]
-
         self.assertEqual(todo_state, "done")
         self.assertEqual(note_type, "call")
         self.assertEqual(blob_type, "questions")
@@ -181,12 +186,13 @@ class DomainServiceTests(unittest.TestCase):
                 create_note(conn, "Screening call note", application_id=candidature["id"])
                 try:
                     rebuild_index(conn)
-                    result = search(conn, 'C++ / Python!!! "unterminated')
+                    normal = search(conn, "Python")
+                    malformed = search(conn, 'C++ / Python!!! "unterminated')
                 except SearchUnavailable as exc:
                     self.fail(str(exc))
-
-        self.assertTrue(result["available"])
-        self.assertTrue(any(item["entity_type"] == "candidature" for item in result["results"]))
+        self.assertTrue(normal["available"])
+        self.assertTrue(any(item["entity_type"] == "candidature" for item in normal["results"]))
+        self.assertTrue(malformed["available"])
 
 
 if __name__ == "__main__":
