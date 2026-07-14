@@ -12,38 +12,29 @@ class OfferFirstDialog(wx.Dialog):
         super().__init__(parent, title="New candidature", size=(760, 680))
         root = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(root)
-
-        intro = wx.StaticText(
-            self,
-            label="Paste the original offer first. Company and role are optional hints; AAAAT can infer missing details later.",
-        )
+        intro = wx.StaticText(self, label="Paste the original offer first. Company and role are optional; missing details can be completed later.")
         intro.Wrap(700)
         root.Add(intro, 0, wx.ALL | wx.EXPAND, 12)
-
         grid = wx.FlexGridSizer(cols=2, vgap=8, hgap=10)
         grid.AddGrowableCol(1, 1)
         self.company = self._row(grid, "Company", wx.TextCtrl(self))
         self.role = self._row(grid, "Role", wx.TextCtrl(self))
         self.source_url = self._row(grid, "Source URL", wx.TextCtrl(self))
         root.Add(grid, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
-
         root.Add(wx.StaticText(self, label="Original job offer *"), 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
         self.raw_offer = wx.TextCtrl(self, style=wx.TE_MULTILINE)
         self.raw_offer.SetMinSize((-1, 230))
         root.Add(self.raw_offer, 1, wx.ALL | wx.EXPAND, 12)
-
         root.Add(wx.StaticText(self, label="Application form or questions"), 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
         self.application_form = wx.TextCtrl(self, style=wx.TE_MULTILINE)
         self.application_form.SetMinSize((-1, 110))
         root.Add(self.application_form, 0, wx.ALL | wx.EXPAND, 12)
-
         requests = wx.BoxSizer(wx.HORIZONTAL)
-        self.request_cv = wx.CheckBox(self, label="Prepare CV after evaluation and strategy")
-        self.request_cover_letter = wx.CheckBox(self, label="Prepare cover letter after evaluation and strategy")
+        self.request_cv = wx.CheckBox(self, label="Prepare a tailored CV when the application approach is ready")
+        self.request_cover_letter = wx.CheckBox(self, label="Prepare a cover letter when the application approach is ready")
         requests.Add(self.request_cv, 0, wx.RIGHT, 16)
         requests.Add(self.request_cover_letter, 0)
         root.Add(requests, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
-
         buttons = self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL)
         if buttons:
             root.Add(buttons, 0, wx.ALL | wx.EXPAND, 12)
