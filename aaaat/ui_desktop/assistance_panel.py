@@ -4,7 +4,6 @@ from typing import Any, Callable
 
 import wx  # type: ignore[import-not-found]
 
-
 IntegrationSaveCallback = Callable[[str, dict[str, Any]], dict[str, Any]]
 SimpleCallback = Callable[[], dict[str, Any]]
 TaskCallback = Callable[[str], None]
@@ -20,6 +19,8 @@ class AssistancePanel(wx.ScrolledWindow):
         on_save_integration: IntegrationSaveCallback,
         on_recommended: SimpleCallback,
         on_manual: SimpleCallback,
+        on_conformance: SimpleCallback,
+        on_create_profile_task: SimpleCallback,
         on_run_task: TaskCallback,
         on_retry_task: TaskCallback,
         on_cancel_task: TaskCallback,
@@ -29,6 +30,8 @@ class AssistancePanel(wx.ScrolledWindow):
         self.on_save_integration = on_save_integration
         self.on_recommended = on_recommended
         self.on_manual = on_manual
+        self.on_conformance = on_conformance
+        self.on_create_profile_task = on_create_profile_task
         self.on_run_task = on_run_task
         self.on_retry_task = on_retry_task
         self.on_cancel_task = on_cancel_task
@@ -66,11 +69,22 @@ class AssistancePanel(wx.ScrolledWindow):
         quick = wx.BoxSizer(wx.HORIZONTAL)
         recommended = wx.Button(self, label="Use recommended local AI")
         manual = wx.Button(self, label="Use portable/manual mode")
+        conformance = wx.Button(self, label="Run conformance test")
         recommended.Bind(wx.EVT_BUTTON, self._recommended)
         manual.Bind(wx.EVT_BUTTON, self._manual)
+        conformance.Bind(wx.EVT_BUTTON, self._conformance)
         quick.Add(recommended, 0, wx.RIGHT, 8)
-        quick.Add(manual, 0)
+        quick.Add(manual, 0, wx.RIGHT, 8)
+        quick.Add(conformance, 0)
         self.root.Add(quick, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        conformance_state = dict(self.snapshot.get("conformance") or {})
+        conformance_label = wx.StaticText(
+            self,
+            label=f"Conformance: {conformance_state.get('status') or 'not_run'} · {conformance_state.get('message') or 'No bounded challenge has been run.'}",
+        )
+        conformance_label.Wrap(760)
+        self.root.Add(conformance_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         options = list(self.snapshot.get("options") or [])
         self.option_by_title = {str(item.get("title") or item.get("id")): item for item in options}
@@ -150,7 +164,7 @@ class AssistancePanel(wx.ScrolledWindow):
         self.integration_status.SetLabel("Testing…")
         try:
             result = self.on_save_integration(adapter_id, self._settings())
-        except Exception as exc:  # wx boundary: show actionable failure
+        except Exception as exc:
             self.integration_status.SetLabel(str(exc))
             return
         health = dict(result.get("health") or {})
@@ -171,10 +185,24 @@ class AssistancePanel(wx.ScrolledWindow):
         except Exception as exc:
             self.integration_status.SetLabel(str(exc))
 
+    def _conformance(self, _event: wx.CommandEvent) -> None:
+        self.integration_status.SetLabel("Running bounded conformance challenge…")
+        try:
+            result = self.on_conformance()
+            self.integration_status.SetLabel(str(result.get("message") or result.get("status") or "Complete"))
+        except Exception as exc:
+            self.integration_status.SetLabel(str(exc))
+
     def _build_task_section(self) -> None:
+        heading_row = wx.BoxSizer(wx.HORIZONTAL)
         heading = wx.StaticText(self, label="Assistance tasks")
         heading.SetFont(heading.GetFont().Bold().Larger())
-        self.root.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 10)
+        create_profile = wx.Button(self, label="Complete my profile")
+        create_profile.Bind(wx.EVT_BUTTON, self._create_profile_task)
+        heading_row.Add(heading, 1, wx.ALIGN_CENTER_VERTICAL)
+        heading_row.Add(create_profile, 0)
+        self.root.Add(heading_row, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 10)
+
         tasks = list(self.snapshot.get("tasks") or [])
         if not tasks:
             self.root.Add(wx.StaticText(self, label="No assistance tasks yet."), 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
@@ -186,6 +214,17 @@ class AssistancePanel(wx.ScrolledWindow):
             title = wx.StaticText(panel, label=f"{task.get('title') or 'Task'} · {task.get('state') or ''}")
             title.SetFont(title.GetFont().Bold())
             sizer.Add(title, 0, wx.ALL | wx.EXPAND, 7)
+            progress = dict(task.get("progress") or {})
+            if progress:
+                phase = str(progress.get("phase") or progress.get("state") or "running")
+                percent = int(progress.get("percent") or 0)
+                message = str(progress.get("message") or "")
+                progress_label = wx.StaticText(panel, label=f"{phase.replace('_', ' ').title()} · {percent}% · {message}")
+                progress_label.Wrap(700)
+                sizer.Add(progress_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 7)
+                gauge = wx.Gauge(panel, range=100)
+                gauge.SetValue(max(0, min(100, percent)))
+                sizer.Add(gauge, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 7)
             notes = str(task.get("notes") or "").strip()
             if notes:
                 body = wx.StaticText(panel, label=notes[:1000])
@@ -207,3 +246,10 @@ class AssistancePanel(wx.ScrolledWindow):
                 actions.Add(button, 0)
             sizer.Add(actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 7)
             self.root.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
+    def _create_profile_task(self, _event: wx.CommandEvent) -> None:
+        try:
+            result = self.on_create_profile_task()
+            self.integration_status.SetLabel(f"Profile task ready: {result.get('title') or 'Complete professional profile'}")
+        except Exception as exc:
+            self.integration_status.SetLabel(str(exc))
