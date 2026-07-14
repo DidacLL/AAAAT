@@ -6,7 +6,6 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 
 from aaaat.dashboard_layout import DashboardLayoutState
-from aaaat.security import Mode
 
 from .card_state import CenterCardState
 from .candidature_right_panel import CandidatureOptionsPanel
@@ -23,7 +22,6 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self,
         *,
         storage_path: str,
-        mode: Mode,
         projection: dict[str, Any],
         layout_state: DashboardLayoutState,
         layout_path: str | Path,
@@ -33,7 +31,6 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.CreateStatusBar()
         self.SetStatusText("Ready")
         self.storage_path = storage_path
-        self.mode = Mode(mode)
         self.projection = projection
         self.layout_state = layout_state
         self.layout_path = Path(layout_path)
@@ -103,12 +100,12 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.toolbar.SetSizer(toolbar_sizer)
         self.title = wx.StaticText(self.toolbar, label="AAAAT")
         self.title.SetFont(self.title.GetFont().Bold().Larger())
-        self.mode_chip = wx.StaticText(self.toolbar, label="local")
+        self.storage_chip = wx.StaticText(self.toolbar, label="local")
         self.reset_button = wx.Button(self.toolbar, label="Reset")
         self.new_button = wx.Button(self.toolbar, label="+")
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
-        for control in (self.mode_chip, self.reset_button, self.new_button):
+        for control in (self.storage_chip, self.reset_button, self.new_button):
             toolbar_sizer.Add(control, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         self.root_sizer.Add(self.toolbar, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
 
