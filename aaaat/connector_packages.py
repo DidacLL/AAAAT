@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import shutil
 import stat
+import sys
 import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .runtime_conformance import bootstrap_manifest
-from .workspace_config import storage_directory
+from .workspace_config import load_workspace_config, save_workspace_settings, storage_directory
 
 PACKAGE_PROTOCOL = "aaaat.connector-package"
 PACKAGE_VERSION = 1
@@ -44,13 +44,11 @@ def connector_construction_prompt(adapter_id: str = "argv_custom_command", setti
             "Write one result JSON object to stdout.",
             "Write optional NDJSON progress events to stderr.",
             "Do not read AAAAT storage or choose artifact paths.",
+            "Support runtime_conformance and runtime_bootstrap tasks by echoing their exact nonce.",
         ],
         "runtime_bootstrap": manifest,
     }
-    return (
-        "Create one minimal user-owned connector for AAAAT. Return only a JSON object matching the following construction contract.\n\n"
-        + json.dumps(contract, ensure_ascii=False, indent=2)
-    )
+    return "Create one minimal user-owned connector for AAAAT. Return only a JSON object matching the following construction contract.\n\n" + json.dumps(contract, ensure_ascii=False, indent=2)
 
 
 def parse_connector_package(payload: str | dict[str, Any]) -> dict[str, Any]:
@@ -132,8 +130,7 @@ def install_connector_package(storage_path: str | Path, payload: str | dict[str,
             path = stage / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
-        manifest_path = stage / "aaaat-connector.json"
-        manifest_path.write_text(json.dumps(package["manifest"], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        (stage / "aaaat-connector.json").write_text(json.dumps(package["manifest"], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         entrypoint = stage / package["manifest"]["entrypoint"]
         if entrypoint.suffix.lower() in {".py", ".sh"}:
             entrypoint.chmod(entrypoint.stat().st_mode | stat.S_IXUSR)
@@ -146,8 +143,31 @@ def install_connector_package(storage_path: str | Path, payload: str | dict[str,
         shutil.copytree(stage, target)
         if backup.exists():
             shutil.rmtree(backup)
-    argv = [str(target / package["manifest"]["entrypoint"]), *package["manifest"]["argv"][1:]]
+    entrypoint = target / package["manifest"]["entrypoint"]
+    argv = ([sys.executable, str(entrypoint)] if entrypoint.suffix.lower() == ".py" else [str(entrypoint)]) + package["manifest"]["argv"][1:]
     return {"status": "installed_disabled", "name": name, "directory": str(target), "argv": argv, "preview": preview_connector_package(package)}
+
+
+def install_and_activate_connector(storage_path: str | Path, payload: str | dict[str, Any]) -> dict[str, Any]:
+    installed = install_connector_package(storage_path, payload)
+    previous = load_workspace_config(storage_path)
+    from .integration_setup import configure_integration
+    from .runtime_conformance import run_configured_runtime_conformance
+
+    configured = configure_integration(storage_path, "argv_custom_command", {"argv": installed["argv"], "timeout_seconds": 120})
+    if not configured.get("saved"):
+        return {**installed, "status": "failed_disabled", "stage": "health", "health": configured.get("health")}
+    report = run_configured_runtime_conformance(storage_path)
+    if report.get("status") == "passed":
+        return {**installed, "status": "active", "conformance": report}
+    selected = previous["local_agent_adapter"]
+    save_workspace_settings(
+        storage_path,
+        automatic_preparation=list(previous.get("automatic_preparation") or []),
+        local_agent_adapter_id=str(selected.get("id") or "manual_external_agent"),
+        local_agent_adapter_settings=dict(selected.get("settings") or {}),
+    )
+    return {**installed, "status": "failed_disabled", "stage": "conformance", "conformance": report}
 
 
 def export_connector_construction_bundle(output_path: str | Path, adapter_id: str = "argv_custom_command") -> Path:
