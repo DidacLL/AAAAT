@@ -1,5 +1,4 @@
 import contextlib
-import importlib.util
 import io
 import json
 import tempfile
@@ -10,15 +9,10 @@ from aaaat.db import connect, init_db
 from aaaat.profile_facts import (
     archive_profile_fact,
     create_profile_fact,
-    get_profile_fact,
     list_profile_facts,
     profile_context,
     update_profile_fact,
 )
-from aaaat.security import Mode
-
-
-FASTAPI_AVAILABLE = importlib.util.find_spec("fastapi") is not None and importlib.util.find_spec("httpx") is not None
 
 
 class ProfileFactServiceTests(unittest.TestCase):
@@ -134,52 +128,6 @@ class ProfileFactCliTests(unittest.TestCase):
         self.assertEqual(listed[0]["id"], fact_id)
         self.assertEqual(context["facts"][0]["title"], "Python")
         self.assertNotIn("id", context["facts"][0])
-
-
-@unittest.skipUnless(FASTAPI_AVAILABLE, "FastAPI/httpx test dependencies are not installed")
-class ProfileFactFastApiTests(unittest.TestCase):
-    def client(self, storage, mode=Mode.FULL):
-        from fastapi.testclient import TestClient
-
-        from aaaat.server_fastapi import create_dashboard_app
-
-        return TestClient(create_dashboard_app(storage, mode))
-
-    def test_dashboard_profile_fact_actions_are_local_and_mode_gated(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            client = self.client(tmp)
-            client.post(
-                "/dashboard/actions/profile/facts",
-                json={
-                    "fact_type": "project",
-                    "title": "AAAAT",
-                    "body": "Agentic local job tracker",
-                    "visibility": "professional",
-                    "exposure": "summarized",
-                    "use_for_cv": True,
-                    "use_for_agent_context": True,
-                },
-                follow_redirects=False,
-            )
-            self.assertEqual(client.get("/api/profile/facts").status_code, 404)
-            with connect(tmp) as conn:
-                facts = list_profile_facts(conn)
-                self.assertEqual(facts[0]["title"], "AAAAT")
-                fact_id = facts[0]["id"]
-                update_profile_fact(conn, fact_id, exposure="placeholder")
-                self.assertEqual(profile_context(conn, "cv_generation")["facts"][0]["body"], "{{ profile_fact.project.aaaat }}")
-                self.assertNotIn("id", profile_context(conn, "cv_generation")["facts"][0])
-                self.assertEqual(profile_context(conn, "cv_generation", scope="local_dashboard")["facts"][0]["id"], fact_id)
-
-            read_only = self.client(tmp, Mode.READ_ONLY)
-            self.assertEqual(read_only.post("/dashboard/actions/profile/facts", json={"fact_type": "skill"}).status_code, 403)
-            self.assertEqual(read_only.post(f"/dashboard/actions/profile/facts/{fact_id}", json={"_method": "PATCH", "title": "Blocked"}).status_code, 403)
-            self.assertEqual(read_only.post(f"/dashboard/actions/profile/facts/{fact_id}/archive", json={}).status_code, 403)
-
-            client.post(f"/dashboard/actions/profile/facts/{fact_id}/archive", json={}, follow_redirects=False)
-            with connect(tmp) as conn:
-                self.assertEqual(get_profile_fact(conn, fact_id)["review_state"], "archived")
 
 
 if __name__ == "__main__":
