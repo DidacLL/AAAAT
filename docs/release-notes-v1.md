@@ -15,6 +15,7 @@ AAAAT v1 is a local-first, provider-agnostic job-application workspace with a wx
 - Idempotent compatibility handling for career-plan, keyword metadata, and candidature-detail columns.
 - Tracked TeX output when `pdflatex` is unavailable.
 - Opaque task-handle agent workflows with bounded context and no broad entity mutation authority.
+- Standard wheel packaging with console launchers for the CLI, wx desktop, demo seed, and local-store upgrade.
 
 ## Runtime contract
 
@@ -33,7 +34,7 @@ External agents own reasoning. AAAAT owns bounded context, validation, persisten
 2. Install the updated package with the desktop extra:
 
    ```bash
-   python -m pip install -e .[desktop]
+   python -m pip install .[desktop]
    ```
 
 3. Upgrade the same storage path before opening the desktop application:
