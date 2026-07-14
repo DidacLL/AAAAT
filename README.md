@@ -42,7 +42,7 @@ Linux/macOS:
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e .[desktop]
+python -m pip install .[desktop]
 ```
 
 Windows PowerShell:
@@ -51,7 +51,7 @@ Windows PowerShell:
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e .[desktop]
+python -m pip install .[desktop]
 ```
 
 Check the commands:
@@ -59,6 +59,7 @@ Check the commands:
 ```bash
 aaaat --version
 aaaat-desktop --help
+aaaat-upgrade --help
 ```
 
 ## Quick start
@@ -75,6 +76,14 @@ To use another private storage path, put `--storage` before the CLI command or p
 
 ```bash
 aaaat --storage /path/to/private-aaaat init
+aaaat-desktop --storage /path/to/private-aaaat
+```
+
+For an existing store, create a backup and apply the supported v1 compatibility upgrades before launching:
+
+```bash
+python -m aaaat.cli --storage /path/to/private-aaaat backup
+aaaat-upgrade --storage /path/to/private-aaaat
 aaaat-desktop --storage /path/to/private-aaaat
 ```
 
