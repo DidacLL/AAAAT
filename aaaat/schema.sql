@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS profile_facts (
   use_for_cover_letter INTEGER NOT NULL DEFAULT 0,
   use_for_agent_context INTEGER NOT NULL DEFAULT 0,
   use_for_market_research INTEGER NOT NULL DEFAULT 0,
-  use_for_dashboard INTEGER NOT NULL DEFAULT 1,
+  use_for_desktop INTEGER NOT NULL DEFAULT 1,
   source TEXT NOT NULL DEFAULT 'user',
   review_state TEXT NOT NULL DEFAULT 'active',
   created_at TEXT NOT NULL,
