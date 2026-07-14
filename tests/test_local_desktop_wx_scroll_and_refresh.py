@@ -4,7 +4,6 @@ import unittest
 
 from aaaat.dashboard_layout import DashboardLayoutState
 from aaaat.db import connect, create_application, get_application, init_db
-from aaaat.security import Mode
 
 
 class DesktopStateAndRefreshContractTests(unittest.TestCase):
@@ -51,7 +50,7 @@ class DesktopStateAndRefreshContractTests(unittest.TestCase):
             state = DashboardLayoutState.default()
             state.selected_view = "detailed"
             state.selected_candidature_ref = app["id"]
-            projection = build_desktop_projection(tmp, Mode.FULL, state)
+            projection = build_desktop_projection(tmp, state)
             with connect(tmp) as conn:
                 stored = get_application(conn, app["id"])
 
