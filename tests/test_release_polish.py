@@ -42,6 +42,25 @@ class ReleaseEngineeringTests(unittest.TestCase):
         self.assertEqual(__version__, "1.0.0")
         self.assertEqual(importlib.metadata.version("aaaat"), __version__)
 
+    def test_distribution_metadata_identifies_license_repository_and_commands(self):
+        metadata = importlib.metadata.metadata("aaaat")
+        classifiers = metadata.get_all("Classifier") or []
+        project_urls = metadata.get_all("Project-URL") or []
+        console_scripts = {
+            item.name
+            for item in importlib.metadata.entry_points(group="console_scripts")
+            if item.value.startswith("aaaat.")
+        }
+
+        self.assertIn(
+            "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+            classifiers,
+        )
+        self.assertIn("Repository, https://github.com/DidacLL/AAAAT", project_urls)
+        self.assertTrue(
+            {"aaaat", "aaaat-desktop", "aaaat-upgrade", "aaaat-seed-desktop-demo"}.issubset(console_scripts)
+        )
+
     def test_cli_can_initialize_clean_local_storage_without_git(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = dict(os.environ)
