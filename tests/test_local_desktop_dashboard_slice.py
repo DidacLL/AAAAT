@@ -56,7 +56,9 @@ class DesktopReleaseReadinessSliceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as parent:
             projection = build_desktop_projection(Path(parent) / "fresh-private")
         self.assertEqual(projection["view_state"]["current_view"], "welcome")
-        self.assertFalse(projection["smart"]["candidature_summaries"])
+        self.assertIsNone(projection["view_state"]["selected_candidature_ref"])
+        self.assertEqual(projection["welcome"]["setup_state"], "empty")
+        self.assertFalse(projection["welcome"]["recent_or_important_candidatures"])
 
     def test_desktop_launcher_reports_missing_optional_dependency_clearly(self):
         from aaaat.ui_desktop.app import launch_desktop_dashboard
