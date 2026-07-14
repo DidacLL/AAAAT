@@ -36,6 +36,7 @@ aaaat = "aaaat.cli:main"
 aaaat-desktop = "aaaat.ui_desktop.app:main"
 aaaat-upgrade = "aaaat.upgrade:main"
 aaaat-seed-desktop-demo = "aaaat.demo_seed:main"
+aaaat-browser-host = "aaaat.browser_companion:main"
 
 [tool.setuptools]
 packages = ["aaaat", "aaaat.dispatch", "aaaat.ui_desktop"]
@@ -43,7 +44,9 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 aaaat = [
-    "schema.sql",
+    "templates/*.tex",
+    "templates/*.json",
+    "mcp/*.json",
 ]
 
 [tool.pytest.ini_options]
