@@ -10,6 +10,7 @@ from aaaat.dashboard_layout import DashboardLayoutState
 from .card_state import CenterCardState
 from .candidature_right_panel import CandidatureOptionsPanel
 from .detailed_view import DetailedViewMixin
+from .offer_dialog import OfferFirstDialog
 from .services import DesktopCommandService
 from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
 from .user_view import UserViewMixin
@@ -18,15 +19,7 @@ from .user_view import UserViewMixin
 class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx.Frame):
     """Top-level wx desktop frame for Smart, Detailed, and User desktop views."""
 
-    def __init__(
-        self,
-        *,
-        storage_path: str,
-        projection: dict[str, Any],
-        layout_state: DashboardLayoutState,
-        layout_path: str | Path,
-        command_service: DesktopCommandService | None = None,
-    ) -> None:
+    def __init__(self, *, storage_path: str, projection: dict[str, Any], layout_state: DashboardLayoutState, layout_path: str | Path, command_service: DesktopCommandService | None = None) -> None:
         super().__init__(None, title="AAAAT — Desktop", size=DEFAULT_WINDOW_SIZE)
         self.CreateStatusBar()
         self.SetStatusText("Ready")
@@ -74,7 +67,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
     def _build_menu(self) -> None:
         menu_bar = wx.MenuBar()
         file_menu = wx.Menu()
-        self.new_candidature_item = file_menu.Append(wx.ID_NEW, "New…")
+        self.new_candidature_item = file_menu.Append(wx.ID_NEW, "New candidature…")
         self.profile_item = file_menu.Append(wx.ID_ANY, "User/Profile")
         file_menu.AppendSeparator()
         self.reset_layout_item = file_menu.Append(wx.ID_ANY, "Reset layout")
@@ -103,6 +96,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.storage_chip = wx.StaticText(self.toolbar, label="local")
         self.reset_button = wx.Button(self.toolbar, label="Reset")
         self.new_button = wx.Button(self.toolbar, label="+")
+        self.new_button.SetToolTip("Create candidature from a job offer")
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
         for control in (self.storage_chip, self.reset_button, self.new_button):
@@ -157,7 +151,6 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.content_splitter.SplitVertically(self.center_panel, self.smart_right_panel, initial_center)
         sizer.Add(self.focus_splitter, 1, wx.EXPAND)
         self.smart_sizer.Add(self.focus_panel, 1, wx.ALL | wx.EXPAND, 6)
-
         self._build_nav_panel()
         self._build_center_panel()
 
@@ -181,14 +174,9 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_body_scroll = wx.ScrolledWindow(self.center_splitter, style=wx.VSCROLL)
         self.center_body_scroll.SetScrollRate(0, 12)
         self.center_notes_panel = wx.Panel(self.center_splitter, style=wx.BORDER_SIMPLE)
-        self.center_splitter.SplitHorizontally(
-            self.center_body_scroll,
-            self.center_notes_panel,
-            int(DEFAULT_WINDOW_SIZE[1] * 0.76),
-        )
+        self.center_splitter.SplitHorizontally(self.center_body_scroll, self.center_notes_panel, int(DEFAULT_WINDOW_SIZE[1] * 0.76))
         self.center_splitter.SetSashGravity(0.78)
         panel_sizer.Add(self.center_splitter, 1, wx.EXPAND)
-
         self.center_sizer = wx.BoxSizer(wx.VERTICAL)
         self.center_body_scroll.SetSizer(self.center_sizer)
         self.center_notes_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -196,23 +184,14 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_scroll = self.center_body_scroll
 
     def _on_support_surface(self, _event: wx.Event) -> None:
-        dialog = wx.TextEntryDialog(
-            self,
-            "Paste the original job posting or application text.",
-            "New candidature",
-            "",
-            style=wx.OK | wx.CANCEL | wx.CENTRE | wx.TE_MULTILINE,
-        )
-        dialog.SetSize((720, 480))
+        dialog = OfferFirstDialog(self)
         try:
             if dialog.ShowModal() != wx.ID_OK:
                 return
-            raw_offer = dialog.GetValue().strip()
+            values = dialog.values()
         finally:
             dialog.Destroy()
-        if not raw_offer:
-            return
-        created = self.command_service.create_raw_offer_candidature(raw_offer)
+        created = self.command_service.create_offer_first_candidature(**values)
         if not created:
             self.SetStatusText("New candidature was not created")
             return
@@ -223,7 +202,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._reload_projection()
         self._show_focus()
         self._refresh_all()
-        self.SetStatusText("Created candidature from pasted posting")
+        self.SetStatusText("Created candidature; preparation tasks are visible in the context rail")
 
     def _on_reset_layout(self, _event: wx.Event) -> None:
         self.layout_state = DashboardLayoutState.default()
@@ -245,12 +224,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
     def _delete_candidature_from_panel(self, ref: str) -> None:
         if not ref:
             return
-        confirmed = wx.MessageBox(
-            "Delete this candidature and its local related data?",
-            "Delete candidature",
-            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
-            self,
-        )
+        confirmed = wx.MessageBox("Delete this candidature and its local related data?", "Delete candidature", wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING, self)
         if confirmed != wx.YES:
             return
         if not self.command_service.delete_candidature(ref):
