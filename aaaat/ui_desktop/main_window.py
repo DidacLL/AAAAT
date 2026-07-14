@@ -8,9 +8,9 @@ import wx  # type: ignore[import-not-found]
 from aaaat.dashboard_layout import DashboardLayoutState
 
 from .card_state import CenterCardState
-from .candidature_right_panel import CandidatureOptionsPanel
 from .detailed_view import DetailedViewMixin
 from .offer_dialog import OfferFirstDialog
+from .release_right_panel import ReleaseCandidatureOptionsPanel
 from .services import DesktopCommandService
 from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
 from .user_view import UserViewMixin
@@ -42,7 +42,6 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._list_refs: list[str] = []
         self._overview_card_refs: list[str] = []
         self._rendered_view_keys: dict[str, tuple[Any, ...]] = {}
-
         self.Freeze()
         try:
             self._init_smart_view_helpers()
@@ -136,8 +135,9 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.content_splitter = wx.SplitterWindow(self.focus_splitter, style=wx.SP_LIVE_UPDATE)
         self.content_splitter.SetMinimumPaneSize(1)
         self.center_panel = wx.Panel(self.content_splitter)
-        self.smart_right_panel = CandidatureOptionsPanel(
+        self.smart_right_panel = ReleaseCandidatureOptionsPanel(
             self.content_splitter,
+            storage_path=self.storage_path,
             on_action=self._on_candidature_panel_action,
             on_delete=self._delete_candidature_from_panel,
             on_keyword_select=lambda term: self._select_keyword(term, refresh_center=False),
