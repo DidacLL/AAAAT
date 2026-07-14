@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from aaaat.artifacts import get_artifact, list_artifacts, update_artifact_state
+from aaaat.artifacts import get_artifact, list_artifacts, save_artifact, update_artifact_state
 from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
 from aaaat.candidatures import create_candidature, get_candidature, update_candidature
 from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, init_db, set_profile_variable, upsert_glossary_term
@@ -118,6 +118,25 @@ class DesktopCommandService:
         task_type, title, instructions, context_hint, priority = spec
         blocked = force_blocked or (action_id in _DOCUMENT_ACTIONS and not _document_inputs_ready(get_candidature(conn, candidature_ref)))
         return create_task(conn, task_type, title, application_id=candidature_ref, instructions=instructions, state="blocked" if blocked else "queued", priority=priority, context_hint=context_hint, created_by="desktop", notes=_WAITING_FOR_INPUTS_NOTE if blocked else "", idempotent=False)
+
+    def attach_existing_material(self, candidature_ref: str, path: str | Path, material_type: str, label: str = "") -> dict[str, Any] | None:
+        target = Path(path)
+        if not candidature_ref or not target.is_file():
+            return None
+        cleaned_type = str(material_type or "other").strip() or "other"
+        cleaned_label = str(label or "").strip() or target.stem
+        with connect(self.storage_path) as conn:
+            return save_artifact(
+                conn,
+                candidature_ref,
+                cleaned_type,
+                str(target),
+                cleaned_label,
+                source_context="desktop:attached",
+                review_state="draft",
+                notes="Attached from an existing local file.",
+                lifecycle_event="attach",
+            )
 
     def list_candidature_artifacts(self, candidature_ref: str) -> list[dict[str, Any]]:
         if not candidature_ref:
