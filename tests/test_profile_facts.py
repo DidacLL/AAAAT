@@ -76,7 +76,7 @@ class ProfileFactServiceTests(unittest.TestCase):
 
                 agent = profile_context(conn, "candidature_fit", scope="agent")
                 market = profile_context(conn, "market_research", scope="agent")
-                local = profile_context(conn, "candidature_fit", scope="local_dashboard")
+                local = profile_context(conn, "candidature_fit", scope="local")
 
         agent_text = json.dumps(agent)
         market_text = json.dumps(market)
