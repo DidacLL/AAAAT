@@ -4,7 +4,6 @@ from typing import Any
 
 from .dashboard_layout import DashboardLayoutState
 from .dashboard_modules import modules_for_view, validate_module_registry
-from .security import Mode, can_show_raw_intake, can_write
 
 DESKTOP_VIEWS = {"welcome", "smart", "detailed", "user"}
 VIEW_ALIASES = {
@@ -62,7 +61,6 @@ def normalize_desktop_view(view: str | None, *, has_candidatures: bool = True) -
 
 def build_dashboard_projection(
     payload: dict[str, Any],
-    mode: Mode | str = Mode.FULL,
     *,
     view: str | None = None,
     selected_application_id: str | None = None,
@@ -79,7 +77,7 @@ def build_dashboard_projection(
     selected_keyword_value = selected_keyword or layout.selected_keyword or _first_keyword(selected)
     column_state = _column_state(layout)
     return {
-        "permissions": _permissions(mode),
+        "permissions": _permissions(),
         "view_state": {
             "current_view": current_view,
             "selected_candidature_ref": selected.get("id") if selected else None,
@@ -105,15 +103,8 @@ def _layout(layout_state: DashboardLayoutState | dict[str, Any] | None) -> Dashb
     return DashboardLayoutState.default()
 
 
-def _permissions(mode: Mode | str) -> dict[str, bool | str]:
-    resolved = Mode(mode)
-    return {
-        "mode": resolved.value,
-        "can_write": can_write(resolved),
-        "can_show_raw_intake": can_show_raw_intake(resolved),
-        "is_static_demo": resolved == Mode.STATIC_DEMO,
-        "allow_dashboard_actions": can_write(resolved),
-    }
+def _permissions() -> dict[str, bool | str]:
+    return {"surface": "local_desktop", "can_write": True, "can_show_raw_intake": True}
 
 
 def _selected_application(apps: list[dict[str, Any]], selected_id: str | None) -> dict[str, Any] | None:
@@ -152,7 +143,7 @@ def _user_projection(payload: dict[str, Any]) -> dict[str, Any]:
     profile_variables = payload.get("profile_variables") or {}
     variable_records = list(payload.get("profile_variable_records") or [])
     profile_facts = list(payload.get("profile_facts") or [])
-    profile_context = payload.get("profile_context_dashboard") or {}
+    profile_context = payload.get("profile_context_local") or {}
     missing = list(payload.get("missing_profile_variables") or [])
     return {
         "profile_summary": {"variable_count": len(profile_variables), "fact_count": len(profile_facts), "missing_variables": list(missing), "ready_for_templates": not bool(missing)},
@@ -187,7 +178,7 @@ def _profile_fact_items(facts: list[Any]) -> list[dict[str, Any]]:
     items = []
     for fact in facts:
         if isinstance(fact, dict):
-            items.append({"fact_type": fact.get("fact_type") or "", "title": fact.get("title") or "", "body": fact.get("body") or "", "tags": list(fact.get("tags") or []), "visibility": fact.get("visibility") or "", "exposure": fact.get("exposure") or "", "source": fact.get("source") or "", "review_state": fact.get("review_state") or "", "usage": {"cv": bool(fact.get("use_for_cv")), "cover_letter": bool(fact.get("use_for_cover_letter")), "agent_context": bool(fact.get("use_for_agent_context")), "market_research": bool(fact.get("use_for_market_research")), "dashboard": bool(fact.get("use_for_dashboard"))}, "updated_at": fact.get("updated_at") or ""})
+            items.append({"fact_type": fact.get("fact_type") or "", "title": fact.get("title") or "", "body": fact.get("body") or "", "tags": list(fact.get("tags") or []), "visibility": fact.get("visibility") or "", "exposure": fact.get("exposure") or "", "source": fact.get("source") or "", "review_state": fact.get("review_state") or "", "usage": {"cv": bool(fact.get("use_for_cv")), "cover_letter": bool(fact.get("use_for_cover_letter")), "agent_context": bool(fact.get("use_for_agent_context")), "market_research": bool(fact.get("use_for_market_research")), "desktop": bool(fact.get("use_for_desktop"))}, "updated_at": fact.get("updated_at") or ""})
     return items
 
 
