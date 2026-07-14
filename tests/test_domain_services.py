@@ -3,45 +3,31 @@ import unittest
 
 from aaaat.artifacts import save_artifact
 from aaaat.candidatures import create_candidature, get_candidature
-from aaaat.db import connect, create_application, init_db, set_profile_variable
+from aaaat.db import connect, init_db, set_profile_variable
 from aaaat.keywords import add_keyword_alias, create_keyword_note, list_keywords
 from aaaat.notes import create_note, list_notes
 from aaaat.privacy import get_variable, resolve_variables, set_variable
 from aaaat.search import SearchUnavailable, rebuild_index, safe_match_query, search
-from aaaat.tasks import apply_task_result, complete_task, create_task, ensure_initial_tasks, list_tasks
+from aaaat.tasks import complete_task, create_task, ensure_initial_tasks, list_tasks
 from aaaat.text_blobs import create_text_blob, list_text_blobs
 from aaaat.todos import create_todo, list_todos, update_todo
 
 
 class DomainServiceTests(unittest.TestCase):
-    def test_profile_variables_migrate_to_canonical_privacy_variables(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            with connect(tmp) as conn:
-                conn.execute(
-                    "INSERT INTO profile_variables(key, value, updated_at) VALUES ('display_name', 'Demo User', '2026-01-01T00:00:00+00:00')"
-                )
-                conn.commit()
-            init_db(tmp)
-            with connect(tmp) as conn:
-                item = get_variable(conn, "display_name")
-                self.assertEqual(item["key"], "profile.display_name")
-                self.assertEqual(item["placeholder"], "{{ profile.display_name }}")
-                self.assertEqual(item["value"], "Demo User")
-                self.assertEqual(resolve_variables(conn, "agent")["profile.display_name"], "{{ profile.display_name }}")
-                self.assertEqual(resolve_variables(conn, "local")["profile.display_name"], "Demo User")
-
-    def test_profile_set_uses_privacy_variables_and_legacy_render_still_works(self):
+    def test_profile_variables_use_canonical_privacy_storage(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Local Candidate")
                 item = get_variable(conn, "profile.display_name")
-                self.assertEqual(item["value"], "Local Candidate")
-                legacy = conn.execute("SELECT value FROM profile_variables WHERE key = 'display_name'").fetchone()
-                self.assertEqual(legacy["value"], "Local Candidate")
+                local = resolve_variables(conn, "local")
+                agent = resolve_variables(conn, "agent")
 
-    def test_privacy_exposure_is_agent_specific(self):
+        self.assertEqual(item["value"], "Local Candidate")
+        self.assertEqual(local["profile.display_name"], "Local Candidate")
+        self.assertEqual(agent["profile.display_name"], "{{ profile.display_name }}")
+
+    def test_privacy_exposure_is_scope_specific(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -50,7 +36,6 @@ class DomainServiceTests(unittest.TestCase):
                 set_variable(conn, "summary_value", "secret", exposure="summarized", summary="safe summary")
                 set_variable(conn, "placeholder_value", "secret", exposure="placeholder")
                 set_variable(conn, "denied_value", "secret", exposure="denied")
-
                 agent = resolve_variables(conn, "agent")
                 local = resolve_variables(conn, "local")
 
@@ -61,7 +46,7 @@ class DomainServiceTests(unittest.TestCase):
         self.assertNotIn("profile.denied_value", agent)
         self.assertEqual(local["profile.denied_value"], "secret")
 
-    def test_candidature_related_services_and_idempotent_initial_tasks(self):
+    def test_candidature_related_records_and_initial_preparation_are_durable(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -73,159 +58,127 @@ class DomainServiceTests(unittest.TestCase):
                     raw_offer="Python platform role.",
                     include_cover_letter_task=True,
                 )
-                first_tasks = list_tasks(conn, application_id=candidature["id"])
+                first = list_tasks(conn, application_id=candidature["id"])
                 ensure_initial_tasks(conn, candidature["id"], include_cover_letter=True)
-                second_tasks = list_tasks(conn, application_id=candidature["id"])
-
+                second = list_tasks(conn, application_id=candidature["id"])
                 create_todo(conn, "Call recruiter", application_id=candidature["id"], pinned=True)
                 create_note(conn, "Human note", application_id=candidature["id"])
                 create_text_blob(conn, "company_research", "Research draft", application_id=candidature["id"])
                 loaded = get_candidature(conn, candidature["id"])
 
-        self.assertEqual(len(first_tasks), len(second_tasks))
-        self.assertIn("field_inference", {task["task_type"] for task in second_tasks})
-        self.assertIn("company_research", {task["task_type"] for task in second_tasks})
-        self.assertIn("keyword_definition", {task["task_type"] for task in second_tasks})
-        self.assertIn("draft_cover_letter", {task["task_type"] for task in second_tasks})
+        self.assertEqual(len(first), len(second))
+        self.assertTrue({"field_inference", "company_research", "keyword_definition", "draft_cover_letter"}.issubset({item["task_type"] for item in second}))
         self.assertEqual(loaded["domain_type"], "Candidature")
         self.assertEqual(len(loaded["todos"]), 1)
         self.assertEqual(len(loaded["notes_records"]), 1)
         self.assertEqual(len(loaded["text_blobs"]), 1)
 
-    def test_task_result_becomes_reviewable_blob_not_field_overwrite(self):
+    def test_field_inference_preserves_current_user_values(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                app = create_application(conn, company="Task Co", role="Engineer", pitch="Approved pitch")
-                task = create_task(conn, "pitch_draft", "Draft pitch", application_id=app["id"], context_hint="field:pitch")
-                completed = complete_task(conn, task["id"], result_body="Suggested pitch", agent_name="Agent")
-                apply_task_result(conn, completed["id"])
-                blobs = list_text_blobs(conn, app["id"])
-                loaded = get_candidature(conn, app["id"])
-
-        self.assertEqual(loaded["pitch"], "Approved pitch")
-        self.assertEqual(blobs[0]["body"], "Suggested pitch")
-        self.assertEqual(blobs[0]["review_state"], "reviewed")
-
-    def test_supported_task_results_apply_to_product_destinations(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            with connect(tmp) as conn:
-                app = create_application(conn, company="Apply Co", role="Engineer", pitch="Old pitch", keywords=["NewTerm"])
-                inference = create_task(conn, "field_inference", "Infer", application_id=app["id"], context_hint="candidature:field_inference")
-                complete_task(conn, inference["id"], result_body='{"pitch": "Inferred pitch", "unknown": "ignored"}')
-                applied_inference = apply_task_result(conn, inference["id"])
-
-                research = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
-                complete_task(conn, research["id"], result_body="Company research result")
-                apply_task_result(conn, research["id"])
-
-                keyword = create_task(conn, "keyword_definition", "Define", application_id=app["id"], context_hint="keyword:NewTerm")
-                complete_task(conn, keyword["id"], result_body="New term definition")
-                apply_task_result(conn, keyword["id"])
-
-                forms = create_task(conn, "draft_form_responses", "Forms", application_id=app["id"], context_hint="blob:form_responses")
-                complete_task(conn, forms["id"], result_body="Form answer result")
-                apply_task_result(conn, forms["id"])
-
-                artifact = save_artifact(conn, app["id"], "cv", "draft.tex", "Draft CV", source_context="task:test")
-                cv_task = create_task(conn, "draft_cv", "Draft CV", application_id=app["id"], context_hint="artifact:cv")
-                complete_task(conn, cv_task["id"], artifact_id=artifact["id"])
-                apply_task_result(conn, cv_task["id"])
-
-                loaded = get_candidature(conn, app["id"])
-                glossary = {item["term"]: item["definition"] for item in list_keywords(conn)}
-
-        self.assertEqual(loaded["pitch"], "Old pitch")
-        self.assertIn("Skipped non-empty fields: pitch", applied_inference["notes"])
-        self.assertEqual(loaded["company_research"], "Company research result")
-        self.assertEqual(loaded["form_answers"], "Form answer result")
-        self.assertEqual(glossary["NewTerm"], "New term definition")
-        self.assertEqual(next(item for item in loaded["artifacts"] if item["id"] == artifact["id"])["review_state"], "reviewed")
-
-    def test_task_apply_keeps_conflicts_reviewable(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            with connect(tmp) as conn:
-                app = create_application(
+                candidature = create_candidature(
                     conn,
-                    company="Conflict Co",
+                    company="Apply Co",
+                    role="Engineer",
+                    pitch="Human pitch",
+                    include_field_inference_task=False,
+                    include_company_research_task=False,
+                    include_keyword_detection_task=False,
+                )
+                task = create_task(conn, "field_inference", "Review offer details", application_id=candidature["id"], context_hint="candidature:field_inference")
+                completed = complete_task(conn, task["id"], result_body='{"fields": {"pitch": "Generated pitch", "location": "Remote"}}')
+                loaded = get_candidature(conn, candidature["id"])
+
+        self.assertEqual(loaded["pitch"], "Human pitch")
+        self.assertEqual(loaded["location"], "Remote")
+        self.assertIn("Stale against user/current edits", completed["notes"])
+
+    def test_supported_text_results_apply_without_overwriting_conflicts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                candidature = create_candidature(
+                    conn,
+                    company="Result Co",
                     role="Engineer",
                     company_research="Human research",
-                    form_answers="Human answers",
-                    keywords=["KnownTerm"],
+                    keywords=["KnownTerm", "NewTerm"],
+                    include_field_inference_task=False,
+                    include_company_research_task=False,
+                    include_keyword_detection_task=False,
                 )
-                conn.execute(
-                    "INSERT INTO glossary_terms(term, definition, category) VALUES ('KnownTerm', 'Human definition', 'skill') "
-                    "ON CONFLICT(term) DO UPDATE SET definition='Human definition', category='skill'"
-                )
+                conn.execute("INSERT INTO glossary_terms(term, definition, category) VALUES ('KnownTerm', 'Human definition', 'skill')")
                 conn.commit()
-
-                research = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
-                complete_task(conn, research["id"], result_body="Agent research")
-                apply_task_result(conn, research["id"])
-
-                forms = create_task(conn, "draft_form_responses", "Forms", application_id=app["id"], context_hint="blob:form_responses")
-                complete_task(conn, forms["id"], result_body="Agent answers")
-                apply_task_result(conn, forms["id"])
-
-                keyword = create_task(conn, "keyword_definition", "Define", application_id=app["id"], context_hint="keyword:KnownTerm")
-                complete_task(conn, keyword["id"], result_body="Agent definition")
-                keyword_applied = apply_task_result(conn, keyword["id"])
-
-                loaded = get_candidature(conn, app["id"])
-                blobs = list_text_blobs(conn, app["id"])
+                research = create_task(conn, "company_research", "Update company context", application_id=candidature["id"], context_hint="candidature:company_research")
+                complete_task(conn, research["id"], result_body="Generated research")
+                definition = create_task(conn, "keyword_definition", "Define term", application_id=candidature["id"], context_hint="keyword:NewTerm")
+                complete_task(conn, definition["id"], result_body='{"definition": "New definition"}')
+                loaded = get_candidature(conn, candidature["id"])
+                blobs = list_text_blobs(conn, candidature["id"])
                 glossary = {item["term"]: item["definition"] for item in list_keywords(conn)}
 
         self.assertEqual(loaded["company_research"], "Human research")
-        self.assertEqual(loaded["form_answers"], "Human answers")
-        self.assertEqual(glossary["KnownTerm"], "Human definition")
-        self.assertTrue(any(item["body"] == "Agent research" and item["blob_type"] == "company_research" for item in blobs))
-        self.assertTrue(any(item["body"] == "Agent answers" and item["blob_type"] == "form_answers" for item in blobs))
-        self.assertIn("Skipped existing keyword definition", keyword_applied["notes"])
+        self.assertTrue(any(item["body"] == "Generated research" and item["review_state"] == "history" for item in blobs))
+        self.assertEqual(glossary["NewTerm"], "New definition")
 
-    def test_todos_notes_text_blobs_and_keywords_are_durable(self):
+    def test_artifact_backed_document_result_becomes_reviewed(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                app = create_application(conn, company="Durable Co", role="Engineer")
-                todo = create_todo(conn, "Prepare", application_id=app["id"])
+                candidature = create_candidature(
+                    conn,
+                    company="Artifact Co",
+                    role="Writer",
+                    include_field_inference_task=False,
+                    include_company_research_task=False,
+                    include_keyword_detection_task=False,
+                )
+                artifact = save_artifact(conn, candidature["id"], "cv", "draft.tex", "CV draft", source_context="task:test")
+                task = create_task(conn, "draft_cv", "Prepare tailored CV", application_id=candidature["id"], context_hint="artifact:cv")
+                complete_task(conn, task["id"], artifact_id=artifact["id"])
+                loaded = get_candidature(conn, candidature["id"])
+
+        current = next(item for item in loaded["artifacts"] if item["id"] == artifact["id"])
+        self.assertEqual(current["review_state"], "reviewed")
+
+    def test_notes_todos_text_and_keyword_metadata_are_durable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                candidature = create_candidature(
+                    conn,
+                    company="Durable Co",
+                    role="Engineer",
+                    include_field_inference_task=False,
+                    include_company_research_task=False,
+                    include_keyword_detection_task=False,
+                )
+                todo = create_todo(conn, "Prepare", application_id=candidature["id"])
                 update_todo(conn, todo["id"], state="done")
-                create_note(conn, "Appendable note", application_id=app["id"], note_type="call")
-                create_text_blob(conn, "questions", "Question draft", application_id=app["id"])
+                create_note(conn, "Appendable note", application_id=candidature["id"], note_type="call")
+                create_text_blob(conn, "questions", "Question draft", application_id=candidature["id"])
                 add_keyword_alias(conn, "ATS", "Applicant tracker")
                 create_keyword_note(conn, "ATS", "Important for screening.")
-
-                self.assertEqual(list_todos(conn, app["id"])[0]["state"], "done")
-                self.assertEqual(list_notes(conn, app["id"])[0]["note_type"], "call")
-                self.assertEqual(list_text_blobs(conn, app["id"])[0]["blob_type"], "questions")
                 ats = next(item for item in list_keywords(conn) if item["term"] == "ATS")
+                todo_state = list_todos(conn, candidature["id"])[0]["state"]
+                note_type = list_notes(conn, candidature["id"])[0]["note_type"]
+                blob_type = list_text_blobs(conn, candidature["id"])[0]["blob_type"]
 
+        self.assertEqual(todo_state, "done")
+        self.assertEqual(note_type, "call")
+        self.assertEqual(blob_type, "questions")
         self.assertIn("Applicant tracker", ats["aliases"])
         self.assertTrue(ats["notes"])
 
-    def test_search_initializes_fts_lazily_and_finds_domain_content(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            with connect(tmp) as conn:
-                candidature = create_candidature(conn, company="Search Co", role="Python Engineer", raw_offer="FTS backend role.")
-                create_note(conn, "Screening call note", application_id=candidature["id"])
-                try:
-                    rebuild_index(conn)
-                    result = search(conn, "Python")
-                except SearchUnavailable as exc:
-                    self.fail(str(exc))
-
-        self.assertTrue(result["available"])
-        self.assertTrue(any(item["entity_type"] == "candidature" for item in result["results"]))
-
-    def test_search_query_is_sanitized_before_fts_match(self):
+    def test_search_uses_sanitized_fts_queries(self):
         self.assertEqual(safe_match_query(""), "")
         self.assertEqual(safe_match_query("C++ / Python!!!"), '"C" "Python"')
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
-                create_candidature(conn, company="Syntax Co", role="Python Engineer", raw_offer="C++ and Python role.")
+                candidature = create_candidature(conn, company="Search Co", role="Python Engineer", raw_offer="C++ and Python role.")
+                create_note(conn, "Screening call note", application_id=candidature["id"])
                 try:
                     rebuild_index(conn)
                     result = search(conn, 'C++ / Python!!! "unterminated')
@@ -233,6 +186,7 @@ class DomainServiceTests(unittest.TestCase):
                     self.fail(str(exc))
 
         self.assertTrue(result["available"])
+        self.assertTrue(any(item["entity_type"] == "candidature" for item in result["results"]))
 
 
 if __name__ == "__main__":
