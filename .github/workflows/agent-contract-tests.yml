@@ -20,8 +20,22 @@ jobs:
         run: python -m compileall -q aaaat tests
       - name: Agent boundary behavior
         run: python -B -m unittest tests.test_agent_access
-      - name: Core domain behavior
-        run: python -B -m unittest tests.test_domain_services
+      - name: Domain profile variables
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_profile_variables_use_canonical_privacy_storage
+      - name: Domain privacy exposure
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_privacy_exposure_is_scope_specific
+      - name: Domain candidature related records
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_candidature_related_records_and_initial_preparation_are_durable
+      - name: Domain field inference conflicts
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_field_inference_preserves_current_user_values
+      - name: Domain text result conflicts
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_supported_text_results_apply_without_overwriting_conflicts
+      - name: Domain artifact result
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_artifact_backed_document_result_becomes_reviewed
+      - name: Domain durable records
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_notes_todos_text_and_keyword_metadata_are_durable
+      - name: Domain search behavior
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_search_uses_sanitized_fts_queries
       - name: Profile fact behavior
         run: python -B -m unittest tests.test_profile_facts
       - name: Template and artifact behavior
