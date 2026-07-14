@@ -74,8 +74,20 @@ jobs:
         run: python -B -m unittest tests.test_demo_seed_safety
       - name: Career plan behavior
         run: python -B -m unittest tests.test_career_plans
-      - name: Agent action behavior
-        run: python -B -m unittest tests.test_agent_actions
+      - name: Agent context bundle action
+        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_context_bundle_uses_agent_profile_exposure_and_career_plan
+      - name: Agent create candidature action
+        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_create_candidature_preserves_source_outputs_and_renders_locally
+      - name: Agent follow-up request action
+        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_create_candidature_requested_tasks_queue_bounded_follow_up
+      - name: Agent completed-output action
+        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_requested_tasks_skip_completed_outputs
+      - name: Agent requested-action validation
+        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_requested_tasks_reject_unsupported_types_and_malformed_keyword_tasks
+      - name: Agent CV render action
+        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_cv_render_uses_existing_template_data
+      - name: Agent packet validation
+        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_action_validation_rejects_unknown_and_malformed_packets
       - name: Dispatch behavior
         run: python -B -m unittest tests.test_dispatch
       - name: Command dispatch behavior
