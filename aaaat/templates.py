@@ -66,7 +66,7 @@ def render_string(template: str, values: dict[str, Any], required: list[str] | N
 
 def context_for_application(conn: sqlite3.Connection, application_id: str | None = None, extra: dict[str, Any] | None = None) -> dict[str, Any]:
     values: dict[str, Any] = {}
-    for key, value in resolve_variables(conn, "local_render").items():
+    for key, value in resolve_variables(conn, "local").items():
         values[key] = tex_value(key, value)
     if application_id:
         app = get_application(conn, application_id)
