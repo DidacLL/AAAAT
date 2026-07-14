@@ -1,11 +1,93 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from typing import Any
 
-from .db import set_profile_variable
+from .db import profile_variables, set_profile_variable
 
+PROFILE_COMPLETION_KEYS = (
+    "profile.display_name",
+    "profile.email",
+    "profile.phone",
+    "profile.location",
+    "profile.main_page_url",
+    "profile.links",
+    "profile.summary.default",
+    "profile.experience",
+    "profile.education",
+    "profile.skills",
+    "profile.projects",
+    "profile.career.objectives",
+    "profile.career.constraints",
+    "profile.career.target_roles",
+    "profile.career.target_markets",
+    "profile.career.direction",
+    "profile.writing.tone",
+    "profile.writing.preferences",
+    "profile.cv.reusable_material",
+    "profile.cover_letter.reusable_material",
+)
 DENIED_PROFILE_KEYS = {"profile.internal_id", "profile.storage_path"}
+
+
+def profile_completion_context(conn: sqlite3.Connection) -> dict[str, Any]:
+    values = profile_variables(conn)
+    current = {key: str(values.get(key) or "") for key in PROFILE_COMPLETION_KEYS}
+    return {
+        "current_fields": current,
+        "missing_fields": [key for key, value in current.items() if not value.strip()],
+        "protected_fields": [key for key, value in current.items() if value.strip()],
+        "instructions": [
+            "Return useful values only for eligible profile fields.",
+            "Do not replace protected non-empty fields unless replace_existing is explicitly true and justified.",
+            "Do not invent personal contact details or unverifiable experience.",
+            "Omit fields that require information not present in the supplied context.",
+        ],
+    }
+
+
+def parse_profile_completion_result(result_body: str) -> tuple[dict[str, Any], bool]:
+    try:
+        payload = json.loads(result_body)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Profile completion result is not valid JSON: {exc.msg}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Profile completion result must be an object")
+    variables = payload.get("variables", payload.get("fields"))
+    if not isinstance(variables, dict):
+        raise ValueError("Profile completion result requires a variables object")
+    return variables, bool(payload.get("replace_existing") or payload.get("replace"))
+
+
+def apply_profile_completion_result(
+    conn: sqlite3.Connection,
+    result_body: str,
+    *,
+    agent_name: str = "",
+    agent_runtime: str = "",
+) -> dict[str, Any]:
+    variables, replace_existing = parse_profile_completion_result(result_body)
+    current = profile_variables(conn)
+    bounded: dict[str, Any] = {}
+    skipped: list[str] = []
+    for key, value in variables.items():
+        cleaned = str(key).strip()
+        if cleaned not in PROFILE_COMPLETION_KEYS:
+            raise ValueError(f"Profile variable is not permitted: {cleaned}")
+        if str(current.get(cleaned) or "").strip() and not replace_existing:
+            skipped.append(cleaned)
+            continue
+        bounded[cleaned] = value
+    acknowledgement = submit_profile_updates(
+        conn,
+        bounded,
+        agent_name=agent_name,
+        agent_runtime=agent_runtime,
+    )
+    acknowledgement["skipped"] = sorted(skipped)
+    acknowledgement["replace_existing"] = replace_existing
+    return acknowledgement
 
 
 def submit_profile_updates(
@@ -21,7 +103,7 @@ def submit_profile_updates(
     updated: list[str] = []
     for raw_key, value in variables.items():
         key = str(raw_key).strip()
-        if not key.startswith("profile.") or key in DENIED_PROFILE_KEYS:
+        if key not in PROFILE_COMPLETION_KEYS or key in DENIED_PROFILE_KEYS:
             raise ValueError(f"Profile variable is not permitted: {key}")
         if not isinstance(value, str) or len(value) > 20000:
             raise ValueError(f"Profile variable must be bounded text: {key}")
