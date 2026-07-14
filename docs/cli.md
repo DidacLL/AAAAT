@@ -39,7 +39,6 @@ By default this writes a timestamped zip under `.private/backups/` containing th
 ```bash
 python -m aaaat.cli init
 aaaat-desktop
-aaaat-desktop --read-only
 aaaat-seed-desktop-demo --reset --count 24
 python -m aaaat.cli backup
 python -m aaaat.cli backup --output /safe/private/backups --force
@@ -115,7 +114,7 @@ python -m aaaat.cli todo list
 python -m aaaat.cli note add --application-id <id> --body "..."
 python -m aaaat.cli note list --application-id <id>
 python -m aaaat.cli blob add --application-id <id> --type company_research --body "..."
-python -m aaaat.cli blob list --application-id <id>
+python -m aaaat.cli blob list <id>
 python -m aaaat.cli keyword alias ATS "Applicant tracker"
 python -m aaaat.cli keyword note ATS --body "..."
 python -m aaaat.cli variable set display_name "Local User"
