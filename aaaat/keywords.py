@@ -6,7 +6,19 @@ from typing import Any
 from .db import new_id, row_to_dict, upsert_glossary_term, utc_now
 
 
+def ensure_keyword_metadata_schema(conn: sqlite3.Connection) -> None:
+    alias_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(keyword_aliases)").fetchall()}
+    if "created_at" not in alias_columns:
+        conn.execute("ALTER TABLE keyword_aliases ADD COLUMN created_at TEXT NOT NULL DEFAULT ''")
+
+    note_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(keyword_notes)").fetchall()}
+    if "created_by" not in note_columns:
+        conn.execute("ALTER TABLE keyword_notes ADD COLUMN created_by TEXT NOT NULL DEFAULT 'user'")
+    conn.commit()
+
+
 def list_keywords(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    ensure_keyword_metadata_schema(conn)
     rows = conn.execute("SELECT * FROM glossary_terms ORDER BY term").fetchall()
     items = [row_to_dict(row) for row in rows]
     for item in items:
@@ -16,20 +28,23 @@ def list_keywords(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 def add_keyword_alias(conn: sqlite3.Connection, keyword: str, alias: str) -> dict[str, Any]:
+    ensure_keyword_metadata_schema(conn)
     cleaned_keyword = keyword.strip()
     cleaned_alias = alias.strip()
     if not cleaned_keyword or not cleaned_alias:
         raise ValueError("Keyword and alias are required")
+    created_at = utc_now()
     conn.execute("INSERT OR IGNORE INTO glossary_terms(term, definition, category) VALUES (?, '', '')", (cleaned_keyword,))
     conn.execute(
         "INSERT OR IGNORE INTO keyword_aliases(keyword, alias, created_at) VALUES (?, ?, ?)",
-        (cleaned_keyword, cleaned_alias, utc_now()),
+        (cleaned_keyword, cleaned_alias, created_at),
     )
     conn.commit()
-    return {"keyword": cleaned_keyword, "alias": cleaned_alias}
+    return {"keyword": cleaned_keyword, "alias": cleaned_alias, "created_at": created_at}
 
 
 def keyword_aliases(conn: sqlite3.Connection, keyword: str) -> list[str]:
+    ensure_keyword_metadata_schema(conn)
     rows = conn.execute(
         "SELECT alias FROM keyword_aliases WHERE keyword = ? ORDER BY alias",
         (keyword,),
@@ -44,6 +59,7 @@ def create_keyword_note(
     *,
     created_by: str = "user",
 ) -> dict[str, Any]:
+    ensure_keyword_metadata_schema(conn)
     cleaned_keyword = keyword.strip()
     if not cleaned_keyword:
         raise ValueError("Keyword is required")
@@ -53,7 +69,7 @@ def create_keyword_note(
         "id": new_id("keyword_note"),
         "keyword": cleaned_keyword,
         "body": body,
-        "created_by": created_by,
+        "created_by": created_by or "user",
         "created_at": now,
         "updated_at": now,
     }
@@ -67,6 +83,7 @@ def create_keyword_note(
 
 
 def keyword_notes(conn: sqlite3.Connection, keyword: str) -> list[dict[str, Any]]:
+    ensure_keyword_metadata_schema(conn)
     rows = conn.execute(
         "SELECT * FROM keyword_notes WHERE keyword = ? ORDER BY updated_at DESC",
         (keyword,),
