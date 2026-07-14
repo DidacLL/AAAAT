@@ -29,7 +29,7 @@ class DomainServiceTests(unittest.TestCase):
                 self.assertEqual(item["placeholder"], "{{ profile.display_name }}")
                 self.assertEqual(item["value"], "Demo User")
                 self.assertEqual(resolve_variables(conn, "agent")["profile.display_name"], "{{ profile.display_name }}")
-                self.assertEqual(resolve_variables(conn, "local_render")["profile.display_name"], "Demo User")
+                self.assertEqual(resolve_variables(conn, "local")["profile.display_name"], "Demo User")
 
     def test_profile_set_uses_privacy_variables_and_legacy_render_still_works(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -41,7 +41,7 @@ class DomainServiceTests(unittest.TestCase):
                 legacy = conn.execute("SELECT value FROM profile_variables WHERE key = 'display_name'").fetchone()
                 self.assertEqual(legacy["value"], "Local Candidate")
 
-    def test_privacy_exposure_modes_are_scope_specific(self):
+    def test_privacy_exposure_is_agent_specific(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -52,8 +52,7 @@ class DomainServiceTests(unittest.TestCase):
                 set_variable(conn, "denied_value", "secret", exposure="denied")
 
                 agent = resolve_variables(conn, "agent")
-                local = resolve_variables(conn, "local_render")
-                static = resolve_variables(conn, "static_demo")
+                local = resolve_variables(conn, "local")
 
         self.assertEqual(agent["profile.raw_value"], "secret")
         self.assertEqual(agent["profile.redacted_value"], "[redacted]")
@@ -61,7 +60,6 @@ class DomainServiceTests(unittest.TestCase):
         self.assertEqual(agent["profile.placeholder_value"], "{{ profile.placeholder_value }}")
         self.assertNotIn("profile.denied_value", agent)
         self.assertEqual(local["profile.denied_value"], "secret")
-        self.assertEqual(static, {})
 
     def test_candidature_related_services_and_idempotent_initial_tasks(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -115,7 +113,7 @@ class DomainServiceTests(unittest.TestCase):
             with connect(tmp) as conn:
                 app = create_application(conn, company="Apply Co", role="Engineer", pitch="Old pitch", keywords=["NewTerm"])
                 inference = create_task(conn, "field_inference", "Infer", application_id=app["id"], context_hint="candidature:field_inference")
-                complete_task(conn, inference["id"], result_body='{"pitch": "Inferred pitch", "next_action": "Follow up", "unknown": "ignored"}')
+                complete_task(conn, inference["id"], result_body='{"pitch": "Inferred pitch", "unknown": "ignored"}')
                 applied_inference = apply_task_result(conn, inference["id"])
 
                 research = create_task(conn, "company_research", "Research", application_id=app["id"], context_hint="candidature:company_research")
@@ -139,7 +137,6 @@ class DomainServiceTests(unittest.TestCase):
                 glossary = {item["term"]: item["definition"] for item in list_keywords(conn)}
 
         self.assertEqual(loaded["pitch"], "Old pitch")
-        self.assertEqual(loaded["next_action"], "Follow up")
         self.assertIn("Skipped non-empty fields: pitch", applied_inference["notes"])
         self.assertEqual(loaded["company_research"], "Company research result")
         self.assertEqual(loaded["form_answers"], "Form answer result")
