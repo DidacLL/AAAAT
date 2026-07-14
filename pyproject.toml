@@ -4,8 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aaaat"
-version = "0.1.0"
+version = "1.0.0"
 description = "Local-first job application tracker and artifact generator."
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
