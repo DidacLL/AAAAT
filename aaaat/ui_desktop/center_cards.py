@@ -179,12 +179,20 @@ class CenterCardBuilder:
         return "\n".join(paragraphs)
 
     def _bind_wrap(self, parent: wx.Window, label: wx.StaticText, padding: int) -> None:
+        raw_label = label.GetLabel()
+        setattr(label, "_aaaat_raw_label", raw_label)
+
         def apply_wrap() -> None:
             try:
-                if label and not label.IsBeingDeleted():
-                    width = max(180, int(parent.GetClientSize().GetWidth() or 360) - padding)
-                    label.Wrap(width)
-                    parent.Layout()
+                if not label or label.IsBeingDeleted():
+                    return
+                width = int(parent.GetClientSize().GetWidth() or 0) - padding
+                if width <= 0:
+                    return
+                label.SetLabel(str(getattr(label, "_aaaat_raw_label", raw_label)))
+                label.Wrap(width)
+                label.InvalidateBestSize()
+                parent.Layout()
             except RuntimeError:
                 pass
 
