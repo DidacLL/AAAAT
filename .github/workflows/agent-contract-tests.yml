@@ -94,8 +94,14 @@ jobs:
         run: python -B -m unittest tests.test_dispatch_command
       - name: Review queue behavior
         run: python -B -m unittest tests.test_review_queue
-      - name: CLI and descriptor behavior
-        run: python -B -m unittest tests.test_cli_mcp
+      - name: Local CLI behavior
+        run: python -B -m unittest tests.test_cli_mcp.CliMcpTests.test_cli_basic_local_commands_work
+      - name: Agent CLI behavior
+        run: python -B -m unittest tests.test_cli_mcp.CliMcpTests.test_agent_cli_uses_opaque_handle_and_cli_write_back
+      - name: Agent action CLI behavior
+        run: python -B -m unittest tests.test_cli_mcp.CliMcpTests.test_agent_action_cli_accepts_bounded_create_candidature_packet
+      - name: Descriptor behavior
+        run: python -B -m unittest tests.test_cli_mcp.CliMcpTests.test_mcp_descriptor_validates_current_capability_contract
       - name: Database and backup behavior
         run: python -B -m unittest tests.test_db
       - name: Dependency policy behavior
