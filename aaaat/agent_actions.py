@@ -19,16 +19,15 @@ DICT_ACTION_SECTIONS = ACTION_SECTIONS - {"requested_tasks"}
 PACKET_KEYS = {"action", "payload"}
 SOURCE_MATERIAL_FIELDS = {"offer_text", "offer_url", "offer_source", "application_form_text", "user_instructions", "conversation_context"}
 CANDIDATURE_FIELDS = {
-    "company", "role", "status", "priority", "source", "source_url", "location", "remote_mode", "next_action",
+    "company", "role", "status", "priority", "source", "source_url", "location", "remote_mode",
     "offer_snapshot", "keywords", "description", "salary_expectation", "publication_date", "application_date", "tech_stack", "valuation",
 }
 OUTPUT_FIELDS = {
-    "company_research", "technical_reading", "call_signals", "pitch", "smart_question", "risks_to_avoid",
-    "prepare_first", "prepare_later", "form_answers", "cover_letter_body", "cv_positioning",
+    "company_research", "call_signals", "pitch", "smart_question", "risks_to_avoid",
+    "form_answers", "cover_letter_body", "cv_positioning",
 }
 OUTPUT_APP_FIELDS = {
-    "company_research", "technical_reading", "call_signals", "pitch", "smart_question", "risks_to_avoid",
-    "prepare_first", "prepare_later", "form_answers",
+    "company_research", "call_signals", "pitch", "smart_question", "risks_to_avoid", "form_answers",
 }
 OUTPUT_BLOB_FIELDS = {"cover_letter_body", "cv_positioning"}
 RENDER_FIELDS = {"cover_letter", "cv"}
