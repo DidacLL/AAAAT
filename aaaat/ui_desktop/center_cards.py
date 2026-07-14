@@ -6,8 +6,6 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 import wx.html  # type: ignore[import-not-found]
 
-_VISIBLE_LINE_BUDGET = 22
-
 
 class CenterCardBuilder:
     """Build Smart View center content for fast visual recall on desktop."""
@@ -17,7 +15,6 @@ class CenterCardBuilder:
 
     def add_hero(self, detail: dict[str, Any]) -> None:
         hero = wx.Panel(self.owner.center_scroll)
-        hero.SetMinSize((1, -1))
         hero_sizer = wx.BoxSizer(wx.HORIZONTAL)
         hero.SetSizer(hero_sizer)
 
@@ -30,8 +27,7 @@ class CenterCardBuilder:
 
         logistics = self._logistics_text(detail)
         if logistics:
-            logistics_label = wx.StaticText(hero, label=logistics)
-            controls.append(logistics_label)
+            controls.append(wx.StaticText(hero, label=logistics))
 
         for control in controls:
             self._bind_wrap(hero, control, 32)
@@ -52,172 +48,204 @@ class CenterCardBuilder:
     def add_interview_notes(self, _detail: dict[str, Any]) -> None:
         return
 
-    def add_source_card(self, detail: dict[str, Any]) -> None:
-        self.add_full_text_drawers(detail)
+    def add_source_card(self, _detail: dict[str, Any]) -> None:
+        return
 
     def add_visible_briefing(self, detail: dict[str, Any]) -> None:
-        candidates = [
-            ("Posting", self._source_text(detail), "high", 76, 5),
-            ("Pitch", self._first_text(detail, "pitch", "role_strategy"), "high", 68, 4),
-            ("Snapshot", self._first_text(detail, "offer_snapshot", "description"), "medium", 68, 4),
-            ("Ask", detail.get("smart_question"), "support", 54, 3),
-            ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), "support", 54, 3),
-            ("Recognize", self._first_text(detail, "call_signals", "source_excerpt"), "support", 54, 3),
-            ("Company", detail.get("company_research"), "support", 54, 3),
-            ("Fit", detail.get("candidature_evaluation"), "support", 54, 3),
-            ("Strategy", detail.get("role_strategy"), "support", 54, 3),
-            ("Evidence", detail.get("strengths"), "support", 54, 3),
-            ("Questions", detail.get("questions_to_ask"), "support", 54, 3),
-            ("Stack", detail.get("tech_stack"), "support", 54, 3),
-            ("Recruiter", detail.get("recruiter_material"), "support", 54, 3),
-        ]
-        visible = self._visible_call_sheet_blocks(candidates)
-        if not visible:
+        cards = self._call_cards(detail)
+        if not cards:
             return
 
         panel = wx.Panel(self.owner.center_scroll)
-        panel.SetMinSize((1, -1))
-        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer = wx.WrapSizer(wx.HORIZONTAL)
         panel.SetSizer(sizer)
 
-        primary = [item for item in visible if item[2] in {"high", "medium"}]
-        support = [item for item in visible if item[2] == "support"]
-
-        if primary:
-            top = wx.BoxSizer(wx.HORIZONTAL)
-            for index, (label, text, emphasis, line_chars, lines) in enumerate(primary[:2]):
-                flags = wx.RIGHT | wx.EXPAND if index == 0 and len(primary[:2]) > 1 else wx.EXPAND
-                top.Add(
-                    self._call_block(panel, label, text, min_height=self._block_min_height(lines, emphasis), emphasis=emphasis, line_chars=line_chars),
-                    1,
-                    flags,
-                    12,
-                )
-            sizer.Add(top, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
-            for label, text, emphasis, line_chars, lines in primary[2:]:
-                sizer.Add(
-                    self._call_block(panel, label, text, min_height=self._block_min_height(lines, emphasis), emphasis=emphasis, line_chars=line_chars),
-                    0,
-                    wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND,
-                    8,
-                )
-
-        if support:
-            grid_panel = wx.Panel(panel)
-            grid_panel.SetMinSize((1, -1))
-            columns = self._support_columns()
-            grid = wx.FlexGridSizer(rows=0, cols=columns, vgap=8, hgap=18)
-            for col in range(columns):
-                grid.AddGrowableCol(col, 1)
-            grid_panel.SetSizer(grid)
-            for label, text, emphasis, line_chars, lines in support:
-                grid.Add(
-                    self._call_block(grid_panel, label, text, min_height=self._block_min_height(lines, emphasis), emphasis=emphasis, line_chars=line_chars),
-                    1,
-                    wx.EXPAND,
-                )
-            sizer.Add(grid_panel, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
+        for card in cards:
+            sizer.Add(self._call_card(panel, **card), 0, wx.ALL, 5)
 
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
-    def add_full_text_drawers(self, detail: dict[str, Any]) -> None:
-        drawers = [
-            ("original", "Original posting", self._source_text(detail), False, 260),
-            ("description", "Published role text", detail.get("description"), False, 220),
-            ("snapshot_full", "Role snapshot", detail.get("offer_snapshot"), False, 180),
-            ("signals", "Recognition signals", detail.get("call_signals"), False, 170),
-            ("pitch_full", "Pitch", detail.get("pitch"), False, 170),
-            ("questions", "Questions", detail.get("questions_to_ask") or detail.get("smart_question"), False, 170),
-            ("risks", "Risks to avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), False, 170),
-            ("strengths", "Evidence", detail.get("strengths"), False, 170),
-            ("company_full", "Company context", detail.get("company_research"), False, 200),
-            ("fit_full", "Fit assessment", detail.get("candidature_evaluation"), False, 180),
-            ("strategy_full", "Application strategy", detail.get("role_strategy"), False, 180),
-            ("recruiter_full", "Recruiter material", detail.get("recruiter_material"), False, 180),
-            ("stack_full", "Stack", detail.get("tech_stack"), False, 150),
+    def _call_cards(self, detail: dict[str, Any]) -> list[dict[str, Any]]:
+        specs = [
+            {
+                "card_id": "smart_posting",
+                "title": "Posting",
+                "text": self._source_text(detail),
+                "importance": "high",
+                "line_chars": 76,
+                "preview_lines": 5,
+                "expanded_height": 280,
+            },
+            {
+                "card_id": "smart_pitch",
+                "title": "Pitch",
+                "text": self._first_text(detail, "pitch", "role_strategy"),
+                "importance": "high",
+                "line_chars": 58,
+                "preview_lines": 4,
+                "expanded_height": 180,
+            },
+            {
+                "card_id": "smart_snapshot",
+                "title": "Snapshot",
+                "text": self._first_text(detail, "offer_snapshot", "description"),
+                "importance": "medium",
+                "line_chars": 58,
+                "preview_lines": 4,
+                "expanded_height": 180,
+            },
+            {
+                "card_id": "smart_ask",
+                "title": "Ask",
+                "text": detail.get("smart_question"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 150,
+            },
+            {
+                "card_id": "smart_recognize",
+                "title": "Recognize",
+                "text": self._first_text(detail, "call_signals", "source_excerpt"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 150,
+            },
+            {
+                "card_id": "smart_avoid",
+                "title": "Avoid",
+                "text": detail.get("risks_to_avoid") or detail.get("risk_to_avoid"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 150,
+            },
+            {
+                "card_id": "smart_fit",
+                "title": "Fit",
+                "text": detail.get("candidature_evaluation"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 170,
+            },
+            {
+                "card_id": "smart_strategy",
+                "title": "Strategy",
+                "text": detail.get("role_strategy"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 170,
+            },
+            {
+                "card_id": "smart_company",
+                "title": "Company",
+                "text": detail.get("company_research"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 190,
+            },
+            {
+                "card_id": "smart_evidence",
+                "title": "Evidence",
+                "text": detail.get("strengths"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 150,
+            },
+            {
+                "card_id": "smart_questions",
+                "title": "Questions",
+                "text": detail.get("questions_to_ask"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 150,
+            },
+            {
+                "card_id": "smart_stack",
+                "title": "Stack",
+                "text": detail.get("tech_stack"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 140,
+            },
+            {
+                "card_id": "smart_recruiter",
+                "title": "Recruiter",
+                "text": detail.get("recruiter_material"),
+                "importance": "support",
+                "line_chars": 44,
+                "preview_lines": 3,
+                "expanded_height": 170,
+            },
         ]
-        visible = [
-            (card_id, title, str(body).strip(), expanded, min_height)
-            for card_id, title, body, expanded, min_height in drawers
-            if str(body or "").strip()
-        ]
-        if not visible:
-            return
-        panel = wx.Panel(self.owner.center_scroll)
-        panel.SetMinSize((1, -1))
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        panel.SetSizer(sizer)
-        for card_id, title, text, expanded, min_height in visible:
-            sizer.Add(
-                self.build_center_card(panel, card_id, title, text, expanded_by_default=expanded, min_height=min_height),
-                0,
-                wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND,
-                4,
-            )
-        self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
+        return [spec for spec in specs if str(spec.get("text") or "").strip()]
 
-    def _call_block(
+    def _call_card(
         self,
         parent: wx.Window,
-        label: str,
-        value: str,
         *,
-        min_height: int,
-        emphasis: str,
+        card_id: str,
+        title: str,
+        text: Any,
+        importance: str,
         line_chars: int,
+        preview_lines: int,
+        expanded_height: int,
     ) -> wx.Panel:
-        block = wx.Panel(parent)
-        block.SetMinSize((1, min_height))
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        block.SetSizer(sizer)
+        value = str(text or "").strip()
+        expanded = self.is_expanded(card_id, False)
+        lines = self._wrapped_lines(value, line_chars=line_chars)
+        has_more = len(lines) > preview_lines
 
-        title = wx.StaticText(block, label=label)
-        title_font = title.GetFont().Bold()
-        if emphasis == "high":
-            title_font = title_font.Larger()
-        title.SetFont(title_font)
-
-        body = wx.StaticText(block, label=self._complete_visible_text(value, line_chars=line_chars))
-        body.SetMinSize((1, -1))
-        body_font = body.GetFont()
-        if emphasis == "high":
-            body_font = body_font.Larger()
-        body.SetFont(body_font)
-
-        sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
-        sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 4)
-        return block
-
-    def build_center_card(self, parent: wx.Window, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int) -> wx.Panel:
-        text = str(body or "")
-        expanded = self.is_expanded(card_id, expanded_by_default)
-        panel = wx.Panel(parent, style=wx.BORDER_SIMPLE)
-        panel.SetMinSize((1, -1))
+        panel = wx.Panel(parent, style=wx.BORDER_SIMPLE if has_more or expanded else 0)
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
 
         header = wx.Panel(panel)
         header_sizer = wx.BoxSizer(wx.HORIZONTAL)
         header.SetSizer(header_sizer)
-        toggle_label = wx.StaticText(header, label="▾" if expanded else "▸")
-        toggle_label.SetFont(toggle_label.GetFont().Bold().Larger())
+        marker = "▾" if expanded else "▸" if has_more else ""
+        if marker:
+            marker_label = wx.StaticText(header, label=marker)
+            marker_label.SetFont(marker_label.GetFont().Bold())
+            header_sizer.Add(marker_label, 0, wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 4)
         title_label = wx.StaticText(header, label=title)
-        title_label.SetFont(title_label.GetFont().Bold())
-        header_sizer.Add(toggle_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
-        header_sizer.Add(title_label, 0, wx.TOP | wx.BOTTOM | wx.ALIGN_CENTER_VERTICAL, 6)
+        title_font = title_label.GetFont().Bold()
+        if importance == "high":
+            title_font = title_font.Larger()
+        title_label.SetFont(title_font)
+        header_sizer.Add(title_label, 0, wx.ALIGN_CENTER_VERTICAL)
         header_sizer.AddStretchSpacer(1)
-        sizer.Add(header, 0, wx.EXPAND)
-        self.bind_click(header, card_id)
+        sizer.Add(header, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 5)
+        if has_more:
+            self.bind_click(header, card_id)
 
         if expanded:
-            content = self.owner._html_text_window(panel, text or "—", min_height=min_height, scrollable=True)
-            content.SetMinSize((1, min_height))
-            sizer.Add(content, 0, wx.ALL | wx.EXPAND, 8)
+            content = self.owner._html_text_window(panel, value or "—", min_height=expanded_height, scrollable=True)
+            sizer.Add(content, 0, wx.ALL | wx.EXPAND, 5)
+        else:
+            visible_lines = lines if not has_more else lines[:preview_lines]
+            if has_more:
+                visible_lines[-1] = visible_lines[-1].rstrip(" …") + "…"
+            body = wx.StaticText(panel, label="\n".join(visible_lines) or "—")
+            body_font = body.GetFont()
+            if importance == "high":
+                body_font = body_font.Larger()
+            body.SetFont(body_font)
+            sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 5)
+            if has_more:
+                more = wx.StaticText(panel, label="Show full text")
+                more.SetFont(more.GetFont().Bold())
+                sizer.Add(more, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
+                self.bind_click(more, card_id)
         return panel
-
-    def add_center_card(self, card_id: str, title: str, body: Any, *, expanded_by_default: bool, min_height: int) -> None:
-        card = self.build_center_card(self.owner.center_scroll, card_id, title, body, expanded_by_default=expanded_by_default, min_height=min_height)
-        self.owner.center_sizer.Add(card, 0, wx.BOTTOM | wx.EXPAND, 8)
 
     def is_expanded(self, card_id: str, default: bool) -> bool:
         return self.owner.center_card_state.is_expanded(card_id, default)
@@ -285,39 +313,11 @@ class CenterCardBuilder:
         ]
         return " · ".join(part for part in parts if part)
 
-    def _visible_call_sheet_blocks(self, specs: list[tuple[str, Any, str, int, int]]) -> list[tuple[str, str, str, int, int]]:
-        visible: list[tuple[str, str, str, int, int]] = []
-        used_lines = 0
-        for label, value, emphasis, line_chars, max_lines in specs:
-            text = str(value or "").strip()
-            if not text:
-                continue
-            lines = self._wrapped_line_count(text, line_chars=line_chars)
-            if lines > max_lines or used_lines + lines > _VISIBLE_LINE_BUDGET:
-                continue
-            visible.append((label, text, emphasis, line_chars, lines))
-            used_lines += lines
-        return visible
-
-    def _support_columns(self) -> int:
-        width = int(self.owner.center_scroll.GetClientSize().GetWidth() or 760)
-        return 2 if width >= 620 else 1
-
-    def _complete_visible_text(self, value: str, *, line_chars: int) -> str:
+    def _wrapped_lines(self, value: str, *, line_chars: int) -> list[str]:
         text = " ".join(str(value or "").split())
         if not text:
-            return "—"
-        return "\n".join(textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False))
-
-    def _wrapped_line_count(self, value: str, *, line_chars: int) -> int:
-        text = " ".join(str(value or "").split())
-        if not text:
-            return 1
-        return max(1, len(textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False)))
-
-    def _block_min_height(self, line_count: int, emphasis: str) -> int:
-        line_height = 20 if emphasis == "high" else 17
-        return 30 + max(1, line_count) * line_height
+            return ["—"]
+        return textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False) or [text]
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
