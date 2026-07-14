@@ -26,7 +26,7 @@ def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> di
         "profile_variables": profile_variables(conn),
         "profile_variable_records": list_variables(conn),
         "profile_facts": list_profile_facts(conn),
-        "profile_context_dashboard": profile_context(conn, "candidature_fit", scope="local_dashboard"),
+        "profile_context_local": profile_context(conn, "candidature_fit", scope="local"),
         "missing_profile_variables": required_profile_variables(conn),
     }
     payload["review_queue"] = review_queue(payload)
