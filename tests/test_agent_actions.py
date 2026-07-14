@@ -53,7 +53,6 @@ class AgentActionTests(unittest.TestCase):
                         "source_material": {
                             "offer_text": "Full raw offer with Python and APIs.",
                             "offer_url": "https://example.invalid/jobs/1",
-                            "offer_source": "job board",
                             "application_form_text": "Raw form asks salary and availability.",
                             "user_instructions": "Keep the letter concise.",
                             "conversation_context": "The user prefers backend automation roles.",
@@ -71,13 +70,10 @@ class AgentActionTests(unittest.TestCase):
                         },
                         "outputs": {
                             "company_research": "Acme builds developer tools.",
-                            "technical_reading": "Read their API docs.",
                             "call_signals": "Ask about platform ownership.",
                             "pitch": "Backend automation positioning.",
                             "smart_question": "How do teams ship internal tooling?",
                             "risks_to_avoid": "Avoid over-indexing on management.",
-                            "prepare_first": "Review API product.",
-                            "prepare_later": "Map team structure.",
                             "form_answers": "Salary: flexible. Availability: two weeks.",
                             "cover_letter_body": "I can help Acme automate backend workflows.",
                             "cv_positioning": "Lead with Python automation.",
@@ -103,17 +99,15 @@ class AgentActionTests(unittest.TestCase):
                 "action": "create_candidature",
                 "created": True,
                 "rendered": {"cover_letter": True},
-                "next": ["open_dashboard"],
+                "next": ["open_desktop"],
             },
         )
         self.assertNotIn("internal", ack)
         self.assertEqual(loaded["company"], "Acme")
         self.assertEqual(loaded["role"], "Backend Engineer")
-        self.assertEqual(loaded["source"], "job board")
         self.assertEqual(loaded["source_url"], "https://example.invalid/jobs/1")
         self.assertEqual(loaded["keywords"], ["APIs", "Python"])
         self.assertEqual(loaded["company_research"], "Acme builds developer tools.")
-        self.assertEqual(loaded["technical_reading"], "Read their API docs.")
         self.assertEqual(loaded["form_answers"], "Salary: flexible. Availability: two weeks.")
         self.assertEqual(loaded["details"]["raw_application_form"], "Raw form asks salary and availability.")
         self.assertEqual(loaded["details"]["description"], "Build platform automation.")
@@ -154,7 +148,7 @@ class AgentActionTests(unittest.TestCase):
                 loaded = list_candidatures(conn, include_related=True)[0]
 
         self.assertEqual(ack["queued"], {"count": 1})
-        self.assertEqual(ack["next"], ["open_dashboard"])
+        self.assertEqual(ack["next"], ["open_desktop"])
         serialized_ack = json.dumps(ack)
         self.assertNotIn("task_", serialized_ack)
         self.assertNotIn("app_", serialized_ack)

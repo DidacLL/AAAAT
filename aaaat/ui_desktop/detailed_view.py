@@ -4,9 +4,10 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
-from .candidature_right_panel import CandidatureDetailBodyPanel, CandidatureOptionsPanel
+from .candidature_right_panel import CandidatureDetailBodyPanel
 from .detail_columns import available_column_ids, column_title, normalize_visible_columns
 from .detail_table import DetailTable
+from .release_right_panel import ReleaseCandidatureOptionsPanel
 
 DEFAULT_DETAILED_FRAME_WIDTH = 1280
 DEFAULT_DETAILED_LEFT = 330
@@ -20,7 +21,6 @@ class DetailedViewMixin:
         self.detailed_panel = wx.Panel(self.view_book)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.detailed_panel.SetSizer(sizer)
-
         toolbar = wx.BoxSizer(wx.HORIZONTAL)
         label = wx.StaticText(self.detailed_panel, label="Detailed View")
         label.SetFont(label.GetFont().Bold().Larger())
@@ -32,7 +32,6 @@ class DetailedViewMixin:
         toolbar.Add(self.detailed_search, 1, wx.ALL | wx.EXPAND, 6)
         toolbar.Add(self.detailed_columns_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         sizer.Add(toolbar, 0, wx.EXPAND)
-
         self.detailed_splitter = wx.SplitterWindow(self.detailed_panel, style=wx.SP_LIVE_UPDATE)
         self.detailed_splitter.SetMinimumPaneSize(1)
         self.detail_table = DetailTable(self.detailed_splitter, on_select=self._select_detailed_ref)
@@ -45,15 +44,15 @@ class DetailedViewMixin:
             on_keyword_select=self._select_detailed_keyword,
             on_add_keyword=self._add_keyword_to_candidature,
         )
-        self.detail_options_panel = CandidatureOptionsPanel(
+        self.detail_options_panel = ReleaseCandidatureOptionsPanel(
             self.detailed_body_splitter,
+            storage_path=self.storage_path,
             on_action=self._on_candidature_panel_action,
             on_delete=self._delete_candidature_from_panel,
             on_keyword_select=self._select_detailed_keyword,
             on_add_keyword=self._add_keyword_to_candidature,
             on_save_keyword_definition=self._save_keyword_definition,
         )
-
         initial_width = max(1, int(self.GetClientSize().GetWidth() or DEFAULT_DETAILED_FRAME_WIDTH))
         left_width = max(1, int(initial_width * 0.24))
         center_width = max(1, int(initial_width * 0.54))

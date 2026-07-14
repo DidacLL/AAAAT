@@ -9,6 +9,7 @@ from .db import list_glossary, list_raw_intake, profile_variables, required_prof
 from .privacy import list_variables, resolve_variables
 from .profile_facts import list_profile_facts, profile_context
 from .review_queue import review_queue, sorted_applications
+from .tasks import list_tasks
 
 
 def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> dict[str, Any]:
@@ -16,6 +17,7 @@ def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> di
     apps = sorted_applications(list_candidatures(conn, include_related=False), glossary)
     for app in apps:
         app["artifacts"] = list_artifacts(conn, app["id"])
+        app["tasks"] = [_desktop_task_summary(task) for task in list_tasks(conn, application_id=app["id"])]
         app["last_activity"] = app.get("updated_at") or app.get("created_at") or ""
         app["call_probability_label"] = "Call probability: pending signal model"
         if include_raw:
@@ -31,6 +33,18 @@ def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> di
     }
     payload["review_queue"] = review_queue(payload)
     return payload
+
+
+def _desktop_task_summary(task: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "task_type": str(task.get("task_type") or ""),
+        "title": str(task.get("title") or ""),
+        "state": str(task.get("state") or "queued"),
+        "priority": str(task.get("priority") or "normal"),
+        "updated_at": str(task.get("updated_at") or ""),
+        "completed_at": str(task.get("completed_at") or ""),
+        "notes": str(task.get("notes") or ""),
+    }
 
 
 def application_context(conn: sqlite3.Connection, application_id: str) -> dict[str, Any]:

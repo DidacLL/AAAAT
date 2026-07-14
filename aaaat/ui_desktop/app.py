@@ -17,7 +17,10 @@ def build_desktop_projection(storage: str | Path, layout_state: DashboardLayoutS
     layout = layout_state or DashboardLayoutState.load(layout_state_path(storage))
     with connect(storage) as conn:
         payload = dashboard_payload(conn, include_raw=True)
-    return build_dashboard_projection(payload, view=layout.selected_view, layout_state=layout)
+    requested_view = layout.selected_view
+    if not payload.get("applications") and requested_view in {"smart", "detailed"}:
+        requested_view = "welcome"
+    return build_dashboard_projection(payload, view=requested_view, layout_state=layout)
 
 
 def launch_desktop_dashboard(storage: str | Path = ".private") -> int:
@@ -27,7 +30,6 @@ def launch_desktop_dashboard(storage: str | Path = ".private") -> int:
     inside this function so tests and non-desktop AAAAT workflows do not require
     wx or a graphical environment.
     """
-
     try:
         import wx  # type: ignore[import-not-found]
     except ModuleNotFoundError as exc:  # pragma: no cover - depends on optional dependency

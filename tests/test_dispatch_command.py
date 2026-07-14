@@ -18,7 +18,7 @@ class DispatchCommandTests(unittest.TestCase):
     def next_task_handle(self, storage: str) -> str:
         return json.loads(self.run_cli("--storage", storage, "agent", "next").stdout)["task"]["task_handle"]
 
-    def test_command_backend_submits_stdout_without_auto_apply(self):
+    def test_command_backend_submits_stdout_and_applies_bounded_result(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.run_cli("--storage", tmp, "init")
             app = json.loads(
@@ -60,16 +60,16 @@ class DispatchCommandTests(unittest.TestCase):
             self.assertNotIn("stdout", dispatch)
             self.assertNotIn("RESULT:Research Command Co", json.dumps(dispatch))
             self.assertEqual(dispatch["task"], {"task_handle": task_handle, "state": "completed"})
-            self.assertEqual(dispatch["next"], ["open_dashboard"])
+            self.assertEqual(dispatch["next"], ["open_desktop"])
             self.assertNotIn(task["id"], json.dumps(dispatch))
             self.assertNotIn("result_blob_id", json.dumps(dispatch))
             self.assertNotIn("application_id", json.dumps(dispatch))
 
             blobs = json.loads(self.run_cli("--storage", tmp, "blob", "list", "--application-id", app["id"]).stdout)
             self.assertEqual(blobs[0]["body"].strip(), "RESULT:Research Command Co")
-            self.assertEqual(blobs[0]["review_state"], "suggested")
+            self.assertEqual(blobs[0]["review_state"], "current")
             updated_app = json.loads(self.run_cli("--storage", tmp, "app", "show", app["id"]).stdout)
-            self.assertEqual(updated_app["company_research"], "")
+            self.assertEqual(updated_app["company_research"].strip(), "RESULT:Research Command Co")
 
     def test_command_backend_nonzero_exit_returns_diagnostics_without_submit(self):
         with tempfile.TemporaryDirectory() as tmp:

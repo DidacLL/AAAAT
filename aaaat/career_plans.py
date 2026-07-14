@@ -20,9 +20,24 @@ CONTEXT_PURPOSES = {
 }
 CONTEXT_SCOPES = {"agent", "local"}
 LIST_FIELDS = {"objectives", "constraints", "target_markets", "target_roles"}
+CAREER_PLAN_COLUMNS = {
+    "target_markets": "TEXT NOT NULL DEFAULT '[]'",
+    "target_roles": "TEXT NOT NULL DEFAULT '[]'",
+    "source": "TEXT NOT NULL DEFAULT 'user'",
+    "review_state": "TEXT NOT NULL DEFAULT 'active'",
+}
+
+
+def ensure_career_plan_columns(conn: sqlite3.Connection) -> None:
+    existing = {str(row["name"]) for row in conn.execute("PRAGMA table_info(career_plans)").fetchall()}
+    for name, ddl in CAREER_PLAN_COLUMNS.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE career_plans ADD COLUMN {name} {ddl}")
+    conn.commit()
 
 
 def create_career_plan(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any]:
+    ensure_career_plan_columns(conn)
     now = utc_now()
     item = {
         "id": fields.get("id") or new_id("career_plan"),
@@ -52,6 +67,7 @@ def create_career_plan(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
 
 
 def list_career_plans(conn: sqlite3.Connection, include_archived: bool = False) -> list[dict[str, Any]]:
+    ensure_career_plan_columns(conn)
     where = "" if include_archived else " WHERE review_state != 'archived'"
     rows = conn.execute(
         f"SELECT * FROM career_plans{where} ORDER BY updated_at DESC, created_at DESC"
@@ -60,6 +76,7 @@ def list_career_plans(conn: sqlite3.Connection, include_archived: bool = False) 
 
 
 def get_career_plan(conn: sqlite3.Connection, plan_id: str) -> dict[str, Any]:
+    ensure_career_plan_columns(conn)
     row = conn.execute("SELECT * FROM career_plans WHERE id = ?", (plan_id,)).fetchone()
     if row is None:
         raise KeyError(f"Career plan not found: {plan_id}")
@@ -67,6 +84,7 @@ def get_career_plan(conn: sqlite3.Connection, plan_id: str) -> dict[str, Any]:
 
 
 def update_career_plan(conn: sqlite3.Connection, plan_id: str, **fields: Any) -> dict[str, Any]:
+    ensure_career_plan_columns(conn)
     allowed = {"body", "objectives", "constraints", "target_markets", "target_roles", "source", "review_state"}
     updates = {key: fields[key] for key in allowed if key in fields}
     for key in LIST_FIELDS & updates.keys():

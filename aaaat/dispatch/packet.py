@@ -20,7 +20,7 @@ def build_task_packet(conn: sqlite3.Connection, task_handle: str) -> dict[str, A
         "title": task.get("title", ""),
         "instructions": task_context.get("instructions", {}),
         "purpose": task_context.get("purpose", ""),
-        "input_context": task_context.get("input_context", task_context.get("context", {})),
+        "input_context": task_context.get("input_context", {}),
         "output_contract": task_context.get("output_contract", {}),
         "response_format": task_context.get("response_format", {}),
         "allowed_actions": task_context.get("allowed_actions", []),

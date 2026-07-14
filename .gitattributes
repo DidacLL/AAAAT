@@ -8,7 +8,3 @@ AGENTS.md export-ignore
 docs/PO/ export-ignore
 tests/ export-ignore
 tools/ export-ignore
-
-# Local/project development metadata that should not be user-facing release payload.
-Original-Seed-prompt.txt export-ignore
-Branch · PR Evaluation and Concerns.txt export-ignore

@@ -7,21 +7,20 @@ from aaaat.review_queue import review_queue
 
 
 class ReviewQueueTests(unittest.TestCase):
-    def test_review_queue_includes_missing_fields_and_keyword_definitions_then_shrinks(self):
+    def test_review_summary_includes_missing_fields_and_keyword_definitions_then_shrinks(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 app = create_application(conn, company="Queue Co", role="Engineer", keywords=["Unexplained"])
-                queue = review_queue(dashboard_payload(conn), app["id"])
-                fields = {item["field"] for item in queue}
-                categories = {item["category"] for item in queue}
+                summary = review_queue(dashboard_payload(conn), app["id"])
+                fields = {item["field"] for item in summary}
+                categories = {item["category"] for item in summary}
 
                 self.assertIn("missing_field", categories)
                 self.assertIn("missing_keyword_definition", categories)
                 self.assertIn("pitch", fields)
                 self.assertIn("risks_to_avoid", fields)
                 self.assertIn("smart_question", fields)
-                self.assertIn("prepare_first", fields)
                 self.assertIn("company_research", fields)
                 self.assertIn("keyword:Unexplained", fields)
 
@@ -31,28 +30,27 @@ class ReviewQueueTests(unittest.TestCase):
                     pitch="Short pitch",
                     risks_to_avoid="Avoid vague claims",
                     smart_question="What does success look like?",
-                    prepare_first="Review role notes",
                     company_research="Local company research",
                 )
                 upsert_glossary_term(conn, "Unexplained", "A keyword now explained.", "skill")
-                queue = review_queue(dashboard_payload(conn), app["id"])
+                summary = review_queue(dashboard_payload(conn), app["id"])
 
-        self.assertEqual(queue, [])
+        self.assertEqual(summary, [])
 
-    def test_raw_offer_intake_creates_placeholder_app_raw_intake_and_queue_item(self):
+    def test_raw_offer_intake_creates_placeholder_candidature_and_missing_information_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 app = create_raw_offer_intake(conn, "Raw offer text for a backend role.", "user")
                 intake = list_raw_intake(conn, app["id"])
-                queue = review_queue(dashboard_payload(conn), app["id"])
+                summary = review_queue(dashboard_payload(conn), app["id"])
 
         self.assertEqual(app["company"], "Pending extraction")
         self.assertEqual(app["role"], "Pending role")
-        self.assertEqual(app["status"], "intake")
+        self.assertEqual(app["status"], "active")
         self.assertEqual(intake[0]["created_by"], "user")
-        self.assertIn("raw_offer_extraction", {item["category"] for item in queue})
-        self.assertIn("company", {item["field"] for item in queue})
+        self.assertIn("raw_offer_extraction", {item["category"] for item in summary})
+        self.assertIn("company", {item["field"] for item in summary})
 
 
 if __name__ == "__main__":
