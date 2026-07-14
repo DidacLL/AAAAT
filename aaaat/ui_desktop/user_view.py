@@ -41,11 +41,13 @@ class UserViewMixin:
             self.user_panel.Thaw()
 
     def _save_user_edits(self, changes: dict[str, str]) -> None:
-        self.command_service.update_profile_variables(changes)
-        self._rendered_view_keys.clear()
+        saved = self.command_service.update_profile_variables(changes)
+        if not saved:
+            self.SetStatusText("No profile changes were saved")
+            return
         self._reload_projection()
-        self._refresh_user_view()
-        self._mark_current_view_rendered()
+        self._rendered_view_keys["user"] = self._view_cache_key("user")
+        self.SetStatusText("Profile saved")
 
     def _cancel_user_edits(self) -> None:
         self._refresh_user_view()
