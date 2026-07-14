@@ -18,99 +18,15 @@ jobs:
         run: python -m pip install -e .
       - name: Compile package and tests
         run: python -m compileall -q aaaat tests
-      - name: Agent boundary behavior
-        run: python -B -m unittest tests.test_agent_access
-      - name: Domain profile variables
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_profile_variables_use_canonical_privacy_storage
-      - name: Domain privacy exposure
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_privacy_exposure_is_scope_specific
-      - name: Domain candidature related records
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_candidature_related_records_and_initial_preparation_are_durable
-      - name: Domain field inference conflicts
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_field_inference_preserves_current_user_values
-      - name: Domain text result conflicts
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_conflicting_text_result_remains_history
-      - name: Domain keyword results
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_keyword_result_updates_empty_definition
-      - name: Domain artifact result
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_artifact_backed_document_result_becomes_reviewed
-      - name: Domain candidature records
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_todo_note_and_text_blob_are_durable
-      - name: Domain keyword metadata
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_keyword_alias_and_note_are_durable
-      - name: Domain search behavior
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_search_uses_sanitized_fts_queries
-      - name: Profile fact behavior
-        run: python -B -m unittest tests.test_profile_facts
-      - name: Template and artifact behavior
-        run: python -B -m unittest tests.test_templates
-      - name: Desktop clean storage projection
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests.test_clean_storage_seed_builds_smart_projection_without_wx
-      - name: Desktop demo seed repeatability
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests.test_demo_seed_is_idempotent_and_reset_is_repeatable
-      - name: Desktop empty storage projection
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests.test_empty_clean_storage_projects_welcome_view
-      - name: Desktop optional dependency error
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests.test_desktop_launcher_reports_missing_optional_dependency_clearly
-      - name: Desktop projection behavior
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopProjectionBehaviorTests
-      - name: Desktop offer-first behavior
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopOfferFirstBehaviorTests
-      - name: Desktop material workflow behavior
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopMaterialWorkflowBehaviorTests
-      - name: Desktop user workspace behavior
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopUserWorkspaceBehaviorTests
-      - name: Desktop layout behavior
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopLayoutBehaviorTests
-      - name: Desktop links and preparation behavior
-        run: python -B -m unittest tests.test_profile_links_and_preparation
-      - name: Desktop material attachment
-        run: python -B -m unittest tests.test_desktop_material_attachment
-      - name: Desktop material details
-        run: python -B -m unittest tests.test_desktop_material_details
-      - name: Desktop reusable evidence
-        run: python -B -m unittest tests.test_desktop_profile_facts
-      - name: Demo seed safety
-        run: python -B -m unittest tests.test_demo_seed_safety
-      - name: Career plan behavior
-        run: python -B -m unittest tests.test_career_plans
-      - name: Agent context bundle action
-        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_context_bundle_uses_agent_profile_exposure_and_career_plan
-      - name: Agent create candidature action
-        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_create_candidature_preserves_source_outputs_and_renders_locally
-      - name: Agent follow-up request action
-        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_create_candidature_requested_tasks_queue_bounded_follow_up
-      - name: Agent completed-output action
-        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_requested_tasks_skip_completed_outputs
-      - name: Agent requested-action validation
-        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_requested_tasks_reject_unsupported_types_and_malformed_keyword_tasks
-      - name: Agent CV render action
-        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_cv_render_uses_existing_template_data
-      - name: Agent packet validation
-        run: python -B -m unittest tests.test_agent_actions.AgentActionTests.test_action_validation_rejects_unknown_and_malformed_packets
-      - name: Dispatch behavior
-        run: python -B -m unittest tests.test_dispatch
-      - name: Command dispatch behavior
-        run: python -B -m unittest tests.test_dispatch_command
-      - name: Review queue behavior
-        run: python -B -m unittest tests.test_review_queue
-      - name: Local CLI behavior
-        run: python -B -m unittest tests.test_cli_mcp.CliMcpTests.test_cli_basic_local_commands_work
-      - name: Agent CLI behavior
-        run: python -B -m unittest tests.test_cli_mcp.CliMcpTests.test_agent_cli_uses_opaque_handle_and_cli_write_back
-      - name: Agent action CLI behavior
-        run: python -B -m unittest tests.test_cli_mcp.CliMcpTests.test_agent_action_cli_accepts_bounded_create_candidature_packet
-      - name: Descriptor behavior
-        run: python -B -m unittest tests.test_cli_mcp.CliMcpTests.test_mcp_descriptor_validates_current_capability_contract
-      - name: Database and backup behavior
-        run: python -B -m unittest tests.test_db
-      - name: Dependency policy behavior
-        run: python -B -m unittest tests.test_dependency_policy
-      - name: Release engineering behavior
-        run: python -B -m unittest tests.test_release_polish
-      - name: Repository hygiene behavior
-        run: python -B -m unittest tests.test_repo_guard
-      - name: MCP descriptor validation
-        run: python -B -m aaaat.cli mcp-validate
       - name: Full unittest discovery
-        run: python -B -m unittest discover -s tests
+        id: discovery
+        continue-on-error: true
+        run: python -B -m unittest discover -s tests > unittest-discovery.log 2>&1
+      - name: Upload discovery diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: unittest-discovery-final
+          path: unittest-discovery.log
+      - name: Preserve discovery result
+        if: steps.discovery.outcome == 'failure'
+        run: exit 1
