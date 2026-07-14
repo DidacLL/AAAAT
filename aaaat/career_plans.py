@@ -19,7 +19,7 @@ CONTEXT_PURPOSES = {
     "career_plan_review",
 }
 LIST_FIELDS = {"objectives", "constraints", "target_markets", "target_roles"}
-LOCAL_SCOPES = {"local_render", "local_dashboard", "dashboard", "read_only_dashboard"}
+LOCAL_SCOPES = {"local_render", "local_dashboard", "dashboard"}
 
 
 def create_career_plan(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any]:
