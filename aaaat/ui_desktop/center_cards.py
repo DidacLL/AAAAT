@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import textwrap
 from typing import Any
 
 import wx  # type: ignore[import-not-found]
@@ -57,16 +56,16 @@ class CenterCardBuilder:
         snapshot = self._first_text(detail, "offer_snapshot", "description")
         support = self._visible_support_blocks(
             [
-                ("Ask", detail.get("smart_question"), 42),
-                ("Recognize", self._first_text(detail, "call_signals", "source_excerpt"), 42),
-                ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid"), 42),
-                ("Company", detail.get("company_research"), 42),
-                ("Fit", detail.get("candidature_evaluation"), 42),
-                ("Strategy", detail.get("role_strategy"), 42),
-                ("Evidence", detail.get("strengths"), 42),
-                ("Questions", detail.get("questions_to_ask"), 42),
-                ("Stack", detail.get("tech_stack"), 42),
-                ("Recruiter", detail.get("recruiter_material"), 42),
+                ("Ask", detail.get("smart_question")),
+                ("Recognize", self._first_text(detail, "call_signals", "source_excerpt")),
+                ("Avoid", detail.get("risks_to_avoid") or detail.get("risk_to_avoid")),
+                ("Company", detail.get("company_research")),
+                ("Fit", detail.get("candidature_evaluation")),
+                ("Strategy", detail.get("role_strategy")),
+                ("Evidence", detail.get("strengths")),
+                ("Questions", detail.get("questions_to_ask")),
+                ("Stack", detail.get("tech_stack")),
+                ("Recruiter", detail.get("recruiter_material")),
             ]
         )
         if not any([posting.strip(), pitch.strip(), snapshot.strip(), support]):
@@ -79,7 +78,7 @@ class CenterCardBuilder:
         top = wx.BoxSizer(wx.HORIZONTAL)
         if posting.strip():
             top.Add(
-                self._text_card(panel, "Posting", posting, line_chars=58, emphasis="high"),
+                self._text_card(panel, "Posting", posting, emphasis="high"),
                 3,
                 wx.RIGHT | wx.EXPAND,
                 10,
@@ -87,9 +86,9 @@ class CenterCardBuilder:
 
         side = wx.BoxSizer(wx.VERTICAL)
         if pitch.strip():
-            side.Add(self._text_card(panel, "Pitch", pitch, line_chars=40, emphasis="medium"), 0, wx.BOTTOM | wx.EXPAND, 8)
+            side.Add(self._text_card(panel, "Pitch", pitch, emphasis="medium"), 0, wx.BOTTOM | wx.EXPAND, 8)
         if snapshot.strip():
-            side.Add(self._text_card(panel, "Snapshot", snapshot, line_chars=40, emphasis="medium"), 0, wx.EXPAND, 0)
+            side.Add(self._text_card(panel, "Snapshot", snapshot, emphasis="medium"), 0, wx.EXPAND, 0)
         if side.GetItemCount():
             top.Add(side, 2, wx.EXPAND)
         if top.GetItemCount():
@@ -99,9 +98,9 @@ class CenterCardBuilder:
             support_row = wx.BoxSizer(wx.HORIZONTAL)
             columns = self._support_columns()
             column_sizers = [wx.BoxSizer(wx.VERTICAL) for _ in range(columns)]
-            for index, (label, text, line_chars) in enumerate(support):
+            for index, (label, text) in enumerate(support):
                 column_sizers[index % columns].Add(
-                    self._text_card(panel, label, text, line_chars=line_chars, emphasis="support"),
+                    self._text_card(panel, label, text, emphasis="support"),
                     0,
                     wx.BOTTOM | wx.EXPAND,
                     8,
@@ -120,7 +119,7 @@ class CenterCardBuilder:
 
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
-    def _text_card(self, parent: wx.Window, title: str, text: Any, *, line_chars: int, emphasis: str) -> wx.Panel:
+    def _text_card(self, parent: wx.Window, title: str, text: Any, *, emphasis: str) -> wx.Panel:
         panel = wx.Panel(parent, style=wx.BORDER_SIMPLE)
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
@@ -132,7 +131,7 @@ class CenterCardBuilder:
         title_label.SetFont(title_font)
         sizer.Add(title_label, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 6)
 
-        body = wx.StaticText(panel, label=self._wrapped_text(text, line_chars=line_chars))
+        body = wx.StaticText(panel, label=self._display_text(text))
         body.SetMinSize((1, -1))
         body_font = body.GetFont()
         if emphasis == "high":
@@ -160,28 +159,24 @@ class CenterCardBuilder:
         ]
         return " · ".join(part for part in parts if part)
 
-    def _visible_support_blocks(self, specs: list[tuple[str, Any, int]]) -> list[tuple[str, str, int]]:
-        visible: list[tuple[str, str, int]] = []
-        for label, value, line_chars in specs:
+    def _visible_support_blocks(self, specs: list[tuple[str, Any]]) -> list[tuple[str, str]]:
+        visible: list[tuple[str, str]] = []
+        for label, value in specs:
             text = str(value or "").strip()
             if text:
-                visible.append((label, text, line_chars))
+                visible.append((label, text))
         return visible
 
     def _support_columns(self) -> int:
         width = int(self.owner.center_scroll.GetClientSize().GetWidth() or 760)
         return 2 if width >= 620 else 1
 
-    def _wrapped_text(self, value: Any, *, line_chars: int) -> str:
-        lines: list[str] = []
+    def _display_text(self, value: Any) -> str:
+        paragraphs: list[str] = []
         for raw_line in str(value or "—").splitlines() or ["—"]:
             text = " ".join(raw_line.split())
-            if not text:
-                lines.append("")
-                continue
-            wrapped = textwrap.wrap(text, width=line_chars, break_long_words=True, break_on_hyphens=False) or [text]
-            lines.extend(wrapped)
-        return "\n".join(lines)
+            paragraphs.append(text)
+        return "\n".join(paragraphs)
 
     def _bind_wrap(self, parent: wx.Window, label: wx.StaticText, padding: int) -> None:
         def apply_wrap() -> None:
@@ -189,6 +184,7 @@ class CenterCardBuilder:
                 if label and not label.IsBeingDeleted():
                     width = max(180, int(parent.GetClientSize().GetWidth() or 360) - padding)
                     label.Wrap(width)
+                    parent.Layout()
             except RuntimeError:
                 pass
 
