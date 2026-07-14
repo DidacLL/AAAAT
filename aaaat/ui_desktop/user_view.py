@@ -125,25 +125,28 @@ class UserViewMixin:
         self._refresh_user_view()
         self._mark_current_view_rendered()
 
+    def _schedule_assistance_refresh(self) -> None:
+        wx.CallAfter(self._refresh_user_view)
+
     def _save_integration(self, adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
         result = save_integration(self.storage_path, adapter_id, settings)
         if result.get("saved"):
             self.SetStatusText("Integration tested and saved")
         else:
             self.SetStatusText("Integration test failed; previous setup preserved")
-        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        self._schedule_assistance_refresh()
         return result
 
     def _use_recommended_integration(self) -> dict[str, Any]:
         result = use_recommended_local_integration(self.storage_path)
         self.SetStatusText("Recommended local integration ready" if result.get("saved") else "Recommended local integration unavailable")
-        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        self._schedule_assistance_refresh()
         return result
 
     def _use_manual_integration(self) -> dict[str, Any]:
         result = use_manual_integration(self.storage_path)
         self.SetStatusText("Portable/manual assistance selected")
-        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        self._schedule_assistance_refresh()
         return result
 
     def _ensure_task_worker(self) -> OwnedTaskWorker:
@@ -154,7 +157,7 @@ class UserViewMixin:
     def _run_assistance_task(self, task_id: str) -> None:
         self._ensure_task_worker().submit(task_id)
         self.SetStatusText("Assistance task queued")
-        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        self._schedule_assistance_refresh()
 
     def _retry_assistance_task(self, task_id: str) -> None:
         try:
@@ -163,13 +166,13 @@ class UserViewMixin:
             self.SetStatusText(str(exc))
             return
         self.SetStatusText("Assistance task queued for retry")
-        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        self._schedule_assistance_refresh()
 
     def _cancel_assistance_task(self, task_id: str) -> None:
         worker = self._ensure_task_worker()
         worker.cancel(task_id)
         self.SetStatusText("Assistance task cancelled")
-        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        self._schedule_assistance_refresh()
 
     def _on_task_worker_event(self, event: dict[str, Any]) -> None:
         wx.CallAfter(self._apply_task_worker_event, dict(event))
@@ -180,12 +183,12 @@ class UserViewMixin:
         self.SetStatusText(message or f"Assistance task: {state}")
         self._rendered_view_keys.clear()
         self._reload_projection()
-        if hasattr(self, "assistance_panel"):
-            self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
         if state in {"completed", "failed", "cancelled"}:
             self._refresh_all()
+        elif self.current_view == "user":
+            self._refresh_user_view()
 
     def _stop_task_worker_on_close(self, event: wx.CloseEvent) -> None:
         if self._task_worker is not None:
-            self._task_worker.stop(wait=False)
+            self._task_worker.stop(wait=True)
         event.Skip()
