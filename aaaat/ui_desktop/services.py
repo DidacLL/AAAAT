@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
-from aaaat.candidatures import create_candidature, update_candidature
+from aaaat.candidatures import create_candidature, get_candidature, update_candidature
 from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, set_profile_variable, upsert_glossary_term
 from aaaat.tasks import create_task
 
@@ -72,6 +72,8 @@ _ACTION_TASKS = {
     ),
 }
 
+_DOCUMENT_ACTIONS = {"generate_cv", "generate_cover_letter"}
+
 
 class DesktopCommandService:
     """Tiny local command adapter for desktop UI writes."""
@@ -113,10 +115,10 @@ class DesktopCommandService:
             )
             candidature_ref = str(created.get("id") or "")
             if request_cv:
-                self._create_action_task(conn, candidature_ref, "generate_cv")
+                self._create_action_task(conn, candidature_ref, "generate_cv", force_blocked=True)
             if request_cover_letter:
-                self._create_action_task(conn, candidature_ref, "generate_cover_letter")
-            return created
+                self._create_action_task(conn, candidature_ref, "generate_cover_letter", force_blocked=True)
+            return get_candidature(conn, candidature_ref)
 
     def update_candidature_fields(self, candidature_ref: str, changes: dict[str, Any]) -> dict[str, Any] | None:
         safe_changes = {key: changes[key] for key in SUPPORTED_DETAIL_EDIT_FIELDS if key in changes}
@@ -154,20 +156,31 @@ class DesktopCommandService:
         with connect(self.storage_path) as conn:
             return self._create_action_task(conn, candidature_ref, action_id)
 
-    def _create_action_task(self, conn: Any, candidature_ref: str, action_id: str) -> dict[str, Any] | None:
+    def _create_action_task(
+        self,
+        conn: Any,
+        candidature_ref: str,
+        action_id: str,
+        *,
+        force_blocked: bool = False,
+    ) -> dict[str, Any] | None:
         spec = _ACTION_TASKS.get(action_id)
         if not spec or not candidature_ref:
             return None
         task_type, title, instructions, context_hint, priority = spec
+        blocked = force_blocked or (action_id in _DOCUMENT_ACTIONS and not _document_inputs_ready(get_candidature(conn, candidature_ref)))
+        notes = "Waiting for current candidature evaluation and role strategy." if blocked else ""
         return create_task(
             conn,
             task_type,
             title,
             application_id=candidature_ref,
             instructions=instructions,
+            state="blocked" if blocked else "queued",
             priority=priority,
             context_hint=context_hint,
             created_by="desktop",
+            notes=notes,
             idempotent=False,
         )
 
@@ -189,3 +202,7 @@ class DesktopCommandService:
             for key, value in safe_changes.items():
                 set_profile_variable(conn, key, value)
         return safe_changes
+
+
+def _document_inputs_ready(candidature: dict[str, Any]) -> bool:
+    return bool(str(candidature.get("candidature_evaluation") or "").strip() and str(candidature.get("role_strategy") or "").strip())
