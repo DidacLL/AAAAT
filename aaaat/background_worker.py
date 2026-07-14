@@ -2,25 +2,14 @@ from __future__ import annotations
 
 import queue
 import threading
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
-from .db import connect
+from .db import connect, utc_now
 from .task_runner import TaskRunner, TaskRunnerError
 from .tasks import get_task, update_task
 
-WorkerCallback = Callable[[dict], None]
-
-
-@dataclass(frozen=True)
-class WorkerEvent:
-    task_id: str
-    state: str
-    message: str = ""
-
-    def as_dict(self) -> dict:
-        return {"task_id": self.task_id, "state": self.state, "message": self.message}
+WorkerCallback = Callable[[dict[str, Any]], None]
 
 
 class OwnedTaskWorker:
@@ -28,8 +17,8 @@ class OwnedTaskWorker:
 
     def __init__(self, storage_path: str | Path, *, on_event: WorkerCallback | None = None) -> None:
         self.storage_path = str(storage_path)
-        self.runner = TaskRunner(storage_path)
-        self.on_event = on_event or (lambda event: None)
+        self.on_event = on_event or (lambda _event: None)
+        self.runner = TaskRunner(storage_path, on_progress=self.on_event)
         self._queue: queue.Queue[str | None] = queue.Queue()
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
@@ -60,15 +49,15 @@ class OwnedTaskWorker:
     def submit(self, task_id: str) -> None:
         self.start()
         self._queue.put(task_id)
-        self._emit(task_id, "waiting")
+        self._emit(task_id, "waiting", "Task queued", 0, 0)
 
-    def cancel(self, task_id: str) -> dict:
+    def cancel(self, task_id: str) -> dict[str, Any]:
         with connect(self.storage_path) as conn:
             task = get_task(conn, task_id)
             if task.get("state") in {"completed", "cancelled"}:
                 return task
             task = update_task(conn, task_id, state="cancelled", notes="Cancelled by user.")
-        self._emit(task_id, "cancelled")
+        self._emit(task_id, "cancelled", "Cancelled by user", 100, 0)
         return task
 
     def retry(self, task_id: str) -> None:
@@ -102,17 +91,20 @@ class OwnedTaskWorker:
         with connect(self.storage_path) as conn:
             task = get_task(conn, task_id)
             if task.get("state") == "cancelled":
-                self._emit(task_id, "cancelled")
+                self._emit(task_id, "cancelled", "Task already cancelled", 100, 0)
                 return
-        self._emit(task_id, "running")
         try:
             self.runner.run(task_id)
-        except TaskRunnerError as exc:
-            self._emit(task_id, "failed", str(exc))
+        except TaskRunnerError:
             return
-        with connect(self.storage_path) as conn:
-            task = get_task(conn, task_id)
-        self._emit(task_id, str(task.get("state") or "completed"))
 
-    def _emit(self, task_id: str, state: str, message: str = "") -> None:
-        self.on_event(WorkerEvent(task_id, state, message).as_dict())
+    def _emit(self, task_id: str, phase: str, message: str, percent: int, sequence: int) -> None:
+        self.on_event({
+            "task_id": task_id,
+            "state": phase,
+            "phase": phase,
+            "message": message,
+            "percent": percent,
+            "sequence": sequence,
+            "occurred_at": utc_now(),
+        })
