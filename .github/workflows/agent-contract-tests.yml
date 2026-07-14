@@ -18,7 +18,11 @@ jobs:
         run: python -m pip install -e .
       - name: Compile package and tests
         run: python -m compileall -q aaaat tests
-      - name: List discovered test modules
-        run: find tests -maxdepth 1 -name 'test_*.py' -print | sort
-      - name: Full unittest discovery
-        run: python -B -m unittest discover -v -s tests
+      - name: Full unittest discovery traceback
+        shell: bash
+        run: |
+          set +e
+          python -B -m unittest discover -s tests > /tmp/unittest.log 2>&1
+          status=$?
+          tail -100 /tmp/unittest.log
+          exit $status
