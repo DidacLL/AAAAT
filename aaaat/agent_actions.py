@@ -17,7 +17,7 @@ from .text_blobs import create_text_blob
 ACTION_SECTIONS = {"source_material", "candidature", "outputs", "render", "requested_tasks"}
 DICT_ACTION_SECTIONS = ACTION_SECTIONS - {"requested_tasks"}
 PACKET_KEYS = {"action", "payload"}
-SOURCE_MATERIAL_FIELDS = {"offer_text", "offer_url", "offer_source", "application_form_text", "user_instructions", "conversation_context"}
+SOURCE_MATERIAL_FIELDS = {"offer_text", "offer_url", "application_form_text", "user_instructions", "conversation_context"}
 CANDIDATURE_FIELDS = {
     "company", "role", "status", "priority", "source", "source_url", "location", "remote_mode",
     "offer_snapshot", "keywords", "description", "salary_expectation", "publication_date", "application_date", "tech_stack", "valuation",
@@ -135,8 +135,6 @@ def _create_candidature_action(conn: sqlite3.Connection, payload: dict[str, Any]
         fields["keywords"] = candidature["keywords"]
     if source_material.get("offer_url") and not fields.get("source_url"):
         fields["source_url"] = source_material["offer_url"]
-    if source_material.get("offer_source") and not fields.get("source"):
-        fields["source"] = source_material["offer_source"]
     if source_material.get("application_form_text") and not fields.get("raw_application_form"):
         fields["raw_application_form"] = source_material["application_form_text"]
     if source_material.get("offer_text"):
