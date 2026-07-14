@@ -34,8 +34,10 @@ jobs:
         run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_keyword_result_updates_empty_definition
       - name: Domain artifact result
         run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_artifact_backed_document_result_becomes_reviewed
-      - name: Domain durable records
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_notes_todos_text_and_keyword_metadata_are_durable
+      - name: Domain candidature records
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_todo_note_and_text_blob_are_durable
+      - name: Domain keyword metadata
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_keyword_alias_and_note_are_durable
       - name: Domain search behavior
         run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_search_uses_sanitized_fts_queries
       - name: Profile fact behavior
