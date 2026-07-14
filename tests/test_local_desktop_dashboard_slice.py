@@ -1,123 +1,115 @@
+import builtins
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_contains_private_values
 from aaaat.dashboard_projection import build_dashboard_projection
-from aaaat.db import add_raw_intake, connect, create_application, init_db, list_applications, list_raw_intake, set_profile_variable
+from aaaat.db import connect, list_applications, list_raw_intake
 from aaaat.demo_seed import seed
-from aaaat.payload import dashboard_payload
-from aaaat.profile_facts import create_profile_fact
-from aaaat.security import Mode
+
+
+class DesktopReleaseReadinessSliceTests(unittest.TestCase):
+    def test_clean_storage_seed_builds_smart_projection_without_wx(self):
+        from aaaat.ui_desktop.app import build_desktop_projection
+
+        with tempfile.TemporaryDirectory() as parent:
+            storage = Path(parent) / "fresh-private"
+            self.assertFalse(storage.exists())
+
+            summary = seed(storage, count=4, reset=True)
+            projection = build_desktop_projection(storage)
+
+            with connect(storage) as conn:
+                applications = list_applications(conn)
+                raw_counts = [len(list_raw_intake(conn, app["id"])) for app in applications]
+
+        self.assertEqual(summary, {"created": 4, "updated": 0, "total": 4})
+        self.assertEqual(len(applications), 4)
+        self.assertTrue(all(count == 1 for count in raw_counts))
+        self.assertEqual(projection["view_state"]["current_view"], "smart")
+        self.assertIsNotNone(projection["smart"]["selected_candidature_detail"])
+        self.assertTrue(projection["smart"]["source_text"]["has_raw"])
+        self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
+
+    def test_demo_seed_is_idempotent_and_reset_is_repeatable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = seed(tmp, count=3, reset=True)
+            second = seed(tmp, count=3)
+            reset = seed(tmp, count=2, reset=True)
+            with connect(tmp) as conn:
+                applications = list_applications(conn)
+                raw_counts = [len(list_raw_intake(conn, app["id"])) for app in applications]
+
+        self.assertEqual(first, {"created": 3, "updated": 0, "total": 3})
+        self.assertEqual(second, {"created": 0, "updated": 3, "total": 3})
+        self.assertEqual(reset, {"created": 2, "updated": 0, "total": 2})
+        self.assertEqual(len(applications), 2)
+        self.assertTrue(all(count == 1 for count in raw_counts))
+        self.assertTrue(all(app["status"] in {"active", "closed"} for app in applications))
+        self.assertTrue(any(app["pitch"] for app in applications))
+        self.assertTrue(any(app["keywords"] for app in applications))
+
+    def test_empty_clean_storage_projects_welcome_view(self):
+        from aaaat.ui_desktop.app import build_desktop_projection
+
+        with tempfile.TemporaryDirectory() as parent:
+            storage = Path(parent) / "fresh-private"
+            projection = build_desktop_projection(storage)
+
+        self.assertEqual(projection["view_state"]["current_view"], "welcome")
+        self.assertFalse(projection["smart"]["candidatures"])
+
+    def test_desktop_launcher_reports_missing_optional_dependency_clearly(self):
+        from aaaat.ui_desktop.app import launch_desktop_dashboard
+
+        real_import = builtins.__import__
+
+        def import_without_wx(name, *args, **kwargs):
+            if name == "wx":
+                raise ModuleNotFoundError("No module named 'wx'")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=import_without_wx):
+            with self.assertRaisesRegex(RuntimeError, r"wxPython.*desktop extra"):
+                launch_desktop_dashboard("unused")
 
 
 class DesktopProjectionBehaviorTests(unittest.TestCase):
-    def make_payload(self):
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        init_db(tmp.name)
-        with connect(tmp.name) as conn:
-            app = create_application(
-                conn,
-                company="Desktop Co",
-                role="Backend Engineer",
-                status="meeting",
-                priority="high",
-                next_action="Prepare recruiter call",
-                notes="Primary recruiter-call note",
-                pitch="Compact pitch",
-                smart_question="What does success look like?",
-                risks_to_avoid="Do not overclaim frontend depth",
-                prepare_first="Review backend projects",
-                prepare_later="Read company blog",
-                company_research="Local-first product context",
-                form_answers="Draft form answer",
-                keywords=["Python"],
-            )
-            add_raw_intake(conn, app["id"], "Literal offer text " * 80, created_by="test")
-            payload = dashboard_payload(conn, include_raw=True)
-        return payload, app
-
-    def test_selected_candidature_is_projected_for_smart_workflow(self):
-        payload, app = self.make_payload()
-        projection = build_dashboard_projection(
-            payload,
-            Mode.FULL,
-            view="smart",
-            selected_application_id=app["id"],
-            selected_keyword="Python",
-        )
-
-        self.assertEqual(projection["view_state"]["current_view"], "smart")
-        self.assertEqual(projection["view_state"]["selected_candidature_ref"], app["id"])
-        detail = projection["smart"]["selected_candidature_detail"]
-        self.assertEqual(detail["company"], "Desktop Co")
-        self.assertEqual(detail["role"], "Backend Engineer")
-        self.assertEqual(projection["smart"]["primary_note"]["body"], "Primary recruiter-call note")
-        self.assertTrue(projection["smart"]["source_text"]["has_raw"])
-
-    def test_detailed_projection_preserves_selected_row_and_available_columns(self):
-        payload, app = self.make_payload()
-        projection = build_dashboard_projection(payload, Mode.FULL, view="detailed", selected_application_id=app["id"])
-        detailed = projection["detailed"]
-
-        self.assertEqual(detailed["selected_row"]["ref"], app["id"])
-        self.assertEqual(detailed["selected_row"]["company"], "Desktop Co")
-        available_ids = {column["id"] for column in detailed["available_columns"]}
-        self.assertTrue({"company", "role", "status", "priority"}.issubset(available_ids))
-        self.assertTrue(set(detailed["visible_columns"]).issubset(available_ids))
-
-    def test_user_projection_uses_persisted_profile_data(self):
+    def test_seeded_projection_preserves_selected_candidature_and_keyword(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            seed(tmp, count=4, reset=True)
             with connect(tmp) as conn:
-                set_profile_variable(conn, "profile.display_name", "Ada Lovelace")
-                create_profile_fact(
-                    conn,
-                    fact_type="skill",
-                    title="Python backend",
-                    body="Builds local-first backend tooling.",
-                    visibility="professional",
-                    exposure="summarized",
-                    use_for_dashboard=True,
-                )
-                payload = dashboard_payload(conn, include_raw=True)
+                applications = list_applications(conn)
+            selected = applications[1]
+            keyword = selected["keywords"][0]
 
-        user = build_dashboard_projection(payload, Mode.FULL, view="user")["user"]
-        self.assertIn("Ada Lovelace", {item["value"] for item in user["profile_variables"]})
-        self.assertTrue(any(item["title"] == "Python backend" for item in user["profile_facts"]))
+            projection = build_dashboard_projection(
+                build_desktop_payload(tmp),
+                view="smart",
+                selected_application_id=selected["id"],
+                selected_keyword=keyword,
+            )
 
-    def test_read_only_projection_disables_mutation_and_raw_intake(self):
-        payload, app = self.make_payload()
-        permissions = build_dashboard_projection(
-            payload,
-            Mode.READ_ONLY,
-            view="smart",
-            selected_application_id=app["id"],
-        )["permissions"]
+        self.assertEqual(projection["view_state"]["selected_candidature_ref"], selected["id"])
+        self.assertEqual(projection["view_state"]["selected_keyword"], keyword)
+        self.assertEqual(projection["smart"]["selected_candidature_detail"]["company"], selected["company"])
 
-        self.assertFalse(permissions["can_write"])
-        self.assertFalse(permissions["allow_dashboard_actions"])
-        self.assertFalse(permissions["can_show_raw_intake"])
+    def test_detailed_projection_exposes_current_comparison_columns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            seed(tmp, count=3, reset=True)
+            payload = build_desktop_payload(tmp)
+            projection = build_dashboard_projection(payload, view="detailed")
 
-    def test_projection_imports_do_not_load_wx(self):
-        payload, _app = self.make_payload()
-        build_dashboard_projection(payload, Mode.FULL, view="smart")
-        self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
+        available = {column["id"] for column in projection["detailed"]["available_columns"]}
+        self.assertTrue({"company", "role", "status", "priority", "source_url"}.issubset(available))
+        self.assertTrue(set(projection["detailed"]["visible_columns"]).issubset(available))
 
 
-class DesktopFieldAndLayoutBehaviorTests(unittest.TestCase):
-    def test_user_change_collection_only_returns_changed_writable_fields(self):
-        from aaaat.ui_desktop.user_fields import collect_writable_user_changes
-
-        changes = collect_writable_user_changes(
-            {"profile.display_name": "Ada", "raw_provenance": "old"},
-            {"profile.display_name": "Ada L.", "raw_provenance": "new", "unsupported": "new"},
-            {"profile.display_name": "profile.display_name", "raw_provenance": None, "unsupported": "profile.unsupported"},
-        )
-        self.assertEqual(changes, {"profile.display_name": "Ada L."})
-
-    def test_layout_state_round_trips_and_excludes_private_values(self):
+class DesktopLayoutBehaviorTests(unittest.TestCase):
+    def test_layout_state_round_trips_without_private_values(self):
         state = DashboardLayoutState.default()
         state.selected_view = "detailed"
         state.selected_candidature_ref = "app_123"
@@ -125,6 +117,7 @@ class DesktopFieldAndLayoutBehaviorTests(unittest.TestCase):
         state.pane_layout["smart"] = {"left": 210, "right": 200}
 
         restored = DashboardLayoutState.from_json(state.to_json())
+
         self.assertEqual(restored.selected_view, "detailed")
         self.assertEqual(restored.selected_candidature_ref, "app_123")
         self.assertEqual(restored.selected_keyword, "Python")
@@ -132,38 +125,20 @@ class DesktopFieldAndLayoutBehaviorTests(unittest.TestCase):
 
     def test_layout_state_persists_to_disk(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = f"{tmp}/ui_state.json"
+            path = Path(tmp) / "ui_state.json"
             state = DashboardLayoutState.default()
             state.selected_view = "user"
             state.save(path)
             loaded = DashboardLayoutState.load(path)
+
         self.assertEqual(loaded.selected_view, "user")
 
 
-class DesktopRuntimeAndSeedBehaviorTests(unittest.TestCase):
-    def test_desktop_projection_builder_runs_without_wx(self):
-        from aaaat.ui_desktop.app import build_desktop_projection
+def build_desktop_payload(storage):
+    from aaaat.payload import dashboard_payload
 
-        with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            projection = build_desktop_projection(tmp, Mode.FULL)
-        self.assertIn(projection["view_state"]["current_view"], {"welcome", "smart"})
-        self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
-
-    def test_seed_is_idempotent_and_creates_realistic_local_data(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            first = seed(tmp, count=4, reset=True)
-            second = seed(tmp, count=4)
-            with connect(tmp) as conn:
-                apps = list_applications(conn)
-                intake_counts = [len(list_raw_intake(conn, app["id"])) for app in apps]
-
-        self.assertEqual(first["created"], 4)
-        self.assertEqual(second["updated"], 4)
-        self.assertEqual(len(apps), 4)
-        self.assertTrue(all(count == 1 for count in intake_counts))
-        self.assertTrue(any(app["pitch"] for app in apps))
-        self.assertTrue(any(app["keywords"] for app in apps))
+    with connect(storage) as conn:
+        return dashboard_payload(conn, include_raw=True)
 
 
 if __name__ == "__main__":
