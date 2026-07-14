@@ -263,7 +263,7 @@ def encode_tags(value: Any) -> str:
             parsed = json.loads(value)
             return json.dumps([str(tag).strip() for tag in parsed if str(tag).strip()])
         return json.dumps([tag.strip() for tag in value.split(",") if tag.strip()])
-    return json.dumps([str(tag).strip() for tag in (value or []) if tag.strip()])
+    return json.dumps([str(tag).strip() for tag in (value or []) if str(tag).strip()])
 
 
 def decode_fact(item: dict[str, Any]) -> dict[str, Any]:
