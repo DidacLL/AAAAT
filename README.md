@@ -2,7 +2,7 @@
 
 AAAAT is a local-first desktop workspace for managing job applications, preparing recruiter conversations, and generating per-application text artifacts from local user data.
 
-It is built for one person running it on their own machine. Private job-search data stays in local storage by default.
+It is built for one person running it on their own machine. Private job-search data stays in local storage by default. The wx desktop application is the only v1 human runtime.
 
 ## What AAAAT does
 
@@ -16,7 +16,7 @@ AAAAT gives you a private operational workspace for your job search:
 - render local CV and cover-letter artifacts from templates;
 - expose optional bounded task/context surfaces for external tools or agents.
 
-External agent workflows are optional. AAAAT is not a provider SDK, general agent orchestrator, or broad CRUD API.
+External agent workflows are optional. AAAAT is not a provider SDK, general agent orchestrator, or broad CRUD API. Browser, local-server, static-export, and runtime-mode prototypes are not supported v1 product surfaces.
 
 ## Local-first privacy
 
@@ -148,10 +148,13 @@ aaaat artifact list <application_id>
 aaaat artifact update-state <artifact_id> --state reviewed --notes "Ready to use"
 ```
 
+These ID-based commands are local user administration commands. Agent-facing contracts use opaque task handles and bounded action packets instead.
+
 Review generated documents before sending them.
 
 ## More docs
 
+- [V1 release and upgrade notes](docs/release-notes-v1.md)
 - [Install](docs/install.md)
 - [Local data and backup](docs/local-data.md)
 - [Agent workflow](docs/agent-workflow.md)
