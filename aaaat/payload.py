@@ -4,19 +4,19 @@ import sqlite3
 from typing import Any
 
 from .artifacts import list_artifacts
-from .db import list_applications, list_glossary, list_raw_intake, profile_variables, required_profile_variables
+from .candidatures import list_candidatures
+from .db import list_glossary, list_raw_intake, profile_variables, required_profile_variables
 from .privacy import list_variables, resolve_variables
 from .profile_facts import list_profile_facts, profile_context
-from .review_queue import next_action_date, review_queue, sorted_applications
+from .review_queue import review_queue, sorted_applications
 
 
 def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> dict[str, Any]:
     glossary = list_glossary(conn)
-    apps = sorted_applications(list_applications(conn), glossary)
+    apps = sorted_applications(list_candidatures(conn, include_related=False), glossary)
     for app in apps:
         app["artifacts"] = list_artifacts(conn, app["id"])
         app["last_activity"] = app.get("updated_at") or app.get("created_at") or ""
-        app["next_action_date"] = next_action_date(app)
         app["call_probability_label"] = "Call probability: pending signal model"
         if include_raw:
             app["raw_intake"] = list_raw_intake(conn, app["id"])
@@ -26,7 +26,7 @@ def dashboard_payload(conn: sqlite3.Connection, include_raw: bool = False) -> di
         "profile_variables": profile_variables(conn),
         "profile_variable_records": list_variables(conn),
         "profile_facts": list_profile_facts(conn),
-        "profile_context_dashboard": profile_context(conn, "candidature_fit", scope="local_dashboard"),
+        "profile_context_local": profile_context(conn, "candidature_fit", scope="local"),
         "missing_profile_variables": required_profile_variables(conn),
     }
     payload["review_queue"] = review_queue(payload)

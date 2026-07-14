@@ -4,7 +4,6 @@ from typing import Any
 
 from .dashboard_layout import DashboardLayoutState
 from .dashboard_modules import modules_for_view, validate_module_registry
-from .security import Mode, can_show_raw_intake, can_write
 
 DESKTOP_VIEWS = {"welcome", "smart", "detailed", "user"}
 VIEW_ALIASES = {
@@ -18,20 +17,36 @@ VIEW_ALIASES = {
     "user": "user",
 }
 
+DETAIL_VALUE_KEYS = (
+    "description",
+    "salary_expectation",
+    "publication_date",
+    "application_date",
+    "raw_application_form",
+    "strengths",
+    "questions_to_ask",
+    "tech_stack",
+    "valuation",
+    "candidature_evaluation",
+    "role_strategy",
+    "cv_material",
+    "cover_letter_material",
+    "recruiter_material",
+    "material_sent_notes",
+)
+
 DETAILED_COLUMNS = [
     {"id": "company", "title": "Company", "source": "company"},
     {"id": "role", "title": "Role", "source": "role"},
-    {"id": "status", "title": "Status", "source": "status"},
+    {"id": "status", "title": "State", "source": "status"},
     {"id": "priority", "title": "Priority", "source": "priority"},
-    {"id": "next_action", "title": "Next action", "source": "next_action"},
-    {"id": "deadline", "title": "Next date", "source": "next_action_date"},
     {"id": "last_contact", "title": "Last activity", "source": "last_activity"},
     {"id": "source", "title": "Source", "source": "source"},
     {"id": "source_url", "title": "Source URL", "source": "source_url"},
     {"id": "location", "title": "Location", "source": "location"},
     {"id": "remote_mode", "title": "Remote", "source": "remote_mode"},
     {"id": "keywords", "title": "Keywords", "source": "keywords"},
-    {"id": "artifacts_state", "title": "Artifacts", "source": "artifacts_state"},
+    {"id": "artifacts_state", "title": "Material", "source": "artifacts_state"},
     {"id": "notes_excerpt", "title": "Notes", "source": "notes_excerpt"},
     {"id": "created_at", "title": "Created", "source": "created_at"},
     {"id": "updated_at", "title": "Updated", "source": "updated_at"},
@@ -46,7 +61,6 @@ def normalize_desktop_view(view: str | None, *, has_candidatures: bool = True) -
 
 def build_dashboard_projection(
     payload: dict[str, Any],
-    mode: Mode | str = Mode.FULL,
     *,
     view: str | None = None,
     selected_application_id: str | None = None,
@@ -54,13 +68,6 @@ def build_dashboard_projection(
     search_query: str | None = None,
     layout_state: DashboardLayoutState | dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build a toolkit-neutral dashboard projection for the local desktop UI.
-
-    The projection is human-local UI state, not an agent API and not a provider
-    integration contract. It intentionally contains no wxPython widgets, no HTML
-    fragments, and no dashboard routes.
-    """
-
     validate_module_registry()
     apps = list(payload.get("applications") or [])
     glossary = list(payload.get("glossary") or [])
@@ -69,9 +76,8 @@ def build_dashboard_projection(
     selected = _selected_application(apps, selected_application_id or layout.selected_candidature_ref)
     selected_keyword_value = selected_keyword or layout.selected_keyword or _first_keyword(selected)
     column_state = _column_state(layout)
-
-    projection = {
-        "permissions": _permissions(mode),
+    return {
+        "permissions": _permissions(),
         "view_state": {
             "current_view": current_view,
             "selected_candidature_ref": selected.get("id") if selected else None,
@@ -83,17 +89,10 @@ def build_dashboard_projection(
         "user": _user_projection(payload),
         "smart": _smart_projection(payload, apps, selected, glossary, selected_keyword_value),
         "detailed": _detailed_projection(payload, apps, selected, column_state, search_query or ""),
-        "glossary": {
-            "terms": glossary,
-            "selected": _glossary_definition(glossary, selected_keyword_value),
-        },
-        "modules": {
-            view_name: [_module_to_dict(module) for module in modules_for_view(view_name)]
-            for view_name in ("welcome", "smart", "detailed", "user")
-        },
+        "glossary": {"terms": glossary, "selected": _glossary_definition(glossary, selected_keyword_value)},
+        "modules": {view_name: [_module_to_dict(module, view_name=view_name) for module in modules_for_view(view_name)] for view_name in ("welcome", "smart", "detailed", "user")},
         "layout_state": layout.to_dict(),
     }
-    return projection
 
 
 def _layout(layout_state: DashboardLayoutState | dict[str, Any] | None) -> DashboardLayoutState:
@@ -104,15 +103,8 @@ def _layout(layout_state: DashboardLayoutState | dict[str, Any] | None) -> Dashb
     return DashboardLayoutState.default()
 
 
-def _permissions(mode: Mode | str) -> dict[str, bool | str]:
-    resolved = Mode(mode)
-    return {
-        "mode": resolved.value,
-        "can_write": can_write(resolved),
-        "can_show_raw_intake": can_show_raw_intake(resolved),
-        "is_static_demo": resolved == Mode.STATIC_DEMO,
-        "allow_dashboard_actions": can_write(resolved),
-    }
+def _permissions() -> dict[str, bool | str]:
+    return {"surface": "local_desktop", "can_write": True, "can_show_raw_intake": True}
 
 
 def _selected_application(apps: list[dict[str, Any]], selected_id: str | None) -> dict[str, Any] | None:
@@ -120,7 +112,8 @@ def _selected_application(apps: list[dict[str, Any]], selected_id: str | None) -
         for app in apps:
             if str(app.get("id")) == str(selected_id):
                 return app
-    return apps[0] if apps else None
+    active = [app for app in apps if str(app.get("status") or "active") == "active"]
+    return (active or apps)[0] if apps else None
 
 
 def _first_keyword(app: dict[str, Any] | None) -> str | None:
@@ -150,24 +143,15 @@ def _user_projection(payload: dict[str, Any]) -> dict[str, Any]:
     profile_variables = payload.get("profile_variables") or {}
     variable_records = list(payload.get("profile_variable_records") or [])
     profile_facts = list(payload.get("profile_facts") or [])
-    profile_context = payload.get("profile_context_dashboard") or {}
+    profile_context = payload.get("profile_context_local") or {}
     missing = list(payload.get("missing_profile_variables") or [])
     return {
-        "profile_summary": {
-            "variable_count": len(profile_variables),
-            "fact_count": len(profile_facts),
-            "missing_variables": list(missing),
-            "ready_for_templates": not bool(missing),
-        },
+        "profile_summary": {"variable_count": len(profile_variables), "fact_count": len(profile_facts), "missing_variables": list(missing), "ready_for_templates": not bool(missing)},
         "profile_variables": _profile_variable_items(profile_variables),
         "profile_variable_records": _profile_variable_record_items(variable_records),
         "profile_facts": _profile_fact_items(profile_facts),
         "profile_context": profile_context,
-        "career_summary": {
-            "configured": bool(payload.get("career_plan") or payload.get("career_strategy")),
-            "has_strategy": bool(payload.get("career_strategy")),
-            "note": "No dedicated local CareerPlan record is projected yet." if not payload.get("career_plan") else "CareerPlan data available.",
-        },
+        "career_summary": {"configured": bool(payload.get("career_plan") or payload.get("career_strategy")), "has_strategy": bool(payload.get("career_strategy")), "note": "Career and strategy data are editable in User View."},
         "template_summary": {"missing_profile_variables": list(missing), "artifact_types": ["cv", "cover_letter"]},
         "settings_summary": {"storage_mode": "local", "privacy": "local-first", "agent_workflows": "optional"},
         "workspace_modules": [module.module_id for module in modules_for_view("user")],
@@ -185,73 +169,29 @@ def _profile_variable_items(profile_variables: dict[str, Any]) -> list[dict[str,
 def _profile_variable_record_items(records: list[Any]) -> list[dict[str, Any]]:
     items = []
     for record in records:
-        if not isinstance(record, dict):
-            continue
-        key = str(record.get("key") or "")
-        if not key.startswith("profile."):
-            continue
-        items.append(
-            {
-                "key": key,
-                "placeholder": record.get("placeholder") or "",
-                "exposure": record.get("exposure") or "",
-                "summary": record.get("summary") or "",
-                "is_sensitive": bool(record.get("is_sensitive")),
-                "updated_at": record.get("updated_at") or "",
-            }
-        )
+        if isinstance(record, dict) and str(record.get("key") or "").startswith("profile."):
+            items.append({"key": record.get("key") or "", "placeholder": record.get("placeholder") or "", "exposure": record.get("exposure") or "", "summary": record.get("summary") or "", "is_sensitive": bool(record.get("is_sensitive")), "updated_at": record.get("updated_at") or ""})
     return items
 
 
 def _profile_fact_items(facts: list[Any]) -> list[dict[str, Any]]:
     items = []
     for fact in facts:
-        if not isinstance(fact, dict):
-            continue
-        items.append(
-            {
-                "fact_type": fact.get("fact_type") or "",
-                "title": fact.get("title") or "",
-                "body": fact.get("body") or "",
-                "tags": list(fact.get("tags") or []),
-                "visibility": fact.get("visibility") or "",
-                "exposure": fact.get("exposure") or "",
-                "source": fact.get("source") or "",
-                "review_state": fact.get("review_state") or "",
-                "usage": {
-                    "cv": bool(fact.get("use_for_cv")),
-                    "cover_letter": bool(fact.get("use_for_cover_letter")),
-                    "agent_context": bool(fact.get("use_for_agent_context")),
-                    "market_research": bool(fact.get("use_for_market_research")),
-                    "dashboard": bool(fact.get("use_for_dashboard")),
-                },
-                "updated_at": fact.get("updated_at") or "",
-            }
-        )
+        if isinstance(fact, dict):
+            items.append({"fact_type": fact.get("fact_type") or "", "title": fact.get("title") or "", "body": fact.get("body") or "", "tags": list(fact.get("tags") or []), "visibility": fact.get("visibility") or "", "exposure": fact.get("exposure") or "", "source": fact.get("source") or "", "review_state": fact.get("review_state") or "", "usage": {"cv": bool(fact.get("use_for_cv")), "cover_letter": bool(fact.get("use_for_cover_letter")), "agent_context": bool(fact.get("use_for_agent_context")), "market_research": bool(fact.get("use_for_market_research")), "desktop": bool(fact.get("use_for_desktop"))}, "updated_at": fact.get("updated_at") or ""})
     return items
 
 
-def _smart_projection(
-    payload: dict[str, Any],
-    apps: list[dict[str, Any]],
-    selected: dict[str, Any] | None,
-    glossary: list[dict[str, Any]],
-    selected_keyword: str | None,
-) -> dict[str, Any]:
+def _smart_projection(payload: dict[str, Any], apps: list[dict[str, Any]], selected: dict[str, Any] | None, glossary: list[dict[str, Any]], selected_keyword: str | None) -> dict[str, Any]:
+    active_apps = [app for app in apps if str(app.get("status") or "active") == "active"]
     selected_detail = _selected_detail(selected)
     return {
-        "candidature_summaries": [_candidature_summary(app) for app in apps],
+        "candidature_summaries": [_candidature_summary(app) for app in active_apps],
         "selected_candidature_detail": selected_detail,
         "primary_note": _primary_note(selected),
         "context_modules": [
-            {"id": "primary_note", "title": "Notes", "selected": True},
-            {"id": "keyword_context", "title": "Keywords", "selected": False},
-            {"id": "artifacts", "title": "Artifacts", "selected": False},
-            {"id": "call_card", "title": "Call card", "selected": False},
-            {"id": "source_text", "title": "Source", "selected": False},
-            {"id": "company_research", "title": "Company research", "selected": False},
-            {"id": "form_answers", "title": "Form answers", "selected": False},
-            {"id": "agent_suggestions", "title": "Agent suggestions", "selected": False},
+            {"id": "keywords", "title": "Keywords", "selected": True},
+            {"id": "artifacts", "title": "Material", "selected": False},
         ],
         "selected_keyword_definition": _glossary_definition(glossary, selected_keyword),
         "artifact_summary": _artifact_summary(selected),
@@ -263,13 +203,7 @@ def _smart_projection(
     }
 
 
-def _detailed_projection(
-    payload: dict[str, Any],
-    apps: list[dict[str, Any]],
-    selected: dict[str, Any] | None,
-    column_state: dict[str, list[str]],
-    search_query: str,
-) -> dict[str, Any]:
+def _detailed_projection(payload: dict[str, Any], apps: list[dict[str, Any]], selected: dict[str, Any] | None, column_state: dict[str, list[str]], search_query: str) -> dict[str, Any]:
     rows = [_detailed_row(app) for app in apps]
     return {
         "rows": rows,
@@ -277,7 +211,7 @@ def _detailed_projection(
         "visible_columns": column_state["visible"],
         "column_order": column_state["order"],
         "search_query": search_query,
-        "filters": {},
+        "filters": {"state_model": ["active", "closed"]},
         "selected_row": _detailed_row(selected) if selected else None,
         "toolbox_actions": _toolbox_actions(selected),
         "task_queue_summary": _review_queue_summary(payload.get("review_queue") or []),
@@ -289,7 +223,7 @@ def _column_state(layout: DashboardLayoutState) -> dict[str, list[str]]:
     visible = [item for item in layout.detailed_columns.get("visible", []) if item in available]
     order = [item for item in layout.detailed_columns.get("order", []) if item in available]
     if not visible:
-        visible = ["company", "role", "status", "priority", "next_action", "artifacts_state"]
+        visible = ["company", "role", "status", "priority", "location", "remote_mode", "keywords", "artifacts_state"]
     if not order:
         order = list(visible)
     for column_id in visible:
@@ -300,32 +234,18 @@ def _column_state(layout: DashboardLayoutState) -> dict[str, list[str]]:
 
 def _candidature_summary(app: dict[str, Any]) -> dict[str, Any]:
     source_text = _source_text(app)
-    return {
-        "ref": app.get("id"),
-        "company": app.get("company") or "Untitled Company",
-        "role": app.get("role") or "Untitled Role",
-        "status": app.get("status") or "draft",
-        "priority": app.get("priority") or "normal",
-        "next_action": app.get("next_action") or "",
-        "call_signals": app.get("call_signals") or "",
-        "source_excerpt": source_text["excerpt"],
-        "source_length": source_text["length"],
-        "deadline_or_last_contact": app.get("next_action_date") or app.get("last_activity") or "",
-        "source": app.get("source") or "",
-        "keywords": list(app.get("keywords") or []),
-        "artifacts_state": _artifact_state_label(app),
-    }
+    return {"ref": app.get("id"), "company": app.get("company") or "Untitled Company", "role": app.get("role") or "Untitled Role", "status": app.get("status") or "active", "priority": app.get("priority") or "normal", "call_signals": app.get("call_signals") or "", "source_excerpt": source_text["excerpt"], "source_length": source_text["length"], "deadline_or_last_contact": app.get("last_activity") or "", "source": app.get("source") or "", "keywords": list(app.get("keywords") or []), "artifacts_state": _artifact_state_label(app)}
 
 
 def _selected_detail(app: dict[str, Any] | None) -> dict[str, Any] | None:
     if not app:
         return None
     source_text = _source_text(app)
-    return {
+    detail = {
         "ref": app.get("id"),
         "company": app.get("company") or "Untitled Company",
         "role": app.get("role") or "Untitled Role",
-        "status": app.get("status") or "draft",
+        "status": app.get("status") or "active",
         "priority": app.get("priority") or "normal",
         "location": app.get("location") or "",
         "remote_mode": app.get("remote_mode") or "",
@@ -334,44 +254,42 @@ def _selected_detail(app: dict[str, Any] | None) -> dict[str, Any] | None:
         "source_excerpt": source_text["excerpt"],
         "source_text": source_text["body"],
         "source_length": source_text["length"],
-        "next_action": app.get("next_action") or "",
+        "source_has_raw": source_text["has_raw"],
+        "notes": app.get("notes") or "",
         "call_signals": app.get("call_signals") or "",
         "last_activity": app.get("last_activity") or "",
         "pitch": app.get("pitch") or "",
+        "risks_to_avoid": app.get("risks_to_avoid") or "",
         "risk_to_avoid": app.get("risks_to_avoid") or "",
         "smart_question": app.get("smart_question") or "",
-        "prepare_first": app.get("prepare_first") or "",
-        "prepare_later": app.get("prepare_later") or "",
         "offer_snapshot": app.get("offer_snapshot") or "",
+        "company_research": app.get("company_research") or "",
+        "form_answers": app.get("form_answers") or "",
         "keywords": list(app.get("keywords") or []),
+        "created_at": app.get("created_at") or "",
+        "updated_at": app.get("updated_at") or "",
+        "artifacts_state": _artifact_state_label(app),
+        "artifacts_count": len(app.get("artifacts") or []),
+        "artifacts_items": _artifact_items(app),
     }
+    for key in DETAIL_VALUE_KEYS:
+        detail[key] = app.get(key) or ""
+    return detail
 
 
 def _primary_note(app: dict[str, Any] | None) -> dict[str, Any]:
-    return {
-        "candidature_ref": app.get("id") if app else None,
-        "body": app.get("notes", "") if app else "",
-        "interaction_model": "single_primary_note",
-        "history_is_secondary": True,
-    }
+    return {"candidature_ref": app.get("id") if app else None, "body": app.get("notes", "") if app else "", "interaction_model": "single_primary_note", "history_is_secondary": True}
 
 
 def _call_card(app: dict[str, Any] | None) -> dict[str, str]:
-    return {
-        "pitch": app.get("pitch", "") if app else "",
-        "question": app.get("smart_question", "") if app else "",
-        "avoid": app.get("risks_to_avoid", "") if app else "",
-        "prepare_first": app.get("prepare_first", "") if app else "",
-        "prepare_later": app.get("prepare_later", "") if app else "",
-        "signals": app.get("call_signals", "") if app else "",
-    }
+    return {"pitch": app.get("pitch", "") if app else "", "question": app.get("smart_question", "") if app else "", "avoid": app.get("risks_to_avoid", "") if app else "", "signals": app.get("call_signals", "") if app else ""}
 
 
 def _source_text(app: dict[str, Any] | None) -> dict[str, Any]:
     raw_items = list(app.get("raw_intake") or []) if app else []
     body = "\n\n".join(str(item.get("content") or "").strip() for item in raw_items if str(item.get("content") or "").strip())
     if not body and app:
-        body = app.get("offer_snapshot") or app.get("company_research") or ""
+        body = app.get("offer_snapshot") or app.get("description") or app.get("company_research") or ""
     compact = " ".join(body.split())
     excerpt = compact[:240].rstrip() + ("…" if len(compact) > 240 else "")
     return {"body": body, "excerpt": excerpt, "length": len(body), "has_raw": bool(raw_items)}
@@ -389,41 +307,25 @@ def _artifact_state_label(app: dict[str, Any] | None) -> str:
     return f"{count} artifact" if count == 1 else f"{count} artifacts"
 
 
+def _artifact_items(app: dict[str, Any]) -> str:
+    items = []
+    for item in app.get("artifacts") or []:
+        items.append(" · ".join(str(part) for part in (item.get("artifact_type"), item.get("label"), item.get("review_state"), item.get("created_at")) if part))
+    return "\n".join(items)
+
+
 def _detailed_row(app: dict[str, Any] | None) -> dict[str, Any] | None:
     if not app:
         return None
-    keywords = list(app.get("keywords") or [])
+    selected = _selected_detail(app) or {}
     notes = app.get("notes") or ""
-    return {
-        "ref": app.get("id"),
-        "company": app.get("company") or "Untitled Company",
-        "role": app.get("role") or "Untitled Role",
-        "status": app.get("status") or "draft",
-        "priority": app.get("priority") or "normal",
-        "next_action": app.get("next_action") or "",
-        "deadline": app.get("next_action_date") or "",
-        "last_contact": app.get("last_activity") or "",
-        "source": app.get("source") or "",
-        "source_url": app.get("source_url") or "",
-        "location": app.get("location") or "",
-        "remote_mode": app.get("remote_mode") or "",
-        "keywords": keywords,
-        "artifacts_state": _artifact_state_label(app),
-        "notes_excerpt": notes[:80],
-        "created_at": app.get("created_at") or "",
-        "updated_at": app.get("updated_at") or "",
-    }
+    row = {**selected, "last_contact": app.get("last_activity") or "", "notes_excerpt": notes[:80]}
+    return row
 
 
 def _toolbox_actions(selected: dict[str, Any] | None) -> list[dict[str, str]]:
     if selected:
-        return [
-            {"id": "generate_cv", "label": "Generate CV"},
-            {"id": "generate_cover_letter", "label": "Generate cover letter"},
-            {"id": "prepare_recruiter_call", "label": "Prepare recruiter call"},
-            {"id": "review_fit", "label": "Review fit"},
-            {"id": "archive_candidature", "label": "Archive candidature"},
-        ]
+        return []
     return [
         {"id": "career_path", "label": "Career path"},
         {"id": "strategy", "label": "Strategy"},
@@ -446,16 +348,10 @@ def _glossary_definition(glossary: list[dict[str, Any]], selected_keyword: str |
 
 
 def _review_queue_summary(items: list[Any]) -> dict[str, Any]:
-    if isinstance(items, dict):
-        iterable = [items]
-    else:
-        iterable = list(items or [])
+    iterable = [items] if isinstance(items, dict) else list(items or [])
     grouped: dict[str, int] = {}
     for item in iterable:
-        if isinstance(item, dict):
-            state = str(item.get("state") or item.get("review_state") or item.get("status") or "pending")
-        else:
-            state = "pending"
+        state = str(item.get("state") or item.get("review_state") or item.get("status") or "pending") if isinstance(item, dict) else "pending"
         grouped[state] = grouped.get(state, 0) + 1
     return {"count": len(iterable), "groups": grouped}
 
@@ -464,15 +360,17 @@ def _items_summary(items: list[Any]) -> dict[str, Any]:
     return {"count": len(items), "items": items[:5]}
 
 
-def _module_to_dict(module: Any) -> dict[str, Any]:
+def _module_to_dict(module: Any, *, view_name: str) -> dict[str, Any]:
+    supported_views = tuple(getattr(module, "supported_views", ()) or ())
+    visibility = dict(getattr(module, "default_visibility_by_view", {}) or {})
+    regions = dict(getattr(module, "default_region_by_view", {}) or {})
+    visible = bool(visibility.get(view_name, True))
     return {
-        "module_id": module.module_id,
-        "title": module.title,
-        "purpose": module.purpose,
-        "supported_views": list(module.supported_views),
-        "default_visibility_by_view": dict(module.default_visibility_by_view),
-        "default_region_by_view": dict(module.default_region_by_view),
-        "minimum_useful_size": list(module.minimum_useful_size),
-        "contextual_actions": list(module.contextual_actions),
-        "state_persistence_policy": module.state_persistence_policy,
+        "module_id": str(getattr(module, "module_id", "")),
+        "title": str(getattr(module, "title", "")),
+        "view": view_name,
+        "supported_views": list(supported_views),
+        "region": str(regions.get(view_name, "center")),
+        "required": visible,
+        "optional": not visible,
     }

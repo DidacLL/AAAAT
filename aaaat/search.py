@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import sqlite3
 import re
+import sqlite3
 from typing import Any
 
-from .db import application_keywords, list_applications, list_raw_intake, row_to_dict
+from .candidatures import list_candidatures
+from .db import application_keywords, list_raw_intake, row_to_dict
 from .notes import list_notes
 from .profile_facts import list_profile_facts
 from .text_blobs import list_text_blobs
@@ -49,29 +50,35 @@ def fts_available(conn: sqlite3.Connection) -> bool:
 def rebuild_index(conn: sqlite3.Connection) -> None:
     ensure_fts(conn)
     conn.execute("DELETE FROM search_fts")
-    for app in list_applications(conn):
+    for app in list_candidatures(conn):
         app_id = app["id"]
         keywords = ", ".join(application_keywords(conn, app_id))
         title = f"{app.get('company', '')} {app.get('role', '')}".strip()
         body = "\n".join(
             str(app.get(field) or "")
             for field in (
-                "source",
                 "source_url",
                 "location",
                 "remote_mode",
-                "next_action",
                 "notes",
                 "call_signals",
-                "technical_reading",
                 "pitch",
                 "smart_question",
                 "risks_to_avoid",
-                "prepare_first",
-                "prepare_later",
                 "offer_snapshot",
                 "company_research",
+                "description",
+                "raw_application_form",
                 "form_answers",
+                "strengths",
+                "questions_to_ask",
+                "tech_stack",
+                "candidature_evaluation",
+                "role_strategy",
+                "recruiter_material",
+                "cv_material",
+                "cover_letter_material",
+                "material_sent_notes",
             )
         )
         add_index_row(conn, "candidature", app_id, app_id, title, body, keywords)

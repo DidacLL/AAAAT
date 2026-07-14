@@ -3,17 +3,17 @@
 You are the orchestrator for the next AAAAT development run.
 
 Repository: `DidacLL/AAAAT`
-Branch: create a fresh branch from current `main`.
+Branch: continue from the current v1 release rebuild branch unless the maintainer instructs otherwise.
 
 ## Objective
 
-Make AAAAT production-ready-asap by keeping the capability-scoped agent protocol precise without rewriting the dashboard UI.
+Make AAAAT production-ready-asap by keeping the capability-scoped agent protocol precise without rewriting the wx desktop UI.
 
-The current dashboard remains the human local UI. Do not replace it. Do not add a native app, Electron/Tauri, frontend framework, auth framework, cloud dependency, provider SDK, ORM, Alembic, Celery, Redis, or database server.
+The wx desktop remains the human local UI. Do not replace it. Do not add Electron/Tauri, a frontend framework, auth framework, cloud dependency, provider SDK, ORM, Alembic, Celery, Redis, or database server.
 
 ## Core decision
 
-The canonical agent boundary is not HTTP, CLI, MCP, or docs. It is AAAAT's capability-scoped agent protocol.
+The canonical agent boundary is AAAAT's capability-scoped agent protocol, exposed through thin local adapters.
 
 The implemented capability is task work:
 
@@ -21,8 +21,7 @@ The implemented capability is task work:
 2. get one task's minimal context;
 3. build/dispatch one task packet;
 4. submit one task result;
-5. optionally claim/release a task;
-6. AAAAT stores provenance and applies/reviews deterministically.
+5. AAAAT stores provenance and applies/reviews deterministically.
 
 The next valid capability is an action-session protocol for LLM-app-originated work.
 
@@ -69,40 +68,37 @@ Allowed action examples:
 - request local rendering from AAAAT templates;
 - submit an existing AAAAT task result.
 
-Action responses should be narrow acknowledgements and human-facing next actions. The LLM contract should not depend on internal AAAAT object identifiers.
+Action responses should be narrow acknowledgements and human-facing next signals. The LLM contract should not depend on internal AAAAT object identifiers.
 
 ## Thin adapters
 
 Expose capabilities through thin adapters:
 
 - CLI: primary/default for coding agents and local shells;
-- HTTP: capability-scoped `/api/agent/*` adapter for agents that can call local URLs;
-- MCP/OpenAPI/Markdown: descriptors/guides for the same capability operations.
+- descriptor/Markdown guide: compatibility documentation for the same capability operations.
 
 ## Main implementation work for the next feature run
 
 1. Keep `aaaat/agent_access.py` as the single service layer for task access.
-2. Add a small `aaaat/agent_actions.py` service for purpose context bundles and bounded actions.
-3. Add CLI commands: `aaaat agent context-bundle --purpose ...` and `aaaat agent action submit ...`.
-4. Add optional matching `/api/agent/*` action-session routes if HTTP agent mode is enabled.
-5. Ensure responses are narrow acknowledgements and do not require internal object ids in the LLM contract.
-6. Store cover-letter body as render input, not as a generated artifact file.
-7. Use existing local rendering to produce artifacts from templates/data.
-8. Add focused tests for context bundles, bounded actions, no duplicate tasks for completed work, local rendering, route absence, and existing dashboard/dispatch regression.
+2. Keep `aaaat/agent_actions.py` as a small service for purpose context bundles and bounded actions.
+3. Harden CLI commands: `aaaat agent context-bundle --purpose ...` and `aaaat agent action submit ...`.
+4. Ensure responses are narrow acknowledgements and do not require internal object ids in the LLM contract.
+5. Store cover-letter body as render input, not as a generated artifact file.
+6. Use existing local rendering to produce artifacts from templates/data.
+7. Add focused tests for context bundles, bounded actions, no duplicate tasks for completed work, local rendering, and wx/dispatch regressions.
 
 ## Non-goals
 
-Do not rewrite the dashboard. Do not remove the current human local dashboard routes. Do not implement complex authentication. Do not build a real MCP server. Do not redesign storage. Do not rename database tables destructively. Do not broaden dependencies.
+Do not rewrite the desktop. Do not implement complex authentication. Do not build a real MCP server. Do not redesign storage. Do not rename database tables destructively. Do not broaden dependencies.
 
-Do not implement agent raw-offer upload as the next capability. Do not implement generic create/update/list/show/search. Do not ask the LLM to provide generated artifact files.
+Do not implement generic create/update/list/show/search. Do not ask the LLM to provide generated artifact files.
 
 ## Required split for sub-agents
 
-- Agent A: implement `agent_actions` service layer and action schema validation.
-- Agent B: add CLI `agent context-bundle` and `agent action submit` commands.
-- Agent C: add optional capability-scoped HTTP action routes under `/api/agent/*`.
-- Agent D: update docs/MCP/OpenAPI to expose capability-scoped action-session operations.
-- Agent E: add regression and privacy tests; keep dashboard/static/read-only/render/dispatch tests passing.
+- Agent A: harden `agent_actions` service layer and action schema validation.
+- Agent B: harden CLI `agent context-bundle` and `agent action submit` commands.
+- Agent C: update docs/MCP/Markdown to expose capability-scoped action-session operations.
+- Agent D: add regression and privacy tests; keep wx desktop/render/dispatch tests passing.
 
 Read the annex files before coding:
 
@@ -115,4 +111,4 @@ Read the annex files before coding:
 
 Acceptance summary:
 
-AAAAT keeps the dashboard usable, agents get capability-scoped operations through CLI and optional HTTP, and LLM-app-originated work uses purpose-scoped context plus bounded actions. No agent-facing surface returns all candidatures, dashboard payload, arbitrary search, raw profile facts, raw variables, generic object CRUD, or final artifact file ingestion. All generated artifacts remain local AAAAT template renders.
+AAAAT keeps the wx desktop usable, agents get capability-scoped operations through CLI and descriptors, and LLM-app-originated work uses purpose-scoped context plus bounded actions. No agent-facing surface returns all candidatures, dashboard payload, arbitrary search, raw profile facts, raw variables, generic object CRUD, or final artifact file ingestion. All generated artifacts remain local AAAAT template renders.

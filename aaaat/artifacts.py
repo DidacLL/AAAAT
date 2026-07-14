@@ -6,6 +6,47 @@ from typing import Any
 from .db import new_id, row_to_dict, utc_now
 
 ARTIFACT_REVIEW_STATES = {"draft", "reviewed", "submitted", "archived"}
+ARTIFACT_LIFECYCLE_EVENTS = {"create", "replace", "attach", "send", "state"}
+
+
+def ensure_artifact_events_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS artifact_events (
+          id TEXT PRIMARY KEY,
+          artifact_id TEXT NOT NULL REFERENCES generated_artifacts(id) ON DELETE CASCADE,
+          event_type TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          actor TEXT NOT NULL DEFAULT 'system',
+          notes TEXT NOT NULL DEFAULT ''
+        )"""
+    )
+
+
+def log_artifact_event(
+    conn: sqlite3.Connection,
+    artifact_id: str,
+    event_type: str,
+    *,
+    actor: str = "system",
+    notes: str = "",
+) -> dict[str, Any]:
+    if event_type not in ARTIFACT_LIFECYCLE_EVENTS:
+        raise ValueError(f"Invalid artifact lifecycle event: {event_type}")
+    ensure_artifact_events_table(conn)
+    item = {
+        "id": new_id("artifact_event"),
+        "artifact_id": artifact_id,
+        "event_type": event_type,
+        "created_at": utc_now(),
+        "actor": actor or "system",
+        "notes": notes or "",
+    }
+    conn.execute(
+        """INSERT INTO artifact_events(id, artifact_id, event_type, created_at, actor, notes)
+        VALUES (:id, :artifact_id, :event_type, :created_at, :actor, :notes)""",
+        item,
+    )
+    return item
 
 
 def save_artifact(
@@ -20,9 +61,12 @@ def save_artifact(
     model_provider: str = "",
     review_state: str = "draft",
     notes: str = "",
+    lifecycle_event: str = "create",
 ) -> dict[str, Any]:
     if review_state not in ARTIFACT_REVIEW_STATES:
         raise ValueError(f"Invalid artifact review state: {review_state}")
+    if lifecycle_event not in ARTIFACT_LIFECYCLE_EVENTS:
+        raise ValueError(f"Invalid artifact lifecycle event: {lifecycle_event}")
     item = {
         "id": new_id("artifact"),
         "application_id": application_id,
@@ -47,6 +91,7 @@ def save_artifact(
         )""",
         item,
     )
+    log_artifact_event(conn, item["id"], lifecycle_event, actor=agent_name or agent_runtime or "user", notes=notes)
     conn.commit()
     return item
 
@@ -56,6 +101,15 @@ def get_artifact(conn: sqlite3.Connection, artifact_id: str) -> dict[str, Any]:
     if row is None:
         raise KeyError(f"Artifact not found: {artifact_id}")
     return row_to_dict(row)
+
+
+def list_artifact_events(conn: sqlite3.Connection, artifact_id: str) -> list[dict[str, Any]]:
+    ensure_artifact_events_table(conn)
+    rows = conn.execute(
+        "SELECT * FROM artifact_events WHERE artifact_id = ? ORDER BY created_at, rowid",
+        (artifact_id,),
+    ).fetchall()
+    return [row_to_dict(row) for row in rows]
 
 
 def find_current_draft_artifact(
@@ -110,6 +164,7 @@ def save_or_update_draft_artifact(
             model_provider=model_provider,
             review_state="draft",
             notes=notes,
+            lifecycle_event="create",
         )
     existing = find_current_draft_artifact(conn, application_id, artifact_type, source_context)
     if existing is None:
@@ -125,6 +180,7 @@ def save_or_update_draft_artifact(
             model_provider=model_provider,
             review_state="draft",
             notes=notes,
+            lifecycle_event="create",
         )
     conn.execute(
         """UPDATE generated_artifacts SET
@@ -133,6 +189,7 @@ def save_or_update_draft_artifact(
         WHERE id = ?""",
         (path, label, agent_name, agent_runtime, model_provider, notes, existing["id"]),
     )
+    log_artifact_event(conn, existing["id"], "replace", actor=agent_name or agent_runtime or "user", notes=notes)
     conn.commit()
     return get_artifact(conn, existing["id"])
 
@@ -182,5 +239,6 @@ def update_artifact_state(
         conn.execute("UPDATE generated_artifacts SET review_state = ? WHERE id = ?", (review_state, artifact_id))
     else:
         conn.execute("UPDATE generated_artifacts SET review_state = ?, notes = ? WHERE id = ?", (review_state, notes, artifact_id))
+    log_artifact_event(conn, artifact_id, "send" if review_state == "submitted" else "state", actor="user", notes=notes or f"State changed to {review_state}.")
     conn.commit()
     return get_artifact(conn, artifact_id)

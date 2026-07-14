@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .candidature_fields import ACTIVE_STATUS, normalize_candidature_status
+
 
 DEFAULT_PRIVATE_DIR = ".private"
 SCHEMA_VERSION = "1"
@@ -15,22 +17,26 @@ APPLICATION_UPDATE_FIELDS = {
     "role",
     "status",
     "priority",
-    "source",
     "source_url",
     "location",
     "remote_mode",
-    "next_action",
     "notes",
     "call_signals",
-    "technical_reading",
     "pitch",
     "smart_question",
     "risks_to_avoid",
-    "prepare_first",
-    "prepare_later",
     "offer_snapshot",
     "company_research",
-    "form_answers",
+}
+
+CANDIDATURE_DETAIL_MIGRATION_COLUMNS = {
+    "form_answers": "TEXT DEFAULT ''",
+    "candidature_evaluation": "TEXT DEFAULT ''",
+    "role_strategy": "TEXT DEFAULT ''",
+    "cv_material": "TEXT DEFAULT ''",
+    "cover_letter_material": "TEXT DEFAULT ''",
+    "recruiter_material": "TEXT DEFAULT ''",
+    "material_sent_notes": "TEXT DEFAULT ''",
 }
 
 
@@ -72,7 +78,9 @@ def init_db(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
     with connect(path) as conn:
         conn.executescript(Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"))
         ensure_schema_version(conn)
+        ensure_candidature_detail_columns(conn)
         seed_defaults(conn)
+        normalize_existing_application_statuses(conn)
         check_schema_version(conn)
     return target
 
@@ -82,6 +90,14 @@ def ensure_schema_version(conn: sqlite3.Connection) -> None:
         "INSERT OR IGNORE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
         (SCHEMA_VERSION,),
     )
+    conn.commit()
+
+
+def ensure_candidature_detail_columns(conn: sqlite3.Connection) -> None:
+    existing = {str(row["name"]) for row in conn.execute("PRAGMA table_info(candidature_details)").fetchall()}
+    for name, ddl in CANDIDATURE_DETAIL_MIGRATION_COLUMNS.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE candidature_details ADD COLUMN {name} {ddl}")
     conn.commit()
 
 
@@ -96,6 +112,15 @@ def check_schema_version(conn: sqlite3.Connection) -> None:
     version = get_schema_version(conn)
     if version != SCHEMA_VERSION:
         raise RuntimeError(f"Unsupported AAAAT schema version {version}; expected {SCHEMA_VERSION}")
+
+
+def normalize_existing_application_statuses(conn: sqlite3.Connection) -> None:
+    rows = conn.execute("SELECT id, status FROM applications").fetchall()
+    for row in rows:
+        normalized = normalize_candidature_status(row["status"])
+        if normalized != row["status"]:
+            conn.execute("UPDATE applications SET status = ?, updated_at = ? WHERE id = ?", (normalized, utc_now(), row["id"]))
+    conn.commit()
 
 
 def seed_defaults(conn: sqlite3.Connection) -> None:
@@ -159,7 +184,7 @@ Company & {{ application.company }}\\
 Role & {{ application.role }}\\
 Keywords & {{ application.keywords }}\\
 Pitch & {{ application.pitch }}\\
-Preparation & {{ application.prepare_first }}\\
+Fit & {{ application.candidature_evaluation }}\\
 \end{tabularx}
 \sectionrule{Notes}
 {{ application.notes }}
@@ -208,6 +233,11 @@ def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     return {key: row[key] for key in row.keys()}
 
 
+def _normalize_application_row(app: dict[str, Any]) -> dict[str, Any]:
+    app["status"] = normalize_candidature_status(app.get("status"))
+    return app
+
+
 def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any]:
     now = utc_now()
     app_id = fields.pop("id", None) or new_id("app")
@@ -215,24 +245,18 @@ def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
         "id": app_id,
         "company": fields.get("company") or "Untitled Company",
         "role": fields.get("role") or "Untitled Role",
-        "status": fields.get("status") or "draft",
+        "status": normalize_candidature_status(fields.get("status") or ACTIVE_STATUS),
         "priority": fields.get("priority") or "normal",
-        "source": fields.get("source") or "",
         "source_url": fields.get("source_url") or "",
         "location": fields.get("location") or "",
         "remote_mode": fields.get("remote_mode") or "",
-        "next_action": fields.get("next_action") or "",
         "notes": fields.get("notes") or "",
         "call_signals": fields.get("call_signals") or "",
-        "technical_reading": fields.get("technical_reading") or "",
         "pitch": fields.get("pitch") or "",
         "smart_question": fields.get("smart_question") or "",
         "risks_to_avoid": fields.get("risks_to_avoid") or "",
-        "prepare_first": fields.get("prepare_first") or "",
-        "prepare_later": fields.get("prepare_later") or "",
         "offer_snapshot": fields.get("offer_snapshot") or "",
         "company_research": fields.get("company_research") or "",
-        "form_answers": fields.get("form_answers") or "",
         "created_at": now,
         "updated_at": now,
     }
@@ -248,6 +272,8 @@ def create_application(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
 
 def update_application(conn: sqlite3.Connection, app_id: str, **fields: Any) -> dict[str, Any]:
     updates = {key: fields[key] for key in APPLICATION_UPDATE_FIELDS if key in fields}
+    if "status" in updates:
+        updates["status"] = normalize_candidature_status(updates["status"])
     if updates:
         updates["updated_at"] = utc_now()
         assignments = ", ".join(f"{key} = :{key}" for key in updates)
@@ -277,6 +303,9 @@ def delete_application(conn: sqlite3.Connection, app_id: str) -> bool:
             [*artifact_ids, *artifact_ids, app_id],
         )
 
+    conn.execute("DELETE FROM tasks WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM todos WHERE application_id = ?", (app_id,))
+    conn.execute("DELETE FROM text_blobs WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM candidature_details WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM raw_intake WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM application_keywords WHERE application_id = ?", (app_id,))
@@ -301,7 +330,7 @@ def set_application_keywords(conn: sqlite3.Connection, app_id: str, keywords: An
 
 def list_applications(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     rows = conn.execute("SELECT * FROM applications ORDER BY updated_at DESC").fetchall()
-    apps = [row_to_dict(row) for row in rows]
+    apps = [_normalize_application_row(row_to_dict(row)) for row in rows]
     for app in apps:
         app["keywords"] = application_keywords(conn, app["id"])
     return apps
@@ -311,7 +340,7 @@ def get_application(conn: sqlite3.Connection, app_id: str) -> dict[str, Any]:
     row = conn.execute("SELECT * FROM applications WHERE id = ?", (app_id,)).fetchone()
     if row is None:
         raise KeyError(f"Application not found: {app_id}")
-    app = row_to_dict(row)
+    app = _normalize_application_row(row_to_dict(row))
     app["keywords"] = application_keywords(conn, app_id)
     return app
 
@@ -345,9 +374,8 @@ def create_raw_offer_intake(conn: sqlite3.Connection, content: str, created_by: 
         conn,
         company="Pending extraction",
         role="Pending role",
-        status="intake",
+        status=ACTIVE_STATUS,
         priority="normal",
-        next_action="Extract raw offer details",
     )
     intake = add_raw_intake(conn, app["id"], content, created_by)
     app["raw_intake"] = [intake]

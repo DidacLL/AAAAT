@@ -17,10 +17,7 @@ def dispatch_command(conn: sqlite3.Connection, task_handle: str, cmd: str) -> di
         raise ValueError("Command dispatch requires --cmd")
     packet = build_task_packet(conn, task_handle)
     packet_json = json.dumps(packet, indent=2, sort_keys=True) + "\n"
-    completed = run_backend_command(
-        cmd,
-        packet_json,
-    )
+    completed = run_backend_command(cmd, packet_json)
     acknowledgement: dict[str, Any] = {
         "backend": "command",
         "task_handle": task_handle,
@@ -36,40 +33,25 @@ def dispatch_command(conn: sqlite3.Connection, task_handle: str, cmd: str) -> di
         return acknowledgement
 
     acknowledgement["submitted"] = True
-    task = submit_agent_task_result(
-        conn,
-        task_handle,
-        completed.stdout,
-        agent_name="command",
-        agent_runtime="command",
-    )
+    task = submit_agent_task_result(conn, task_handle, completed.stdout, agent_name="command", agent_runtime="command")
     acknowledgement["task"] = task_result_ack(task)["task"]
-    acknowledgement["next"] = ["open_dashboard"]
+    acknowledgement["next"] = ["open_desktop"]
     return acknowledgement
 
 
 def run_backend_command(cmd: str, packet_json: str) -> subprocess.CompletedProcess[str]:
-    if os.name == "nt":
-        try:
-            args = shlex.split(cmd, posix=True)
-        except ValueError:
-            args = []
-        if args:
-            return subprocess.run(
-                args,
-                input=packet_json,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=False,
-                check=False,
-            )
+    try:
+        args = shlex.split(cmd, posix=os.name != "nt")
+    except ValueError:
+        args = []
+    if not args:
+        raise ValueError("Command dispatch requires a valid argv string")
     return subprocess.run(
-        cmd,
+        args,
         input=packet_json,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        shell=True,
+        shell=False,
         check=False,
     )

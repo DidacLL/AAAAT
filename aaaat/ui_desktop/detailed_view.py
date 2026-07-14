@@ -4,18 +4,17 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
-from aaaat.security import can_write
-
+from .candidature_right_panel import CandidatureDetailBodyPanel, CandidatureOptionsPanel
 from .detail_columns import available_column_ids, column_title, normalize_visible_columns
-from .detail_panel import DetailPanel
 from .detail_table import DetailTable
 
 DEFAULT_DETAILED_FRAME_WIDTH = 1280
-DEFAULT_DETAILED_RIGHT = 340
+DEFAULT_DETAILED_LEFT = 330
+DEFAULT_DETAILED_RIGHT = 300
 
 
 class DetailedViewMixin:
-    """Detailed View foundation for batch candidature review."""
+    """Detailed View: candidature list/table, central field body, right options rail."""
 
     def _build_detailed_surface(self) -> None:
         self.detailed_panel = wx.Panel(self.view_book)
@@ -28,24 +27,38 @@ class DetailedViewMixin:
         self.detailed_search = wx.SearchCtrl(self.detailed_panel, style=wx.TE_PROCESS_ENTER)
         self.detailed_search.ShowSearchButton(True)
         self.detailed_search.ShowCancelButton(True)
-        self.detailed_columns_button = wx.Button(self.detailed_panel, label="Columns…", size=(92, -1))
+        self.detailed_columns_button = wx.Button(self.detailed_panel, label="Columns…")
         toolbar.Add(label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar.Add(self.detailed_search, 1, wx.ALL | wx.EXPAND, 6)
         toolbar.Add(self.detailed_columns_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         sizer.Add(toolbar, 0, wx.EXPAND)
 
         self.detailed_splitter = wx.SplitterWindow(self.detailed_panel, style=wx.SP_LIVE_UPDATE)
-        self.detailed_splitter.SetMinimumPaneSize(220)
+        self.detailed_splitter.SetMinimumPaneSize(1)
         self.detail_table = DetailTable(self.detailed_splitter, on_select=self._select_detailed_ref)
-        self.detail_panel = DetailPanel(
-            self.detailed_splitter,
-            on_save=self._save_detail_edits,
-            on_delete=self._delete_selected_candidature,
-            on_cancel=self._cancel_detail_edits,
-            on_open_smart=self._open_selected_in_smart,
+        self.detailed_body_splitter = wx.SplitterWindow(self.detailed_splitter, style=wx.SP_LIVE_UPDATE)
+        self.detailed_body_splitter.SetMinimumPaneSize(1)
+        self.detail_body_panel = CandidatureDetailBodyPanel(
+            self.detailed_body_splitter,
+            on_save=self._save_candidature_panel_edits,
+            on_action=self._on_candidature_panel_action,
+            on_keyword_select=self._select_detailed_keyword,
+            on_add_keyword=self._add_keyword_to_candidature,
         )
-        width = max(620, DEFAULT_DETAILED_FRAME_WIDTH - int(self.layout_state.pane_layout.get("detailed", {}).get("right", DEFAULT_DETAILED_RIGHT)))
-        self.detailed_splitter.SplitVertically(self.detail_table, self.detail_panel, width)
+        self.detail_options_panel = CandidatureOptionsPanel(
+            self.detailed_body_splitter,
+            on_action=self._on_candidature_panel_action,
+            on_delete=self._delete_candidature_from_panel,
+            on_keyword_select=self._select_detailed_keyword,
+            on_add_keyword=self._add_keyword_to_candidature,
+            on_save_keyword_definition=self._save_keyword_definition,
+        )
+
+        initial_width = max(1, int(self.GetClientSize().GetWidth() or DEFAULT_DETAILED_FRAME_WIDTH))
+        left_width = max(1, int(initial_width * 0.24))
+        center_width = max(1, int(initial_width * 0.54))
+        self.detailed_splitter.SplitVertically(self.detail_table, self.detailed_body_splitter, left_width)
+        self.detailed_body_splitter.SplitVertically(self.detail_body_panel, self.detail_options_panel, center_width)
         sizer.Add(self.detailed_splitter, 1, wx.EXPAND)
         self.view_book.AddPage(self.detailed_panel, "Detailed")
 
@@ -72,7 +85,8 @@ class DetailedViewMixin:
                 self.detailed_search.SetValue(self.search_query)
             visible_columns = self._visible_detailed_columns(detailed)
             self.detail_table.render(detailed, selected_ref=self.selected_ref, visible_columns=visible_columns)
-            self.detail_panel.render(self.projection, can_edit=can_write(self.mode))
+            self.detail_body_panel.render(self.projection, can_edit=True)
+            self.detail_options_panel.render(self.projection, can_edit=True, view_name="detailed")
             self.detailed_panel.Layout()
         finally:
             self.detailed_panel.Thaw()
@@ -115,55 +129,13 @@ class DetailedViewMixin:
         self._refresh_detailed_view()
         self._mark_current_view_rendered()
 
-    def _save_detail_edits(self, ref: str, changes: dict[str, str]) -> None:
-        if not can_write(self.mode) or not ref:
-            return
-        self.command_service.update_candidature_fields(ref, changes)
-        self.selected_ref = ref
-        self.layout_state.selected_candidature_ref = ref
-        self._rendered_view_keys.clear()
+    def _select_detailed_keyword(self, term: str) -> None:
+        self.selected_keyword = term
+        self.layout_state.selected_keyword = term
         self._reload_projection()
-        self._refresh_detailed_view()
+        self.detail_options_panel.render(self.projection, can_edit=True, view_name="detailed")
+        self.SetStatusText(f"Keyword: {term}")
         self._mark_current_view_rendered()
-
-    def _delete_selected_candidature(self, ref: str) -> None:
-        if not can_write(self.mode) or not ref:
-            return
-        row = self._detailed_selected_row() or {}
-        label = " ".join(part for part in (str(row.get("company") or ""), str(row.get("role") or "")) if part).strip() or ref
-        confirmed = wx.MessageBox(
-            f"Delete candidature '{label}'?\n\nThis removes the local candidature record and its local intake/notes/artifact rows.",
-            "Delete candidature",
-            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
-            self.detailed_panel,
-        )
-        if confirmed != wx.YES:
-            return
-        if not self.command_service.delete_candidature(ref):
-            return
-        self.selected_ref = None
-        self.layout_state.selected_candidature_ref = None
-        self._rendered_view_keys.clear()
-        self._reload_projection()
-        rows = (self.projection.get("detailed") or {}).get("rows") or []
-        if rows:
-            self.selected_ref = str(rows[0].get("ref") or "") or None
-            self.layout_state.selected_candidature_ref = self.selected_ref
-            self._reload_projection()
-        self._refresh_detailed_view()
-        self._mark_current_view_rendered()
-
-    def _cancel_detail_edits(self) -> None:
-        self._refresh_detailed_view()
-        self._mark_current_view_rendered()
-
-    def _open_selected_in_smart(self) -> None:
-        if not self.selected_ref:
-            return
-        self.current_view = "smart"
-        self.layout_state.selected_view = "smart"
-        self._show_focus()
-        self._refresh_current_if_needed()
 
     def _on_detailed_search(self, _event: wx.CommandEvent) -> None:
         self.search_query = self.detailed_search.GetValue()

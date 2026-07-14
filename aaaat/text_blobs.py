@@ -6,7 +6,7 @@ from typing import Any
 from .db import new_id, row_to_dict, utc_now
 
 
-TEXT_BLOB_REVIEW_STATES = {"draft", "suggested", "reviewed", "applied", "archived"}
+TEXT_BLOB_REVIEW_STATES = {"draft", "suggested", "reviewed", "applied", "archived", "current", "history"}
 
 
 def create_text_blob(
@@ -76,19 +76,7 @@ def get_text_blob(conn: sqlite3.Connection, blob_id: str) -> dict[str, Any]:
 
 
 def update_text_blob(conn: sqlite3.Connection, blob_id: str, **fields: Any) -> dict[str, Any]:
-    allowed = {
-        "application_id",
-        "blob_type",
-        "title",
-        "body",
-        "source_context",
-        "review_state",
-        "created_by",
-        "agent_name",
-        "agent_runtime",
-        "model_provider",
-        "notes",
-    }
+    allowed = {"application_id", "blob_type", "title", "body", "source_context", "review_state", "created_by", "agent_name", "agent_runtime", "model_provider", "notes"}
     updates = {key: fields[key] for key in allowed if key in fields}
     if "review_state" in updates and updates["review_state"] not in TEXT_BLOB_REVIEW_STATES:
         raise ValueError(f"Invalid text blob review state: {updates['review_state']}")

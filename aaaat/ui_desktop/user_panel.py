@@ -11,7 +11,7 @@ EditableUserSaveCallback = Callable[[dict[str, str]], None]
 
 
 class UserPanel(wx.ScrolledWindow):
-    """Grouped local User/Profile display and small backed editor."""
+    """Grouped local profile editor for user-facing AAAAT profile data."""
 
     def __init__(
         self,
@@ -20,15 +20,17 @@ class UserPanel(wx.ScrolledWindow):
         on_save: EditableUserSaveCallback,
         on_cancel: Callable[[], None],
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent, style=wx.VSCROLL)
         self.on_save = on_save
         self.on_cancel = on_cancel
         self._original_values: dict[str, str] = {}
         self._field_storage_keys: dict[str, str | None] = {}
         self._controls: dict[str, wx.TextCtrl] = {}
-        self.SetScrollRate(8, 12)
+        self._wrap_targets: list[wx.StaticText] = []
+        self.SetScrollRate(0, 12)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.sizer)
+        self.Bind(wx.EVT_SIZE, self._on_size)
 
     def render(self, projection: dict[str, Any], *, can_edit: bool) -> None:
         self.Freeze()
@@ -37,10 +39,12 @@ class UserPanel(wx.ScrolledWindow):
             self._controls = {}
             self._original_values = {}
             self._field_storage_keys = {}
-            title = wx.StaticText(self, label="User/Profile View")
+            self._wrap_targets = []
+            title = wx.StaticText(self, label="Profile")
             title.SetFont(title.GetFont().Bold().Larger().Larger())
-            body = wx.StaticText(self, label="Local profile variables, facts, preferences, context, and provenance used by AAAAT.")
-            body.Wrap(720)
+            body = wx.StaticText(self, label="Professional identity and defaults used for local CVs, letters, forms and preparation material.")
+            self._wrap_label(body)
+            self._wrap_targets.append(body)
             self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
             self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
 
@@ -57,18 +61,19 @@ class UserPanel(wx.ScrolledWindow):
 
     def _add_actions(self, can_edit: bool) -> None:
         actions = wx.BoxSizer(wx.HORIZONTAL)
-        save = wx.Button(self, label="Save")
-        cancel = wx.Button(self, label="Cancel/Revert")
+        save = wx.Button(self, label="Save profile")
+        cancel = wx.Button(self, label="Revert")
         save.Enable(can_edit)
         cancel.Enable(can_edit)
         save.Bind(wx.EVT_BUTTON, self._on_save)
         cancel.Bind(wx.EVT_BUTTON, self._on_cancel)
-        for control in (save, cancel):
-            actions.Add(control, 0, wx.ALL | wx.EXPAND, 4)
+        actions.Add(save, 0, wx.ALL, 4)
+        actions.Add(cancel, 0, wx.ALL, 4)
+        actions.AddStretchSpacer(1)
         self.sizer.Add(actions, 0, wx.ALL | wx.EXPAND, 6)
 
     def _add_group(self, group: dict[str, Any], *, can_edit: bool) -> None:
-        heading = wx.StaticText(self, label=str(group.get("title") or "User"))
+        heading = wx.StaticText(self, label=str(group.get("title") or "Profile"))
         heading.SetFont(heading.GetFont().Bold().Larger())
         self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
         for field in group.get("fields") or []:
@@ -76,14 +81,9 @@ class UserPanel(wx.ScrolledWindow):
             label = str(field.get("label") or key)
             value = str(field.get("value") or "")
             storage_key = field.get("storage_key")
-            editable = bool(field.get("editable")) and bool(storage_key)
             self._field_storage_keys[key] = str(storage_key) if storage_key else None
             self._original_values[key] = value
-            if editable:
-                self._add_editor(key, label, value, multiline=bool(field.get("multiline")), can_edit=can_edit)
-            else:
-                reason = str(field.get("read_only_reason") or "Read-only")
-                self._add_read_only_field(label, value, reason)
+            self._add_editor(key, label, value, multiline=bool(field.get("multiline")), can_edit=can_edit)
 
     def _add_editor(self, key: str, label: str, value: str, *, multiline: bool, can_edit: bool) -> None:
         heading = wx.StaticText(self, label=label)
@@ -97,17 +97,6 @@ class UserPanel(wx.ScrolledWindow):
         self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
         self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-    def _add_read_only_field(self, label: str, value: str, reason: str) -> None:
-        heading = wx.StaticText(self, label=f"{label} · read-only")
-        heading.SetFont(heading.GetFont().Bold())
-        body = wx.StaticText(self, label=value or "—")
-        body.Wrap(720)
-        hint = wx.StaticText(self, label=reason)
-        hint.Wrap(720)
-        self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 10)
-        self.sizer.Add(hint, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
-
     def _on_save(self, _event: wx.CommandEvent) -> None:
         current_values = {key: control.GetValue() for key, control in self._controls.items()}
         changes = collect_writable_user_changes(self._original_values, current_values, self._field_storage_keys)
@@ -118,3 +107,21 @@ class UserPanel(wx.ScrolledWindow):
         for key, control in self._controls.items():
             control.SetValue(self._original_values.get(key, ""))
         self.on_cancel()
+
+    def _wrap_width(self) -> int:
+        return max(260, int(self.GetClientSize().GetWidth() or 760) - 28)
+
+    def _on_size(self, event: wx.SizeEvent) -> None:
+        live_targets: list[wx.StaticText] = []
+        for target in self._wrap_targets:
+            try:
+                if target and not target.IsBeingDeleted():
+                    self._wrap_label(target)
+                    live_targets.append(target)
+            except RuntimeError:
+                continue
+        self._wrap_targets = live_targets
+        event.Skip()
+
+    def _wrap_label(self, target: wx.StaticText) -> None:
+        target.Wrap(self._wrap_width())

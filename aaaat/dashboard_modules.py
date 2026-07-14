@@ -26,6 +26,29 @@ class ModuleDefinition:
     contextual_actions: tuple[str, ...] = ()
     state_persistence_policy: str = "layout"
 
+    @property
+    def view(self) -> str:
+        """Compatibility view for older projection consumers.
+
+        ModuleDefinition is intentionally multi-view. Older projection code
+        expects a single view attribute; expose the first supported view so the
+        desktop projection can serialize registry metadata without crashing.
+        """
+
+        return self.supported_views[0] if self.supported_views else ""
+
+    @property
+    def region(self) -> str:
+        return self.default_region_by_view.get(self.view, "center")
+
+    @property
+    def required(self) -> bool:
+        return any(self.default_visibility_by_view.values())
+
+    @property
+    def optional(self) -> bool:
+        return not self.required
+
 
 DEFAULT_MODULES: tuple[ModuleDefinition, ...] = (
     ModuleDefinition(

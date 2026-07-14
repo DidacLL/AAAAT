@@ -3,31 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from aaaat.db import connect, delete_application, set_profile_variable, update_application
+from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
+from aaaat.candidatures import create_candidature, update_candidature
+from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, set_profile_variable, upsert_glossary_term
+from aaaat.tasks import create_task
 
-SUPPORTED_DETAIL_EDIT_FIELDS = {
-    "company",
-    "role",
-    "status",
-    "priority",
-    "source",
-    "source_url",
-    "location",
-    "remote_mode",
-    "next_action",
-    "notes",
-    "keywords",
-    "call_signals",
-    "pitch",
-    "smart_question",
-    "risks_to_avoid",
-    "prepare_first",
-    "prepare_later",
-    "offer_snapshot",
-    "company_research",
-    "form_answers",
-}
-
+SUPPORTED_DETAIL_EDIT_FIELDS = set(WRITABLE_CANDIDATURE_STORAGE_KEYS)
 SUPPORTED_PROFILE_VARIABLE_FIELDS = {
     "profile.display_name",
     "profile.email",
@@ -37,6 +18,65 @@ SUPPORTED_PROFILE_VARIABLE_FIELDS = {
     "profile.github_url",
     "profile.portfolio_url",
     "profile.summary.default",
+}
+
+_ACTION_TASKS = {
+    "infer_fields": (
+        "field_inference",
+        "Infer candidature fields",
+        "Infer every supported candidature field that can be grounded in the retained raw offer, current candidature data and bounded user profile. Preserve non-empty user edits unless the task result explicitly justifies a replacement.",
+        "candidature:field_inference",
+        "high",
+    ),
+    "regenerate_strategy": (
+        "career_plan_review",
+        "Draft role strategy",
+        "Produce or refresh the role-specific strategy using current candidature, profile and career context.",
+        "candidature:role_strategy",
+        "high",
+    ),
+    "update_company_research": (
+        "company_research",
+        "Research company",
+        "Refresh company research and recruiter-call context.",
+        "candidature:company_research",
+        "normal",
+    ),
+    "regenerate_keywords": (
+        "field_inference",
+        "Extract candidature keywords",
+        "Extract meaningful technical, product, domain and recruiting keywords from the retained raw offer and current candidature data. Preserve manually-added keywords.",
+        "candidature:keywords",
+        "normal",
+    ),
+    "prepare_form_answers": (
+        "draft_form_responses",
+        "Draft form answers",
+        "Generate application-form answers from the stored form, profile and current strategy.",
+        "blob:form_responses",
+        "normal",
+    ),
+    "generate_cv": (
+        "draft_cv",
+        "Draft CV material",
+        "Generate CV material using the current evaluation, strategy, candidature data and profile.",
+        "artifact:cv",
+        "normal",
+    ),
+    "generate_cover_letter": (
+        "draft_cover_letter",
+        "Draft cover letter",
+        "Generate cover-letter material using the current evaluation, strategy, candidature data and profile.",
+        "artifact:cover_letter",
+        "normal",
+    ),
+    "prepare_recruiter_call": (
+        "recruiter_call_material",
+        "Prepare recruiter-call material",
+        "Generate concise recruiter-call or interview material for this candidature.",
+        "call:recruiter",
+        "normal",
+    ),
 }
 
 
@@ -49,12 +89,71 @@ class DesktopCommandService:
     def save_note(self, candidature_ref: str, body: str) -> None:
         self.update_candidature_fields(candidature_ref, {"notes": body})
 
+    def create_raw_offer_candidature(self, raw_offer: str) -> dict[str, Any] | None:
+        text = str(raw_offer or "").strip()
+        if not text:
+            return None
+        with connect(self.storage_path) as conn:
+            return create_candidature(
+                conn,
+                company="Pending company",
+                role="Pending role",
+                status="active",
+                priority="normal",
+                raw_offer=text,
+                created_by="desktop",
+                include_field_inference_task=True,
+                include_company_research_task=False,
+                include_keyword_detection_task=True,
+            )
+
     def update_candidature_fields(self, candidature_ref: str, changes: dict[str, Any]) -> dict[str, Any] | None:
         safe_changes = {key: changes[key] for key in SUPPORTED_DETAIL_EDIT_FIELDS if key in changes}
         if not safe_changes:
             return None
+        source_text = safe_changes.pop("source_text", None)
         with connect(self.storage_path) as conn:
-            return update_application(conn, candidature_ref, **safe_changes)
+            if source_text is not None:
+                add_raw_intake(conn, candidature_ref, str(source_text), "user")
+            if safe_changes:
+                return update_candidature(conn, candidature_ref, **safe_changes)
+            return update_candidature(conn, candidature_ref)
+
+    def add_keyword(self, candidature_ref: str, term: str, definition: str = "") -> dict[str, Any] | None:
+        cleaned = str(term or "").strip()
+        if not candidature_ref or not cleaned:
+            return None
+        with connect(self.storage_path) as conn:
+            terms = application_keywords(conn, candidature_ref)
+            if cleaned not in terms:
+                terms.append(cleaned)
+            upsert_glossary_term(conn, cleaned, str(definition or ""))
+            return update_candidature(conn, candidature_ref, keywords=terms)
+
+    def save_keyword_definition(self, term: str, definition: str) -> dict[str, Any] | None:
+        cleaned = str(term or "").strip()
+        if not cleaned:
+            return None
+        with connect(self.storage_path) as conn:
+            return upsert_glossary_term(conn, cleaned, str(definition or ""))
+
+    def queue_candidature_action(self, candidature_ref: str, action_id: str) -> dict[str, Any] | None:
+        spec = _ACTION_TASKS.get(action_id)
+        if not spec or not candidature_ref:
+            return None
+        task_type, title, instructions, context_hint, priority = spec
+        with connect(self.storage_path) as conn:
+            return create_task(
+                conn,
+                task_type,
+                title,
+                application_id=candidature_ref,
+                instructions=instructions,
+                priority=priority,
+                context_hint=context_hint,
+                created_by="desktop",
+                idempotent=False,
+            )
 
     def delete_candidature(self, candidature_ref: str) -> bool:
         if not candidature_ref:

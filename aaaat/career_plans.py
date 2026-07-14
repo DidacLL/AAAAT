@@ -18,8 +18,8 @@ CONTEXT_PURPOSES = {
     "form_answers",
     "career_plan_review",
 }
+CONTEXT_SCOPES = {"agent", "local"}
 LIST_FIELDS = {"objectives", "constraints", "target_markets", "target_roles"}
-LOCAL_SCOPES = {"local_render", "local_dashboard", "dashboard", "read_only_dashboard"}
 
 
 def create_career_plan(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any]:
@@ -92,7 +92,9 @@ def archive_career_plan(conn: sqlite3.Connection, plan_id: str) -> dict[str, Any
 def career_plan_context(conn: sqlite3.Connection, purpose: str, scope: str = "agent") -> dict[str, Any]:
     if purpose not in CONTEXT_PURPOSES:
         raise ValueError(f"Unsupported career plan context purpose: {purpose}")
-    include_internal_id = scope in LOCAL_SCOPES
+    if scope not in CONTEXT_SCOPES:
+        raise ValueError(f"Unsupported career plan context scope: {scope}")
+    include_internal_id = scope == "local"
     plans = [public_career_plan(item, include_id=include_internal_id) for item in list_career_plans(conn)]
     return {"purpose": purpose, "scope": scope, "career_plans": plans}
 

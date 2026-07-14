@@ -4,33 +4,15 @@ AAAAT is provider-agnostic. It does not require a specific model, provider, SDK,
 
 Do not treat AAAAT as an agent runtime, a chat application, or a broad CRUD API. AAAAT stores local data and exposes limited task/context/action capabilities so external tooling can help without receiving unrestricted access to the local job-search database.
 
-## Local runtimes
+## Local runtime
 
-AAAAT has two main local runtimes.
-
-The dashboard runtime is the human working UI:
+The wx desktop app is the human working UI:
 
 ```bash
-aaaat launch
+aaaat-desktop
 ```
 
-The agent runtime is the machine-facing capability adapter:
-
-```bash
-aaaat launch --agent-api
-```
-
-The dashboard may show rich local private state because it is for the user on the local machine. The agent runtime must remain narrow and task-scoped.
-
-## Read-only agent runtime
-
-To inspect task context without allowing writes:
-
-```bash
-aaaat launch --agent-api --read-only
-```
-
-Read-only mode allows safe inspection routes and blocks write submissions.
+The desktop may show rich local private state because it is for the user on the local machine. Agent-compatible commands must remain narrow and task-scoped.
 
 ## Task workflow
 
@@ -49,7 +31,6 @@ Useful CLI commands:
 
 ```bash
 aaaat task create --application-id <application_id> --type company_research --title "Research company"
-aaaat agent tasks --state queued
 aaaat agent next
 aaaat agent context <task_handle>
 aaaat agent packet <task_handle>
@@ -72,21 +53,6 @@ The action packet can request a supported bounded action, such as creating a can
 
 Action acknowledgements should remain narrow. They must not return application IDs, candidature IDs, artifact IDs, file paths, storage paths, note IDs, todo IDs, blob IDs, or broad database handles as mutation authority.
 
-## HTTP agent routes
-
-The intended agent HTTP surface is limited to:
-
-```text
-GET  /api/health
-GET  /api/agent/tasks/next
-GET  /api/agent/tasks/{task_handle}/context
-POST /api/agent/tasks/{task_handle}/result
-POST /api/agent/context-bundle
-POST /api/agent/actions
-```
-
-The agent runtime must not expose dashboard HTML, dashboard fragments, dashboard form actions, generated API docs, OpenAPI JSON, broad entity lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, or identifier-based mutation endpoints.
-
 ## MCP-compatible descriptor
 
 AAAAT currently provides a dependency-free MCP-compatible descriptor and validation command:
@@ -98,7 +64,7 @@ aaaat mcp-validate
 
 This is descriptor/tool-schema compatibility for local adapters. It is not a full MCP server implementation. AAAAT does not currently provide stdio, SSE, or streamable HTTP MCP server transport.
 
-External tooling can consume the descriptor and map its resources/tools to the CLI commands or local HTTP routes above. Do not document AAAAT as a direct MCP server unless an actual MCP transport is implemented.
+External tooling can consume the descriptor and map its resources/tools to the CLI commands above. Do not document AAAAT as a direct MCP server unless an actual MCP transport is implemented.
 
 ## Artifact boundary
 
@@ -114,4 +80,4 @@ Some commands accept optional provenance fields such as `agent_name`, `agent_run
 
 ## Safety rule
 
-The agent is not the user. Agent-supplied text should land in explicit task results, candidature fields, form answers, research/preparation fields, render inputs, or bounded future-task requests. Human notes and dashboard actions remain local user operations unless a future bounded action explicitly defines otherwise.
+The agent is not the user. Agent-supplied text should land in explicit task results, candidature fields, form answers, research/preparation fields, render inputs, or bounded future-task requests. Human notes and desktop actions remain local user operations unless a future bounded action explicitly defines otherwise.

@@ -7,6 +7,7 @@ AAAAT is intended for single-user local production. Install it in a local Python
 - Python 3.11 or newer.
 - A local checkout of the repository.
 - A virtual environment is recommended.
+- `wxPython` for the desktop UI, installed through the `desktop` extra.
 
 AAAAT does not require provider credentials during installation. Core setup is provider-agnostic.
 
@@ -16,14 +17,14 @@ AAAAT does not require provider credentials during installation. Core setup is p
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e .
+python -m pip install -e .[desktop]
 ```
 
-Verify the command is available:
+Verify the commands are available:
 
 ```bash
 aaaat --version
-python -m aaaat.cli --version
+aaaat-desktop --help
 ```
 
 ## Windows PowerShell
@@ -32,10 +33,10 @@ python -m aaaat.cli --version
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e .
+python -m pip install -e .[desktop]
 ```
 
-If script execution is restricted, activate the environment from a shell that allows local virtualenv activation or run commands through `python -m aaaat.cli`.
+If script execution is restricted, activate the environment from a shell that allows local virtualenv activation or run CLI commands through `python -m aaaat.cli`.
 
 ## Initialize local storage
 
@@ -49,47 +50,26 @@ To use a different local storage directory:
 
 ```bash
 aaaat --storage /path/to/private-aaaat init
-aaaat --storage /path/to/private-aaaat launch
+aaaat-desktop --storage /path/to/private-aaaat
 ```
 
-The `--storage` flag must appear before the subcommand.
+For the CLI, the `--storage` flag must appear before the subcommand.
 
-## Launch smoke check
+## Desktop smoke check
 
 ```bash
-aaaat launch
+aaaat-desktop
 ```
 
-AAAAT prints the local URL, normally:
+Close the desktop window to stop the app.
 
-```text
-http://127.0.0.1:8765
-```
+## Demo seed
 
-Stop the server with `Ctrl+C` in the terminal that launched it.
-
-## Optional local launchers
-
-The `launchers/` directory contains thin wrappers around `python -m aaaat.cli`. They do not require Git and can be used from a local checkout after dependencies are installed.
-
-Unix:
+For local UI validation with fake data:
 
 ```bash
-sh launchers/open-aaaat.sh
-sh launchers/open-aaaat-read-only.sh
-```
-
-Windows Command Prompt:
-
-```cmd
-launchers\Open AAAAT.cmd
-launchers\Open AAAAT Read Only.cmd
-```
-
-Extra CLI flags are passed through to `aaaat launch`, for example:
-
-```bash
-sh launchers/open-aaaat.sh --storage /path/to/private-aaaat --port 8766
+aaaat-seed-desktop-demo --reset --count 24
+aaaat-desktop
 ```
 
 ## Optional test install
@@ -97,9 +77,7 @@ sh launchers/open-aaaat.sh --storage /path/to/private-aaaat --port 8766
 For development or release checks:
 
 ```bash
-python -m pip install -e ".[test]"
 python -m pytest
-python tools/repo_guard.py
 ```
 
 ## Common local checks
@@ -108,8 +86,7 @@ python tools/repo_guard.py
 aaaat init
 aaaat app create --company "Example Co" --role "Backend Engineer"
 aaaat app list
-aaaat launch --read-only
-aaaat export static-demo outputs/static-demo.html
+aaaat-desktop
 aaaat mcp-validate
 ```
 

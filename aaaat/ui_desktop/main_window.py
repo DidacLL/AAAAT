@@ -6,15 +6,13 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 
 from aaaat.dashboard_layout import DashboardLayoutState
-from aaaat.security import Mode
 
 from .card_state import CenterCardState
+from .candidature_right_panel import CandidatureOptionsPanel
 from .detailed_view import DetailedViewMixin
 from .services import DesktopCommandService
 from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
 from .user_view import UserViewMixin
-
-RIGHT_MODULES = ["keywords", "artifacts"]
 
 
 class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx.Frame):
@@ -24,15 +22,15 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self,
         *,
         storage_path: str,
-        mode: Mode,
         projection: dict[str, Any],
         layout_state: DashboardLayoutState,
         layout_path: str | Path,
         command_service: DesktopCommandService | None = None,
     ) -> None:
         super().__init__(None, title="AAAAT — Desktop", size=DEFAULT_WINDOW_SIZE)
+        self.CreateStatusBar()
+        self.SetStatusText("Ready")
         self.storage_path = storage_path
-        self.mode = Mode(mode)
         self.projection = projection
         self.layout_state = layout_state
         self.layout_path = Path(layout_path)
@@ -47,18 +45,21 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_card_state = CenterCardState.default()
         self._focus_layout_applied = False
         self.focus_left_width = int(layout_state.pane_layout.get("smart", {}).get("left", DEFAULT_FOCUS_LEFT))
-        saved_right = int(layout_state.pane_layout.get("smart", {}).get("right", DEFAULT_FOCUS_RIGHT))
-        self.focus_right_width = min(saved_right, 240)
+        self.focus_right_width = int(layout_state.pane_layout.get("smart", {}).get("right", DEFAULT_FOCUS_RIGHT))
         self._list_refs: list[str] = []
         self._overview_card_refs: list[str] = []
         self._rendered_view_keys: dict[str, tuple[Any, ...]] = {}
 
-        self._init_smart_view_helpers()
-        self._build_menu()
-        self._build_shell()
-        self._bind_shell_events()
-        self._show_initial_view()
-        self._refresh_all()
+        self.Freeze()
+        try:
+            self._init_smart_view_helpers()
+            self._build_menu()
+            self._build_shell()
+            self._bind_shell_events()
+            self._show_initial_view()
+            self._refresh_all()
+        finally:
+            self.Thaw()
 
     def _show_initial_view(self) -> None:
         if self.current_view == "user":
@@ -99,12 +100,12 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.toolbar.SetSizer(toolbar_sizer)
         self.title = wx.StaticText(self.toolbar, label="AAAAT")
         self.title.SetFont(self.title.GetFont().Bold().Larger())
-        self.mode_chip = wx.StaticText(self.toolbar, label="read-only" if self.mode == Mode.READ_ONLY else "local")
-        self.reset_button = wx.Button(self.toolbar, label="Reset", size=(68, -1))
-        self.new_button = wx.Button(self.toolbar, label="+", size=(40, -1))
+        self.storage_chip = wx.StaticText(self.toolbar, label="local")
+        self.reset_button = wx.Button(self.toolbar, label="Reset")
+        self.new_button = wx.Button(self.toolbar, label="+")
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         toolbar_sizer.AddStretchSpacer(1)
-        for control in (self.mode_chip, self.reset_button, self.new_button):
+        for control in (self.storage_chip, self.reset_button, self.new_button):
             toolbar_sizer.Add(control, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 4)
         self.root_sizer.Add(self.toolbar, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 4)
 
@@ -113,7 +114,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.smart_panel = wx.Panel(self.view_book)
         self.smart_sizer = wx.BoxSizer(wx.VERTICAL)
         self.smart_panel.SetSizer(self.smart_sizer)
-        self.view_book.AddPage(self.smart_panel, "List")
+        self.view_book.AddPage(self.smart_panel, "Smart View")
         self.root_sizer.Add(self.view_book, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
 
     def _build_overview_surface(self) -> None:
@@ -124,8 +125,8 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.overview_search.ShowSearchButton(True)
         self.overview_search.ShowCancelButton(True)
         sizer.Add(self.overview_search, 0, wx.BOTTOM | wx.EXPAND, 8)
-        self.overview_scroll = wx.ScrolledWindow(self.overview_panel)
-        self.overview_scroll.SetScrollRate(12, 12)
+        self.overview_scroll = wx.ScrolledWindow(self.overview_panel, style=wx.VSCROLL)
+        self.overview_scroll.SetScrollRate(0, 12)
         self.overview_cards_sizer = wx.WrapSizer(wx.HORIZONTAL)
         self.overview_scroll.SetSizer(self.overview_cards_sizer)
         sizer.Add(self.overview_scroll, 1, wx.EXPAND)
@@ -136,23 +137,29 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.focus_panel.SetSizer(sizer)
         self.focus_splitter = wx.SplitterWindow(self.focus_panel, style=wx.SP_LIVE_UPDATE)
-        self.focus_splitter.SetMinimumPaneSize(150)
+        self.focus_splitter.SetMinimumPaneSize(1)
         self.nav_panel = wx.Panel(self.focus_splitter)
         self.content_splitter = wx.SplitterWindow(self.focus_splitter, style=wx.SP_LIVE_UPDATE)
-        self.content_splitter.SetMinimumPaneSize(160)
+        self.content_splitter.SetMinimumPaneSize(1)
         self.center_panel = wx.Panel(self.content_splitter)
-        self.right_scroll = wx.ScrolledWindow(self.content_splitter)
-        self.right_scroll.SetScrollRate(8, 12)
-        self.focus_splitter.SplitVertically(self.nav_panel, self.content_splitter, self.focus_left_width)
-        initial_center_width = DEFAULT_WINDOW_SIZE[0] - self.focus_left_width - self.focus_right_width
-        self.content_splitter.SplitVertically(self.center_panel, self.right_scroll, max(640, initial_center_width))
+        self.smart_right_panel = CandidatureOptionsPanel(
+            self.content_splitter,
+            on_action=self._on_candidature_panel_action,
+            on_delete=self._delete_candidature_from_panel,
+            on_keyword_select=lambda term: self._select_keyword(term, refresh_center=False),
+            on_add_keyword=self._add_keyword_to_candidature,
+            on_save_keyword_definition=self._save_keyword_definition,
+        )
+        initial_width = max(1, int(self.GetClientSize().GetWidth() or DEFAULT_WINDOW_SIZE[0]))
+        initial_left = max(1, int(initial_width * 0.18))
+        initial_center = max(1, int(initial_width * 0.64))
+        self.focus_splitter.SplitVertically(self.nav_panel, self.content_splitter, initial_left)
+        self.content_splitter.SplitVertically(self.center_panel, self.smart_right_panel, initial_center)
         sizer.Add(self.focus_splitter, 1, wx.EXPAND)
         self.smart_sizer.Add(self.focus_panel, 1, wx.ALL | wx.EXPAND, 6)
 
         self._build_nav_panel()
         self._build_center_panel()
-        self.right_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.right_scroll.SetSizer(self.right_sizer)
 
     def _build_nav_panel(self) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -170,14 +177,14 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
         self.center_panel.SetSizer(panel_sizer)
         self.center_splitter = wx.SplitterWindow(self.center_panel, style=wx.SP_LIVE_UPDATE)
-        self.center_splitter.SetMinimumPaneSize(110)
-        self.center_body_scroll = wx.ScrolledWindow(self.center_splitter)
-        self.center_body_scroll.SetScrollRate(8, 12)
+        self.center_splitter.SetMinimumPaneSize(1)
+        self.center_body_scroll = wx.ScrolledWindow(self.center_splitter, style=wx.VSCROLL)
+        self.center_body_scroll.SetScrollRate(0, 12)
         self.center_notes_panel = wx.Panel(self.center_splitter, style=wx.BORDER_SIMPLE)
         self.center_splitter.SplitHorizontally(
             self.center_body_scroll,
             self.center_notes_panel,
-            DEFAULT_WINDOW_SIZE[1] - DEFAULT_CENTER_NOTES_HEIGHT - 90,
+            int(DEFAULT_WINDOW_SIZE[1] * 0.76),
         )
         self.center_splitter.SetSashGravity(0.78)
         panel_sizer.Add(self.center_splitter, 1, wx.EXPAND)
@@ -187,3 +194,97 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_notes_sizer = wx.BoxSizer(wx.VERTICAL)
         self.center_notes_panel.SetSizer(self.center_notes_sizer)
         self.center_scroll = self.center_body_scroll
+
+    def _on_support_surface(self, _event: wx.Event) -> None:
+        dialog = wx.TextEntryDialog(
+            self,
+            "Paste the original job posting or application text.",
+            "New candidature",
+            "",
+            style=wx.OK | wx.CANCEL | wx.CENTRE | wx.TE_MULTILINE,
+        )
+        dialog.SetSize((720, 480))
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            raw_offer = dialog.GetValue().strip()
+        finally:
+            dialog.Destroy()
+        if not raw_offer:
+            return
+        created = self.command_service.create_raw_offer_candidature(raw_offer)
+        if not created:
+            self.SetStatusText("New candidature was not created")
+            return
+        self.selected_ref = str(created.get("id") or "")
+        self.layout_state.selected_candidature_ref = self.selected_ref
+        self.center_card_state.collapse_all()
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        self._show_focus()
+        self._refresh_all()
+        self.SetStatusText("Created candidature from pasted posting")
+
+    def _on_reset_layout(self, _event: wx.Event) -> None:
+        self.layout_state = DashboardLayoutState.default()
+        self.layout_state.selected_view = "smart"
+        self.layout_state.selected_candidature_ref = None
+        self.layout_state.selected_keyword = None
+        self.selected_ref = None
+        self.selected_keyword = None
+        self.search_query = ""
+        self.expanded_overview_ref = None
+        self.center_card_state.reset()
+        self._focus_layout_applied = False
+        self._rendered_view_keys.clear()
+        self.layout_state.save(self.layout_path)
+        self._show_overview()
+        self._refresh_all()
+        self.SetStatusText("Layout reset")
+
+    def _delete_candidature_from_panel(self, ref: str) -> None:
+        if not ref:
+            return
+        confirmed = wx.MessageBox(
+            "Delete this candidature and its local related data?",
+            "Delete candidature",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+            self,
+        )
+        if confirmed != wx.YES:
+            return
+        if not self.command_service.delete_candidature(ref):
+            self.SetStatusText("Delete failed")
+            return
+        if str(self.selected_ref or "") == str(ref):
+            self.selected_ref = None
+            self.layout_state.selected_candidature_ref = None
+        self.center_card_state.collapse_all()
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        if self.current_view == "detailed":
+            self._refresh_detailed_view()
+        elif self.current_view == "smart":
+            self._show_overview()
+            self._refresh_all()
+        else:
+            self._refresh_all()
+        self.SetStatusText("Deleted candidature")
+
+    def _on_close(self, event: wx.CloseEvent) -> None:
+        self.layout_state.selected_view = self.current_view
+        self.layout_state.selected_candidature_ref = self.selected_ref
+        self.layout_state.selected_keyword = self.selected_keyword
+        self.layout_state.search_query = self.search_query
+        if self.focus_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
+        if self.content_splitter.IsSplit():
+            total = max(1, self.content_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(1, total - self.content_splitter.GetSashPosition())
+        if hasattr(self, "detailed_splitter") and self.detailed_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("detailed", {})["left"] = max(1, self.detailed_splitter.GetSashPosition())
+        if hasattr(self, "detailed_body_splitter") and self.detailed_body_splitter.IsSplit():
+            total = max(1, self.detailed_body_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(1, total - self.detailed_body_splitter.GetSashPosition())
+        self.layout_state.save(self.layout_path)
+        event.Skip()
