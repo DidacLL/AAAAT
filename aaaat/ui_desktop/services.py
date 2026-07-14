@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from aaaat.artifacts import get_artifact, list_artifacts, update_artifact_state
 from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
 from aaaat.candidatures import create_candidature, get_candidature, update_candidature
 from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, init_db, set_profile_variable, upsert_glossary_term
@@ -36,17 +37,7 @@ class DesktopCommandService:
     def save_note(self, candidature_ref: str, body: str) -> None:
         self.update_candidature_fields(candidature_ref, {"notes": body})
 
-    def create_offer_first_candidature(
-        self,
-        raw_offer: str,
-        *,
-        company: str = "",
-        role: str = "",
-        source_url: str = "",
-        application_form: str = "",
-        request_cv: bool = False,
-        request_cover_letter: bool = False,
-    ) -> dict[str, Any] | None:
+    def create_offer_first_candidature(self, raw_offer: str, *, company: str = "", role: str = "", source_url: str = "", application_form: str = "", request_cv: bool = False, request_cover_letter: bool = False) -> dict[str, Any] | None:
         text = str(raw_offer or "").strip()
         if not text:
             return None
@@ -72,26 +63,8 @@ class DesktopCommandService:
                 self._create_action_task(conn, candidature_ref, "generate_cover_letter", force_blocked=True)
             return get_candidature(conn, candidature_ref)
 
-    def create_raw_offer_candidature(
-        self,
-        raw_offer: str,
-        *,
-        company: str = "",
-        role: str = "",
-        source_url: str = "",
-        raw_application_form: str = "",
-        request_cv: bool = False,
-        request_cover_letter: bool = False,
-    ) -> dict[str, Any] | None:
-        return self.create_offer_first_candidature(
-            raw_offer,
-            company=company,
-            role=role,
-            source_url=source_url,
-            application_form=raw_application_form,
-            request_cv=request_cv,
-            request_cover_letter=request_cover_letter,
-        )
+    def create_raw_offer_candidature(self, raw_offer: str, *, company: str = "", role: str = "", source_url: str = "", raw_application_form: str = "", request_cv: bool = False, request_cover_letter: bool = False) -> dict[str, Any] | None:
+        return self.create_offer_first_candidature(raw_offer, company=company, role=role, source_url=source_url, application_form=raw_application_form, request_cv=request_cv, request_cover_letter=request_cover_letter)
 
     def update_candidature_fields(self, candidature_ref: str, changes: dict[str, Any]) -> dict[str, Any] | None:
         safe_changes = {key: changes[key] for key in SUPPORTED_DETAIL_EDIT_FIELDS if key in changes}
@@ -136,19 +109,25 @@ class DesktopCommandService:
         task_type, title, instructions, context_hint, priority = spec
         blocked = force_blocked or (action_id in _DOCUMENT_ACTIONS and not _document_inputs_ready(get_candidature(conn, candidature_ref)))
         notes = "Waiting for current candidature evaluation and role strategy." if blocked else ""
-        return create_task(
-            conn,
-            task_type,
-            title,
-            application_id=candidature_ref,
-            instructions=instructions,
-            state="blocked" if blocked else "queued",
-            priority=priority,
-            context_hint=context_hint,
-            created_by="desktop",
-            notes=notes,
-            idempotent=False,
-        )
+        return create_task(conn, task_type, title, application_id=candidature_ref, instructions=instructions, state="blocked" if blocked else "queued", priority=priority, context_hint=context_hint, created_by="desktop", notes=notes, idempotent=False)
+
+    def list_candidature_artifacts(self, candidature_ref: str) -> list[dict[str, Any]]:
+        if not candidature_ref:
+            return []
+        with connect(self.storage_path) as conn:
+            return list_artifacts(conn, candidature_ref)
+
+    def set_artifact_state(self, artifact_id: str, state: str, notes: str = "") -> dict[str, Any] | None:
+        if not artifact_id:
+            return None
+        with connect(self.storage_path) as conn:
+            return update_artifact_state(conn, artifact_id, state, notes or None)
+
+    def artifact_path(self, artifact_id: str) -> str:
+        if not artifact_id:
+            return ""
+        with connect(self.storage_path) as conn:
+            return str(get_artifact(conn, artifact_id).get("path") or "")
 
     def delete_candidature(self, candidature_ref: str) -> bool:
         if not candidature_ref:
