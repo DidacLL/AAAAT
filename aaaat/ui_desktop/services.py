@@ -5,7 +5,7 @@ from typing import Any
 
 from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
 from aaaat.candidatures import create_candidature, get_candidature, update_candidature
-from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, set_profile_variable, upsert_glossary_term
+from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, init_db, set_profile_variable, upsert_glossary_term
 from aaaat.tasks import create_task
 
 from .user_fields import WRITABLE_USER_STORAGE_KEYS
@@ -80,6 +80,7 @@ class DesktopCommandService:
 
     def __init__(self, storage_path: str | Path) -> None:
         self.storage_path = str(storage_path)
+        init_db(self.storage_path)
 
     def save_note(self, candidature_ref: str, body: str) -> None:
         self.update_candidature_fields(candidature_ref, {"notes": body})
