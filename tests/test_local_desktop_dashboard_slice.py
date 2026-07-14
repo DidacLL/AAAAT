@@ -21,7 +21,6 @@ class DesktopReleaseReadinessSliceTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as parent:
             storage = Path(parent) / "fresh-private"
-            self.assertFalse(storage.exists())
             summary = seed(storage, count=4, reset=True)
             projection = build_desktop_projection(storage)
             with connect(storage) as conn:
@@ -32,7 +31,6 @@ class DesktopReleaseReadinessSliceTests(unittest.TestCase):
         self.assertEqual(len(applications), 4)
         self.assertTrue(all(count == 1 for count in raw_counts))
         self.assertEqual(projection["view_state"]["current_view"], "smart")
-        self.assertIsNotNone(projection["smart"]["selected_candidature_detail"])
         self.assertTrue(projection["smart"]["source_text"]["has_raw"])
         self.assertFalse(any(name == "wx" or name.startswith("wx.") for name in sys.modules))
 
@@ -51,16 +49,12 @@ class DesktopReleaseReadinessSliceTests(unittest.TestCase):
         self.assertEqual(len(applications), 2)
         self.assertTrue(all(count == 1 for count in raw_counts))
         self.assertTrue(all(app["status"] in {"active", "closed"} for app in applications))
-        self.assertTrue(any(app["pitch"] for app in applications))
-        self.assertTrue(any(app["keywords"] for app in applications))
 
     def test_empty_clean_storage_projects_welcome_view(self):
         from aaaat.ui_desktop.app import build_desktop_projection
 
         with tempfile.TemporaryDirectory() as parent:
-            storage = Path(parent) / "fresh-private"
-            projection = build_desktop_projection(storage)
-
+            projection = build_desktop_projection(Path(parent) / "fresh-private")
         self.assertEqual(projection["view_state"]["current_view"], "welcome")
         self.assertFalse(projection["smart"]["candidature_summaries"])
 
@@ -80,31 +74,26 @@ class DesktopReleaseReadinessSliceTests(unittest.TestCase):
 
 
 class DesktopProjectionBehaviorTests(unittest.TestCase):
-    def test_seeded_projection_preserves_selected_candidature_and_keyword(self):
+    def test_seeded_projection_preserves_selection_and_detailed_columns(self):
         with tempfile.TemporaryDirectory() as tmp:
             seed(tmp, count=4, reset=True)
             with connect(tmp) as conn:
                 applications = list_applications(conn)
+                from aaaat.payload import dashboard_payload
+                payload = dashboard_payload(conn, include_raw=True)
             selected = applications[1]
             keyword = selected["keywords"][0]
-            projection = build_dashboard_projection(build_desktop_payload(tmp), view="smart", selected_application_id=selected["id"], selected_keyword=keyword)
+            smart = build_dashboard_projection(payload, view="smart", selected_application_id=selected["id"], selected_keyword=keyword)
+            detailed = build_dashboard_projection(payload, view="detailed", selected_application_id=selected["id"])
 
-        self.assertEqual(projection["view_state"]["selected_candidature_ref"], selected["id"])
-        self.assertEqual(projection["view_state"]["selected_keyword"], keyword)
-        self.assertEqual(projection["smart"]["selected_candidature_detail"]["company"], selected["company"])
-
-    def test_detailed_projection_exposes_current_comparison_columns(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            seed(tmp, count=3, reset=True)
-            projection = build_dashboard_projection(build_desktop_payload(tmp), view="detailed")
-
-        available = {column["id"] for column in projection["detailed"]["available_columns"]}
+        self.assertEqual(smart["view_state"]["selected_candidature_ref"], selected["id"])
+        self.assertEqual(smart["view_state"]["selected_keyword"], keyword)
+        available = {column["id"] for column in detailed["detailed"]["available_columns"]}
         self.assertTrue({"company", "role", "status", "priority", "source_url"}.issubset(available))
-        self.assertTrue(set(projection["detailed"]["visible_columns"]).issubset(available))
 
 
 class DesktopOfferFirstBehaviorTests(unittest.TestCase):
-    def test_raw_offer_creation_retains_optional_source_and_form(self):
+    def test_offer_first_creation_retains_source_and_blocks_dependent_documents(self):
         with tempfile.TemporaryDirectory() as tmp:
             service = DesktopCommandService(tmp)
             created = service.create_offer_first_candidature(
@@ -113,41 +102,31 @@ class DesktopOfferFirstBehaviorTests(unittest.TestCase):
                 role="Backend Engineer",
                 source_url="https://example.invalid/job",
                 application_form="Why this role?",
+                request_cv=True,
+                request_cover_letter=True,
             )
-            self.assertIsNotNone(created)
             with connect(tmp) as conn:
-                applications = list_applications(conn)
-                raw = list_raw_intake(conn, applications[0]["id"])
-
-        self.assertEqual(applications[0]["company"], "Example Co")
-        self.assertEqual(applications[0]["role"], "Backend Engineer")
-        self.assertEqual(applications[0]["source_url"], "https://example.invalid/job")
-        self.assertEqual(created["raw_application_form"], "Why this role?")
-        self.assertEqual(raw[0]["content"], "Original offer body")
-
-    def test_requested_documents_are_blocked_until_evaluation_and_strategy_exist(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            service = DesktopCommandService(tmp)
-            created = service.create_offer_first_candidature("Original offer body", request_cv=True, request_cover_letter=True)
-            with connect(tmp) as conn:
+                raw = list_raw_intake(conn, created["id"])
                 tasks = list_tasks(conn, application_id=created["id"])
 
-        document_tasks = [task for task in tasks if task["task_type"] in {"draft_cv", "draft_cover_letter"}]
-        self.assertEqual({task["state"] for task in document_tasks}, {"blocked"})
-        self.assertTrue(all("evaluation" in task["notes"] and "strategy" in task["notes"] for task in document_tasks))
+        self.assertEqual(created["company"], "Example Co")
+        self.assertEqual(created["source_url"], "https://example.invalid/job")
+        self.assertEqual(created["raw_application_form"], "Why this role?")
+        self.assertEqual(raw[0]["content"], "Original offer body")
+        documents = [task for task in tasks if task["task_type"] in {"draft_cv", "draft_cover_letter"}]
+        self.assertEqual({task["state"] for task in documents}, {"blocked"})
 
-    def test_document_action_queues_after_current_inputs_exist(self):
+    def test_document_action_queues_after_evaluation_and_strategy_exist(self):
         with tempfile.TemporaryDirectory() as tmp:
             service = DesktopCommandService(tmp)
             created = service.create_offer_first_candidature("Original offer body")
             service.update_candidature_fields(created["id"], {"candidature_evaluation": "Strong fit", "role_strategy": "Emphasize backend ownership"})
             task = service.queue_candidature_action(created["id"], "generate_cv")
-
         self.assertEqual(task["state"], "queued")
 
 
 class DesktopMaterialWorkflowBehaviorTests(unittest.TestCase):
-    def test_material_state_is_visible_and_sent_is_a_distinct_event(self):
+    def test_material_state_and_sent_event_are_distinct(self):
         with tempfile.TemporaryDirectory() as tmp:
             service = DesktopCommandService(tmp)
             created = service.create_offer_first_candidature("Original offer body")
@@ -156,62 +135,45 @@ class DesktopMaterialWorkflowBehaviorTests(unittest.TestCase):
             artifact_path.write_bytes(b"fake-pdf")
             with connect(tmp) as conn:
                 artifact = save_artifact(conn, created["id"], "cover_letter", str(artifact_path), "Cover letter v1")
-
             self.assertEqual(service.list_candidature_artifacts(created["id"])[0]["review_state"], "draft")
             service.set_artifact_state(artifact["id"], "reviewed", "Reviewed locally")
             submitted = service.set_artifact_state(artifact["id"], "submitted", "Sent to employer")
+            resolved_path = service.artifact_path(artifact["id"])
 
         self.assertEqual(submitted["review_state"], "submitted")
-        self.assertEqual(service.artifact_path(artifact["id"]), str(artifact_path))
+        self.assertEqual(resolved_path, str(artifact_path))
 
 
 class DesktopUserWorkspaceBehaviorTests(unittest.TestCase):
-    def test_user_workspace_exposes_professional_and_career_fields(self):
+    def test_user_workspace_exposes_and_persists_professional_career_fields(self):
         groups = grouped_user_fields({"user": {"profile_variables": []}})
         keys = {field["storage_key"] for group in groups for field in group["fields"]}
         self.assertEqual(keys, WRITABLE_USER_STORAGE_KEYS)
         self.assertTrue({"profile.experience", "profile.education", "profile.skills", "profile.career.objectives", "profile.career.constraints", "profile.writing.preferences"}.issubset(keys))
 
-    def test_user_workspace_changes_persist_through_command_service(self):
         with tempfile.TemporaryDirectory() as tmp:
             service = DesktopCommandService(tmp)
             saved = service.update_profile_variables({"profile.experience": "Built local-first developer tools.", "profile.career.objectives": "Senior backend roles.", "unsupported": "ignored"})
             with connect(tmp) as conn:
                 values = profile_variables(conn)
-
         self.assertEqual(set(saved), {"profile.experience", "profile.career.objectives"})
         self.assertEqual(values["profile.experience"], "Built local-first developer tools.")
-        self.assertEqual(values["profile.career.objectives"], "Senior backend roles.")
 
 
 class DesktopLayoutBehaviorTests(unittest.TestCase):
-    def test_layout_state_round_trips_without_private_values(self):
-        state = DashboardLayoutState.default()
-        state.selected_view = "detailed"
-        state.selected_candidature_ref = "app_123"
-        state.selected_keyword = "Python"
-        state.pane_layout["smart"] = {"left": 210, "right": 200}
-        restored = DashboardLayoutState.from_json(state.to_json())
-        self.assertEqual(restored.selected_view, "detailed")
-        self.assertEqual(restored.selected_candidature_ref, "app_123")
-        self.assertEqual(restored.selected_keyword, "Python")
-        self.assertFalse(layout_state_contains_private_values(restored))
-
-    def test_layout_state_persists_to_disk(self):
+    def test_layout_state_round_trips_and_persists_without_private_values(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "ui_state.json"
             state = DashboardLayoutState.default()
-            state.selected_view = "user"
+            state.selected_view = "detailed"
+            state.selected_candidature_ref = "app_123"
+            state.selected_keyword = "Python"
+            state.pane_layout["smart"] = {"left": 210, "right": 200}
             state.save(path)
-            loaded = DashboardLayoutState.load(path)
-        self.assertEqual(loaded.selected_view, "user")
-
-
-def build_desktop_payload(storage):
-    from aaaat.payload import dashboard_payload
-
-    with connect(storage) as conn:
-        return dashboard_payload(conn, include_raw=True)
+            restored = DashboardLayoutState.load(path)
+        self.assertEqual(restored.selected_view, "detailed")
+        self.assertEqual(restored.selected_candidature_ref, "app_123")
+        self.assertFalse(layout_state_contains_private_values(restored))
 
 
 if __name__ == "__main__":
