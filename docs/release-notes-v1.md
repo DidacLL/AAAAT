@@ -15,7 +15,7 @@ AAAAT v1 is a local-first, provider-agnostic job-application workspace with a wx
 - Idempotent compatibility handling for career-plan, keyword metadata, and candidature-detail columns.
 - Tracked TeX output when `pdflatex` is unavailable.
 - Opaque task-handle agent workflows with bounded context and no broad entity mutation authority.
-- Standard wheel packaging with console launchers for the CLI, wx desktop, demo seed, and local-store upgrade.
+- Normal wheel packaging and installed-command validation.
 
 ## Runtime contract
 
@@ -28,7 +28,7 @@ External agents own reasoning. AAAAT owns bounded context, validation, persisten
 1. Back up the current local store before upgrading:
 
    ```bash
-   python -m aaaat.cli backup
+   python -m aaaat.cli --storage /path/to/private-aaaat backup
    ```
 
 2. Install the updated package with the desktop extra:
@@ -45,6 +45,8 @@ External agents own reasoning. AAAAT owns bounded context, validation, persisten
    ```
 
 `aaaat-upgrade` is additive and idempotent for supported v1 stores. It creates missing schema objects, applies all supported compatibility columns, preserves existing rows, normalizes legacy candidature statuses, and seeds defaults with `INSERT OR IGNORE` behavior. It can be run repeatedly against the same store.
+
+The desktop launcher runs the same supported upgrade path before reading its store. The explicit command provides a separate preflight step and summary for release maintenance.
 
 Do not copy or replace `aaaat.sqlite3` while AAAAT is running. Keep the backup until the upgraded desktop opens and the existing candidatures and materials have been checked.
 
