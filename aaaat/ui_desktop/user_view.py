@@ -10,6 +10,7 @@ from aaaat.assistance_service import (
     use_manual_integration,
     use_recommended_local_integration,
 )
+from aaaat.background_worker import OwnedTaskWorker
 
 from .assistance_panel import AssistancePanel
 from .profile_facts_panel import ProfileFactsPanel
@@ -20,6 +21,7 @@ class UserViewMixin:
     """User/Profile View foundation for local desktop profile context."""
 
     def _build_user_surface(self) -> None:
+        self._task_worker: OwnedTaskWorker | None = None
         self.user_panel = wx.Panel(self.view_book)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.user_panel.SetSizer(sizer)
@@ -53,7 +55,7 @@ class UserViewMixin:
         self.view_book.AddPage(self.user_panel, "User")
 
     def _bind_user_events(self) -> None:
-        pass
+        self.Bind(wx.EVT_CLOSE, self._stop_task_worker_on_close)
 
     def _show_user(self) -> None:
         self.current_view = "user"
@@ -144,14 +146,19 @@ class UserViewMixin:
         self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
         return result
 
+    def _ensure_task_worker(self) -> OwnedTaskWorker:
+        if self._task_worker is None:
+            self._task_worker = OwnedTaskWorker(self.storage_path, on_event=self._on_task_worker_event)
+        return self._task_worker
+
     def _run_assistance_task(self, task_id: str) -> None:
-        self.task_worker.submit(task_id)
+        self._ensure_task_worker().submit(task_id)
         self.SetStatusText("Assistance task queued")
         self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
 
     def _retry_assistance_task(self, task_id: str) -> None:
         try:
-            self.task_worker.retry(task_id)
+            self._ensure_task_worker().retry(task_id)
         except ValueError as exc:
             self.SetStatusText(str(exc))
             return
@@ -159,7 +166,8 @@ class UserViewMixin:
         self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
 
     def _cancel_assistance_task(self, task_id: str) -> None:
-        self.task_worker.cancel(task_id)
+        worker = self._ensure_task_worker()
+        worker.cancel(task_id)
         self.SetStatusText("Assistance task cancelled")
         self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
 
@@ -176,3 +184,8 @@ class UserViewMixin:
             self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
         if state in {"completed", "failed", "cancelled"}:
             self._refresh_all()
+
+    def _stop_task_worker_on_close(self, event: wx.CloseEvent) -> None:
+        if self._task_worker is not None:
+            self._task_worker.stop(wait=False)
+        event.Skip()
