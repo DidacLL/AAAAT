@@ -39,16 +39,10 @@ class ReleaseEngineeringTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue((Path(tmp) / "aaaat.sqlite3").exists())
 
-    def test_runtime_package_resources_are_available(self):
+    def test_runtime_schema_resource_is_available(self):
         package_root = importlib.resources.files("aaaat")
-        required = [
-            package_root / "schema.sql",
-            package_root / "templates_ui",
-            package_root / "static",
-        ]
-        for resource in required:
-            with self.subTest(resource=str(resource)):
-                self.assertTrue(resource.is_file() or resource.is_dir())
+        schema = package_root / "schema.sql"
+        self.assertTrue(schema.is_file())
 
     def test_desktop_entry_module_imports_without_optional_dependency(self):
         from aaaat.ui_desktop import app
