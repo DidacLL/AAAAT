@@ -4,6 +4,14 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
+from aaaat.assistance_service import (
+    assistance_snapshot,
+    save_integration,
+    use_manual_integration,
+    use_recommended_local_integration,
+)
+
+from .assistance_panel import AssistancePanel
 from .profile_facts_panel import ProfileFactsPanel
 from .user_panel import UserPanel
 
@@ -30,6 +38,17 @@ class UserViewMixin:
         self.evidence_scroll.SetSizer(self.evidence_sizer)
         self.user_workspace.AddPage(self.evidence_scroll, "Reusable evidence")
 
+        self.assistance_panel = AssistancePanel(
+            self.user_workspace,
+            on_save_integration=self._save_integration,
+            on_recommended=self._use_recommended_integration,
+            on_manual=self._use_manual_integration,
+            on_run_task=self._run_assistance_task,
+            on_retry_task=self._retry_assistance_task,
+            on_cancel_task=self._cancel_assistance_task,
+        )
+        self.user_workspace.AddPage(self.assistance_panel, "Assistance")
+
         sizer.Add(self.user_workspace, 1, wx.ALL | wx.EXPAND, 0)
         self.view_book.AddPage(self.user_panel, "User")
 
@@ -50,6 +69,7 @@ class UserViewMixin:
         try:
             self.user_content.render(self.projection, can_edit=True)
             self._render_profile_facts()
+            self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
             self.user_panel.Layout()
         finally:
             self.user_panel.Thaw()
@@ -102,3 +122,57 @@ class UserViewMixin:
     def _cancel_user_edits(self) -> None:
         self._refresh_user_view()
         self._mark_current_view_rendered()
+
+    def _save_integration(self, adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
+        result = save_integration(self.storage_path, adapter_id, settings)
+        if result.get("saved"):
+            self.SetStatusText("Integration tested and saved")
+        else:
+            self.SetStatusText("Integration test failed; previous setup preserved")
+        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        return result
+
+    def _use_recommended_integration(self) -> dict[str, Any]:
+        result = use_recommended_local_integration(self.storage_path)
+        self.SetStatusText("Recommended local integration ready" if result.get("saved") else "Recommended local integration unavailable")
+        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        return result
+
+    def _use_manual_integration(self) -> dict[str, Any]:
+        result = use_manual_integration(self.storage_path)
+        self.SetStatusText("Portable/manual assistance selected")
+        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        return result
+
+    def _run_assistance_task(self, task_id: str) -> None:
+        self.task_worker.submit(task_id)
+        self.SetStatusText("Assistance task queued")
+        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+
+    def _retry_assistance_task(self, task_id: str) -> None:
+        try:
+            self.task_worker.retry(task_id)
+        except ValueError as exc:
+            self.SetStatusText(str(exc))
+            return
+        self.SetStatusText("Assistance task queued for retry")
+        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+
+    def _cancel_assistance_task(self, task_id: str) -> None:
+        self.task_worker.cancel(task_id)
+        self.SetStatusText("Assistance task cancelled")
+        self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+
+    def _on_task_worker_event(self, event: dict[str, Any]) -> None:
+        wx.CallAfter(self._apply_task_worker_event, dict(event))
+
+    def _apply_task_worker_event(self, event: dict[str, Any]) -> None:
+        state = str(event.get("state") or "")
+        message = str(event.get("message") or "")
+        self.SetStatusText(message or f"Assistance task: {state}")
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        if hasattr(self, "assistance_panel"):
+            self.assistance_panel.render(assistance_snapshot(self.storage_path, include_advanced=True))
+        if state in {"completed", "failed", "cancelled"}:
+            self._refresh_all()
