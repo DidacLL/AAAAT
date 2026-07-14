@@ -169,6 +169,37 @@ class DesktopCommandService:
         with connect(self.storage_path) as conn:
             return str(get_artifact(conn, artifact_id).get("path") or "")
 
+    def list_profile_facts(self) -> list[dict[str, Any]]:
+        from aaaat.profile_facts import list_profile_facts
+
+        with connect(self.storage_path) as conn:
+            return list_profile_facts(conn)
+
+    def create_profile_fact(self, fields: dict[str, Any]) -> list[dict[str, Any]]:
+        from aaaat.profile_facts import create_profile_fact, list_profile_facts
+
+        with connect(self.storage_path) as conn:
+            create_profile_fact(conn, **fields)
+            return list_profile_facts(conn)
+
+    def update_profile_fact(self, fact_id: str, fields: dict[str, Any]) -> list[dict[str, Any]]:
+        from aaaat.profile_facts import list_profile_facts, update_profile_fact
+
+        if not fact_id:
+            return self.list_profile_facts()
+        with connect(self.storage_path) as conn:
+            update_profile_fact(conn, fact_id, **fields)
+            return list_profile_facts(conn)
+
+    def archive_profile_fact(self, fact_id: str) -> list[dict[str, Any]]:
+        from aaaat.profile_facts import archive_profile_fact, list_profile_facts
+
+        if not fact_id:
+            return self.list_profile_facts()
+        with connect(self.storage_path) as conn:
+            archive_profile_fact(conn, fact_id)
+            return list_profile_facts(conn)
+
     def delete_candidature(self, candidature_ref: str) -> bool:
         if not candidature_ref:
             return False
