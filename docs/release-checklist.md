@@ -1,6 +1,28 @@
 # AAAAT v1 release checklist
 
-Use this checklist after packaging, migration, or release-candidate changes.
+Authoritative product requirements: [`docs/requirements/v1-authoritative-requirements.md`](requirements/v1-authoritative-requirements.md).
+
+This checklist validates packaging and release mechanics. It does not independently establish product readiness. `RELEASE_READY` requires the complete communication, wx and deterministic acceptance gates in the authoritative requirements.
+
+## Product completion gate
+
+Before packaging can be treated as a release candidate, verify all of the following:
+
+- manual wx operation works without any LLM integration;
+- guided Welcome/User integration setup works;
+- bounded opaque-handle protocol is enforced;
+- real local Ollama CLI communication works without AAAAT HTTP;
+- an independent llama.cpp CLI path works through the same protocol;
+- generic user-owned command execution remains available;
+- connector construction and conformance validation work;
+- browser-only users can export one grouped task bundle and import one grouped result bundle;
+- progress, failure, cancellation where supported and retry are visible in wx;
+- profile completion and the complete candidature lifecycle work end to end;
+- artifacts render locally with provenance and correct state semantics;
+- the deterministic empty-store release scenario passes;
+- required real manual demonstrations have been completed.
+
+Green packaging or legacy tests without this product gate must be reported as `NOT_RELEASE_READY`.
 
 ## Build and installed commands
 
@@ -88,7 +110,7 @@ aaaat mcp-descriptor
 aaaat mcp-validate
 ```
 
-Expected result: agent commands expose bounded task/context capabilities and opaque task handles, not broad entity mutation authority.
+Expected result: agent commands expose bounded task/context capabilities and opaque task handles, not broad entity mutation authority. These commands are compatibility surfaces, not proof of an operational communication layer.
 
 ## Repository hygiene
 
@@ -110,4 +132,4 @@ python -B -m aaaat.cli mcp-validate
 python -B -m unittest discover -s tests
 ```
 
-Expected result: all checks pass without provider-specific runtime requirements, heavy dependencies, or private data.
+Expected result: all checks pass without provider-specific runtime requirements, heavy dependencies, private data, mandatory HTTP or exposed ports.
