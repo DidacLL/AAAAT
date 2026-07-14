@@ -1,3 +1,4 @@
+import importlib.metadata
 import importlib.resources
 import os
 import subprocess
@@ -22,6 +23,24 @@ class ReleaseEngineeringTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(result.stdout.strip())
+
+    def test_upgrade_module_help_executes_successfully(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "aaaat.upgrade", "--help"],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Upgrade an existing local AAAAT SQLite store", result.stdout)
+
+    def test_runtime_and_distribution_versions_match_v1(self):
+        from aaaat import __version__
+
+        self.assertEqual(__version__, "1.0.0")
+        self.assertEqual(importlib.metadata.version("aaaat"), __version__)
 
     def test_cli_can_initialize_clean_local_storage_without_git(self):
         with tempfile.TemporaryDirectory() as tmp:
