@@ -76,21 +76,10 @@ class CenterCardBuilder:
         panel.SetSizer(sizer)
 
         top = wx.BoxSizer(wx.HORIZONTAL)
-        if posting.strip():
-            top.Add(
-                self._text_card(panel, "Posting", posting, emphasis="high"),
-                3,
-                wx.RIGHT | wx.EXPAND,
-                10,
-            )
-
-        side = wx.BoxSizer(wx.VERTICAL)
         if pitch.strip():
-            side.Add(self._text_card(panel, "Pitch", pitch, emphasis="medium"), 0, wx.BOTTOM | wx.EXPAND, 8)
+            top.Add(self._text_card(panel, "Pitch", pitch, emphasis="medium"), 1, wx.RIGHT | wx.EXPAND, 10)
         if snapshot.strip():
-            side.Add(self._text_card(panel, "Snapshot", snapshot, emphasis="medium"), 0, wx.EXPAND, 0)
-        if side.GetItemCount():
-            top.Add(side, 2, wx.EXPAND)
+            top.Add(self._text_card(panel, "Snapshot", snapshot, emphasis="medium"), 1, wx.EXPAND, 0)
         if top.GetItemCount():
             sizer.Add(top, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
 
@@ -116,6 +105,9 @@ class CenterCardBuilder:
                     border = 9
                 support_row.Add(column, 1, flags, border)
             sizer.Add(support_row, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+
+        if posting.strip():
+            sizer.Add(self._text_card(panel, "Posting", posting, emphasis="high"), 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
 
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
