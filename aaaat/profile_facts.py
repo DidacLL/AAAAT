@@ -26,6 +26,7 @@ FACT_TYPES = {
 VISIBILITIES = {"public", "professional", "private", "sensitive"}
 EXPOSURES = {"raw", "anonymized", "summarized", "placeholder", "redacted", "denied"}
 REVIEW_STATES = {"active", "archived"}
+CONTEXT_SCOPES = {"agent", "local"}
 PURPOSE_FLAGS = {
     "cv_generation": "use_for_cv",
     "cover_letter": "use_for_cover_letter",
@@ -35,13 +36,12 @@ PURPOSE_FLAGS = {
     "form_answers": "use_for_agent_context",
     "career_plan_review": "use_for_agent_context",
 }
-LOCAL_SCOPES = {"local_render", "local_dashboard", "dashboard"}
 BOOL_FIELDS = {
     "use_for_cv",
     "use_for_cover_letter",
     "use_for_agent_context",
     "use_for_market_research",
-    "use_for_dashboard",
+    "use_for_desktop",
 }
 
 
@@ -59,7 +59,7 @@ def create_profile_fact(conn: sqlite3.Connection, **fields: Any) -> dict[str, An
         "use_for_cover_letter": bool_int(fields.get("use_for_cover_letter", False)),
         "use_for_agent_context": bool_int(fields.get("use_for_agent_context", False)),
         "use_for_market_research": bool_int(fields.get("use_for_market_research", False)),
-        "use_for_dashboard": bool_int(fields.get("use_for_dashboard", True)),
+        "use_for_desktop": bool_int(fields.get("use_for_desktop", True)),
         "source": fields.get("source", "user"),
         "review_state": fields.get("review_state", "active"),
         "created_at": now,
@@ -71,11 +71,11 @@ def create_profile_fact(conn: sqlite3.Connection, **fields: Any) -> dict[str, An
         """INSERT INTO profile_facts(
           id, fact_type, title, body, tags, visibility, exposure, use_for_cv,
           use_for_cover_letter, use_for_agent_context, use_for_market_research,
-          use_for_dashboard, source, review_state, created_at, updated_at, notes
+          use_for_desktop, source, review_state, created_at, updated_at, notes
         ) VALUES (
           :id, :fact_type, :title, :body, :tags, :visibility, :exposure, :use_for_cv,
           :use_for_cover_letter, :use_for_agent_context, :use_for_market_research,
-          :use_for_dashboard, :source, :review_state, :created_at, :updated_at, :notes
+          :use_for_desktop, :source, :review_state, :created_at, :updated_at, :notes
         )""",
         item,
     )
@@ -123,7 +123,7 @@ def update_profile_fact(conn: sqlite3.Connection, fact_id: str, **fields: Any) -
         "use_for_cover_letter",
         "use_for_agent_context",
         "use_for_market_research",
-        "use_for_dashboard",
+        "use_for_desktop",
         "source",
         "review_state",
         "notes",
@@ -155,8 +155,10 @@ def archive_profile_fact(conn: sqlite3.Connection, fact_id: str) -> dict[str, An
 def profile_context(conn: sqlite3.Connection, purpose: str, scope: str = "agent") -> dict[str, Any]:
     if purpose not in PURPOSE_FLAGS:
         raise ValueError(f"Unsupported profile context purpose: {purpose}")
+    if scope not in CONTEXT_SCOPES:
+        raise ValueError(f"Unsupported profile context scope: {scope}")
     flag = PURPOSE_FLAGS[purpose]
-    include_internal_id = scope in LOCAL_SCOPES
+    include_internal_id = scope == "local"
     rows = list_profile_facts(conn)
     facts = []
     for item in rows:
@@ -175,10 +177,10 @@ def profile_context(conn: sqlite3.Connection, purpose: str, scope: str = "agent"
 
 
 def resolve_fact_body(item: dict[str, Any], purpose: str, scope: str) -> str | None:
-    if scope in LOCAL_SCOPES:
+    if scope == "local":
         return str(item.get("body") or "")
-    if scope == "static_demo":
-        return None
+    if scope != "agent":
+        raise ValueError(f"Unsupported profile context scope: {scope}")
     exposure = item.get("exposure", "summarized")
     if purpose == "market_research" and exposure == "raw":
         exposure = "anonymized"
@@ -212,7 +214,7 @@ def public_fact_metadata(item: dict[str, Any], denied: bool = False, include_id:
             "cover_letter": bool(item.get("use_for_cover_letter")),
             "agent_context": bool(item.get("use_for_agent_context")),
             "market_research": bool(item.get("use_for_market_research")),
-            "dashboard": bool(item.get("use_for_dashboard")),
+            "desktop": bool(item.get("use_for_desktop")),
         },
     }
     if include_id:
