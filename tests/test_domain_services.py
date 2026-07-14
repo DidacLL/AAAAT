@@ -148,7 +148,7 @@ class DomainServiceTests(unittest.TestCase):
         current = next(item for item in loaded["artifacts"] if item["id"] == artifact["id"])
         self.assertEqual(current["review_state"], "reviewed")
 
-    def test_notes_todos_text_and_keyword_metadata_are_durable(self):
+    def test_todo_note_and_text_blob_are_durable(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -164,17 +164,22 @@ class DomainServiceTests(unittest.TestCase):
                 update_todo(conn, todo["id"], state="done")
                 create_note(conn, "Appendable note", application_id=candidature["id"], note_type="call")
                 create_text_blob(conn, "questions", "Question draft", application_id=candidature["id"])
+                todos = list_todos(conn, candidature["id"])
+                notes = list_notes(conn, candidature["id"])
+                blobs = list_text_blobs(conn, candidature["id"])
+        self.assertEqual(todos[0]["state"], "done")
+        self.assertEqual(notes[0]["note_type"], "call")
+        self.assertTrue(any(item["blob_type"] == "questions" and item["body"] == "Question draft" for item in blobs))
+
+    def test_keyword_alias_and_note_are_durable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
                 add_keyword_alias(conn, "ATS", "Applicant tracker")
                 create_keyword_note(conn, "ATS", "Important for screening.")
                 ats = next(item for item in list_keywords(conn) if item["term"] == "ATS")
-                todo_state = list_todos(conn, candidature["id"])[0]["state"]
-                note_type = list_notes(conn, candidature["id"])[0]["note_type"]
-                blob_type = list_text_blobs(conn, candidature["id"])[0]["blob_type"]
-        self.assertEqual(todo_state, "done")
-        self.assertEqual(note_type, "call")
-        self.assertEqual(blob_type, "questions")
         self.assertIn("Applicant tracker", ats["aliases"])
-        self.assertTrue(ats["notes"])
+        self.assertTrue(any(item["body"] == "Important for screening." for item in ats["notes"]))
 
     def test_search_uses_sanitized_fts_queries(self):
         self.assertEqual(safe_match_query(""), "")
