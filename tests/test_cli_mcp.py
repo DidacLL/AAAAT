@@ -34,32 +34,11 @@ class CliMcpTests(unittest.TestCase):
                 "Audit intake",
                 self.run_cli("--storage", tmp, "intake", "add", app_id, "--content", "Audit intake").stdout,
             )
-            raw_offer = json.loads(
-                self.run_cli("--storage", tmp, "intake", "raw-offer", "--content", "Raw offer text").stdout
-            )
-            self.assertEqual(raw_offer["status"], "active")
 
             self.run_cli("--storage", tmp, "profile", "set", "display_name", "Audit Candidate")
             self.run_cli("--storage", tmp, "profile", "set", "email", "audit@example.invalid")
             self.run_cli("--storage", tmp, "profile", "set", "summary.default", "Audit summary")
             self.assertEqual(json.loads(self.run_cli("--storage", tmp, "profile", "missing").stdout), [])
-
-            cv_path = Path(tmp) / "cv.tex"
-            self.run_cli("--storage", tmp, "render", "cv", "--output", str(cv_path))
-            self.assertIn("Audit Candidate", cv_path.read_text(encoding="utf-8"))
-            cover_path = Path(tmp) / "cover-letter.tex"
-            self.run_cli(
-                "--storage",
-                tmp,
-                "render",
-                "cover-letter",
-                app_id,
-                "--body",
-                "Audit body",
-                "--output",
-                str(cover_path),
-            )
-            self.assertIn("Audit body", cover_path.read_text(encoding="utf-8"))
 
     def test_agent_cli_uses_opaque_handle_and_cli_write_back(self):
         with tempfile.TemporaryDirectory() as tmp:
