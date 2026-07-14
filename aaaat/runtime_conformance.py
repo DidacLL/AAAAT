@@ -12,6 +12,7 @@ from .workspace_config import storage_directory
 
 MANIFEST_PROTOCOL = "aaaat.runtime-bootstrap"
 MANIFEST_VERSION = 1
+_NEGOTIATED_KEYS = {"runtime_name", "model_name", "supports_structured_json", "supports_research", "recommended_timeout_seconds", "notes"}
 
 
 def bootstrap_manifest(adapter_id: str, settings: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -64,6 +65,68 @@ def read_conformance_state(storage_path: str | Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {"status": "invalid_state", "manifest_protocol": MANIFEST_PROTOCOL}
 
 
+def negotiate_configured_runtime(storage_path: str | Path) -> dict[str, Any]:
+    selected = current_integration(storage_path)
+    adapter_id = str(selected["id"])
+    settings = dict(selected.get("settings") or {})
+    adapter = adapter_definition(adapter_id)
+    if not adapter.automatic_execution:
+        return {"status": "not_applicable", "message": "Portable/manual integrations do not negotiate a runtime manifest."}
+    nonce = secrets.token_urlsafe(18)
+    request = {
+        "task": {"task_handle": "taskh_bootstrap_only", "task_type": "runtime_bootstrap", "purpose": "runtime_bootstrap", "allowed_actions": ["submit"]},
+        "purpose": "runtime_bootstrap",
+        "instructions": {
+            "default": "Describe this runtime using only the permitted advisory fields and echo the exact nonce.",
+            "process": ["Return one JSON object only.", "Do not propose credentials, ports, file paths, shell commands, or provider APIs."],
+        },
+        "input_context": {"challenge_nonce": nonce, "bootstrap_manifest": bootstrap_manifest(adapter_id, settings)},
+        "response_format": {
+            "type": "json_object",
+            "required": ["conformance_nonce", "runtime_name", "model_name"],
+            "schema": {"conformance_nonce": "exact supplied nonce", **{key: "advisory value" for key in sorted(_NEGOTIATED_KEYS)}},
+        },
+        "privacy": {"scope": "bootstrap", "notes": ["fake data only", "no private AAAAT context"]},
+    }
+    try:
+        body, provenance = TaskRunner(storage_path)._execute_adapter(adapter_id, settings, request)
+        payload = json.loads(body)
+        proposal = validate_runtime_proposal(payload, nonce)
+    except Exception as exc:
+        return {"status": "failed", "stage": "negotiation", "message": str(exc)[:2000]}
+    report = run_configured_runtime_conformance(storage_path)
+    if report.get("status") != "passed":
+        return {"status": "failed", "stage": "conformance", "message": str(report.get("message") or "Conformance failed"), "proposal": proposal}
+    report["negotiated_manifest"] = proposal
+    report["negotiated_provenance"] = provenance
+    return _write_state(storage_path, report)
+
+
+def validate_runtime_proposal(payload: Any, nonce: str) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("Runtime proposal must be one object")
+    if str(payload.get("conformance_nonce") or "") != nonce:
+        raise ValueError("Runtime proposal did not preserve the bootstrap nonce")
+    forbidden = {"argv", "command", "executable", "api_key", "token", "url", "port", "file_path", "storage_path"}
+    if forbidden.intersection(payload):
+        raise ValueError("Runtime proposal contains forbidden configuration authority")
+    proposal = {key: payload.get(key) for key in _NEGOTIATED_KEYS if key in payload}
+    for key in ("runtime_name", "model_name", "notes"):
+        if key in proposal:
+            proposal[key] = str(proposal[key])[:500]
+    for key in ("supports_structured_json", "supports_research"):
+        if key in proposal and not isinstance(proposal[key], bool):
+            raise ValueError(f"Runtime proposal field must be boolean: {key}")
+    if "recommended_timeout_seconds" in proposal:
+        timeout = int(proposal["recommended_timeout_seconds"])
+        if not 10 <= timeout <= 3600:
+            raise ValueError("Recommended timeout is outside the safe range")
+        proposal["recommended_timeout_seconds"] = timeout
+    if not str(proposal.get("runtime_name") or "").strip() or not str(proposal.get("model_name") or "").strip():
+        raise ValueError("Runtime proposal requires runtime_name and model_name")
+    return proposal
+
+
 def run_configured_runtime_conformance(storage_path: str | Path) -> dict[str, Any]:
     selected = current_integration(storage_path)
     adapter_id = str(selected["id"])
@@ -71,39 +134,20 @@ def run_configured_runtime_conformance(storage_path: str | Path) -> dict[str, An
     adapter = adapter_definition(adapter_id)
     manifest = bootstrap_manifest(adapter_id, settings)
     health = adapter_health(adapter_id, settings)
-    report: dict[str, Any] = {
-        "manifest_protocol": MANIFEST_PROTOCOL,
-        "manifest_version": MANIFEST_VERSION,
-        "adapter_id": adapter_id,
-        "health": health,
-        "manifest": manifest,
-    }
+    report: dict[str, Any] = {"manifest_protocol": MANIFEST_PROTOCOL, "manifest_version": MANIFEST_VERSION, "adapter_id": adapter_id, "health": health, "manifest": manifest}
     if health.get("status") != "ready":
         report.update(status="failed", stage="health", message=str(health.get("message") or "Health check failed"))
         return _write_state(storage_path, report)
     if not adapter.automatic_execution:
         report.update(status="not_applicable", stage="transport", message="This integration uses portable/manual transfer.")
         return _write_state(storage_path, report)
-
     nonce = secrets.token_urlsafe(18)
     challenge = {
-        "task": {
-            "task_handle": "taskh_conformance_only",
-            "task_type": "runtime_conformance",
-            "purpose": "runtime_conformance",
-            "allowed_actions": ["submit"],
-        },
+        "task": {"task_handle": "taskh_conformance_only", "task_type": "runtime_conformance", "purpose": "runtime_conformance", "allowed_actions": ["submit"]},
         "purpose": "runtime_conformance",
-        "instructions": {
-            "default": "Return the exact challenge nonce and readiness status. Do not perform other work.",
-            "process": ["Return one JSON object only."],
-        },
+        "instructions": {"default": "Return the exact challenge nonce and readiness status. Do not perform other work.", "process": ["Return one JSON object only."]},
         "input_context": {"challenge_nonce": nonce},
-        "response_format": {
-            "type": "json_object",
-            "required": ["conformance_nonce", "status"],
-            "schema": {"conformance_nonce": "exact supplied nonce", "status": "ready"},
-        },
+        "response_format": {"type": "json_object", "required": ["conformance_nonce", "status"], "schema": {"conformance_nonce": "exact supplied nonce", "status": "ready"}},
         "privacy": {"scope": "conformance", "notes": ["fake data only"]},
     }
     try:
@@ -118,18 +162,7 @@ def run_configured_runtime_conformance(storage_path: str | Path) -> dict[str, An
     except Exception as exc:
         report.update(status="failed", stage="challenge", message=str(exc)[:2000])
         return _write_state(storage_path, report)
-
-    report.update(
-        status="passed",
-        stage="complete",
-        message="Health and bounded challenge round trip passed.",
-        provenance=provenance,
-        self_description={
-            key: payload.get(key)
-            for key in ("runtime_name", "model_name", "supports_structured_json", "supports_research")
-            if key in payload
-        },
-    )
+    report.update(status="passed", stage="complete", message="Health and bounded challenge round trip passed.", provenance=provenance, self_description={key: payload.get(key) for key in ("runtime_name", "model_name", "supports_structured_json", "supports_research") if key in payload})
     return _write_state(storage_path, report)
 
 
@@ -137,12 +170,7 @@ def _safe_configured_primitives(adapter_id: str, settings: dict[str, Any]) -> di
     if adapter_id == "argv_custom_command":
         argv = list(settings.get("argv") or [])
         return {"transport": "stdio", "executable": argv[0] if argv else "", "argument_count": max(0, len(argv) - 1)}
-    return {
-        "transport": "subprocess" if settings else "manual",
-        "executable": str(settings.get("executable") or ""),
-        "model": str(settings.get("model") or Path(str(settings.get("model_path") or "")).name),
-        "additional_argument_count": len(list(settings.get("args") or [])),
-    }
+    return {"transport": "subprocess" if settings else "manual", "executable": str(settings.get("executable") or ""), "model": str(settings.get("model") or Path(str(settings.get("model_path") or "")).name), "additional_argument_count": len(list(settings.get("args") or []))}
 
 
 def _write_state(storage_path: str | Path, report: dict[str, Any]) -> dict[str, Any]:
