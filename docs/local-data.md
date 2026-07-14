@@ -89,7 +89,7 @@ Restore is intentionally manual for now:
 3. Extract `aaaat.sqlite3` from the chosen backup zip into `.private/`.
 4. Extract the `artifacts/` directory from the same backup into `.private/artifacts/` if needed.
 5. Run `python -m aaaat.cli init` once to verify the schema metadata and default seed rows.
-6. Launch read-only first and inspect the desktop app before making new changes.
+6. Launch the desktop and inspect the restored workspace before making new changes.
 
 Example:
 
@@ -99,7 +99,7 @@ unzip .private/backups/aaaat-backup-20260708T120000Z.zip -d .private-restored
 cp .private-restored/aaaat.sqlite3 .private/aaaat.sqlite3
 cp -a .private-restored/artifacts .private/ 2>/dev/null || true
 python -m aaaat.cli init
-aaaat-desktop --read-only
+aaaat-desktop
 ```
 
 Keep backup zips private. They may contain the full local job-search database and rendered artifacts.
@@ -117,6 +117,6 @@ The demo seed writes fake local data to the selected storage path. Do not mix re
 
 ## Privacy limits
 
-AAAAT reduces accidental over-exposure through local defaults, ignored private paths, read-only desktop mode, and bounded agent-compatible surfaces.
+AAAAT reduces accidental over-exposure through local defaults, ignored private paths, and bounded agent-compatible surfaces.
 
 AAAAT cannot fully protect private data from software or agents that can read your filesystem, inspect `.private/`, modify the source code, or use your shell privileges.
