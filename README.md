@@ -87,7 +87,7 @@ aaaat-seed-desktop-demo --reset --count 24
 aaaat-desktop
 ```
 
-The demo seed writes local fake data to the selected storage path. It is for local validation, not a separate browser/static export surface.
+The demo seed writes local fake data to the selected storage path. `--reset` replaces only records previously created by the demo seeder; it does not delete unrelated user candidatures. Demo data is for local validation, not a separate browser/static export surface.
 
 ## Desktop
 
