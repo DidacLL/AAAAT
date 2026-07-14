@@ -8,7 +8,6 @@ import wx.html  # type: ignore[import-not-found]
 from aaaat.dashboard_projection import build_dashboard_projection
 from aaaat.db import connect
 from aaaat.payload import dashboard_payload
-from aaaat.security import can_write
 
 from .center_cards import CenterCardBuilder
 from .notes_band import NotesBand
@@ -182,7 +181,6 @@ class SmartViewMixin(OverviewBoardMixin):
         view = self.current_view if self.current_view in {"smart", "detailed", "user"} else "smart"
         self.projection = build_dashboard_projection(
             payload,
-            self.mode,
             view=view,
             selected_application_id=self.selected_ref,
             selected_keyword=self.selected_keyword,
@@ -212,7 +210,7 @@ class SmartViewMixin(OverviewBoardMixin):
         if not detail:
             self.center_sizer.Add(self._empty_message(self.center_scroll, "Select a candidature."), 0, wx.ALL | wx.EXPAND, 12)
             self.center_scroll.Layout()
-            self.smart_right_panel.render(self.projection, can_edit=False, view_name="smart")
+            self.smart_right_panel.render(self.projection, can_edit=True, view_name="smart")
             bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
             return
 
@@ -230,11 +228,11 @@ class SmartViewMixin(OverviewBoardMixin):
 
     def _add_notes_band(self) -> None:
         primary_note = self.projection["smart"].get("primary_note") or {}
-        band = NotesBand(parent=self.center_notes_panel, target_sizer=self.center_notes_sizer, can_save=can_write(self.mode), on_save=self._save_note_body)
+        band = NotesBand(parent=self.center_notes_panel, target_sizer=self.center_notes_sizer, can_save=True, on_save=self._save_note_body)
         self.note_text = band.render(str(primary_note.get("body") or ""))
 
     def _save_note_body(self, body: str) -> None:
-        if not can_write(self.mode) or not self.selected_ref:
+        if not self.selected_ref:
             return
         self.command_service.save_note(str(self.selected_ref), body)
         self._rendered_view_keys.clear()
@@ -243,7 +241,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self._mark_current_view_rendered()
 
     def _refresh_right_context(self, _detail: dict[str, Any]) -> None:
-        self.smart_right_panel.render(self.projection, can_edit=False, view_name="smart")
+        self.smart_right_panel.render(self.projection, can_edit=True, view_name="smart")
 
     def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
         return self.keyword_linker.make_window(parent, text, min_height=min_height)
@@ -373,7 +371,7 @@ class SmartViewMixin(OverviewBoardMixin):
             self._refresh_focus_modules()
 
     def _save_candidature_panel_edits(self, ref: str, changes: dict[str, str]) -> None:
-        if not can_write(self.mode) or not ref or not changes:
+        if not ref or not changes:
             return
         self.command_service.update_candidature_fields(ref, changes)
         self.selected_ref = ref
@@ -390,7 +388,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self._mark_current_view_rendered()
 
     def _on_candidature_panel_action(self, ref: str, action_id: str) -> None:
-        if not can_write(self.mode) or not ref:
+        if not ref:
             return
         task = self.command_service.queue_candidature_action(ref, action_id)
         if task:
@@ -400,7 +398,7 @@ class SmartViewMixin(OverviewBoardMixin):
             self._mark_current_view_rendered()
 
     def _add_keyword_to_candidature(self, ref: str, term: str, definition: str = "") -> None:
-        if not can_write(self.mode) or not ref or not term.strip():
+        if not ref or not term.strip():
             return
         self.command_service.add_keyword(ref, term, definition)
         self.selected_keyword = term.strip()
@@ -415,7 +413,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self._mark_current_view_rendered()
 
     def _save_keyword_definition(self, term: str, definition: str) -> None:
-        if not can_write(self.mode) or not term.strip():
+        if not term.strip():
             return
         self.command_service.save_keyword_definition(term, definition)
         self.selected_keyword = term.strip()
@@ -430,7 +428,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self._mark_current_view_rendered()
 
     def _delete_candidature_from_panel(self, ref: str) -> None:
-        if not can_write(self.mode) or not ref:
+        if not ref:
             return
         label = ref
         row = self._detailed_selected_row() or self._selected_detail() or {}
