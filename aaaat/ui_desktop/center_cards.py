@@ -224,8 +224,6 @@ class CenterCardBuilder:
         header_sizer.Add(title_label, 0, wx.ALIGN_CENTER_VERTICAL)
         header_sizer.AddStretchSpacer(1)
         sizer.Add(header, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 5)
-        if has_more:
-            self.bind_click(header, card_id)
 
         if expanded:
             content = self.owner._html_text_window(panel, value or "—", min_height=expanded_height, scrollable=True)
@@ -240,11 +238,9 @@ class CenterCardBuilder:
                 body_font = body_font.Larger()
             body.SetFont(body_font)
             sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 5)
-            if has_more:
-                more = wx.StaticText(panel, label="Show full text")
-                more.SetFont(more.GetFont().Bold())
-                sizer.Add(more, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
-                self.bind_click(more, card_id)
+
+        if has_more:
+            self.bind_click(panel, card_id)
         return panel
 
     def is_expanded(self, card_id: str, default: bool) -> bool:
