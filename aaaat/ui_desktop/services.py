@@ -14,69 +14,20 @@ SUPPORTED_DETAIL_EDIT_FIELDS = set(WRITABLE_CANDIDATURE_STORAGE_KEYS)
 SUPPORTED_PROFILE_VARIABLE_FIELDS = set(WRITABLE_USER_STORAGE_KEYS)
 
 _ACTION_TASKS = {
-    "infer_fields": (
-        "field_inference",
-        "Infer candidature fields",
-        "Infer every supported candidature field that can be grounded in the retained raw offer, current candidature data and bounded user profile. Preserve non-empty user edits unless the task result explicitly justifies a replacement.",
-        "candidature:field_inference",
-        "high",
-    ),
-    "regenerate_strategy": (
-        "career_plan_review",
-        "Draft role strategy",
-        "Produce or refresh the role-specific strategy using current candidature, profile and career context.",
-        "candidature:role_strategy",
-        "high",
-    ),
-    "update_company_research": (
-        "company_research",
-        "Research company",
-        "Refresh company research and recruiter-call context.",
-        "candidature:company_research",
-        "normal",
-    ),
-    "regenerate_keywords": (
-        "field_inference",
-        "Extract candidature keywords",
-        "Extract meaningful technical, product, domain and recruiting keywords from the retained raw offer and current candidature data. Preserve manually-added keywords.",
-        "candidature:keywords",
-        "normal",
-    ),
-    "prepare_form_answers": (
-        "draft_form_responses",
-        "Draft form answers",
-        "Generate application-form answers from the stored form, profile and current strategy.",
-        "blob:form_responses",
-        "normal",
-    ),
-    "generate_cv": (
-        "draft_cv",
-        "Draft CV material",
-        "Generate CV material using the current evaluation, strategy, candidature data and profile.",
-        "artifact:cv",
-        "normal",
-    ),
-    "generate_cover_letter": (
-        "draft_cover_letter",
-        "Draft cover letter",
-        "Generate cover-letter material using the current evaluation, strategy, candidature data and profile.",
-        "artifact:cover_letter",
-        "normal",
-    ),
-    "prepare_recruiter_call": (
-        "recruiter_call_material",
-        "Prepare recruiter-call material",
-        "Generate concise recruiter-call or interview material for this candidature.",
-        "call:recruiter",
-        "normal",
-    ),
+    "infer_fields": ("field_inference", "Infer candidature fields", "Infer every supported candidature field that can be grounded in the retained raw offer, current candidature data and bounded user profile. Preserve non-empty user edits unless the task result explicitly justifies a replacement.", "candidature:field_inference", "high"),
+    "regenerate_strategy": ("career_plan_review", "Draft role strategy", "Produce or refresh the role-specific strategy using current candidature, profile and career context.", "candidature:role_strategy", "high"),
+    "update_company_research": ("company_research", "Research company", "Refresh company research and recruiter-call context.", "candidature:company_research", "normal"),
+    "regenerate_keywords": ("field_inference", "Extract candidature keywords", "Extract meaningful technical, product, domain and recruiting keywords from the retained raw offer and current candidature data. Preserve manually-added keywords.", "candidature:keywords", "normal"),
+    "prepare_form_answers": ("draft_form_responses", "Draft form answers", "Generate application-form answers from the stored form, profile and current strategy.", "blob:form_responses", "normal"),
+    "generate_cv": ("draft_cv", "Draft CV material", "Generate CV material using the current evaluation, strategy, candidature data and profile.", "artifact:cv", "normal"),
+    "generate_cover_letter": ("draft_cover_letter", "Draft cover letter", "Generate cover-letter material using the current evaluation, strategy, candidature data and profile.", "artifact:cover_letter", "normal"),
+    "prepare_recruiter_call": ("recruiter_call_material", "Prepare recruiter-call material", "Generate concise recruiter-call or interview material for this candidature.", "call:recruiter", "normal"),
 }
-
 _DOCUMENT_ACTIONS = {"generate_cv", "generate_cover_letter"}
 
 
 class DesktopCommandService:
-    """Tiny local command adapter for desktop UI writes."""
+    """Small local command adapter for desktop UI writes."""
 
     def __init__(self, storage_path: str | Path) -> None:
         self.storage_path = str(storage_path)
@@ -85,14 +36,14 @@ class DesktopCommandService:
     def save_note(self, candidature_ref: str, body: str) -> None:
         self.update_candidature_fields(candidature_ref, {"notes": body})
 
-    def create_raw_offer_candidature(
+    def create_offer_first_candidature(
         self,
         raw_offer: str,
         *,
         company: str = "",
         role: str = "",
         source_url: str = "",
-        raw_application_form: str = "",
+        application_form: str = "",
         request_cv: bool = False,
         request_cover_letter: bool = False,
     ) -> dict[str, Any] | None:
@@ -105,7 +56,7 @@ class DesktopCommandService:
                 company=str(company or "").strip() or "Pending company",
                 role=str(role or "").strip() or "Pending role",
                 source_url=str(source_url or "").strip(),
-                raw_application_form=str(raw_application_form or "").strip(),
+                raw_application_form=str(application_form or "").strip(),
                 status="active",
                 priority="normal",
                 raw_offer=text,
@@ -120,6 +71,27 @@ class DesktopCommandService:
             if request_cover_letter:
                 self._create_action_task(conn, candidature_ref, "generate_cover_letter", force_blocked=True)
             return get_candidature(conn, candidature_ref)
+
+    def create_raw_offer_candidature(
+        self,
+        raw_offer: str,
+        *,
+        company: str = "",
+        role: str = "",
+        source_url: str = "",
+        raw_application_form: str = "",
+        request_cv: bool = False,
+        request_cover_letter: bool = False,
+    ) -> dict[str, Any] | None:
+        return self.create_offer_first_candidature(
+            raw_offer,
+            company=company,
+            role=role,
+            source_url=source_url,
+            application_form=raw_application_form,
+            request_cv=request_cv,
+            request_cover_letter=request_cover_letter,
+        )
 
     def update_candidature_fields(self, candidature_ref: str, changes: dict[str, Any]) -> dict[str, Any] | None:
         safe_changes = {key: changes[key] for key in SUPPORTED_DETAIL_EDIT_FIELDS if key in changes}
@@ -157,14 +129,7 @@ class DesktopCommandService:
         with connect(self.storage_path) as conn:
             return self._create_action_task(conn, candidature_ref, action_id)
 
-    def _create_action_task(
-        self,
-        conn: Any,
-        candidature_ref: str,
-        action_id: str,
-        *,
-        force_blocked: bool = False,
-    ) -> dict[str, Any] | None:
+    def _create_action_task(self, conn: Any, candidature_ref: str, action_id: str, *, force_blocked: bool = False) -> dict[str, Any] | None:
         spec = _ACTION_TASKS.get(action_id)
         if not spec or not candidature_ref:
             return None
@@ -192,11 +157,7 @@ class DesktopCommandService:
             return delete_application(conn, candidature_ref)
 
     def update_profile_variables(self, changes: dict[str, Any]) -> dict[str, str]:
-        safe_changes = {
-            key: str(value)
-            for key, value in changes.items()
-            if key in SUPPORTED_PROFILE_VARIABLE_FIELDS
-        }
+        safe_changes = {key: str(value) for key, value in changes.items() if key in SUPPORTED_PROFILE_VARIABLE_FIELDS}
         if not safe_changes:
             return {}
         with connect(self.storage_path) as conn:
