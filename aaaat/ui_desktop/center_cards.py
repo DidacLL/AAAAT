@@ -206,7 +206,7 @@ class CenterCardBuilder:
         has_more = len(lines) > preview_lines
 
         panel = wx.Panel(parent, style=wx.BORDER_SIMPLE if has_more or expanded else 0)
-        panel.SetMinSize((self._card_min_width(importance, expanded=expanded), -1))
+        panel.SetMinSize((self._card_min_width(importance), -1))
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
 
@@ -318,12 +318,10 @@ class CenterCardBuilder:
             return ["—"]
         return textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False) or [text]
 
-    def _card_min_width(self, importance: str, *, expanded: bool) -> int:
+    def _card_min_width(self, importance: str) -> int:
         available = int(self.owner.center_scroll.GetClientSize().GetWidth() or 760)
         usable = max(240, available - 32)
-        if expanded:
-            desired = 660 if importance == "high" else 480
-        elif importance == "high":
+        if importance == "high":
             desired = 520
         elif importance == "medium":
             desired = 420
