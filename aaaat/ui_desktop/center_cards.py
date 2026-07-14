@@ -66,9 +66,10 @@ class CenterCardBuilder:
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
     def _call_cards(self, detail: dict[str, Any]) -> list[dict[str, Any]]:
+        scope = self._card_scope(detail)
         specs = [
             {
-                "card_id": "smart_posting",
+                "card_id": f"{scope}:posting",
                 "title": "Posting",
                 "text": self._source_text(detail),
                 "importance": "high",
@@ -77,7 +78,7 @@ class CenterCardBuilder:
                 "expanded_height": 280,
             },
             {
-                "card_id": "smart_pitch",
+                "card_id": f"{scope}:pitch",
                 "title": "Pitch",
                 "text": self._first_text(detail, "pitch", "role_strategy"),
                 "importance": "high",
@@ -86,7 +87,7 @@ class CenterCardBuilder:
                 "expanded_height": 180,
             },
             {
-                "card_id": "smart_snapshot",
+                "card_id": f"{scope}:snapshot",
                 "title": "Snapshot",
                 "text": self._first_text(detail, "offer_snapshot", "description"),
                 "importance": "medium",
@@ -95,7 +96,7 @@ class CenterCardBuilder:
                 "expanded_height": 180,
             },
             {
-                "card_id": "smart_ask",
+                "card_id": f"{scope}:ask",
                 "title": "Ask",
                 "text": detail.get("smart_question"),
                 "importance": "support",
@@ -104,7 +105,7 @@ class CenterCardBuilder:
                 "expanded_height": 150,
             },
             {
-                "card_id": "smart_recognize",
+                "card_id": f"{scope}:recognize",
                 "title": "Recognize",
                 "text": self._first_text(detail, "call_signals", "source_excerpt"),
                 "importance": "support",
@@ -113,7 +114,7 @@ class CenterCardBuilder:
                 "expanded_height": 150,
             },
             {
-                "card_id": "smart_avoid",
+                "card_id": f"{scope}:avoid",
                 "title": "Avoid",
                 "text": detail.get("risks_to_avoid") or detail.get("risk_to_avoid"),
                 "importance": "support",
@@ -122,7 +123,7 @@ class CenterCardBuilder:
                 "expanded_height": 150,
             },
             {
-                "card_id": "smart_fit",
+                "card_id": f"{scope}:fit",
                 "title": "Fit",
                 "text": detail.get("candidature_evaluation"),
                 "importance": "support",
@@ -131,7 +132,7 @@ class CenterCardBuilder:
                 "expanded_height": 170,
             },
             {
-                "card_id": "smart_strategy",
+                "card_id": f"{scope}:strategy",
                 "title": "Strategy",
                 "text": detail.get("role_strategy"),
                 "importance": "support",
@@ -140,7 +141,7 @@ class CenterCardBuilder:
                 "expanded_height": 170,
             },
             {
-                "card_id": "smart_company",
+                "card_id": f"{scope}:company",
                 "title": "Company",
                 "text": detail.get("company_research"),
                 "importance": "support",
@@ -149,7 +150,7 @@ class CenterCardBuilder:
                 "expanded_height": 190,
             },
             {
-                "card_id": "smart_evidence",
+                "card_id": f"{scope}:evidence",
                 "title": "Evidence",
                 "text": detail.get("strengths"),
                 "importance": "support",
@@ -158,7 +159,7 @@ class CenterCardBuilder:
                 "expanded_height": 150,
             },
             {
-                "card_id": "smart_questions",
+                "card_id": f"{scope}:questions",
                 "title": "Questions",
                 "text": detail.get("questions_to_ask"),
                 "importance": "support",
@@ -167,7 +168,7 @@ class CenterCardBuilder:
                 "expanded_height": 150,
             },
             {
-                "card_id": "smart_stack",
+                "card_id": f"{scope}:stack",
                 "title": "Stack",
                 "text": detail.get("tech_stack"),
                 "importance": "support",
@@ -176,7 +177,7 @@ class CenterCardBuilder:
                 "expanded_height": 140,
             },
             {
-                "card_id": "smart_recruiter",
+                "card_id": f"{scope}:recruiter",
                 "title": "Recruiter",
                 "text": detail.get("recruiter_material"),
                 "importance": "support",
@@ -205,6 +206,7 @@ class CenterCardBuilder:
         has_more = len(lines) > preview_lines
 
         panel = wx.Panel(parent, style=wx.BORDER_SIMPLE if has_more or expanded else 0)
+        panel.SetMinSize((self._card_min_width(importance, expanded=expanded), -1))
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
 
@@ -227,6 +229,7 @@ class CenterCardBuilder:
 
         if expanded:
             content = self.owner._html_text_window(panel, value or "—", min_height=expanded_height, scrollable=True)
+            content.SetMinSize((1, expanded_height))
             sizer.Add(content, 0, wx.ALL | wx.EXPAND, 5)
         else:
             visible_lines = lines if not has_more else lines[:preview_lines]
@@ -314,6 +317,23 @@ class CenterCardBuilder:
         if not text:
             return ["—"]
         return textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False) or [text]
+
+    def _card_min_width(self, importance: str, *, expanded: bool) -> int:
+        available = int(self.owner.center_scroll.GetClientSize().GetWidth() or 760)
+        usable = max(240, available - 32)
+        if expanded:
+            desired = 660 if importance == "high" else 480
+        elif importance == "high":
+            desired = 520
+        elif importance == "medium":
+            desired = 420
+        else:
+            desired = 270
+        return max(220, min(desired, usable))
+
+    def _card_scope(self, detail: dict[str, Any]) -> str:
+        raw = detail.get("ref") or detail.get("id") or getattr(self.owner, "selected_ref", None) or "current"
+        return str(raw)
 
     def _is_control(self, window: wx.Window) -> bool:
         return isinstance(window, (wx.TextCtrl, wx.Button, wx.Choice))
