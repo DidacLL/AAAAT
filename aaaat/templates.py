@@ -216,10 +216,13 @@ def render_document_artifact(
         pdf_status = compile_result["pdf_status"]
         pdf_path = compile_result["pdf_path"]
         log_path = compile_result["log_path"]
-        if pdf_status != "success" or not pdf_path:
+        if pdf_status == "success" and pdf_path:
+            artifact_path = Path(pdf_path)
+            notes = "Rendered local TeX template and compiled with pdflatex."
+        elif pdf_status == "unavailable":
+            notes = "Rendered local TeX template; pdflatex is unavailable, so the TeX file remains the current artifact."
+        else:
             _raise_pdf_failure(pdf_status, log_path)
-        artifact_path = Path(pdf_path)
-        notes = "Rendered local TeX template and compiled with pdflatex."
     artifact = artifacts.save_or_update_draft_artifact(
         conn,
         application_id,
