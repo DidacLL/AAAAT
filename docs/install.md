@@ -5,7 +5,7 @@ AAAAT is intended for single-user local production. Install it in a local Python
 ## Requirements
 
 - Python 3.11 or newer.
-- A local checkout of the repository.
+- A local checkout or source archive of the release.
 - A virtual environment is recommended.
 - `wxPython` for the desktop UI, installed through the `desktop` extra.
 
@@ -17,7 +17,7 @@ AAAAT does not require provider credentials during installation. Core setup is p
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e .[desktop]
+python -m pip install .[desktop]
 ```
 
 Verify the commands are available:
@@ -25,6 +25,7 @@ Verify the commands are available:
 ```bash
 aaaat --version
 aaaat-desktop --help
+aaaat-upgrade --help
 ```
 
 ## Windows PowerShell
@@ -33,18 +34,18 @@ aaaat-desktop --help
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e .[desktop]
+python -m pip install .[desktop]
 ```
 
 If script execution is restricted, activate the environment from a shell that allows local virtualenv activation or run CLI commands through `python -m aaaat.cli`.
 
-## Initialize local storage
+## New local storage
 
 ```bash
 aaaat init
 ```
 
-By default this creates or updates local private storage under `.private/` and uses `.private/aaaat.sqlite3` for SQLite data.
+By default this creates local private storage under `.private/` and uses `.private/aaaat.sqlite3` for SQLite data.
 
 To use a different local storage directory:
 
@@ -54,6 +55,18 @@ aaaat-desktop --storage /path/to/private-aaaat
 ```
 
 For the CLI, the `--storage` flag must appear before the subcommand.
+
+## Existing local storage
+
+Back up and upgrade the existing store before launching the new desktop version:
+
+```bash
+python -m aaaat.cli --storage /path/to/private-aaaat backup
+aaaat-upgrade --storage /path/to/private-aaaat
+aaaat-desktop --storage /path/to/private-aaaat
+```
+
+The upgrade command applies all supported v1 compatibility changes in place and can be run repeatedly. It does not replace existing candidature or artifact rows.
 
 ## Desktop smoke check
 
@@ -72,12 +85,10 @@ aaaat-seed-desktop-demo --reset --count 24
 aaaat-desktop
 ```
 
-## Optional test install
-
-For development or release checks:
+## Development checks
 
 ```bash
-python -m pytest
+python -m unittest discover -s tests
 ```
 
 ## Common local checks
