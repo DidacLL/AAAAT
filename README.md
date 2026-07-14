@@ -89,21 +89,13 @@ aaaat-desktop
 
 The demo seed writes local fake data to the selected storage path. It is for local validation, not a separate browser/static export surface.
 
-## Desktop modes
+## Desktop
 
 Start the editable local desktop workspace:
 
 ```bash
 aaaat-desktop
 ```
-
-Start without write controls:
-
-```bash
-aaaat-desktop --read-only
-```
-
-Read-only mode is useful for recruiter calls or review sessions when you want to inspect data without changing it.
 
 ## Local data and backup
 
