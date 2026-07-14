@@ -5,13 +5,11 @@ from enum import Enum
 
 class Mode(str, Enum):
     FULL = "full"
-    READ_ONLY = "read_only"
     STATIC_DEMO = "static_demo"
 
 
 MODE_SCOPES = {
     Mode.FULL: {"local_read", "local_write", "profile_read", "profile_write", "artifact_write"},
-    Mode.READ_ONLY: {"local_read", "profile_read"},
     Mode.STATIC_DEMO: {"public_demo"},
 }
 
