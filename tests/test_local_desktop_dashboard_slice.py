@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_contains_private_values
 from aaaat.dashboard_projection import build_dashboard_projection
-from aaaat.db import connect, get_profile_variable, list_applications, list_raw_intake
+from aaaat.db import connect, list_applications, list_raw_intake, profile_variables
 from aaaat.demo_seed import seed
 from aaaat.tasks import list_tasks
 from aaaat.ui_desktop.services import DesktopCommandService
@@ -190,12 +190,11 @@ class DesktopUserWorkspaceBehaviorTests(unittest.TestCase):
                 }
             )
             with connect(tmp) as conn:
-                experience = get_profile_variable(conn, "profile.experience")
-                objectives = get_profile_variable(conn, "profile.career.objectives")
+                values = profile_variables(conn)
 
         self.assertEqual(set(saved), {"profile.experience", "profile.career.objectives"})
-        self.assertEqual(experience, "Built local-first developer tools.")
-        self.assertEqual(objectives, "Senior backend roles.")
+        self.assertEqual(values["profile.experience"], "Built local-first developer tools.")
+        self.assertEqual(values["profile.career.objectives"], "Senior backend roles.")
 
 
 class DesktopLayoutBehaviorTests(unittest.TestCase):
