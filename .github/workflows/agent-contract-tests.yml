@@ -44,8 +44,18 @@ jobs:
         run: python -B -m unittest tests.test_profile_facts
       - name: Template and artifact behavior
         run: python -B -m unittest tests.test_templates
-      - name: Desktop projection and offer-first behavior
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice
+      - name: Desktop clean storage and launcher
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests
+      - name: Desktop projection behavior
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopProjectionBehaviorTests
+      - name: Desktop offer-first behavior
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopOfferFirstBehaviorTests
+      - name: Desktop material workflow behavior
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopMaterialWorkflowBehaviorTests
+      - name: Desktop user workspace behavior
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopUserWorkspaceBehaviorTests
+      - name: Desktop layout behavior
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopLayoutBehaviorTests
       - name: Desktop links and preparation behavior
         run: python -B -m unittest tests.test_profile_links_and_preparation
       - name: Desktop material attachment
