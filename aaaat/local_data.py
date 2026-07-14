@@ -5,8 +5,9 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
-from .db import DEFAULT_PRIVATE_DIR, db_path, init_db
+from .db import DEFAULT_PRIVATE_DIR, init_db
 
 
 def local_storage_root(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
@@ -40,13 +41,45 @@ def _resolve_backup_path(storage: str | Path, output: str | Path | None, force: 
     return target
 
 
+def verify_local_backup(path: str | Path) -> dict[str, Any]:
+    """Verify archive readability and SQLite integrity for a local backup."""
+
+    backup = Path(path)
+    with zipfile.ZipFile(backup) as archive:
+        damaged = archive.testzip()
+        if damaged:
+            raise ValueError(f"Backup archive contains a damaged entry: {damaged}")
+        names = archive.namelist()
+        database_entries = [
+            name
+            for name in names
+            if "/" not in name.rstrip("/") and Path(name).suffix.lower() in {".db", ".sqlite3"}
+        ]
+        if len(database_entries) != 1:
+            raise ValueError("Backup archive must contain exactly one root SQLite database")
+        database_entry = database_entries[0]
+        artifact_count = sum(1 for name in names if name.startswith("artifacts/") and not name.endswith("/"))
+        with tempfile.TemporaryDirectory(prefix="aaaat-backup-verify-") as tmp:
+            extracted = Path(archive.extract(database_entry, path=tmp))
+            with sqlite3.connect(extracted) as conn:
+                result = str(conn.execute("PRAGMA quick_check").fetchone()[0])
+            if result.lower() != "ok":
+                raise ValueError(f"Backup SQLite integrity check failed: {result}")
+    return {
+        "database": database_entry,
+        "artifacts": artifact_count,
+        "entries": len(names),
+    }
+
+
 def create_local_backup(
     storage: str | Path = DEFAULT_PRIVATE_DIR,
     output: str | Path | None = None,
     *,
     force: bool = False,
 ) -> Path:
-    """Create a timestamped local backup zip for the SQLite DB and artifact files."""
+    """Create and verify a timestamped backup zip for SQLite and artifact files."""
+
     source_db = init_db(storage)
     storage_root = source_db.parent
     backup_path = _resolve_backup_path(storage, output, force)
@@ -63,4 +96,5 @@ def create_local_backup(
                 for artifact in sorted(artifacts_dir.rglob("*")):
                     if artifact.is_file():
                         archive.write(artifact, arcname=artifact.relative_to(storage_root).as_posix())
+    verify_local_backup(backup_path)
     return backup_path
