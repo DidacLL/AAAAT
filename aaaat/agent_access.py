@@ -4,6 +4,7 @@ import hashlib
 import sqlite3
 from typing import Any
 
+from .assisted_profile import apply_profile_completion_result, profile_completion_context
 from .candidatures import get_candidature_details
 from .career_plans import career_plan_context
 from .db import application_keywords, get_application, list_raw_intake
@@ -11,13 +12,14 @@ from .profile_facts import profile_context
 from .tasks import complete_task, get_task, keyword_from_context, list_tasks
 
 ENVELOPE_FIELDS = {"task_type", "title", "state", "priority", "context_hint", "created_at", "updated_at"}
-SAFE_CONTEXT_PREFIXES = ("field:", "keyword:", "candidature:", "artifact:", "blob:", "call:")
+SAFE_CONTEXT_PREFIXES = ("field:", "keyword:", "candidature:", "artifact:", "blob:", "call:", "profile:")
 TASK_HANDLE_PREFIX = "taskh_"
 FORBIDDEN_AGENT_CONTEXT_KEYS = {
     "application_id", "candidature_id", "artifact_id", "profile_fact_id", "note_id",
     "todo_id", "blob_id", "file_path", "storage_path",
 }
 TASK_PURPOSES = {
+    "profile_completion": "professional_profile_completion",
     "field_inference": "candidature_field_inference",
     "company_research": "market_research",
     "keyword_definition": "keyword_definition",
@@ -27,6 +29,7 @@ TASK_PURPOSES = {
     "career_plan_review": "career_plan_review",
 }
 DEFAULT_TASK_INSTRUCTIONS = {
+    "profile_completion": "Complete eligible missing professional-profile fields from supplied bounded profile context. Preserve non-empty user values unless replacement is explicitly requested and justified.",
     "field_inference": "Infer missing candidature fields from bounded source material. Return supported fields only; do not infer lifecycle, user priority, lead source, or generated material bodies.",
     "company_research": "Prepare concise company research relevant to the candidature and role.",
     "keyword_definition": "Define the keyword for this job-search context.",
@@ -109,6 +112,7 @@ def output_contract(task: dict[str, Any]) -> dict[str, Any]:
 
 def _writes_description(task_type: str) -> str:
     return {
+        "profile_completion": "Eligible profile variables under variables. Non-empty user values are preserved unless replace_existing is true.",
         "field_inference": "Supported candidature fields under fields. Non-empty user/current fields are not overwritten unless replace_existing is true.",
         "company_research": "Company research text. Becomes current when the field is empty, otherwise remains history.",
         "keyword_definition": "Keyword definition and optional category for the task keyword.",
@@ -122,6 +126,7 @@ def _writes_description(task_type: str) -> str:
 def response_format(task: dict[str, Any]) -> dict[str, Any]:
     task_type = str(task.get("task_type") or "task")
     formats: dict[str, dict[str, Any]] = {
+        "profile_completion": {"type": "json_object", "required": ["variables"], "schema": {"variables": "object containing eligible profile keys and bounded text values", "replace_existing": "optional boolean"}},
         "field_inference": {"type": "json_object", "required": ["fields"], "schema": {"fields": "object containing supported missing fields", "replace_existing": "optional boolean"}},
         "company_research": {"type": "json_object", "required": ["company_research"], "schema": {"company_research": "string", "sources_checked": "optional array"}},
         "keyword_definition": {"type": "json_object", "required": ["definition"], "schema": {"definition": "string", "category": "optional string"}},
@@ -186,6 +191,8 @@ def build_agent_task_context(conn: sqlite3.Connection, task_handle_value: str) -
 
 def _task_context(conn: sqlite3.Connection, task: dict[str, Any]) -> dict[str, Any]:
     task_type = str(task.get("task_type") or "")
+    if task_type == "profile_completion":
+        return profile_completion_context(conn)
     application_id = task.get("application_id")
     if application_id:
         app = get_application(conn, application_id)
@@ -232,4 +239,21 @@ def submit_agent_task_result(
     task = get_task_for_handle(conn, task_handle_value)
     if "submit" not in allowed_actions(task):
         raise ValueError(f"Task is not accepting results in state {task.get('state')}")
-    return complete_task(conn, task["id"], result_body=result_body, result_title=result_title, agent_name=agent_name, agent_runtime=agent_runtime, model_provider=model_provider)
+    completed = complete_task(
+        conn,
+        task["id"],
+        result_body=result_body,
+        result_title=result_title,
+        agent_name=agent_name,
+        agent_runtime=agent_runtime,
+        model_provider=model_provider,
+    )
+    if str(task.get("task_type") or "") == "profile_completion":
+        acknowledgement = apply_profile_completion_result(
+            conn,
+            result_body,
+            agent_name=agent_name,
+            agent_runtime=agent_runtime,
+        )
+        completed["profile_update"] = acknowledgement
+    return completed
