@@ -29,7 +29,9 @@ jobs:
       - name: Domain field inference conflicts
         run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_field_inference_preserves_current_user_values
       - name: Domain text result conflicts
-        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_supported_text_results_apply_without_overwriting_conflicts
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_conflicting_text_result_remains_history
+      - name: Domain keyword results
+        run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_keyword_result_updates_empty_definition
       - name: Domain artifact result
         run: python -B -m unittest tests.test_domain_services.DomainServiceTests.test_artifact_backed_document_result_becomes_reviewed
       - name: Domain durable records
