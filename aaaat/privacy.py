@@ -7,7 +7,7 @@ from .db import row_to_dict, utc_now
 
 
 EXPOSURES = {"raw", "redacted", "summarized", "placeholder", "denied"}
-RESOLUTION_SCOPES = {"local_render", "local_dashboard", "read_only_dashboard", "agent", "static_demo"}
+RESOLUTION_SCOPES = {"local_render", "local_dashboard", "agent", "static_demo"}
 CANONICAL_NAMESPACES = {"profile", "application", "artifact", "candidature"}
 
 
@@ -97,7 +97,7 @@ def list_variables(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 def resolve_variable_value(item: dict[str, Any], scope: str) -> str | None:
     if scope not in RESOLUTION_SCOPES:
         raise ValueError(f"Invalid variable resolution scope: {scope}")
-    if scope in {"local_render", "local_dashboard", "read_only_dashboard"}:
+    if scope in {"local_render", "local_dashboard"}:
         return str(item.get("value") or "")
     if scope == "static_demo":
         return None
