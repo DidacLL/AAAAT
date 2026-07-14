@@ -2,18 +2,16 @@ import tempfile
 import unittest
 
 from aaaat.candidatures import create_candidature
-from aaaat.db import connect, list_applications, list_raw_intake
+from aaaat.db import connect, init_db, list_applications, list_raw_intake
 from aaaat.demo_seed import build_record, seed
 
 
 class DemoSeedSafetyTests(unittest.TestCase):
     def test_reset_only_replaces_demo_seeded_candidatures(self):
         with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
             first_demo = build_record(0)
             with connect(tmp) as conn:
-                from aaaat.db import init_db
-
-                init_db(tmp)
                 user = create_candidature(
                     conn,
                     company="User company",
