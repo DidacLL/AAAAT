@@ -58,11 +58,14 @@ class TaskRunner:
             return {"submitted": submitted, "task": get_task(conn, task_id)}
 
     def _execute_adapter(self, adapter_id: str, settings: dict[str, Any], context: dict[str, Any]) -> str:
-        if adapter_id != "argv_custom_command":
+        if adapter_id == "codex_cli":
+            argv = [str(settings.get("executable") or "codex"), *list(settings.get("args") or [])]
+        elif adapter_id == "argv_custom_command":
+            argv = list(settings.get("argv") or [])
+        else:
             raise TaskRunnerError(f"Local adapter '{adapter_id}' is not executable")
-        argv = list(settings.get("argv") or [])
         if not argv:
-            raise TaskRunnerError("Custom argv command is not configured")
+            raise TaskRunnerError("Local command adapter is not configured")
         completed = subprocess.run(
             argv,
             input=json.dumps(context, ensure_ascii=False),
