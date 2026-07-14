@@ -16,7 +16,7 @@ from aaaat.db import (
     list_raw_intake,
 )
 from aaaat.demo_seed import seed as seed_desktop_demo
-from aaaat.local_data import create_local_backup
+from aaaat.local_data import create_local_backup, verify_local_backup
 
 
 class DbTests(unittest.TestCase):
@@ -113,13 +113,25 @@ class DbTests(unittest.TestCase):
             (artifact_dir / "cover-letter.tex").write_text("private local artifact", encoding="utf-8")
 
             backup = create_local_backup(tmp)
+            summary = verify_local_backup(backup)
 
             self.assertTrue(backup.exists())
             self.assertEqual(backup.parent, Path(tmp) / "backups")
+            self.assertEqual(summary["database"], "aaaat.sqlite3")
+            self.assertEqual(summary["artifacts"], 1)
             with zipfile.ZipFile(backup) as archive:
                 names = set(archive.namelist())
             self.assertIn("aaaat.sqlite3", names)
             self.assertIn("artifacts/cover-letter.tex", names)
+
+    def test_backup_verification_rejects_archive_without_database(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            backup = Path(tmp) / "invalid.zip"
+            with zipfile.ZipFile(backup, "w") as archive:
+                archive.writestr("artifacts/note.txt", "not a database")
+
+            with self.assertRaisesRegex(ValueError, "exactly one root SQLite database"):
+                verify_local_backup(backup)
 
     def test_backup_refuses_output_outside_storage_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:
