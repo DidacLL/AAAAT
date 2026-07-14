@@ -6,7 +6,7 @@ from typing import Any
 import wx  # type: ignore[import-not-found]
 
 from aaaat.dashboard_layout import DashboardLayoutState
-from aaaat.security import Mode, can_write
+from aaaat.security import Mode
 
 from .card_state import CenterCardState
 from .candidature_right_panel import CandidatureOptionsPanel
@@ -103,7 +103,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.toolbar.SetSizer(toolbar_sizer)
         self.title = wx.StaticText(self.toolbar, label="AAAAT")
         self.title.SetFont(self.title.GetFont().Bold().Larger())
-        self.mode_chip = wx.StaticText(self.toolbar, label="read-only" if self.mode == Mode.READ_ONLY else "local")
+        self.mode_chip = wx.StaticText(self.toolbar, label="local")
         self.reset_button = wx.Button(self.toolbar, label="Reset")
         self.new_button = wx.Button(self.toolbar, label="+")
         toolbar_sizer.Add(self.title, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
@@ -199,9 +199,6 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.center_scroll = self.center_body_scroll
 
     def _on_support_surface(self, _event: wx.Event) -> None:
-        if not can_write(self.mode):
-            wx.MessageBox("Open the local writable desktop to add a candidature.", "Read-only mode", wx.OK | wx.ICON_INFORMATION, self)
-            return
         dialog = wx.TextEntryDialog(
             self,
             "Paste the original job posting or application text.",
@@ -249,7 +246,7 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.SetStatusText("Layout reset")
 
     def _delete_candidature_from_panel(self, ref: str) -> None:
-        if not can_write(self.mode) or not ref:
+        if not ref:
             return
         confirmed = wx.MessageBox(
             "Delete this candidature and its local related data?",
