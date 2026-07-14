@@ -36,7 +36,7 @@ A task handle is valid only for fetching bounded context and submitting a JSON r
 
 Agent task context is self-contained for supported task types. It carries instructions, purpose, input context, output contract, response format, allowed actions, and privacy notes. Agent output should match the response format and must not include entity IDs as mutation authority.
 
-The agent-compatible plane must not expose dashboard payloads, broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, career-plan CRUD, or entity-ID mutation routes.
+The agent-compatible plane must not expose broad lists, broad search, profile dumps, candidature CRUD, application CRUD, note/todo/blob CRUD, artifact CRUD, career-plan CRUD, or entity-ID mutation routes.
 
 ## Action-session boundary
 
@@ -50,7 +50,7 @@ Generated private artifacts remain local. AAAAT renders artifacts from local tem
 
 ## Profile variables
 
-Private reusable values are stored as variables with stable placeholders. Profile inputs such as `display_name` are canonicalized to `profile.display_name` and represented as `{{ profile.display_name }}` for agent work. Local rendering can resolve real values; agent contexts resolve according to each variable exposure policy: `raw`, `redacted`, `summarized`, `placeholder`, or `denied`.
+Private reusable values are stored as variables with stable placeholders. Profile inputs such as `display_name` are canonicalized to `profile.display_name` and represented as `{{ profile.display_name }}` for agent work. Local desktop and render code paths resolve real values; agent contexts resolve according to each variable exposure policy: `raw`, `redacted`, `summarized`, `placeholder`, or `denied`.
 
 ## Profile facts
 
@@ -59,7 +59,7 @@ AAAAT separates two profile data layers:
 - `variables`: scalar placeholders and private template values, such as `profile.email`.
 - `profile_facts`: structured professional/CV facts, such as skills, projects, education, salary expectations, preferences, and reusable summaries.
 
-Profile facts carry editable `visibility`, `exposure`, and usage flags. Local dashboard contexts may show raw facts and internal row IDs, but agent and market contexts must respect exposure and must not expose profile-fact row IDs. Market research should prefer anonymized or summarized profile facts and must not rely on raw sensitive facts by default.
+Profile facts carry editable `visibility`, `exposure`, and usage flags. Local desktop code paths may use raw facts and internal row IDs, but agent and market contexts must respect exposure and must not expose profile-fact row IDs. Market research should prefer anonymized or summarized profile facts and must not rely on raw sensitive facts by default.
 
 ## Career plans
 
