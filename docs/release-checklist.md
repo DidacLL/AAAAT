@@ -5,49 +5,25 @@ Use this as a short smoke-check list after installation changes, packaging chang
 ## Install and launch
 
 ```bash
-python -m pip install -e .
+python -m pip install -e .[desktop]
 aaaat --version
 python -m aaaat.cli --version
 aaaat init
 aaaat app create --company "Example Co" --role "Backend Engineer"
 aaaat app list
+aaaat-desktop
 ```
 
-Expected result: install succeeds, the CLI runs, storage initializes, and the example candidature appears in `app list`.
+Expected result: install succeeds, the CLI runs, storage initializes, the example candidature appears in `app list`, and the wx desktop opens.
 
-## Local launchers
+## Desktop demo
 
 ```bash
-sh launchers/open-aaaat.sh
-sh launchers/open-aaaat-read-only.sh
+aaaat-seed-desktop-demo --reset --count 24
+aaaat-desktop
 ```
 
-Windows:
-
-```cmd
-launchers\Open AAAAT.cmd
-launchers\Open AAAAT Read Only.cmd
-```
-
-Expected result: launchers run the local Python module through `python -m aaaat.cli launch`, do not require Git, and pass extra flags through to the launch command.
-
-## Dashboard modes
-
-```bash
-aaaat launch
-aaaat launch --read-only
-aaaat launch --agent-api
-```
-
-Expected result: the dashboard starts on `127.0.0.1`, read-only mode blocks write actions, and agent mode starts the bounded agent runtime instead of the dashboard UI.
-
-## Static demo
-
-```bash
-aaaat export static-demo outputs/static-demo.html
-```
-
-Expected result: the output is generated from fake demo data and does not read `.private/`.
+Expected result: fake local data is seeded and the desktop can be used for visual smoke checks.
 
 ## Artifact rendering
 
@@ -61,8 +37,8 @@ Expected result: local files are written under private storage or another explic
 ## Agent-compatible commands
 
 ```bash
-aaaat agent tasks --state queued
 aaaat agent next
+aaaat agent context <task_handle>
 aaaat mcp-descriptor
 aaaat mcp-validate
 ```
@@ -74,11 +50,11 @@ Expected result: agent commands expose bounded task/context capabilities only. T
 Verify the package includes runtime assets:
 
 ```bash
-python -m pip install -e .
+python -m pip install -e .[desktop]
 python -m pytest tests/test_release_polish.py
 ```
 
-Expected result: package metadata includes `schema.sql`, dashboard static files, dashboard templates, dashboard partials, and dashboard assets.
+Expected result: package metadata includes the runtime files required by the wx/local v1 app.
 
 ## Repository hygiene
 
@@ -91,15 +67,11 @@ Before committing, verify that these are not staged:
 - recruiter messages
 - generated private artifacts
 - local backups
-- generated `outputs/` content unless intentionally adding a fake demo artifact
 
-Visual assets under `aaaat/templates_ui/assets/` must be private-safe.
-
-## Tests and guardrails
+## Tests
 
 ```bash
 python -m pytest
-python tools/repo_guard.py
 ```
 
-Expected result: tests and repository guard pass without adding heavy dependencies, generated private data, or provider-specific requirements.
+Expected result: tests pass without adding heavy dependencies, generated private data, or provider-specific requirements.
