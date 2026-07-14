@@ -61,12 +61,6 @@ For the CLI, the `--storage` flag must appear before the subcommand.
 aaaat-desktop
 ```
 
-For read-only inspection:
-
-```bash
-aaaat-desktop --read-only
-```
-
 Close the desktop window to stop the app.
 
 ## Demo seed
@@ -92,7 +86,7 @@ python -m pytest
 aaaat init
 aaaat app create --company "Example Co" --role "Backend Engineer"
 aaaat app list
-aaaat-desktop --read-only
+aaaat-desktop
 aaaat mcp-validate
 ```
 
