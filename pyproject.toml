@@ -7,8 +7,26 @@ name = "aaaat"
 version = "1.0.0"
 description = "Local-first job application tracker and artifact generator."
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = []
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: MacOS X",
+    "Environment :: Win32 (MS Windows)",
+    "Environment :: X11 Applications :: GTK",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
+
+[project.urls]
+Repository = "https://github.com/DidacLL/AAAAT"
+Issues = "https://github.com/DidacLL/AAAAT/issues"
 
 [project.optional-dependencies]
 desktop = ["wxPython"]
