@@ -72,6 +72,10 @@ jobs:
         run: python -B -m unittest tests.test_desktop_profile_facts
       - name: Demo seed safety
         run: python -B -m unittest tests.test_demo_seed_safety
+      - name: Release engineering behavior
+        run: python -B -m unittest tests.test_release_polish
+      - name: Repository hygiene behavior
+        run: python -B -m unittest tests.test_repo_guard
       - name: MCP descriptor validation
         run: python -B -m aaaat.cli mcp-validate
       - name: Full unittest discovery
