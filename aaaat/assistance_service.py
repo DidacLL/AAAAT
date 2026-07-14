@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
+import zipfile
 from pathlib import Path
 from typing import Any
 
+from .browser_companion import browser_extension_bundle, native_host_manifest
+from .connector_packages import connector_construction_prompt, install_connector_package, preview_connector_package
 from .db import connect
 from .integration_setup import (
     configure_integration,
@@ -11,7 +15,7 @@ from .integration_setup import (
     disable_automatic_integration,
     integration_options,
 )
-from .runtime_conformance import read_conformance_state, run_configured_runtime_conformance
+from .runtime_conformance import negotiate_configured_runtime, read_conformance_state, run_configured_runtime_conformance
 from .tasks import create_task, list_tasks
 
 _VISIBLE_STATES = {"queued", "claimed", "in_progress", "blocked", "failed", "cancelled", "completed"}
@@ -23,7 +27,6 @@ def assistance_snapshot(
     include_advanced: bool = False,
     progress_by_task: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Return one presentation-neutral snapshot for the wx Assistance workspace."""
     progress_by_task = progress_by_task or {}
     with connect(storage_path) as conn:
         tasks = [
@@ -54,17 +57,7 @@ def assistance_snapshot(
 
 def create_profile_completion_task(storage_path: str | Path) -> dict[str, Any]:
     with connect(storage_path) as conn:
-        return create_task(
-            conn,
-            "profile_completion",
-            "Complete professional profile",
-            instructions="Suggest bounded values for eligible missing profile fields. Preserve non-empty user values.",
-            state="queued",
-            priority="high",
-            context_hint="profile:completion",
-            created_by="desktop",
-            idempotent=True,
-        )
+        return create_task(conn, "profile_completion", "Complete professional profile", instructions="Suggest bounded values for eligible missing profile fields. Preserve non-empty user values.", state="queued", priority="high", context_hint="profile:completion", created_by="desktop", idempotent=True)
 
 
 def save_integration(storage_path: str | Path, adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
@@ -81,3 +74,33 @@ def use_manual_integration(storage_path: str | Path) -> dict[str, Any]:
 
 def run_integration_conformance(storage_path: str | Path) -> dict[str, Any]:
     return run_configured_runtime_conformance(storage_path)
+
+
+def negotiate_integration(storage_path: str | Path) -> dict[str, Any]:
+    return negotiate_configured_runtime(storage_path)
+
+
+def connector_prompt(storage_path: str | Path) -> str:
+    selected = current_integration(storage_path)
+    return connector_construction_prompt(str(selected.get("id") or "argv_custom_command"), dict(selected.get("settings") or {}))
+
+
+def preview_generated_connector(payload: str) -> dict[str, Any]:
+    return preview_connector_package(payload)
+
+
+def install_generated_connector(storage_path: str | Path, payload: str) -> dict[str, Any]:
+    return install_connector_package(storage_path, payload)
+
+
+def export_browser_companion_package(storage_path: str | Path, output_path: str | Path, host_executable: str = "aaaat-browser-host") -> Path:
+    target = Path(output_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    files = browser_extension_bundle()
+    manifest = native_host_manifest(storage_path, host_executable)
+    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in files.items():
+            archive.writestr(f"extension/{name}", content)
+        archive.writestr("native-host-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+        archive.writestr("INSTALL.txt", "Install AAAAT normally, load extension/ as an unpacked extension, replace __AAAT_EXTENSION_ID__ in the native host manifest, then install that manifest in the browser's documented native-messaging host directory. No AAAAT port or provider credential is used.\n")
+    return target
