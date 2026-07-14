@@ -2,13 +2,13 @@
 
 ## What AAAAT is
 
-AAAAT, Agent-Agnostic Auto Application Tracker, is a local-first, provider-agnostic job application tracker and artifact generator.
+AAAAT, Agent-Agnostic Auto Application Tracker, is a local-first, provider-agnostic job application tracker and artifact generator.
 
-It is private local software for managing candidatures, recruiter interactions, profile/CV data, generated documents, and agent-assistable tasks. It gives the user a fast operational dashboard and gives external LLM agents a constrained task interface for drafting, enrichment, inference, and document preparation.
+It is private local software for managing candidatures, recruiter interactions, profile/CV data, generated documents, and agent-assistable tasks. It gives the user a fast operational desktop workspace and gives external LLM agents a constrained task interface for drafting, enrichment, inference, and document preparation.
 
 AAAAT is not an LLM provider wrapper. It is not an agent runtime. It is not an agent orchestrator. It does not require OpenAI, Anthropic, Gemini, Ollama, Codex, Claude Desktop, Cursor, Continue, Aider, or any other specific model or tool.
 
-AAAAT owns the private application data, local dashboard, validation layer, task queue, template rendering, and artifact provenance. External agents own reasoning and generation.
+AAAAT owns the private application data, local desktop UI, validation layer, task queue, template rendering, and artifact provenance. External agents own reasoning and generation.
 
 ## Product promise
 
@@ -24,13 +24,13 @@ AAAAT stores private data locally by default. The normal private storage locatio
 
 Private data includes candidatures, raw job descriptions, application forms, recruiter notes, profile/CV data, generated cover letters, generated CV variants, offers, salary expectations, and private artifacts.
 
-Public examples and static demos must use fake data only.
+Public examples must use fake data only.
 
 ### 2. Provider agnosticism
 
 AAAAT does not ask for model provider, model URL, API key, model name, or cloud/local model settings during core setup.
 
-The product should work with human-only usage, CLI usage, dashboard usage, and external agent usage. Any agent integration is passive and optional.
+The product should work with human-only usage, CLI usage, desktop usage, and external agent usage. Any agent integration is passive and optional.
 
 ### 3. Deterministic ownership boundary
 
@@ -43,8 +43,7 @@ AAAAT owns deterministic operations:
 * saving agent outputs;
 * applying reviewed results;
 * rendering templates;
-* tracking generated artifact provenance;
-* enforcing read-only/static/full modes.
+* tracking generated artifact provenance.
 
 Agents own non-deterministic work:
 
@@ -61,7 +60,7 @@ Agents propose. AAAAT records, validates, renders, and applies.
 
 ### 4. Task-scoped agent access
 
-Agents must not receive classic CRUD access to candidatures, applications, dashboard payloads, profile facts, variables, or arbitrary search results.
+Agents must not receive classic CRUD access to candidatures, applications, desktop payloads, profile facts, variables, or arbitrary search results.
 
 The aggregate relation between one user and many candidatures is private data. A list of companies, roles, stages, dates, locations, salary expectations, generated documents, and outcomes can reveal job-search strategy, financial pressure, seniority, relocation plans, and career intent.
 
@@ -78,13 +77,13 @@ Therefore, agents should work through a task mailbox / capability membrane:
 
 The agent is a worker consuming capability-scoped jobs, not a client browsing the user’s job-search database.
 
-### 5. Human dashboard plane vs. agent plane
+### 5. Human desktop plane vs. agent plane
 
 AAAAT has two distinct access planes.
 
-The human/local dashboard plane may expose rich local CRUD because it is the user’s own operational UI. It can show candidatures, search, profile data, notes, tasks, documents, rendered values, and editable fields according to the selected mode.
+The human/local desktop plane may expose rich local editing because it is the user’s own operational UI. It can show candidatures, search, profile data, notes, tasks, documents, rendered values, and editable fields.
 
-The agent plane is task-scoped only. It should expose task envelopes, task context, task claiming/releasing, and task result submission. It should not expose list-all candidature routes, raw variables, raw profile facts, dashboard payloads, arbitrary search, or generic patch routes.
+The agent plane is task-scoped only. It should expose task envelopes, task context, and task result submission. It should not expose list-all candidature routes, raw variables, raw profile facts, desktop payloads, arbitrary search, or generic patch routes.
 
 ### 6. Privacy by resolution, not by convention
 
@@ -149,16 +148,14 @@ AAAAT templates must not hardcode the real user’s identity, CV content, recrui
 
 CV and cover-letter templates should be generic and use variables. Rendered local outputs may contain private values, but source templates should remain reusable and safe to commit.
 
-### 9. Operational dashboard first
+### 9. Operational desktop first
 
-The dashboard is not a documentation site. It is an operational surface for job-search execution and recruiter calls.
+The desktop is not a documentation site. It is an operational surface for job-search execution and recruiter calls.
 
 It should answer quickly:
 
 * What company is this?
 * What role is this?
-* What status is it in?
-* What should I do next?
 * What did I already send?
 * What is my pitch?
 * What risk should I avoid saying?
@@ -166,35 +163,19 @@ It should answer quickly:
 * What artifacts exist?
 * What questions should I ask?
 
-The dashboard should avoid clutter, giant static lists, excessive drafts, ambiguous artifact names, deep navigation, and decorative UI that hides operational information.
+The desktop should avoid clutter, giant static lists, excessive drafts, ambiguous artifact names, deep navigation, and decorative UI that hides operational information.
 
-### 10. Clear operating modes
+### 10. Clear operating surfaces
 
-AAAAT should support these user-facing modes:
+AAAAT supports these user-facing surfaces:
 
-Full local mode:
+Local desktop:
 
-* local server and dashboard;
 * editable candidatures;
 * raw intake;
 * task controls;
 * document rendering;
 * private data visible where appropriate.
-
-Local read-only mode:
-
-* same local data;
-* no raw intake or write controls;
-* useful for recruiter calls and review sessions.
-
-Static public demo mode:
-
-* generated from fake demo data;
-* no backend;
-* no private data;
-* no raw intake;
-* no write controls;
-* demonstrates the product safely.
 
 Direct manual mode:
 
@@ -210,7 +191,7 @@ Agent access mode:
 
 A candidature is the central product object. It represents one job opportunity or application process.
 
-It can include company, role, status, priority, source, raw offer text, raw application form, description, salary expectation, dates, company research, strengths, risks to avoid, questions to ask, tech stack, keywords, notes, todos, tasks, text blobs, generated documents, and artifact references.
+It can include company, role, active/closed state, raw offer text, raw application form, description, salary expectation, dates, company research, strengths, risks to avoid, questions to ask, tech stack, keywords, notes, todos, tasks, text blobs, generated documents, and artifact references.
 
 ### Task
 
@@ -231,7 +212,7 @@ Examples:
 
 ### Keyword
 
-A keyword is a global glossary term with optional aliases and notes. Keywords can be detected from raw inputs, attached to candidatures, selected in the dashboard, and used to trigger definition tasks.
+A keyword is a global glossary term with optional aliases and notes. Keywords can be detected from raw inputs, attached to candidatures, selected in the desktop, and used to trigger definition tasks.
 
 ### Profile fact / variable
 
@@ -258,6 +239,4 @@ AAAAT should not become:
 
 ## Design summary
 
-AAAAT is the local private control layer for job applications.
-
-It lets the user manage candidatures, profile data, tasks, documents, and recruiter preparation in one local dashboard. It lets agents help, but only through narrow task-scoped capabilities. It resolves private values only where appropriate, records provenance for generated outputs, and keeps the final decision and submission flow under user control.
+AAAAT is a local, human-owned candidature workspace with bounded optional agent assistance. The desktop is the canonical human runtime; agents work only through narrow task/context/action surfaces.
