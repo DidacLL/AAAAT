@@ -8,7 +8,12 @@ import wx  # type: ignore[import-not-found]
 
 from aaaat.assistance_service import (
     assistance_snapshot,
+    connector_prompt,
     create_profile_completion_task,
+    export_browser_companion_package,
+    install_generated_connector,
+    negotiate_integration,
+    preview_generated_connector,
     run_integration_conformance,
     save_integration,
     use_manual_integration,
@@ -18,6 +23,7 @@ from aaaat.background_worker import OwnedTaskWorker
 from aaaat.portable_task_bundle import export_candidature_task_bundle, import_candidature_result_bundle
 
 from .assistance_panel import AssistancePanel
+from .connector_onboarding_panel import ConnectorOnboardingPanel
 from .portable_bundle_panel import PortableBundlePanel
 from .profile_facts_panel import ProfileFactsPanel
 from .user_panel import UserPanel
@@ -30,16 +36,13 @@ class UserViewMixin:
         self._task_worker: OwnedTaskWorker | None = None
         self._task_progress: dict[str, dict[str, Any]] = {}
         self._conformance_thread: threading.Thread | None = None
+        self._negotiation_thread: threading.Thread | None = None
         self.user_panel = wx.Panel(self.view_book)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.user_panel.SetSizer(sizer)
         self.user_workspace = wx.Notebook(self.user_panel)
 
-        self.user_content = UserPanel(
-            self.user_workspace,
-            on_save=self._save_user_edits,
-            on_cancel=self._cancel_user_edits,
-        )
+        self.user_content = UserPanel(self.user_workspace, on_save=self._save_user_edits, on_cancel=self._cancel_user_edits)
         self.user_workspace.AddPage(self.user_content, "Profile")
 
         self.evidence_scroll = wx.ScrolledWindow(self.user_workspace, style=wx.VSCROLL)
@@ -61,11 +64,17 @@ class UserViewMixin:
         )
         self.user_workspace.AddPage(self.assistance_panel, "Assistance")
 
-        self.portable_bundle_panel = PortableBundlePanel(
+        self.connector_panel = ConnectorOnboardingPanel(
             self.user_workspace,
-            on_export=self._export_portable_bundle,
-            on_import=self._import_portable_bundle,
+            on_prompt=lambda: connector_prompt(self.storage_path),
+            on_preview=preview_generated_connector,
+            on_install=lambda payload: install_generated_connector(self.storage_path, payload),
+            on_negotiate=self._negotiate_runtime,
+            on_export_browser=self._export_browser_companion,
         )
+        self.user_workspace.AddPage(self.connector_panel, "Connect any AI")
+
+        self.portable_bundle_panel = PortableBundlePanel(self.user_workspace, on_export=self._export_portable_bundle, on_import=self._import_portable_bundle)
         self.user_workspace.AddPage(self.portable_bundle_panel, "Browser bundle")
 
         sizer.Add(self.user_workspace, 1, wx.ALL | wx.EXPAND, 0)
@@ -84,11 +93,7 @@ class UserViewMixin:
         self._refresh_current_if_needed()
 
     def _assistance_snapshot(self) -> dict[str, Any]:
-        return assistance_snapshot(
-            self.storage_path,
-            include_advanced=True,
-            progress_by_task=self._task_progress,
-        )
+        return assistance_snapshot(self.storage_path, include_advanced=True, progress_by_task=self._task_progress)
 
     def _refresh_user_view(self) -> None:
         self.user_panel.Freeze()
@@ -154,10 +159,7 @@ class UserViewMixin:
 
     def _save_integration(self, adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
         result = save_integration(self.storage_path, adapter_id, settings)
-        if result.get("saved"):
-            self.SetStatusText("Integration tested and saved")
-        else:
-            self.SetStatusText("Integration test failed; previous setup preserved")
+        self.SetStatusText("Integration tested and saved" if result.get("saved") else "Integration test failed; previous setup preserved")
         self._schedule_assistance_refresh()
         return result
 
@@ -176,11 +178,7 @@ class UserViewMixin:
     def _run_conformance(self) -> dict[str, Any]:
         if self._conformance_thread and self._conformance_thread.is_alive():
             return {"status": "running", "message": "Conformance test is already running."}
-        self._conformance_thread = threading.Thread(
-            target=self._conformance_work,
-            name="aaaat-runtime-conformance",
-            daemon=False,
-        )
+        self._conformance_thread = threading.Thread(target=self._conformance_work, name="aaaat-runtime-conformance", daemon=False)
         self._conformance_thread.start()
         self.SetStatusText("Runtime conformance test running")
         return {"status": "running", "message": "Bounded conformance challenge started."}
@@ -196,6 +194,30 @@ class UserViewMixin:
         self.SetStatusText(str(result.get("message") or result.get("status") or "Conformance complete"))
         if self.current_view == "user":
             self._refresh_user_view()
+
+    def _negotiate_runtime(self) -> dict[str, Any]:
+        if self._negotiation_thread and self._negotiation_thread.is_alive():
+            return {"status": "running", "message": "Runtime negotiation is already running."}
+        self._negotiation_thread = threading.Thread(target=self._negotiation_work, name="aaaat-runtime-negotiation", daemon=False)
+        self._negotiation_thread.start()
+        self.SetStatusText("Runtime negotiation running")
+        return {"status": "running", "message": "Runtime self-description and conformance started."}
+
+    def _negotiation_work(self) -> None:
+        try:
+            result = negotiate_integration(self.storage_path)
+        except Exception as exc:
+            result = {"status": "failed", "message": str(exc)}
+        wx.CallAfter(self._apply_conformance_result, result)
+
+    def _export_browser_companion(self) -> str | None:
+        with wx.FileDialog(self, "Export browser companion", wildcard="AAAAT browser companion (*.zip)|*.zip", defaultFile="aaaat-browser-companion.zip", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as dialog:
+            if dialog.ShowModal() != wx.ID_OK:
+                return None
+            target = Path(dialog.GetPath())
+        export_browser_companion_package(self.storage_path, target)
+        self.SetStatusText("Browser companion package exported")
+        return str(target)
 
     def _create_profile_completion_task(self) -> dict[str, Any]:
         task = create_profile_completion_task(self.storage_path)
@@ -252,13 +274,7 @@ class UserViewMixin:
             wx.MessageBox("Select a candidature in Smart or Detailed view first.", "No candidature selected", wx.OK | wx.ICON_INFORMATION, self)
             return None
         default_name = f"aaaat-candidature-tasks-{candidature_ref[-8:]}.aaaat-task.zip"
-        with wx.FileDialog(
-            self,
-            "Export bounded candidature tasks",
-            wildcard="AAAAT task bundle (*.aaaat-task.zip)|*.aaaat-task.zip|ZIP archive (*.zip)|*.zip",
-            defaultFile=default_name,
-            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
-        ) as dialog:
+        with wx.FileDialog(self, "Export bounded candidature tasks", wildcard="AAAAT task bundle (*.aaaat-task.zip)|*.aaaat-task.zip|ZIP archive (*.zip)|*.zip", defaultFile=default_name, style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as dialog:
             if dialog.ShowModal() != wx.ID_OK:
                 return None
             target = Path(dialog.GetPath())
@@ -267,12 +283,7 @@ class UserViewMixin:
         return result
 
     def _import_portable_bundle(self) -> dict[str, Any] | None:
-        with wx.FileDialog(
-            self,
-            "Import AAAAT result bundle",
-            wildcard="AAAAT result bundle (*.aaaat-result.zip)|*.aaaat-result.zip|ZIP archive (*.zip)|*.zip",
-            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
-        ) as dialog:
+        with wx.FileDialog(self, "Import AAAAT result bundle", wildcard="AAAAT result bundle (*.aaaat-result.zip)|*.aaaat-result.zip|ZIP archive (*.zip)|*.zip", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dialog:
             if dialog.ShowModal() != wx.ID_OK:
                 return None
             source = Path(dialog.GetPath())
@@ -280,9 +291,7 @@ class UserViewMixin:
         self._rendered_view_keys.clear()
         self._reload_projection()
         self._refresh_all()
-        self.SetStatusText(
-            f"Imported bundle: {len(result.get('accepted') or [])} accepted, {len(result.get('rejected') or [])} rejected"
-        )
+        self.SetStatusText(f"Imported bundle: {len(result.get('accepted') or [])} accepted, {len(result.get('rejected') or [])} rejected")
         return result
 
     def _stop_task_worker_on_close(self, event: wx.CloseEvent) -> None:
@@ -290,4 +299,6 @@ class UserViewMixin:
             self._task_worker.stop(wait=True)
         if self._conformance_thread and self._conformance_thread.is_alive():
             self._conformance_thread.join(timeout=1)
+        if self._negotiation_thread and self._negotiation_thread.is_alive():
+            self._negotiation_thread.join(timeout=1)
         event.Skip()
