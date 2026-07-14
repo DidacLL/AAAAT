@@ -6,53 +6,33 @@ from pathlib import Path
 from typing import Any
 
 from .browser_companion import browser_extension_bundle, native_host_manifest
-from .connector_packages import connector_construction_prompt, install_connector_package, preview_connector_package
+from .connector_packages import connector_construction_prompt, install_and_activate_connector, preview_connector_package
 from .db import connect
-from .integration_setup import (
-    configure_integration,
-    configure_recommended_local_integration,
-    current_integration,
-    disable_automatic_integration,
-    integration_options,
-)
+from .integration_setup import configure_integration, configure_recommended_local_integration, current_integration, disable_automatic_integration, integration_options
 from .runtime_conformance import negotiate_configured_runtime, read_conformance_state, run_configured_runtime_conformance
 from .tasks import create_task, list_tasks
 
 _VISIBLE_STATES = {"queued", "claimed", "in_progress", "blocked", "failed", "cancelled", "completed"}
 
 
-def assistance_snapshot(
-    storage_path: str | Path,
-    *,
-    include_advanced: bool = False,
-    progress_by_task: dict[str, dict[str, Any]] | None = None,
-) -> dict[str, Any]:
+def assistance_snapshot(storage_path: str | Path, *, include_advanced: bool = False, progress_by_task: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
     progress_by_task = progress_by_task or {}
     with connect(storage_path) as conn:
-        tasks = [
-            {
-                "id": str(task.get("id") or ""),
-                "title": str(task.get("title") or task.get("task_type") or "Task"),
-                "task_type": str(task.get("task_type") or ""),
-                "state": str(task.get("state") or ""),
-                "priority": str(task.get("priority") or "normal"),
-                "notes": str(task.get("notes") or ""),
-                "updated_at": str(task.get("updated_at") or ""),
-                "can_run": str(task.get("state") or "") in {"queued", "blocked"},
-                "can_retry": str(task.get("state") or "") in {"failed", "cancelled"},
-                "can_cancel": str(task.get("state") or "") in {"queued", "claimed", "in_progress", "blocked", "failed"},
-                "progress": dict(progress_by_task.get(str(task.get("id") or "")) or {}),
-            }
-            for task in list_tasks(conn)
-            if str(task.get("state") or "") in _VISIBLE_STATES
-        ]
+        tasks = [{
+            "id": str(task.get("id") or ""),
+            "title": str(task.get("title") or task.get("task_type") or "Task"),
+            "task_type": str(task.get("task_type") or ""),
+            "state": str(task.get("state") or ""),
+            "priority": str(task.get("priority") or "normal"),
+            "notes": str(task.get("notes") or ""),
+            "updated_at": str(task.get("updated_at") or ""),
+            "can_run": str(task.get("state") or "") in {"queued", "blocked"},
+            "can_retry": str(task.get("state") or "") in {"failed", "cancelled"},
+            "can_cancel": str(task.get("state") or "") in {"queued", "claimed", "in_progress", "blocked", "failed"},
+            "progress": dict(progress_by_task.get(str(task.get("id") or "")) or {}),
+        } for task in list_tasks(conn) if str(task.get("state") or "") in _VISIBLE_STATES]
     tasks.sort(key=lambda item: (item["state"] == "completed", item["updated_at"]), reverse=False)
-    return {
-        "integration": current_integration(storage_path),
-        "options": integration_options(include_advanced=include_advanced),
-        "conformance": read_conformance_state(storage_path),
-        "tasks": tasks,
-    }
+    return {"integration": current_integration(storage_path), "options": integration_options(include_advanced=include_advanced), "conformance": read_conformance_state(storage_path), "tasks": tasks}
 
 
 def create_profile_completion_task(storage_path: str | Path) -> dict[str, Any]:
@@ -90,7 +70,7 @@ def preview_generated_connector(payload: str) -> dict[str, Any]:
 
 
 def install_generated_connector(storage_path: str | Path, payload: str) -> dict[str, Any]:
-    return install_connector_package(storage_path, payload)
+    return install_and_activate_connector(storage_path, payload)
 
 
 def export_browser_companion_package(storage_path: str | Path, output_path: str | Path, host_executable: str = "aaaat-browser-host") -> Path:
