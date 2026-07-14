@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from aaaat.artifacts import save_artifact
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_contains_private_values
 from aaaat.dashboard_projection import build_dashboard_projection
 from aaaat.db import connect, list_applications, list_raw_intake, profile_variables
@@ -21,10 +22,8 @@ class DesktopReleaseReadinessSliceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as parent:
             storage = Path(parent) / "fresh-private"
             self.assertFalse(storage.exists())
-
             summary = seed(storage, count=4, reset=True)
             projection = build_desktop_projection(storage)
-
             with connect(storage) as conn:
                 applications = list_applications(conn)
                 raw_counts = [len(list_raw_intake(conn, app["id"])) for app in applications]
@@ -63,7 +62,7 @@ class DesktopReleaseReadinessSliceTests(unittest.TestCase):
             projection = build_desktop_projection(storage)
 
         self.assertEqual(projection["view_state"]["current_view"], "welcome")
-        self.assertFalse(projection["smart"]["candidatures"])
+        self.assertFalse(projection["smart"]["candidature_summaries"])
 
     def test_desktop_launcher_reports_missing_optional_dependency_clearly(self):
         from aaaat.ui_desktop.app import launch_desktop_dashboard
@@ -88,13 +87,7 @@ class DesktopProjectionBehaviorTests(unittest.TestCase):
                 applications = list_applications(conn)
             selected = applications[1]
             keyword = selected["keywords"][0]
-
-            projection = build_dashboard_projection(
-                build_desktop_payload(tmp),
-                view="smart",
-                selected_application_id=selected["id"],
-                selected_keyword=keyword,
-            )
+            projection = build_dashboard_projection(build_desktop_payload(tmp), view="smart", selected_application_id=selected["id"], selected_keyword=keyword)
 
         self.assertEqual(projection["view_state"]["selected_candidature_ref"], selected["id"])
         self.assertEqual(projection["view_state"]["selected_keyword"], keyword)
@@ -103,8 +96,7 @@ class DesktopProjectionBehaviorTests(unittest.TestCase):
     def test_detailed_projection_exposes_current_comparison_columns(self):
         with tempfile.TemporaryDirectory() as tmp:
             seed(tmp, count=3, reset=True)
-            payload = build_desktop_payload(tmp)
-            projection = build_dashboard_projection(payload, view="detailed")
+            projection = build_dashboard_projection(build_desktop_payload(tmp), view="detailed")
 
         available = {column["id"] for column in projection["detailed"]["available_columns"]}
         self.assertTrue({"company", "role", "status", "priority", "source_url"}.issubset(available))
@@ -115,12 +107,12 @@ class DesktopOfferFirstBehaviorTests(unittest.TestCase):
     def test_raw_offer_creation_retains_optional_source_and_form(self):
         with tempfile.TemporaryDirectory() as tmp:
             service = DesktopCommandService(tmp)
-            created = service.create_raw_offer_candidature(
+            created = service.create_offer_first_candidature(
                 "Original offer body",
                 company="Example Co",
                 role="Backend Engineer",
                 source_url="https://example.invalid/job",
-                raw_application_form="Why this role?",
+                application_form="Why this role?",
             )
             self.assertIsNotNone(created)
             with connect(tmp) as conn:
@@ -136,11 +128,7 @@ class DesktopOfferFirstBehaviorTests(unittest.TestCase):
     def test_requested_documents_are_blocked_until_evaluation_and_strategy_exist(self):
         with tempfile.TemporaryDirectory() as tmp:
             service = DesktopCommandService(tmp)
-            created = service.create_raw_offer_candidature(
-                "Original offer body",
-                request_cv=True,
-                request_cover_letter=True,
-            )
+            created = service.create_offer_first_candidature("Original offer body", request_cv=True, request_cover_letter=True)
             with connect(tmp) as conn:
                 tasks = list_tasks(conn, application_id=created["id"])
 
@@ -151,44 +139,43 @@ class DesktopOfferFirstBehaviorTests(unittest.TestCase):
     def test_document_action_queues_after_current_inputs_exist(self):
         with tempfile.TemporaryDirectory() as tmp:
             service = DesktopCommandService(tmp)
-            created = service.create_raw_offer_candidature("Original offer body")
-            service.update_candidature_fields(
-                created["id"],
-                {"candidature_evaluation": "Strong fit", "role_strategy": "Emphasize backend ownership"},
-            )
+            created = service.create_offer_first_candidature("Original offer body")
+            service.update_candidature_fields(created["id"], {"candidature_evaluation": "Strong fit", "role_strategy": "Emphasize backend ownership"})
             task = service.queue_candidature_action(created["id"], "generate_cv")
 
         self.assertEqual(task["state"], "queued")
 
 
+class DesktopMaterialWorkflowBehaviorTests(unittest.TestCase):
+    def test_material_state_is_visible_and_sent_is_a_distinct_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = DesktopCommandService(tmp)
+            created = service.create_offer_first_candidature("Original offer body")
+            artifact_path = Path(tmp) / "artifacts" / "cover-letter-v1.pdf"
+            artifact_path.parent.mkdir(parents=True, exist_ok=True)
+            artifact_path.write_bytes(b"fake-pdf")
+            with connect(tmp) as conn:
+                artifact = save_artifact(conn, created["id"], "cover_letter", str(artifact_path), "Cover letter v1")
+
+            self.assertEqual(service.list_candidature_artifacts(created["id"])[0]["review_state"], "draft")
+            service.set_artifact_state(artifact["id"], "reviewed", "Reviewed locally")
+            submitted = service.set_artifact_state(artifact["id"], "submitted", "Sent to employer")
+
+        self.assertEqual(submitted["review_state"], "submitted")
+        self.assertEqual(service.artifact_path(artifact["id"]), str(artifact_path))
+
+
 class DesktopUserWorkspaceBehaviorTests(unittest.TestCase):
     def test_user_workspace_exposes_professional_and_career_fields(self):
-        projection = {"user": {"profile_variables": []}}
-        groups = grouped_user_fields(projection)
+        groups = grouped_user_fields({"user": {"profile_variables": []}})
         keys = {field["storage_key"] for group in groups for field in group["fields"]}
-
         self.assertEqual(keys, WRITABLE_USER_STORAGE_KEYS)
-        self.assertTrue(
-            {
-                "profile.experience",
-                "profile.education",
-                "profile.skills",
-                "profile.career.objectives",
-                "profile.career.constraints",
-                "profile.writing.preferences",
-            }.issubset(keys)
-        )
+        self.assertTrue({"profile.experience", "profile.education", "profile.skills", "profile.career.objectives", "profile.career.constraints", "profile.writing.preferences"}.issubset(keys))
 
     def test_user_workspace_changes_persist_through_command_service(self):
         with tempfile.TemporaryDirectory() as tmp:
             service = DesktopCommandService(tmp)
-            saved = service.update_profile_variables(
-                {
-                    "profile.experience": "Built local-first developer tools.",
-                    "profile.career.objectives": "Senior backend roles.",
-                    "unsupported": "ignored",
-                }
-            )
+            saved = service.update_profile_variables({"profile.experience": "Built local-first developer tools.", "profile.career.objectives": "Senior backend roles.", "unsupported": "ignored"})
             with connect(tmp) as conn:
                 values = profile_variables(conn)
 
@@ -204,9 +191,7 @@ class DesktopLayoutBehaviorTests(unittest.TestCase):
         state.selected_candidature_ref = "app_123"
         state.selected_keyword = "Python"
         state.pane_layout["smart"] = {"left": 210, "right": 200}
-
         restored = DashboardLayoutState.from_json(state.to_json())
-
         self.assertEqual(restored.selected_view, "detailed")
         self.assertEqual(restored.selected_candidature_ref, "app_123")
         self.assertEqual(restored.selected_keyword, "Python")
@@ -219,7 +204,6 @@ class DesktopLayoutBehaviorTests(unittest.TestCase):
             state.selected_view = "user"
             state.save(path)
             loaded = DashboardLayoutState.load(path)
-
         self.assertEqual(loaded.selected_view, "user")
 
 
