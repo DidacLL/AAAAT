@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from aaaat.candidatures import create_candidature, update_candidature
-from aaaat.db import add_raw_intake, connect, init_db, upsert_glossary_term
+from aaaat.db import add_raw_intake, connect, delete_application, init_db, upsert_glossary_term
 
 
 COMPANIES = [
@@ -164,11 +164,24 @@ def upsert_application(conn: sqlite3.Connection, record: dict[str, Any], raw_off
 def _find_seed_application_id(conn: sqlite3.Connection, record: dict[str, Any]) -> str:
     url = str(record.get("source_url") or "").strip()
     if url:
-        row = conn.execute("SELECT id FROM applications WHERE source_url = ?", (url,)).fetchone()
+        row = conn.execute(
+            """SELECT a.id FROM applications a
+            WHERE a.source_url = ?
+              AND EXISTS (
+                SELECT 1 FROM raw_intake r
+                WHERE r.application_id = a.id AND r.created_by = 'demo_seed'
+              )""",
+            (url,),
+        ).fetchone()
         if row:
             return str(row["id"])
     row = conn.execute(
-        "SELECT id FROM applications WHERE company = ? AND role = ?",
+        """SELECT a.id FROM applications a
+        WHERE a.company = ? AND a.role = ?
+          AND EXISTS (
+            SELECT 1 FROM raw_intake r
+            WHERE r.application_id = a.id AND r.created_by = 'demo_seed'
+          )""",
         (record.get("company", ""), record.get("role", "")),
     ).fetchone()
     return str(row["id"]) if row else ""
@@ -194,15 +207,12 @@ def seed(storage: str | Path, count: int = 48, *, reset: bool = False) -> dict[s
 
 
 def _clear_seed_data(conn: sqlite3.Connection) -> None:
-    conn.execute("DELETE FROM application_keywords")
-    conn.execute("DELETE FROM tasks")
-    conn.execute("DELETE FROM todos")
-    conn.execute("DELETE FROM text_blobs")
-    conn.execute("DELETE FROM notes")
-    conn.execute("DELETE FROM raw_intake")
-    conn.execute("DELETE FROM generated_artifacts")
-    conn.execute("DELETE FROM candidature_details")
-    conn.execute("DELETE FROM applications")
+    rows = conn.execute(
+        "SELECT DISTINCT application_id FROM raw_intake WHERE created_by = 'demo_seed'"
+    ).fetchall()
+    for row in rows:
+        delete_application(conn, str(row["application_id"]))
+    conn.execute("DELETE FROM glossary_terms WHERE category = 'demo'")
     conn.commit()
 
 
@@ -214,7 +224,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     summary = seed(args.storage, max(1, args.count), reset=args.reset)
     print(f"Seeded Smart View demo data: {summary['created']} created, {summary['updated']} updated, {summary['total']} total.")
-    print("Launch with: aaaat-desktop")
+    print(f"Launch with: aaaat-desktop --storage {args.storage}")
     return 0
 
 
