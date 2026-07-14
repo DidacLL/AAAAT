@@ -20,6 +20,13 @@ PREPARATION_STATE_LABELS = {
     "completed": "Ready",
     "cancelled": "Stopped",
 }
+MATERIAL_TYPES = [
+    ("CV", "cv"),
+    ("Cover letter", "cover_letter"),
+    ("Application answers", "form_answer"),
+    ("Interview notes", "interview_guide"),
+    ("Other", "other"),
+]
 
 
 class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
@@ -35,13 +42,13 @@ class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
         ref = str((projection.get("view_state") or {}).get("selected_candidature_ref") or "")
         if not ref:
             return
+        self._current_ref = ref
         with connect(self.storage_path) as conn:
             preparation = list_tasks(conn, application_id=ref)
         artifacts = self.command_service.list_candidature_artifacts(ref)
         if preparation:
             self._add_preparation_context(preparation)
-        if artifacts:
-            self._add_material_workflow(artifacts)
+        self._add_material_workflow(artifacts)
         self.Layout()
         self.FitInside()
 
@@ -75,6 +82,13 @@ class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
         pane = module.GetPane()
         sizer = wx.BoxSizer(wx.VERTICAL)
         pane.SetSizer(sizer)
+        attach = wx.Button(pane, label="Attach existing file…")
+        attach.Bind(wx.EVT_BUTTON, self._attach_material)
+        sizer.Add(attach, 0, wx.ALL, 6)
+        if not artifacts:
+            empty = wx.StaticText(pane, label="No files attached or prepared yet.")
+            empty.Wrap(self._wrap_width())
+            sizer.Add(empty, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
         state_labels = {"draft": "Draft", "reviewed": "Reviewed", "submitted": "Sent", "archived": "Older version"}
         for item in artifacts[:8]:
             artifact_id = str(item.get("id") or "")
@@ -86,22 +100,50 @@ class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
             heading.Wrap(self._wrap_width())
             sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 6)
             if created:
-                when = wx.StaticText(pane, label=created)
-                sizer.Add(when, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
-            actions = wx.BoxSizer(wx.HORIZONTAL)
-            open_button = wx.Button(pane, label="Open")
-            reviewed = wx.Button(pane, label="Mark reviewed")
-            sent = wx.Button(pane, label="Mark sent")
-            archive = wx.Button(pane, label="Move to older versions")
-            open_button.Bind(wx.EVT_BUTTON, lambda _event, target=artifact_id: self._open_artifact(target))
-            reviewed.Bind(wx.EVT_BUTTON, lambda _event, target=artifact_id: self._set_artifact_state(target, "reviewed"))
-            sent.Bind(wx.EVT_BUTTON, lambda _event, target=artifact_id: self._set_artifact_state(target, "submitted"))
-            archive.Bind(wx.EVT_BUTTON, lambda _event, target=artifact_id: self._set_artifact_state(target, "archived"))
-            for button in (open_button, reviewed, sent, archive):
-                actions.Add(button, 0, wx.RIGHT, 4)
+                sizer.Add(wx.StaticText(pane, label=created), 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+            actions = wx.WrapSizer(wx.HORIZONTAL)
+            buttons = [
+                ("Open", lambda _event, target=artifact_id: self._open_artifact(target)),
+                ("Mark reviewed", lambda _event, target=artifact_id: self._set_artifact_state(target, "reviewed")),
+                ("Mark sent", lambda _event, target=artifact_id: self._set_artifact_state(target, "submitted")),
+                ("Older version", lambda _event, target=artifact_id: self._set_artifact_state(target, "archived")),
+            ]
+            for label_text, handler in buttons:
+                button = wx.Button(pane, label=label_text)
+                button.Bind(wx.EVT_BUTTON, handler)
+                actions.Add(button, 0, wx.RIGHT | wx.BOTTOM, 4)
             sizer.Add(actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
         module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_inside())
         self.sizer.Add(module, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+
+    def _attach_material(self, _event: wx.CommandEvent) -> None:
+        file_dialog = wx.FileDialog(self, "Attach existing application material", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
+        try:
+            if file_dialog.ShowModal() != wx.ID_OK:
+                return
+            path = file_dialog.GetPath()
+        finally:
+            file_dialog.Destroy()
+        choices = [label for label, _value in MATERIAL_TYPES]
+        type_dialog = wx.SingleChoiceDialog(self, "What kind of material is this?", "Material type", choices)
+        try:
+            if type_dialog.ShowModal() != wx.ID_OK:
+                return
+            material_type = MATERIAL_TYPES[type_dialog.GetSelection()][1]
+        finally:
+            type_dialog.Destroy()
+        label_dialog = wx.TextEntryDialog(self, "Name shown in AAAAT", "Material name", Path(path).stem)
+        try:
+            if label_dialog.ShowModal() != wx.ID_OK:
+                return
+            label = label_dialog.GetValue().strip()
+        finally:
+            label_dialog.Destroy()
+        attached = self.command_service.attach_existing_material(self._current_ref, path, material_type, label)
+        if not attached:
+            wx.MessageBox("The file could not be attached.", "Attachment failed", wx.OK | wx.ICON_WARNING, self)
+            return
+        wx.MessageBox("The existing file is now linked to this candidature.", "Material attached", wx.OK | wx.ICON_INFORMATION, self)
 
     def _open_artifact(self, artifact_id: str) -> None:
         path = self.command_service.artifact_path(artifact_id)
