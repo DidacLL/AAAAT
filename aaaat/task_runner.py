@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
 from .db import connect, utc_now
@@ -13,6 +13,8 @@ from .provider_adapters import adapter_definition, validate_adapter_settings
 from .tasks import get_task, update_task
 from .workspace_config import load_workspace_config
 
+ProgressCallback = Callable[[dict[str, Any]], None]
+
 
 class TaskRunnerError(RuntimeError):
     pass
@@ -21,10 +23,13 @@ class TaskRunnerError(RuntimeError):
 class TaskRunner:
     """Run one bounded AAAAT task through the configured external runtime."""
 
-    def __init__(self, storage_path: str | Path) -> None:
+    def __init__(self, storage_path: str | Path, *, on_progress: ProgressCallback | None = None) -> None:
         self.storage_path = str(storage_path)
+        self.on_progress = on_progress or (lambda _event: None)
+        self._sequence = 0
 
     def run(self, task_id: str) -> dict[str, Any]:
+        self._sequence = 0
         config = load_workspace_config(self.storage_path)
         adapter_config = config["local_agent_adapter"]
         adapter_id = str(adapter_config["id"])
@@ -34,6 +39,7 @@ class TaskRunner:
                 f"{adapter.title} is not an automatic integration. Export the grouped bounded task bundle and import its result."
             )
 
+        self._emit(task_id, "preparing_context", "Preparing bounded task context", 5)
         with connect(self.storage_path) as conn:
             task = get_task(conn, task_id)
             if task.get("state") not in {"queued", "blocked", "failed"}:
@@ -42,14 +48,19 @@ class TaskRunner:
             context = build_agent_task_context(conn, task_handle(task))
 
         try:
+            self._emit(task_id, "invoking_runtime", f"Running through {adapter.title}", 25)
             body, provenance = self._execute_adapter(adapter_id, adapter_config.get("settings") or {}, context)
+            self._emit(task_id, "validating_result", "Validating structured result", 70)
         except (OSError, ValueError, TaskRunnerError, subprocess.TimeoutExpired) as exc:
             self._fail(task_id, str(exc))
+            self._emit(task_id, "failed", str(exc), 100)
             raise TaskRunnerError(str(exc)) from exc
 
+        self._emit(task_id, "applying_result", "Applying permitted result through AAAAT", 85)
         with connect(self.storage_path) as conn:
             current = get_task(conn, task_id)
             if current.get("state") == "cancelled":
+                self._emit(task_id, "cancelled", "Task cancelled before result application", 100)
                 return {"task": current, "cancelled": True}
             submitted = submit_agent_task_result(
                 conn,
@@ -59,7 +70,9 @@ class TaskRunner:
                 agent_runtime=str(provenance.get("agent_runtime") or f"local-adapter:{adapter_id}"),
                 model_provider=str(provenance.get("model_provider") or ""),
             )
-            return {"submitted": submitted, "task": get_task(conn, task_id), "provenance": provenance}
+            final = get_task(conn, task_id)
+        self._emit(task_id, "completed", "Task completed", 100)
+        return {"submitted": submitted, "task": final, "provenance": provenance}
 
     def _execute_adapter(
         self,
@@ -125,6 +138,20 @@ class TaskRunner:
             if not isinstance(value, dict):
                 raise TaskRunnerError("External runtime result must be one JSON object")
         return body
+
+    def _emit(self, task_id: str, phase: str, message: str, percent: int) -> None:
+        self._sequence += 1
+        self.on_progress(
+            {
+                "task_id": task_id,
+                "state": phase,
+                "phase": phase,
+                "message": message,
+                "percent": max(0, min(100, int(percent))),
+                "sequence": self._sequence,
+                "occurred_at": utc_now(),
+            }
+        )
 
     def _fail(self, task_id: str, message: str) -> None:
         with connect(self.storage_path) as conn:
