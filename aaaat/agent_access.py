@@ -8,21 +8,14 @@ from .candidatures import get_candidature_details
 from .career_plans import career_plan_context
 from .db import application_keywords, get_application, list_raw_intake
 from .profile_facts import profile_context
-from .tasks import complete_task, get_task, keyword_from_context, list_tasks, update_task
+from .tasks import complete_task, get_task, keyword_from_context, list_tasks
 
 ENVELOPE_FIELDS = {"task_type", "title", "state", "priority", "context_hint", "created_at", "updated_at"}
 SAFE_CONTEXT_PREFIXES = ("field:", "keyword:", "candidature:", "artifact:", "blob:", "call:")
 TASK_HANDLE_PREFIX = "taskh_"
 FORBIDDEN_AGENT_CONTEXT_KEYS = {
-    "application_id",
-    "candidature_id",
-    "artifact_id",
-    "profile_fact_id",
-    "note_id",
-    "todo_id",
-    "blob_id",
-    "file_path",
-    "storage_path",
+    "application_id", "candidature_id", "artifact_id", "profile_fact_id", "note_id",
+    "todo_id", "blob_id", "file_path", "storage_path",
 }
 TASK_PURPOSES = {
     "field_inference": "candidature_field_inference",
@@ -84,7 +77,8 @@ def get_task_for_handle(conn: sqlite3.Connection, handle: str) -> dict[str, Any]
 
 
 def task_purpose(task: dict[str, Any]) -> str:
-    return TASK_PURPOSES.get(str(task.get("task_type") or "task"), str(task.get("task_type") or "task"))
+    task_type = str(task.get("task_type") or "task")
+    return TASK_PURPOSES.get(task_type, task_type)
 
 
 def task_instructions(task: dict[str, Any]) -> dict[str, Any]:
@@ -158,8 +152,7 @@ def task_envelope(task: dict[str, Any]) -> dict[str, Any]:
 
 
 def list_agent_task_envelopes(conn: sqlite3.Connection, *, state: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
-    rows = list_tasks(conn, state=state)
-    envelopes = [task_envelope(row) for row in rows]
+    envelopes = [task_envelope(row) for row in list_tasks(conn, state=state)]
     return envelopes[:limit] if limit else envelopes
 
 
@@ -172,16 +165,15 @@ def task_result_ack(task: dict[str, Any]) -> dict[str, Any]:
     return {"status": "accepted", "task": {"task_handle": task_handle(task), "state": task.get("state", "")}, "next": ["open_desktop"]}
 
 
-def build_agent_task_context(conn: sqlite3.Connection, task_handle: str) -> dict[str, Any]:
-    task = get_task_for_handle(conn, task_handle)
+def build_agent_task_context(conn: sqlite3.Connection, task_handle_value: str) -> dict[str, Any]:
+    task = get_task_for_handle(conn, task_handle_value)
     envelope = task_envelope(task)
-    context = _task_context(conn, task)
+    input_context = scrub_forbidden_agent_context(_task_context(conn, task))
     result = {
         "task": envelope,
         "purpose": task_purpose(task),
         "instructions": task_instructions(task),
-        "context": scrub_forbidden_agent_context(context),
-        "input_context": scrub_forbidden_agent_context(context),
+        "input_context": input_context,
         "output_contract": output_contract(task),
         "response_format": response_format(task),
         "privacy": {"scope": "agent", "notes": task_privacy_notes(task)},
@@ -200,15 +192,8 @@ def _task_context(conn: sqlite3.Connection, task: dict[str, Any]) -> dict[str, A
         details = get_candidature_details(conn, application_id)
         if task_type == "field_inference":
             source = "\n\n".join(item["content"] for item in list_raw_intake(conn, application_id))
-            keys = (
-                "company", "role", "source_url", "location", "remote_mode",
-                "pitch", "smart_question", "risks_to_avoid", "offer_snapshot", "company_research",
-            )
-            detail_keys = (
-                "description", "salary_expectation", "publication_date", "application_date", "raw_application_form",
-                "strengths", "questions_to_ask", "tech_stack", "valuation", "candidature_evaluation",
-                "role_strategy", "recruiter_material",
-            )
+            keys = ("company", "role", "source_url", "location", "remote_mode", "pitch", "smart_question", "risks_to_avoid", "offer_snapshot", "company_research")
+            detail_keys = ("description", "salary_expectation", "publication_date", "application_date", "raw_application_form", "strengths", "questions_to_ask", "tech_stack", "valuation", "candidature_evaluation", "role_strategy", "recruiter_material")
             all_fields = {**{key: app.get(key, "") for key in keys}, **{key: details.get(key, "") for key in detail_keys}}
             return {"source_material": source, "missing_fields": sorted(k for k, v in all_fields.items() if not str(v or "").strip()), "protected_fields": sorted(k for k, v in all_fields.items() if str(v or "").strip())}
         if task_type == "company_research":
