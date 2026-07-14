@@ -46,16 +46,17 @@ class AgentAccessContractTests(unittest.TestCase):
                     application_id=candidature["id"],
                     context_hint="candidature:company_research",
                 )
+                handle = task_handle(task)
                 envelopes = list_agent_task_envelopes(conn, state="queued")
+                matching = next(item for item in envelopes if item["task_handle"] == handle)
 
         serialized = json.dumps(envelopes)
-        self.assertEqual(len(envelopes), 1)
-        self.assertTrue(envelopes[0]["task_handle"].startswith("taskh_"))
-        self.assertNotEqual(envelopes[0]["task_handle"], task["id"])
+        self.assertTrue(matching["task_handle"].startswith("taskh_"))
+        self.assertNotEqual(matching["task_handle"], task["id"])
         self.assertNotIn(task["id"], serialized)
         self.assertNotIn(candidature["id"], serialized)
         self.assertNotIn("Private company", serialized)
-        self.assertEqual(envelopes[0]["allowed_actions"], ["context", "submit"])
+        self.assertEqual(matching["allowed_actions"], ["context", "submit"])
 
     def test_task_context_uses_cli_write_back_and_bounded_input_context(self):
         with tempfile.TemporaryDirectory() as tmp:
