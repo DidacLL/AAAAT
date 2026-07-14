@@ -36,14 +36,14 @@ External agents own reasoning. AAAAT owns bounded context, validation, persisten
    python -m pip install -e .[desktop]
    ```
 
-3. Initialize the same storage path once before opening the desktop application:
+3. Upgrade the same storage path before opening the desktop application:
 
    ```bash
-   aaaat --storage /path/to/private-aaaat init
+   aaaat-upgrade --storage /path/to/private-aaaat
    aaaat-desktop --storage /path/to/private-aaaat
    ```
 
-Initialization is additive and idempotent for supported v1 stores. It creates missing schema objects, adds supported compatibility columns, preserves existing rows, normalizes legacy candidature statuses, and seeds defaults with `INSERT OR IGNORE` behavior.
+`aaaat-upgrade` is additive and idempotent for supported v1 stores. It creates missing schema objects, applies all supported compatibility columns, preserves existing rows, normalizes legacy candidature statuses, and seeds defaults with `INSERT OR IGNORE` behavior. It can be run repeatedly against the same store.
 
 Do not copy or replace `aaaat.sqlite3` while AAAAT is running. Keep the backup until the upgraded desktop opens and the existing candidatures and materials have been checked.
 
