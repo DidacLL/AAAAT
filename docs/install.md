@@ -5,13 +5,15 @@ AAAAT is intended for single-user local production. Install it in a local Python
 ## Requirements
 
 - Python 3.11 or newer.
-- A local checkout or source archive of the release.
+- A local checkout or extracted source archive of the release.
 - A virtual environment is recommended.
 - `wxPython` for the desktop UI, installed through the `desktop` extra.
 
 AAAAT does not require provider credentials during installation. Core setup is provider-agnostic.
 
 ## Linux / macOS
+
+From the release source directory:
 
 ```bash
 python -m venv .venv
@@ -29,6 +31,8 @@ aaaat-upgrade --help
 ```
 
 ## Windows PowerShell
+
+From the release source directory:
 
 ```powershell
 py -3.11 -m venv .venv
