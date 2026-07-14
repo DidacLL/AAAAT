@@ -44,15 +44,18 @@ jobs:
         run: python -B -m unittest tests.test_profile_facts
       - name: Template and artifact behavior
         run: python -B -m unittest tests.test_templates
-      - name: Desktop release behavior
-        run: >-
-          python -B -m unittest
-          tests.test_local_desktop_dashboard_slice
-          tests.test_profile_links_and_preparation
-          tests.test_desktop_material_attachment
-          tests.test_desktop_material_details
-          tests.test_desktop_profile_facts
-          tests.test_demo_seed_safety
+      - name: Desktop projection and offer-first behavior
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice
+      - name: Desktop links and preparation behavior
+        run: python -B -m unittest tests.test_profile_links_and_preparation
+      - name: Desktop material attachment
+        run: python -B -m unittest tests.test_desktop_material_attachment
+      - name: Desktop material details
+        run: python -B -m unittest tests.test_desktop_material_details
+      - name: Desktop reusable evidence
+        run: python -B -m unittest tests.test_desktop_profile_facts
+      - name: Demo seed safety
+        run: python -B -m unittest tests.test_demo_seed_safety
       - name: MCP descriptor validation
         run: python -B -m aaaat.cli mcp-validate
       - name: Full unittest discovery
