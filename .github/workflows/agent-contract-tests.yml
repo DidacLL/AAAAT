@@ -44,8 +44,14 @@ jobs:
         run: python -B -m unittest tests.test_profile_facts
       - name: Template and artifact behavior
         run: python -B -m unittest tests.test_templates
-      - name: Desktop clean storage and launcher
-        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests
+      - name: Desktop clean storage projection
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests.test_clean_storage_seed_builds_smart_projection_without_wx
+      - name: Desktop demo seed repeatability
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests.test_demo_seed_is_idempotent_and_reset_is_repeatable
+      - name: Desktop empty storage projection
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests.test_empty_clean_storage_projects_welcome_view
+      - name: Desktop optional dependency error
+        run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopReleaseReadinessSliceTests.test_desktop_launcher_reports_missing_optional_dependency_clearly
       - name: Desktop projection behavior
         run: python -B -m unittest tests.test_local_desktop_dashboard_slice.DesktopProjectionBehaviorTests
       - name: Desktop offer-first behavior
