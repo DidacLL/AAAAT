@@ -29,7 +29,6 @@ class SmartViewMixin(OverviewBoardMixin):
     def _init_smart_view_helpers(self) -> None:
         self.center_cards = CenterCardBuilder(self)
         self.keyword_linker = KeywordHtmlLinker(known_terms=self._known_terms, select_keyword=lambda term: self._select_keyword(term, refresh_center=False))
-        self._reset_center_scroll_after_refresh = False
 
     def _bind_shell_events(self) -> None:
         self.Bind(wx.EVT_CLOSE, self._on_close)
@@ -108,7 +107,6 @@ class SmartViewMixin(OverviewBoardMixin):
                 self.overview_scroll.FitInside()
             else:
                 self.focus_panel.Layout()
-                self._fit_center_scroll()
         elif self.current_view == "detailed":
             self.detailed_panel.Layout()
         elif self.current_view == "user":
@@ -213,7 +211,7 @@ class SmartViewMixin(OverviewBoardMixin):
         detail = self._selected_detail()
         if not detail:
             self.center_sizer.Add(self._empty_message(self.center_scroll, "Select a candidature."), 0, wx.ALL | wx.EXPAND, 12)
-            self._fit_center_scroll()
+            self.center_scroll.Layout()
             self.smart_right_panel.render(self.projection, can_edit=False, view_name="smart")
             bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
             return
@@ -225,21 +223,10 @@ class SmartViewMixin(OverviewBoardMixin):
         self._add_notes_band()
         self._refresh_right_context(detail)
 
-        self._fit_center_scroll()
-        self.center_notes_panel.Layout()
-        bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
-
-    def _fit_center_scroll(self) -> None:
-        self.center_scroll.SetScrollRate(0, 12)
         self.center_scroll.Layout()
         self.center_scroll.FitInside()
-        client_width = max(1, int(self.center_scroll.GetClientSize().GetWidth() or 1))
-        virtual_size = self.center_scroll.GetVirtualSize()
-        virtual_height = max(1, int(virtual_size.GetHeight() if hasattr(virtual_size, "GetHeight") else virtual_size[1]))
-        self.center_scroll.SetVirtualSize((client_width, virtual_height))
-        if getattr(self, "_reset_center_scroll_after_refresh", False):
-            self.center_scroll.Scroll(0, 0)
-            self._reset_center_scroll_after_refresh = False
+        self.center_notes_panel.Layout()
+        bind_parent_wheel_scroll(self.center_scroll, self.center_scroll)
 
     def _add_notes_band(self) -> None:
         primary_note = self.projection["smart"].get("primary_note") or {}
@@ -258,8 +245,8 @@ class SmartViewMixin(OverviewBoardMixin):
     def _refresh_right_context(self, _detail: dict[str, Any]) -> None:
         self.smart_right_panel.render(self.projection, can_edit=False, view_name="smart")
 
-    def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int, scrollable: bool = False) -> wx.html.HtmlWindow:
-        return self.keyword_linker.make_window(parent, text, min_height=min_height, scrollable=scrollable)
+    def _html_text_window(self, parent: wx.Window, text: str, *, min_height: int) -> wx.html.HtmlWindow:
+        return self.keyword_linker.make_window(parent, text, min_height=min_height)
 
     def _known_terms(self) -> list[str]:
         terms: set[str] = set()
@@ -339,9 +326,6 @@ class SmartViewMixin(OverviewBoardMixin):
 
     def _select_ref(self, ref: str) -> None:
         self.expanded_overview_ref = None
-        if str(ref) != str(self.selected_ref or ""):
-            self.center_card_state.collapse_all()
-            self._reset_center_scroll_after_refresh = True
         self.selected_ref = ref
         self.layout_state.selected_candidature_ref = ref
         self._show_focus()
@@ -434,3 +418,74 @@ class SmartViewMixin(OverviewBoardMixin):
         if not can_write(self.mode) or not term.strip():
             return
         self.command_service.save_keyword_definition(term, definition)
+        self.selected_keyword = term.strip()
+        self.layout_state.selected_keyword = self.selected_keyword
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        if self.current_view == "detailed":
+            self._refresh_detailed_view()
+        else:
+            self._refresh_right_context(self._selected_detail() or {})
+        self.SetStatusText(f"Keyword definition saved: {self.selected_keyword}")
+        self._mark_current_view_rendered()
+
+    def _delete_candidature_from_panel(self, ref: str) -> None:
+        if not can_write(self.mode) or not ref:
+            return
+        label = ref
+        row = self._detailed_selected_row() or self._selected_detail() or {}
+        if row:
+            label = " ".join(part for part in (str(row.get("company") or ""), str(row.get("role") or "")) if part).strip() or ref
+        confirmed = wx.MessageBox(
+            f"Delete candidature '{label}'?\n\nThis removes the local candidature record and its local intake/notes/artifact rows.",
+            "Delete candidature",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+            self,
+        )
+        if confirmed != wx.YES:
+            return
+        if not self.command_service.delete_candidature(ref):
+            return
+        self.selected_ref = None
+        self.layout_state.selected_candidature_ref = None
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        rows = (self.projection.get("detailed") or {}).get("rows") or []
+        if rows:
+            self.selected_ref = str(rows[0].get("ref") or "") or None
+            self.layout_state.selected_candidature_ref = self.selected_ref
+            self._reload_projection()
+        self.SetStatusText("Candidature deleted")
+        self._refresh_all()
+
+    def _on_support_surface(self, _event: wx.Event) -> None:
+        wx.MessageBox("This desktop slice keeps candidature creation in existing flows.", "AAAAT Desktop")
+
+    def _on_reset_layout(self, _event: wx.Event) -> None:
+        current_view = self.current_view
+        self.layout_state = self.layout_state.default()
+        self.layout_state.selected_view = current_view
+        self.center_card_state.reset()
+        self.focus_left_width = DEFAULT_FOCUS_LEFT
+        self.focus_right_width = DEFAULT_FOCUS_RIGHT
+        self._focus_layout_applied = False
+        self._rendered_view_keys.clear()
+        self._refresh_all()
+
+    def _on_close(self, event: wx.CloseEvent) -> None:
+        self.layout_state.selected_view = self.current_view
+        self.layout_state.selected_candidature_ref = self.selected_ref
+        self.layout_state.selected_keyword = self.selected_keyword
+        self.layout_state.search_query = self.search_query
+        if self.focus_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("smart", {})["left"] = self.focus_splitter.GetSashPosition()
+        if self.content_splitter.IsSplit():
+            total = max(1, self.content_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("smart", {})["right"] = max(1, total - self.content_splitter.GetSashPosition())
+        if hasattr(self, "detailed_splitter") and self.detailed_splitter.IsSplit():
+            self.layout_state.pane_layout.setdefault("detailed", {})["left"] = max(1, self.detailed_splitter.GetSashPosition())
+        if hasattr(self, "detailed_body_splitter") and self.detailed_body_splitter.IsSplit():
+            total = max(1, self.detailed_body_splitter.GetClientSize().GetWidth())
+            self.layout_state.pane_layout.setdefault("detailed", {})["right"] = max(1, total - self.detailed_body_splitter.GetSashPosition())
+        self.layout_state.save(self.layout_path)
+        event.Skip()
