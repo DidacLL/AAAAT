@@ -57,11 +57,33 @@ class CenterCardBuilder:
             return
 
         panel = wx.Panel(self.owner.center_scroll)
-        sizer = wx.WrapSizer(wx.HORIZONTAL)
+        sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
 
-        for card in cards:
-            sizer.Add(self._call_card(panel, **card), 0, wx.ALL, 5)
+        primary = [card for card in cards if card["importance"] in {"high", "medium"}]
+        support = [card for card in cards if card["importance"] == "support"]
+
+        if primary:
+            top = wx.BoxSizer(wx.HORIZONTAL)
+            if primary:
+                top.Add(self._call_card(panel, **primary[0]), 3, wx.RIGHT | wx.EXPAND, 10)
+            side = wx.BoxSizer(wx.VERTICAL)
+            for card in primary[1:]:
+                side.Add(self._call_card(panel, **card), 0, wx.BOTTOM | wx.EXPAND, 8)
+            if side.GetItemCount():
+                top.Add(side, 2, wx.EXPAND)
+            sizer.Add(top, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
+
+        if support:
+            support_row = wx.BoxSizer(wx.HORIZONTAL)
+            left_col = wx.BoxSizer(wx.VERTICAL)
+            right_col = wx.BoxSizer(wx.VERTICAL)
+            for index, card in enumerate(support):
+                target_col = left_col if index % 2 == 0 else right_col
+                target_col.Add(self._call_card(panel, **card), 0, wx.BOTTOM | wx.EXPAND, 8)
+            support_row.Add(left_col, 1, wx.RIGHT | wx.EXPAND, 9)
+            support_row.Add(right_col, 1, wx.LEFT | wx.EXPAND, 9)
+            sizer.Add(support_row, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
 
         self.owner.center_sizer.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
@@ -73,79 +95,79 @@ class CenterCardBuilder:
                 "title": "Posting",
                 "text": self._source_text(detail),
                 "importance": "high",
-                "line_chars": 76,
-                "preview_lines": 5,
-                "expanded_height": 280,
+                "line_chars": 78,
+                "preview_lines": 7,
+                "expanded_height": 320,
             },
             {
                 "card_id": f"{scope}:pitch",
                 "title": "Pitch",
                 "text": self._first_text(detail, "pitch", "role_strategy"),
                 "importance": "high",
-                "line_chars": 58,
+                "line_chars": 56,
                 "preview_lines": 4,
-                "expanded_height": 180,
+                "expanded_height": 220,
             },
             {
                 "card_id": f"{scope}:snapshot",
                 "title": "Snapshot",
                 "text": self._first_text(detail, "offer_snapshot", "description"),
                 "importance": "medium",
-                "line_chars": 58,
+                "line_chars": 56,
                 "preview_lines": 4,
-                "expanded_height": 180,
+                "expanded_height": 220,
             },
             {
                 "card_id": f"{scope}:ask",
                 "title": "Ask",
                 "text": detail.get("smart_question"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
-                "expanded_height": 150,
+                "expanded_height": 170,
             },
             {
                 "card_id": f"{scope}:recognize",
                 "title": "Recognize",
                 "text": self._first_text(detail, "call_signals", "source_excerpt"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
-                "expanded_height": 150,
+                "expanded_height": 170,
             },
             {
                 "card_id": f"{scope}:avoid",
                 "title": "Avoid",
                 "text": detail.get("risks_to_avoid") or detail.get("risk_to_avoid"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
-                "expanded_height": 150,
+                "expanded_height": 170,
             },
             {
                 "card_id": f"{scope}:fit",
                 "title": "Fit",
                 "text": detail.get("candidature_evaluation"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
-                "expanded_height": 170,
+                "expanded_height": 180,
             },
             {
                 "card_id": f"{scope}:strategy",
                 "title": "Strategy",
                 "text": detail.get("role_strategy"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
-                "expanded_height": 170,
+                "expanded_height": 180,
             },
             {
                 "card_id": f"{scope}:company",
                 "title": "Company",
                 "text": detail.get("company_research"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
                 "expanded_height": 190,
             },
@@ -154,36 +176,36 @@ class CenterCardBuilder:
                 "title": "Evidence",
                 "text": detail.get("strengths"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
-                "expanded_height": 150,
+                "expanded_height": 170,
             },
             {
                 "card_id": f"{scope}:questions",
                 "title": "Questions",
                 "text": detail.get("questions_to_ask"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
-                "expanded_height": 150,
+                "expanded_height": 170,
             },
             {
                 "card_id": f"{scope}:stack",
                 "title": "Stack",
                 "text": detail.get("tech_stack"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
-                "expanded_height": 140,
+                "expanded_height": 160,
             },
             {
                 "card_id": f"{scope}:recruiter",
                 "title": "Recruiter",
                 "text": detail.get("recruiter_material"),
                 "importance": "support",
-                "line_chars": 44,
+                "line_chars": 45,
                 "preview_lines": 3,
-                "expanded_height": 170,
+                "expanded_height": 180,
             },
         ]
         return [spec for spec in specs if str(spec.get("text") or "").strip()]
@@ -202,11 +224,13 @@ class CenterCardBuilder:
     ) -> wx.Panel:
         value = str(text or "").strip()
         expanded = self.is_expanded(card_id, False)
-        lines = self._wrapped_lines(value, line_chars=line_chars)
-        has_more = len(lines) > preview_lines
+        full_lines = self._wrapped_lines(value, line_chars=line_chars)
+        has_more = len(full_lines) > preview_lines
+        visible_lines = full_lines if expanded or not has_more else full_lines[:preview_lines]
+        if has_more and not expanded:
+            visible_lines[-1] = visible_lines[-1].rstrip(" …") + "…"
 
         panel = wx.Panel(parent, style=wx.BORDER_SIMPLE if has_more or expanded else 0)
-        panel.SetMinSize((self._card_min_width(importance), -1))
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
 
@@ -227,14 +251,12 @@ class CenterCardBuilder:
         header_sizer.AddStretchSpacer(1)
         sizer.Add(header, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 5)
 
-        if expanded:
-            content = self.owner._html_text_window(panel, value or "—", min_height=expanded_height, scrollable=True)
-            content.SetMinSize((1, expanded_height))
+        if expanded and has_more:
+            body_height = self._expanded_body_height(len(full_lines), expanded_height, importance)
+            content = self.owner._html_text_window(panel, value or "—", min_height=body_height, scrollable=True)
+            content.SetMinSize((1, body_height))
             sizer.Add(content, 0, wx.ALL | wx.EXPAND, 5)
         else:
-            visible_lines = lines if not has_more else lines[:preview_lines]
-            if has_more:
-                visible_lines[-1] = visible_lines[-1].rstrip(" …") + "…"
             body = wx.StaticText(panel, label="\n".join(visible_lines) or "—")
             body_font = body.GetFont()
             if importance == "high":
@@ -318,16 +340,10 @@ class CenterCardBuilder:
             return ["—"]
         return textwrap.wrap(text, width=line_chars, break_long_words=False, break_on_hyphens=False) or [text]
 
-    def _card_min_width(self, importance: str) -> int:
-        available = int(self.owner.center_scroll.GetClientSize().GetWidth() or 760)
-        usable = max(240, available - 32)
-        if importance == "high":
-            desired = 520
-        elif importance == "medium":
-            desired = 420
-        else:
-            desired = 270
-        return max(220, min(desired, usable))
+    def _expanded_body_height(self, line_count: int, cap: int, importance: str) -> int:
+        line_height = 18 if importance == "high" else 16
+        natural = 24 + max(1, line_count) * line_height
+        return max(80, min(cap, natural))
 
     def _card_scope(self, detail: dict[str, Any]) -> str:
         raw = detail.get("ref") or detail.get("id") or getattr(self.owner, "selected_ref", None) or "current"
