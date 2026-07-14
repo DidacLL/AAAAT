@@ -7,7 +7,7 @@ from aaaat.artifacts import get_artifact, list_artifacts, update_artifact_state
 from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
 from aaaat.candidatures import create_candidature, get_candidature, update_candidature
 from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, init_db, set_profile_variable, upsert_glossary_term
-from aaaat.tasks import create_task
+from aaaat.tasks import create_task, list_tasks, update_task
 
 from .user_fields import WRITABLE_USER_STORAGE_KEYS
 
@@ -15,16 +15,18 @@ SUPPORTED_DETAIL_EDIT_FIELDS = set(WRITABLE_CANDIDATURE_STORAGE_KEYS)
 SUPPORTED_PROFILE_VARIABLE_FIELDS = set(WRITABLE_USER_STORAGE_KEYS)
 
 _ACTION_TASKS = {
-    "infer_fields": ("field_inference", "Infer candidature fields", "Infer every supported candidature field that can be grounded in the retained raw offer, current candidature data and bounded user profile. Preserve non-empty user edits unless the task result explicitly justifies a replacement.", "candidature:field_inference", "high"),
-    "regenerate_strategy": ("career_plan_review", "Draft role strategy", "Produce or refresh the role-specific strategy using current candidature, profile and career context.", "candidature:role_strategy", "high"),
-    "update_company_research": ("company_research", "Research company", "Refresh company research and recruiter-call context.", "candidature:company_research", "normal"),
-    "regenerate_keywords": ("field_inference", "Extract candidature keywords", "Extract meaningful technical, product, domain and recruiting keywords from the retained raw offer and current candidature data. Preserve manually-added keywords.", "candidature:keywords", "normal"),
-    "prepare_form_answers": ("draft_form_responses", "Draft form answers", "Generate application-form answers from the stored form, profile and current strategy.", "blob:form_responses", "normal"),
-    "generate_cv": ("draft_cv", "Draft CV material", "Generate CV material using the current evaluation, strategy, candidature data and profile.", "artifact:cv", "normal"),
-    "generate_cover_letter": ("draft_cover_letter", "Draft cover letter", "Generate cover-letter material using the current evaluation, strategy, candidature data and profile.", "artifact:cover_letter", "normal"),
-    "prepare_recruiter_call": ("recruiter_call_material", "Prepare recruiter-call material", "Generate concise recruiter-call or interview material for this candidature.", "call:recruiter", "normal"),
+    "infer_fields": ("field_inference", "Review offer details", "Infer every supported candidature field that can be grounded in the retained raw offer, current candidature data and bounded user profile. Preserve non-empty user edits unless the task result explicitly justifies a replacement.", "candidature:field_inference", "high"),
+    "regenerate_strategy": ("career_plan_review", "Prepare application approach", "Produce or refresh the role-specific strategy using current candidature, profile and career context.", "candidature:role_strategy", "high"),
+    "update_company_research": ("company_research", "Update company context", "Refresh company research and recruiter-call context.", "candidature:company_research", "normal"),
+    "regenerate_keywords": ("field_inference", "Review relevant terms", "Extract meaningful technical, product, domain and recruiting keywords from the retained raw offer and current candidature data. Preserve manually-added keywords.", "candidature:keywords", "normal"),
+    "prepare_form_answers": ("draft_form_responses", "Prepare form answers", "Generate application-form answers from the stored form, profile and current strategy.", "blob:form_responses", "normal"),
+    "generate_cv": ("draft_cv", "Prepare tailored CV", "Generate CV material using the current evaluation, strategy, candidature data and profile.", "artifact:cv", "normal"),
+    "generate_cover_letter": ("draft_cover_letter", "Prepare cover letter", "Generate cover-letter material using the current evaluation, strategy, candidature data and profile.", "artifact:cover_letter", "normal"),
+    "prepare_recruiter_call": ("recruiter_call_material", "Prepare conversation notes", "Generate concise recruiter-call or interview material for this candidature.", "call:recruiter", "normal"),
 }
 _DOCUMENT_ACTIONS = {"generate_cv", "generate_cover_letter"}
+_DOCUMENT_TASK_TYPES = {"draft_cv", "draft_cover_letter"}
+_WAITING_FOR_INPUTS_NOTE = "Waiting for the fit review and application approach to be ready."
 
 
 class DesktopCommandService:
@@ -74,9 +76,16 @@ class DesktopCommandService:
         with connect(self.storage_path) as conn:
             if source_text is not None:
                 add_raw_intake(conn, candidature_ref, str(source_text), "user")
-            if safe_changes:
-                return update_candidature(conn, candidature_ref, **safe_changes)
-            return update_candidature(conn, candidature_ref)
+            updated = update_candidature(conn, candidature_ref, **safe_changes) if safe_changes else update_candidature(conn, candidature_ref)
+            self._release_deferred_document_requests(conn, candidature_ref, updated)
+            return get_candidature(conn, candidature_ref)
+
+    def _release_deferred_document_requests(self, conn: Any, candidature_ref: str, candidature: dict[str, Any]) -> None:
+        if not _document_inputs_ready(candidature):
+            return
+        for item in list_tasks(conn, application_id=candidature_ref):
+            if item.get("task_type") in _DOCUMENT_TASK_TYPES and item.get("state") == "blocked":
+                update_task(conn, str(item["id"]), state="queued", notes="Ready to begin when an integration is available.")
 
     def add_keyword(self, candidature_ref: str, term: str, definition: str = "") -> dict[str, Any] | None:
         cleaned = str(term or "").strip()
@@ -108,8 +117,7 @@ class DesktopCommandService:
             return None
         task_type, title, instructions, context_hint, priority = spec
         blocked = force_blocked or (action_id in _DOCUMENT_ACTIONS and not _document_inputs_ready(get_candidature(conn, candidature_ref)))
-        notes = "Waiting for current candidature evaluation and role strategy." if blocked else ""
-        return create_task(conn, task_type, title, application_id=candidature_ref, instructions=instructions, state="blocked" if blocked else "queued", priority=priority, context_hint=context_hint, created_by="desktop", notes=notes, idempotent=False)
+        return create_task(conn, task_type, title, application_id=candidature_ref, instructions=instructions, state="blocked" if blocked else "queued", priority=priority, context_hint=context_hint, created_by="desktop", notes=_WAITING_FOR_INPUTS_NOTE if blocked else "", idempotent=False)
 
     def list_candidature_artifacts(self, candidature_ref: str) -> list[dict[str, Any]]:
         if not candidature_ref:
