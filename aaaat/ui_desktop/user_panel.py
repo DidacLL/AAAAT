@@ -4,6 +4,7 @@ from typing import Any, Callable
 
 import wx  # type: ignore[import-not-found]
 
+from .profile_links import serialize_profile_links
 from .scrolling import bind_parent_wheel_scroll
 from .user_fields import grouped_user_fields
 
@@ -48,7 +49,12 @@ class UserPanel(wx.ScrolledWindow):
         heading.SetFont(heading.GetFont().Bold().Larger())
         self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
         for field in group.get("fields") or []:
-            self.sizer.Add(UserFieldEditor(self, field=field, can_edit=can_edit, on_save=self.on_save), 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
+            editor: wx.Window
+            if field.get("kind") == "links":
+                editor = ProfileLinksEditor(self, field=field, can_edit=can_edit, on_save=self.on_save)
+            else:
+                editor = UserFieldEditor(self, field=field, can_edit=can_edit, on_save=self.on_save)
+            self.sizer.Add(editor, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
 
     def _wrap_width(self) -> int:
         return max(260, int(self.GetClientSize().GetWidth() or 760) - 32)
@@ -84,6 +90,11 @@ class UserFieldEditor(wx.Panel):
         header.Add(label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         header.Add(self.status, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         root.Add(header, 0, wx.EXPAND)
+        help_text = str(field.get("help_text") or "").strip()
+        if help_text:
+            helper = wx.StaticText(self, label=help_text)
+            helper.Wrap(680)
+            root.Add(helper, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
         style = wx.TE_MULTILINE if bool(field.get("multiline")) else 0
         self.editor = wx.TextCtrl(self, value=self.original, style=style)
         self.editor.Enable(bool(can_edit and self.storage_key))
@@ -113,4 +124,100 @@ class UserFieldEditor(wx.Panel):
 
     def _revert(self, _event: wx.CommandEvent) -> None:
         self.editor.SetValue(self.original)
+        self.status.SetLabel("Reverted")
+
+
+class ProfileLinksEditor(wx.Panel):
+    def __init__(self, parent: wx.Window, *, field: dict[str, Any], can_edit: bool, on_save: EditableUserSaveCallback) -> None:
+        super().__init__(parent, style=wx.BORDER_SIMPLE)
+        self.storage_key = str(field.get("storage_key") or "profile.links")
+        self.on_save = on_save
+        self.can_edit = bool(can_edit and self.storage_key)
+        self.rows: list[tuple[wx.TextCtrl, wx.TextCtrl, wx.TextCtrl, wx.Panel]] = []
+        self.original = serialize_profile_links(list(field.get("value") or []))
+        self.root = wx.BoxSizer(wx.VERTICAL)
+        self.SetSizer(self.root)
+        header = wx.BoxSizer(wx.HORIZONTAL)
+        title = wx.StaticText(self, label=str(field.get("label") or "Other links"))
+        title.SetFont(title.GetFont().Bold())
+        self.status = wx.StaticText(self, label="")
+        add = wx.Button(self, label="Add link")
+        add.Enable(self.can_edit)
+        add.Bind(wx.EVT_BUTTON, lambda _event: self._add_row())
+        header.Add(title, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
+        header.Add(self.status, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
+        header.Add(add, 0, wx.ALL, 4)
+        self.root.Add(header, 0, wx.EXPAND)
+        helper = wx.StaticText(self, label=str(field.get("help_text") or "Name each link and explain why it is relevant."))
+        helper.Wrap(680)
+        self.root.Add(helper, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
+        self.rows_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.root.Add(self.rows_sizer, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 8)
+        for item in list(field.get("value") or []):
+            self._add_row(item)
+        actions = wx.BoxSizer(wx.HORIZONTAL)
+        revert = wx.Button(self, label="Revert")
+        save = wx.Button(self, label="Save links")
+        revert.Enable(self.can_edit)
+        save.Enable(self.can_edit)
+        revert.Bind(wx.EVT_BUTTON, self._revert)
+        save.Bind(wx.EVT_BUTTON, self._save)
+        actions.AddStretchSpacer(1)
+        actions.Add(revert, 0, wx.RIGHT, 6)
+        actions.Add(save, 0)
+        self.root.Add(actions, 0, wx.ALL | wx.EXPAND, 8)
+
+    def _add_row(self, item: dict[str, Any] | None = None) -> None:
+        item = item or {}
+        panel = wx.Panel(self)
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        panel.SetSizer(row)
+        name = wx.TextCtrl(panel, value=str(item.get("name") or ""))
+        description = wx.TextCtrl(panel, value=str(item.get("description") or ""))
+        url = wx.TextCtrl(panel, value=str(item.get("url") or ""))
+        name.SetHint("Name")
+        description.SetHint("What this link represents")
+        url.SetHint("https://…")
+        remove = wx.Button(panel, label="Remove")
+        for control in (name, description, url, remove):
+            control.Enable(self.can_edit)
+        remove.Bind(wx.EVT_BUTTON, lambda _event, target=panel: self._remove_row(target))
+        row.Add(name, 1, wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+        row.Add(description, 2, wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+        row.Add(url, 2, wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+        row.Add(remove, 0, wx.BOTTOM)
+        self.rows.append((name, description, url, panel))
+        self.rows_sizer.Add(panel, 0, wx.EXPAND)
+        self.Layout()
+        self.GetParent().Layout()
+
+    def _remove_row(self, panel: wx.Panel) -> None:
+        self.rows = [row for row in self.rows if row[3] is not panel]
+        self.rows_sizer.Detach(panel)
+        panel.Destroy()
+        self.Layout()
+
+    def _current(self) -> str:
+        return serialize_profile_links([
+            {"name": name.GetValue(), "description": description.GetValue(), "url": url.GetValue()}
+            for name, description, url, _panel in self.rows
+        ])
+
+    def _save(self, _event: wx.CommandEvent) -> None:
+        current = self._current()
+        if current == self.original:
+            self.status.SetLabel("No changes")
+            return
+        self.original = current
+        self.status.SetLabel("Saving…")
+        self.on_save({self.storage_key: current})
+
+    def _revert(self, _event: wx.CommandEvent) -> None:
+        from .profile_links import parse_profile_links
+        for _name, _description, _url, panel in self.rows:
+            panel.Destroy()
+        self.rows = []
+        self.rows_sizer.Clear()
+        for item in parse_profile_links(self.original):
+            self._add_row(item)
         self.status.SetLabel("Reverted")
