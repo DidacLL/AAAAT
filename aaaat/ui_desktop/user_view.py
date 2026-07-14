@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import wx  # type: ignore[import-not-found]
@@ -11,8 +12,10 @@ from aaaat.assistance_service import (
     use_recommended_local_integration,
 )
 from aaaat.background_worker import OwnedTaskWorker
+from aaaat.portable_task_bundle import export_candidature_task_bundle, import_candidature_result_bundle
 
 from .assistance_panel import AssistancePanel
+from .portable_bundle_panel import PortableBundlePanel
 from .profile_facts_panel import ProfileFactsPanel
 from .user_panel import UserPanel
 
@@ -50,6 +53,13 @@ class UserViewMixin:
             on_cancel_task=self._cancel_assistance_task,
         )
         self.user_workspace.AddPage(self.assistance_panel, "Assistance")
+
+        self.portable_bundle_panel = PortableBundlePanel(
+            self.user_workspace,
+            on_export=self._export_portable_bundle,
+            on_import=self._import_portable_bundle,
+        )
+        self.user_workspace.AddPage(self.portable_bundle_panel, "Browser bundle")
 
         sizer.Add(self.user_workspace, 1, wx.ALL | wx.EXPAND, 0)
         self.view_book.AddPage(self.user_panel, "User")
@@ -187,6 +197,45 @@ class UserViewMixin:
             self._refresh_all()
         elif self.current_view == "user":
             self._refresh_user_view()
+
+    def _export_portable_bundle(self) -> dict[str, Any] | None:
+        candidature_ref = str(self.selected_ref or "")
+        if not candidature_ref:
+            wx.MessageBox("Select a candidature in Smart or Detailed view first.", "No candidature selected", wx.OK | wx.ICON_INFORMATION, self)
+            return None
+        default_name = f"aaaat-candidature-tasks-{candidature_ref[-8:]}.aaaat-task.zip"
+        with wx.FileDialog(
+            self,
+            "Export bounded candidature tasks",
+            wildcard="AAAAT task bundle (*.aaaat-task.zip)|*.aaaat-task.zip|ZIP archive (*.zip)|*.zip",
+            defaultFile=default_name,
+            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+        ) as dialog:
+            if dialog.ShowModal() != wx.ID_OK:
+                return None
+            target = Path(dialog.GetPath())
+        result = export_candidature_task_bundle(self.storage_path, candidature_ref, target)
+        self.SetStatusText(f"Exported {result['task_count']} bounded task(s)")
+        return result
+
+    def _import_portable_bundle(self) -> dict[str, Any] | None:
+        with wx.FileDialog(
+            self,
+            "Import AAAAT result bundle",
+            wildcard="AAAAT result bundle (*.aaaat-result.zip)|*.aaaat-result.zip|ZIP archive (*.zip)|*.zip",
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        ) as dialog:
+            if dialog.ShowModal() != wx.ID_OK:
+                return None
+            source = Path(dialog.GetPath())
+        result = import_candidature_result_bundle(self.storage_path, source)
+        self._rendered_view_keys.clear()
+        self._reload_projection()
+        self._refresh_all()
+        self.SetStatusText(
+            f"Imported bundle: {len(result.get('accepted') or [])} accepted, {len(result.get('rejected') or [])} rejected"
+        )
+        return result
 
     def _stop_task_worker_on_close(self, event: wx.CloseEvent) -> None:
         if self._task_worker is not None:
