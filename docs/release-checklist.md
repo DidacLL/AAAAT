@@ -13,7 +13,13 @@ aaaat-upgrade --help
 aaaat-seed-desktop-demo --help
 ```
 
-Expected result: the wheel builds, installs without editable-checkout behavior, reports version `1.0.0`, and all shipped commands resolve.
+Expected result: the wheel builds, installs without editable-checkout behavior, reports version `1.0.0`, and all shipped commands resolve outside the repository checkout.
+
+## Supported Python versions
+
+The complete behavioral suite and installed-command smoke checks must pass on Python 3.11, 3.12, and 3.13. These are the versions declared by the v1 package metadata.
+
+Expected result: no supported interpreter requires provider credentials, browser/server components, or additional runtime dependencies beyond the selected desktop extra.
 
 ## Candidate identity and provenance
 
@@ -21,6 +27,7 @@ The validated CI run must retain an `aaaat-v1-candidate` artifact containing:
 
 ```text
 aaaat-1.0.0-py3-none-any.whl
+aaaat-1.0.0.tar.gz
 SHA256SUMS
 ```
 
@@ -30,7 +37,7 @@ Verify the downloaded candidate before installation:
 sha256sum --check SHA256SUMS
 ```
 
-Expected result: the checksum passes, distribution metadata identifies GPL-3.0-or-later and the project repository, and the candidate is the artifact produced by the green run for the exact release commit.
+Expected result: both checksums pass, wheel and source distribution install outside the repository checkout, distribution metadata identifies GPL-3.0-or-later and the project repository, and the candidate is the artifact produced by the green run for the exact release commit.
 
 ## New storage and desktop launch
 
