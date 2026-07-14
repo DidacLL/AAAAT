@@ -4,8 +4,6 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
-from aaaat.security import can_write
-
 from .candidature_right_panel import CandidatureDetailBodyPanel, CandidatureOptionsPanel
 from .detail_columns import available_column_ids, column_title, normalize_visible_columns
 from .detail_table import DetailTable
@@ -87,8 +85,8 @@ class DetailedViewMixin:
                 self.detailed_search.SetValue(self.search_query)
             visible_columns = self._visible_detailed_columns(detailed)
             self.detail_table.render(detailed, selected_ref=self.selected_ref, visible_columns=visible_columns)
-            self.detail_body_panel.render(self.projection, can_edit=can_write(self.mode))
-            self.detail_options_panel.render(self.projection, can_edit=can_write(self.mode), view_name="detailed")
+            self.detail_body_panel.render(self.projection, can_edit=True)
+            self.detail_options_panel.render(self.projection, can_edit=True, view_name="detailed")
             self.detailed_panel.Layout()
         finally:
             self.detailed_panel.Thaw()
@@ -135,7 +133,7 @@ class DetailedViewMixin:
         self.selected_keyword = term
         self.layout_state.selected_keyword = term
         self._reload_projection()
-        self.detail_options_panel.render(self.projection, can_edit=can_write(self.mode), view_name="detailed")
+        self.detail_options_panel.render(self.projection, can_edit=True, view_name="detailed")
         self.SetStatusText(f"Keyword: {term}")
         self._mark_current_view_rendered()
 
