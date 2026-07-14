@@ -49,30 +49,19 @@ Future tests should assert:
 
 ### CLI
 
-- `aaaat agent tasks` works.
-- `aaaat agent context <id>` works.
-- `aaaat agent packet <id>` works.
-- `aaaat agent dispatch <id> --backend manual` works.
-- `aaaat agent dispatch <id> --backend command --cmd ...` works.
-- `aaaat agent submit <id> --result-body ...` works.
-- `aaaat agent submit <id> --result-file ...` works.
+- `aaaat agent next` works.
+- `aaaat agent context <task_handle>` works.
+- `aaaat agent packet <task_handle>` works.
+- `aaaat agent submit <task_handle> --result-body ...` works.
+- `aaaat agent submit <task_handle> --result-file ...` works.
 - Future `aaaat agent context-bundle --purpose ...` returns purpose-scoped context.
 - Future `aaaat agent action submit ...` accepts bounded actions only.
 
-### HTTP agent surface
-
-- `surface='agent'` exposes `/api/agent/tasks`.
-- `surface='agent'` exposes `/api/agent/tasks/{id}/context`.
-- `surface='agent'` exposes `/api/agent/tasks/{id}/result`.
-- Future `surface='agent'` may expose action-session routes under `/api/agent/*`.
-- `surface='agent'` does not expose dashboard/private CRUD/search/profile/render routes listed in Annex B.
-
 ### Regression
 
-- existing dashboard tests still pass;
-- read-only dashboard still blocks writes;
-- static demo remains fake-only and no-write;
-- render/template/privacy tests still pass;
+- wx desktop launch remains usable.
+- local editable candidature flows remain usable.
+- render/template/privacy tests still pass.
 - MCP descriptor validation still passes.
 
 ## Commands to run
@@ -80,12 +69,9 @@ Future tests should assert:
 ```bash
 python -B -m unittest tests.test_agent_access
 python -B -m unittest tests.test_cli_mcp
-python -B -m unittest tests.test_fastapi_server
 python -B -m unittest tests.test_domain_services
 python -B -m unittest tests.test_profile_facts
 python -B -m unittest tests.test_templates
-python -B -m unittest tests.test_dashboard_views
-python -B -m unittest tests.test_static_export
 python -B -m aaaat.cli mcp-validate
 python -B -m unittest discover -s tests
 ```
@@ -93,12 +79,11 @@ python -B -m unittest discover -s tests
 ## Acceptance criteria
 
 - A single `aaaat.agent_access` service layer owns task data shaping.
-- Capability-scoped agent commands and HTTP routes use narrow service-layer functions.
+- Capability-scoped agent commands use narrow service-layer functions.
 - Agent task list is envelope-only.
 - Agent task context is minimal and task-specific.
 - Agent result submission is provenance-preserving and non-destructive.
 - Future action-session capabilities are allowed only as schema-bound non-CRUD operations.
 - Future action-session capabilities use purpose-scoped context before bounded actions.
-- Agent-only HTTP surface does not mount broad private routes.
-- Current dashboard remains usable.
+- The current wx desktop remains usable.
 - No heavy dependency or provider-specific assumption is introduced.
