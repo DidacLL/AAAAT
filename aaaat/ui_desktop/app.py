@@ -41,7 +41,6 @@ def launch_desktop_dashboard(storage: str | Path = ".private") -> int:
     from .main_window import DesktopDashboardFrame
     from .services import DesktopCommandService
 
-    upgrade_storage(storage)
     layout_path = layout_state_path(storage)
     layout = DashboardLayoutState.load(layout_path)
     projection = build_desktop_projection(storage, layout)
