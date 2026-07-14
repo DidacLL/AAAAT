@@ -53,7 +53,6 @@ class AgentActionTests(unittest.TestCase):
                         "source_material": {
                             "offer_text": "Full raw offer with Python and APIs.",
                             "offer_url": "https://example.invalid/jobs/1",
-                            "offer_source": "job board",
                             "application_form_text": "Raw form asks salary and availability.",
                             "user_instructions": "Keep the letter concise.",
                             "conversation_context": "The user prefers backend automation roles.",
@@ -106,7 +105,6 @@ class AgentActionTests(unittest.TestCase):
         self.assertNotIn("internal", ack)
         self.assertEqual(loaded["company"], "Acme")
         self.assertEqual(loaded["role"], "Backend Engineer")
-        self.assertEqual(loaded["source"], "job board")
         self.assertEqual(loaded["source_url"], "https://example.invalid/jobs/1")
         self.assertEqual(loaded["keywords"], ["APIs", "Python"])
         self.assertEqual(loaded["company_research"], "Acme builds developer tools.")
