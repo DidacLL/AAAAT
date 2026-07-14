@@ -35,10 +35,8 @@ class UserPanel(wx.ScrolledWindow):
             self._wrap_targets.append(body)
             self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
             self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 12)
-
             for group in grouped_user_fields(projection):
                 self._add_group(group, can_edit=can_edit)
-
             self.Layout()
             self.FitInside()
             bind_parent_wheel_scroll(self, self)
@@ -50,17 +48,7 @@ class UserPanel(wx.ScrolledWindow):
         heading.SetFont(heading.GetFont().Bold().Larger())
         self.sizer.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
         for field in group.get("fields") or []:
-            self.sizer.Add(
-                UserFieldEditor(
-                    self,
-                    field=field,
-                    can_edit=can_edit,
-                    on_save=self.on_save,
-                ),
-                0,
-                wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND,
-                12,
-            )
+            self.sizer.Add(UserFieldEditor(self, field=field, can_edit=can_edit, on_save=self.on_save), 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
 
     def _wrap_width(self) -> int:
         return max(260, int(self.GetClientSize().GetWidth() or 760) - 32)
@@ -84,13 +72,11 @@ class UserPanel(wx.ScrolledWindow):
 class UserFieldEditor(wx.Panel):
     def __init__(self, parent: wx.Window, *, field: dict[str, Any], can_edit: bool, on_save: EditableUserSaveCallback) -> None:
         super().__init__(parent, style=wx.BORDER_SIMPLE)
-        self.field = field
         self.storage_key = str(field.get("storage_key") or "")
         self.original = str(field.get("value") or "")
         self.on_save = on_save
         root = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(root)
-
         header = wx.BoxSizer(wx.HORIZONTAL)
         label = wx.StaticText(self, label=str(field.get("label") or field.get("key") or "Field"))
         label.SetFont(label.GetFont().Bold())
@@ -98,14 +84,12 @@ class UserFieldEditor(wx.Panel):
         header.Add(label, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         header.Add(self.status, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         root.Add(header, 0, wx.EXPAND)
-
         style = wx.TE_MULTILINE if bool(field.get("multiline")) else 0
         self.editor = wx.TextCtrl(self, value=self.original, style=style)
         self.editor.Enable(bool(can_edit and self.storage_key))
         if style & wx.TE_MULTILINE:
             self.editor.SetMinSize((-1, 96))
         root.Add(self.editor, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
-
         actions = wx.BoxSizer(wx.HORIZONTAL)
         save = wx.Button(self, label="Save")
         revert = wx.Button(self, label="Revert")
@@ -123,9 +107,9 @@ class UserFieldEditor(wx.Panel):
         if value == self.original or not self.storage_key:
             self.status.SetLabel("No changes")
             return
-        self.on_save({self.storage_key: value})
+        self.status.SetLabel("Saving…")
         self.original = value
-        self.status.SetLabel("Saved")
+        self.on_save({self.storage_key: value})
 
     def _revert(self, _event: wx.CommandEvent) -> None:
         self.editor.SetValue(self.original)
