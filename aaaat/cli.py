@@ -6,15 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .agent_access import build_agent_task_context, next_agent_task_envelope, submit_agent_task_result, task_result_ack
-from .agent_actions import get_agent_context_bundle, submit_agent_action
+from .agent_access import next_agent_work_item, submit_agent_task_result, task_result_ack
+from .agent_actions import submit_agent_action
 from .agent_guides import agent_guide
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
 from .career_plans import archive_career_plan, career_plan_context, create_career_plan, get_career_plan, list_career_plans, update_career_plan
 from .db import add_raw_intake, connect, create_application, create_raw_offer_intake, get_application, init_db, list_applications, required_profile_variables, set_profile_variable, update_application, upsert_glossary_term
-from .dispatch.command import dispatch_command
-from .dispatch.manual import dispatch_manual
-from .dispatch.packet import build_task_packet
 from .keywords import add_keyword_alias, create_keyword_note
 from .local_data import create_local_backup
 from .mcp_server import mcp_descriptor, validate_descriptor
@@ -30,23 +27,10 @@ from .text_blobs import create_text_blob, list_text_blobs
 from .todos import create_todo, list_todos, update_todo
 from .workspace_config import load_workspace_config, save_workspace_settings
 
-
 APPLICATION_FIELDS = (
-    "company",
-    "role",
-    "status",
-    "priority",
-    "source-url",
-    "location",
-    "remote-mode",
-    "notes",
-    "call-signals",
-    "pitch",
-    "smart-question",
-    "risks-to-avoid",
-    "offer-snapshot",
-    "company-research",
-    "keywords",
+    "company", "role", "status", "priority", "source-url", "location", "remote-mode",
+    "notes", "call-signals", "pitch", "smart-question", "risks-to-avoid",
+    "offer-snapshot", "company-research", "keywords",
 )
 
 
@@ -57,7 +41,6 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("init")
-
     backup_p = sub.add_parser("backup")
     backup_p.add_argument("--output")
     backup_p.add_argument("--force", action="store_true")
@@ -73,17 +56,9 @@ def build_parser() -> argparse.ArgumentParser:
     adapter_set.add_argument("--automatic-task", action="append", default=[])
 
     agent = sub.add_parser("agent").add_subparsers(dest="agent_command", required=True)
-    agent.add_parser("next")
-    agent_context = agent.add_parser("context")
-    agent_context.add_argument("task_handle")
-    agent_packet = agent.add_parser("packet")
-    agent_packet.add_argument("task_handle")
-    agent_dispatch = agent.add_parser("dispatch")
-    agent_dispatch.add_argument("task_handle")
-    agent_dispatch.add_argument("--backend", required=True, choices=["manual", "command"])
-    agent_dispatch.add_argument("--cmd", default="")
+    agent.add_parser("next", help="Return one complete bounded work item, including its purpose-scoped context and response schema.")
     agent_submit = agent.add_parser("submit")
-    agent_submit.add_argument("task_handle")
+    agent_submit.add_argument("task_capability")
     result_group = agent_submit.add_mutually_exclusive_group(required=True)
     result_group.add_argument("--result-body")
     result_group.add_argument("--result-file")
@@ -91,8 +66,6 @@ def build_parser() -> argparse.ArgumentParser:
     agent_submit.add_argument("--agent-name", default="")
     agent_submit.add_argument("--agent-runtime", default="")
     agent_submit.add_argument("--model-provider", default="")
-    agent_context_bundle = agent.add_parser("context-bundle")
-    agent_context_bundle.add_argument("--purpose", required=True)
     agent_action = agent.add_parser("action").add_subparsers(dest="agent_action_command", required=True)
     agent_action_submit = agent_action.add_parser("submit")
     action_input = agent_action_submit.add_mutually_exclusive_group(required=True)
@@ -288,7 +261,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     search_p = sub.add_parser("search")
     search_p.add_argument("query")
-
     sub.add_parser("agent-guide")
     sub.add_parser("mcp-descriptor")
     sub.add_parser("mcp-validate")
@@ -345,22 +317,11 @@ def main(argv: list[str] | None = None) -> int:
     init_db(args.storage)
     with connect(args.storage) as conn:
         if args.command == "agent" and args.agent_command == "next":
-            _json({"task": next_agent_task_envelope(conn)})
-        elif args.command == "agent" and args.agent_command == "context":
-            _json(build_agent_task_context(conn, args.task_handle))
-        elif args.command == "agent" and args.agent_command == "packet":
-            _json(build_task_packet(conn, args.task_handle))
-        elif args.command == "agent" and args.agent_command == "dispatch":
-            if args.backend == "manual":
-                _json(dispatch_manual(conn, args.storage, args.task_handle))
-            else:
-                _json(dispatch_command(conn, args.task_handle, args.cmd))
+            _json({"work": next_agent_work_item(conn)})
         elif args.command == "agent" and args.agent_command == "submit":
             result_body = Path(args.result_file).read_text(encoding="utf-8") if args.result_file else args.result_body
-            task = submit_agent_task_result(conn, args.task_handle, result_body, result_title=args.result_title, agent_name=args.agent_name, agent_runtime=args.agent_runtime, model_provider=args.model_provider)
-            _json(task_result_ack(task))
-        elif args.command == "agent" and args.agent_command == "context-bundle":
-            _json(get_agent_context_bundle(conn, args.purpose))
+            task = submit_agent_task_result(conn, args.task_capability, result_body, result_title=args.result_title, agent_name=args.agent_name, agent_runtime=args.agent_runtime, model_provider=args.model_provider)
+            _json(task_result_ack(conn, task))
         elif args.command == "agent" and args.agent_command == "action" and args.agent_action_command == "submit":
             action_body = Path(args.input_file).read_text(encoding="utf-8") if args.input_file else args.input_body
             _json(submit_agent_action(conn, action_body, agent_name=args.agent_name, agent_runtime=args.agent_runtime, model_provider=args.model_provider, storage_path=args.storage))
