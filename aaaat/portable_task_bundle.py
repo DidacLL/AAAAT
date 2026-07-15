@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from .agent_access import build_agent_task_context, task_handle
+from .agent_access import TASK_CAPABILITY_PREFIX, build_agent_work_item
 from .db import connect
 from .result_ingestion import ingest_task_result
 from .tasks import list_tasks
@@ -25,8 +25,7 @@ def export_candidature_task_bundle(
     *,
     states: tuple[str, ...] = ("queued", "blocked", "failed"),
 ) -> dict[str, Any]:
-    """Write all eligible bounded tasks for one candidature into one archive."""
-
+    """Write all eligible complete bounded work items for one candidature."""
     target = Path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     with connect(storage_path) as conn:
@@ -35,25 +34,26 @@ def export_candidature_task_bundle(
             for task in list_tasks(conn, application_id=candidature_ref)
             if str(task.get("state") or "") in states
         ]
-        contexts = [build_agent_task_context(conn, task_handle(task)) for task in eligible]
+        work_items = [build_agent_work_item(conn, task) for task in eligible]
 
     manifest = {
         "protocol": BUNDLE_PROTOCOL,
         "protocol_version": BUNDLE_VERSION,
         "media_type": TASK_MEDIA_TYPE,
-        "task_count": len(contexts),
+        "task_count": len(work_items),
         "instructions": [
-            "Complete each bounded task independently using only its supplied context.",
+            "Complete each bounded work item independently using only its supplied input_context.",
             "Return one result bundle containing results.json.",
+            "Use task_capability only for the matching result section.",
             "Do not add entity IDs, file paths, storage paths, or unsupported actions.",
-            "A failed task result must not prevent returning valid results for other tasks.",
+            "A failed result must not prevent returning unrelated valid results.",
         ],
     }
     with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("manifest.json", _json_bytes(manifest))
-        archive.writestr("tasks.json", _json_bytes({"tasks": contexts}))
-        archive.writestr("README.txt", _bundle_readme(len(contexts)))
-    return {"path": str(target), "task_count": len(contexts), "media_type": TASK_MEDIA_TYPE}
+        archive.writestr("work-items.json", _json_bytes({"work_items": work_items}))
+        archive.writestr("README.txt", _bundle_readme(len(work_items)))
+    return {"path": str(target), "task_count": len(work_items), "media_type": TASK_MEDIA_TYPE}
 
 
 def import_candidature_result_bundle(
@@ -63,11 +63,6 @@ def import_candidature_result_bundle(
     agent_name: str = "portable-bundle",
     agent_runtime: str = "browser-or-manual",
 ) -> dict[str, Any]:
-    """Validate and submit each returned result independently.
-
-    One invalid section is reported without discarding unrelated valid sections.
-    """
-
     payload = _read_result_payload(result_path)
     results = payload.get("results")
     if not isinstance(results, list):
@@ -78,16 +73,16 @@ def import_candidature_result_bundle(
     with connect(storage_path) as conn:
         for index, item in enumerate(results):
             try:
-                handle, body, provenance = _validate_result_item(item)
+                capability, body, provenance = _validate_result_item(item)
                 acknowledgement = ingest_task_result(
                     conn,
-                    handle,
+                    capability,
                     body,
                     provenance=provenance,
                     default_agent_name=agent_name,
                     default_agent_runtime=agent_runtime,
                 )
-                accepted.append({"task_handle": handle, "acknowledgement": acknowledgement})
+                accepted.append({"task_capability": capability, "acknowledgement": acknowledgement})
             except (KeyError, TypeError, ValueError, sqlite3.Error) as exc:
                 rejected.append({"index": str(index), "error": str(exc)[:1000]})
     return {
@@ -98,8 +93,6 @@ def import_candidature_result_bundle(
 
 
 def write_result_bundle(output_path: str | Path, results: list[dict[str, Any]]) -> Path:
-    """Write a deterministic result archive for connectors and tests."""
-
     target = Path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     manifest = {
@@ -145,9 +138,9 @@ def _read_json_entry(archive: zipfile.ZipFile, name: str) -> dict[str, Any]:
 def _validate_result_item(item: Any) -> tuple[str, dict[str, Any], dict[str, str]]:
     if not isinstance(item, dict):
         raise ValueError("Result section must be an object")
-    handle = str(item.get("task_handle") or "").strip()
-    if not handle.startswith("taskh_"):
-        raise ValueError("Result section has an invalid opaque task handle")
+    capability = str(item.get("task_capability") or "").strip()
+    if not capability.startswith(TASK_CAPABILITY_PREFIX):
+        raise ValueError("Result section has an invalid task capability")
     body = item.get("result")
     if not isinstance(body, dict):
         raise ValueError("Result section must contain one result object")
@@ -158,7 +151,7 @@ def _validate_result_item(item: Any) -> tuple[str, dict[str, Any], dict[str, str
         key: str(provenance_value.get(key) or "")[:500]
         for key in ("agent_name", "agent_runtime", "model_provider")
     }
-    return handle, body, provenance
+    return capability, body, provenance
 
 
 def _json_bytes(value: dict[str, Any]) -> bytes:
@@ -167,8 +160,8 @@ def _json_bytes(value: dict[str, Any]) -> bytes:
 
 def _bundle_readme(task_count: int) -> str:
     return (
-        "AAAAT portable bounded task bundle\n\n"
-        f"This archive contains {task_count} independent task section(s).\n"
-        "Read manifest.json and tasks.json. Return one AAAAT result archive with results.json.\n"
+        "AAAAT portable bounded work bundle\n\n"
+        f"This archive contains {task_count} independent complete work item(s).\n"
+        "Read manifest.json and work-items.json. Return one AAAAT result archive with results.json.\n"
         "Do not return internal IDs, local paths, credentials, or unsupported actions.\n"
     )
