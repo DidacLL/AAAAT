@@ -34,11 +34,11 @@ It validates:
 - local artifact rendering;
 - desktop projection visibility.
 
-The deterministic connector is CI evidence. It is not a recommended user runtime.
+The deterministic command is CI evidence for the Advanced command contract. It is not the standard external-AI connection path.
 
-## Custom bounded connector
+## Advanced user-owned command check
 
-Use the custom profile to validate any explicitly selected command or connector:
+Use the custom profile only to validate an explicitly selected user-owned command:
 
 ```bash
 aaaat-release-validate \
@@ -56,22 +56,7 @@ The command must:
 - return a nonzero exit code on failure;
 - avoid database paths, internal IDs and broad AAAAT authority.
 
-The connector may communicate with the selected external intelligence using HTTP, an SDK, a callback, a listener, browser interaction, files or another appropriate mechanism. That provider-facing transport is outside the AAAAT command contract. It must not turn the connector into a broad AAAAT data or mutation service.
-
-## Concrete adapters
-
-Named runtime adapters are optional compatibility implementations configured through **Advanced integration**. They are not release profiles, architectural dependencies or mandatory acceptance targets.
-
-A maintainer may use any concrete adapter when recording the real automatic-integration acceptance evidence. The evidence must identify:
-
-- the selected adapter or connector;
-- whether communication is local, public, browser-mediated or host-controlled;
-- the bounded context that was disclosed;
-- credential ownership;
-- conformance result;
-- profile and candidature lifecycle result;
-- progress, failure and retry behavior;
-- provenance recorded by AAAAT.
+The user-owned command may communicate with external intelligence through any user-selected mechanism. AAAAT does not contain provider-specific configuration or behavior.
 
 ## Human acceptance after automated validation
 
@@ -79,8 +64,8 @@ Before repository work can be considered ready for human acceptance, the automat
 
 1. complete manual wx use without an integration;
 2. the user-intent-first connection flow;
-3. one maintainer-selected real automatic integration;
-4. one independent real host or transport;
+3. one real external AI consuming the existing queue through a thin wrapper;
+4. one independent wrapper over the same bounded commands;
 5. one browser or chat AI bundle round trip;
 6. visible progress, failure, retry and cancellation where supported;
 7. editable generated results and local artifact rendering;
@@ -88,6 +73,6 @@ Before repository work can be considered ready for human acceptance, the automat
 
 ## Evidence
 
-A run writes `release-report.json`, `release-report.md`, environment and runtime evidence, bounded task evidence, portable bundle evidence and one JSON file per stage.
+A run writes `release-report.json`, `release-report.md`, environment evidence, bounded task evidence, portable bundle evidence and one JSON file per stage.
 
 Exit status is zero only when every automated stage passes. Real-environment manual gates remain pending until separately recorded.
