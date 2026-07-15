@@ -21,7 +21,6 @@ class LocalAgentAdapter:
     network_access: str = "host-controlled"
     research_capable: bool = False
     local_only: bool = False
-    standard_user: bool = False
     transport_kind: str = "manual"
     setup_complexity: str = "guided"
     disclosure: str = "user-approved-bounded-context"
@@ -44,7 +43,7 @@ _ADAPTERS = (
         adapter_id="llama_cpp_server",
         title="Local AI with llama.cpp server",
         description=(
-            "Connects to an explicitly configured user-owned llama-server on loopback HTTP. "
+            "Optional compatibility adapter for an explicitly configured llama-server endpoint. "
             "AAAAT does not launch, discover, download, or manage the server or model."
         ),
         fields=(
@@ -65,38 +64,33 @@ _ADAPTERS = (
             _TIMEOUT_FIELD,
         ),
         automatic_execution=True,
+        advanced=True,
         network_access="loopback-only",
         local_only=True,
-        standard_user=True,
         transport_kind="http",
         setup_complexity="advanced",
     ),
     LocalAgentAdapter(
         adapter_id="manual_external_agent",
         title="Portable task bundle",
-        description=(
-            "Groups bounded work for export and validates the returned result bundle. This is the compatibility floor for "
-            "browser-only conversational LLMs, not the preferred automatic workflow."
-        ),
+        description="Groups bounded work for export and validates one returned result bundle for browser or chat AI use.",
         transport_kind="portable_bundle",
         setup_complexity="guided",
     ),
     LocalAgentAdapter(
         adapter_id="file_exchange",
         title="File-capable external host",
-        description=(
-            "Writes one bounded request into a controlled exchange directory and reads a matching result. No provider SDK, "
-            "credentials, listening port, or broad AAAAT API is required."
-        ),
+        description="Writes one bounded request into a controlled exchange directory and reads its matching result.",
         fields=(
             {
                 "key": "directory",
                 "label": "Exchange directory",
-                "help_text": "Controlled local directory shared with the user-owned host.",
+                "help_text": "Controlled local directory shared with the selected external host.",
                 "required": True,
                 "multiline": False,
             },
         ),
+        advanced=True,
         transport_kind="file_exchange",
         setup_complexity="advanced",
     ),
@@ -104,7 +98,7 @@ _ADAPTERS = (
         adapter_id="argv_custom_command",
         title="Existing local command",
         description=(
-            "Runs any user-owned executable without a shell. One bounded task is written to stdin, one result object is read "
+            "Runs a user-owned executable without a shell. One bounded task is written to stdin, one result object is read "
             "from stdout, and stderr is reserved for diagnostics or structured progress."
         ),
         fields=(
@@ -126,10 +120,7 @@ _ADAPTERS = (
     LocalAgentAdapter(
         adapter_id="ollama_cli",
         title="Ollama CLI (optional adapter)",
-        description=(
-            "Compatibility adapter for a user-selected Ollama CLI installation. It is not AAAAT's recommended runtime, "
-            "privacy guarantee, architectural dependency, or release portability proof."
-        ),
+        description="Compatibility adapter for an explicitly selected Ollama CLI installation.",
         fields=(
             {"key": "model", "label": "Model", "help_text": "Exact model name owned by the selected Ollama installation.", "required": True, "multiline": False},
             {"key": "executable", "label": "Ollama executable", "help_text": "Usually ollama.", "required": False, "multiline": False},
@@ -144,8 +135,8 @@ _ADAPTERS = (
     ),
     LocalAgentAdapter(
         adapter_id="codex_cli",
-        title="Codex CLI (advanced example)",
-        description="Compatibility adapter for an already configured Codex CLI. It is not a v1 local-inference proof.",
+        title="Codex CLI (optional adapter)",
+        description="Compatibility adapter for an explicitly selected and already configured Codex CLI.",
         fields=(
             {"key": "executable", "label": "Codex executable", "help_text": "Usually codex.", "required": False, "multiline": False},
             {"key": "args", "label": "Additional arguments", "help_text": "One argument per line.", "required": False, "multiline": True},
@@ -162,7 +153,6 @@ _ADAPTERS = (
 
 ADAPTERS: Mapping[str, LocalAgentAdapter] = {item.adapter_id: item for item in _ADAPTERS}
 DEFAULT_ADAPTER_ID = "manual_external_agent"
-RECOMMENDED_LOCAL_ADAPTER_ID = "llama_cpp_server"
 
 
 def adapter_definition(adapter_id: str) -> LocalAgentAdapter:
