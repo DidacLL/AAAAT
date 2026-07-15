@@ -4,11 +4,17 @@ import json
 import sys
 from pathlib import Path
 
+from aaaat.agent_access import submit_agent_task_result, task_handle
 from aaaat.agent_actions import submit_agent_action
-from aaaat.assisted_profile import submit_profile_updates
+from aaaat.assistance_service import create_profile_completion_task
+from aaaat.background_worker import OwnedTaskWorker
+from aaaat.candidature_lifecycle import ensure_lifecycle_tasks, release_ready_lifecycle_tasks
+from aaaat.candidatures import create_candidature, get_candidature
 from aaaat.db import connect, init_db, profile_variables
 from aaaat.payload import dashboard_payload
 from aaaat.provider_adapters import adapter_health
+from aaaat.task_runner import TaskRunner
+from aaaat.tasks import get_task, list_tasks, update_task
 from aaaat.workspace_config import save_workspace_settings
 
 
@@ -16,34 +22,141 @@ def test_deterministic_empty_store_release_scenario(tmp_path: Path) -> None:
     storage = tmp_path / "private"
     init_db(storage)
     fake = tmp_path / "fake_agent.py"
-    fake.write_text("import json,sys; json.load(sys.stdin); print(json.dumps({'result':'ok'}))", encoding="utf-8")
-    health = adapter_health("argv_custom_command", {"argv": [sys.executable, str(fake)], "timeout_seconds": 10})
+    fake.write_text(
+        """import json,sys
+packet=json.load(sys.stdin)
+task=packet.get('task') or {}
+type_=task.get('task_type','')
+hint=task.get('context_hint','')
+if type_=='profile_completion':
+ result={'variables':{'profile.display_name':'Alex Example','profile.email':'alex@example.invalid','profile.location':'Madrid','profile.summary.default':'Backend engineer focused on reliable local tooling.'}}
+elif type_=='company_research':
+ result={'company_research':'ExampleCo builds reliable developer infrastructure.'}
+elif type_=='draft_form_responses':
+ result={'form_answers':'I value reliable local software and careful delivery.'}
+elif type_=='draft_cv':
+ result={'cv_positioning':'Lead with Python, SQLite and local-first systems.'}
+elif type_=='draft_cover_letter':
+ result={'cover_letter_body':'I am applying because the role matches my local-first reliability experience.'}
+elif type_=='recruiter_call_material':
+ result={'result':'Discuss reliability, role scope, process and next steps.'}
+elif hint=='candidature:evaluation':
+ result={'fields':{'candidature_evaluation':'Strong fit','strengths':'Python and local systems','valuation':'High','risks_to_avoid':'Do not overstate scale.'}}
+elif hint=='candidature:strategy':
+ result={'fields':{'role_strategy':'Lead with reliability and local-first ownership.','pitch':'Local-first backend specialist.','smart_question':'How is reliability measured?','call_signals':'Emphasize delivery discipline.'}}
+elif hint=='call:interview':
+ result={'fields':{'questions_to_ask':'How does the team validate reliability?','strengths':'Python, SQLite and pragmatic architecture.'}}
+else:
+ result={'fields':{'company':'ExampleCo','role':'Backend Engineer','location':'Remote','remote_mode':'remote','tech_stack':'Python, SQLite','keywords':['Python','SQLite']}}
+print(json.dumps(result))
+""",
+        encoding="utf-8",
+    )
+    settings = {"argv": [sys.executable, str(fake)], "timeout_seconds": 10}
+    health = adapter_health("argv_custom_command", settings)
     assert health["status"] == "ready"
-    save_workspace_settings(storage, automatic_preparation=[], local_agent_adapter_id="argv_custom_command", local_agent_adapter_settings={"argv": [sys.executable, str(fake)], "timeout_seconds": 10})
+    save_workspace_settings(
+        storage,
+        automatic_preparation=[],
+        local_agent_adapter_id="argv_custom_command",
+        local_agent_adapter_settings=settings,
+    )
+
+    profile_task = create_profile_completion_task(storage)
+    TaskRunner(storage).run(str(profile_task["id"]))
+    with connect(storage) as conn:
+        profile = profile_variables(conn)
+        assert profile["profile.display_name"] == "Alex Example"
+        assert profile["profile.email"] == "alex@example.invalid"
+
+        candidature = create_candidature(
+            conn,
+            company="ExampleCo",
+            role="Backend Engineer",
+            raw_offer="ExampleCo seeks a Python backend engineer for reliable local systems.",
+            raw_application_form="Why this role?",
+            status="active",
+            priority="normal",
+            include_field_inference_task=False,
+            include_company_research_task=False,
+            include_keyword_detection_task=False,
+        )
+        candidature_ref = str(candidature["id"])
+        ensure_lifecycle_tasks(conn, candidature_ref, research_capable=True)
+
+    runner = TaskRunner(storage)
+    for _round in range(3):
+        with connect(storage) as conn:
+            queued = [task for task in list_tasks(conn, application_id=candidature_ref) if task["state"] == "queued"]
+        for task in queued:
+            runner.run(str(task["id"]))
+        with connect(storage) as conn:
+            release_ready_lifecycle_tasks(conn, candidature_ref)
 
     with connect(storage) as conn:
-        ack = submit_profile_updates(conn, {
-            "profile.display_name": "Alex Example",
-            "profile.email": "alex@example.invalid",
-            "profile.location": "Madrid",
-            "profile.summary.default": "Backend engineer focused on reliable local tooling.",
-        }, agent_name="deterministic", agent_runtime="test")
-        assert ack["status"] == "accepted"
-        assert profile_variables(conn)["profile.display_name"] == "Alex Example"
+        tasks = list_tasks(conn, application_id=candidature_ref)
+        assert all(task["state"] == "completed" for task in tasks)
+        current = get_candidature(conn, candidature_ref)
+        assert current["candidature_evaluation"] == "Strong fit"
+        assert current["role_strategy"]
+        assert current["company_research"]
+        assert current["form_answers"]
+        assert current["cv_material"]
+        assert current["cover_letter_material"]
+        assert current["recruiter_material"]
+        assert current["questions_to_ask"]
 
-        result = submit_agent_action(conn, {"action": "create_candidature", "payload": {
-            "source_material": {"offer_text": "ExampleCo seeks a Python backend engineer.", "application_form_text": "Why this role?"},
-            "candidature": {"company": "ExampleCo", "role": "Backend Engineer", "location": "Remote", "remote_mode": "remote", "keywords": ["Python", "SQLite"], "description": "Build reliable local systems.", "tech_stack": "Python, SQLite", "valuation": "Strong fit"},
-            "outputs": {"company_research": "Private example company research.", "call_signals": "Emphasize reliability.", "pitch": "Local-first backend specialist.", "smart_question": "How is reliability measured?", "risks_to_avoid": "Do not overstate scale.", "form_answers": "I value reliable local software.", "cover_letter_body": "I am applying for the Backend Engineer role.", "cv_positioning": "Lead with Python and local-first systems."},
-            "render": {"cover_letter": True, "cv": True},
-            "requested_tasks": [],
-        }}, agent_name="deterministic", agent_runtime="fake-adapter", model_provider="deterministic", storage_path=str(storage))
-        assert result["created"] and result["rendered"] == {"cover_letter": True, "cv": True}
+        completed = tasks[0]
+        with_duplicated_handle = task_handle(completed)
+        try:
+            submit_agent_task_result(conn, with_duplicated_handle, '{"fields":{"valuation":"duplicate"}}')
+        except ValueError as exc:
+            assert "not accepting results" in str(exc)
+        else:
+            raise AssertionError("Duplicate completed result was accepted")
+
+        failed = update_task(conn, str(tasks[0]["id"]), state="failed", notes="Deterministic failure")
+        failed_handle = task_handle(failed)
+
+    worker = OwnedTaskWorker(storage)
+    original_submit = worker.submit
+    worker.submit = lambda _task_id: None  # type: ignore[method-assign]
+    retry_id = worker.retry(str(failed["id"]))
+    worker.submit = original_submit  # type: ignore[method-assign]
+    with connect(storage) as conn:
+        assert get_task(conn, str(failed["id"]))["state"] == "cancelled"
+        assert get_task(conn, retry_id)["state"] == "queued"
+        try:
+            submit_agent_task_result(conn, failed_handle, '{"fields":{"valuation":"late"}}')
+        except ValueError as exc:
+            assert "not accepting results" in str(exc)
+        else:
+            raise AssertionError("Late superseded result was accepted")
+
+        current = get_candidature(conn, candidature_ref)
+        result = submit_agent_action(
+            conn,
+            {
+                "action": "create_candidature",
+                "payload": {
+                    "source_material": {"offer_text": "Rendered release proof."},
+                    "candidature": {"company": "Rendered Example", "role": "Backend Engineer"},
+                    "outputs": {
+                        "cover_letter_body": current["cover_letter_material"],
+                        "cv_positioning": current["cv_material"],
+                    },
+                    "render": {"cover_letter": True, "cv": True},
+                    "requested_tasks": [],
+                },
+            },
+            agent_name="deterministic",
+            agent_runtime="fake-adapter",
+            model_provider="deterministic",
+            storage_path=str(storage),
+        )
+        assert result["rendered"] == {"cover_letter": True, "cv": True}
         payload = dashboard_payload(conn)
-        app = payload["applications"][0]
-        assert app["company"] == "ExampleCo"
-        assert app["company_research"] and app["form_answers"]
-        assert len(app["artifacts"]) == 2
+        assert any(app["company"] == "ExampleCo" for app in payload["applications"])
         serialized = json.dumps(result)
         for forbidden in ("application_id", "candidature_id", "artifact_id", "storage_path", str(storage)):
             assert forbidden not in serialized
