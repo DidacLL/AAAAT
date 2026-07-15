@@ -2,14 +2,11 @@ from __future__ import annotations
 
 import json
 import secrets
-import shutil
-import subprocess
 from pathlib import Path
 from typing import Any
 
 from .integration_setup import current_integration
 from .provider_adapters import adapter_definition, adapter_health, validate_adapter_settings
-from .subprocess_output import subprocess_failure_message
 from .task_runner import TaskRunner
 from .workspace_config import storage_directory
 
@@ -175,38 +172,22 @@ def run_configured_runtime_conformance(storage_path: str | Path) -> dict[str, An
 
 
 def _runtime_preflight(adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
-    if adapter_id != "ollama_cli":
-        return {"status": "ready", "message": "No adapter-specific preflight required."}
-    executable = str(settings.get("executable") or "ollama")
-    resolved = shutil.which(executable)
-    if not resolved:
-        return {"status": "error", "message": f"Ollama executable not found: {executable}"}
-    completed = subprocess.run([resolved, "list"], text=True, capture_output=True, check=False, timeout=30)
-    if completed.returncode != 0:
-        return {"status": "error", "message": subprocess_failure_message(completed.stderr or "", completed.stdout or "", completed.returncode)}
-    configured = str(settings.get("model") or "").strip()
-    installed = _ollama_model_names(completed.stdout or "")
-    if configured not in installed:
-        available = ", ".join(installed[:12]) if installed else "none"
-        return {
-            "status": "error",
-            "message": f"Configured Ollama model is not installed: {configured}. Installed models: {available}. Run 'ollama pull {configured}' or rerun validation with an installed model name from 'ollama list'.",
-            "configured_model": configured,
-            "installed_models": installed,
-        }
-    return {"status": "ready", "message": f"Configured Ollama model is installed: {configured}", "configured_model": configured}
+    """Validate only AAAAT-owned adapter configuration before the live challenge.
 
-
-def _ollama_model_names(output: str) -> list[str]:
-    names: list[str] = []
-    for index, line in enumerate(str(output or "").splitlines()):
-        stripped = line.strip()
-        if not stripped or (index == 0 and stripped.upper().startswith("NAME")):
-            continue
-        name = stripped.split()[0]
-        if name and name not in names:
-            names.append(name)
-    return names
+    Runtime-specific installation, model discovery, downloading, network policy, and
+    lifecycle remain owned by the selected external runtime. Health probes and the
+    bounded nonce round trip are the portable conformance proof.
+    """
+    try:
+        normalized = validate_adapter_settings(adapter_id, settings)
+    except (TypeError, ValueError) as exc:
+        return {"status": "error", "message": str(exc)}
+    return {
+        "status": "ready",
+        "message": "Provider-neutral adapter settings validated; live bounded challenge required.",
+        "adapter_id": adapter_id,
+        "configured_field_count": len(normalized),
+    }
 
 
 def _safe_configured_primitives(adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
