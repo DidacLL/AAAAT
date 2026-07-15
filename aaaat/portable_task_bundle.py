@@ -6,8 +6,9 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
+from .agent_access import build_agent_task_context, task_handle
 from .db import connect
+from .result_ingestion import ingest_task_result
 from .tasks import list_tasks
 
 BUNDLE_PROTOCOL = "aaaat.portable-bundle"
@@ -78,13 +79,13 @@ def import_candidature_result_bundle(
         for index, item in enumerate(results):
             try:
                 handle, body, provenance = _validate_result_item(item)
-                acknowledgement = submit_agent_task_result(
+                acknowledgement = ingest_task_result(
                     conn,
                     handle,
-                    json.dumps(body, ensure_ascii=False),
-                    agent_name=str(provenance.get("agent_name") or agent_name),
-                    agent_runtime=str(provenance.get("agent_runtime") or agent_runtime),
-                    model_provider=str(provenance.get("model_provider") or ""),
+                    body,
+                    provenance=provenance,
+                    default_agent_name=agent_name,
+                    default_agent_runtime=agent_runtime,
                 )
                 accepted.append({"task_handle": handle, "acknowledgement": acknowledgement})
             except (KeyError, TypeError, ValueError, sqlite3.Error) as exc:
@@ -150,9 +151,6 @@ def _validate_result_item(item: Any) -> tuple[str, dict[str, Any], dict[str, str
     body = item.get("result")
     if not isinstance(body, dict):
         raise ValueError("Result section must contain one result object")
-    forbidden = {"application_id", "candidature_id", "artifact_id", "storage_path", "file_path"}
-    if forbidden.intersection(body):
-        raise ValueError("Result section contains forbidden authority fields")
     provenance_value = item.get("provenance") or {}
     if not isinstance(provenance_value, dict):
         raise ValueError("Result provenance must be an object")
