@@ -6,10 +6,11 @@ import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
-from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
+from .agent_access import build_agent_task_context, task_handle
 from .candidature_lifecycle import release_ready_lifecycle_tasks
 from .db import connect, utc_now
 from .provider_adapters import adapter_definition
+from .result_ingestion import ingest_task_result
 from .subprocess_output import subprocess_failure_message
 from .task_transports import execute_configured_transport
 from .tasks import get_task, update_task
@@ -66,13 +67,12 @@ class TaskRunner:
             if current.get("state") == "cancelled":
                 self._emit(task_id, "cancelled", "Task cancelled before result application", 100)
                 return {"task": current, "cancelled": True}
-            submitted = submit_agent_task_result(
+            submitted = ingest_task_result(
                 conn,
                 task_handle(current),
                 body,
-                agent_name=str(provenance.get("agent_name") or ""),
-                agent_runtime=str(provenance.get("agent_runtime") or f"local-adapter:{adapter_id}"),
-                model_provider=str(provenance.get("model_provider") or ""),
+                provenance=provenance,
+                default_agent_runtime=f"configured-adapter:{adapter_id}",
             )
             application_id = str(current.get("application_id") or "")
             released = release_ready_lifecycle_tasks(conn, application_id) if application_id else []
