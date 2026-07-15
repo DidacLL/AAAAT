@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aaaat.release_validation_harness import (
+from aaaat.release_validation import (
     VERDICT_MANUAL,
     VERDICT_PASSED,
     ReleaseValidator,
