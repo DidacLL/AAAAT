@@ -25,7 +25,7 @@ _CONNECTION_MODES: tuple[dict[str, Any], ...] = (
         "adapter_ids": ("manual_external_agent",),
     },
     {
-        "id": "automatic",
+        "id": "guided_connector",
         "title": "Connect my AI",
         "description": "Use an existing compatible AI automatically through a bounded connection selected during setup.",
         "automatic": True,
@@ -33,7 +33,7 @@ _CONNECTION_MODES: tuple[dict[str, Any], ...] = (
         "adapter_ids": ("llama_cpp_server", "argv_custom_command", "ollama_cli", "codex_cli"),
     },
     {
-        "id": "browser_or_files",
+        "id": "browser_or_chat",
         "title": "Use a browser or chat AI",
         "description": "Exchange one bounded task bundle and one result bundle, or use a supported browser companion.",
         "automatic": False,
@@ -41,7 +41,7 @@ _CONNECTION_MODES: tuple[dict[str, Any], ...] = (
         "adapter_ids": ("manual_external_agent", "file_exchange"),
     },
     {
-        "id": "advanced",
+        "id": "advanced_integration",
         "title": "Advanced integration",
         "description": "Configure a command, endpoint, exchange directory, or generated connector explicitly.",
         "automatic": None,
