@@ -2,14 +2,23 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Protocol
 
 from .llama_cpp_http import chat_completion, task_response_json_schema
 from .local_cli_runtime import build_local_cli_invocation
 from .local_model_protocol import build_local_model_prompt, extract_json_object
 from .provider_adapters import validate_adapter_settings
 
-StdioRunner = Callable[[list[str], str | None, int], str]
+
+class StdioRunner(Protocol):
+    def __call__(
+        self,
+        argv: list[str],
+        input_body: str | None,
+        timeout: int,
+        *,
+        validate_result: bool = True,
+    ) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -48,7 +57,12 @@ def execute_configured_transport(
 
     if adapter_id == "ollama_cli":
         with build_local_cli_invocation(adapter_id, normalized, prompt) as invocation:
-            output = run_stdio(list(invocation.argv), invocation.input_body, timeout, validate_result=False)
+            output = run_stdio(
+                list(invocation.argv),
+                invocation.input_body,
+                timeout,
+                validate_result=False,
+            )
             return TransportExecution(
                 body=extract_json_object(output),
                 provenance=dict(invocation.provenance),
