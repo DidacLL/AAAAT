@@ -87,10 +87,21 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="aaaat-browser-host", description="Run the port-free AAAAT browser native-messaging host.")
     parser.add_argument("--storage", default=".private")
     parser.add_argument("--print-manifest", action="store_true")
+    parser.add_argument("--self-test", action="store_true", help="Print protocol metadata and exit without waiting for browser input.")
     args = parser.parse_args(argv)
     if args.print_manifest:
         print(json.dumps(native_host_manifest(args.storage, sys.argv[0]), ensure_ascii=False, indent=2))
         return 0
+    if args.self_test:
+        print(json.dumps({"status": "ready", "host": HOST_NAME, "protocol": PROTOCOL, "protocol_version": VERSION, "transport": "browser-native-messaging-stdio", "listening_port": False}, ensure_ascii=False, indent=2))
+        return 0
+    if sys.stdin.isatty():
+        print(
+            "aaaat-browser-host is a browser native-messaging process and waits for binary messages on stdin. "
+            "Do not run it interactively. Use --self-test, --print-manifest, or launch it through the installed browser extension.",
+            file=sys.stderr,
+        )
+        return 2
     return run_native_host(args.storage)
 
 
