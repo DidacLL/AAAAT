@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
+from .candidature_lifecycle import release_ready_lifecycle_tasks
 from .db import connect, utc_now
 from .local_cli_runtime import build_local_cli_invocation
 from .local_model_protocol import build_local_model_prompt, extract_json_object
@@ -77,9 +78,11 @@ class TaskRunner:
                 agent_runtime=str(provenance.get("agent_runtime") or f"local-adapter:{adapter_id}"),
                 model_provider=str(provenance.get("model_provider") or ""),
             )
+            application_id = str(current.get("application_id") or "")
+            released = release_ready_lifecycle_tasks(conn, application_id) if application_id else []
             final = get_task(conn, task_id)
         self._emit(task_id, "completed", "Task completed", 100)
-        return {"submitted": submitted, "task": final, "provenance": provenance}
+        return {"submitted": submitted, "task": final, "provenance": provenance, "released_tasks": released}
 
     def _execute_adapter(self, adapter_id: str, settings: dict[str, Any], context: dict[str, Any]) -> tuple[str, dict[str, str]]:
         normalized = validate_adapter_settings(adapter_id, settings)
