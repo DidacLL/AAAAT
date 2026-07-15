@@ -27,7 +27,7 @@ class LocalModelCommunicationTests(unittest.TestCase):
         for forbidden in ("application_id", "candidature_id", "database_path", "artifact_id"):
             self.assertNotIn(forbidden, serialized)
 
-    def test_result_extractor_accepts_one_object_inside_cli_noise(self) -> None:
+    def test_result_extractor_accepts_one_top_level_object_inside_cli_noise(self) -> None:
         self.assertEqual(json.loads(extract_json_object('{"result":"ok"}')), {"result": "ok"})
         self.assertEqual(
             json.loads(extract_json_object('```json\n{"result":"ok"}\n```')),
@@ -35,6 +35,11 @@ class LocalModelCommunicationTests(unittest.TestCase):
         )
         noisy = "Loading model...\navailable commands:\n> prompt\n{\"result\":\"ok\"}\n[ timing ]\nExiting..."
         self.assertEqual(json.loads(extract_json_object(noisy)), {"result": "ok"})
+        nested = 'banner\n{"variables":{"profile.career.direction":"Backend roles"}}\nExiting...'
+        self.assertEqual(
+            json.loads(extract_json_object(nested)),
+            {"variables": {"profile.career.direction": "Backend roles"}},
+        )
 
         with self.assertRaisesRegex(ValueError, "exactly one JSON object"):
             extract_json_object('{"result":"one"}\n{"result":"two"}')
