@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from .llama_cpp_http import health_check as llama_cpp_health_check
+from .llama_cpp_http import validate_loopback_endpoint
+
 
 @dataclass(frozen=True)
 class LocalAgentAdapter:
@@ -31,38 +34,31 @@ _TIMEOUT_FIELD = {
 
 _ADAPTERS = (
     LocalAgentAdapter(
-        adapter_id="llama_cpp_cli",
-        title="Local AI with llama.cpp",
+        adapter_id="llama_cpp_server",
+        title="Local AI with llama.cpp server",
         description=(
-            "Runs llama-cli directly with an explicitly selected local GGUF model. AAAAT remains port-free, "
-            "does not manage provider credentials, and uses the same bounded result validation as every other integration."
+            "Connects to an explicitly configured user-owned llama-server on loopback HTTP. "
+            "AAAAT does not launch, discover, download, or manage the server or model."
         ),
         fields=(
             {
-                "key": "model_path",
-                "label": "GGUF model file",
-                "help_text": "Path to the local model file used by llama-cli.",
+                "key": "endpoint",
+                "label": "Loopback endpoint",
+                "help_text": "Explicit llama-server base URL, usually http://127.0.0.1:8080.",
                 "required": True,
                 "multiline": False,
             },
             {
-                "key": "executable",
-                "label": "llama-cli executable",
-                "help_text": "Usually llama-cli. Select another path when your installation uses a different executable name.",
+                "key": "model",
+                "label": "Model name",
+                "help_text": "Model identifier sent to the configured server. Use local when the server owns model selection.",
                 "required": False,
                 "multiline": False,
-            },
-            {
-                "key": "args",
-                "label": "Additional arguments",
-                "help_text": "Optional llama-cli arguments, one per line.",
-                "required": False,
-                "multiline": True,
             },
             _TIMEOUT_FIELD,
         ),
         automatic_execution=True,
-        network_access="none",
+        network_access="loopback-only",
         local_only=True,
         standard_user=True,
     ),
@@ -119,27 +115,9 @@ _ADAPTERS = (
             "privacy guarantee, architectural dependency, or release portability proof."
         ),
         fields=(
-            {
-                "key": "model",
-                "label": "Model",
-                "help_text": "Exact model name owned by the selected Ollama installation.",
-                "required": True,
-                "multiline": False,
-            },
-            {
-                "key": "executable",
-                "label": "Ollama executable",
-                "help_text": "Usually ollama.",
-                "required": False,
-                "multiline": False,
-            },
-            {
-                "key": "args",
-                "label": "Additional arguments",
-                "help_text": "Optional arguments placed after the model, one per line.",
-                "required": False,
-                "multiline": True,
-            },
+            {"key": "model", "label": "Model", "help_text": "Exact model name owned by the selected Ollama installation.", "required": True, "multiline": False},
+            {"key": "executable", "label": "Ollama executable", "help_text": "Usually ollama.", "required": False, "multiline": False},
+            {"key": "args", "label": "Additional arguments", "help_text": "Optional arguments placed after the model, one per line.", "required": False, "multiline": True},
             _TIMEOUT_FIELD,
         ),
         automatic_execution=True,
@@ -151,20 +129,8 @@ _ADAPTERS = (
         title="Codex CLI (advanced example)",
         description="Compatibility adapter for an already configured Codex CLI. It is not a v1 local-inference proof.",
         fields=(
-            {
-                "key": "executable",
-                "label": "Codex executable",
-                "help_text": "Usually codex.",
-                "required": False,
-                "multiline": False,
-            },
-            {
-                "key": "args",
-                "label": "Additional arguments",
-                "help_text": "One argument per line.",
-                "required": False,
-                "multiline": True,
-            },
+            {"key": "executable", "label": "Codex executable", "help_text": "Usually codex.", "required": False, "multiline": False},
+            {"key": "args", "label": "Additional arguments", "help_text": "One argument per line.", "required": False, "multiline": True},
             _TIMEOUT_FIELD,
         ),
         automatic_execution=True,
@@ -175,7 +141,7 @@ _ADAPTERS = (
 
 ADAPTERS: Mapping[str, LocalAgentAdapter] = {item.adapter_id: item for item in _ADAPTERS}
 DEFAULT_ADAPTER_ID = "manual_external_agent"
-RECOMMENDED_LOCAL_ADAPTER_ID = "llama_cpp_cli"
+RECOMMENDED_LOCAL_ADAPTER_ID = "llama_cpp_server"
 
 
 def adapter_definition(adapter_id: str) -> LocalAgentAdapter:
@@ -194,8 +160,8 @@ def adapter_can_run_automatically(adapter_id: str) -> bool:
 
 
 def standard_local_settings(adapter_id: str) -> dict[str, Any]:
-    if adapter_id == "llama_cpp_cli":
-        return {"model_path": "", "executable": "llama-cli", "args": [], "timeout_seconds": 600}
+    if adapter_id == "llama_cpp_server":
+        return {"endpoint": "http://127.0.0.1:8080", "model": "local", "timeout_seconds": 600}
     if adapter_id == "ollama_cli":
         return {"model": "", "executable": "ollama", "args": [], "timeout_seconds": 600}
     return {}
@@ -231,6 +197,9 @@ def validate_adapter_settings(adapter_id: str, settings: Mapping[str, Any] | Non
             present = bool(normalized[key])
         if required and not present:
             raise ValueError(f"{label} is required for {adapter.title}")
+    if adapter_id == "llama_cpp_server":
+        normalized["endpoint"] = validate_loopback_endpoint(normalized["endpoint"])
+        normalized["model"] = normalized.get("model") or "local"
     return normalized
 
 
@@ -254,16 +223,12 @@ def adapter_health(adapter_id: str, settings: Mapping[str, Any] | None = None) -
         except OSError as exc:
             return {"status": "error", "message": str(exc), **base}
         return {"status": "ready", "message": f"Exchange directory is writable: {directory}", **base}
+    if adapter_id == "llama_cpp_server":
+        return {**llama_cpp_health_check(normalized["endpoint"], int(normalized["timeout_seconds"])), **base}
 
     if adapter_id == "argv_custom_command":
         executable = str((normalized.get("argv") or [""])[0])
         probe_argv: list[str] | None = None
-    elif adapter_id == "llama_cpp_cli":
-        executable = str(normalized.get("executable") or "llama-cli")
-        probe_argv = [executable, "--version"]
-        model = Path(str(normalized["model_path"])).expanduser()
-        if not model.is_file():
-            return {"status": "error", "message": f"GGUF model file not found: {model}", **base}
     elif adapter_id == "ollama_cli":
         executable = str(normalized.get("executable") or "ollama")
         probe_argv = [executable, "--version"]
@@ -276,13 +241,7 @@ def adapter_health(adapter_id: str, settings: Mapping[str, Any] | None = None) -
         return {"status": "error", "message": f"Executable not found: {executable}", **base}
     if probe_argv is not None:
         try:
-            completed = subprocess.run(
-                [resolved, *probe_argv[1:]],
-                text=True,
-                capture_output=True,
-                check=False,
-                timeout=min(int(normalized.get("timeout_seconds") or 15), 15),
-            )
+            completed = subprocess.run([resolved, *probe_argv[1:]], text=True, capture_output=True, check=False, timeout=min(int(normalized.get("timeout_seconds") or 15), 15))
         except (OSError, subprocess.TimeoutExpired) as exc:
             return {"status": "error", "message": f"Health probe failed: {exc}", **base}
         if completed.returncode != 0:
