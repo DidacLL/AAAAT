@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from aaaat.agent_access import submit_agent_task_result, task_handle
+from aaaat.agent_access import submit_agent_task_result, task_capability
 from aaaat.background_worker import OwnedTaskWorker
 from aaaat.candidature_lifecycle import ensure_lifecycle_tasks, lifecycle_plan, release_ready_lifecycle_tasks
 from aaaat.candidatures import create_candidature, update_candidature
@@ -42,7 +42,6 @@ class CandidatureLifecycleTests(unittest.TestCase):
             )
             research = next(item for item in plan if item["key"] == "research")
             self.assertEqual(research["state"], "unavailable")
-
             created = ensure_lifecycle_tasks(conn, ref, research_capable=True)
             self.assertEqual(len(created), 9)
             self.assertEqual(len(list_tasks(conn, application_id=ref)), 9)
@@ -70,11 +69,11 @@ class CandidatureLifecycleTests(unittest.TestCase):
             plan = lifecycle_plan(conn, ref, research_capable=False)
             self.assertEqual(next(item for item in plan if item["key"] == "cv")["state"], "queued")
 
-    def test_retry_creates_new_handle_and_rejects_late_old_result(self) -> None:
+    def test_retry_creates_new_capability_and_rejects_late_old_result(self) -> None:
         with connect(self.storage) as conn:
             task = create_task(conn, "field_inference", "Evaluate", state="failed", context_hint="candidature:evaluation")
             old_id = str(task["id"])
-            old_handle = task_handle(task)
+            old_capability = task_capability(conn, task)
 
         worker = OwnedTaskWorker(self.storage)
         with patch.object(worker, "submit") as submit:
@@ -86,17 +85,17 @@ class CandidatureLifecycleTests(unittest.TestCase):
             new = get_task(conn, new_id)
             self.assertEqual(old["state"], "cancelled")
             self.assertEqual(new["state"], "queued")
-            self.assertNotEqual(task_handle(new), old_handle)
+            self.assertNotEqual(task_capability(conn, new), old_capability)
             with self.assertRaisesRegex(ValueError, "not accepting results"):
-                submit_agent_task_result(conn, old_handle, '{"fields":{"valuation":"late"}}')
+                submit_agent_task_result(conn, old_capability, '{"fields":{"valuation":"late"}}')
 
     def test_completed_task_rejects_duplicate_submission(self) -> None:
         with connect(self.storage) as conn:
             task = create_task(conn, "field_inference", "Extract", state="queued")
-            handle = task_handle(task)
+            capability = task_capability(conn, task)
             update_task(conn, str(task["id"]), state="completed")
             with self.assertRaisesRegex(ValueError, "not accepting results"):
-                submit_agent_task_result(conn, handle, '{"fields":{}}')
+                submit_agent_task_result(conn, capability, '{"fields":{}}')
 
 
 if __name__ == "__main__":
