@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 import shutil
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
-
-from .llama_cpp_http import health_check as llama_cpp_health_check
-from .llama_cpp_http import validate_loopback_endpoint
 
 
 @dataclass(frozen=True)
@@ -37,50 +33,18 @@ _TIMEOUT_FIELD = {
     "multiline": False,
 }
 
-
 _ADAPTERS = (
-    LocalAgentAdapter(
-        adapter_id="llama_cpp_server",
-        title="Local AI with llama.cpp server",
-        description=(
-            "Optional compatibility adapter for an explicitly configured llama-server endpoint. "
-            "AAAAT does not launch, discover, download, or manage the server or model."
-        ),
-        fields=(
-            {
-                "key": "endpoint",
-                "label": "Loopback endpoint",
-                "help_text": "Explicit llama-server base URL, usually http://127.0.0.1:8080.",
-                "required": True,
-                "multiline": False,
-            },
-            {
-                "key": "model",
-                "label": "Model name",
-                "help_text": "Model identifier sent to the configured server. Use local when the server owns model selection.",
-                "required": False,
-                "multiline": False,
-            },
-            _TIMEOUT_FIELD,
-        ),
-        automatic_execution=True,
-        advanced=True,
-        network_access="loopback-only",
-        local_only=True,
-        transport_kind="http",
-        setup_complexity="advanced",
-    ),
     LocalAgentAdapter(
         adapter_id="manual_external_agent",
         title="Portable task bundle",
-        description="Groups bounded work for export and validates one returned result bundle for browser or chat AI use.",
+        description="Groups bounded work for export and validates one returned result bundle.",
         transport_kind="portable_bundle",
         setup_complexity="guided",
     ),
     LocalAgentAdapter(
         adapter_id="file_exchange",
         title="File-capable external host",
-        description="Writes one bounded request into a controlled exchange directory and reads its matching result.",
+        description="Uses a controlled exchange directory for bounded task and result files.",
         fields=(
             {
                 "key": "directory",
@@ -96,10 +60,10 @@ _ADAPTERS = (
     ),
     LocalAgentAdapter(
         adapter_id="argv_custom_command",
-        title="Existing local command",
+        title="User-owned command",
         description=(
-            "Runs a user-owned executable without a shell. One bounded task is written to stdin, one result object is read "
-            "from stdout, and stderr is reserved for diagnostics or structured progress."
+            "Advanced option. Runs one user-owned executable without a shell, writes one bounded task to stdin, "
+            "reads one bounded result from stdout, and treats stderr as diagnostics or structured progress."
         ),
         fields=(
             {
@@ -117,38 +81,6 @@ _ADAPTERS = (
         setup_complexity="advanced",
         progress_capable=True,
     ),
-    LocalAgentAdapter(
-        adapter_id="ollama_cli",
-        title="Ollama CLI (optional adapter)",
-        description="Compatibility adapter for an explicitly selected Ollama CLI installation.",
-        fields=(
-            {"key": "model", "label": "Model", "help_text": "Exact model name owned by the selected Ollama installation.", "required": True, "multiline": False},
-            {"key": "executable", "label": "Ollama executable", "help_text": "Usually ollama.", "required": False, "multiline": False},
-            {"key": "args", "label": "Additional arguments", "help_text": "Optional arguments placed after the model, one per line.", "required": False, "multiline": True},
-            _TIMEOUT_FIELD,
-        ),
-        automatic_execution=True,
-        advanced=True,
-        network_access="runtime-controlled",
-        transport_kind="stdio",
-        setup_complexity="advanced",
-    ),
-    LocalAgentAdapter(
-        adapter_id="codex_cli",
-        title="Codex CLI (optional adapter)",
-        description="Compatibility adapter for an explicitly selected and already configured Codex CLI.",
-        fields=(
-            {"key": "executable", "label": "Codex executable", "help_text": "Usually codex.", "required": False, "multiline": False},
-            {"key": "args", "label": "Additional arguments", "help_text": "One argument per line.", "required": False, "multiline": True},
-            _TIMEOUT_FIELD,
-        ),
-        automatic_execution=True,
-        advanced=True,
-        research_capable=True,
-        transport_kind="stdio",
-        setup_complexity="advanced",
-        progress_capable=True,
-    ),
 )
 
 ADAPTERS: Mapping[str, LocalAgentAdapter] = {item.adapter_id: item for item in _ADAPTERS}
@@ -159,7 +91,7 @@ def adapter_definition(adapter_id: str) -> LocalAgentAdapter:
     try:
         return ADAPTERS[adapter_id]
     except KeyError as exc:
-        raise ValueError(f"Unknown local agent adapter: {adapter_id}") from exc
+        raise ValueError(f"Unknown integration adapter: {adapter_id}") from exc
 
 
 def adapter_capabilities(adapter_id: str) -> dict[str, Any]:
@@ -186,22 +118,17 @@ def adapter_can_run_automatically(adapter_id: str) -> bool:
     return bool(adapter_capabilities(adapter_id)["automatic"])
 
 
-def standard_local_settings(adapter_id: str) -> dict[str, Any]:
-    if adapter_id == "llama_cpp_server":
-        return {"endpoint": "http://127.0.0.1:8080", "model": "local", "timeout_seconds": 600}
-    if adapter_id == "ollama_cli":
-        return {"model": "", "executable": "ollama", "args": [], "timeout_seconds": 600}
+def standard_local_settings(_adapter_id: str) -> dict[str, Any]:
     return {}
 
 
 def validate_adapter_settings(adapter_id: str, settings: Mapping[str, Any] | None) -> dict[str, Any]:
     adapter = adapter_definition(adapter_id)
-    values = {**standard_local_settings(adapter_id), **dict(settings or {})}
+    values = dict(settings or {})
     allowed = {str(field["key"]) for field in adapter.fields}
     unknown = set(values) - allowed
     if unknown:
         raise ValueError(f"Unsupported settings for {adapter.title}: {sorted(unknown)}")
-
     normalized: dict[str, Any] = {}
     for field in adapter.fields:
         key, label = str(field["key"]), str(field["label"])
@@ -224,16 +151,12 @@ def validate_adapter_settings(adapter_id: str, settings: Mapping[str, Any] | Non
             present = bool(normalized[key])
         if required and not present:
             raise ValueError(f"{label} is required for {adapter.title}")
-    if adapter_id == "llama_cpp_server":
-        normalized["endpoint"] = validate_loopback_endpoint(normalized["endpoint"])
-        normalized["model"] = normalized.get("model") or "local"
     return normalized
 
 
 def adapter_health(adapter_id: str, settings: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    adapter = adapter_definition(adapter_id)
     normalized = validate_adapter_settings(adapter_id, settings)
-    base = {**adapter_capabilities(adapter_id)}
+    base = adapter_capabilities(adapter_id)
     if adapter_id == "manual_external_agent":
         return {"status": "ready", "message": "Portable bounded task bundles are available.", **base}
     if adapter_id == "file_exchange":
@@ -246,34 +169,8 @@ def adapter_health(adapter_id: str, settings: Mapping[str, Any] | None = None) -
         except OSError as exc:
             return {"status": "error", "message": str(exc), **base}
         return {"status": "ready", "message": f"Exchange directory is writable: {directory}", **base}
-    if adapter_id == "llama_cpp_server":
-        return {**llama_cpp_health_check(normalized["endpoint"], int(normalized["timeout_seconds"])), **base}
-
-    if adapter_id == "argv_custom_command":
-        executable = str((normalized.get("argv") or [""])[0])
-        probe_argv: list[str] | None = None
-    elif adapter_id == "ollama_cli":
-        executable = str(normalized.get("executable") or "ollama")
-        probe_argv = [executable, "--version"]
-    else:
-        executable = str(normalized.get("executable") or "codex")
-        probe_argv = [executable, "--version"]
-
+    executable = str((normalized.get("argv") or [""])[0])
     resolved = shutil.which(executable)
     if not resolved:
         return {"status": "error", "message": f"Executable not found: {executable}", **base}
-    if probe_argv is not None:
-        try:
-            completed = subprocess.run([resolved, *probe_argv[1:]], text=True, capture_output=True, check=False, timeout=min(int(normalized.get("timeout_seconds") or 15), 15))
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            return {"status": "error", "message": f"Health probe failed: {exc}", **base}
-        if completed.returncode != 0:
-            detail = (completed.stderr or completed.stdout or f"exit {completed.returncode}").strip()
-            return {"status": "error", "message": f"Health probe failed: {detail[:1000]}", **base}
-        version = (completed.stdout or completed.stderr).strip()
-    else:
-        version = ""
-    message = f"Executable verified: {resolved}"
-    if version:
-        message += f" ({version.splitlines()[0]})"
-    return {"status": "ready", "message": message, "executable": resolved, **base}
+    return {"status": "ready", "message": f"Executable verified: {resolved}", "executable": resolved, **base}
