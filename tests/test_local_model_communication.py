@@ -79,9 +79,46 @@ class LocalModelCommunicationTests(unittest.TestCase):
         payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(request.full_url, "http://127.0.0.1:8080/v1/chat/completions")
         self.assertIs(payload["stream"], False)
+        self.assertEqual(payload["temperature"], 0)
+        self.assertEqual(payload["chat_template_kwargs"], {"enable_thinking": False})
+        self.assertEqual(payload["reasoning_format"], "none")
         self.assertEqual(payload["response_format"]["type"], "json_schema")
         self.assertEqual(payload["response_format"]["schema"]["required"], ["variables"])
         self.assertEqual(provenance["agent_runtime"], "llama.cpp-server")
+
+    def test_llama_cpp_server_retries_documented_json_object_schema_form(self) -> None:
+        invalid = {"model": "qwen-local", "choices": [{"message": {"content": "I will return JSON."}}]}
+        valid = {"model": "qwen-local", "choices": [{"message": {"content": '{"status":"ready"}'}}]}
+        with patch(
+            "aaaat.llama_cpp_http.urllib.request.urlopen",
+            side_effect=[_Response(invalid), _Response(valid)],
+        ) as open_url:
+            body, _provenance = chat_completion(
+                "http://127.0.0.1:8080",
+                "local",
+                "bounded prompt",
+                {"type": "object", "properties": {"status": {"type": "string"}}, "required": ["status"]},
+                30,
+            )
+        self.assertEqual(json.loads(body), {"status": "ready"})
+        self.assertEqual(open_url.call_count, 2)
+        first = json.loads(open_url.call_args_list[0].args[0].data.decode("utf-8"))
+        second = json.loads(open_url.call_args_list[1].args[0].data.decode("utf-8"))
+        self.assertEqual(first["response_format"]["type"], "json_schema")
+        self.assertEqual(second["response_format"]["type"], "json_object")
+        self.assertEqual(first["response_format"]["schema"], second["response_format"]["schema"])
+
+    def test_llama_cpp_server_failure_includes_bounded_content_excerpt(self) -> None:
+        invalid = {"model": "qwen-local", "choices": [{"message": {"content": "not json"}}]}
+        with patch("aaaat.llama_cpp_http.urllib.request.urlopen", return_value=_Response(invalid)):
+            with self.assertRaisesRegex(ValueError, "content='not json'"):
+                chat_completion(
+                    "http://127.0.0.1:8080",
+                    "local",
+                    "bounded prompt",
+                    {"type": "object"},
+                    30,
+                )
 
     def test_generic_command_runner_uses_bounded_stdin_and_fixed_argv(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
