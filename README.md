@@ -14,9 +14,24 @@ AAAAT gives you a private operational workspace for your job search:
 - maintain keywords with definitions so known terms can be linked and explained in context;
 - keep profile variables and reusable career facts for CVs and cover letters;
 - render local CV and cover-letter artifacts from templates;
-- expose optional bounded task/context surfaces for external tools or agents.
+- use external intelligence through optional bounded task/result connections.
 
-External agent workflows are optional. AAAAT is not a provider SDK, general agent orchestrator, or broad CRUD API. Browser, local-server, static-export, and runtime-mode prototypes are not supported v1 product surfaces.
+External intelligence is optional. AAAAT is not a provider SDK, general agent orchestrator, or broad CRUD API. Historical browser dashboards, mandatory application servers, static-export products and runtime-mode products are not supported v1 human surfaces.
+
+## AI assistance choices
+
+The desktop presents four user-level choices:
+
+- **Continue manually** — use the complete workspace without an automatic AI connection.
+- **Connect my AI** — create and validate a bounded connection for the AI you already prefer.
+- **Use a browser or chat AI** — export one candidature task file and import one returned result file.
+- **Advanced integration** — explicitly configure an endpoint, command, exchange directory or concrete compatibility adapter.
+
+Named providers and runtimes are optional Advanced integration choices, not installation requirements or release criteria.
+
+Communication may use subprocesses, files, archives, HTTP, callbacks, listeners, browser messaging, SDK wrappers or generated connectors. The transport is not the authority boundary. Every path may carry only purpose-specific bounded tasks, task-scoped progress and validated results. It may not expose arbitrary candidature/profile searches, storage paths, internal IDs as mutation authority, or a broad AAAAT data API.
+
+Before activation, generated connections are previewed and tested with fake data. For real tasks, the desktop shows whether communication is local, user-mediated, browser-mediated or controlled by the selected host. The selected external intelligence receives the bounded context the user approves.
 
 ## Local-first privacy
 
@@ -166,6 +181,7 @@ Review generated documents before sending them.
 ## More docs
 
 - [V1 release and upgrade notes](docs/release-notes-v1.md)
+- [Local release validation](docs/local-release-validation.md)
 - [Install](docs/install.md)
 - [Local data and backup](docs/local-data.md)
 - [Agent workflow](docs/agent-workflow.md)
