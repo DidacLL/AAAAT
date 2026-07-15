@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-import hashlib
+import secrets
 import sqlite3
 from typing import Any
 
 from .assisted_profile import apply_profile_completion_result, profile_completion_context
 from .candidatures import get_candidature_details
 from .career_plans import career_plan_context
-from .db import application_keywords, get_application, list_raw_intake
+from .db import application_keywords, get_application, list_raw_intake, utc_now
 from .profile_facts import profile_context
 from .tasks import complete_task, get_task, keyword_from_context, list_tasks
 
 ENVELOPE_FIELDS = {"task_type", "title", "state", "priority", "context_hint", "created_at", "updated_at"}
 SAFE_CONTEXT_PREFIXES = ("field:", "keyword:", "candidature:", "artifact:", "blob:", "call:", "profile:")
-TASK_HANDLE_PREFIX = "taskh_"
+TASK_CAPABILITY_PREFIX = "taskcap_"
 FORBIDDEN_AGENT_CONTEXT_KEYS = {
     "application_id", "candidature_id", "artifact_id", "profile_fact_id", "note_id",
     "todo_id", "blob_id", "file_path", "storage_path",
@@ -40,6 +40,18 @@ DEFAULT_TASK_INSTRUCTIONS = {
 }
 
 
+def _ensure_capability_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS agent_task_capabilities (
+        capability TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+        )"""
+    )
+    conn.commit()
+
+
 def safe_context_hint(value: str | None) -> str:
     hint = str(value or "").strip()
     if len(hint) > 160:
@@ -48,35 +60,40 @@ def safe_context_hint(value: str | None) -> str:
 
 
 def allowed_actions(task: dict[str, Any]) -> list[str]:
-    actions = ["context"]
+    actions: list[str] = []
     if task.get("state", "") in {"queued", "claimed", "in_progress", "blocked", "failed"}:
-        actions.append("submit")
+        actions.extend(["report_progress", "submit_result"])
     return actions
 
 
-def _handle_for_task_id(task_id: str) -> str:
-    digest = hashlib.blake2s(task_id.encode("utf-8"), digest_size=16).hexdigest()
-    return f"{TASK_HANDLE_PREFIX}{digest}"
+def task_capability(conn: sqlite3.Connection, task: dict[str, Any]) -> str:
+    _ensure_capability_table(conn)
+    task_id = str(task.get("id") or "")
+    row = conn.execute("SELECT capability FROM agent_task_capabilities WHERE task_id = ?", (task_id,)).fetchone()
+    if row:
+        return str(row["capability"])
+    capability = TASK_CAPABILITY_PREFIX + secrets.token_urlsafe(32)
+    conn.execute(
+        "INSERT INTO agent_task_capabilities(capability, task_id, created_at) VALUES (?, ?, ?)",
+        (capability, task_id, utc_now()),
+    )
+    conn.commit()
+    return capability
 
 
-def task_handle(task: dict[str, Any]) -> str:
-    return _handle_for_task_id(str(task.get("id", "")))
+def task_id_for_capability(conn: sqlite3.Connection, capability: str) -> str:
+    cleaned = str(capability or "").strip()
+    if not cleaned.startswith(TASK_CAPABILITY_PREFIX):
+        raise KeyError("Task capability not found")
+    _ensure_capability_table(conn)
+    row = conn.execute("SELECT task_id FROM agent_task_capabilities WHERE capability = ?", (cleaned,)).fetchone()
+    if row is None:
+        raise KeyError("Task capability not found")
+    return str(row["task_id"])
 
 
-def task_id_for_handle(conn: sqlite3.Connection, handle: str) -> str:
-    cleaned = str(handle or "").strip()
-    if not cleaned.startswith(TASK_HANDLE_PREFIX):
-        raise KeyError(f"Task handle not found: {handle}")
-    rows = conn.execute("SELECT id FROM tasks ORDER BY created_at, id").fetchall()
-    for row in rows:
-        task_id = str(row["id"])
-        if _handle_for_task_id(task_id) == cleaned:
-            return task_id
-    raise KeyError(f"Task handle not found: {handle}")
-
-
-def get_task_for_handle(conn: sqlite3.Connection, handle: str) -> dict[str, Any]:
-    return get_task(conn, task_id_for_handle(conn, handle))
+def get_task_for_capability(conn: sqlite3.Connection, capability: str) -> dict[str, Any]:
+    return get_task(conn, task_id_for_capability(conn, capability))
 
 
 def task_purpose(task: dict[str, Any]) -> str:
@@ -90,10 +107,10 @@ def task_instructions(task: dict[str, Any]) -> dict[str, Any]:
         "default": DEFAULT_TASK_INSTRUCTIONS.get(task_type, "Complete the bounded AAAAT task using only the supplied context."),
         "task_specific": str(task.get("instructions") or ""),
         "process": [
-            "Use only input_context from this packet/context.",
+            "Use only input_context from this work item.",
             "Return JSON matching response_format.",
             "Do not include internal entity IDs, file paths, or storage paths.",
-            "AAAAT applies results internally from the task binding. Non-current/stale results remain history.",
+            "AAAAT applies results internally from the private task binding.",
         ],
     }
 
@@ -138,55 +155,46 @@ def response_format(task: dict[str, Any]) -> dict[str, Any]:
     return formats.get(task_type, {"type": "json_object", "required": ["result"], "schema": {"result": "string or object matching task instructions"}})
 
 
-def task_privacy_notes(task: dict[str, Any]) -> list[str]:
+def task_privacy_notes() -> list[str]:
     return [
-        "agent-scoped task context",
+        "purpose-scoped work item",
         "broad candidature collections are not exposed",
-        "task_handle is an opaque callback handle, not a database or entity ID",
+        "task_capability is a random attempt-scoped callback capability, not a database or entity ID",
         "AAAAT owns applying results to local records",
     ]
 
 
-def task_envelope(task: dict[str, Any]) -> dict[str, Any]:
+def task_envelope(conn: sqlite3.Connection, task: dict[str, Any]) -> dict[str, Any]:
     envelope = {key: task.get(key, "") for key in ENVELOPE_FIELDS if key != "context_hint"}
-    envelope["task_handle"] = task_handle(task)
+    envelope["task_capability"] = task_capability(conn, task)
     envelope["purpose"] = task_purpose(task)
     envelope["context_hint"] = safe_context_hint(task.get("context_hint"))
     envelope["allowed_actions"] = allowed_actions(task)
     return envelope
 
 
-def list_agent_task_envelopes(conn: sqlite3.Connection, *, state: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
-    envelopes = [task_envelope(row) for row in list_tasks(conn, state=state)]
-    return envelopes[:limit] if limit else envelopes
-
-
-def next_agent_task_envelope(conn: sqlite3.Connection) -> dict[str, Any] | None:
-    tasks = list_tasks(conn, state="queued")
-    return task_envelope(tasks[0]) if tasks else None
-
-
-def task_result_ack(task: dict[str, Any]) -> dict[str, Any]:
-    return {"status": "accepted", "task": {"task_handle": task_handle(task), "state": task.get("state", "")}, "next": ["open_desktop"]}
-
-
-def build_agent_task_context(conn: sqlite3.Connection, task_handle_value: str) -> dict[str, Any]:
-    task = get_task_for_handle(conn, task_handle_value)
-    envelope = task_envelope(task)
-    input_context = scrub_forbidden_agent_context(_task_context(conn, task))
+def build_agent_work_item(conn: sqlite3.Connection, task: dict[str, Any]) -> dict[str, Any]:
+    envelope = task_envelope(conn, task)
     result = {
         "task": envelope,
         "purpose": task_purpose(task),
         "instructions": task_instructions(task),
-        "input_context": input_context,
+        "input_context": scrub_forbidden_agent_context(_task_context(conn, task)),
         "output_contract": output_contract(task),
         "response_format": response_format(task),
-        "privacy": {"scope": "agent", "notes": task_privacy_notes(task)},
-        "privacy_notes": task_privacy_notes(task),
+        "privacy": {"scope": "task", "notes": task_privacy_notes()},
         "allowed_actions": envelope["allowed_actions"],
-        "write_back": {"submit_cli": f"aaaat agent submit {envelope['task_handle']} --result-file result.json"},
     }
     return scrub_forbidden_agent_context(result)
+
+
+def next_agent_work_item(conn: sqlite3.Connection) -> dict[str, Any] | None:
+    tasks = list_tasks(conn, state="queued")
+    return build_agent_work_item(conn, tasks[0]) if tasks else None
+
+
+def task_result_ack(conn: sqlite3.Connection, task: dict[str, Any]) -> dict[str, Any]:
+    return {"status": "accepted", "task": {"task_capability": task_capability(conn, task), "state": task.get("state", "")}, "next": ["open_desktop"]}
 
 
 def _task_context(conn: sqlite3.Connection, task: dict[str, Any]) -> dict[str, Any]:
@@ -228,7 +236,7 @@ def scrub_forbidden_agent_context(value: Any) -> Any:
 
 def submit_agent_task_result(
     conn: sqlite3.Connection,
-    task_handle_value: str,
+    task_capability_value: str,
     result_body: str,
     *,
     result_title: str = "",
@@ -236,8 +244,8 @@ def submit_agent_task_result(
     agent_runtime: str = "",
     model_provider: str = "",
 ) -> dict[str, Any]:
-    task = get_task_for_handle(conn, task_handle_value)
-    if "submit" not in allowed_actions(task):
+    task = get_task_for_capability(conn, task_capability_value)
+    if "submit_result" not in allowed_actions(task):
         raise ValueError(f"Task is not accepting results in state {task.get('state')}")
     completed = complete_task(
         conn,
@@ -249,11 +257,10 @@ def submit_agent_task_result(
         model_provider=model_provider,
     )
     if str(task.get("task_type") or "") == "profile_completion":
-        acknowledgement = apply_profile_completion_result(
+        completed["profile_update"] = apply_profile_completion_result(
             conn,
             result_body,
             agent_name=agent_name,
             agent_runtime=agent_runtime,
         )
-        completed["profile_update"] = acknowledgement
     return completed
