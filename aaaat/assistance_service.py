@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from .browser_companion import browser_extension_bundle, native_host_manifest
-from .connector_packages import connector_construction_prompt, install_and_activate_connector, preview_connector_package
+from .connector_packages import connector_construction_prompt, install_connector_package, preview_connector_package
 from .db import connect
 from .integration_setup import connection_modes, configure_integration, current_integration, disable_automatic_integration, integration_options
-from .runtime_conformance import negotiate_configured_runtime, read_conformance_state, run_configured_runtime_conformance
+from .runtime_conformance import read_conformance_state, run_configured_runtime_conformance
 from .tasks import create_task, list_tasks
 
 _VISIBLE_STATES = {"queued", "claimed", "in_progress", "blocked", "failed", "cancelled", "completed"}
@@ -55,24 +55,20 @@ def use_manual_integration(storage_path: str | Path) -> dict[str, Any]:
 
 
 def run_integration_conformance(storage_path: str | Path) -> dict[str, Any]:
+    """Conformance applies only to an explicitly configured Advanced command."""
     return run_configured_runtime_conformance(storage_path)
 
 
-def negotiate_integration(storage_path: str | Path) -> dict[str, Any]:
-    return negotiate_configured_runtime(storage_path)
-
-
-def connector_prompt(storage_path: str | Path) -> str:
-    selected = current_integration(storage_path)
-    return connector_construction_prompt(str(selected.get("id") or "argv_custom_command"), dict(selected.get("settings") or {}))
+def connector_prompt(_storage_path: str | Path) -> str:
+    return connector_construction_prompt()
 
 
 def preview_generated_connector(payload: str) -> dict[str, Any]:
     return preview_connector_package(payload)
 
 
-def install_generated_connector(storage_path: str | Path, payload: str) -> dict[str, Any]:
-    return install_and_activate_connector(storage_path, payload)
+def store_generated_connector(storage_path: str | Path, payload: str) -> dict[str, Any]:
+    return install_connector_package(storage_path, payload)
 
 
 def export_browser_companion_package(storage_path: str | Path, output_path: str | Path, host_executable: str = "aaaat-browser-host") -> Path:
@@ -84,5 +80,5 @@ def export_browser_companion_package(storage_path: str | Path, output_path: str 
         for name, content in files.items():
             archive.writestr(f"extension/{name}", content)
         archive.writestr("native-host-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-        archive.writestr("INSTALL.txt", "Install AAAAT normally, load extension/ as an unpacked extension, replace __AAAT_EXTENSION_ID__ in the native host manifest, then install that manifest in the browser's documented native-messaging host directory. The companion carries bounded task commands only; credentials remain with the selected browser or external host.\n")
+        archive.writestr("INSTALL.txt", "Install AAAAT normally, load extension/ as an unpacked extension, replace __AAAT_EXTENSION_ID__ in the native host manifest, then install that manifest in the browser's documented native-messaging host directory. The browser initiates bounded queue calls; credentials remain with the browser or external AI host.\n")
     return target
