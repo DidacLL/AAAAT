@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any
 
 from .provider_adapters import (
-    RECOMMENDED_LOCAL_ADAPTER_ID,
     adapter_capabilities,
     adapter_definition,
     adapter_health,
@@ -56,8 +55,6 @@ def connection_modes() -> list[dict[str, Any]]:
 
 
 def _capability_projection(capabilities: dict[str, Any]) -> dict[str, Any]:
-    """Keep existing callers stable while capabilities become the canonical metadata."""
-
     return {
         "automatic": bool(capabilities["automatic"]),
         "standard_user": capabilities["setup_complexity"] == "guided",
@@ -67,9 +64,29 @@ def _capability_projection(capabilities: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def integration_options(*, include_advanced: bool = False) -> list[dict[str, Any]]:
-    """Return adapter choices for advanced setup plus declared capabilities."""
+def disclosure_summary(capabilities: dict[str, Any]) -> dict[str, Any]:
+    network_access = str(capabilities.get("network_access") or "host-controlled")
+    local_only = bool(capabilities.get("local_only"))
+    if not capabilities.get("automatic"):
+        route = "user-mediated"
+    elif local_only:
+        route = "local"
+    elif network_access in {"runtime-controlled", "host-controlled"}:
+        route = "selected-host-controlled"
+    else:
+        route = network_access
+    return {
+        "route": route,
+        "context_scope": "Only purpose-specific bounded task context is sent.",
+        "identity_policy": "Purpose-dependent; identity may be omitted or redacted unless required and approved.",
+        "credentials": str(capabilities.get("credential_ownership") or "external-host"),
+        "research_available": bool(capabilities.get("research")),
+        "automatic": bool(capabilities.get("automatic")),
+        "transport_kind": str(capabilities.get("transport_kind") or "manual"),
+    }
 
+
+def integration_options(*, include_advanced: bool = False) -> list[dict[str, Any]]:
     options: list[dict[str, Any]] = []
     for adapter in visible_adapters(include_advanced=include_advanced):
         capabilities = adapter_capabilities(adapter.adapter_id)
@@ -82,6 +99,7 @@ def integration_options(*, include_advanced: bool = False) -> list[dict[str, Any
                 "fields": [dict(field) for field in adapter.fields],
                 "recommended_settings": standard_local_settings(adapter.adapter_id),
                 "capabilities": capabilities,
+                "disclosure": disclosure_summary(capabilities),
                 **_capability_projection(capabilities),
             }
         )
@@ -99,6 +117,7 @@ def current_integration(storage_path: str | Path) -> dict[str, Any]:
         "title": adapter.title,
         "settings": dict(selected.get("settings") or {}),
         "capabilities": capabilities,
+        "disclosure": disclosure_summary(capabilities),
         **_capability_projection(capabilities),
     }
 
@@ -110,21 +129,19 @@ def configure_integration(
     *,
     automatic_preparation: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Validate, health-check and persist one explicitly selected integration."""
-
     current = load_workspace_config(storage_path)
     normalized = validate_adapter_settings(adapter_id, settings)
     capabilities = adapter_capabilities(adapter_id)
     health = adapter_health(adapter_id, normalized)
+    common = {
+        "adapter_id": adapter_id,
+        "settings": normalized,
+        "capabilities": capabilities,
+        "disclosure": disclosure_summary(capabilities),
+        "health": health,
+    }
     if health.get("status") != "ready":
-        return {
-            "status": "error",
-            "saved": False,
-            "adapter_id": adapter_id,
-            "settings": normalized,
-            "capabilities": capabilities,
-            "health": health,
-        }
+        return {"status": "error", "saved": False, **common}
     save_workspace_settings(
         storage_path,
         automatic_preparation=(
@@ -135,29 +152,10 @@ def configure_integration(
         local_agent_adapter_id=adapter_id,
         local_agent_adapter_settings=normalized,
     )
-    return {
-        "status": "ready",
-        "saved": True,
-        "adapter_id": adapter_id,
-        "settings": normalized,
-        "capabilities": capabilities,
-        "health": health,
-    }
-
-
-def configure_recommended_local_integration(storage_path: str | Path) -> dict[str, Any]:
-    """Compatibility helper for the existing guided local setup."""
-
-    return configure_integration(
-        storage_path,
-        RECOMMENDED_LOCAL_ADAPTER_ID,
-        standard_local_settings(RECOMMENDED_LOCAL_ADAPTER_ID),
-    )
+    return {"status": "ready", "saved": True, **common}
 
 
 def disable_automatic_integration(storage_path: str | Path) -> dict[str, Any]:
-    """Return to manual operation while preserving automatic task choices."""
-
     current = load_workspace_config(storage_path)
     save_workspace_settings(
         storage_path,
