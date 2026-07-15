@@ -5,6 +5,7 @@ from typing import Any, Callable
 import wx  # type: ignore[import-not-found]
 
 IntegrationSaveCallback = Callable[[str, dict[str, Any]], dict[str, Any]]
+ModeCallback = Callable[[str], dict[str, Any] | None]
 SimpleCallback = Callable[[], dict[str, Any]]
 TaskCallback = Callable[[str], None]
 
@@ -16,9 +17,8 @@ class AssistancePanel(wx.ScrolledWindow):
         self,
         parent: wx.Window,
         *,
+        on_select_mode: ModeCallback,
         on_save_integration: IntegrationSaveCallback,
-        on_recommended: SimpleCallback,
-        on_manual: SimpleCallback,
         on_conformance: SimpleCallback,
         on_create_profile_task: SimpleCallback,
         on_run_task: TaskCallback,
@@ -27,9 +27,8 @@ class AssistancePanel(wx.ScrolledWindow):
     ) -> None:
         super().__init__(parent, style=wx.VSCROLL)
         self.SetScrollRate(0, 12)
+        self.on_select_mode = on_select_mode
         self.on_save_integration = on_save_integration
-        self.on_recommended = on_recommended
-        self.on_manual = on_manual
         self.on_conformance = on_conformance
         self.on_create_profile_task = on_create_profile_task
         self.on_run_task = on_run_task
@@ -38,6 +37,7 @@ class AssistancePanel(wx.ScrolledWindow):
         self.snapshot: dict[str, Any] = {}
         self.option_by_title: dict[str, dict[str, Any]] = {}
         self.field_controls: dict[str, wx.TextCtrl] = {}
+        self.show_advanced = False
         self.root = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(self.root)
 
@@ -54,37 +54,94 @@ class AssistancePanel(wx.ScrolledWindow):
             self.Thaw()
 
     def _build_integration_section(self) -> None:
-        heading = wx.StaticText(self, label="AI assistance connection")
+        heading = wx.StaticText(self, label="AI assistance")
         heading.SetFont(heading.GetFont().Bold().Larger())
         self.root.Add(heading, 0, wx.ALL | wx.EXPAND, 10)
 
-        current = dict(self.snapshot.get("integration") or {})
-        status = wx.StaticText(
+        intro = wx.StaticText(
             self,
-            label=f"Current: {current.get('title') or 'Portable/manual'} · network: {current.get('network_access') or 'host-controlled'}",
+            label=(
+                "Choose how you want AAAAT to work with your AI. Technical runtime, endpoint, model, "
+                "and command settings are available only under Advanced integration."
+            ),
         )
+        intro.Wrap(760)
+        self.root.Add(intro, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
+        current = dict(self.snapshot.get("integration") or {})
+        disclosure = dict(current.get("disclosure") or {})
+        status_text = (
+            f"Current connection: {current.get('title') or 'Manual'} · "
+            f"data route: {disclosure.get('route') or current.get('network_access') or 'user-controlled'}"
+        )
+        status = wx.StaticText(self, label=status_text)
         status.Wrap(760)
         self.root.Add(status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        quick = wx.BoxSizer(wx.HORIZONTAL)
-        recommended = wx.Button(self, label="Use recommended local AI")
-        manual = wx.Button(self, label="Use portable/manual mode")
-        conformance = wx.Button(self, label="Run conformance test")
-        recommended.Bind(wx.EVT_BUTTON, self._recommended)
-        manual.Bind(wx.EVT_BUTTON, self._manual)
+        modes = list(self.snapshot.get("connection_modes") or [])
+        for mode in modes:
+            mode_id = str(mode.get("id") or "")
+            panel = wx.Panel(self, style=wx.BORDER_SIMPLE)
+            panel_sizer = wx.BoxSizer(wx.HORIZONTAL)
+            panel.SetSizer(panel_sizer)
+            text_sizer = wx.BoxSizer(wx.VERTICAL)
+            title = wx.StaticText(panel, label=str(mode.get("title") or mode_id))
+            title.SetFont(title.GetFont().Bold())
+            text_sizer.Add(title, 0, wx.BOTTOM, 3)
+            description = wx.StaticText(panel, label=str(mode.get("description") or ""))
+            description.Wrap(580)
+            text_sizer.Add(description, 0, wx.EXPAND)
+            button = wx.Button(panel, label="Choose")
+            button.Bind(wx.EVT_BUTTON, lambda _event, value=mode_id: self._select_mode(value))
+            panel_sizer.Add(text_sizer, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 8)
+            panel_sizer.Add(button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 8)
+            self.root.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
+        conformance_row = wx.BoxSizer(wx.HORIZONTAL)
+        self.integration_status = wx.StaticText(self, label="")
+        conformance = wx.Button(self, label="Run connection test")
         conformance.Bind(wx.EVT_BUTTON, self._conformance)
-        quick.Add(recommended, 0, wx.RIGHT, 8)
-        quick.Add(manual, 0, wx.RIGHT, 8)
-        quick.Add(conformance, 0)
-        self.root.Add(quick, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        conformance_row.Add(self.integration_status, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        conformance_row.Add(conformance, 0)
+        self.root.Add(conformance_row, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         conformance_state = dict(self.snapshot.get("conformance") or {})
         conformance_label = wx.StaticText(
             self,
-            label=f"Conformance: {conformance_state.get('status') or 'not_run'} · {conformance_state.get('message') or 'No bounded challenge has been run.'}",
+            label=(
+                f"Connection test: {conformance_state.get('status') or 'not run'} · "
+                f"{conformance_state.get('message') or 'No bounded test has been run.'}"
+            ),
         )
         conformance_label.Wrap(760)
         self.root.Add(conformance_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
+        if self.show_advanced:
+            self._build_advanced_section(current)
+
+    def _select_mode(self, mode_id: str) -> None:
+        if mode_id == "advanced_integration":
+            self.show_advanced = True
+            self.render(self.snapshot)
+        try:
+            result = self.on_select_mode(mode_id)
+        except Exception as exc:
+            self.integration_status.SetLabel(str(exc))
+            return
+        if result:
+            self.integration_status.SetLabel(str(result.get("message") or result.get("status") or "Ready"))
+
+    def _build_advanced_section(self, current: dict[str, Any]) -> None:
+        heading = wx.StaticText(self, label="Advanced integration")
+        heading.SetFont(heading.GetFont().Bold())
+        self.root.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 10)
+
+        helper = wx.StaticText(
+            self,
+            label="Configure a specific adapter, endpoint, executable, model, or fixed command. Existing settings remain unchanged until Test and save succeeds.",
+        )
+        helper.Wrap(760)
+        self.root.Add(helper, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         options = list(self.snapshot.get("options") or [])
         self.option_by_title = {str(item.get("title") or item.get("id")): item for item in options}
@@ -101,13 +158,9 @@ class AssistancePanel(wx.ScrolledWindow):
         self.root.Add(self.fields_panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
         self._populate_fields()
 
-        actions = wx.BoxSizer(wx.HORIZONTAL)
-        self.integration_status = wx.StaticText(self, label="")
-        save = wx.Button(self, label="Test and save")
+        save = wx.Button(self, label="Test and save advanced integration")
         save.Bind(wx.EVT_BUTTON, self._save)
-        actions.Add(self.integration_status, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-        actions.Add(save, 0)
-        self.root.Add(actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        self.root.Add(save, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.ALIGN_RIGHT, 10)
 
     def _selected_option(self) -> dict[str, Any]:
         title = self.choice.GetStringSelection() if hasattr(self, "choice") else ""
@@ -170,23 +223,8 @@ class AssistancePanel(wx.ScrolledWindow):
         health = dict(result.get("health") or {})
         self.integration_status.SetLabel(str(health.get("message") or result.get("status") or "Saved"))
 
-    def _recommended(self, _event: wx.CommandEvent) -> None:
-        try:
-            result = self.on_recommended()
-            health = dict(result.get("health") or {})
-            self.integration_status.SetLabel(str(health.get("message") or result.get("status") or "Ready"))
-        except Exception as exc:
-            self.integration_status.SetLabel(str(exc))
-
-    def _manual(self, _event: wx.CommandEvent) -> None:
-        try:
-            result = self.on_manual()
-            self.integration_status.SetLabel(f"Using {result.get('title') or 'portable/manual mode'}")
-        except Exception as exc:
-            self.integration_status.SetLabel(str(exc))
-
     def _conformance(self, _event: wx.CommandEvent) -> None:
-        self.integration_status.SetLabel("Running bounded conformance challenge…")
+        self.integration_status.SetLabel("Running bounded connection test…")
         try:
             result = self.on_conformance()
             self.integration_status.SetLabel(str(result.get("message") or result.get("status") or "Complete"))
