@@ -54,8 +54,13 @@ def load_workspace_config(storage_path: str | Path) -> dict[str, Any]:
     if not isinstance(adapter_value, dict):
         raise ValueError("local_agent_adapter must be an object")
     adapter_id = str(adapter_value.get("id") or DEFAULT_ADAPTER_ID)
-    adapter_definition(adapter_id)
-    settings = validate_adapter_settings(adapter_id, adapter_value.get("settings"))
+    try:
+        adapter_definition(adapter_id)
+    except ValueError:
+        adapter_id = DEFAULT_ADAPTER_ID
+        settings: dict[str, Any] = {}
+    else:
+        settings = validate_adapter_settings(adapter_id, adapter_value.get("settings"))
     return {
         "automatic_preparation": list(dict.fromkeys(str(item).strip() for item in automatic if str(item).strip())),
         "local_agent_adapter": {
