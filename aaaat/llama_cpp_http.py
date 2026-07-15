@@ -94,14 +94,68 @@ def chat_completion(
     timeout_seconds: int,
 ) -> tuple[str, dict[str, str]]:
     base = validate_loopback_endpoint(endpoint)
+    schema = dict(response_schema)
+    failures: list[str] = []
+    envelope: dict[str, Any] | None = None
+    result: dict[str, Any] | None = None
+
+    # Current llama.cpp documents both forms. Try the explicit json_schema form
+    # first, then the older json_object+schema form for build compatibility.
+    for response_format in (
+        {"type": "json_schema", "schema": schema},
+        {"type": "json_object", "schema": schema},
+    ):
+        envelope, content = _request_chat_completion(
+            base,
+            model,
+            prompt,
+            response_format,
+            timeout_seconds,
+        )
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError as exc:
+            failures.append(f"{response_format['type']}: {exc.msg}; content={_diagnostic_excerpt(content)}")
+            continue
+        if not isinstance(parsed, dict):
+            failures.append(f"{response_format['type']}: assistant content was not a JSON object")
+            continue
+        result = parsed
+        break
+
+    if result is None or envelope is None:
+        detail = " | ".join(failures) or "no structured response was returned"
+        raise ValueError(f"llama.cpp assistant content is not valid structured JSON: {detail}")
+
+    model_name = str(envelope.get("model") or model or "local")
+    return json.dumps(result, ensure_ascii=False), {
+        "agent_name": model_name,
+        "agent_runtime": "llama.cpp-server",
+        "model_provider": f"llama.cpp:{model_name}",
+    }
+
+
+def _request_chat_completion(
+    base: str,
+    model: str,
+    prompt: str,
+    response_format: Mapping[str, Any],
+    timeout_seconds: int,
+) -> tuple[dict[str, Any], str]:
     payload = {
         "model": str(model or "local"),
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": [
+            {
+                "role": "system",
+                "content": "Return only one JSON object matching the supplied schema. Do not use Markdown or explanatory text.",
+            },
+            {"role": "user", "content": prompt},
+        ],
         "stream": False,
-        "response_format": {
-            "type": "json_schema",
-            "schema": dict(response_schema),
-        },
+        "temperature": 0,
+        "response_format": dict(response_format),
+        "chat_template_kwargs": {"enable_thinking": False},
+        "reasoning_format": "none",
     }
     request = urllib.request.Request(
         f"{base}/v1/chat/completions",
@@ -127,17 +181,13 @@ def chat_completion(
         content = envelope["choices"][0]["message"]["content"]
     except (UnicodeDecodeError, json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
         raise ValueError("llama.cpp server returned an invalid chat-completion envelope") from exc
+    if not isinstance(envelope, dict):
+        raise ValueError("llama.cpp server returned an invalid chat-completion envelope")
     if not isinstance(content, str) or not content.strip():
         raise ValueError("llama.cpp server returned no assistant content")
-    try:
-        result = json.loads(content)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"llama.cpp assistant content is not valid JSON: {exc.msg}") from exc
-    if not isinstance(result, dict):
-        raise ValueError("llama.cpp assistant content must be one JSON object")
-    model_name = str(envelope.get("model") or model or "local") if isinstance(envelope, dict) else str(model or "local")
-    return json.dumps(result, ensure_ascii=False), {
-        "agent_name": model_name,
-        "agent_runtime": "llama.cpp-server",
-        "model_provider": f"llama.cpp:{model_name}",
-    }
+    return envelope, content
+
+
+def _diagnostic_excerpt(content: str) -> str:
+    compact = " ".join(str(content).split())
+    return repr(compact[:500])
