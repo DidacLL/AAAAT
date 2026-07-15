@@ -27,15 +27,20 @@ class LocalModelCommunicationTests(unittest.TestCase):
         for forbidden in ("application_id", "candidature_id", "database_path", "artifact_id"):
             self.assertNotIn(forbidden, serialized)
 
-    def test_result_extractor_accepts_one_object_and_rejects_extra_text(self) -> None:
+    def test_result_extractor_accepts_one_object_inside_cli_noise(self) -> None:
         self.assertEqual(json.loads(extract_json_object('{"result":"ok"}')), {"result": "ok"})
         self.assertEqual(
             json.loads(extract_json_object('```json\n{"result":"ok"}\n```')),
             {"result": "ok"},
         )
-        with self.assertRaisesRegex(ValueError, "text after"):
-            extract_json_object('{"result":"ok"} explanation')
-        with self.assertRaisesRegex(ValueError, "one JSON object"):
+        noisy = "Loading model...\navailable commands:\n> prompt\n{\"result\":\"ok\"}\n[ timing ]\nExiting..."
+        self.assertEqual(json.loads(extract_json_object(noisy)), {"result": "ok"})
+
+        with self.assertRaisesRegex(ValueError, "exactly one JSON object"):
+            extract_json_object('{"result":"one"}\n{"result":"two"}')
+        with self.assertRaisesRegex(ValueError, "valid JSON object"):
+            extract_json_object("Loading model...\nOK\nExiting...")
+        with self.assertRaisesRegex(ValueError, "valid JSON object"):
             extract_json_object('[{"result":"ok"}]')
 
     def test_llama_cpp_settings_require_explicit_local_model_file(self) -> None:
@@ -87,7 +92,7 @@ class LocalModelCommunicationTests(unittest.TestCase):
             completed = subprocess.CompletedProcess(
                 args=["llama-cli"],
                 returncode=0,
-                stdout='{"result":"complete"}',
+                stdout='Loading model...\n{"result":"complete"}\nExiting...',
                 stderr="",
             )
             captured_prompt = ""
