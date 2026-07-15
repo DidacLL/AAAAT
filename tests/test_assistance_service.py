@@ -25,6 +25,7 @@ class AssistanceServiceTests(unittest.TestCase):
             snapshot = assistance_snapshot(storage, include_advanced=True)
             self.assertIn("integration", snapshot)
             self.assertTrue(any(option["id"] == "argv_custom_command" for option in snapshot["options"]))
+            self.assertTrue(any(option["id"] == "llama_cpp_cli" for option in snapshot["options"]))
             by_id = {item["id"]: item for item in snapshot["tasks"]}
             self.assertTrue(by_id[queued["id"]]["can_run"])
             self.assertTrue(by_id[queued["id"]]["can_cancel"])
@@ -45,7 +46,11 @@ class AssistanceServiceTests(unittest.TestCase):
             )
             self.assertTrue(ready["saved"])
 
-            failed = save_integration(storage, "ollama_cli", {"executable": "missing-aaaat-runtime", "model": "test"})
+            failed = save_integration(
+                storage,
+                "llama_cpp_cli",
+                {"executable": "missing-aaaat-runtime", "model_path": str(Path(tmp) / "missing.gguf")},
+            )
             self.assertFalse(failed["saved"])
             current = assistance_snapshot(storage)["integration"]
             self.assertEqual(current["id"], "argv_custom_command")
