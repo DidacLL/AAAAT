@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from .browser_companion import browser_extension_bundle, native_host_manifest
-from .connector_packages import connector_construction_prompt, install_connector_package, preview_connector_package
 from .db import connect
 from .integration_setup import connection_modes, configure_integration, current_integration, disable_automatic_integration, integration_options
 from .runtime_conformance import read_conformance_state, run_configured_runtime_conformance
@@ -59,16 +58,23 @@ def run_integration_conformance(storage_path: str | Path) -> dict[str, Any]:
     return run_configured_runtime_conformance(storage_path)
 
 
-def connector_prompt(_storage_path: str | Path) -> str:
-    return connector_construction_prompt()
+def external_host_instructions(_storage_path: str | Path) -> str:
+    return """Connect an external AI or agent host to AAAAT's existing bounded task queue.
 
+The external host initiates every call. AAAAT does not launch, host, configure, or call an LLM.
 
-def preview_generated_connector(payload: str) -> dict[str, Any]:
-    return preview_connector_package(payload)
+Use only the existing bounded operations:
+- obtain one eligible task;
+- obtain purpose-scoped context for one opaque task handle;
+- report task-scoped progress;
+- submit one structured result;
+- submit one explicitly permitted bounded action;
+- cancel one supported task attempt.
 
+A wrapper may use MCP, CLI, HTTP, files, browser messaging, or another host-owned transport. It must reuse AAAAT's existing commands and canonical result-ingestion path. It must not create another queue, expose broad entity listing or search, access SQLite directly, use internal IDs as authority, choose artifact paths, or read arbitrary local files.
 
-def store_generated_connector(storage_path: str | Path, payload: str) -> dict[str, Any]:
-    return install_connector_package(storage_path, payload)
+Provider selection, model selection, credentials, network policy, provider SDKs, browser automation, and inference remain entirely owned by the external host.
+"""
 
 
 def export_browser_companion_package(storage_path: str | Path, output_path: str | Path, host_executable: str = "aaaat-browser-host") -> Path:
