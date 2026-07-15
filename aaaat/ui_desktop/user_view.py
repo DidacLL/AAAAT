@@ -17,7 +17,6 @@ from aaaat.assistance_service import (
     run_integration_conformance,
     save_integration,
     use_manual_integration,
-    use_recommended_local_integration,
 )
 from aaaat.background_worker import OwnedTaskWorker
 from aaaat.portable_task_bundle import export_candidature_task_bundle, import_candidature_result_bundle
@@ -53,9 +52,8 @@ class UserViewMixin:
 
         self.assistance_panel = AssistancePanel(
             self.user_workspace,
+            on_select_mode=self._select_connection_mode,
             on_save_integration=self._save_integration,
-            on_recommended=self._use_recommended_integration,
-            on_manual=self._use_manual_integration,
             on_conformance=self._run_conformance,
             on_create_profile_task=self._create_profile_completion_task,
             on_run_task=self._run_assistance_task,
@@ -72,10 +70,10 @@ class UserViewMixin:
             on_negotiate=self._negotiate_runtime,
             on_export_browser=self._export_browser_companion,
         )
-        self.user_workspace.AddPage(self.connector_panel, "Connect any AI")
+        self.user_workspace.AddPage(self.connector_panel, "Connect my AI")
 
         self.portable_bundle_panel = PortableBundlePanel(self.user_workspace, on_export=self._export_portable_bundle, on_import=self._import_portable_bundle)
-        self.user_workspace.AddPage(self.portable_bundle_panel, "Browser bundle")
+        self.user_workspace.AddPage(self.portable_bundle_panel, "Browser or chat AI")
 
         sizer.Add(self.user_workspace, 1, wx.ALL | wx.EXPAND, 0)
         self.view_book.AddPage(self.user_panel, "User")
@@ -163,25 +161,39 @@ class UserViewMixin:
         self._schedule_assistance_refresh()
         return result
 
-    def _use_recommended_integration(self) -> dict[str, Any]:
-        result = use_recommended_local_integration(self.storage_path)
-        self.SetStatusText("Recommended local integration ready" if result.get("saved") else "Recommended local integration unavailable")
-        self._schedule_assistance_refresh()
-        return result
+    def _select_connection_mode(self, mode_id: str) -> dict[str, Any]:
+        if mode_id == "manual":
+            result = use_manual_integration(self.storage_path)
+            self.SetStatusText("Manual use selected; AI assistance remains optional")
+            self._schedule_assistance_refresh()
+            return {**result, "message": "Continue manually selected."}
+        if mode_id == "guided_connector":
+            self._select_user_workspace_page(self.connector_panel)
+            self.SetStatusText("Connect my AI opened")
+            return {"status": "ready", "message": "Connect my AI opened."}
+        if mode_id == "browser_or_chat":
+            self._select_user_workspace_page(self.portable_bundle_panel)
+            self.SetStatusText("Browser or chat AI workflow opened")
+            return {"status": "ready", "message": "Browser or chat AI workflow opened."}
+        if mode_id == "advanced_integration":
+            self.SetStatusText("Advanced integration settings opened")
+            return {"status": "ready", "message": "Advanced integration settings opened."}
+        raise ValueError(f"Unknown connection mode: {mode_id}")
 
-    def _use_manual_integration(self) -> dict[str, Any]:
-        result = use_manual_integration(self.storage_path)
-        self.SetStatusText("Portable/manual assistance selected")
-        self._schedule_assistance_refresh()
-        return result
+    def _select_user_workspace_page(self, page: wx.Window) -> None:
+        for index in range(self.user_workspace.GetPageCount()):
+            if self.user_workspace.GetPage(index) is page:
+                self.user_workspace.SetSelection(index)
+                return
+        raise RuntimeError("Requested user workspace page is unavailable")
 
     def _run_conformance(self) -> dict[str, Any]:
         if self._conformance_thread and self._conformance_thread.is_alive():
-            return {"status": "running", "message": "Conformance test is already running."}
+            return {"status": "running", "message": "Connection test is already running."}
         self._conformance_thread = threading.Thread(target=self._conformance_work, name="aaaat-runtime-conformance", daemon=False)
         self._conformance_thread.start()
-        self.SetStatusText("Runtime conformance test running")
-        return {"status": "running", "message": "Bounded conformance challenge started."}
+        self.SetStatusText("Connection test running")
+        return {"status": "running", "message": "Bounded connection test started."}
 
     def _conformance_work(self) -> None:
         try:
@@ -191,17 +203,17 @@ class UserViewMixin:
         wx.CallAfter(self._apply_conformance_result, result)
 
     def _apply_conformance_result(self, result: dict[str, Any]) -> None:
-        self.SetStatusText(str(result.get("message") or result.get("status") or "Conformance complete"))
+        self.SetStatusText(str(result.get("message") or result.get("status") or "Connection test complete"))
         if self.current_view == "user":
             self._refresh_user_view()
 
     def _negotiate_runtime(self) -> dict[str, Any]:
         if self._negotiation_thread and self._negotiation_thread.is_alive():
-            return {"status": "running", "message": "Runtime negotiation is already running."}
+            return {"status": "running", "message": "Connection setup is already running."}
         self._negotiation_thread = threading.Thread(target=self._negotiation_work, name="aaaat-runtime-negotiation", daemon=False)
         self._negotiation_thread.start()
-        self.SetStatusText("Runtime negotiation running")
-        return {"status": "running", "message": "Runtime self-description and conformance started."}
+        self.SetStatusText("Connection setup running")
+        return {"status": "running", "message": "Connection description and bounded test started."}
 
     def _negotiation_work(self) -> None:
         try:
