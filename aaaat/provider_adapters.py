@@ -31,47 +31,11 @@ _TIMEOUT_FIELD = {
 
 _ADAPTERS = (
     LocalAgentAdapter(
-        adapter_id="ollama_cli",
-        title="Local AI with Ollama",
-        description=(
-            "Runs a configured local Ollama model as a child process. AAAAT sends one bounded task and validates one result; "
-            "it does not use an Ollama HTTP API, expose a port, manage credentials, or host the model."
-        ),
-        fields=(
-            {
-                "key": "model",
-                "label": "Model",
-                "help_text": "Recommended standard-user model or an advanced override.",
-                "required": False,
-                "multiline": False,
-            },
-            {
-                "key": "executable",
-                "label": "Ollama executable",
-                "help_text": "Usually ollama. Advanced users may select another path.",
-                "required": False,
-                "multiline": False,
-            },
-            {
-                "key": "args",
-                "label": "Additional arguments",
-                "help_text": "Optional arguments placed after the model, one per line.",
-                "required": False,
-                "multiline": True,
-            },
-            _TIMEOUT_FIELD,
-        ),
-        automatic_execution=True,
-        network_access="local-runtime-controlled",
-        local_only=True,
-        standard_user=True,
-    ),
-    LocalAgentAdapter(
         adapter_id="llama_cpp_cli",
         title="Local AI with llama.cpp",
         description=(
-            "Runs llama-cli directly with a local GGUF model and a task-specific prompt file. AAAAT remains port-free and "
-            "uses the same bounded result validation as every other integration."
+            "Runs llama-cli directly with an explicitly selected local GGUF model. AAAAT remains port-free, "
+            "does not manage provider credentials, and uses the same bounded result validation as every other integration."
         ),
         fields=(
             {
@@ -84,7 +48,7 @@ _ADAPTERS = (
             {
                 "key": "executable",
                 "label": "llama-cli executable",
-                "help_text": "Usually llama-cli. Advanced users may select another path.",
+                "help_text": "Usually llama-cli. Select another path when your installation uses a different executable name.",
                 "required": False,
                 "multiline": False,
             },
@@ -100,6 +64,7 @@ _ADAPTERS = (
         automatic_execution=True,
         network_access="none",
         local_only=True,
+        standard_user=True,
     ),
     LocalAgentAdapter(
         adapter_id="manual_external_agent",
@@ -128,13 +93,16 @@ _ADAPTERS = (
     ),
     LocalAgentAdapter(
         adapter_id="argv_custom_command",
-        title="Existing connector command",
-        description="Runs a user-owned executable without a shell; bounded context is stdin and one result is stdout.",
+        title="Existing local command",
+        description=(
+            "Runs any user-owned executable without a shell. One bounded task is written to stdin, one result object is read "
+            "from stdout, and stderr is reserved for diagnostics or structured progress."
+        ),
         fields=(
             {
                 "key": "argv",
                 "label": "Command arguments",
-                "help_text": "One executable or argument per line.",
+                "help_text": "One executable or fixed argument per line.",
                 "required": True,
                 "multiline": True,
             },
@@ -144,9 +112,44 @@ _ADAPTERS = (
         advanced=True,
     ),
     LocalAgentAdapter(
+        adapter_id="ollama_cli",
+        title="Ollama CLI (optional adapter)",
+        description=(
+            "Compatibility adapter for a user-selected Ollama CLI installation. It is not AAAAT's recommended runtime, "
+            "privacy guarantee, architectural dependency, or release portability proof."
+        ),
+        fields=(
+            {
+                "key": "model",
+                "label": "Model",
+                "help_text": "Exact model name owned by the selected Ollama installation.",
+                "required": True,
+                "multiline": False,
+            },
+            {
+                "key": "executable",
+                "label": "Ollama executable",
+                "help_text": "Usually ollama.",
+                "required": False,
+                "multiline": False,
+            },
+            {
+                "key": "args",
+                "label": "Additional arguments",
+                "help_text": "Optional arguments placed after the model, one per line.",
+                "required": False,
+                "multiline": True,
+            },
+            _TIMEOUT_FIELD,
+        ),
+        automatic_execution=True,
+        advanced=True,
+        network_access="runtime-controlled",
+    ),
+    LocalAgentAdapter(
         adapter_id="codex_cli",
         title="Codex CLI (advanced example)",
-        description="Compatibility adapter for an already configured Codex CLI. It is not a v1 accessibility proof.",
+        description="Compatibility adapter for an already configured Codex CLI. It is not a v1 local-inference proof.",
         fields=(
             {
                 "key": "executable",
@@ -172,8 +175,7 @@ _ADAPTERS = (
 
 ADAPTERS: Mapping[str, LocalAgentAdapter] = {item.adapter_id: item for item in _ADAPTERS}
 DEFAULT_ADAPTER_ID = "manual_external_agent"
-RECOMMENDED_LOCAL_ADAPTER_ID = "ollama_cli"
-RECOMMENDED_OLLAMA_MODEL = "qwen3:8b"
+RECOMMENDED_LOCAL_ADAPTER_ID = "llama_cpp_cli"
 
 
 def adapter_definition(adapter_id: str) -> LocalAgentAdapter:
@@ -192,17 +194,16 @@ def adapter_can_run_automatically(adapter_id: str) -> bool:
 
 
 def standard_local_settings(adapter_id: str) -> dict[str, Any]:
-    if adapter_id == "ollama_cli":
-        return {"model": RECOMMENDED_OLLAMA_MODEL, "executable": "ollama", "args": [], "timeout_seconds": 600}
     if adapter_id == "llama_cpp_cli":
         return {"model_path": "", "executable": "llama-cli", "args": [], "timeout_seconds": 600}
+    if adapter_id == "ollama_cli":
+        return {"model": "", "executable": "ollama", "args": [], "timeout_seconds": 600}
     return {}
 
 
 def validate_adapter_settings(adapter_id: str, settings: Mapping[str, Any] | None) -> dict[str, Any]:
     adapter = adapter_definition(adapter_id)
-    defaults = standard_local_settings(adapter_id)
-    values = {**defaults, **dict(settings or {})}
+    values = {**standard_local_settings(adapter_id), **dict(settings or {})}
     allowed = {str(field["key"]) for field in adapter.fields}
     unknown = set(values) - allowed
     if unknown:
@@ -257,15 +258,15 @@ def adapter_health(adapter_id: str, settings: Mapping[str, Any] | None = None) -
     if adapter_id == "argv_custom_command":
         executable = str((normalized.get("argv") or [""])[0])
         probe_argv: list[str] | None = None
-    elif adapter_id == "ollama_cli":
-        executable = str(normalized.get("executable") or "ollama")
-        probe_argv = [executable, "--version"]
     elif adapter_id == "llama_cpp_cli":
         executable = str(normalized.get("executable") or "llama-cli")
         probe_argv = [executable, "--version"]
         model = Path(str(normalized["model_path"])).expanduser()
         if not model.is_file():
             return {"status": "error", "message": f"GGUF model file not found: {model}", **base}
+    elif adapter_id == "ollama_cli":
+        executable = str(normalized.get("executable") or "ollama")
+        probe_argv = [executable, "--version"]
     else:
         executable = str(normalized.get("executable") or "codex")
         probe_argv = [executable, "--version"]
@@ -293,6 +294,4 @@ def adapter_health(adapter_id: str, settings: Mapping[str, Any] | None = None) -
     message = f"Executable verified: {resolved}"
     if version:
         message += f" ({version.splitlines()[0]})"
-    if adapter_id == "ollama_cli":
-        message += f"; configured model: {normalized['model']}"
     return {"status": "ready", "message": message, "executable": resolved, **base}
