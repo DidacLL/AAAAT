@@ -61,8 +61,8 @@ class AssistancePanel(wx.ScrolledWindow):
         intro = wx.StaticText(
             self,
             label=(
-                "Choose how you want AAAAT to work with your AI. Technical runtime, endpoint, model, "
-                "and command settings are available only under Advanced integration."
+                "Connect an external AI to AAAAT's bounded task queue, use a portable bundle, or continue manually. "
+                "A controlled file exchange or user-owned command is available only under Advanced integration."
             ),
         )
         intro.Wrap(760)
@@ -70,16 +70,17 @@ class AssistancePanel(wx.ScrolledWindow):
 
         current = dict(self.snapshot.get("integration") or {})
         disclosure = dict(current.get("disclosure") or {})
-        status_text = (
-            f"Current connection: {current.get('title') or 'Manual'} · "
-            f"data route: {disclosure.get('route') or current.get('network_access') or 'user-controlled'}"
+        status = wx.StaticText(
+            self,
+            label=(
+                f"Current connection: {current.get('title') or 'Manual'} · "
+                f"data route: {disclosure.get('route') or current.get('network_access') or 'user-controlled'}"
+            ),
         )
-        status = wx.StaticText(self, label=status_text)
         status.Wrap(760)
         self.root.Add(status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        modes = list(self.snapshot.get("connection_modes") or [])
-        for mode in modes:
+        for mode in list(self.snapshot.get("connection_modes") or []):
             mode_id = str(mode.get("id") or "")
             panel = wx.Panel(self, style=wx.BORDER_SIMPLE)
             panel_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -138,12 +139,15 @@ class AssistancePanel(wx.ScrolledWindow):
 
         helper = wx.StaticText(
             self,
-            label="Configure a specific adapter, endpoint, executable, model, or fixed command. Existing settings remain unchanged until Test and save succeeds.",
+            label=(
+                "Configure a controlled file exchange or a user-owned command. AAAAT passes only one bounded task "
+                "and accepts one validated result. Existing settings remain unchanged until the test succeeds."
+            ),
         )
         helper.Wrap(760)
         self.root.Add(helper, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        options = list(self.snapshot.get("options") or [])
+        options = [item for item in list(self.snapshot.get("options") or []) if bool(item.get("advanced"))]
         self.option_by_title = {str(item.get("title") or item.get("id")): item for item in options}
         titles = list(self.option_by_title)
         self.choice = wx.Choice(self, choices=titles)
@@ -271,7 +275,7 @@ class AssistancePanel(wx.ScrolledWindow):
             actions = wx.BoxSizer(wx.HORIZONTAL)
             task_id = str(task.get("id") or "")
             if task.get("can_run"):
-                button = wx.Button(panel, label="Run")
+                button = wx.Button(panel, label="Run advanced command")
                 button.Bind(wx.EVT_BUTTON, lambda _event, value=task_id: self.on_run_task(value))
                 actions.Add(button, 0, wx.RIGHT, 6)
             if task.get("can_retry"):
