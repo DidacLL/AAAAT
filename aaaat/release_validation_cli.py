@@ -15,9 +15,9 @@ def _json_string_array(value: str, option: str) -> list[str]:
     try:
         parsed = json.loads(value)
     except json.JSONDecodeError as exc:
-        raise argparse.ArgumentTypeError(f"{option} must be valid JSON: {exc.msg}") from exc
+        raise ValueError(f"{option} must be valid JSON: {exc.msg}") from exc
     if not isinstance(parsed, list) or any(not isinstance(item, str) or not item for item in parsed):
-        raise argparse.ArgumentTypeError(f"{option} must be a non-empty JSON string array")
+        raise ValueError(f"{option} must be a non-empty JSON string array")
     return parsed
 
 
@@ -36,16 +36,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model-path", default="", help="GGUF model path for the llama-cpp reference profile.")
     parser.add_argument("--executable", default="", help="Executable path for the llama-cpp reference profile.")
     parser.add_argument(
+        "--runtime-arg",
         "--arg",
-        dest="args",
+        dest="runtime_args",
         action="append",
         default=[],
-        help="One additional runtime argument. Use --arg=--flag when the value begins with a dash.",
+        help="One additional runtime argument. Use --runtime-arg=--flag when the value begins with a dash.",
     )
     parser.add_argument(
         "--runtime-args-json",
         default="",
-        help='JSON array of additional runtime arguments, for example ["--ctx-size","8192"].',
+        help="Optional JSON array of additional runtime arguments. Repeatable --runtime-arg is safer in PowerShell.",
     )
     parser.add_argument(
         "--command-json",
@@ -58,11 +59,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
-    command = _json_string_array(args.command_json, "--command-json") if args.command_json else []
-    runtime_args = list(args.args)
-    if args.runtime_args_json:
-        runtime_args.extend(_json_string_array(args.runtime_args_json, "--runtime-args-json"))
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        command = _json_string_array(args.command_json, "--command-json") if args.command_json else []
+        runtime_args = list(args.runtime_args)
+        if args.runtime_args_json:
+            runtime_args.extend(_json_string_array(args.runtime_args_json, "--runtime-args-json"))
+    except ValueError as exc:
+        parser.error(str(exc))
 
     config = ValidationConfig(
         storage=args.storage,
