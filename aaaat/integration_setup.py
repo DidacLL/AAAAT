@@ -18,7 +18,7 @@ _CONNECTION_MODES: tuple[dict[str, Any], ...] = (
     {
         "id": "manual",
         "title": "Continue manually",
-        "description": "Use AAAAT without an automatic AI connection. Portable task bundles remain available when needed.",
+        "description": "Use AAAAT without an AI connection. Portable task bundles remain available.",
         "automatic": False,
         "setup_complexity": "guided",
         "adapter_ids": ("manual_external_agent",),
@@ -26,26 +26,26 @@ _CONNECTION_MODES: tuple[dict[str, Any], ...] = (
     {
         "id": "guided_connector",
         "title": "Connect my AI",
-        "description": "Use an existing compatible AI automatically through a bounded connection selected during setup.",
+        "description": "Create host-side instructions for an external AI to consume AAAAT's existing bounded queue.",
         "automatic": True,
         "setup_complexity": "guided",
-        "adapter_ids": ("llama_cpp_server", "argv_custom_command", "ollama_cli", "codex_cli"),
+        "adapter_ids": (),
     },
     {
         "id": "browser_or_chat",
         "title": "Use a browser or chat AI",
-        "description": "Exchange one bounded task bundle and one result bundle, or use a supported browser companion.",
+        "description": "Exchange one bounded task bundle and one result bundle, or use the browser companion.",
         "automatic": False,
         "setup_complexity": "guided",
-        "adapter_ids": ("manual_external_agent", "file_exchange"),
+        "adapter_ids": ("manual_external_agent",),
     },
     {
         "id": "advanced_integration",
         "title": "Advanced integration",
-        "description": "Configure a command, endpoint, exchange directory, or generated connector explicitly.",
+        "description": "Configure a controlled file exchange or a user-owned command explicitly.",
         "automatic": None,
         "setup_complexity": "advanced",
-        "adapter_ids": tuple(item.adapter_id for item in visible_adapters(include_advanced=True)),
+        "adapter_ids": ("file_exchange", "argv_custom_command"),
     },
 )
 
@@ -66,18 +66,15 @@ def _capability_projection(capabilities: dict[str, Any]) -> dict[str, Any]:
 
 def disclosure_summary(capabilities: dict[str, Any]) -> dict[str, Any]:
     network_access = str(capabilities.get("network_access") or "host-controlled")
-    local_only = bool(capabilities.get("local_only"))
     if not capabilities.get("automatic"):
         route = "user-mediated"
-    elif local_only:
-        route = "local"
     elif network_access in {"runtime-controlled", "host-controlled"}:
         route = "selected-host-controlled"
     else:
         route = network_access
     return {
         "route": route,
-        "context_scope": "Only purpose-specific bounded task context is sent.",
+        "context_scope": "Only purpose-specific bounded task context is exchanged.",
         "identity_policy": "Purpose-dependent; identity may be omitted or redacted unless required and approved.",
         "credentials": str(capabilities.get("credential_ownership") or "external-host"),
         "research_available": bool(capabilities.get("research")),
@@ -90,19 +87,17 @@ def integration_options(*, include_advanced: bool = False) -> list[dict[str, Any
     options: list[dict[str, Any]] = []
     for adapter in visible_adapters(include_advanced=include_advanced):
         capabilities = adapter_capabilities(adapter.adapter_id)
-        options.append(
-            {
-                "id": adapter.adapter_id,
-                "title": adapter.title,
-                "description": adapter.description,
-                "advanced": adapter.advanced,
-                "fields": [dict(field) for field in adapter.fields],
-                "recommended_settings": standard_local_settings(adapter.adapter_id),
-                "capabilities": capabilities,
-                "disclosure": disclosure_summary(capabilities),
-                **_capability_projection(capabilities),
-            }
-        )
+        options.append({
+            "id": adapter.adapter_id,
+            "title": adapter.title,
+            "description": adapter.description,
+            "advanced": adapter.advanced,
+            "fields": [dict(field) for field in adapter.fields],
+            "recommended_settings": standard_local_settings(adapter.adapter_id),
+            "capabilities": capabilities,
+            "disclosure": disclosure_summary(capabilities),
+            **_capability_projection(capabilities),
+        })
     return options
 
 
@@ -144,11 +139,7 @@ def configure_integration(
         return {"status": "error", "saved": False, **common}
     save_workspace_settings(
         storage_path,
-        automatic_preparation=(
-            list(automatic_preparation)
-            if automatic_preparation is not None
-            else list(current.get("automatic_preparation") or [])
-        ),
+        automatic_preparation=list(automatic_preparation) if automatic_preparation is not None else list(current.get("automatic_preparation") or []),
         local_agent_adapter_id=adapter_id,
         local_agent_adapter_settings=normalized,
     )
