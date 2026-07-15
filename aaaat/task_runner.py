@@ -9,11 +9,9 @@ from typing import Any, Callable
 from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
 from .candidature_lifecycle import release_ready_lifecycle_tasks
 from .db import connect, utc_now
-from .llama_cpp_http import chat_completion, task_response_json_schema
-from .local_cli_runtime import build_local_cli_invocation
-from .local_model_protocol import build_local_model_prompt, extract_json_object
-from .provider_adapters import adapter_definition, validate_adapter_settings
+from .provider_adapters import adapter_definition
 from .subprocess_output import subprocess_failure_message
+from .task_transports import execute_configured_transport
 from .tasks import get_task, update_task
 from .workspace_config import load_workspace_config, storage_directory
 
@@ -28,7 +26,7 @@ class TaskRunnerError(RuntimeError):
 
 
 class TaskRunner:
-    """Run one bounded AAAAT task through the configured external runtime."""
+    """Run one bounded AAAAT task through the configured external transport."""
 
     def __init__(self, storage_path: str | Path, *, on_progress: ProgressCallback | None = None) -> None:
         self.storage_path = str(storage_path)
@@ -68,7 +66,14 @@ class TaskRunner:
             if current.get("state") == "cancelled":
                 self._emit(task_id, "cancelled", "Task cancelled before result application", 100)
                 return {"task": current, "cancelled": True}
-            submitted = submit_agent_task_result(conn, task_handle(current), body, agent_name=str(provenance.get("agent_name") or ""), agent_runtime=str(provenance.get("agent_runtime") or f"local-adapter:{adapter_id}"), model_provider=str(provenance.get("model_provider") or ""))
+            submitted = submit_agent_task_result(
+                conn,
+                task_handle(current),
+                body,
+                agent_name=str(provenance.get("agent_name") or ""),
+                agent_runtime=str(provenance.get("agent_runtime") or f"local-adapter:{adapter_id}"),
+                model_provider=str(provenance.get("model_provider") or ""),
+            )
             application_id = str(current.get("application_id") or "")
             released = release_ready_lifecycle_tasks(conn, application_id) if application_id else []
             final = get_task(conn, task_id)
@@ -76,26 +81,13 @@ class TaskRunner:
         return {"submitted": submitted, "task": final, "provenance": provenance, "released_tasks": released}
 
     def _execute_adapter(self, adapter_id: str, settings: dict[str, Any], context: dict[str, Any]) -> tuple[str, dict[str, str]]:
-        normalized = validate_adapter_settings(adapter_id, settings)
-        timeout = int(normalized.get("timeout_seconds") or 60)
-        prompt = build_local_model_prompt(context)
-        if adapter_id == "llama_cpp_server":
-            return chat_completion(normalized["endpoint"], normalized.get("model") or "local", prompt, task_response_json_schema(context), timeout)
-        if adapter_id == "ollama_cli":
-            with build_local_cli_invocation(adapter_id, normalized, prompt) as invocation:
-                output = self._run_stdio(list(invocation.argv), invocation.input_body, timeout, validate_result=False)
-                return extract_json_object(output), dict(invocation.provenance)
-        if adapter_id == "codex_cli":
-            argv = [str(normalized.get("executable") or "codex"), *list(normalized.get("args") or [])]
-            body = self._run_stdio(argv, json.dumps(context, ensure_ascii=False), timeout)
-            return body, {"agent_runtime": "codex-cli", "model_provider": "host-reported"}
-        if adapter_id == "argv_custom_command":
-            argv = list(normalized.get("argv") or [])
-            if not argv:
-                raise TaskRunnerError("Local command adapter is not configured")
-            body = self._run_stdio(argv, json.dumps(context, ensure_ascii=False), timeout)
-            return body, {"agent_runtime": "user-owned-command"}
-        raise TaskRunnerError(f"Local adapter '{adapter_id}' is not executable")
+        execution = execute_configured_transport(
+            adapter_id,
+            settings,
+            context,
+            run_stdio=self._run_stdio,
+        )
+        return execution.body, dict(execution.provenance)
 
     def _run_stdio(self, argv: list[str], input_body: str | None, timeout: int, *, validate_result: bool = True) -> str:
         environment = dict(os.environ)
@@ -143,7 +135,15 @@ class TaskRunner:
 
     def _emit(self, task_id: str, phase: str, message: str, percent: int) -> None:
         self._sequence += 1
-        event = {"task_id": task_id, "state": phase, "phase": phase, "message": str(message)[:2000], "percent": max(0, min(100, int(percent))), "sequence": self._sequence, "occurred_at": utc_now()}
+        event = {
+            "task_id": task_id,
+            "state": phase,
+            "phase": phase,
+            "message": str(message)[:2000],
+            "percent": max(0, min(100, int(percent))),
+            "sequence": self._sequence,
+            "occurred_at": utc_now(),
+        }
         self._persist_progress(event)
         self.on_progress(event)
 
@@ -160,5 +160,8 @@ class TaskRunner:
         with connect(self.storage_path) as conn:
             current = get_task(conn, task_id)
             if current.get("state") != "cancelled":
-                conn.execute("UPDATE tasks SET state = ?, notes = ?, updated_at = ? WHERE id = ?", ("failed", message[:4000], utc_now(), task_id))
+                conn.execute(
+                    "UPDATE tasks SET state = ?, notes = ?, updated_at = ? WHERE id = ?",
+                    ("failed", message[:4000], utc_now(), task_id),
+                )
                 conn.commit()
