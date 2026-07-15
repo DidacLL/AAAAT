@@ -12,16 +12,14 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         *,
         on_prompt: Callable[[], str],
         on_preview: Callable[[str], dict[str, Any]],
-        on_install: Callable[[str], dict[str, Any]],
-        on_negotiate: Callable[[], dict[str, Any]],
+        on_store: Callable[[str], dict[str, Any]],
         on_export_browser: Callable[[], Any],
     ) -> None:
         super().__init__(parent, style=wx.VSCROLL)
         self.SetScrollRate(0, 12)
         self.on_prompt = on_prompt
         self.on_preview = on_preview
-        self.on_install = on_install
-        self.on_negotiate = on_negotiate
+        self.on_store = on_store
         self.on_export_browser = on_export_browser
         root = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(root)
@@ -32,8 +30,8 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         description = wx.StaticText(
             self,
             label=(
-                "Use the AI you already prefer. AAAAT creates setup instructions that describe only its bounded task/result "
-                "contract. Give those instructions to your AI, then paste back the connection package it creates."
+                "Use the AI or agent host you already prefer. AAAAT creates provider-neutral setup instructions for "
+                "consuming its existing bounded task queue. The external host initiates every connection."
             ),
         )
         description.Wrap(760)
@@ -42,24 +40,24 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         privacy = wx.StaticText(
             self,
             label=(
-                "Before activation, AAAAT shows every generated file and runs a fake-data connection test. "
-                "No candidature, profile, database path, or internal identifier is shared during setup."
+                "AAAAT previews and stores returned setup files disabled. It never executes this package, launches an AI, "
+                "or embeds provider credentials. Configure the stored package in your external host."
             ),
         )
         privacy.Wrap(760)
         root.Add(privacy, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        step_one = wx.StaticText(self, label="1. Create setup instructions")
+        step_one = wx.StaticText(self, label="1. Create host-side setup instructions")
         step_one.SetFont(step_one.GetFont().Bold())
         root.Add(step_one, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        prompt_button = wx.Button(self, label="Create instructions for my AI")
+        prompt_button = wx.Button(self, label="Create instructions for my AI host")
         prompt_button.Bind(wx.EVT_BUTTON, self._generate_prompt)
         root.Add(prompt_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
         self.prompt_text = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.prompt_text.SetMinSize((-1, 170))
         root.Add(self.prompt_text, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        package_label = wx.StaticText(self, label="2. Paste the connection package returned by your AI")
+        package_label = wx.StaticText(self, label="2. Paste the host wrapper package returned by your AI")
         package_label.SetFont(package_label.GetFont().Bold())
         root.Add(package_label, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
         self.package_text = wx.TextCtrl(self, style=wx.TE_MULTILINE)
@@ -68,24 +66,16 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
 
         package_actions = wx.BoxSizer(wx.HORIZONTAL)
         preview = wx.Button(self, label="Review generated files")
-        install = wx.Button(self, label="Install and test connection")
+        store = wx.Button(self, label="Store disabled package")
         preview.Bind(wx.EVT_BUTTON, self._preview)
-        install.Bind(wx.EVT_BUTTON, self._install)
+        store.Bind(wx.EVT_BUTTON, self._store)
         package_actions.Add(preview, 0, wx.RIGHT, 8)
-        package_actions.Add(install, 0)
+        package_actions.Add(store, 0)
         root.Add(package_actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
-        alternatives = wx.StaticText(self, label="Other connection options")
-        alternatives.SetFont(alternatives.GetFont().Bold())
-        root.Add(alternatives, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
-        runtime_actions = wx.BoxSizer(wx.HORIZONTAL)
-        negotiate = wx.Button(self, label="Test my current connection")
         browser = wx.Button(self, label="Create browser helper package")
-        negotiate.Bind(wx.EVT_BUTTON, self._negotiate)
         browser.Bind(wx.EVT_BUTTON, self._export_browser)
-        runtime_actions.Add(negotiate, 0, wx.RIGHT, 8)
-        runtime_actions.Add(browser, 0)
-        root.Add(runtime_actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        root.Add(browser, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.status = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.status.SetMinSize((-1, 120))
@@ -94,29 +84,22 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
     def _generate_prompt(self, _event: wx.CommandEvent) -> None:
         try:
             self.prompt_text.SetValue(self.on_prompt())
-            self.status.SetValue("Setup instructions created. Give them to your chosen AI, then paste its returned connection package below.")
+            self.status.SetValue("Instructions created. Give them to the external AI host, then paste its returned wrapper package below.")
         except Exception as exc:
             self.status.SetValue(str(exc))
 
     def _preview(self, _event: wx.CommandEvent) -> None:
         try:
-            preview = self.on_preview(self.package_text.GetValue())
-            self.status.SetValue(str(preview))
+            self.status.SetValue(str(self.on_preview(self.package_text.GetValue())))
         except Exception as exc:
             self.status.SetValue(str(exc))
 
-    def _install(self, _event: wx.CommandEvent) -> None:
+    def _store(self, _event: wx.CommandEvent) -> None:
         try:
-            result = self.on_install(self.package_text.GetValue())
-            self.status.SetValue(str(result))
-        except Exception as exc:
-            self.status.SetValue(str(exc))
-
-    def _negotiate(self, _event: wx.CommandEvent) -> None:
-        self.status.SetValue("Testing the current connection with fake data…")
-        try:
-            result = self.on_negotiate()
-            self.status.SetValue(str(result))
+            result = self.on_store(self.package_text.GetValue())
+            self.status.SetValue(
+                f"Stored disabled package at {result.get('directory', '')}. Configure and run it from the external AI host."
+            )
         except Exception as exc:
             self.status.SetValue(str(exc))
 
