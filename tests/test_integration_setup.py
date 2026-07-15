@@ -21,11 +21,12 @@ class IntegrationSetupTests(unittest.TestCase):
         modes = connection_modes()
         self.assertEqual(
             [item["id"] for item in modes],
-            ["manual", "automatic", "browser_or_files", "advanced"],
+            ["manual", "guided_connector", "browser_or_chat", "advanced_integration"],
         )
         self.assertEqual(modes[0]["title"], "Continue manually")
         self.assertEqual(modes[1]["title"], "Connect my AI")
         self.assertEqual(modes[2]["title"], "Use a browser or chat AI")
+        self.assertEqual(modes[3]["title"], "Advanced integration")
         self.assertNotIn("llama", " ".join(item["title"].lower() for item in modes))
         self.assertNotIn("ollama", " ".join(item["title"].lower() for item in modes))
 
