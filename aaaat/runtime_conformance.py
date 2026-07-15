@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import secrets
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
 from .integration_setup import current_integration
 from .provider_adapters import adapter_definition, adapter_health, validate_adapter_settings
+from .subprocess_output import subprocess_failure_message
 from .task_runner import TaskRunner
 from .workspace_config import storage_directory
 
@@ -138,6 +141,11 @@ def run_configured_runtime_conformance(storage_path: str | Path) -> dict[str, An
     if health.get("status") != "ready":
         report.update(status="failed", stage="health", message=str(health.get("message") or "Health check failed"))
         return _write_state(storage_path, report)
+    preflight = _runtime_preflight(adapter_id, settings)
+    report["preflight"] = preflight
+    if preflight.get("status") != "ready":
+        report.update(status="failed", stage="preflight", message=str(preflight.get("message") or "Runtime preflight failed"))
+        return _write_state(storage_path, report)
     if not adapter.automatic_execution:
         report.update(status="not_applicable", stage="transport", message="This integration uses portable/manual transfer.")
         return _write_state(storage_path, report)
@@ -164,6 +172,41 @@ def run_configured_runtime_conformance(storage_path: str | Path) -> dict[str, An
         return _write_state(storage_path, report)
     report.update(status="passed", stage="complete", message="Health and bounded challenge round trip passed.", provenance=provenance, self_description={key: payload.get(key) for key in ("runtime_name", "model_name", "supports_structured_json", "supports_research") if key in payload})
     return _write_state(storage_path, report)
+
+
+def _runtime_preflight(adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
+    if adapter_id != "ollama_cli":
+        return {"status": "ready", "message": "No adapter-specific preflight required."}
+    executable = str(settings.get("executable") or "ollama")
+    resolved = shutil.which(executable)
+    if not resolved:
+        return {"status": "error", "message": f"Ollama executable not found: {executable}"}
+    completed = subprocess.run([resolved, "list"], text=True, capture_output=True, check=False, timeout=30)
+    if completed.returncode != 0:
+        return {"status": "error", "message": subprocess_failure_message(completed.stderr or "", completed.stdout or "", completed.returncode)}
+    configured = str(settings.get("model") or "").strip()
+    installed = _ollama_model_names(completed.stdout or "")
+    if configured not in installed:
+        available = ", ".join(installed[:12]) if installed else "none"
+        return {
+            "status": "error",
+            "message": f"Configured Ollama model is not installed: {configured}. Installed models: {available}. Run 'ollama pull {configured}' or rerun validation with an installed model name from 'ollama list'.",
+            "configured_model": configured,
+            "installed_models": installed,
+        }
+    return {"status": "ready", "message": f"Configured Ollama model is installed: {configured}", "configured_model": configured}
+
+
+def _ollama_model_names(output: str) -> list[str]:
+    names: list[str] = []
+    for index, line in enumerate(str(output or "").splitlines()):
+        stripped = line.strip()
+        if not stripped or (index == 0 and stripped.upper().startswith("NAME")):
+            continue
+        name = stripped.split()[0]
+        if name and name not in names:
+            names.append(name)
+    return names
 
 
 def _safe_configured_primitives(adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
