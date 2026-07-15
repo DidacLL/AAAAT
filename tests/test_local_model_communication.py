@@ -7,19 +7,30 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from aaaat.llama_cpp_http import chat_completion, task_response_json_schema, validate_loopback_endpoint
 from aaaat.local_model_protocol import build_local_model_prompt, extract_json_object
 from aaaat.provider_adapters import adapter_health, standard_local_settings, validate_adapter_settings
 from aaaat.task_runner import TaskRunner
 
 
+class _Response:
+    def __init__(self, payload: dict[str, object], status: int = 200) -> None:
+        self.payload = json.dumps(payload).encode("utf-8")
+        self.status = status
+
+    def __enter__(self) -> "_Response":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def read(self, _limit: int = -1) -> bytes:
+        return self.payload
+
+
 class LocalModelCommunicationTests(unittest.TestCase):
     def test_local_model_prompt_contains_only_bounded_context(self) -> None:
-        context = {
-            "task_handle": "opaque-handle",
-            "task": {"task_type": "field_inference"},
-            "context": {"offer": "Fake offer"},
-            "permitted_actions": ["submit_result"],
-        }
+        context = {"task_handle": "opaque-handle", "task": {"task_type": "field_inference"}, "context": {"offer": "Fake offer"}, "permitted_actions": ["submit_result"]}
         prompt = json.loads(build_local_model_prompt(context))
         self.assertEqual(prompt["protocol"], "aaaat.local-task")
         self.assertEqual(prompt["task"], context)
@@ -27,111 +38,65 @@ class LocalModelCommunicationTests(unittest.TestCase):
         for forbidden in ("application_id", "candidature_id", "database_path", "artifact_id"):
             self.assertNotIn(forbidden, serialized)
 
-    def test_result_extractor_accepts_one_top_level_object_inside_cli_noise(self) -> None:
+    def test_result_extractor_is_strict_and_not_a_cli_scraper(self) -> None:
         self.assertEqual(json.loads(extract_json_object('{"result":"ok"}')), {"result": "ok"})
-        self.assertEqual(
-            json.loads(extract_json_object('```json\n{"result":"ok"}\n```')),
-            {"result": "ok"},
-        )
-        noisy = "Loading model...\navailable commands:\n> prompt\n{\"result\":\"ok\"}\n[ timing ]\nExiting..."
-        self.assertEqual(json.loads(extract_json_object(noisy)), {"result": "ok"})
-        nested = 'banner\n{"variables":{"profile.career.direction":"Backend roles"}}\nExiting...'
-        self.assertEqual(
-            json.loads(extract_json_object(nested)),
-            {"variables": {"profile.career.direction": "Backend roles"}},
-        )
-
-        with self.assertRaisesRegex(ValueError, "exactly one JSON object"):
-            extract_json_object('{"result":"one"}\n{"result":"two"}')
-        with self.assertRaisesRegex(ValueError, "valid JSON object"):
-            extract_json_object("Loading model...\nOK\nExiting...")
-        with self.assertRaisesRegex(ValueError, "valid JSON object"):
+        with self.assertRaisesRegex(ValueError, "valid JSON"):
+            extract_json_object('Loading model...\n{"result":"ok"}\nExiting...')
+        with self.assertRaisesRegex(ValueError, "one JSON object"):
             extract_json_object('[{"result":"ok"}]')
 
-    def test_llama_cpp_settings_require_explicit_local_model_file(self) -> None:
-        defaults = standard_local_settings("llama_cpp_cli")
-        self.assertEqual(
-            defaults,
-            {
-                "model_path": "",
-                "executable": "llama-cli",
-                "args": [],
-                "timeout_seconds": 600,
-            },
-        )
-        with self.assertRaisesRegex(ValueError, "GGUF model file"):
-            validate_adapter_settings("llama_cpp_cli", {})
-        custom = validate_adapter_settings(
-            "llama_cpp_cli",
-            {"model_path": "model.gguf", "executable": "llama-cli", "timeout_seconds": 12},
-        )
-        self.assertEqual(custom["model_path"], "model.gguf")
-        self.assertEqual(custom["timeout_seconds"], 12)
+    def test_llama_cpp_server_settings_require_loopback(self) -> None:
+        self.assertEqual(standard_local_settings("llama_cpp_server"), {"endpoint": "http://127.0.0.1:8080", "model": "local", "timeout_seconds": 600})
+        configured = validate_adapter_settings("llama_cpp_server", {"endpoint": "http://localhost:8080", "model": "qwen", "timeout_seconds": 12})
+        self.assertEqual(configured["endpoint"], "http://localhost:8080")
+        with self.assertRaisesRegex(ValueError, "loopback"):
+            validate_loopback_endpoint("http://192.168.1.20:8080")
+        with self.assertRaisesRegex(ValueError, "http"):
+            validate_loopback_endpoint("https://127.0.0.1:8080")
+
+    def test_response_schema_is_derived_from_bounded_task_contract(self) -> None:
+        schema = task_response_json_schema({"response_format": {"required": ["variables"], "schema": {"variables": "object containing eligible profile keys and bounded text values", "replace_existing": "optional boolean"}}})
+        self.assertEqual(schema["required"], ["variables"])
+        self.assertEqual(schema["properties"]["variables"]["type"], "object")
+        self.assertEqual(schema["properties"]["replace_existing"]["type"], "boolean")
+        self.assertFalse(schema["additionalProperties"])
+
+    def test_llama_cpp_server_uses_non_streaming_schema_constrained_chat_completion(self) -> None:
+        envelope = {"model": "qwen-local", "choices": [{"message": {"content": '{"variables":{"profile.career.direction":"Backend"}}'}}]}
+        with patch("aaaat.llama_cpp_http.urllib.request.urlopen", return_value=_Response(envelope)) as open_url:
+            body, provenance = chat_completion(
+                "http://127.0.0.1:8080",
+                "local",
+                "bounded prompt",
+                {"type": "object", "properties": {"variables": {"type": "object"}}, "required": ["variables"]},
+                30,
+            )
+        self.assertEqual(json.loads(body)["variables"]["profile.career.direction"], "Backend")
+        request = open_url.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(request.full_url, "http://127.0.0.1:8080/v1/chat/completions")
+        self.assertIs(payload["stream"], False)
+        self.assertEqual(payload["response_format"]["type"], "json_schema")
+        self.assertEqual(payload["response_format"]["json_schema"]["schema"]["required"], ["variables"])
+        self.assertEqual(provenance["agent_runtime"], "llama.cpp-server")
 
     def test_generic_command_runner_uses_bounded_stdin_and_fixed_argv(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             runner = TaskRunner(Path(tmp))
-            completed = subprocess.CompletedProcess(
-                args=["local-runtime-connector"],
-                returncode=0,
-                stdout='{"result":"complete"}\n',
-                stderr="",
-            )
+            completed = subprocess.CompletedProcess(args=["local-runtime-connector"], returncode=0, stdout='{"result":"complete"}\n', stderr="")
             with patch("aaaat.task_runner.subprocess.run", return_value=completed) as run:
-                body, provenance = runner._execute_adapter(
-                    "argv_custom_command",
-                    {"argv": ["local-runtime-connector", "--fixed"], "timeout_seconds": 30},
-                    {"task_handle": "opaque"},
-                )
+                body, provenance = runner._execute_adapter("argv_custom_command", {"argv": ["local-runtime-connector", "--fixed"], "timeout_seconds": 30}, {"task_handle": "opaque"})
         self.assertEqual(json.loads(body), {"result": "complete"})
         self.assertEqual(provenance, {"agent_runtime": "user-owned-command"})
         self.assertEqual(run.call_args.args[0], ["local-runtime-connector", "--fixed"])
-        self.assertEqual(json.loads(run.call_args.kwargs["input"])["task_handle"], "opaque")
 
-    def test_llama_cpp_runner_uses_one_temporary_prompt_file(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            model = root / "model.gguf"
-            model.write_bytes(b"fake")
-            runner = TaskRunner(root)
-            completed = subprocess.CompletedProcess(
-                args=["llama-cli"],
-                returncode=0,
-                stdout='Loading model...\n{"result":"complete"}\nExiting...',
-                stderr="",
-            )
-            captured_prompt = ""
-
-            def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-                nonlocal captured_prompt
-                prompt_path = Path(argv[argv.index("--file") + 1])
-                captured_prompt = prompt_path.read_text(encoding="utf-8")
-                return completed
-
-            with patch("aaaat.task_runner.subprocess.run", side_effect=fake_run):
-                body, provenance = runner._execute_adapter(
-                    "llama_cpp_cli",
-                    {"model_path": str(model), "executable": "llama-cli", "args": [], "timeout_seconds": 30},
-                    {"task_handle": "opaque"},
-                )
-        self.assertEqual(json.loads(body), {"result": "complete"})
-        self.assertEqual(json.loads(captured_prompt)["task"]["task_handle"], "opaque")
-        self.assertEqual(provenance["agent_runtime"], "llama.cpp-cli")
-        self.assertEqual(provenance["model_provider"], "llama.cpp:model.gguf")
-
-    def test_health_probe_executes_selected_local_cli_and_reports_failure(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            model = Path(tmp) / "model.gguf"
-            model.write_bytes(b"fake")
-            with patch("aaaat.provider_adapters.shutil.which", return_value="/usr/bin/llama-cli"), patch(
-                "aaaat.provider_adapters.subprocess.run",
-                return_value=subprocess.CompletedProcess(args=[], returncode=2, stdout="", stderr="broken runtime"),
-            ):
-                health = adapter_health("llama_cpp_cli", {"model_path": str(model)})
+    def test_server_health_reports_failure_without_launching_or_discovery(self) -> None:
+        with patch("aaaat.llama_cpp_http.urllib.request.urlopen", side_effect=OSError("not running")):
+            health = adapter_health("llama_cpp_server", {"endpoint": "http://127.0.0.1:8080", "model": "local"})
         self.assertEqual(health["status"], "error")
-        self.assertIn("broken runtime", health["message"])
+        self.assertIn("not running", health["message"])
         self.assertIs(health["local_only"], True)
-        self.assertEqual(health["network_access"], "none")
+        self.assertEqual(health["network_access"], "loopback-only")
 
 
 if __name__ == "__main__":
