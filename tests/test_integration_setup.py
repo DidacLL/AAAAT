@@ -15,13 +15,14 @@ from aaaat.workspace_config import load_workspace_config
 
 
 class IntegrationSetupTests(unittest.TestCase):
-    def test_options_expose_local_runtime_without_making_ollama_the_category(self) -> None:
-        options = integration_options()
+    def test_options_expose_provider_neutral_local_runtime_paths(self) -> None:
+        options = integration_options(include_advanced=True)
         ids = {item["id"] for item in options}
-        self.assertIn("ollama_cli", ids)
         self.assertIn("llama_cpp_cli", ids)
+        self.assertIn("argv_custom_command", ids)
         self.assertIn("manual_external_agent", ids)
-        self.assertTrue(next(item for item in options if item["id"] == "ollama_cli")["standard_user"])
+        self.assertTrue(next(item for item in options if item["id"] == "llama_cpp_cli")["standard_user"])
+        self.assertFalse(next(item for item in options if item["id"] == "ollama_cli")["standard_user"])
 
     def test_failed_health_does_not_replace_current_configuration(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -31,7 +32,11 @@ class IntegrationSetupTests(unittest.TestCase):
                 "aaaat.integration_setup.adapter_health",
                 return_value={"status": "error", "message": "runtime unavailable"},
             ):
-                result = configure_integration(storage, "ollama_cli", {"model": "recommended:test"})
+                result = configure_integration(
+                    storage,
+                    "argv_custom_command",
+                    {"argv": ["missing-local-runtime"], "timeout_seconds": 30},
+                )
             self.assertFalse(result["saved"])
             self.assertEqual(current_integration(storage)["id"], before["id"])
 
@@ -44,13 +49,13 @@ class IntegrationSetupTests(unittest.TestCase):
             ):
                 result = configure_integration(
                     storage,
-                    "ollama_cli",
-                    {"model": "recommended:test", "timeout_seconds": 30},
+                    "argv_custom_command",
+                    {"argv": ["local-runtime-connector", "--fixed"], "timeout_seconds": 30},
                 )
             self.assertTrue(result["saved"])
             selected = load_workspace_config(storage)["local_agent_adapter"]
-            self.assertEqual(selected["id"], "ollama_cli")
-            self.assertEqual(selected["settings"]["model"], "recommended:test")
+            self.assertEqual(selected["id"], "argv_custom_command")
+            self.assertEqual(selected["settings"]["argv"], ["local-runtime-connector", "--fixed"])
             disabled = disable_automatic_integration(storage)
             self.assertEqual(disabled["id"], "manual_external_agent")
 
