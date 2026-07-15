@@ -8,18 +8,19 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class AssistanceOnboardingContractTests(unittest.TestCase):
-    def test_standard_surface_uses_user_intent_labels(self) -> None:
+    def test_standard_surface_uses_queue_first_user_intent_labels(self) -> None:
         source = (ROOT / "aaaat" / "ui_desktop" / "assistance_panel.py").read_text(encoding="utf-8")
-        self.assertIn("Choose how you want AAAAT to work with your AI", source)
+        self.assertIn("Connect an external AI to AAAAT's bounded task queue", source)
         self.assertIn("Advanced integration", source)
-        self.assertNotIn("Use recommended local AI", source)
-        self.assertNotIn("Use portable/manual mode", source)
+        for forbidden in ("runtime", "endpoint", "model", "llama", "ollama", "codex"):
+            self.assertNotIn(forbidden, source.lower())
 
     def test_technical_fields_are_built_only_in_advanced_section(self) -> None:
         source = (ROOT / "aaaat" / "ui_desktop" / "assistance_panel.py").read_text(encoding="utf-8")
         self.assertIn("if self.show_advanced:", source)
         self.assertIn("self._build_advanced_section(current)", source)
         self.assertIn("Test and save advanced integration", source)
+        self.assertIn("user-owned command", source)
 
     def test_user_intent_routes_to_existing_bounded_workflows(self) -> None:
         source = (ROOT / "aaaat" / "ui_desktop" / "user_view.py").read_text(encoding="utf-8")
