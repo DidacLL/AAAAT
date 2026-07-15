@@ -8,12 +8,9 @@ import wx  # type: ignore[import-not-found]
 
 from aaaat.assistance_service import (
     assistance_snapshot,
-    connector_prompt,
     create_profile_completion_task,
     export_browser_companion_package,
-    install_generated_connector,
-    negotiate_integration,
-    preview_generated_connector,
+    external_host_instructions,
     run_integration_conformance,
     save_integration,
     use_manual_integration,
@@ -35,7 +32,6 @@ class UserViewMixin:
         self._task_worker: OwnedTaskWorker | None = None
         self._task_progress: dict[str, dict[str, Any]] = {}
         self._conformance_thread: threading.Thread | None = None
-        self._negotiation_thread: threading.Thread | None = None
         self.user_panel = wx.Panel(self.view_book)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.user_panel.SetSizer(sizer)
@@ -64,15 +60,16 @@ class UserViewMixin:
 
         self.connector_panel = ConnectorOnboardingPanel(
             self.user_workspace,
-            on_prompt=lambda: connector_prompt(self.storage_path),
-            on_preview=preview_generated_connector,
-            on_install=lambda payload: install_generated_connector(self.storage_path, payload),
-            on_negotiate=self._negotiate_runtime,
+            on_instructions=lambda: external_host_instructions(self.storage_path),
             on_export_browser=self._export_browser_companion,
         )
         self.user_workspace.AddPage(self.connector_panel, "Connect my AI")
 
-        self.portable_bundle_panel = PortableBundlePanel(self.user_workspace, on_export=self._export_portable_bundle, on_import=self._import_portable_bundle)
+        self.portable_bundle_panel = PortableBundlePanel(
+            self.user_workspace,
+            on_export=self._export_portable_bundle,
+            on_import=self._import_portable_bundle,
+        )
         self.user_workspace.AddPage(self.portable_bundle_panel, "Browser or chat AI")
 
         sizer.Add(self.user_workspace, 1, wx.ALL | wx.EXPAND, 0)
@@ -157,7 +154,7 @@ class UserViewMixin:
 
     def _save_integration(self, adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
         result = save_integration(self.storage_path, adapter_id, settings)
-        self.SetStatusText("Integration tested and saved" if result.get("saved") else "Integration test failed; previous setup preserved")
+        self.SetStatusText("Advanced integration tested and saved" if result.get("saved") else "Advanced integration test failed; previous setup preserved")
         self._schedule_assistance_refresh()
         return result
 
@@ -169,8 +166,8 @@ class UserViewMixin:
             return {**result, "message": "Continue manually selected."}
         if mode_id == "guided_connector":
             self._select_user_workspace_page(self.connector_panel)
-            self.SetStatusText("Connect my AI opened")
-            return {"status": "ready", "message": "Connect my AI opened."}
+            self.SetStatusText("External-host connection instructions opened")
+            return {"status": "ready", "message": "External-host connection instructions opened."}
         if mode_id == "browser_or_chat":
             self._select_user_workspace_page(self.portable_bundle_panel)
             self.SetStatusText("Browser or chat AI workflow opened")
@@ -189,11 +186,11 @@ class UserViewMixin:
 
     def _run_conformance(self) -> dict[str, Any]:
         if self._conformance_thread and self._conformance_thread.is_alive():
-            return {"status": "running", "message": "Connection test is already running."}
-        self._conformance_thread = threading.Thread(target=self._conformance_work, name="aaaat-runtime-conformance", daemon=False)
+            return {"status": "running", "message": "Advanced command test is already running."}
+        self._conformance_thread = threading.Thread(target=self._conformance_work, name="aaaat-advanced-command-conformance", daemon=False)
         self._conformance_thread.start()
-        self.SetStatusText("Connection test running")
-        return {"status": "running", "message": "Bounded connection test started."}
+        self.SetStatusText("Advanced command test running")
+        return {"status": "running", "message": "Advanced command test started."}
 
     def _conformance_work(self) -> None:
         try:
@@ -203,24 +200,9 @@ class UserViewMixin:
         wx.CallAfter(self._apply_conformance_result, result)
 
     def _apply_conformance_result(self, result: dict[str, Any]) -> None:
-        self.SetStatusText(str(result.get("message") or result.get("status") or "Connection test complete"))
+        self.SetStatusText(str(result.get("message") or result.get("status") or "Advanced command test complete"))
         if self.current_view == "user":
             self._refresh_user_view()
-
-    def _negotiate_runtime(self) -> dict[str, Any]:
-        if self._negotiation_thread and self._negotiation_thread.is_alive():
-            return {"status": "running", "message": "Connection setup is already running."}
-        self._negotiation_thread = threading.Thread(target=self._negotiation_work, name="aaaat-runtime-negotiation", daemon=False)
-        self._negotiation_thread.start()
-        self.SetStatusText("Connection setup running")
-        return {"status": "running", "message": "Connection description and bounded test started."}
-
-    def _negotiation_work(self) -> None:
-        try:
-            result = negotiate_integration(self.storage_path)
-        except Exception as exc:
-            result = {"status": "failed", "message": str(exc)}
-        wx.CallAfter(self._apply_conformance_result, result)
 
     def _export_browser_companion(self) -> str | None:
         with wx.FileDialog(self, "Export browser companion", wildcard="AAAAT browser companion (*.zip)|*.zip", defaultFile="aaaat-browser-companion.zip", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as dialog:
@@ -244,7 +226,7 @@ class UserViewMixin:
 
     def _run_assistance_task(self, task_id: str) -> None:
         self._ensure_task_worker().submit(task_id)
-        self.SetStatusText("Assistance task queued")
+        self.SetStatusText("Advanced command task queued")
         self._schedule_assistance_refresh()
 
     def _retry_assistance_task(self, task_id: str) -> None:
@@ -253,7 +235,7 @@ class UserViewMixin:
         except ValueError as exc:
             self.SetStatusText(str(exc))
             return
-        self.SetStatusText("Assistance task queued for retry")
+        self.SetStatusText("Advanced command task queued for retry")
         self._schedule_assistance_refresh()
 
     def _cancel_assistance_task(self, task_id: str) -> None:
@@ -311,6 +293,4 @@ class UserViewMixin:
             self._task_worker.stop(wait=True)
         if self._conformance_thread and self._conformance_thread.is_alive():
             self._conformance_thread.join(timeout=1)
-        if self._negotiation_thread and self._negotiation_thread.is_alive():
-            self._negotiation_thread.join(timeout=1)
         event.Skip()
