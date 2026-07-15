@@ -38,8 +38,8 @@ elif type_=='draft_cv':
  result={'cv_positioning':'Lead with Python, SQLite and local-first systems.'}
 elif type_=='draft_cover_letter':
  result={'cover_letter_body':'I am applying because the role matches my local-first reliability experience.'}
-elif type_=='recruiter_call_material':
- result={'result':'Discuss reliability, role scope, process and next steps.'}
+elif hint=='call:recruiter':
+ result={'fields':{'recruiter_material':'Discuss reliability, role scope, process and next steps.'}}
 elif hint=='candidature:evaluation':
  result={'fields':{'candidature_evaluation':'Strong fit','strengths':'Python and local systems','valuation':'High','risks_to_avoid':'Do not overstate scale.'}}
 elif hint=='candidature:strategy':
