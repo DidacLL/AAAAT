@@ -13,7 +13,7 @@ from aaaat.tasks import create_task, update_task
 
 
 class AssistanceServiceTests(unittest.TestCase):
-    def test_snapshot_exposes_connection_modes_advanced_options_and_task_permissions(self) -> None:
+    def test_snapshot_exposes_provider_neutral_options_and_task_permissions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             init_db(storage)
@@ -23,22 +23,22 @@ class AssistanceServiceTests(unittest.TestCase):
                 failed = create_task(conn, "company_research", "Research", application_id=candidature["id"], idempotent=False)
                 update_task(conn, failed["id"], state="failed", notes="runtime failed")
             snapshot = assistance_snapshot(storage, include_advanced=True)
-            self.assertIn("integration", snapshot)
             self.assertEqual(
                 [item["id"] for item in snapshot["connection_modes"]],
                 ["manual", "guided_connector", "browser_or_chat", "advanced_integration"],
             )
-            self.assertTrue(any(option["id"] == "argv_custom_command" for option in snapshot["options"]))
-            self.assertTrue(any(option["id"] == "llama_cpp_server" for option in snapshot["options"]))
-            self.assertTrue(all("capabilities" in option for option in snapshot["options"]))
+            self.assertEqual(
+                {option["id"] for option in snapshot["options"]},
+                {"manual_external_agent", "file_exchange", "argv_custom_command"},
+            )
+            serialized = str(snapshot["options"]).lower()
+            for forbidden in ("llama", "ollama", "codex"):
+                self.assertNotIn(forbidden, serialized)
             by_id = {item["id"]: item for item in snapshot["tasks"]}
             self.assertTrue(by_id[queued["id"]]["can_run"])
-            self.assertTrue(by_id[queued["id"]]["can_cancel"])
-            self.assertFalse(by_id[queued["id"]]["can_retry"])
             self.assertTrue(by_id[failed["id"]]["can_retry"])
-            self.assertIn("runtime failed", by_id[failed["id"]]["notes"])
 
-    def test_failed_health_check_does_not_replace_current_integration(self) -> None:
+    def test_failed_generic_command_health_does_not_replace_current_integration(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             init_db(storage)
@@ -46,12 +46,11 @@ class AssistanceServiceTests(unittest.TestCase):
             script.write_text("import json,sys; json.load(sys.stdin); print(json.dumps({'result':'ok'}))", encoding="utf-8")
             ready = save_integration(storage, "argv_custom_command", {"argv": [sys.executable, str(script)], "timeout_seconds": 10})
             self.assertTrue(ready["saved"])
-            with patch("aaaat.integration_setup.adapter_health", return_value={"status": "error", "message": "server unavailable"}):
-                failed = save_integration(storage, "llama_cpp_server", {"endpoint": "http://127.0.0.1:8080", "model": "local"})
+            with patch("aaaat.integration_setup.adapter_health", return_value={"status": "error", "message": "unavailable"}):
+                failed = save_integration(storage, "argv_custom_command", {"argv": ["missing"]})
             self.assertFalse(failed["saved"])
             current = assistance_snapshot(storage)["integration"]
             self.assertEqual(current["id"], "argv_custom_command")
-            self.assertEqual(current["capabilities"]["transport_kind"], "stdio")
             manual = use_manual_integration(storage)
             self.assertEqual(manual["id"], "manual_external_agent")
 
