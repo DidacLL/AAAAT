@@ -16,19 +16,20 @@ AAAAT v1 is a local-first, provider-agnostic job-application workspace with a wx
 - Tracked TeX output when `pdflatex` is unavailable.
 - Opaque task-handle workflows with bounded context and no broad entity mutation authority.
 - User-intent-first assistance choices: Continue manually, Connect my AI, Use a browser or chat AI, and Advanced integration.
-- Provider-neutral transport capabilities with optional command, HTTP, file, browser and generated-connector implementations.
-- Canonical result ingestion shared by automatic, browser-native and portable-bundle paths.
+- Thin communication wrappers over the existing bounded queue and commands.
+- A generic Advanced user-owned command option with no provider catalogue.
+- Canonical result ingestion shared by connected-host, browser and portable-bundle paths.
 - Normal wheel packaging and installed-command validation.
 
 ## Runtime and communication contract
 
-The wx desktop application is the only v1 human product runtime. Historical browser dashboards, mandatory local application servers, static-export modes and runtime-mode products are not supported v1 human surfaces.
+The wx desktop application is the only v1 human product runtime. Browser dashboards, mandatory local application servers, static-export modes and runtime-mode products are not supported v1 human surfaces.
 
-This does not prohibit communication transports. External-intelligence integration may use subprocesses, files, archives, HTTP, callbacks, listeners, browser messaging, SDK wrappers or generated connectors. Every path is restricted to bounded task delivery, task-scoped progress and validated result submission; none may expose broad candidature, profile, artifact or storage authority.
+External AI hosts connect to AAAAT and consume its existing bounded queue through thin wrappers such as MCP, bounded CLI commands, files, browser messaging or another declared transport. These wrappers do not create a second queue or domain pipeline.
 
 External intelligence owns reasoning, provider/model selection, credentials and provider-specific interaction. AAAAT owns bounded context, internal record binding, validation, persistence, local rendering, provenance and deterministic application of results associated with opaque task handles.
 
-Named runtimes are optional Advanced integration choices, not mandatory dependencies or release criteria.
+Technical users may configure one generic user-owned command under Advanced integration. That command may reach any external system selected by the user, but AAAAT contains no named provider or runtime integration.
 
 ## Upgrade notes
 
@@ -53,7 +54,7 @@ Named runtimes are optional Advanced integration choices, not mandatory dependen
 
 `aaaat-upgrade` is additive and idempotent for supported v1 stores. It creates missing schema objects, applies all supported compatibility columns, preserves existing rows, normalizes legacy candidature statuses, and seeds defaults with `INSERT OR IGNORE` behavior. It can be run repeatedly against the same store.
 
-The desktop launcher runs the same supported upgrade path before reading its store. The explicit command provides a separate preflight step and summary for release maintenance.
+The desktop launcher runs the same supported upgrade path before reading its store. Existing removed integration selections fall back safely to manual mode.
 
 Do not copy or replace `aaaat.sqlite3` while AAAAT is running. Keep the backup until the upgraded desktop opens and the existing candidatures and materials have been checked.
 
