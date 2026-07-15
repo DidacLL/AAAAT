@@ -6,31 +6,34 @@ from unittest.mock import patch
 from aaaat.result_ingestion import ingest_task_result
 
 
+_CAPABILITY = "taskcap_" + "a" * 48
+
+
 class ResultIngestionTests(unittest.TestCase):
     def test_normalizes_json_and_provenance_before_submission(self) -> None:
         with patch("aaaat.result_ingestion.submit_agent_task_result", return_value={"state": "completed"}) as submit:
             result = ingest_task_result(
                 object(),
-                "taskh_opaque",
+                _CAPABILITY,
                 '{"result":"ok"}',
                 provenance={"agent_name": "Agent", "agent_runtime": "http-wrapper", "model_provider": "provider:model"},
             )
         self.assertEqual(result, {"state": "completed"})
-        self.assertEqual(submit.call_args.args[1], "taskh_opaque")
+        self.assertEqual(submit.call_args.args[1], _CAPABILITY)
         self.assertEqual(submit.call_args.kwargs["agent_runtime"], "http-wrapper")
         self.assertIn('"result": "ok"', submit.call_args.args[2])
 
-    def test_rejects_invalid_handles_and_non_object_results(self) -> None:
-        with self.assertRaisesRegex(ValueError, "opaque task handle"):
+    def test_rejects_invalid_capabilities_and_non_object_results(self) -> None:
+        with self.assertRaisesRegex(ValueError, "task capability"):
             ingest_task_result(object(), "application-123", {"result": "ok"})
         with self.assertRaisesRegex(ValueError, "one JSON object"):
-            ingest_task_result(object(), "taskh_opaque", "[1, 2]")
+            ingest_task_result(object(), _CAPABILITY, "[1, 2]")
 
     def test_rejects_forbidden_authority_fields_recursively(self) -> None:
         with self.assertRaisesRegex(ValueError, "application_id"):
             ingest_task_result(
                 object(),
-                "taskh_opaque",
+                _CAPABILITY,
                 {"result": {"nested": {"application_id": "private-id"}}},
             )
 
@@ -38,7 +41,7 @@ class ResultIngestionTests(unittest.TestCase):
         with patch("aaaat.result_ingestion.submit_agent_task_result", return_value={}) as submit:
             ingest_task_result(
                 object(),
-                "taskh_opaque",
+                _CAPABILITY,
                 {"result": "ok"},
                 default_agent_name="portable-bundle",
                 default_agent_runtime="browser-or-manual",
