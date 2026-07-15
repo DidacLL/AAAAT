@@ -8,7 +8,14 @@ from typing import Any
 from .browser_companion import browser_extension_bundle, native_host_manifest
 from .connector_packages import connector_construction_prompt, install_and_activate_connector, preview_connector_package
 from .db import connect
-from .integration_setup import configure_integration, configure_recommended_local_integration, current_integration, disable_automatic_integration, integration_options
+from .integration_setup import (
+    configure_integration,
+    configure_recommended_local_integration,
+    connection_modes,
+    current_integration,
+    disable_automatic_integration,
+    integration_options,
+)
 from .runtime_conformance import negotiate_configured_runtime, read_conformance_state, run_configured_runtime_conformance
 from .tasks import create_task, list_tasks
 
@@ -32,7 +39,13 @@ def assistance_snapshot(storage_path: str | Path, *, include_advanced: bool = Fa
             "progress": dict(progress_by_task.get(str(task.get("id") or "")) or {}),
         } for task in list_tasks(conn) if str(task.get("state") or "") in _VISIBLE_STATES]
     tasks.sort(key=lambda item: (item["state"] == "completed", item["updated_at"]), reverse=False)
-    return {"integration": current_integration(storage_path), "options": integration_options(include_advanced=include_advanced), "conformance": read_conformance_state(storage_path), "tasks": tasks}
+    return {
+        "integration": current_integration(storage_path),
+        "connection_modes": connection_modes(),
+        "options": integration_options(include_advanced=include_advanced),
+        "conformance": read_conformance_state(storage_path),
+        "tasks": tasks,
+    }
 
 
 def create_profile_completion_task(storage_path: str | Path) -> dict[str, Any]:
@@ -82,5 +95,5 @@ def export_browser_companion_package(storage_path: str | Path, output_path: str 
         for name, content in files.items():
             archive.writestr(f"extension/{name}", content)
         archive.writestr("native-host-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-        archive.writestr("INSTALL.txt", "Install AAAAT normally, load extension/ as an unpacked extension, replace __AAAT_EXTENSION_ID__ in the native host manifest, then install that manifest in the browser's documented native-messaging host directory. No AAAAT port or provider credential is used.\n")
+        archive.writestr("INSTALL.txt", "Install AAAAT normally, load extension/ as an unpacked extension, replace __AAAT_EXTENSION_ID__ in the native host manifest, then install that manifest in the browser's documented native-messaging host directory. The companion carries bounded task commands only; credentials remain with the selected browser or external host.\n")
     return target
