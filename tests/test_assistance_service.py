@@ -13,7 +13,7 @@ from aaaat.tasks import create_task, update_task
 
 
 class AssistanceServiceTests(unittest.TestCase):
-    def test_snapshot_exposes_presentation_state_and_task_permissions(self) -> None:
+    def test_snapshot_exposes_connection_modes_advanced_options_and_task_permissions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             init_db(storage)
@@ -24,9 +24,13 @@ class AssistanceServiceTests(unittest.TestCase):
                 update_task(conn, failed["id"], state="failed", notes="runtime failed")
             snapshot = assistance_snapshot(storage, include_advanced=True)
             self.assertIn("integration", snapshot)
+            self.assertEqual(
+                [item["id"] for item in snapshot["connection_modes"]],
+                ["manual", "automatic", "browser_or_files", "advanced"],
+            )
             self.assertTrue(any(option["id"] == "argv_custom_command" for option in snapshot["options"]))
             self.assertTrue(any(option["id"] == "llama_cpp_server" for option in snapshot["options"]))
-            self.assertFalse(any(option["id"] == "llama_cpp_cli" for option in snapshot["options"]))
+            self.assertTrue(all("capabilities" in option for option in snapshot["options"]))
             by_id = {item["id"]: item for item in snapshot["tasks"]}
             self.assertTrue(by_id[queued["id"]]["can_run"])
             self.assertTrue(by_id[queued["id"]]["can_cancel"])
@@ -47,6 +51,7 @@ class AssistanceServiceTests(unittest.TestCase):
             self.assertFalse(failed["saved"])
             current = assistance_snapshot(storage)["integration"]
             self.assertEqual(current["id"], "argv_custom_command")
+            self.assertEqual(current["capabilities"]["transport_kind"], "stdio")
             manual = use_manual_integration(storage)
             self.assertEqual(manual["id"], "manual_external_agent")
 
