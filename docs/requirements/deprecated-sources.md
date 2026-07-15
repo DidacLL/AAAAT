@@ -2,7 +2,7 @@
 
 Status: authoritative deprecation registry for AAAAT v1.
 
-Current authority: [`v1-authoritative-requirements.md`](v1-authoritative-requirements.md).
+Current authority: [`v1-authoritative-requirements.md`](v1-authoritative-requirements.md), supplemented by [`2026-07-16-runtime-direction-clarification.md`](2026-07-16-runtime-direction-clarification.md).
 
 The sources below remain available as project history and may contain useful lessons or reusable implementation details. They must not be used as current product requirements, release acceptance criteria or architectural authority.
 
@@ -22,9 +22,10 @@ The sources below remain available as project history and may contain useful les
 | Browser/server/static-export plans | Rejected for v1 human runtime | Local-first concerns and bounded bridges, but not the browser dashboard or mandatory server architecture. |
 | Runtime-split HTTP agent plans | Rejected as product architecture | Opaque task handles, bounded context and no entity-ID authority. HTTP itself is not prohibited. |
 | Broad REST or MCP tool catalogues | Rejected | Schema and transport vocabulary only where it maps exactly to bounded task capabilities. |
-| Provider SDK or OpenAI-compatible client proposals | Not core requirements | May be used inside optional adapters when they preserve the bounded contract. |
-| Named-runtime release plans | Superseded | Concrete runtimes may be adapters and compatibility evidence, but no vendor or runtime defines v1 acceptance. |
-| `2026-07-15-llama-cpp-transport-correction.md` | Superseded as architecture | Preserves useful llama.cpp adapter constraints; no longer defines the standard-user path, mandatory transport or release proof. |
+| Provider SDK or OpenAI-compatible client proposals | Not core requirements | May be used only inside an explicitly configured Advanced user-owned connector when they preserve the bounded contract. |
+| Named-runtime release plans | Superseded | Concrete runtimes may be Advanced compatibility options, but no vendor or runtime defines the standard path or v1 acceptance. |
+| AAAAT-initiated LLM runtime execution as the normal architecture | Rejected | The external AI connects to AAAAT and consumes the existing bounded task queue. AAAAT-triggered commands are an optional Advanced user-owned path only. |
+| `2026-07-15-llama-cpp-transport-correction.md` | Superseded as architecture | Preserves useful adapter constraints only for an explicit Advanced user-owned option; it does not define standard onboarding, mandatory transport or release proof. |
 
 ## Abandoned PRs
 
@@ -71,7 +72,7 @@ Useful lessons:
 - transparent configuration;
 - bounded user-owned command execution;
 - shared assistance projection in wx;
-- background worker and progress concepts;
+- background worker and progress concepts only for the explicit Advanced command path;
 - automatic task planning from source material.
 
 Insufficient for release:
@@ -93,7 +94,8 @@ Any previous statement that PR #45 was release-ready is deprecated. Packaging su
 When reading historical material:
 
 1. extract concrete lessons;
-2. verify them against the authoritative requirements;
+2. verify them against the authoritative requirements and runtime-direction clarification;
 3. reuse code only when it supports the current contract;
 4. change tests and documents that encode superseded assumptions;
-5. never infer a requirement merely because it appeared in an abandoned implementation or named-runtime proof.
+5. never infer a requirement merely because it appeared in an abandoned implementation or named-runtime proof;
+6. treat external-AI-to-AAAAT task consumption as canonical, and AAAAT-triggered user commands as Advanced-only.
