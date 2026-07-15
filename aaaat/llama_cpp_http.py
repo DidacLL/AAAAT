@@ -26,9 +26,10 @@ def task_response_json_schema(context: Mapping[str, Any]) -> dict[str, Any]:
     response_format = context.get("response_format") or {}
     required = [str(item) for item in response_format.get("required") or [] if str(item)]
     descriptions = response_format.get("schema") or {}
-    properties: dict[str, Any] = {}
-    for key, description in descriptions.items():
-        properties[str(key)] = _property_schema(str(description))
+    properties = {
+        str(key): _property_schema(str(key), str(description))
+        for key, description in descriptions.items()
+    }
     return {
         "type": "object",
         "properties": properties,
@@ -37,14 +38,26 @@ def task_response_json_schema(context: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _property_schema(description: str) -> dict[str, Any]:
+def _property_schema(key: str, description: str) -> dict[str, Any]:
     lowered = description.lower()
     if "optional boolean" in lowered or lowered == "boolean":
         return {"type": "boolean"}
     if "optional array" in lowered or lowered == "array":
-        return {"type": "array", "items": {}}
+        return {"type": "array", "items": {"type": "string"}}
     if "string or object" in lowered:
         return {"anyOf": [{"type": "string"}, {"type": "object"}]}
+    if key == "fields":
+        return {
+            "type": "object",
+            "additionalProperties": {
+                "anyOf": [
+                    {"type": "string"},
+                    {"type": "number"},
+                    {"type": "boolean"},
+                    {"type": "array", "items": {"type": "string"}},
+                ]
+            },
+        }
     if "object containing" in lowered or lowered == "object":
         return {"type": "object", "additionalProperties": {"type": "string"}}
     if "string" in lowered:
@@ -87,11 +100,7 @@ def chat_completion(
         "stream": False,
         "response_format": {
             "type": "json_schema",
-            "json_schema": {
-                "name": "aaaat_task_result",
-                "strict": True,
-                "schema": dict(response_schema),
-            },
+            "schema": dict(response_schema),
         },
     }
     request = urllib.request.Request(
@@ -115,8 +124,7 @@ def chat_completion(
         raise ValueError(f"llama.cpp server returned HTTP {status}")
     try:
         envelope = json.loads(raw.decode("utf-8"))
-        choice = envelope["choices"][0]
-        content = choice["message"]["content"]
+        content = envelope["choices"][0]["message"]["content"]
     except (UnicodeDecodeError, json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
         raise ValueError("llama.cpp server returned an invalid chat-completion envelope") from exc
     if not isinstance(content, str) or not content.strip():
