@@ -32,12 +32,12 @@ def build_local_model_prompt(context: dict[str, Any]) -> str:
 
 
 def extract_json_object(output: str) -> str:
-    """Return exactly one JSON object from possibly noisy local CLI output.
+    """Return exactly one top-level JSON object from noisy local CLI output.
 
     Local inference CLIs may emit banners, command hints, echoed prompts or timing
-    lines on stdout even in single-turn mode. AAAAT accepts that transport noise
-    only when stdout contains exactly one complete JSON object. Zero objects,
-    multiple objects, arrays and incomplete objects remain failures.
+    lines on stdout even in single-turn mode. AAAAT accepts transport noise around
+    one complete object. Nested objects belong to that result and are not counted
+    separately. Multiple sequential top-level objects remain ambiguous and fail.
     """
 
     body = output.strip()
@@ -51,20 +51,22 @@ def extract_json_object(output: str) -> str:
 
     decoder = json.JSONDecoder()
     matches: list[dict[str, Any]] = []
-    seen_ranges: set[tuple[int, int]] = set()
-
-    for start, character in enumerate(body):
-        if character != "{":
-            continue
+    index = 0
+    while index < len(body):
+        start = body.find("{", index)
+        if start < 0:
+            break
         try:
             value, length = decoder.raw_decode(body[start:])
         except json.JSONDecodeError:
+            index = start + 1
             continue
         end = start + length
-        if not isinstance(value, dict) or (start, end) in seen_ranges:
-            continue
-        seen_ranges.add((start, end))
-        matches.append(value)
+        if isinstance(value, dict):
+            matches.append(value)
+            index = end
+        else:
+            index = start + 1
 
     if not matches:
         raise ValueError("Local model result does not contain a valid JSON object")
