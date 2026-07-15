@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-"""Dependency-free MCP-compatible descriptor metadata.
+"""Dependency-free MCP descriptor metadata for AAAAT's bounded queue surface.
 
-This module intentionally builds descriptor/tool/prompt schema data only. It does
-not start or implement an MCP transport loop. External adapters may map the
-emitted schema to AAAAT CLI commands or local task packets.
+The descriptor maps external hosts to the existing queue and canonical result
+boundary. It does not define a second queue, broad data API, or provider runtime.
 """
 
 from typing import Any
 
-
 PROTOCOL_VERSION = "2025-06-18"
 
-
 CONTRACT_DESCRIPTION = (
-    "Descriptor-only MCP-compatible AAAAT operation. No HTTP runtime, dashboard HTML, broad CRUD, or entity-ID mutation authority. "
-    "Task contexts and packets include task_handle, task_type, title, instructions, purpose, input_context, "
-    "output_contract, response_format, allowed_actions, and privacy_notes."
+    "AAAAT bounded queue operation. Acquisition returns one complete purpose-scoped work item. "
+    "Callbacks use a random task capability, never an internal entity or database ID."
 )
 
 
@@ -25,23 +21,24 @@ def mcp_descriptor() -> dict[str, Any]:
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {"resources": {}, "tools": {}, "prompts": {}},
         "resources": [
-            {"uri": "aaaat://agent/tasks/next", "name": "agent-next-task", "title": "Next Pending Agent Task Handle", "mimeType": "application/json"},
-            {"uri": "aaaat://agent/tasks/{task_handle}/context", "name": "agent-task-context", "title": "Bounded Agent Task Context With Response Format", "mimeType": "application/json"},
-            {"uri": "aaaat://agent/context-bundle", "name": "agent-context-bundle", "title": "Purpose-Scoped Agent Context Bundle", "mimeType": "application/json"},
+            {"uri": "aaaat://agent/work/next", "name": "agent-next-work", "title": "Next Complete Bounded Work Item", "mimeType": "application/json"},
             {"uri": "aaaat://agent-guide", "name": "agent-guide", "title": "Capability-Scoped Agent Guide", "mimeType": "text/markdown"},
         ],
         "tools": [
-            tool("get_next_agent_task", {}, []),
-            tool("get_agent_task_context", {"task_handle": "string"}, ["task_handle"]),
+            tool("get_next_agent_work", {}, []),
             tool(
                 "submit_agent_task_result",
-                {"task_handle": "string", "result_json": "object", "agent_name": "string", "agent_runtime": "string", "model_provider": "string"},
-                ["task_handle", "result_json"],
+                {"task_capability": "string", "result_json": "object", "agent_name": "string", "agent_runtime": "string", "model_provider": "string"},
+                ["task_capability", "result_json"],
             ),
-            tool("get_agent_context_bundle", {"purpose": "string"}, ["purpose"]),
+            tool(
+                "report_agent_task_progress",
+                {"task_capability": "string", "phase": "string", "message": "string", "percent": "integer"},
+                ["task_capability", "phase"],
+            ),
             tool("submit_agent_action", {"action": "object", "agent_name": "string", "agent_runtime": "string", "model_provider": "string"}, ["action"]),
         ],
-        "prompts": [prompt("complete_agent_task", ["task_handle"]), prompt("review_task_context", ["task_handle"])],
+        "prompts": [prompt("complete_agent_work", ["task_capability"])],
     }
 
 
@@ -58,7 +55,7 @@ def prompt(name: str, args: list[str]) -> dict[str, Any]:
     return {
         "name": name,
         "title": name.replace("_", " ").title(),
-        "description": f"Capability-oriented prompt template for {name.replace('_', ' ')} using the bounded task response format.",
+        "description": f"Prompt template for {name.replace('_', ' ')} using the bounded response format.",
         "arguments": [{"name": arg, "required": True} for arg in args],
     }
 
