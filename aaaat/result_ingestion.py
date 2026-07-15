@@ -4,7 +4,7 @@ import json
 import sqlite3
 from typing import Any, Mapping
 
-from .agent_access import submit_agent_task_result
+from .agent_access import TASK_CAPABILITY_PREFIX, submit_agent_task_result
 
 _FORBIDDEN_AUTHORITY_KEYS = {
     "application_id",
@@ -19,23 +19,17 @@ _FORBIDDEN_AUTHORITY_KEYS = {
 
 def ingest_task_result(
     conn: sqlite3.Connection,
-    task_handle: str,
+    task_capability: str,
     result: str | Mapping[str, Any],
     *,
     provenance: Mapping[str, Any] | None = None,
     default_agent_name: str = "",
     default_agent_runtime: str = "",
 ) -> dict[str, Any]:
-    """Validate one transport-neutral result and apply it through AAAAT.
-
-    All automatic, browser, command, callback, and portable-bundle paths should
-    call this boundary. It normalizes the result envelope and provenance before
-    the existing task/domain validation and deterministic application pipeline.
-    """
-
-    handle = str(task_handle or "").strip()
-    if not handle.startswith("taskh_"):
-        raise ValueError("Result has an invalid opaque task handle")
+    """Validate one transport-neutral result and apply it through AAAAT."""
+    capability = str(task_capability or "").strip()
+    if not capability.startswith(TASK_CAPABILITY_PREFIX):
+        raise ValueError("Result has an invalid task capability")
 
     body = _result_object(result)
     forbidden = sorted(_find_forbidden_keys(body))
@@ -49,7 +43,7 @@ def ingest_task_result(
 
     return submit_agent_task_result(
         conn,
-        handle,
+        capability,
         json.dumps(body, ensure_ascii=False),
         agent_name=agent_name,
         agent_runtime=agent_runtime,
