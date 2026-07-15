@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any, Callable
@@ -11,6 +12,7 @@ from .db import connect, utc_now
 from .local_cli_runtime import build_local_cli_invocation
 from .local_model_protocol import build_local_model_prompt, extract_json_object
 from .provider_adapters import adapter_definition, validate_adapter_settings
+from .subprocess_output import subprocess_failure_message
 from .tasks import get_task, update_task
 from .workspace_config import load_workspace_config, storage_directory
 
@@ -109,6 +111,10 @@ class TaskRunner:
         raise TaskRunnerError(f"Local adapter '{adapter_id}' is not executable")
 
     def _run_stdio(self, argv: list[str], input_body: str | None, timeout: int, *, validate_result: bool = True) -> str:
+        environment = dict(os.environ)
+        environment.setdefault("NO_COLOR", "1")
+        environment.setdefault("TERM", "dumb")
+        environment.setdefault("CI", "1")
         completed = subprocess.run(
             argv,
             input=input_body,
@@ -116,6 +122,7 @@ class TaskRunner:
             capture_output=True,
             check=False,
             timeout=timeout,
+            env=environment,
         )
         stdout = completed.stdout or ""
         stderr = completed.stderr or ""
@@ -125,8 +132,7 @@ class TaskRunner:
             raise TaskRunnerError("External runtime stderr exceeded the 500 KB safety limit")
         self._consume_structured_stderr(stderr)
         if completed.returncode != 0:
-            message = (stderr or stdout or f"Runner exited with {completed.returncode}").strip()
-            raise TaskRunnerError(message[:4000])
+            raise TaskRunnerError(subprocess_failure_message(stderr, stdout, completed.returncode))
         body = stdout.strip()
         if not body:
             raise TaskRunnerError("External runtime returned no result")
