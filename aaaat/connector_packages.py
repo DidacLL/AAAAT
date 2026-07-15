@@ -20,6 +20,14 @@ _MAX_FILES = 12
 _MAX_FILE_BYTES = 200_000
 _ALLOWED_SUFFIXES = {".py", ".sh", ".cmd", ".ps1", ".json", ".md", ".txt"}
 _NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$")
+_EXTERNAL_KINDS = {"none", "outbound", "listener", "bidirectional", "provider_managed"}
+_EXTERNAL_EXPOSURES = {"local", "user_selected", "public", "provider_managed"}
+_ALLOWED_EXTERNAL_OPERATIONS = {
+    "bounded_task_delivery",
+    "bounded_result_callback",
+    "provider_auth_callback",
+    "health",
+}
 
 
 def connector_construction_prompt(adapter_id: str = "manual_external_agent", settings: dict[str, Any] | None = None) -> str:
@@ -34,16 +42,23 @@ def connector_construction_prompt(adapter_id: str = "manual_external_agent", set
             "prompt_transport": "stdin",
             "result_transport": "stdout",
             "progress_transport": "stderr_ndjson",
+            "external_communication": {
+                "kind": "none | outbound | listener | bidirectional | provider_managed",
+                "exposure": "local | user_selected | public | provider_managed",
+                "bounded_operations": ["bounded_task_delivery", "bounded_result_callback", "provider_auth_callback", "health"],
+                "description": "plain-language explanation of how this connector reaches the selected AI",
+            },
         },
         "files": "mapping of relative file paths to UTF-8 text",
         "restrictions": [
-            "Use only the language standard library.",
-            "Do not include credentials, tokens, provider keys, or user data.",
-            "Do not open listening ports or expose an HTTP API.",
-            "Read one bounded task JSON object from stdin.",
+            "Use only the language standard library unless the user explicitly chose another available dependency.",
+            "Do not embed credentials, tokens, provider keys, or user data in the package.",
+            "Read one bounded AAAAT task JSON object from stdin.",
             "Write one result JSON object to stdout.",
             "Write optional NDJSON progress events to stderr.",
-            "Do not read AAAAT storage or choose artifact paths.",
+            "Do not read AAAAT storage, enumerate private entities, accept internal IDs as authority, or choose artifact paths.",
+            "Provider-facing HTTP, SDK, callback, listener, browser, or other communication is permitted when declared in external_communication.",
+            "Any listening endpoint may expose only the declared bounded task/result bridge, never AAAAT storage or entity APIs.",
             "Support runtime_conformance and runtime_bootstrap tasks by echoing their exact nonce.",
         ],
         "runtime_bootstrap": manifest,
@@ -92,6 +107,7 @@ def parse_connector_package(payload: str | dict[str, Any]) -> dict[str, Any]:
             if cleaned != safe_entrypoint:
                 raise ValueError("Connector argv must start with the declared entrypoint")
         normalized_argv.append(cleaned)
+    external_communication = _validate_external_communication(manifest.get("external_communication"))
     return {
         "protocol": PACKAGE_PROTOCOL,
         "protocol_version": PACKAGE_VERSION,
@@ -102,6 +118,7 @@ def parse_connector_package(payload: str | dict[str, Any]) -> dict[str, Any]:
             "prompt_transport": "stdin",
             "result_transport": "stdout",
             "progress_transport": str(manifest.get("progress_transport") or "stderr_ndjson"),
+            "external_communication": external_communication,
         },
         "files": normalized_files,
     }
@@ -176,8 +193,39 @@ def export_connector_construction_bundle(output_path: str | Path, adapter_id: st
     with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("CONNECT_YOUR_AI.txt", connector_construction_prompt(adapter_id))
         archive.writestr("runtime-bootstrap.json", json.dumps(bootstrap_manifest(adapter_id, {}), ensure_ascii=False, indent=2))
-        archive.writestr("example-package.json", json.dumps({"protocol": PACKAGE_PROTOCOL, "manifest": {"name": "example", "entrypoint": "connector.py", "argv": ["connector.py"]}, "files": {"connector.py": "import json,sys\ntask=json.load(sys.stdin)\nprint(json.dumps({'result':'replace me'}))\n"}}, indent=2))
+        archive.writestr("example-package.json", json.dumps({"protocol": PACKAGE_PROTOCOL, "manifest": {"name": "example", "entrypoint": "connector.py", "argv": ["connector.py"], "external_communication": {"kind": "outbound", "exposure": "user_selected", "bounded_operations": ["bounded_task_delivery"], "description": "Send the bounded task to the user's selected AI."}}, "files": {"connector.py": "import json,sys\ntask=json.load(sys.stdin)\nprint(json.dumps({'result':'replace me'}))\n"}}, indent=2))
     return target
+
+
+def _validate_external_communication(value: Any) -> dict[str, Any]:
+    if value in (None, ""):
+        return {"kind": "none", "exposure": "local", "bounded_operations": [], "description": "No provider-facing network communication declared."}
+    if not isinstance(value, dict):
+        raise ValueError("Connector external_communication must be an object")
+    kind = str(value.get("kind") or "none").strip()
+    exposure = str(value.get("exposure") or "local").strip()
+    operations = value.get("bounded_operations") or []
+    description = str(value.get("description") or "").strip()
+    if kind not in _EXTERNAL_KINDS:
+        raise ValueError(f"Unsupported connector external communication kind: {kind}")
+    if exposure not in _EXTERNAL_EXPOSURES:
+        raise ValueError(f"Unsupported connector external communication exposure: {exposure}")
+    if not isinstance(operations, list) or any(not isinstance(item, str) for item in operations):
+        raise ValueError("Connector bounded_operations must be a string list")
+    normalized_operations = [str(item).strip() for item in operations if str(item).strip()]
+    unsupported = set(normalized_operations) - _ALLOWED_EXTERNAL_OPERATIONS
+    if unsupported:
+        raise ValueError(f"Unsupported connector external operation(s): {sorted(unsupported)}")
+    if kind != "none" and not normalized_operations:
+        raise ValueError("Connector external communication must declare bounded operations")
+    if kind != "none" and not description:
+        raise ValueError("Connector external communication must include a plain-language description")
+    return {
+        "kind": kind,
+        "exposure": exposure,
+        "bounded_operations": normalized_operations,
+        "description": description or "No provider-facing network communication declared.",
+    }
 
 
 def _safe_relative_path(value: str) -> str:
@@ -188,10 +236,9 @@ def _safe_relative_path(value: str) -> str:
 
 
 def _static_connector_check(stage: Path, package: dict[str, Any]) -> None:
-    forbidden = ("api_key", "authorization: bearer", "listen(", "0.0.0.0", "subprocess.Popen", "os.system(")
+    forbidden = ("subprocess.Popen", "os.system(")
     for relative, content in package["files"].items():
-        lowered = content.lower()
-        matched = next((token for token in forbidden if token.lower() in lowered), None)
+        matched = next((token for token in forbidden if token.lower() in content.lower()), None)
         if matched:
             raise ValueError(f"Connector file {relative} contains forbidden pattern: {matched}")
     resolved_stage = stage.resolve()
