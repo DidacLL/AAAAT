@@ -11,9 +11,12 @@ from .local_cli_runtime import build_local_cli_invocation
 from .local_model_protocol import build_local_model_prompt, extract_json_object
 from .provider_adapters import adapter_definition, validate_adapter_settings
 from .tasks import get_task, update_task
-from .workspace_config import load_workspace_config
+from .workspace_config import load_workspace_config, storage_directory
 
 ProgressCallback = Callable[[dict[str, Any]], None]
+_MAX_STDOUT_BYTES = 2_000_000
+_MAX_STDERR_BYTES = 500_000
+_MAX_PROGRESS_EVENTS = 200
 
 
 class TaskRunnerError(RuntimeError):
@@ -27,9 +30,13 @@ class TaskRunner:
         self.storage_path = str(storage_path)
         self.on_progress = on_progress or (lambda _event: None)
         self._sequence = 0
+        self._active_task_id = ""
+        self._external_progress_count = 0
 
     def run(self, task_id: str) -> dict[str, Any]:
         self._sequence = 0
+        self._active_task_id = task_id
+        self._external_progress_count = 0
         config = load_workspace_config(self.storage_path)
         adapter_config = config["local_agent_adapter"]
         adapter_id = str(adapter_config["id"])
@@ -74,24 +81,14 @@ class TaskRunner:
         self._emit(task_id, "completed", "Task completed", 100)
         return {"submitted": submitted, "task": final, "provenance": provenance}
 
-    def _execute_adapter(
-        self,
-        adapter_id: str,
-        settings: dict[str, Any],
-        context: dict[str, Any],
-    ) -> tuple[str, dict[str, str]]:
+    def _execute_adapter(self, adapter_id: str, settings: dict[str, Any], context: dict[str, Any]) -> tuple[str, dict[str, str]]:
         normalized = validate_adapter_settings(adapter_id, settings)
         timeout = int(normalized.get("timeout_seconds") or 60)
 
         if adapter_id in {"ollama_cli", "llama_cpp_cli"}:
             prompt = build_local_model_prompt(context)
             with build_local_cli_invocation(adapter_id, normalized, prompt) as invocation:
-                output = self._run_stdio(
-                    list(invocation.argv),
-                    invocation.input_body,
-                    timeout,
-                    validate_result=False,
-                )
+                output = self._run_stdio(list(invocation.argv), invocation.input_body, timeout, validate_result=False)
                 return extract_json_object(output), dict(invocation.provenance)
 
         if adapter_id == "codex_cli":
@@ -108,14 +105,7 @@ class TaskRunner:
 
         raise TaskRunnerError(f"Local adapter '{adapter_id}' is not executable")
 
-    def _run_stdio(
-        self,
-        argv: list[str],
-        input_body: str | None,
-        timeout: int,
-        *,
-        validate_result: bool = True,
-    ) -> str:
+    def _run_stdio(self, argv: list[str], input_body: str | None, timeout: int, *, validate_result: bool = True) -> str:
         completed = subprocess.run(
             argv,
             input=input_body,
@@ -124,10 +114,17 @@ class TaskRunner:
             check=False,
             timeout=timeout,
         )
+        stdout = completed.stdout or ""
+        stderr = completed.stderr or ""
+        if len(stdout.encode("utf-8", errors="replace")) > _MAX_STDOUT_BYTES:
+            raise TaskRunnerError("External runtime stdout exceeded the 2 MB safety limit")
+        if len(stderr.encode("utf-8", errors="replace")) > _MAX_STDERR_BYTES:
+            raise TaskRunnerError("External runtime stderr exceeded the 500 KB safety limit")
+        self._consume_structured_stderr(stderr)
         if completed.returncode != 0:
-            message = (completed.stderr or completed.stdout or f"Runner exited with {completed.returncode}").strip()
+            message = (stderr or stdout or f"Runner exited with {completed.returncode}").strip()
             raise TaskRunnerError(message[:4000])
-        body = completed.stdout.strip()
+        body = stdout.strip()
         if not body:
             raise TaskRunnerError("External runtime returned no result")
         if validate_result:
@@ -139,19 +136,46 @@ class TaskRunner:
                 raise TaskRunnerError("External runtime result must be one JSON object")
         return body
 
+    def _consume_structured_stderr(self, stderr: str) -> None:
+        if not self._active_task_id:
+            return
+        for line in stderr.splitlines():
+            if self._external_progress_count >= _MAX_PROGRESS_EVENTS:
+                break
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(value, dict) or str(value.get("type") or value.get("event") or "") not in {"progress", "aaaat_progress"}:
+                continue
+            self._external_progress_count += 1
+            message = str(value.get("message") or value.get("phase") or "External runtime progress")[:1000]
+            percent = max(25, min(69, int(value.get("percent") or 25)))
+            self._emit(self._active_task_id, "runtime_progress", message, percent)
+
     def _emit(self, task_id: str, phase: str, message: str, percent: int) -> None:
         self._sequence += 1
-        self.on_progress(
-            {
-                "task_id": task_id,
-                "state": phase,
-                "phase": phase,
-                "message": message,
-                "percent": max(0, min(100, int(percent))),
-                "sequence": self._sequence,
-                "occurred_at": utc_now(),
-            }
-        )
+        event = {
+            "task_id": task_id,
+            "state": phase,
+            "phase": phase,
+            "message": str(message)[:2000],
+            "percent": max(0, min(100, int(percent))),
+            "sequence": self._sequence,
+            "occurred_at": utc_now(),
+        }
+        self._persist_progress(event)
+        self.on_progress(event)
+
+    def _persist_progress(self, event: dict[str, Any]) -> None:
+        safe_task_id = "".join(char for char in str(event.get("task_id") or "") if char.isalnum() or char in {"-", "_"})[:96]
+        if not safe_task_id:
+            return
+        root = storage_directory(self.storage_path) / "task-progress"
+        root.mkdir(parents=True, exist_ok=True)
+        path = root / f"{safe_task_id}.ndjson"
+        with path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
 
     def _fail(self, task_id: str, message: str) -> None:
         with connect(self.storage_path) as conn:
