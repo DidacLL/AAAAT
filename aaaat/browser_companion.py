@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from .agent_access import build_agent_task_context, next_agent_task_envelope
+from .agent_access import next_agent_work_item
 from .db import connect
 from .result_ingestion import ingest_task_result
 from .workspace_config import storage_directory
@@ -31,9 +31,9 @@ def native_host_manifest(storage_path: str | Path, executable: str) -> dict[str,
 def browser_extension_bundle() -> dict[str, str]:
     return {
         "manifest.json": json.dumps({"manifest_version": 3, "name": "AAAAT Browser Companion", "version": "1.0.0", "permissions": ["nativeMessaging", "activeTab", "scripting"], "action": {"default_popup": "popup.html"}}, indent=2),
-        "popup.html": "<!doctype html><meta charset='utf-8'><button id='send'>Send next AAAAT task</button><pre id='status'></pre><script src='popup.js'></script>",
-        "popup.js": "const status=document.getElementById('status');document.getElementById('send').onclick=()=>{const p=chrome.runtime.connectNative('org.aaaat.browser_companion');p.onMessage.addListener(m=>status.textContent=JSON.stringify(m,null,2));p.postMessage({protocol:'aaaat.browser-native',protocol_version:1,action:'next_task'});};",
-        "README.txt": "Load this unpacked extension, install the generated native-host manifest, then adapt page interaction in popup.js or a site-specific content script. Authentication remains in the browser. AAAAT exchanges bounded messages only.",
+        "popup.html": "<!doctype html><meta charset='utf-8'><button id='send'>Send next AAAAT work item</button><pre id='status'></pre><script src='popup.js'></script>",
+        "popup.js": "const status=document.getElementById('status');document.getElementById('send').onclick=()=>{const p=chrome.runtime.connectNative('org.aaaat.browser_companion');p.onMessage.addListener(m=>status.textContent=JSON.stringify(m,null,2));p.postMessage({protocol:'aaaat.browser-native',protocol_version:1,action:'next_work'});};",
+        "README.txt": "Load this unpacked extension and install the native-host manifest. The bridge exposes complete bounded work items and accepts only task-scoped results. Authentication remains in the browser or external host.",
     }
 
 
@@ -42,20 +42,17 @@ def dispatch_native_message(storage_path: str | Path, message: dict[str, Any]) -
         return {"status": "error", "error": "unsupported_protocol"}
     action = str(message.get("action") or "")
     with connect(storage_path) as conn:
-        if action == "next_task":
-            task = next_agent_task_envelope(conn)
-            return {"status": "empty"} if task is None else {"status": "ready", "task": task}
-        if action == "task_context":
-            handle = str(message.get("task_handle") or "")
-            return {"status": "ready", "context": build_agent_task_context(conn, handle)}
+        if action == "next_work":
+            work = next_agent_work_item(conn)
+            return {"status": "empty"} if work is None else {"status": "ready", "work": work}
         if action == "submit_result":
-            handle = str(message.get("task_handle") or "")
+            capability = str(message.get("task_capability") or "")
             result = message.get("result")
             if not isinstance(result, dict):
                 return {"status": "error", "error": "result_must_be_object"}
             acknowledgement = ingest_task_result(
                 conn,
-                handle,
+                capability,
                 result,
                 provenance={
                     "agent_name": str(message.get("agent_name") or "browser-companion"),
