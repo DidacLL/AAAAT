@@ -26,7 +26,7 @@ class AssistanceServiceTests(unittest.TestCase):
             self.assertIn("integration", snapshot)
             self.assertEqual(
                 [item["id"] for item in snapshot["connection_modes"]],
-                ["manual", "automatic", "browser_or_files", "advanced"],
+                ["manual", "guided_connector", "browser_or_chat", "advanced_integration"],
             )
             self.assertTrue(any(option["id"] == "argv_custom_command" for option in snapshot["options"]))
             self.assertTrue(any(option["id"] == "llama_cpp_server" for option in snapshot["options"]))
