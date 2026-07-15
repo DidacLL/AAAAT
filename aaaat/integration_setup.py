@@ -5,6 +5,7 @@ from typing import Any
 
 from .provider_adapters import (
     RECOMMENDED_LOCAL_ADAPTER_ID,
+    adapter_capabilities,
     adapter_definition,
     adapter_health,
     standard_local_settings,
@@ -14,8 +15,54 @@ from .provider_adapters import (
 from .workspace_config import load_workspace_config, save_workspace_settings
 
 
+_CONNECTION_MODES: tuple[dict[str, Any], ...] = (
+    {
+        "id": "manual",
+        "title": "Continue manually",
+        "description": "Use AAAAT without an automatic AI connection. Portable task bundles remain available when needed.",
+        "automatic": False,
+        "setup_complexity": "guided",
+        "adapter_ids": ("manual_external_agent",),
+    },
+    {
+        "id": "automatic",
+        "title": "Connect my AI",
+        "description": "Use an existing compatible AI automatically through a bounded connection selected during setup.",
+        "automatic": True,
+        "setup_complexity": "guided",
+        "adapter_ids": ("llama_cpp_server", "argv_custom_command", "ollama_cli", "codex_cli"),
+    },
+    {
+        "id": "browser_or_files",
+        "title": "Use a browser or chat AI",
+        "description": "Exchange one bounded task bundle and one result bundle, or use a supported browser companion.",
+        "automatic": False,
+        "setup_complexity": "guided",
+        "adapter_ids": ("manual_external_agent", "file_exchange"),
+    },
+    {
+        "id": "advanced",
+        "title": "Advanced integration",
+        "description": "Configure a command, endpoint, exchange directory, or generated connector explicitly.",
+        "automatic": None,
+        "setup_complexity": "advanced",
+        "adapter_ids": tuple(item.adapter_id for item in visible_adapters(include_advanced=True)),
+    },
+)
+
+
+def connection_modes() -> list[dict[str, Any]]:
+    return [
+        {
+            **mode,
+            "adapter_ids": list(mode["adapter_ids"]),
+        }
+        for mode in _CONNECTION_MODES
+    ]
+
+
 def integration_options(*, include_advanced: bool = False) -> list[dict[str, Any]]:
-    """Return presentation-neutral integration choices for Welcome/User."""
+    """Return presentation-neutral adapter choices for advanced setup."""
 
     options: list[dict[str, Any]] = []
     for adapter in visible_adapters(include_advanced=include_advanced):
@@ -24,14 +71,10 @@ def integration_options(*, include_advanced: bool = False) -> list[dict[str, Any
                 "id": adapter.adapter_id,
                 "title": adapter.title,
                 "description": adapter.description,
-                "automatic": adapter.automatic_execution,
                 "advanced": adapter.advanced,
-                "standard_user": adapter.standard_user,
-                "local_only": adapter.local_only,
-                "network_access": adapter.network_access,
-                "research_capable": adapter.research_capable,
                 "fields": [dict(field) for field in adapter.fields],
                 "recommended_settings": standard_local_settings(adapter.adapter_id),
+                "capabilities": adapter_capabilities(adapter.adapter_id),
             }
         )
     return options
@@ -46,11 +89,7 @@ def current_integration(storage_path: str | Path) -> dict[str, Any]:
         "id": adapter_id,
         "title": adapter.title,
         "settings": dict(selected.get("settings") or {}),
-        "automatic": adapter.automatic_execution,
-        "standard_user": adapter.standard_user,
-        "local_only": adapter.local_only,
-        "network_access": adapter.network_access,
-        "research_capable": adapter.research_capable,
+        "capabilities": adapter_capabilities(adapter_id),
     }
 
 
@@ -72,6 +111,7 @@ def configure_integration(
             "saved": False,
             "adapter_id": adapter_id,
             "settings": normalized,
+            "capabilities": adapter_capabilities(adapter_id),
             "health": health,
         }
     save_workspace_settings(
@@ -89,12 +129,13 @@ def configure_integration(
         "saved": True,
         "adapter_id": adapter_id,
         "settings": normalized,
+        "capabilities": adapter_capabilities(adapter_id),
         "health": health,
     }
 
 
 def configure_recommended_local_integration(storage_path: str | Path) -> dict[str, Any]:
-    """Run the standard-user local setup without requiring advanced choices."""
+    """Compatibility helper for the existing guided local setup."""
 
     return configure_integration(
         storage_path,
@@ -104,7 +145,7 @@ def configure_recommended_local_integration(storage_path: str | Path) -> dict[st
 
 
 def disable_automatic_integration(storage_path: str | Path) -> dict[str, Any]:
-    """Return to the portable/manual path while preserving automatic task choices."""
+    """Return to manual operation while preserving automatic task choices."""
 
     current = load_workspace_config(storage_path)
     save_workspace_settings(
