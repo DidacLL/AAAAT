@@ -5,13 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from aaaat.integration_setup import (
-    configure_integration,
-    connection_modes,
-    current_integration,
-    disable_automatic_integration,
-    integration_options,
-)
+from aaaat.integration_setup import configure_integration, connection_modes, current_integration, disable_automatic_integration, integration_options
 from aaaat.provider_adapters import adapter_capabilities
 from aaaat.workspace_config import load_workspace_config
 
@@ -19,18 +13,20 @@ from aaaat.workspace_config import load_workspace_config
 class IntegrationSetupTests(unittest.TestCase):
     def test_connection_modes_are_user_intent_first(self) -> None:
         modes = connection_modes()
-        self.assertEqual(
-            [item["id"] for item in modes],
-            ["manual", "guided_connector", "browser_or_chat", "advanced_integration"],
-        )
+        self.assertEqual([item["id"] for item in modes], ["manual", "guided_connector", "browser_or_chat", "advanced_integration"])
         self.assertEqual(modes[0]["title"], "Continue manually")
         self.assertEqual(modes[1]["title"], "Connect my AI")
         self.assertEqual(modes[2]["title"], "Use a browser or chat AI")
         self.assertEqual(modes[3]["title"], "Advanced integration")
-        self.assertNotIn("llama", " ".join(item["title"].lower() for item in modes))
-        self.assertNotIn("ollama", " ".join(item["title"].lower() for item in modes))
+        titles = " ".join(item["title"].lower() for item in modes)
+        self.assertNotIn("llama", titles)
+        self.assertNotIn("ollama", titles)
 
-    def test_options_expose_capabilities_without_making_vendor_metadata_core(self) -> None:
+    def test_default_options_hide_named_and_technical_adapters(self) -> None:
+        options = integration_options()
+        self.assertEqual([item["id"] for item in options], ["manual_external_agent"])
+
+    def test_advanced_options_expose_capabilities_and_disclosure(self) -> None:
         options = integration_options(include_advanced=True)
         ids = {item["id"] for item in options}
         self.assertIn("llama_cpp_server", ids)
@@ -42,6 +38,9 @@ class IntegrationSetupTests(unittest.TestCase):
         self.assertEqual(command["capabilities"]["transport_kind"], "stdio")
         self.assertTrue(command["capabilities"]["progress"])
         self.assertEqual(http["network_access"], http["capabilities"]["network_access"])
+        self.assertEqual(http["disclosure"]["route"], "local")
+        self.assertIn("purpose-specific bounded", http["disclosure"]["context_scope"])
+        self.assertEqual(http["disclosure"]["credentials"], "external-host")
 
     def test_capabilities_are_declared_by_adapter_not_inferred_by_runner(self) -> None:
         manual = adapter_capabilities("manual_external_agent")
@@ -60,6 +59,7 @@ class IntegrationSetupTests(unittest.TestCase):
                 result = configure_integration(storage, "llama_cpp_server", {"endpoint": "http://127.0.0.1:8080", "model": "local"})
             self.assertFalse(result["saved"])
             self.assertEqual(result["capabilities"]["transport_kind"], "http")
+            self.assertEqual(result["disclosure"]["route"], "local")
             self.assertEqual(current_integration(storage)["id"], before["id"])
 
     def test_ready_configuration_is_persisted_and_can_be_disabled(self) -> None:
@@ -73,9 +73,11 @@ class IntegrationSetupTests(unittest.TestCase):
             self.assertEqual(selected["settings"]["endpoint"], "http://127.0.0.1:8080")
             current = current_integration(storage)
             self.assertEqual(current["capabilities"]["transport_kind"], "http")
+            self.assertEqual(current["disclosure"]["route"], "local")
             disabled = disable_automatic_integration(storage)
             self.assertEqual(disabled["id"], "manual_external_agent")
             self.assertFalse(disabled["capabilities"]["automatic"])
+            self.assertEqual(disabled["disclosure"]["route"], "user-mediated")
 
 
 if __name__ == "__main__":
