@@ -32,12 +32,12 @@ def build_local_model_prompt(context: dict[str, Any]) -> str:
 
 
 def extract_json_object(output: str) -> str:
-    """Return one JSON object from model output or fail without guessing.
+    """Return exactly one JSON object from possibly noisy local CLI output.
 
-    Strict JSON is preferred. A single fenced JSON object or a single object with
-    harmless surrounding whitespace is accepted because some local model chat
-    templates add fences despite explicit instructions. Multiple objects, arrays,
-    prose-only output, or trailing non-whitespace text are rejected.
+    Local inference CLIs may emit banners, command hints, echoed prompts or timing
+    lines on stdout even in single-turn mode. AAAAT accepts that transport noise
+    only when stdout contains exactly one complete JSON object. Zero objects,
+    multiple objects, arrays and incomplete objects remain failures.
     """
 
     body = output.strip()
@@ -50,12 +50,24 @@ def extract_json_object(output: str) -> str:
             body = "\n".join(lines[1:-1]).strip()
 
     decoder = json.JSONDecoder()
-    try:
-        value, end = decoder.raw_decode(body)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Local model result is not valid JSON: {exc.msg}") from exc
-    if body[end:].strip():
-        raise ValueError("Local model result contains text after the JSON object")
-    if not isinstance(value, dict):
-        raise ValueError("Local model result must be one JSON object")
-    return json.dumps(value, ensure_ascii=False)
+    matches: list[dict[str, Any]] = []
+    seen_ranges: set[tuple[int, int]] = set()
+
+    for start, character in enumerate(body):
+        if character != "{":
+            continue
+        try:
+            value, length = decoder.raw_decode(body[start:])
+        except json.JSONDecodeError:
+            continue
+        end = start + length
+        if not isinstance(value, dict) or (start, end) in seen_ranges:
+            continue
+        seen_ranges.add((start, end))
+        matches.append(value)
+
+    if not matches:
+        raise ValueError("Local model result does not contain a valid JSON object")
+    if len(matches) != 1:
+        raise ValueError("Local model result must contain exactly one JSON object")
+    return json.dumps(matches[0], ensure_ascii=False)
