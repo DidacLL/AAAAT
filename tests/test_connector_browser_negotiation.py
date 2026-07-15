@@ -5,104 +5,35 @@ import json
 import struct
 import tempfile
 import unittest
-from pathlib import Path
 
+from aaaat.assistance_service import external_host_instructions
 from aaaat.browser_companion import PROTOCOL, VERSION, dispatch_native_message, run_native_host
-from aaaat.connector_packages import connector_construction_prompt, install_connector_package, parse_connector_package, preview_connector_package
 from aaaat.db import connect, init_db
 from aaaat.runtime_conformance import validate_runtime_proposal
 from aaaat.tasks import create_task
 
 
-def _package() -> dict:
-    return {
-        "protocol": "aaaat.connector-package",
-        "manifest": {
-            "name": "test-connector",
-            "entrypoint": "connector.py",
-            "argv": ["connector.py"],
-            "prompt_transport": "stdin",
-            "result_transport": "stdout",
-            "external_communication": {
-                "kind": "outbound",
-                "exposure": "user_selected",
-                "bounded_operations": ["bounded_task_delivery"],
-                "description": "Send the bounded task to the user's selected AI.",
-            },
-        },
-        "files": {
-            "connector.py": "#!/usr/bin/env python3\nimport json,sys\ntask=json.load(sys.stdin)\nprint(json.dumps({'result':'ok'}))\n",
-            "README.md": "Generated connector test fixture.",
-        },
-    }
+class BrowserWrapperTests(unittest.TestCase):
+    def test_external_host_instructions_keep_direction_and_authority_clear(self) -> None:
+        lowered = external_host_instructions("unused").lower()
+        self.assertIn("external host initiates every call", lowered)
+        self.assertIn("existing bounded task queue", lowered)
+        self.assertIn("mcp", lowered)
+        self.assertIn("http", lowered)
+        self.assertIn("canonical result-ingestion", lowered)
+        for forbidden in ("install connector", "generated package", "provider catalogue", "launch an llm"):
+            self.assertNotIn(forbidden, lowered)
 
-
-class ConnectorBrowserNegotiationTests(unittest.TestCase):
-    def test_connector_package_is_previewed_and_installed_disabled(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            parsed = parse_connector_package(_package())
-            preview = preview_connector_package(parsed)
-            self.assertEqual(preview["manifest"]["name"], "test-connector")
-            self.assertEqual(preview["manifest"]["external_communication"]["kind"], "outbound")
-            self.assertEqual({item["path"] for item in preview["files"]}, {"connector.py", "README.md"})
-            installed = install_connector_package(tmp, parsed)
-            self.assertEqual(installed["status"], "installed_disabled")
-            self.assertTrue(Path(installed["directory"], "connector.py").is_file())
-            self.assertTrue(installed["argv"][-1].endswith("connector.py"))
-
-    def test_connector_package_rejects_traversal_and_unsafe_execution(self) -> None:
-        invalid = _package()
-        invalid["files"] = {"../escape.py": "print('bad')"}
-        with self.assertRaisesRegex(ValueError, "Unsafe connector path"):
-            parse_connector_package(invalid)
-
-        forbidden = _package()
-        forbidden["files"]["connector.py"] = "import os\nos.system('unexpected')\n"
-        with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(ValueError, "forbidden pattern"):
-                install_connector_package(tmp, forbidden)
-
-    def test_declared_listener_is_allowed_for_bounded_provider_callback(self) -> None:
-        listener = _package()
-        listener["manifest"]["external_communication"] = {
-            "kind": "listener",
-            "exposure": "public",
-            "bounded_operations": ["bounded_result_callback", "provider_auth_callback"],
-            "description": "Receive the selected provider's bounded result and authentication callback.",
-        }
-        listener["files"]["connector.py"] = "import socket\ns=socket.socket();s.listen(3)\n"
-        with tempfile.TemporaryDirectory() as tmp:
-            installed = install_connector_package(tmp, listener)
-        communication = installed["preview"]["manifest"]["external_communication"]
-        self.assertEqual(communication["kind"], "listener")
-        self.assertEqual(communication["exposure"], "public")
-        self.assertEqual(communication["bounded_operations"], ["bounded_result_callback", "provider_auth_callback"])
-
-    def test_external_communication_rejects_broad_operations(self) -> None:
-        broad = _package()
-        broad["manifest"]["external_communication"]["bounded_operations"] = ["list_applications"]
-        with self.assertRaisesRegex(ValueError, "Unsupported connector external operation"):
-            parse_connector_package(broad)
-
-    def test_construction_prompt_separates_provider_transport_from_aaaat_authority(self) -> None:
-        lowered = connector_construction_prompt().lower()
-        self.assertIn("do not embed credentials", lowered)
-        self.assertIn("listening endpoint", lowered)
-        self.assertIn("bounded task/result bridge", lowered)
-        self.assertIn("stdin", lowered)
-        self.assertIn("stdout", lowered)
-        self.assertNotIn("do not open listening ports", lowered)
-
-    def test_runtime_proposal_is_advisory_and_bounded(self) -> None:
+    def test_runtime_proposal_is_advisory_and_bounded_for_advanced_command(self) -> None:
         proposal = validate_runtime_proposal({
             "conformance_nonce": "nonce",
-            "runtime_name": "Local Runtime",
-            "model_name": "Model A",
+            "runtime_name": "User-owned command",
+            "model_name": "Externally selected",
             "supports_structured_json": True,
             "supports_research": False,
             "recommended_timeout_seconds": 120,
         }, "nonce")
-        self.assertEqual(proposal["runtime_name"], "Local Runtime")
+        self.assertEqual(proposal["runtime_name"], "User-owned command")
         self.assertEqual(proposal["recommended_timeout_seconds"], 120)
         with self.assertRaisesRegex(ValueError, "forbidden"):
             validate_runtime_proposal({"conformance_nonce": "nonce", "runtime_name": "x", "model_name": "y", "command": "rm -rf /"}, "nonce")
