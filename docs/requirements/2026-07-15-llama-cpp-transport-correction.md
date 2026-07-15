@@ -1,36 +1,33 @@
-# Maintainer correction: llama.cpp transport
+# Historical correction: llama.cpp transport
 
-Status: authoritative correction for AAAAT v1.
+Status: superseded as v1 architectural authority.
 
 Date: 2026-07-15.
 
-This document records direct maintainer instruction and therefore overrides older requirements, tests and planning text where they require `llama-cli`, a port-free llama.cpp subprocess, or noisy console-output parsing.
+This document records a historical correction that replaced an earlier `llama-cli` requirement with a loopback `llama-server` adapter. It remains useful as implementation history for that optional adapter, but it no longer defines the standard-user path, release proof or provider-neutral architecture.
 
-## Decision
+Current authority: [`v1-authoritative-requirements.md`](v1-authoritative-requirements.md).
 
-The standard llama.cpp integration uses a user-owned `llama-server` process through an explicitly configured loopback HTTP endpoint.
+## Preserved implementation lessons
 
-AAAAT must:
+A llama.cpp HTTP adapter may remain when it:
 
-- connect only to an endpoint explicitly entered by the user;
-- restrict the standard adapter to HTTP loopback hosts;
-- send bounded task prompts through `/v1/chat/completions`;
-- require non-streaming responses;
-- derive schema-constrained `response_format` from the task's existing response contract;
-- validate assistant content as one JSON object before existing domain validation;
-- keep the OpenAI-inspired route shape inside this transport adapter rather than making it the AAAAT protocol;
-- keep the generic fixed-argv stdin/stdout adapter for other local and future runtimes;
-- leave model installation, server launch, server shutdown, acceleration, arguments and network policy under user ownership;
-- never silently launch, discover or select a llama.cpp server.
+- connects only to an endpoint explicitly selected by the user;
+- sends only bounded AAAAT task context;
+- keeps provider-specific route and response details inside the adapter;
+- validates returned assistant content before canonical domain validation;
+- leaves model installation, process lifecycle, acceleration, arguments, credentials and network policy under user or connector control;
+- never silently launches, discovers or selects a runtime;
+- grants no access to AAAAT storage, entity enumeration or mutation by internal IDs.
 
-AAAAT must not:
+## Superseded claims
 
-- use `llama-cli` as the standard llama.cpp execution path;
-- scrape interactive terminal rendering to recover model output;
-- require a llama.cpp SDK or OpenAI client library;
-- expose an AAAAT listening port;
-- treat the llama.cpp transport as the provider-neutral core contract.
+The following are not current product requirements:
 
-## Release proof
+- llama.cpp as the standard or mandatory integration;
+- `llama-server`, `llama-cli` or any named runtime as release proof;
+- loopback-only HTTP as a universal transport rule;
+- a blanket prohibition on AAAAT listening transports;
+- port-free execution as an architectural invariant.
 
-The deterministic provider-neutral command fixture remains the CI portability proof. A real llama.cpp manual validation uses the explicit loopback server adapter and must complete conformance, profile completion and the candidature lifecycle through the same bounded task/result and domain-validation pipeline.
+Transport compliance is determined by bounded authority, declared disclosure, canonical validation and deterministic application—not by vendor name or whether a port is used.
