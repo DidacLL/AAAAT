@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from .agent_access import build_agent_task_context, submit_agent_task_result, task_handle
+from .agent_access import build_agent_task_context, task_handle
 from .agent_actions import submit_agent_action
 from .assistance_service import create_profile_completion_task
 from .background_worker import OwnedTaskWorker
@@ -21,6 +21,7 @@ from .db import connect, init_db, profile_variables, set_profile_variable
 from .integration_setup import configure_integration
 from .payload import dashboard_payload
 from .portable_task_bundle import export_candidature_task_bundle
+from .result_ingestion import ingest_task_result
 from .runtime_conformance import run_configured_runtime_conformance
 from .task_runner import TaskRunner
 from .tasks import create_task, get_task, list_tasks
@@ -67,13 +68,14 @@ class ValidationConfig:
     storage: Path
     evidence_dir: Path
     runtime: str = "deterministic"
+    command: list[str] = field(default_factory=list)
+    timeout_seconds: int = 600
+    keep_storage: bool = False
+    # Retained only so older callers deserialize safely. Named runtimes are not release profiles.
     model: str = ""
     model_path: str = ""
     executable: str = ""
     args: list[str] = field(default_factory=list)
-    command: list[str] = field(default_factory=list)
-    timeout_seconds: int = 600
-    keep_storage: bool = False
 
 
 class ReleaseValidator:
@@ -107,16 +109,20 @@ class ReleaseValidator:
         automated = VERDICT_PASSED if self.results and all(item.status == "passed" for item in self.results) else VERDICT_FAILED
         report = {
             "protocol": "aaaat.release-validation",
-            "version": 1,
+            "version": 2,
             "generated_at": _now(),
             "automated_verdict": automated,
             "release_verdict": VERDICT_MANUAL if automated == VERDICT_PASSED else VERDICT_FAILED,
             "runtime_profile": self.config.runtime,
             "manual_gates": [
-                "wx visual layout and non-technical comprehension",
-                "real browser-site/native-host installation smoke test",
-                "rendered document visual quality",
-                "real desktop responsiveness and shutdown inspection",
+                "manual wx lifecycle works without an AI integration",
+                "guided connection choices are understandable to a non-technical user",
+                "one maintainer-selected real automatic integration completes bounded profile and candidature work",
+                "one independent real host or transport completes the same bounded lifecycle",
+                "one real browser or chat AI bundle round trip imports successfully",
+                "progress, failure, retry and cancellation where supported are visible in wx",
+                "rendered document quality and desktop responsiveness are inspected",
+                "realistic existing storage upgrades, backs up and reopens without data loss",
             ],
             "stages": [asdict(item) for item in self.results],
         }
@@ -154,7 +160,7 @@ class ReleaseValidator:
         result = configure_integration(self.config.storage, adapter_id, settings)
         _require(bool(result.get("saved")), str((result.get("health") or {}).get("message") or "Runtime configuration failed"))
         item.evidence.append(str(self._write_json("runtime-configuration.json", result)))
-        item.assertions.append(f"Runtime configured through adapter {adapter_id}")
+        item.assertions.append(f"Provider-neutral runtime configured through {adapter_id}")
 
     def _stage_runtime_conformance(self, item: StageResult) -> None:
         result = run_configured_runtime_conformance(self.config.storage)
@@ -226,12 +232,12 @@ class ReleaseValidator:
             _require(get_task(conn, str(task["id"]))["state"] == "cancelled", "Old attempt was not superseded")
             _require(get_task(conn, replacement_id)["state"] == "queued", "Replacement attempt was not queued")
             try:
-                submit_agent_task_result(conn, old_handle, '{"fields":{"valuation":"late"}}')
+                ingest_task_result(conn, old_handle, {"fields": {"valuation": "late"}}, provenance={"agent_runtime": "release-validator"})
             except ValueError:
                 pass
             else:
                 raise AssertionError("Late superseded result was accepted")
-        item.assertions.extend(["Retry created a new task attempt", "Late old-handle result was rejected"])
+        item.assertions.extend(["Retry created a new task attempt", "Late old-handle result was rejected through canonical ingestion"])
 
     def _stage_portable_bundle(self, item: StageResult) -> None:
         with connect(self.config.storage) as conn:
@@ -270,7 +276,7 @@ class ReleaseValidator:
                 },
                 agent_name="release-validator",
                 agent_runtime=self.config.runtime,
-                model_provider=self.config.model,
+                model_provider="",
                 storage_path=str(self.config.storage),
             )
         _require(result.get("rendered") == {"cover_letter": True, "cv": True}, "Artifacts were not rendered")
@@ -288,15 +294,10 @@ class ReleaseValidator:
             script = self.config.evidence_dir / "deterministic-runtime.py"
             script.write_text(_deterministic_runtime_source(), encoding="utf-8")
             return "argv_custom_command", {"argv": [sys.executable, str(script)], "timeout_seconds": self.config.timeout_seconds}
-        if self.config.runtime == "ollama":
-            return "ollama_cli", {"model": self.config.model or "qwen3:8b", "executable": self.config.executable or "ollama", "args": self.config.args, "timeout_seconds": self.config.timeout_seconds}
-        if self.config.runtime == "llama-cpp":
-            _require(bool(self.config.model_path), "--model-path is required for llama-cpp")
-            return "llama_cpp_cli", {"model_path": self.config.model_path, "executable": self.config.executable or "llama-cli", "args": self.config.args, "timeout_seconds": self.config.timeout_seconds}
         if self.config.runtime == "custom":
             _require(bool(self.config.command), "--command-json is required for custom runtime")
             return "argv_custom_command", {"argv": self.config.command, "timeout_seconds": self.config.timeout_seconds}
-        raise ValueError(f"Unsupported runtime profile: {self.config.runtime}")
+        raise ValueError(f"Unsupported provider-neutral runtime profile: {self.config.runtime}")
 
     def _write_json(self, name: str, value: Any) -> Path:
         path = self.config.evidence_dir / name
@@ -343,15 +344,11 @@ def _require(condition: bool, message: str) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run AAAAT automated local release validation and collect evidence.")
+    parser = argparse.ArgumentParser(description="Run AAAAT automated provider-neutral release validation and collect evidence.")
     parser.add_argument("--storage", type=Path, default=Path(".private-release-validation"))
     parser.add_argument("--evidence-dir", type=Path, default=Path("release-evidence"))
-    parser.add_argument("--runtime", choices=("deterministic", "ollama", "llama-cpp", "custom"), default="deterministic")
-    parser.add_argument("--model", default="")
-    parser.add_argument("--model-path", default="")
-    parser.add_argument("--executable", default="")
-    parser.add_argument("--arg", dest="args", action="append", default=[])
-    parser.add_argument("--command-json", default="", help="JSON argv array for the custom runtime profile.")
+    parser.add_argument("--runtime", choices=("deterministic", "custom"), default="deterministic")
+    parser.add_argument("--command-json", default="", help="JSON argv array for a custom bounded connector.")
     parser.add_argument("--timeout", dest="timeout_seconds", type=int, default=600)
     parser.add_argument("--keep-storage", action="store_true")
     return parser
@@ -365,19 +362,18 @@ def main(argv: list[str] | None = None) -> int:
         if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
             raise SystemExit("--command-json must be a non-empty JSON string array")
         command = value
-    config = ValidationConfig(
-        storage=args.storage,
-        evidence_dir=args.evidence_dir,
-        runtime=args.runtime,
-        model=args.model,
-        model_path=args.model_path,
-        executable=args.executable,
-        args=list(args.args),
-        command=command,
-        timeout_seconds=args.timeout_seconds,
-        keep_storage=args.keep_storage,
-    )
-    report = ReleaseValidator(config).run()
+    if args.runtime == "custom" and not command:
+        raise SystemExit("--runtime custom requires --command-json")
+    report = ReleaseValidator(
+        ValidationConfig(
+            storage=args.storage,
+            evidence_dir=args.evidence_dir,
+            runtime=args.runtime,
+            command=command,
+            timeout_seconds=args.timeout_seconds,
+            keep_storage=args.keep_storage,
+        )
+    ).run()
     print(json.dumps({"automated_verdict": report["automated_verdict"], "release_verdict": report["release_verdict"], "report": str(args.evidence_dir / "release-report.json")}, indent=2))
     return 0 if report["automated_verdict"] == VERDICT_PASSED else 1
 
