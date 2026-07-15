@@ -22,7 +22,7 @@ _ALLOWED_SUFFIXES = {".py", ".sh", ".cmd", ".ps1", ".json", ".md", ".txt"}
 _NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$")
 
 
-def connector_construction_prompt(adapter_id: str = "argv_custom_command", settings: dict[str, Any] | None = None) -> str:
+def connector_construction_prompt(adapter_id: str = "manual_external_agent", settings: dict[str, Any] | None = None) -> str:
     manifest = bootstrap_manifest(adapter_id, settings)
     contract = {
         "package_protocol": PACKAGE_PROTOCOL,
@@ -170,7 +170,7 @@ def install_and_activate_connector(storage_path: str | Path, payload: str | dict
     return {**installed, "status": "failed_disabled", "stage": "conformance", "conformance": report}
 
 
-def export_connector_construction_bundle(output_path: str | Path, adapter_id: str = "argv_custom_command") -> Path:
+def export_connector_construction_bundle(output_path: str | Path, adapter_id: str = "manual_external_agent") -> Path:
     target = Path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
