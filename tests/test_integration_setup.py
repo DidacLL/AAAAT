@@ -14,70 +14,50 @@ class IntegrationSetupTests(unittest.TestCase):
     def test_connection_modes_are_user_intent_first(self) -> None:
         modes = connection_modes()
         self.assertEqual([item["id"] for item in modes], ["manual", "guided_connector", "browser_or_chat", "advanced_integration"])
-        self.assertEqual(modes[0]["title"], "Continue manually")
-        self.assertEqual(modes[1]["title"], "Connect my AI")
-        self.assertEqual(modes[2]["title"], "Use a browser or chat AI")
-        self.assertEqual(modes[3]["title"], "Advanced integration")
-        titles = " ".join(item["title"].lower() for item in modes)
-        self.assertNotIn("llama", titles)
-        self.assertNotIn("ollama", titles)
+        self.assertEqual(modes[1]["adapter_ids"], [])
+        self.assertEqual(modes[3]["adapter_ids"], ["file_exchange", "argv_custom_command"])
 
-    def test_default_options_hide_named_and_technical_adapters(self) -> None:
-        options = integration_options()
-        self.assertEqual([item["id"] for item in options], ["manual_external_agent"])
+    def test_default_options_expose_only_portable_exchange(self) -> None:
+        self.assertEqual([item["id"] for item in integration_options()], ["manual_external_agent"])
 
-    def test_advanced_options_expose_capabilities_and_disclosure(self) -> None:
+    def test_advanced_options_are_provider_neutral(self) -> None:
         options = integration_options(include_advanced=True)
         ids = {item["id"] for item in options}
-        self.assertIn("llama_cpp_server", ids)
-        self.assertIn("argv_custom_command", ids)
-        self.assertIn("manual_external_agent", ids)
-        http = next(item for item in options if item["id"] == "llama_cpp_server")
+        self.assertEqual(ids, {"manual_external_agent", "file_exchange", "argv_custom_command"})
         command = next(item for item in options if item["id"] == "argv_custom_command")
-        self.assertEqual(http["capabilities"]["transport_kind"], "http")
         self.assertEqual(command["capabilities"]["transport_kind"], "stdio")
         self.assertTrue(command["capabilities"]["progress"])
-        self.assertEqual(http["network_access"], http["capabilities"]["network_access"])
-        self.assertEqual(http["disclosure"]["route"], "local")
-        self.assertIn("purpose-specific bounded", http["disclosure"]["context_scope"])
-        self.assertEqual(http["disclosure"]["credentials"], "external-host")
+        serialized = str(options).lower()
+        for forbidden in ("llama", "ollama", "codex", "model name", "endpoint"):
+            self.assertNotIn(forbidden, serialized)
 
-    def test_capabilities_are_declared_by_adapter_not_inferred_by_runner(self) -> None:
+    def test_capabilities_are_declared_by_generic_adapter(self) -> None:
         manual = adapter_capabilities("manual_external_agent")
-        automatic = adapter_capabilities("llama_cpp_server")
+        command = adapter_capabilities("argv_custom_command")
         self.assertFalse(manual["automatic"])
         self.assertEqual(manual["transport_kind"], "portable_bundle")
-        self.assertTrue(automatic["automatic"])
-        self.assertEqual(automatic["credential_ownership"], "external-host")
-        self.assertEqual(automatic["disclosure"], "user-approved-bounded-context")
+        self.assertTrue(command["automatic"])
+        self.assertEqual(command["credential_ownership"], "external-host")
 
     def test_failed_health_does_not_replace_current_configuration(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             before = current_integration(storage)
-            with patch("aaaat.integration_setup.adapter_health", return_value={"status": "error", "message": "runtime unavailable"}):
-                result = configure_integration(storage, "llama_cpp_server", {"endpoint": "http://127.0.0.1:8080", "model": "local"})
+            with patch("aaaat.integration_setup.adapter_health", return_value={"status": "error", "message": "command unavailable"}):
+                result = configure_integration(storage, "argv_custom_command", {"argv": ["missing"]})
             self.assertFalse(result["saved"])
-            self.assertEqual(result["capabilities"]["transport_kind"], "http")
-            self.assertEqual(result["disclosure"]["route"], "local")
             self.assertEqual(current_integration(storage)["id"], before["id"])
 
-    def test_ready_configuration_is_persisted_and_can_be_disabled(self) -> None:
+    def test_ready_generic_command_is_persisted_and_can_be_disabled(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             with patch("aaaat.integration_setup.adapter_health", return_value={"status": "ready", "message": "verified"}):
-                result = configure_integration(storage, "llama_cpp_server", {"endpoint": "http://127.0.0.1:8080", "model": "local", "timeout_seconds": 30})
+                result = configure_integration(storage, "argv_custom_command", {"argv": ["connector"], "timeout_seconds": 30})
             self.assertTrue(result["saved"])
             selected = load_workspace_config(storage)["local_agent_adapter"]
-            self.assertEqual(selected["id"], "llama_cpp_server")
-            self.assertEqual(selected["settings"]["endpoint"], "http://127.0.0.1:8080")
-            current = current_integration(storage)
-            self.assertEqual(current["capabilities"]["transport_kind"], "http")
-            self.assertEqual(current["disclosure"]["route"], "local")
+            self.assertEqual(selected["id"], "argv_custom_command")
             disabled = disable_automatic_integration(storage)
             self.assertEqual(disabled["id"], "manual_external_agent")
-            self.assertFalse(disabled["capabilities"]["automatic"])
-            self.assertEqual(disabled["disclosure"]["route"], "user-mediated")
 
 
 if __name__ == "__main__":
