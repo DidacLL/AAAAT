@@ -4,7 +4,7 @@ import contextlib
 import io
 import unittest
 
-from aaaat.release_validation_cli import build_parser
+from aaaat.release_validation_cli import build_parser, main
 
 
 class ReleaseValidationCliTests(unittest.TestCase):
@@ -18,19 +18,28 @@ class ReleaseValidationCliTests(unittest.TestCase):
         self.assertNotIn("ollama", help_text.lower())
         self.assertNotIn("--model MODEL", help_text)
 
-    def test_runtime_args_json_accepts_option_like_values(self) -> None:
+    def test_repeatable_runtime_args_accept_option_like_values(self) -> None:
         args = build_parser().parse_args(
             [
                 "--runtime",
                 "llama-cpp",
-                "--runtime-args-json",
-                '["--no-display-prompt","--n-predict","2048"]',
+                "--runtime-arg=--no-display-prompt",
+                "--runtime-arg=--n-predict",
+                "--runtime-arg=2048",
             ]
         )
         self.assertEqual(
-            args.runtime_args_json,
-            '["--no-display-prompt","--n-predict","2048"]',
+            args.runtime_args,
+            ["--no-display-prompt", "--n-predict", "2048"],
         )
+
+    def test_invalid_runtime_json_is_a_usage_error_not_traceback(self) -> None:
+        stderr = io.StringIO()
+        with self.assertRaises(SystemExit) as raised, contextlib.redirect_stderr(stderr):
+            main(["--runtime-args-json", "[--invalid]"])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("must be valid JSON", stderr.getvalue())
+        self.assertNotIn("Traceback", stderr.getvalue())
 
 
 if __name__ == "__main__":
