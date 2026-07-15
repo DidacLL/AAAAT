@@ -38,28 +38,28 @@ class BrowserWrapperTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "forbidden"):
             validate_runtime_proposal({"conformance_nonce": "nonce", "runtime_name": "x", "model_name": "y", "command": "rm -rf /"}, "nonce")
 
-    def test_browser_native_host_exposes_only_bounded_task_operations(self) -> None:
+    def test_browser_native_host_returns_one_complete_bounded_work_item(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 create_task(conn, "profile_completion", "Complete profile")
-            next_response = dispatch_native_message(tmp, {"protocol": PROTOCOL, "protocol_version": VERSION, "action": "next_task"})
+            next_response = dispatch_native_message(tmp, {"protocol": PROTOCOL, "protocol_version": VERSION, "action": "next_work"})
             self.assertEqual(next_response["status"], "ready")
-            task = next_response["task"]
-            self.assertTrue(task["task_handle"].startswith("taskh_"))
-            self.assertNotIn("application_id", json.dumps(task))
-            context_response = dispatch_native_message(tmp, {"protocol": PROTOCOL, "protocol_version": VERSION, "action": "task_context", "task_handle": task["task_handle"]})
-            self.assertEqual(context_response["status"], "ready")
-            serialized = json.dumps(context_response)
-            for forbidden in ("storage_path", "database_path", "application_id"):
+            work = next_response["work"]
+            capability = work["task"]["task_capability"]
+            self.assertTrue(capability.startswith("taskcap_"))
+            self.assertIn("input_context", work)
+            self.assertIn("response_format", work)
+            serialized = json.dumps(work)
+            for forbidden in ("storage_path", "database_path", "application_id", "task_id"):
                 self.assertNotIn(forbidden, serialized)
-            unsupported = dispatch_native_message(tmp, {"protocol": PROTOCOL, "protocol_version": VERSION, "action": "list_applications"})
+            unsupported = dispatch_native_message(tmp, {"protocol": PROTOCOL, "protocol_version": VERSION, "action": "task_context", "task_capability": capability})
             self.assertEqual(unsupported, {"status": "error", "error": "unsupported_action"})
 
     def test_native_host_uses_browser_length_prefixed_messages(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
-            request = json.dumps({"protocol": PROTOCOL, "protocol_version": VERSION, "action": "next_task"}).encode("utf-8")
+            request = json.dumps({"protocol": PROTOCOL, "protocol_version": VERSION, "action": "next_work"}).encode("utf-8")
             source = io.BytesIO(struct.pack("<I", len(request)) + request)
             target = io.BytesIO()
             self.assertEqual(run_native_host(tmp, source, target), 0)
