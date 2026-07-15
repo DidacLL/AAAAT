@@ -67,8 +67,8 @@ class ProfileCompletionTaskTests(unittest.TestCase):
 class RuntimeConformanceTests(unittest.TestCase):
     def test_bootstrap_manifest_contains_only_bounded_runtime_primitives(self) -> None:
         manifest = bootstrap_manifest(
-            "ollama_cli",
-            {"model": "local:test", "executable": "ollama", "args": [], "timeout_seconds": 30},
+            "argv_custom_command",
+            {"argv": ["local-runtime-connector", "--fixed"], "timeout_seconds": 30},
         )
         self.assertEqual(manifest["protocol"], "aaaat.runtime-bootstrap")
         self.assertTrue(manifest["verification"]["claims_are_advisory_until_verified"])
@@ -83,24 +83,22 @@ class RuntimeConformanceTests(unittest.TestCase):
             save_workspace_settings(
                 storage,
                 automatic_preparation=[],
-                local_agent_adapter_id="ollama_cli",
+                local_agent_adapter_id="argv_custom_command",
                 local_agent_adapter_settings={
-                    "model": "local:test",
-                    "executable": "ollama",
-                    "args": [],
+                    "argv": ["local-runtime-connector", "--fixed"],
                     "timeout_seconds": 30,
                 },
             )
 
             def fake_execute(_runner: TaskRunner, _adapter_id: str, _settings: dict, context: dict):
                 nonce = context["input_context"]["challenge_nonce"]
-                return json.dumps({"conformance_nonce": nonce, "status": "ready", "runtime_name": "fake"}), {
+                return json.dumps({"conformance_nonce": nonce, "status": "ready", "runtime_name": "fake", "model_name": "fixture"}), {
                     "agent_runtime": "fake-runtime"
                 }
 
-            with patch("aaaat.runtime_conformance.adapter_health", return_value={"status": "ready", "message": "ok"}), patch(
-                "aaaat.runtime_conformance._runtime_preflight", return_value={"status": "ready", "message": "fixture"}
-            ), patch.object(TaskRunner, "_execute_adapter", autospec=True, side_effect=fake_execute):
+            with patch("aaaat.runtime_conformance.adapter_health", return_value={"status": "ready", "message": "ok"}), patch.object(
+                TaskRunner, "_execute_adapter", autospec=True, side_effect=fake_execute
+            ):
                 report = run_configured_runtime_conformance(storage)
 
             self.assertEqual(report["status"], "passed")
