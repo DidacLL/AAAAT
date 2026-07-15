@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from aaaat.agent_access import submit_agent_task_result, task_handle
 from aaaat.background_worker import OwnedTaskWorker
-from aaaat.candidature_lifecycle import ensure_lifecycle_tasks, lifecycle_plan
+from aaaat.candidature_lifecycle import ensure_lifecycle_tasks, lifecycle_plan, release_ready_lifecycle_tasks
 from aaaat.candidatures import create_candidature, update_candidature
 from aaaat.db import connect, init_db
 from aaaat.tasks import create_task, get_task, list_tasks, update_task
@@ -47,13 +47,14 @@ class CandidatureLifecycleTests(unittest.TestCase):
             self.assertEqual(len(created), 9)
             self.assertEqual(len(list_tasks(conn, application_id=ref)), 9)
 
-    def test_blocked_tasks_become_new_planning_state_after_prerequisites_exist(self) -> None:
+    def test_blocked_tasks_are_released_after_prerequisites_exist(self) -> None:
         with connect(self.storage) as conn:
             candidature = create_candidature(
                 conn,
                 company="ExampleCo",
                 role="Engineer",
                 raw_offer="Offer",
+                raw_application_form="Why this role?",
                 include_field_inference_task=False,
                 include_company_research_task=False,
                 include_keyword_detection_task=False,
@@ -63,8 +64,11 @@ class CandidatureLifecycleTests(unittest.TestCase):
             blocked = [task for task in list_tasks(conn, application_id=ref) if task["state"] == "blocked"]
             self.assertTrue(blocked)
             update_candidature(conn, ref, candidature_evaluation="Strong fit", role_strategy="Lead with reliability")
+            released = release_ready_lifecycle_tasks(conn, ref)
+            self.assertTrue(released)
+            self.assertTrue(all(item["state"] == "queued" for item in released))
             plan = lifecycle_plan(conn, ref, research_capable=False)
-            self.assertTrue(any(item["key"] == "cv" for item in plan))
+            self.assertEqual(next(item for item in plan if item["key"] == "cv")["state"], "queued")
 
     def test_retry_creates_new_handle_and_rejects_late_old_result(self) -> None:
         with connect(self.storage) as conn:
