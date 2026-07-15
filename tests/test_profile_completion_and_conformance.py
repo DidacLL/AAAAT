@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from aaaat.agent_access import build_agent_task_context, submit_agent_task_result, task_handle
+from aaaat.agent_access import next_agent_work_item, submit_agent_task_result, task_capability
 from aaaat.assistance_service import create_profile_completion_task
 from aaaat.db import connect, init_db, profile_variables, set_profile_variable
 from aaaat.runtime_conformance import bootstrap_manifest, read_conformance_state, run_configured_runtime_conformance
@@ -15,7 +15,7 @@ from aaaat.workspace_config import save_workspace_settings
 
 
 class ProfileCompletionTaskTests(unittest.TestCase):
-    def test_profile_completion_uses_opaque_context_and_preserves_existing_values(self) -> None:
+    def test_profile_completion_uses_complete_bounded_work_and_preserves_existing_values(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             init_db(storage)
@@ -24,17 +24,18 @@ class ProfileCompletionTaskTests(unittest.TestCase):
             task = create_profile_completion_task(storage)
 
             with connect(storage) as conn:
-                context = build_agent_task_context(conn, task_handle(task))
-                self.assertEqual(context["purpose"], "professional_profile_completion")
-                self.assertIn("profile.display_name", context["input_context"]["protected_fields"])
-                self.assertIn("profile.summary.default", context["input_context"]["missing_fields"])
-                serialized = json.dumps(context)
+                work = next_agent_work_item(conn)
+                capability = work["task"]["task_capability"]
+                self.assertEqual(work["purpose"], "professional_profile_completion")
+                self.assertIn("profile.display_name", work["input_context"]["protected_fields"])
+                self.assertIn("profile.summary.default", work["input_context"]["missing_fields"])
+                serialized = json.dumps(work)
                 for forbidden in ("application_id", "profile_id", "storage_path", str(storage)):
                     self.assertNotIn(forbidden, serialized)
 
                 completed = submit_agent_task_result(
                     conn,
-                    task_handle(task),
+                    capability,
                     json.dumps({
                         "variables": {
                             "profile.display_name": "Replacement",
@@ -56,10 +57,11 @@ class ProfileCompletionTaskTests(unittest.TestCase):
             init_db(storage)
             task = create_profile_completion_task(storage)
             with connect(storage) as conn:
+                capability = task_capability(conn, task)
                 with self.assertRaisesRegex(ValueError, "not permitted"):
                     submit_agent_task_result(
                         conn,
-                        task_handle(task),
+                        capability,
                         json.dumps({"variables": {"profile.internal_id": "forbidden"}}),
                     )
 
