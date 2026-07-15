@@ -2,14 +2,14 @@
 
 Use `aaaat-release-validate` to automate the non-visual v1 acceptance gates in an isolated local store and collect evidence.
 
-The command never declares the release ready by itself. A successful run reports:
+A successful run reports:
 
 ```text
 AUTOMATED_GATES_PASSED
 MANUAL_GATES_PENDING
 ```
 
-Visual wx inspection, real browser installation, rendered-document review and desktop responsiveness remain human gates.
+Visual wx inspection, browser installation, rendered-document review and desktop responsiveness remain human gates.
 
 ## Deterministic self-test
 
@@ -22,56 +22,59 @@ aaaat-release-validate \
   --evidence-dir release-evidence
 ```
 
-It validates the configured-command boundary, fake-data conformance, profile completion, full candidature lifecycle, safe retry, stale-result rejection, portable bundle export, privacy filtering, local artifact rendering and desktop projection visibility.
+It validates the provider-neutral bounded command boundary, fake-data conformance, profile completion, candidature lifecycle, safe retry, portable bundle export, privacy filtering, local artifact rendering and desktop projection visibility.
 
-## Provider-neutral runtime contract
+## Runtime transports
 
-AAAAT does not require or privilege a model provider. A real runtime is accepted when it can satisfy one of these bounded subprocess contracts:
+AAAAT's task, result, authority and domain-validation contracts are provider-neutral. Transport adapters remain narrow implementation details.
 
-- `llama-cpp`: AAAAT invokes `llama-cli` with a user-selected local GGUF file.
-- `custom`: AAAAT invokes any fixed argv command without a shell, writes one bounded task JSON object to stdin and reads one result JSON object from stdout.
+- `llama-cpp` connects to an explicitly configured user-owned `llama-server` on loopback HTTP.
+- `custom` invokes a fixed argv command without a shell, writes one bounded task object to stdin and reads one result object from stdout.
 
-The external runtime owns model installation, runtime configuration, networking policy, credentials, acceleration and lifecycle. AAAAT owns task scoping, validation, application, persistence and provenance.
+AAAAT does not install models, launch servers, discover endpoints, manage provider credentials or own runtime lifecycle.
 
-A runtime passes conformance only after:
+## llama.cpp server reference profile
 
-1. its configured executable and required local resources pass health validation;
-2. its adapter settings validate;
-3. it returns one valid JSON object;
-4. it echoes the exact random nonce;
-5. it reports `status: ready`.
-
-## llama.cpp reference profile
-
-llama.cpp is the documented reference because it can run an explicitly selected GGUF file directly and can be used without AAAAT opening a port. It is an example of the contract, not an architectural dependency.
-
-```bash
-aaaat-release-validate \
-  --runtime llama-cpp \
-  --model-path /path/to/model.gguf \
-  --executable /path/to/llama-cli \
-  --evidence-dir release-evidence-llama
-```
-
-Additional `llama-cli` arguments may be supplied with repeated `--arg` options. Typical examples include context size, GPU-layer allocation and grammar/schema controls supported by the installed llama.cpp version.
-
-Windows PowerShell example:
+Start and manage `llama-server` separately. Bind it explicitly to loopback and select the local model yourself. Example for Windows PowerShell:
 
 ```powershell
-aaaat-release-validate `
-  --runtime llama-cpp `
-  --model-path "V:\Models\model.gguf" `
-  --executable "V:\Tools\llama.cpp\llama-cli.exe" `
-  --storage .private-release-llama `
-  --evidence-dir release-evidence-llama
+& "V:\AI\llama.cpp\bin\llama-server.exe" `
+  --model "V:\AI\models\model.gguf" `
+  --host "127.0.0.1" `
+  --port "8080" `
+  --offline
 ```
 
-Before running AAAAT, verify the runtime independently:
+Check the user-owned server:
 
 ```powershell
-& "V:\Tools\llama.cpp\llama-cli.exe" --version
-Test-Path "V:\Models\model.gguf"
+Invoke-RestMethod "http://127.0.0.1:8080/health"
 ```
+
+Then run AAAAT in another shell:
+
+```powershell
+$validateArgs = @(
+    "--runtime"
+    "llama-cpp"
+    "--endpoint"
+    "http://127.0.0.1:8080"
+    "--model"
+    "local"
+    "--storage"
+    ".private-release-llama"
+    "--evidence-dir"
+    "release-evidence-llama"
+)
+
+aaaat-release-validate @validateArgs
+```
+
+The adapter sends one bounded prompt to `/v1/chat/completions`, requires `stream: false`, derives a JSON Schema from the task's existing `response_format`, and validates the returned assistant content as one JSON object before normal AAAAT domain validation.
+
+The endpoint must use plain HTTP on an explicit loopback host (`127.0.0.1`, `localhost` or `::1`). Remote endpoints, credentials in URLs, endpoint discovery and automatic server launch are rejected.
+
+The route resembles an OpenAI-style chat endpoint because llama.cpp exposes that transport. It is not AAAAT's core protocol and does not introduce an OpenAI SDK or provider dependency.
 
 ## Any other local inference runtime
 
@@ -89,30 +92,11 @@ The command must:
 - read one bounded AAAAT task object from stdin;
 - write one result JSON object to stdout;
 - use stderr only for diagnostics or newline-delimited progress events;
-- return a nonzero exit code on runtime failure;
-- avoid requiring database paths, internal IDs or broad AAAAT access.
-
-This profile can represent llama.cpp wrappers, LM Studio CLI-style tools, local model executables, Copilot CLI connectors, or future runtimes without changing AAAAT core.
-
-## Optional compatibility adapters
-
-Additional adapters may remain available for users who explicitly select them. They are compatibility paths only. Their presence does not make them the recommended runtime, a privacy guarantee or a release portability requirement.
+- return a nonzero exit code on failure;
+- avoid database paths, internal IDs and broad AAAAT authority.
 
 ## Evidence
 
-A run writes:
-
-```text
-release-report.json
-release-report.md
-environment.json
-runtime-configuration.json
-runtime-conformance.json
-bounded-task-packet.json
-candidature.aaaat-task.zip
-stage-*.json
-```
-
-The JSON report is suitable for scripts. The Markdown report is intended for human review.
+A run writes `release-report.json`, `release-report.md`, environment and runtime evidence, bounded task evidence, portable bundle evidence and one JSON file per stage.
 
 Exit status is zero only when every automated stage passes. Real-environment manual gates remain pending until separately recorded.
