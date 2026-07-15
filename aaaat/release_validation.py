@@ -11,16 +11,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from .agent_access import build_agent_task_context, task_handle
+from .agent_access import build_agent_work_item, next_agent_work_item, task_capability
 from .agent_actions import submit_agent_action
 from .assistance_service import create_profile_completion_task
 from .background_worker import OwnedTaskWorker
+from .browser_companion import PROTOCOL as BROWSER_PROTOCOL, VERSION as BROWSER_VERSION, dispatch_native_message
 from .candidature_lifecycle import ensure_lifecycle_tasks, release_ready_lifecycle_tasks
 from .candidatures import create_candidature, get_candidature
 from .db import connect, init_db, profile_variables, set_profile_variable
 from .integration_setup import configure_integration
 from .payload import dashboard_payload
-from .portable_task_bundle import export_candidature_task_bundle
+from .portable_task_bundle import export_candidature_task_bundle, import_candidature_result_bundle, write_result_bundle
 from .result_ingestion import ingest_task_result
 from .runtime_conformance import run_configured_runtime_conformance
 from .task_runner import TaskRunner
@@ -48,7 +49,7 @@ _SAMPLE_FORM = (
     "3. Describe your Python and SQLite experience.\n"
     "4. How do you avoid overengineering?"
 )
-_FORBIDDEN_PACKET_KEYS = {"application_id", "candidature_id", "artifact_id", "storage_path", "file_path"}
+_FORBIDDEN_PACKET_KEYS = {"application_id", "candidature_id", "artifact_id", "storage_path", "file_path", "task_id"}
 
 
 @dataclass
@@ -71,7 +72,6 @@ class ValidationConfig:
     command: list[str] = field(default_factory=list)
     timeout_seconds: int = 600
     keep_storage: bool = False
-    # Retained only so older callers deserialize safely. Named runtimes are not release profiles.
     model: str = ""
     model_path: str = ""
     executable: str = ""
@@ -92,6 +92,8 @@ class ReleaseValidator:
         stages: tuple[tuple[str, Callable[[StageResult], None]], ...] = (
             ("environment", self._stage_environment),
             ("empty_store", self._stage_empty_store),
+            ("unified_work_acquisition", self._stage_unified_work_acquisition),
+            ("browser_wrapper", self._stage_browser_wrapper),
             ("runtime_configuration", self._stage_runtime_configuration),
             ("runtime_conformance", self._stage_runtime_conformance),
             ("profile_completion", self._stage_profile_completion),
@@ -109,7 +111,7 @@ class ReleaseValidator:
         automated = VERDICT_PASSED if self.results and all(item.status == "passed" for item in self.results) else VERDICT_FAILED
         report = {
             "protocol": "aaaat.release-validation",
-            "version": 2,
+            "version": 3,
             "generated_at": _now(),
             "automated_verdict": automated,
             "release_verdict": VERDICT_MANUAL if automated == VERDICT_PASSED else VERDICT_FAILED,
@@ -117,7 +119,7 @@ class ReleaseValidator:
             "manual_gates": [
                 "manual wx lifecycle works without an AI integration",
                 "guided connection choices are understandable to a non-technical user",
-                "one maintainer-selected real automatic integration completes bounded profile and candidature work",
+                "one real external AI consumes complete bounded work through the standard MCP or equivalent wrapper",
                 "one independent real host or transport completes the same bounded lifecycle",
                 "one real browser or chat AI bundle round trip imports successfully",
                 "progress, failure, retry and cancellation where supported are visible in wx",
@@ -155,18 +157,61 @@ class ReleaseValidator:
             _require(profile_variables(conn)["profile.display_name"] == "Alex Rivera", "Profile seed was not retained")
         item.assertions.extend(["Fresh SQLite store initialized", "Fictional profile retained locally"])
 
+    def _stage_unified_work_acquisition(self, item: StageResult) -> None:
+        with connect(self.config.storage) as conn:
+            task = create_task(conn, "keyword_definition", "Unified acquisition proof", context_hint="keyword:Release", idempotent=False)
+            work = next_agent_work_item(conn)
+            _require(work is not None, "No bounded work item was returned")
+            capability = str(work["task"].get("task_capability") or "")
+            _require(capability == task_capability(conn, task), "Work item capability does not match private task binding")
+            _require("input_context" in work and "response_format" in work, "Work acquisition did not include complete bounded context")
+            _require("context" not in work["task"].get("allowed_actions", []), "Split context retrieval remains advertised")
+        item.evidence.append(str(self._write_json("unified-work-item.json", work)))
+        item.assertions.extend([
+            "One call returned task metadata, purpose-scoped context and response schema",
+            "Random task capability is distinct from the internal task ID",
+        ])
+
+    def _stage_browser_wrapper(self, item: StageResult) -> None:
+        with connect(self.config.storage) as conn:
+            task = get_task(conn, str(next(t["id"] for t in list_tasks(conn) if t["title"] == "Unified acquisition proof")))
+            capability = task_capability(conn, task)
+        response = dispatch_native_message(
+            self.config.storage,
+            {"protocol": BROWSER_PROTOCOL, "protocol_version": BROWSER_VERSION, "action": "next_work"},
+        )
+        _require(response.get("status") == "ready", "Browser wrapper did not return complete work")
+        browser_work = response.get("work") or {}
+        _require((browser_work.get("task") or {}).get("task_capability") == capability, "Browser wrapper returned a different task capability")
+        accepted = dispatch_native_message(
+            self.config.storage,
+            {
+                "protocol": BROWSER_PROTOCOL,
+                "protocol_version": BROWSER_VERSION,
+                "action": "submit_result",
+                "task_capability": capability,
+                "result": {"definition": "Release readiness is the verified state before human acceptance."},
+                "agent_runtime": "release-browser-fixture",
+            },
+        )
+        _require(accepted.get("status") == "accepted", "Browser wrapper result was not accepted")
+        item.assertions.extend([
+            "Browser wrapper acquired the same complete work item",
+            "Browser wrapper submitted through canonical result ingestion",
+        ])
+
     def _stage_runtime_configuration(self, item: StageResult) -> None:
         adapter_id, settings = self._runtime_settings()
         result = configure_integration(self.config.storage, adapter_id, settings)
         _require(bool(result.get("saved")), str((result.get("health") or {}).get("message") or "Runtime configuration failed"))
         item.evidence.append(str(self._write_json("runtime-configuration.json", result)))
-        item.assertions.append(f"Provider-neutral runtime configured through {adapter_id}")
+        item.assertions.append(f"Advanced provider-neutral command configured through {adapter_id}")
 
     def _stage_runtime_conformance(self, item: StageResult) -> None:
         result = run_configured_runtime_conformance(self.config.storage)
         _require(result.get("status") == "passed", str(result.get("message") or "Runtime conformance failed"))
         item.evidence.append(str(self._write_json("runtime-conformance.json", result)))
-        item.assertions.append("Health and fake-data nonce challenge passed")
+        item.assertions.append("Advanced command fake-data nonce challenge passed")
 
     def _stage_profile_completion(self, item: StageResult) -> None:
         with connect(self.config.storage) as conn:
@@ -179,7 +224,7 @@ class ReleaseValidator:
             profile = profile_variables(conn)
             _require(profile["profile.display_name"] == "Alex Rivera", "Existing profile value was overwritten")
             _require(bool(profile.get("profile.career.direction")), "Missing eligible profile field was not completed")
-        item.assertions.extend(["Profile task completed through bounded runtime", "Existing user value was preserved"])
+        item.assertions.extend(["Profile task completed through bounded work item", "Existing user value was preserved"])
 
     def _stage_candidature_lifecycle(self, item: StageResult) -> None:
         with connect(self.config.storage) as conn:
@@ -220,7 +265,7 @@ class ReleaseValidator:
     def _stage_failure_retry(self, item: StageResult) -> None:
         with connect(self.config.storage) as conn:
             task = create_task(conn, "field_inference", "Failure and retry proof", application_id=self.candidature_ref, state="failed", context_hint="candidature:retry-proof", idempotent=False)
-            old_handle = task_handle(task)
+            old_capability = task_capability(conn, task)
         worker = OwnedTaskWorker(self.config.storage)
         original_submit = worker.submit
         worker.submit = lambda _task_id: None  # type: ignore[method-assign]
@@ -230,34 +275,45 @@ class ReleaseValidator:
             worker.submit = original_submit  # type: ignore[method-assign]
         with connect(self.config.storage) as conn:
             _require(get_task(conn, str(task["id"]))["state"] == "cancelled", "Old attempt was not superseded")
-            _require(get_task(conn, replacement_id)["state"] == "queued", "Replacement attempt was not queued")
+            replacement = get_task(conn, replacement_id)
+            _require(replacement["state"] == "queued", "Replacement attempt was not queued")
+            _require(task_capability(conn, replacement) != old_capability, "Retry reused the old task capability")
             try:
-                ingest_task_result(conn, old_handle, {"fields": {"valuation": "late"}}, provenance={"agent_runtime": "release-validator"})
+                ingest_task_result(conn, old_capability, {"fields": {"valuation": "late"}}, provenance={"agent_runtime": "release-validator"})
             except ValueError:
                 pass
             else:
                 raise AssertionError("Late superseded result was accepted")
-        item.assertions.extend(["Retry created a new task attempt", "Late old-handle result was rejected through canonical ingestion"])
+        item.assertions.extend(["Retry created a new task attempt and capability", "Late old-capability result was rejected"])
 
     def _stage_portable_bundle(self, item: StageResult) -> None:
         with connect(self.config.storage) as conn:
-            create_task(conn, "field_inference", "Portable proof", application_id=self.candidature_ref, context_hint="candidature:portable-proof", idempotent=False)
+            task = create_task(conn, "company_research", "Portable proof", application_id=self.candidature_ref, context_hint="candidature:portable-proof", idempotent=False)
+            capability = task_capability(conn, task)
         target = self.config.evidence_dir / "candidature.aaaat-task.zip"
         result = export_candidature_task_bundle(self.config.storage, self.candidature_ref, target)
         _require(target.is_file() and int(result.get("task_count") or 0) >= 1, "Portable task bundle was not created")
-        item.evidence.append(str(target))
-        item.assertions.append("One grouped candidature task archive exported")
+        returned = self.config.evidence_dir / "candidature.aaaat-result.zip"
+        write_result_bundle(returned, [{
+            "task_capability": capability,
+            "result": {"company_research": "Portable wrapper release proof."},
+            "provenance": {"agent_runtime": "portable-release-fixture"},
+        }])
+        imported = import_candidature_result_bundle(self.config.storage, returned)
+        _require(imported.get("status") == "accepted", "Portable result round trip was not accepted")
+        item.evidence.extend([str(target), str(returned)])
+        item.assertions.extend(["Grouped candidature work archive exported", "Portable result imported through canonical ingestion"])
 
     def _stage_privacy_audit(self, item: StageResult) -> None:
         with connect(self.config.storage) as conn:
-            task = next(task for task in list_tasks(conn, application_id=self.candidature_ref) if task["state"] == "queued")
-            packet = build_agent_task_context(conn, task_handle(task))
+            task = create_task(conn, "field_inference", "Privacy packet proof", application_id=self.candidature_ref, context_hint="candidature:privacy-proof", idempotent=False)
+            packet = build_agent_work_item(conn, task)
         serialized = json.dumps(packet, ensure_ascii=False)
         for forbidden in _FORBIDDEN_PACKET_KEYS:
             _require(forbidden not in serialized, f"Forbidden authority key exposed: {forbidden}")
         _require(str(self.config.storage) not in serialized, "Storage path exposed in task packet")
         item.evidence.append(str(self._write_json("bounded-task-packet.json", packet)))
-        item.assertions.append("Bounded task packet excludes internal IDs and storage paths")
+        item.assertions.append("Complete bounded work item excludes internal IDs and storage paths")
 
     def _stage_artifact_rendering(self, item: StageResult) -> None:
         with connect(self.config.storage) as conn:
@@ -348,7 +404,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--storage", type=Path, default=Path(".private-release-validation"))
     parser.add_argument("--evidence-dir", type=Path, default=Path("release-evidence"))
     parser.add_argument("--runtime", choices=("deterministic", "custom"), default="deterministic")
-    parser.add_argument("--command-json", default="", help="JSON argv array for a custom bounded connector.")
+    parser.add_argument("--command-json", default="", help="JSON argv array for an explicit Advanced user-owned command.")
     parser.add_argument("--timeout", dest="timeout_seconds", type=int, default=600)
     parser.add_argument("--keep-storage", action="store_true")
     return parser
