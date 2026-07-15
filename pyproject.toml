@@ -37,7 +37,7 @@ aaaat-desktop = "aaaat.ui_desktop.app:main"
 aaaat-upgrade = "aaaat.upgrade:main"
 aaaat-seed-desktop-demo = "aaaat.demo_seed:main"
 aaaat-browser-host = "aaaat.browser_companion:main"
-aaaat-release-validate = "aaaat.release_validation:main"
+aaaat-release-validate = "aaaat.release_validation_cli:main"
 
 [tool.setuptools]
 packages = ["aaaat", "aaaat.dispatch", "aaaat.ui_desktop"]
