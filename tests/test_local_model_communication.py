@@ -108,6 +108,29 @@ class LocalModelCommunicationTests(unittest.TestCase):
         self.assertEqual(second["response_format"]["type"], "json_object")
         self.assertEqual(first["response_format"]["schema"], second["response_format"]["schema"])
 
+    def test_llama_cpp_server_retries_when_json_violates_required_shape(self) -> None:
+        wrong_shape = {"model": "qwen-local", "choices": [{"message": {"content": '{"profile.career.direction":"Backend"}'}}]}
+        valid = {"model": "qwen-local", "choices": [{"message": {"content": '{"variables":{"profile.career.direction":"Backend"}}'}}]}
+        schema = {
+            "type": "object",
+            "properties": {"variables": {"type": "object", "additionalProperties": {"type": "string"}}},
+            "required": ["variables"],
+            "additionalProperties": False,
+        }
+        with patch(
+            "aaaat.llama_cpp_http.urllib.request.urlopen",
+            side_effect=[_Response(wrong_shape), _Response(valid)],
+        ) as open_url:
+            body, _provenance = chat_completion(
+                "http://127.0.0.1:8080",
+                "local",
+                "bounded prompt",
+                schema,
+                30,
+            )
+        self.assertEqual(json.loads(body), {"variables": {"profile.career.direction": "Backend"}})
+        self.assertEqual(open_url.call_count, 2)
+
     def test_llama_cpp_server_failure_includes_bounded_content_excerpt(self) -> None:
         invalid = {"model": "qwen-local", "choices": [{"message": {"content": "not json"}}]}
         with patch("aaaat.llama_cpp_http.urllib.request.urlopen", return_value=_Response(invalid)):
