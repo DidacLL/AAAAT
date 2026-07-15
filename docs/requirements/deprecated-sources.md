@@ -13,16 +13,18 @@ The sources below remain available as project history and may contain useful les
 | Original AutoApplicationAgentAgnosticTracker/Codex planning seed prompt | Deprecated | Proposed browser dashboard, REST, runtime modes and broad passive surfaces before wx and bounded-authority corrections. |
 | `docs/PO/BasicAppRequirements.md` | Deprecated | Early vocabulary and field/UI ideas; predates the final runtime and communication requirements. |
 | `docs/product-owner-original-intent.md` | Deprecated | Historical intent only; useful for product identity but not implementation decisions. |
-| Generated requirement summaries derived from the seed | Deprecated | Secondary interpretations may encode drift and cannot override direct maintainer corrections. |
+| Generated requirement summaries derived from the seed | Deprecated | Secondary interpretations may encode drift and cannot override direct maintainer instruction. |
 
 ## Superseded runtime and agent plans
 
 | Source | Status | Reusable lessons only |
 |---|---|---|
-| Browser/server/static-export plans | Rejected for v1 | Local-first concerns, but not the browser runtime or mandatory HTTP architecture. |
-| Runtime-split HTTP agent plans | Rejected as product architecture | Opaque task handles, bounded context and no entity-ID authority. |
-| Broad REST or MCP tool catalogues | Rejected | Schema vocabulary only where it maps exactly to bounded tasks. |
-| Provider SDK or OpenAI-compatible client proposals | Rejected | None as a required core integration path. |
+| Browser/server/static-export plans | Rejected for v1 human runtime | Local-first concerns and bounded bridges, but not the browser dashboard or mandatory server architecture. |
+| Runtime-split HTTP agent plans | Rejected as product architecture | Opaque task handles, bounded context and no entity-ID authority. HTTP itself is not prohibited. |
+| Broad REST or MCP tool catalogues | Rejected | Schema and transport vocabulary only where it maps exactly to bounded task capabilities. |
+| Provider SDK or OpenAI-compatible client proposals | Not core requirements | May be used inside optional adapters when they preserve the bounded contract. |
+| Named-runtime release plans | Superseded | Concrete runtimes may be adapters and compatibility evidence, but no vendor or runtime defines v1 acceptance. |
+| `2026-07-15-llama-cpp-transport-correction.md` | Superseded as architecture | Preserves useful llama.cpp adapter constraints; no longer defines the standard-user path, mandatory transport or release proof. |
 
 ## Abandoned PRs
 
@@ -75,8 +77,8 @@ Useful lessons:
 Insufficient for release:
 
 - no complete universal communication layer;
-- no standard-user local-model onboarding;
-- no real Ollama and independent llama.cpp proof;
+- no non-technical provider-neutral onboarding;
+- no transport-neutral conformance and release proof;
 - no adequate browser-only automatic or grouped-bundle path;
 - incomplete profile and end-to-end release demonstration.
 
@@ -94,4 +96,4 @@ When reading historical material:
 2. verify them against the authoritative requirements;
 3. reuse code only when it supports the current contract;
 4. change tests and documents that encode superseded assumptions;
-5. never infer a requirement merely because it appeared in an abandoned implementation.
+5. never infer a requirement merely because it appeared in an abandoned implementation or named-runtime proof.
