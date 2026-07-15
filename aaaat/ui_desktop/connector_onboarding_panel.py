@@ -26,21 +26,40 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         root = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(root)
 
-        heading = wx.StaticText(self, label="Connect any AI")
+        heading = wx.StaticText(self, label="Connect my AI")
         heading.SetFont(heading.GetFont().Bold().Larger())
         root.Add(heading, 0, wx.ALL | wx.EXPAND, 10)
-        description = wx.StaticText(self, label="Generate a bounded connector prompt for any conversational LLM, paste its returned package, or export the port-free browser companion.")
+        description = wx.StaticText(
+            self,
+            label=(
+                "Use the AI you already prefer. AAAAT creates setup instructions that describe only its bounded task/result "
+                "contract. Give those instructions to your AI, then paste back the connection package it creates."
+            ),
+        )
         description.Wrap(760)
         root.Add(description, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        prompt_button = wx.Button(self, label="Generate connector construction prompt")
+        privacy = wx.StaticText(
+            self,
+            label=(
+                "Before activation, AAAAT shows every generated file and runs a fake-data connection test. "
+                "No candidature, profile, database path, or internal identifier is shared during setup."
+            ),
+        )
+        privacy.Wrap(760)
+        root.Add(privacy, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
+        step_one = wx.StaticText(self, label="1. Create setup instructions")
+        step_one.SetFont(step_one.GetFont().Bold())
+        root.Add(step_one, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
+        prompt_button = wx.Button(self, label="Create instructions for my AI")
         prompt_button.Bind(wx.EVT_BUTTON, self._generate_prompt)
         root.Add(prompt_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
         self.prompt_text = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.prompt_text.SetMinSize((-1, 170))
         root.Add(self.prompt_text, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        package_label = wx.StaticText(self, label="Paste generated connector package JSON")
+        package_label = wx.StaticText(self, label="2. Paste the connection package returned by your AI")
         package_label.SetFont(package_label.GetFont().Bold())
         root.Add(package_label, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
         self.package_text = wx.TextCtrl(self, style=wx.TE_MULTILINE)
@@ -48,17 +67,20 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         root.Add(self.package_text, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         package_actions = wx.BoxSizer(wx.HORIZONTAL)
-        preview = wx.Button(self, label="Preview files")
-        install = wx.Button(self, label="Install disabled")
+        preview = wx.Button(self, label="Review generated files")
+        install = wx.Button(self, label="Install and test connection")
         preview.Bind(wx.EVT_BUTTON, self._preview)
         install.Bind(wx.EVT_BUTTON, self._install)
         package_actions.Add(preview, 0, wx.RIGHT, 8)
         package_actions.Add(install, 0)
         root.Add(package_actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
+        alternatives = wx.StaticText(self, label="Other connection options")
+        alternatives.SetFont(alternatives.GetFont().Bold())
+        root.Add(alternatives, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 10)
         runtime_actions = wx.BoxSizer(wx.HORIZONTAL)
-        negotiate = wx.Button(self, label="Ask configured runtime to identify itself")
-        browser = wx.Button(self, label="Export browser companion")
+        negotiate = wx.Button(self, label="Test my current connection")
+        browser = wx.Button(self, label="Create browser helper package")
         negotiate.Bind(wx.EVT_BUTTON, self._negotiate)
         browser.Bind(wx.EVT_BUTTON, self._export_browser)
         runtime_actions.Add(negotiate, 0, wx.RIGHT, 8)
@@ -72,7 +94,7 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
     def _generate_prompt(self, _event: wx.CommandEvent) -> None:
         try:
             self.prompt_text.SetValue(self.on_prompt())
-            self.status.SetValue("Connector construction prompt generated. Give it to the chosen LLM and paste the returned JSON package below.")
+            self.status.SetValue("Setup instructions created. Give them to your chosen AI, then paste its returned connection package below.")
         except Exception as exc:
             self.status.SetValue(str(exc))
 
@@ -91,7 +113,7 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
             self.status.SetValue(str(exc))
 
     def _negotiate(self, _event: wx.CommandEvent) -> None:
-        self.status.SetValue("Negotiating and running conformance…")
+        self.status.SetValue("Testing the current connection with fake data…")
         try:
             result = self.on_negotiate()
             self.status.SetValue(str(result))
@@ -102,6 +124,6 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         try:
             result = self.on_export_browser()
             if result:
-                self.status.SetValue(f"Browser companion exported: {result}")
+                self.status.SetValue(f"Browser helper package created: {result}")
         except Exception as exc:
             self.status.SetValue(str(exc))
