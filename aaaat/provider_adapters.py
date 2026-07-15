@@ -22,6 +22,12 @@ class LocalAgentAdapter:
     research_capable: bool = False
     local_only: bool = False
     standard_user: bool = False
+    transport_kind: str = "manual"
+    setup_complexity: str = "guided"
+    disclosure: str = "user-approved-bounded-context"
+    credential_ownership: str = "external-host"
+    progress_capable: bool = False
+    cancellation_capable: bool = False
 
 
 _TIMEOUT_FIELD = {
@@ -31,6 +37,7 @@ _TIMEOUT_FIELD = {
     "required": False,
     "multiline": False,
 }
+
 
 _ADAPTERS = (
     LocalAgentAdapter(
@@ -61,6 +68,8 @@ _ADAPTERS = (
         network_access="loopback-only",
         local_only=True,
         standard_user=True,
+        transport_kind="http",
+        setup_complexity="advanced",
     ),
     LocalAgentAdapter(
         adapter_id="manual_external_agent",
@@ -69,6 +78,8 @@ _ADAPTERS = (
             "Groups bounded work for export and validates the returned result bundle. This is the compatibility floor for "
             "browser-only conversational LLMs, not the preferred automatic workflow."
         ),
+        transport_kind="portable_bundle",
+        setup_complexity="guided",
     ),
     LocalAgentAdapter(
         adapter_id="file_exchange",
@@ -86,6 +97,8 @@ _ADAPTERS = (
                 "multiline": False,
             },
         ),
+        transport_kind="file_exchange",
+        setup_complexity="advanced",
     ),
     LocalAgentAdapter(
         adapter_id="argv_custom_command",
@@ -106,6 +119,9 @@ _ADAPTERS = (
         ),
         automatic_execution=True,
         advanced=True,
+        transport_kind="stdio",
+        setup_complexity="advanced",
+        progress_capable=True,
     ),
     LocalAgentAdapter(
         adapter_id="ollama_cli",
@@ -123,6 +139,8 @@ _ADAPTERS = (
         automatic_execution=True,
         advanced=True,
         network_access="runtime-controlled",
+        transport_kind="stdio",
+        setup_complexity="advanced",
     ),
     LocalAgentAdapter(
         adapter_id="codex_cli",
@@ -136,6 +154,9 @@ _ADAPTERS = (
         automatic_execution=True,
         advanced=True,
         research_capable=True,
+        transport_kind="stdio",
+        setup_complexity="advanced",
+        progress_capable=True,
     ),
 )
 
@@ -151,12 +172,28 @@ def adapter_definition(adapter_id: str) -> LocalAgentAdapter:
         raise ValueError(f"Unknown local agent adapter: {adapter_id}") from exc
 
 
+def adapter_capabilities(adapter_id: str) -> dict[str, Any]:
+    adapter = adapter_definition(adapter_id)
+    return {
+        "automatic": adapter.automatic_execution,
+        "transport_kind": adapter.transport_kind,
+        "network_access": adapter.network_access,
+        "local_only": adapter.local_only,
+        "research": adapter.research_capable,
+        "progress": adapter.progress_capable,
+        "cancellation": adapter.cancellation_capable,
+        "setup_complexity": adapter.setup_complexity,
+        "disclosure": adapter.disclosure,
+        "credential_ownership": adapter.credential_ownership,
+    }
+
+
 def visible_adapters(*, include_advanced: bool = False) -> tuple[LocalAgentAdapter, ...]:
     return tuple(item for item in _ADAPTERS if include_advanced or not item.advanced)
 
 
 def adapter_can_run_automatically(adapter_id: str) -> bool:
-    return adapter_definition(adapter_id).automatic_execution
+    return bool(adapter_capabilities(adapter_id)["automatic"])
 
 
 def standard_local_settings(adapter_id: str) -> dict[str, Any]:
@@ -206,11 +243,7 @@ def validate_adapter_settings(adapter_id: str, settings: Mapping[str, Any] | Non
 def adapter_health(adapter_id: str, settings: Mapping[str, Any] | None = None) -> dict[str, Any]:
     adapter = adapter_definition(adapter_id)
     normalized = validate_adapter_settings(adapter_id, settings)
-    base = {
-        "network_access": adapter.network_access,
-        "research_capable": adapter.research_capable,
-        "local_only": adapter.local_only,
-    }
+    base = {**adapter_capabilities(adapter_id)}
     if adapter_id == "manual_external_agent":
         return {"status": "ready", "message": "Portable bounded task bundles are available.", **base}
     if adapter_id == "file_exchange":
