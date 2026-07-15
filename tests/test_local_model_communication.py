@@ -60,6 +60,9 @@ class LocalModelCommunicationTests(unittest.TestCase):
         self.assertEqual(schema["properties"]["variables"]["type"], "object")
         self.assertEqual(schema["properties"]["replace_existing"]["type"], "boolean")
         self.assertFalse(schema["additionalProperties"])
+        field_schema = task_response_json_schema({"response_format": {"required": ["fields"], "schema": {"fields": "object containing supported missing fields"}}})
+        variants = field_schema["properties"]["fields"]["additionalProperties"]["anyOf"]
+        self.assertTrue(any(item.get("type") == "array" for item in variants))
 
     def test_llama_cpp_server_uses_non_streaming_schema_constrained_chat_completion(self) -> None:
         envelope = {"model": "qwen-local", "choices": [{"message": {"content": '{"variables":{"profile.career.direction":"Backend"}}'}}]}
@@ -77,7 +80,7 @@ class LocalModelCommunicationTests(unittest.TestCase):
         self.assertEqual(request.full_url, "http://127.0.0.1:8080/v1/chat/completions")
         self.assertIs(payload["stream"], False)
         self.assertEqual(payload["response_format"]["type"], "json_schema")
-        self.assertEqual(payload["response_format"]["json_schema"]["schema"]["required"], ["variables"])
+        self.assertEqual(payload["response_format"]["schema"]["required"], ["variables"])
         self.assertEqual(provenance["agent_runtime"], "llama.cpp-server")
 
     def test_generic_command_runner_uses_bounded_stdin_and_fixed_argv(self) -> None:
