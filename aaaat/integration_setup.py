@@ -52,20 +52,27 @@ _CONNECTION_MODES: tuple[dict[str, Any], ...] = (
 
 
 def connection_modes() -> list[dict[str, Any]]:
-    return [
-        {
-            **mode,
-            "adapter_ids": list(mode["adapter_ids"]),
-        }
-        for mode in _CONNECTION_MODES
-    ]
+    return [{**mode, "adapter_ids": list(mode["adapter_ids"])} for mode in _CONNECTION_MODES]
+
+
+def _capability_projection(capabilities: dict[str, Any]) -> dict[str, Any]:
+    """Keep existing callers stable while capabilities become the canonical metadata."""
+
+    return {
+        "automatic": bool(capabilities["automatic"]),
+        "standard_user": capabilities["setup_complexity"] == "guided",
+        "local_only": bool(capabilities["local_only"]),
+        "network_access": str(capabilities["network_access"]),
+        "research_capable": bool(capabilities["research"]),
+    }
 
 
 def integration_options(*, include_advanced: bool = False) -> list[dict[str, Any]]:
-    """Return presentation-neutral adapter choices for advanced setup."""
+    """Return adapter choices for advanced setup plus declared capabilities."""
 
     options: list[dict[str, Any]] = []
     for adapter in visible_adapters(include_advanced=include_advanced):
+        capabilities = adapter_capabilities(adapter.adapter_id)
         options.append(
             {
                 "id": adapter.adapter_id,
@@ -74,7 +81,8 @@ def integration_options(*, include_advanced: bool = False) -> list[dict[str, Any
                 "advanced": adapter.advanced,
                 "fields": [dict(field) for field in adapter.fields],
                 "recommended_settings": standard_local_settings(adapter.adapter_id),
-                "capabilities": adapter_capabilities(adapter.adapter_id),
+                "capabilities": capabilities,
+                **_capability_projection(capabilities),
             }
         )
     return options
@@ -85,11 +93,13 @@ def current_integration(storage_path: str | Path) -> dict[str, Any]:
     selected = config["local_agent_adapter"]
     adapter_id = str(selected["id"])
     adapter = adapter_definition(adapter_id)
+    capabilities = adapter_capabilities(adapter_id)
     return {
         "id": adapter_id,
         "title": adapter.title,
         "settings": dict(selected.get("settings") or {}),
-        "capabilities": adapter_capabilities(adapter_id),
+        "capabilities": capabilities,
+        **_capability_projection(capabilities),
     }
 
 
@@ -104,6 +114,7 @@ def configure_integration(
 
     current = load_workspace_config(storage_path)
     normalized = validate_adapter_settings(adapter_id, settings)
+    capabilities = adapter_capabilities(adapter_id)
     health = adapter_health(adapter_id, normalized)
     if health.get("status") != "ready":
         return {
@@ -111,7 +122,7 @@ def configure_integration(
             "saved": False,
             "adapter_id": adapter_id,
             "settings": normalized,
-            "capabilities": adapter_capabilities(adapter_id),
+            "capabilities": capabilities,
             "health": health,
         }
     save_workspace_settings(
@@ -129,7 +140,7 @@ def configure_integration(
         "saved": True,
         "adapter_id": adapter_id,
         "settings": normalized,
-        "capabilities": adapter_capabilities(adapter_id),
+        "capabilities": capabilities,
         "health": health,
     }
 
