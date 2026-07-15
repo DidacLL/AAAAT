@@ -20,18 +20,29 @@ External intelligence is optional. AAAAT is not a provider SDK, general agent or
 
 ## AI assistance choices
 
-The desktop presents four user-level choices:
+The standard assisted direction is:
 
-- **Continue manually** — use the complete workspace without an automatic AI connection.
-- **Connect my AI** — create and validate a bounded connection for the AI you already prefer.
+```text
+AAAAT creates bounded work
+→ the external AI connects to AAAAT
+→ the external AI obtains one eligible task and its bounded context
+→ the external AI reasons in its own runtime
+→ the external AI submits progress and a structured result
+→ AAAAT validates, applies and renders locally
+```
+
+MCP, CLI, generated connectors, browser bridges, files and portable bundles wrap the same existing bounded task queue and commands. They do not implement a second queue or make AAAAT an LLM runtime.
+
+The desktop presents these choices:
+
+- **Continue manually** — use the complete workspace without an AI connection.
+- **Connect my AI** — generate and validate a bounded connector for the AI you already use.
 - **Use a browser or chat AI** — export one candidature task file and import one returned result file.
-- **Advanced integration** — explicitly configure an endpoint, command, exchange directory or concrete compatibility adapter.
+- **Advanced integration** — configure a user-owned command, macro or script that may trigger an LLM and must return one bounded result.
 
-Named providers and runtimes are optional Advanced integration choices, not installation requirements or release criteria.
+The Advanced command option is explicit, optional and user-controlled. It is not the standard architecture.
 
-Communication may use subprocesses, files, archives, HTTP, callbacks, listeners, browser messaging, SDK wrappers or generated connectors. The transport is not the authority boundary. Every path may carry only purpose-specific bounded tasks, task-scoped progress and validated results. It may not expose arbitrary candidature/profile searches, storage paths, internal IDs as mutation authority, or a broad AAAAT data API.
-
-Before activation, generated connections are previewed and tested with fake data. For real tasks, the desktop shows whether communication is local, user-mediated, browser-mediated or controlled by the selected host. The selected external intelligence receives the bounded context the user approves.
+Every communication path may carry only purpose-specific bounded tasks, task-scoped progress and validated results. It may not expose arbitrary candidature/profile searches, storage paths, internal IDs as mutation authority, or a broad AAAAT data API.
 
 ## Local-first privacy
 
