@@ -99,8 +99,6 @@ def chat_completion(
     envelope: dict[str, Any] | None = None
     result: dict[str, Any] | None = None
 
-    # Current llama.cpp documents both forms. Try the explicit json_schema form
-    # first, then the older json_object+schema form for build compatibility.
     for response_format in (
         {"type": "json_schema", "schema": schema},
         {"type": "json_object", "schema": schema},
@@ -120,12 +118,17 @@ def chat_completion(
         if not isinstance(parsed, dict):
             failures.append(f"{response_format['type']}: assistant content was not a JSON object")
             continue
+        try:
+            _validate_schema_value(parsed, schema, path="$result")
+        except ValueError as exc:
+            failures.append(f"{response_format['type']}: {exc}; content={_diagnostic_excerpt(content)}")
+            continue
         result = parsed
         break
 
     if result is None or envelope is None:
         detail = " | ".join(failures) or "no structured response was returned"
-        raise ValueError(f"llama.cpp assistant content is not valid structured JSON: {detail}")
+        raise ValueError(f"llama.cpp assistant result violated the bounded task schema: {detail}")
 
     model_name = str(envelope.get("model") or model or "local")
     return json.dumps(result, ensure_ascii=False), {
@@ -133,6 +136,51 @@ def chat_completion(
         "agent_runtime": "llama.cpp-server",
         "model_provider": f"llama.cpp:{model_name}",
     }
+
+
+def _validate_schema_value(value: Any, schema: Mapping[str, Any], *, path: str) -> None:
+    alternatives = schema.get("anyOf")
+    if isinstance(alternatives, list):
+        errors: list[str] = []
+        for alternative in alternatives:
+            try:
+                _validate_schema_value(value, alternative, path=path)
+                return
+            except ValueError as exc:
+                errors.append(str(exc))
+        raise ValueError(f"{path} did not match any permitted type")
+
+    expected = schema.get("type")
+    if expected == "object":
+        if not isinstance(value, dict):
+            raise ValueError(f"{path} must be an object")
+        properties = schema.get("properties") or {}
+        required = [str(item) for item in schema.get("required") or []]
+        missing = [key for key in required if key not in value]
+        if missing:
+            raise ValueError(f"{path} is missing required field(s): {', '.join(missing)}")
+        additional = schema.get("additionalProperties", True)
+        for key, item in value.items():
+            if key in properties:
+                _validate_schema_value(item, properties[key], path=f"{path}.{key}")
+            elif additional is False:
+                raise ValueError(f"{path} contains unsupported field: {key}")
+            elif isinstance(additional, dict):
+                _validate_schema_value(item, additional, path=f"{path}.{key}")
+        return
+    if expected == "array":
+        if not isinstance(value, list):
+            raise ValueError(f"{path} must be an array")
+        item_schema = schema.get("items") or {}
+        for index, item in enumerate(value):
+            _validate_schema_value(item, item_schema, path=f"{path}[{index}]")
+        return
+    if expected == "string" and not isinstance(value, str):
+        raise ValueError(f"{path} must be a string")
+    if expected == "number" and (not isinstance(value, (int, float)) or isinstance(value, bool)):
+        raise ValueError(f"{path} must be a number")
+    if expected == "boolean" and not isinstance(value, bool):
+        raise ValueError(f"{path} must be a boolean")
 
 
 def _request_chat_completion(
