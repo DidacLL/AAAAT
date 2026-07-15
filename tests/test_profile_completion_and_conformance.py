@@ -98,9 +98,9 @@ class RuntimeConformanceTests(unittest.TestCase):
                     "agent_runtime": "fake-runtime"
                 }
 
-            with patch("aaaat.runtime_conformance.adapter_health", return_value={"status": "ready", "message": "ok"}), patch.object(
-                TaskRunner, "_execute_adapter", autospec=True, side_effect=fake_execute
-            ):
+            with patch("aaaat.runtime_conformance.adapter_health", return_value={"status": "ready", "message": "ok"}), patch(
+                "aaaat.runtime_conformance._runtime_preflight", return_value={"status": "ready", "message": "fixture"}
+            ), patch.object(TaskRunner, "_execute_adapter", autospec=True, side_effect=fake_execute):
                 report = run_configured_runtime_conformance(storage)
 
             self.assertEqual(report["status"], "passed")
