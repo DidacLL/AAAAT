@@ -7,8 +7,9 @@ import sys
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from .agent_access import build_agent_task_context, next_agent_task_envelope, submit_agent_task_result
+from .agent_access import build_agent_task_context, next_agent_task_envelope
 from .db import connect
+from .result_ingestion import ingest_task_result
 from .workspace_config import storage_directory
 
 HOST_NAME = "org.aaaat.browser_companion"
@@ -52,7 +53,16 @@ def dispatch_native_message(storage_path: str | Path, message: dict[str, Any]) -
             result = message.get("result")
             if not isinstance(result, dict):
                 return {"status": "error", "error": "result_must_be_object"}
-            acknowledgement = submit_agent_task_result(conn, handle, json.dumps(result, ensure_ascii=False), agent_name=str(message.get("agent_name") or "browser-companion")[:200], agent_runtime="browser-native-messaging", model_provider=str(message.get("model_provider") or "")[:200])
+            acknowledgement = ingest_task_result(
+                conn,
+                handle,
+                result,
+                provenance={
+                    "agent_name": str(message.get("agent_name") or "browser-companion"),
+                    "agent_runtime": "browser-native-messaging",
+                    "model_provider": str(message.get("model_provider") or ""),
+                },
+            )
             return {"status": "accepted", "acknowledgement": acknowledgement}
     return {"status": "error", "error": "unsupported_action"}
 
@@ -84,7 +94,7 @@ def run_native_host(storage_path: str | Path, input_stream: BinaryIO | None = No
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="aaaat-browser-host", description="Run the port-free AAAAT browser native-messaging host.")
+    parser = argparse.ArgumentParser(prog="aaaat-browser-host", description="Run the AAAAT bounded browser native-messaging host.")
     parser.add_argument("--storage", default=".private")
     parser.add_argument("--print-manifest", action="store_true")
     parser.add_argument("--self-test", action="store_true", help="Print protocol metadata and exit without waiting for browser input.")
@@ -93,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(native_host_manifest(args.storage, sys.argv[0]), ensure_ascii=False, indent=2))
         return 0
     if args.self_test:
-        print(json.dumps({"status": "ready", "host": HOST_NAME, "protocol": PROTOCOL, "protocol_version": VERSION, "transport": "browser-native-messaging-stdio", "listening_port": False}, ensure_ascii=False, indent=2))
+        print(json.dumps({"status": "ready", "host": HOST_NAME, "protocol": PROTOCOL, "protocol_version": VERSION, "transport": "browser-native-messaging-stdio"}, ensure_ascii=False, indent=2))
         return 0
     if sys.stdin.isatty():
         print(
