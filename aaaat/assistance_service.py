@@ -8,14 +8,7 @@ from typing import Any
 from .browser_companion import browser_extension_bundle, native_host_manifest
 from .connector_packages import connector_construction_prompt, install_and_activate_connector, preview_connector_package
 from .db import connect
-from .integration_setup import (
-    configure_integration,
-    configure_recommended_local_integration,
-    connection_modes,
-    current_integration,
-    disable_automatic_integration,
-    integration_options,
-)
+from .integration_setup import connection_modes, configure_integration, current_integration, disable_automatic_integration, integration_options
 from .runtime_conformance import negotiate_configured_runtime, read_conformance_state, run_configured_runtime_conformance
 from .tasks import create_task, list_tasks
 
@@ -55,10 +48,6 @@ def create_profile_completion_task(storage_path: str | Path) -> dict[str, Any]:
 
 def save_integration(storage_path: str | Path, adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
     return configure_integration(storage_path, adapter_id, settings)
-
-
-def use_recommended_local_integration(storage_path: str | Path) -> dict[str, Any]:
-    return configure_recommended_local_integration(storage_path)
 
 
 def use_manual_integration(storage_path: str | Path) -> dict[str, Any]:
