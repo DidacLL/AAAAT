@@ -15,6 +15,7 @@ _FORBIDDEN_AUTHORITY_KEYS = {
     "storage_path",
     "file_path",
 }
+_AGENT_CONTROL_KEYS = {"replace_existing", "replace"}
 
 
 def ingest_task_result(
@@ -26,12 +27,17 @@ def ingest_task_result(
     default_agent_name: str = "",
     default_agent_runtime: str = "",
 ) -> dict[str, Any]:
-    """Validate one transport-neutral result and apply it through AAAAT."""
+    """Validate one transport-neutral result and apply it through AAAAT.
+
+    External results provide task content only. Local replacement authority is
+    deliberately removed before domain application so an LLM cannot overwrite
+    an existing desktop value by adding a control flag to its result.
+    """
     capability = str(task_capability or "").strip()
     if not capability.startswith(TASK_CAPABILITY_PREFIX):
         raise ValueError("Result has an invalid task capability")
 
-    body = _result_object(result)
+    body = _strip_agent_control_keys(_result_object(result))
     forbidden = sorted(_find_forbidden_keys(body))
     if forbidden:
         raise ValueError(f"Result contains forbidden authority field(s): {', '.join(forbidden)}")
@@ -66,6 +72,18 @@ def _result_object(result: str | Mapping[str, Any]) -> dict[str, Any]:
         value = dict(result)
     if not isinstance(value, dict):
         raise ValueError("Result must be one JSON object")
+    return value
+
+
+def _strip_agent_control_keys(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _strip_agent_control_keys(item)
+            for key, item in value.items()
+            if str(key) not in _AGENT_CONTROL_KEYS
+        }
+    if isinstance(value, list):
+        return [_strip_agent_control_keys(item) for item in value]
     return value
 
 
