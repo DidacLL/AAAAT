@@ -1,43 +1,51 @@
 # AAAAT User Guide
 
-AAAAT helps you keep your job search in one private place: your professional
-profile, opportunities, application preparation, interview notes, and drafts.
+AAAAT keeps your job search in one private place: your professional profile,
+opportunities, application preparation, interview notes, and drafts.
 
 ## First use
 
 Open AAAAT and choose the private folder it will use for your workspace. The
-suggested location is already separate from the application and from chat or
-AI-host folders. You can then add your profile in small pieces: the work you
-want, strengths and experience, location or work-style preferences, practical
-constraints, and current goals.
+suggested location is separate from the application and from chat or AI-host
+folders. You may choose another private location.
 
-You can use AAAAT entirely from its desktop screens. Existing profile and
-application details are yours to edit there.
+You can use AAAAT entirely from its desktop screens. Existing profile,
+candidature, keyword, and document values remain yours to edit and review there.
 
 ## Connect my AI
 
-Choose **Connect my AI** only when you want an AI conversation to continue
-alongside this workspace. A capable host can connect its local tool or skill
-to AAAAT and then help prepare your profile, understand an offer you provide,
-and return work for AAAAT to review.
+Choose **Connect my AI** when you want an AI conversation to work alongside the
+local workspace. AAAAT prepares a separate connection package for that AI host.
+The selected LLM then checks what its own environment supports and guides the
+setup in ordinary language.
 
-The connection is optional and can be paused or revoked in AAAAT. You do not
-need to give the host a storage location, database name, command, or account
-credential. If the host cannot use a local connection, it is not connected; it
-should explain that in ordinary language instead of pretending otherwise.
+A capable host may configure native MCP or tools, install a host-owned skill,
+create an approved helper script or automation, or use portable task/result
+exchange when no live local route is possible. Provider and operating-system
+details stay inside the AI host's setup. You do not need to understand commands,
+ports, storage paths, internal identifiers, or model configuration.
 
-## Working with opportunities
+The connection is optional and can be paused or revoked in AAAAT. A host should
+state plainly whether it is connected, needs attention, or is using the portable
+fallback.
 
-Add an offer or source material in AAAAT. A connected AI can help only with
-the preparation AAAAT creates for that offer. It cannot browse or freely
-rewrite your workspace. Review the resulting information and drafts in the
-desktop app before relying on them.
+## Working with your real situation
+
+You may begin with whichever situation is useful now: profile setup, career
+direction, a job offer or link, an existing candidature, a recruiter call,
+general research, or missing information required for a document.
+
+The connected AI can create a candidature from material you provide and can
+complete only the bounded preparation AAAAT makes available. It cannot browse
+the workspace freely or replace existing user-owned values. Review resulting
+information and drafts in the desktop app.
 
 ## Keeping control
 
-AAAAT never chooses your AI provider or stores its credentials. The AI host
-uses its own permissions. AAAAT keeps the local workspace, validates returned
-work, and leaves ordinary edits under your control in the desktop app.
+AAAAT never chooses your AI provider or stores its credentials. The AI host uses
+its own permissions and reasoning tools. AAAAT keeps the private workspace,
+controls what each work item contains, validates returned work, preserves
+canonical keyword definitions, and leaves ordinary edits under your control.
 
-For a backup, restore, or technical recovery, ask the person maintaining your
-installation to use the separate maintenance instructions.
+For backup, restore, or technical recovery, use the separate maintenance path
+with a trusted maintainer or support process.
