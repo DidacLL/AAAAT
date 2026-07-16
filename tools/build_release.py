@@ -7,6 +7,7 @@ ZIP and open the desktop application directly; they do not run this script.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import platform
 import shutil
@@ -76,6 +77,7 @@ def build_release(output_directory: Path, *, keep_build: bool = False) -> tuple[
             root_dir=release_root.parent,
             base_dir=release_root.name,
         )
+        _write_checksum(archive_path)
         return release_root, archive_path
     finally:
         if not keep_build:
@@ -146,6 +148,13 @@ def _copy_directory_contents(source: Path, target: Path) -> None:
             shutil.copy2(item, destination)
 
 
+def _write_checksum(archive_path: Path) -> Path:
+    digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    checksum_path = archive_path.with_suffix(archive_path.suffix + ".sha256")
+    checksum_path.write_text(f"{digest}  {archive_path.name}\n", encoding="utf-8")
+    return checksum_path
+
+
 def _require_sources() -> None:
     missing = [path for path in (*DATA_FILES, DESKTOP_ENTRY, BRIDGE_ENTRY) if not path.exists()]
     if missing:
@@ -192,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print(release_root)
     print(archive_path)
+    print(archive_path.with_suffix(archive_path.suffix + ".sha256"))
     return 0
 
 
