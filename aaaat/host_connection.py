@@ -11,9 +11,11 @@ import hashlib
 import json
 import os
 import secrets
+import shutil
+import sys
 from importlib.resources import files
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from .db import init_db
@@ -32,11 +34,7 @@ class HostConnectionError(ValueError):
 
 
 def connection_brief() -> str:
-    """Return the compact host-only onboarding brief.
-
-    The brief gives an external LLM enough information to configure its own
-    host while keeping ordinary user interaction in career language.
-    """
+    """Return the compact host-only onboarding brief."""
 
     return """# AAAAT connection brief (version 2)
 
@@ -64,7 +62,7 @@ details inside host setup and describe the result to the user in plain terms.
 
 ## Verify the paired connection
 
-Use the prepared opaque connection card to launch the installed paired bridge.
+Use the prepared opaque connection card and its exact MCP launch configuration.
 The bridge resolves the private workspace internally. Verify initialize,
 tools/list, and ping before claiming work. The bridge tool catalogue is the
 complete local authority granted to this host.
@@ -93,12 +91,7 @@ remain unchanged.
 
 
 def runtime_skill_document() -> str:
-    """Return the canonical host-owned runtime skill bundled with AAAAT.
-
-    A host may place this document in its own persistent skill configuration
-    after its normal permission flow. The document is not task data and does
-    not disclose a workspace, storage implementation, or connection secret.
-    """
+    """Return the canonical host-owned runtime skill bundled with AAAAT."""
 
     return files("aaaat").joinpath("host_runtime_skill.md").read_text(encoding="utf-8")
 
@@ -116,13 +109,43 @@ def registry_path() -> Path:
     return base / "AAAAT" / "host-connections.json"
 
 
-def create_connection(storage: str | Path) -> dict[str, str]:
-    """Create a revocable opaque capability for one workspace.
+def host_bridge_executable() -> str:
+    """Locate the paired bridge without exposing private workspace details.
 
-    The returned capability is host-only. The registry stores only its digest
-    alongside the workspace mapping, so a copied registry cannot launch a
-    bridge by itself.
+    A package or installer may set ``AAAAT_HOST_BRIDGE_EXECUTABLE``. The
+    portable release layout is resolved relative to the frozen desktop; source
+    installations fall back to the installed console entry point.
     """
+
+    configured = os.environ.get("AAAAT_HOST_BRIDGE_EXECUTABLE", "").strip()
+    if configured:
+        return configured
+    if getattr(sys, "frozen", False):
+        raw_executable = str(sys.executable)
+        if "\\" in raw_executable or raw_executable.lower().endswith(".exe"):
+            desktop_root = PureWindowsPath(raw_executable).parent
+            return str(desktop_root / "bridge" / "aaaat-host-bridge.exe")
+        executable = Path(raw_executable).resolve()
+        if sys.platform == "darwin" and executable.parent.name == "MacOS":
+            desktop_root = executable.parents[3]
+        else:
+            desktop_root = executable.parent
+        return str(desktop_root / "bridge" / "aaaat-host-bridge")
+    return shutil.which("aaaat-host-bridge") or "aaaat-host-bridge"
+
+
+def bridge_launch_contract(capability: str) -> dict[str, Any]:
+    """Return the host-only stdio launch configuration for one pairing."""
+
+    return {
+        "transport": "stdio",
+        "command": host_bridge_executable(),
+        "arguments": ["--connection", _validate_capability(capability)],
+    }
+
+
+def create_connection(storage: str | Path) -> dict[str, str]:
+    """Create a revocable opaque capability for one workspace."""
 
     workspace = str(Path(storage).resolve())
     init_db(workspace)
@@ -141,13 +164,7 @@ def create_connection(storage: str | Path) -> dict[str, str]:
 
 
 def create_connection_request(storage: str | Path) -> dict[str, str]:
-    """Prepare one opaque handoff card for the host that owns this workspace.
-
-    The desktop can show this small card for a user to paste into their chosen
-    LLM. It contains no command, path, database name, or local identifier.
-    Making a new card deliberately invalidates previous active cards for this
-    workspace, so a user can replace a connection without exposing its token.
-    """
+    """Prepare one opaque handoff card for the host that owns this workspace."""
 
     workspace = str(Path(storage).resolve())
     registry = _read_registry()
@@ -165,16 +182,13 @@ def create_connection_request(storage: str | Path) -> dict[str, str]:
 
 
 def connection_handoff_message(storage: str | Path) -> str:
-    """Create the one self-contained, host-only message a user can paste.
-
-    This is intentionally the only place where the natural-language brief and
-    the opaque request meet. It is copied to the selected LLM, never rendered
-    in the ordinary desktop surface, and contains no workspace path or local
-    record identifier.
-    """
+    """Create the self-contained host-only message copied by the desktop."""
 
     request = create_connection_request(storage)
-    card = json.dumps(request, ensure_ascii=False, separators=(",", ":"))
+    card = {
+        **request,
+        "mcp": bridge_launch_contract(request["connection_capability"]),
+    }
     return (
         "# AAAAT connection request for the AI host\n\n"
         "The user has approved connecting this host to AAAAT. Use this material "
@@ -182,24 +196,18 @@ def connection_handoff_message(storage: str | Path) -> str:
         "report the result to the user in plain language.\n\n"
         + connection_brief()
         + "\n## Host launch contract\n\n"
-        "For a local stdio connection, launch `aaaat-host-bridge --connection "
-        "<connection_capability>` with the opaque value below. The bridge maps "
-        "the correct private workspace internally. Initialize it, discover its "
-        "tools, and ping it before requesting work. If this host cannot run a "
-        "local tool, configure the next strongest supported route and use "
-        "portable exchange only as the final fallback.\n\n"
+        "For local MCP or stdio tools, use the exact `mcp` command and arguments "
+        "in the opaque connection card below. The launch shape is "
+        "`aaaat-host-bridge --connection <connection_capability>`; do not add a "
+        "workspace, storage, database, or repository argument. Initialize, "
+        "discover tools, and ping before requesting work.\n\n"
         "## Opaque connection card\n\n"
-        + card
+        + json.dumps(card, ensure_ascii=False, separators=(",", ":"))
     )
 
 
 def export_host_pack(storage: str | Path, directory: str | Path) -> dict[str, str]:
-    """Write a host-private connection pack to a user-selected integration folder.
-
-    The desktop reports only that the pack is ready. Its technical launch
-    contract and opaque capability stay in the selected host configuration,
-    never in ordinary AAAAT screens or bridge responses.
-    """
+    """Write a host-private connection pack to a selected integration folder."""
 
     request = create_connection_request(storage)
     target = Path(directory) / "aaaat-job-research"
@@ -211,11 +219,7 @@ def export_host_pack(storage: str | Path, directory: str | Path) -> dict[str, st
                 "protocol": REQUEST_PROTOCOL,
                 "brief_version": BRIEF_VERSION,
                 "connection": request,
-                "mcp": {
-                    "transport": "stdio",
-                    "command": "aaaat-host-bridge",
-                    "arguments": ["--connection", request["connection_capability"]],
-                },
+                "mcp": bridge_launch_contract(request["connection_capability"]),
             },
             ensure_ascii=False,
             indent=2,
@@ -271,11 +275,7 @@ def revoke_connection(capability: str) -> dict[str, str]:
 
 
 def revoke_workspace_connections(storage: str | Path) -> dict[str, str]:
-    """Pause every host pairing for a workspace without showing host tokens.
-
-    This is the desktop-facing revocation operation. It lets wx revoke access
-    without storing or displaying a host capability.
-    """
+    """Pause every host pairing for a workspace without showing host tokens."""
 
     workspace = str(Path(storage).resolve())
     registry = _read_registry()
