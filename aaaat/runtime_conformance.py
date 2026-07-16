@@ -30,11 +30,11 @@ def bootstrap_manifest(adapter_id: str, settings: dict[str, Any] | None = None) 
             "research_capable": adapter.research_capable,
         },
         "configured_primitives": _safe_configured_primitives(adapter_id, normalized),
-        "task_contract": {
-            "input": "one bounded AAAAT task context",
-            "result": "one JSON object matching the task response_format",
-            "progress": "ordered phase events owned by AAAAT",
-            "authority": "opaque task handle only; no entity IDs or storage paths",
+        "work_contract": {
+            "input": "one complete bounded AAAAT work item containing purpose-scoped context and response format",
+            "result": "one JSON object matching response_format",
+            "progress": "optional ordered task-scoped phase events",
+            "authority": "random task capability for callbacks only; no entity IDs or storage paths",
         },
         "required_runtime_claims": {
             "runtime_name": "advisory string",
@@ -65,29 +65,45 @@ def read_conformance_state(storage_path: str | Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {"status": "invalid_state", "manifest_protocol": MANIFEST_PROTOCOL}
 
 
+def _challenge_work_item(kind: str, nonce: str, *, manifest: dict[str, Any] | None = None) -> dict[str, Any]:
+    response_schema: dict[str, Any] = {
+        "conformance_nonce": "exact supplied nonce",
+        "status": "ready",
+    }
+    if kind == "runtime_bootstrap":
+        response_schema.update({key: "advisory value" for key in sorted(_NEGOTIATED_KEYS)})
+    return {
+        "task": {
+            "task_capability": f"taskcap_fake_{kind}",
+            "task_type": kind,
+            "purpose": kind,
+            "allowed_actions": ["submit_result"],
+        },
+        "purpose": kind,
+        "instructions": {
+            "default": "Return the exact challenge nonce and only the requested advisory readiness fields.",
+            "process": ["Return one JSON object only.", "Do not propose credentials, ports, file paths, shell commands, or provider APIs."],
+        },
+        "input_context": {"challenge_nonce": nonce, **({"bootstrap_manifest": manifest} if manifest else {})},
+        "response_format": {
+            "type": "json_object",
+            "required": ["conformance_nonce", *( ["runtime_name", "model_name"] if kind == "runtime_bootstrap" else ["status"] )],
+            "schema": response_schema,
+        },
+        "privacy": {"scope": kind, "notes": ["fake data only", "no private AAAAT context"]},
+        "allowed_actions": ["submit_result"],
+    }
+
+
 def negotiate_configured_runtime(storage_path: str | Path) -> dict[str, Any]:
     selected = current_integration(storage_path)
     adapter_id = str(selected["id"])
     settings = dict(selected.get("settings") or {})
     adapter = adapter_definition(adapter_id)
     if not adapter.automatic_execution:
-        return {"status": "not_applicable", "message": "Portable/manual integrations do not negotiate a runtime manifest."}
+        return {"status": "not_applicable", "message": "Portable/manual integrations do not negotiate an Advanced command."}
     nonce = secrets.token_urlsafe(18)
-    request = {
-        "task": {"task_handle": "taskh_bootstrap_only", "task_type": "runtime_bootstrap", "purpose": "runtime_bootstrap", "allowed_actions": ["submit"]},
-        "purpose": "runtime_bootstrap",
-        "instructions": {
-            "default": "Describe this runtime using only the permitted advisory fields and echo the exact nonce.",
-            "process": ["Return one JSON object only.", "Do not propose credentials, ports, file paths, shell commands, or provider APIs."],
-        },
-        "input_context": {"challenge_nonce": nonce, "bootstrap_manifest": bootstrap_manifest(adapter_id, settings)},
-        "response_format": {
-            "type": "json_object",
-            "required": ["conformance_nonce", "runtime_name", "model_name"],
-            "schema": {"conformance_nonce": "exact supplied nonce", **{key: "advisory value" for key in sorted(_NEGOTIATED_KEYS)}},
-        },
-        "privacy": {"scope": "bootstrap", "notes": ["fake data only", "no private AAAAT context"]},
-    }
+    request = _challenge_work_item("runtime_bootstrap", nonce, manifest=bootstrap_manifest(adapter_id, settings))
     try:
         body, provenance = TaskRunner(storage_path)._execute_adapter(adapter_id, settings, request)
         payload = json.loads(body)
@@ -147,14 +163,7 @@ def run_configured_runtime_conformance(storage_path: str | Path) -> dict[str, An
         report.update(status="not_applicable", stage="transport", message="This integration uses portable/manual transfer.")
         return _write_state(storage_path, report)
     nonce = secrets.token_urlsafe(18)
-    challenge = {
-        "task": {"task_handle": "taskh_conformance_only", "task_type": "runtime_conformance", "purpose": "runtime_conformance", "allowed_actions": ["submit"]},
-        "purpose": "runtime_conformance",
-        "instructions": {"default": "Return the exact challenge nonce and readiness status. Do not perform other work.", "process": ["Return one JSON object only."]},
-        "input_context": {"challenge_nonce": nonce},
-        "response_format": {"type": "json_object", "required": ["conformance_nonce", "status"], "schema": {"conformance_nonce": "exact supplied nonce", "status": "ready"}},
-        "privacy": {"scope": "conformance", "notes": ["fake data only"]},
-    }
+    challenge = _challenge_work_item("runtime_conformance", nonce)
     try:
         body, provenance = TaskRunner(storage_path)._execute_adapter(adapter_id, settings, challenge)
         payload = json.loads(body)
@@ -167,24 +176,18 @@ def run_configured_runtime_conformance(storage_path: str | Path) -> dict[str, An
     except Exception as exc:
         report.update(status="failed", stage="challenge", message=str(exc)[:2000])
         return _write_state(storage_path, report)
-    report.update(status="passed", stage="complete", message="Health and bounded challenge round trip passed.", provenance=provenance, self_description={key: payload.get(key) for key in ("runtime_name", "model_name", "supports_structured_json", "supports_research") if key in payload})
+    report.update(status="passed", stage="complete", message="Health and complete bounded-work challenge passed.", provenance=provenance, self_description={key: payload.get(key) for key in ("runtime_name", "model_name", "supports_structured_json", "supports_research") if key in payload})
     return _write_state(storage_path, report)
 
 
 def _runtime_preflight(adapter_id: str, settings: dict[str, Any]) -> dict[str, Any]:
-    """Validate only AAAAT-owned adapter configuration before the live challenge.
-
-    Runtime-specific installation, model discovery, downloading, network policy, and
-    lifecycle remain owned by the selected external runtime. Health probes and the
-    bounded nonce round trip are the portable conformance proof.
-    """
     try:
         normalized = validate_adapter_settings(adapter_id, settings)
     except (TypeError, ValueError) as exc:
         return {"status": "error", "message": str(exc)}
     return {
         "status": "ready",
-        "message": "Provider-neutral adapter settings validated; live bounded challenge required.",
+        "message": "Provider-neutral Advanced command settings validated; fake bounded challenge required.",
         "adapter_id": adapter_id,
         "configured_field_count": len(normalized),
     }
@@ -194,7 +197,9 @@ def _safe_configured_primitives(adapter_id: str, settings: dict[str, Any]) -> di
     if adapter_id == "argv_custom_command":
         argv = list(settings.get("argv") or [])
         return {"transport": "stdio", "executable": argv[0] if argv else "", "argument_count": max(0, len(argv) - 1)}
-    return {"transport": "subprocess" if settings else "manual", "executable": str(settings.get("executable") or ""), "model": str(settings.get("model") or Path(str(settings.get("model_path") or "")).name), "additional_argument_count": len(list(settings.get("args") or []))}
+    if adapter_id == "file_exchange":
+        return {"transport": "file_exchange", "configured": bool(settings.get("directory"))}
+    return {"transport": "manual"}
 
 
 def _write_state(storage_path: str | Path, report: dict[str, Any]) -> dict[str, Any]:
