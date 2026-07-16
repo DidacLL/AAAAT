@@ -392,6 +392,9 @@ elif type_=="company_research": result={"company_research":"Northstar Tools buil
 elif type_=="draft_form_responses": result={"form_answers":"Interested in local-first tooling; improved reliability through deterministic validation and recovery."}
 elif type_=="draft_cv": result={"cv_positioning":"Lead with Python, SQLite, local-first systems and reliability."}
 elif type_=="draft_cover_letter": result={"cover_letter_body":"I am interested in Northstar Tools because local-first developer tooling aligns with my reliability-focused experience."}
+elif type_=="keyword_definition":
+    keyword=(packet.get("input_context") or {}).get("keyword") or hint.removeprefix("keyword:")
+    result={"definition":f"{keyword} is a relevant term for the supplied candidature context."}
 elif hint=="candidature:evaluation": result={"fields":{"candidature_evaluation":"Strong fit","strengths":"Python, SQLite, local-first systems","valuation":"High","risks_to_avoid":"Do not overstate distributed-systems scale."}}
 elif hint=="candidature:strategy": result={"fields":{"role_strategy":"Lead with reliability and pragmatic ownership.","pitch":"Local-first backend specialist.","smart_question":"How is reliability measured?","call_signals":"Emphasize validation and maintainability."}}
 elif hint=="call:recruiter": result={"fields":{"recruiter_material":"Discuss motivation, reliability, salary, location and availability."}}
