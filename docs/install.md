@@ -1,18 +1,18 @@
 # Install AAAAT
 
-Normal users receive a packaged AAAAT release built for their operating system.
-They do not install Python, open a terminal, run tests, or keep a source
-checkout.
+Normal users download the AAAAT package for their computer from a GitHub
+release. They do not install Python, open a terminal, run tests, publish
+artifacts, or keep a source checkout.
 
-## Open the packaged application
+## Open AAAAT
 
-Extract or install the release using the ordinary application flow for the
-current operating system, then open AAAAT from the packaged desktop application.
-The package contains the wx workspace and its paired host bridge; development
-and maintenance commands are not part of the normal user interface.
+1. Download the AAAAT ZIP for the current operating system.
+2. Extract it to an ordinary applications folder.
+3. Open `AAAAT.exe` on Windows, `AAAAT.app` on macOS, or `AAAAT` on Linux.
 
 Keep the application outside an AI host's working folder and outside a source
-checkout.
+checkout. The package contains the desktop application and paired host bridge;
+development and maintenance commands are not part of the normal user interface.
 
 ## First launch
 
