@@ -7,9 +7,9 @@ from typing import Any
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_path
 from aaaat.dashboard_projection import build_dashboard_projection
 from aaaat.db import connect
+from aaaat.desktop_workspace import resolve_desktop_workspace
 from aaaat.payload import dashboard_payload
 from aaaat.upgrade import upgrade_storage
-from aaaat.desktop_workspace import default_desktop_workspace, save_desktop_workspace, selected_desktop_workspace
 
 
 def build_desktop_projection(storage: str | Path, layout_state: DashboardLayoutState | None = None) -> dict[str, Any]:
@@ -25,37 +25,9 @@ def build_desktop_projection(storage: str | Path, layout_state: DashboardLayoutS
     return build_dashboard_projection(payload, view=requested_view, layout_state=layout)
 
 
-def _select_first_run_workspace(wx: Any) -> Path | None:
-    """Ask once where the user wants AAAAT to keep its private workspace."""
-
-    suggested = default_desktop_workspace()
-    suggested.mkdir(parents=True, exist_ok=True)
-    message = (
-        "Choose where AAAAT keeps your private job-search workspace. "
-        "This folder stays on this computer and can be backed up later."
-    )
-    while True:
-        with wx.DirDialog(
-            None,
-            message,
-            defaultPath=str(suggested),
-            style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST,
-        ) as dialog:
-            if dialog.ShowModal() != wx.ID_OK:
-                return None
-            try:
-                return save_desktop_workspace(dialog.GetPath())
-            except ValueError as exc:
-                wx.MessageBox(str(exc), "Choose another folder", wx.OK | wx.ICON_WARNING)
-
-
 def launch_desktop_dashboard(storage: str | Path | None = None) -> int:
-    """Launch the local desktop app.
+    """Launch the canonical local desktop application."""
 
-    wxPython is an optional desktop dependency. The import is deliberately kept
-    inside this function so tests and non-desktop AAAAT workflows do not require
-    wx or a graphical environment.
-    """
     try:
         import wx  # type: ignore[import-not-found]
     except ModuleNotFoundError as exc:  # pragma: no cover - depends on optional dependency
@@ -66,26 +38,18 @@ def launch_desktop_dashboard(storage: str | Path | None = None) -> int:
     from .main_window import DesktopDashboardFrame
     from .services import DesktopCommandService
 
-    if storage is None:
-        storage = selected_desktop_workspace()
-        if storage is None:
-            storage = _select_first_run_workspace(wx)
-            if storage is None:
-                return 0
-        else:
-            storage = save_desktop_workspace(storage)
-
-    layout_path = layout_state_path(storage)
+    workspace = Path(storage) if storage is not None else resolve_desktop_workspace()
+    layout_path = layout_state_path(workspace)
     layout = DashboardLayoutState.load(layout_path)
-    projection = build_desktop_projection(storage, layout)
+    projection = build_desktop_projection(workspace, layout)
 
     app = wx.App(False)
     frame = DesktopDashboardFrame(
-        storage_path=str(storage),
+        storage_path=str(workspace),
         projection=projection,
         layout_state=layout,
         layout_path=layout_path,
-        command_service=DesktopCommandService(storage),
+        command_service=DesktopCommandService(workspace),
     )
     frame.Show()
     app.MainLoop()
