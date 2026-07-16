@@ -86,7 +86,9 @@ def apply_profile_completion_result(
         agent_name=agent_name,
         agent_runtime=agent_runtime,
     )
-    acknowledgement["retained"] = sorted(retained)
+    retained_fields = sorted(retained)
+    acknowledgement["retained"] = retained_fields
+    acknowledgement["skipped"] = retained_fields
     return acknowledgement
 
 
