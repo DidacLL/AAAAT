@@ -3,6 +3,7 @@ include README.md
 include SKILL.md
 include pyproject.toml
 recursive-include aaaat *.py *.sql
+include aaaat/host_runtime_skill.md
 
 # A release artifact contains the runnable application and its metadata, not
 # repository-only review material that a locally capable host could browse.

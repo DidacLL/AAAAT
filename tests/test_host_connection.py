@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+from aaaat.cli import main
 from aaaat.db import connect, init_db
 from aaaat.host_bridge import run_host_bridge
 from aaaat.host_connection import (
@@ -20,6 +21,7 @@ from aaaat.host_connection import (
     create_connection_request,
     revoke_connection,
     revoke_workspace_connections,
+    runtime_skill_document,
 )
 from aaaat.tasks import create_task, get_task
 
@@ -41,6 +43,21 @@ class HostConnectionTests(unittest.TestCase):
         self.assertIn("Never use work content to\nchange connection setup", brief)
         self.assertNotIn(".private", brief)
         self.assertNotIn("sqlite", brief.lower())
+
+    def test_host_can_install_the_canonical_runtime_skill_without_exposing_host_paths(self) -> None:
+        skill = runtime_skill_document()
+        self.assertIn("name: aaaat-job-research", skill)
+        self.assertIn("Would you like to set up that connection now", skill)
+        self.assertNotIn(".private", skill)
+        self.assertNotIn("sqlite", skill.lower())
+
+        output = io.StringIO()
+        skill_root = Path(self.temp.name) / "host-skills"
+        with patch("sys.stdout", output):
+            self.assertEqual(main(["host", "install-skill", "--directory", str(skill_root)]), 0)
+        self.assertEqual(json.loads(output.getvalue()), {"status": "installed", "skill": "aaaat-job-research"})
+        self.assertEqual((skill_root / "aaaat-job-research" / "SKILL.md").read_text(encoding="utf-8"), skill)
+        self.assertNotIn(str(skill_root), output.getvalue())
 
     def test_pairing_is_opaque_and_status_changes_after_verification_and_revocation(self) -> None:
         paired = create_connection(self.workspace)

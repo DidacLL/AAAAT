@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import secrets
+from importlib.resources import files
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -53,6 +54,11 @@ or model choice. AAAAT does not select a provider or store credentials. Your
 host's own permission model governs installing configuration, scripts, or
 schedules.
 
+If your host supports durable skills, install AAAAT's canonical runtime skill
+in the host-owned skill scope after the user accepts setup. That skill makes a
+normal request such as "Use AAAAT to help me in my job research" begin with
+AAAAT's connection offer and profile.
+
 Before doing work, accept a prepared connection request from the user through
 AAAAT's host interface, launch the installed bridge with its opaque capability,
 and verify initialize,
@@ -73,6 +79,17 @@ Use the bounded `start_profile` action to prepare that profile conversation,
 then claim its complete work item and submit only user-confirmed values. Use
 `create_candidature` when the user shares an offer.
 """
+
+
+def runtime_skill_document() -> str:
+    """Return the canonical host-owned runtime skill bundled with AAAAT.
+
+    A host may place this document in its own persistent skill configuration
+    after its normal permission flow. The document is not task data and does
+    not disclose a workspace, storage implementation, or connection secret.
+    """
+
+    return files("aaaat").joinpath("host_runtime_skill.md").read_text(encoding="utf-8")
 
 
 def registry_path() -> Path:
