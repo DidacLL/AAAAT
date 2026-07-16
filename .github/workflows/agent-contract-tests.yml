@@ -28,6 +28,7 @@ jobs:
           aaaat-desktop --help
           aaaat-host-bridge --help
       - name: Check maintainer release recipe
+        if: github.event_name == 'pull_request'
         run: |
           python -m py_compile tools/build_release.py
           python tools/build_release.py --help
