@@ -5,34 +5,33 @@ preparation, and the documents that support them. It works on its own and can
 optionally keep a conversation with a capable AI host aligned with that local
 workspace.
 
-The normal Windows release is an installer or portable folder. It does not ask
-you to install Python, use a terminal, run tests, or keep a source checkout.
+Normal users receive a packaged desktop release for their operating system.
+They open AAAAT directly; they do not install Python, use a terminal, run tests,
+or keep a source checkout.
 
 ## Start using AAAAT
 
-1. Install AAAAT, or unzip the portable release and open `AAAAT.exe`.
-2. On first use, choose where AAAAT keeps your private workspace. The default
-   is in your Windows local application data, outside the app installation and
-   outside any AI-host folder.
-3. Add your profile and review opportunities in the desktop app.
-4. If you want continuing AI assistance, choose **Connect my AI**. AAAAT gives
-   your AI host only a paired local bridge. The host can connect when it
-   supports local tools; otherwise it should say plainly that it is not
-   connected and you can continue in the desktop app.
+1. Open the packaged AAAAT desktop application.
+2. On first use, choose where AAAAT keeps the private workspace. The suggested
+   location is outside the application and outside AI-host folders.
+3. Use the desktop manually, or choose **Connect my AI** for guided setup.
+4. The connected LLM assesses its own host and configures the strongest route it
+   supports: native MCP or tools first, then an approved host-owned skill,
+   script, or automation, with portable exchange only as the fallback.
 
-The normal interface never asks you for a database location, command, internal
-identifier, or provider credential. The AI host chooses its own provider,
-model, and permitted host configuration; AAAAT retains local validation and
-the final desktop review.
+The normal interface does not ask the user for a database location, command,
+internal identifier, provider credential, port, or protocol. AAAAT exposes only
+a paired task interface; the external LLM supplies provider-specific reasoning
+and host configuration while AAAAT retains local validation and desktop review.
 
 Read the included **AAAAT User Guide** or [docs/user-guide.md](docs/user-guide.md)
-for the complete workflow.
+for the user workflow.
 
-## For developers and support
+## For developers and maintainers
 
-The repository contains development tests and an explicit support artifact;
-they are not part of the normal desktop release or connected-AI integration.
+Repository instructions, tests, maintenance commands, and release tooling are
+not part of the connected-LLM runtime interface.
 
-- [Build the Windows release](docs/build-windows-release.md)
+- [Build a packaged release](docs/build-release.md)
 - [Maintenance and recovery](docs/maintenance.md)
 - [v1 implementation authority](docs/requirements/v1-authoritative-requirements.md)
