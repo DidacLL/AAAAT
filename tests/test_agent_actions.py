@@ -5,7 +5,7 @@ import unittest
 from aaaat.agent_actions import get_agent_context_bundle, submit_agent_action
 from aaaat.candidatures import list_candidatures
 from aaaat.career_plans import create_career_plan
-from aaaat.db import connect, init_db, set_profile_variable
+from aaaat.db import connect, init_db, set_profile_variable, upsert_glossary_term
 from aaaat.profile_facts import create_profile_fact
 from aaaat.tasks import list_tasks
 
@@ -140,7 +140,32 @@ class AgentActionTests(unittest.TestCase):
         self.assertEqual(blob_types["cv_positioning"]["body"], "Lead with Python automation.")
         self.assertEqual(blob_types["user_instructions"]["created_by"], "agent")
         self.assertTrue(any(item["artifact_type"] == "cover_letter" for item in loaded["artifacts"]))
-        self.assertEqual(loaded["tasks"], [])
+        keyword_tasks = [item for item in loaded["tasks"] if item["task_type"] == "keyword_definition"]
+        self.assertEqual({item["context_hint"] for item in keyword_tasks}, {"keyword:APIs", "keyword:Python"})
+
+    def test_create_candidature_queues_only_missing_keyword_definitions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                upsert_glossary_term(conn, "Python", "A programming language.", "technology")
+                submit_agent_action(
+                    conn,
+                    {
+                        "action": "create_candidature",
+                        "payload": {
+                            "candidature": {
+                                "company": "Keyword Co",
+                                "role": "Engineer",
+                                "keywords": ["Python", "MCP"],
+                            }
+                        },
+                    },
+                    storage_path=tmp,
+                )
+                loaded = list_candidatures(conn, include_related=True)[0]
+
+        keyword_tasks = [item for item in loaded["tasks"] if item["task_type"] == "keyword_definition"]
+        self.assertEqual([item["context_hint"] for item in keyword_tasks], ["keyword:MCP"])
 
     def test_create_candidature_requested_tasks_queue_bounded_follow_up(self):
         with tempfile.TemporaryDirectory() as tmp:
