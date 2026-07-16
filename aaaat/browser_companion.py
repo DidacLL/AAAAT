@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from .agent_access import next_agent_work_item
+from .agent_work import claim_next_agent_work, report_agent_task_progress
 from .db import connect
 from .result_ingestion import ingest_task_result
 from .workspace_config import storage_directory
@@ -33,7 +33,7 @@ def browser_extension_bundle() -> dict[str, str]:
         "manifest.json": json.dumps({"manifest_version": 3, "name": "AAAAT Browser Companion", "version": "1.0.0", "permissions": ["nativeMessaging", "activeTab", "scripting"], "action": {"default_popup": "popup.html"}}, indent=2),
         "popup.html": "<!doctype html><meta charset='utf-8'><button id='send'>Send next AAAAT work item</button><pre id='status'></pre><script src='popup.js'></script>",
         "popup.js": "const status=document.getElementById('status');document.getElementById('send').onclick=()=>{const p=chrome.runtime.connectNative('org.aaaat.browser_companion');p.onMessage.addListener(m=>status.textContent=JSON.stringify(m,null,2));p.postMessage({protocol:'aaaat.browser-native',protocol_version:1,action:'next_work'});};",
-        "README.txt": "Load this unpacked extension and install the native-host manifest. The bridge exposes complete bounded work items and accepts only task-scoped results. Authentication remains in the browser or external host.",
+        "README.txt": "Load this unpacked extension and install the native-host manifest. The bridge claims complete bounded work items and accepts only capability-scoped progress and results. Authentication remains in the browser or external host.",
     }
 
 
@@ -43,8 +43,17 @@ def dispatch_native_message(storage_path: str | Path, message: dict[str, Any]) -
     action = str(message.get("action") or "")
     with connect(storage_path) as conn:
         if action == "next_work":
-            work = next_agent_work_item(conn)
+            work = claim_next_agent_work(conn)
             return {"status": "empty"} if work is None else {"status": "ready", "work": work}
+        if action == "report_progress":
+            acknowledgement = report_agent_task_progress(
+                conn,
+                str(message.get("task_capability") or ""),
+                phase=str(message.get("phase") or ""),
+                message=str(message.get("message") or ""),
+                percent=message.get("percent"),
+            )
+            return acknowledgement
         if action == "submit_result":
             capability = str(message.get("task_capability") or "")
             result = message.get("result")
