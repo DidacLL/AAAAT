@@ -19,6 +19,7 @@ FORBIDDEN_AGENT_CONTEXT_KEYS = {
     "application_id", "candidature_id", "artifact_id", "profile_fact_id", "note_id",
     "todo_id", "blob_id", "file_path", "storage_path",
 }
+AGENT_CONTROL_KEYS = {"replace_existing", "replace"}
 TASK_PURPOSES = {
     "profile_completion": "professional_profile_completion",
     "field_inference": "candidature_field_inference",
@@ -30,10 +31,10 @@ TASK_PURPOSES = {
     "career_plan_review": "career_plan_review",
 }
 DEFAULT_TASK_INSTRUCTIONS = {
-    "profile_completion": "Complete eligible missing professional-profile fields from supplied bounded profile context. Preserve non-empty user values unless replacement is explicitly requested and justified.",
-    "field_inference": "Infer missing candidature fields from bounded source material. Return supported fields only; do not infer lifecycle, user priority, lead source, or generated material bodies.",
+    "profile_completion": "Complete eligible missing professional-profile fields from supplied bounded profile context. Existing non-empty desktop values remain authoritative.",
+    "field_inference": "Infer supported missing candidature fields from bounded source material. Existing non-empty desktop values remain authoritative.",
     "company_research": "Prepare concise company research relevant to the candidature and role.",
-    "keyword_definition": "Define the keyword for this job-search context.",
+    "keyword_definition": "Define the keyword for this job-search context when its canonical definition is empty.",
     "draft_form_responses": "Draft application form responses using only the supplied form prompt and bounded profile context.",
     "draft_cv": "Suggest CV positioning and role-specific adaptation notes. AAAAT renders final files locally.",
     "draft_cover_letter": "Draft a cover-letter body. AAAAT renders final files locally.",
@@ -108,10 +109,10 @@ def task_instructions(task: dict[str, Any]) -> dict[str, Any]:
         "default": DEFAULT_TASK_INSTRUCTIONS.get(task_type, "Complete the bounded AAAAT task using only the supplied context."),
         "task_specific": str(task.get("instructions") or ""),
         "process": [
-            "Use only input_context from this work item.",
+            "Use the supplied input_context as the local source for this work item.",
             "Return JSON matching response_format.",
-            "Do not include internal entity IDs, file paths, or storage paths.",
-            "AAAAT applies results internally from the private task binding.",
+            "Return content only; AAAAT binds and applies it to the correct local records.",
+            "Existing non-empty desktop values remain authoritative.",
         ],
     }
 
@@ -123,17 +124,17 @@ def output_contract(task: dict[str, Any]) -> dict[str, Any]:
         "for_task_type": task_type,
         "entity_ids_allowed": False,
         "auto_apply_by_agent": False,
-        "apply_model": "AAAAT makes generated values current when safe; stale conflicts remain non-current history.",
+        "apply_model": "AAAAT fills supported gaps; conflicts remain non-current history for desktop review.",
         "writes": _writes_description(task_type),
     }
 
 
 def _writes_description(task_type: str) -> str:
     return {
-        "profile_completion": "Eligible profile variables under variables. Non-empty user values are preserved unless replace_existing is true.",
-        "field_inference": "Supported candidature fields under fields. Non-empty user/current fields are not overwritten unless replace_existing is true.",
+        "profile_completion": "Eligible missing profile variables under variables. Existing values are retained.",
+        "field_inference": "Supported missing candidature fields under fields. Existing values are retained.",
         "company_research": "Company research text. Becomes current when the field is empty, otherwise remains history.",
-        "keyword_definition": "Keyword definition and optional category for the task keyword.",
+        "keyword_definition": "Definition and optional category for a keyword whose canonical definition is empty.",
         "draft_form_responses": "Application form answers. Become current when the field is empty, otherwise remain history.",
         "draft_cv": "CV positioning/adaptation content. AAAAT renders final files locally.",
         "draft_cover_letter": "Cover-letter body. AAAAT renders final files locally.",
@@ -144,8 +145,8 @@ def _writes_description(task_type: str) -> str:
 def response_format(task: dict[str, Any]) -> dict[str, Any]:
     task_type = str(task.get("task_type") or "task")
     formats: dict[str, dict[str, Any]] = {
-        "profile_completion": {"type": "json_object", "required": ["variables"], "schema": {"variables": "object containing eligible profile keys and bounded text values", "replace_existing": "optional boolean"}},
-        "field_inference": {"type": "json_object", "required": ["fields"], "schema": {"fields": "object containing supported missing fields", "replace_existing": "optional boolean"}},
+        "profile_completion": {"type": "json_object", "required": ["variables"], "schema": {"variables": "object containing eligible missing profile keys and bounded text values"}},
+        "field_inference": {"type": "json_object", "required": ["fields"], "schema": {"fields": "object containing supported missing candidature fields"}},
         "company_research": {"type": "json_object", "required": ["company_research"], "schema": {"company_research": "string", "sources_checked": "optional array"}},
         "keyword_definition": {"type": "json_object", "required": ["definition"], "schema": {"definition": "string", "category": "optional string"}},
         "draft_form_responses": {"type": "json_object", "required": ["form_answers"], "schema": {"form_answers": "string or object", "assumptions": "optional string"}},
@@ -250,11 +251,12 @@ def submit_agent_task_result(
     task = get_task_for_capability(conn, task_capability_value)
     if "submit_result" not in allowed_actions(task):
         raise ValueError(f"Task is not accepting results in state {task.get('state')}")
-    _validate_result_shape(task, result_body)
+    safe_result_body = _without_agent_control_keys(result_body)
+    _validate_result_shape(task, safe_result_body)
     completed = complete_task(
         conn,
         task["id"],
-        result_body=result_body,
+        result_body=safe_result_body,
         result_title=result_title,
         agent_name=agent_name,
         agent_runtime=agent_runtime,
@@ -263,11 +265,33 @@ def submit_agent_task_result(
     if str(task.get("task_type") or "") == "profile_completion":
         completed["profile_update"] = apply_profile_completion_result(
             conn,
-            result_body,
+            safe_result_body,
             agent_name=agent_name,
             agent_runtime=agent_runtime,
         )
     return completed
+
+
+def _without_agent_control_keys(result_body: str) -> str:
+    try:
+        value = json.loads(result_body)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Result must be valid JSON: {exc.msg}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("Result must be one JSON object")
+    return json.dumps(_strip_agent_control_keys(value), ensure_ascii=False)
+
+
+def _strip_agent_control_keys(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _strip_agent_control_keys(item)
+            for key, item in value.items()
+            if str(key) not in AGENT_CONTROL_KEYS
+        }
+    if isinstance(value, list):
+        return [_strip_agent_control_keys(item) for item in value]
+    return value
 
 
 def _validate_result_shape(task: dict[str, Any], result_body: str) -> None:
