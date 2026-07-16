@@ -84,7 +84,14 @@ class AgentAccessContractTests(unittest.TestCase):
                     exposure="placeholder",
                     use_for_cv=True,
                 )
-                candidature = create_candidature(conn, company="CV company", role="Writer")
+                candidature = create_candidature(
+                    conn,
+                    company="CV company",
+                    role="Writer",
+                    include_field_inference_task=False,
+                    include_company_research_task=False,
+                    include_keyword_detection_task=False,
+                )
                 create_task(
                     conn,
                     "draft_cv",
