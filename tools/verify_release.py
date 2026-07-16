@@ -85,16 +85,24 @@ def _run_desktop_startup_check(desktop: Path, environment: dict[str, str]) -> No
         check=False,
     )
     if completed.returncode != 0:
-        raise RuntimeError(
-            "Packaged desktop startup check failed\n"
-            + completed.stdout
-            + completed.stderr
-        )
+        raise RuntimeError("Packaged desktop startup check failed\n" + completed.stdout + completed.stderr)
+
+
+def _create_isolated_connection(workspace: Path, registry: str) -> dict[str, str]:
+    previous = os.environ.get("AAAAT_CONNECTION_REGISTRY")
+    os.environ["AAAAT_CONNECTION_REGISTRY"] = registry
+    try:
+        return create_connection(workspace)
+    finally:
+        if previous is None:
+            os.environ.pop("AAAAT_CONNECTION_REGISTRY", None)
+        else:
+            os.environ["AAAAT_CONNECTION_REGISTRY"] = previous
 
 
 def _run_bridge_check(bridge: Path, environment: dict[str, str], temporary: Path) -> None:
     workspace = temporary / "workspace"
-    pairing = create_connection(workspace)
+    pairing = _create_isolated_connection(workspace, environment["AAAAT_CONNECTION_REGISTRY"])
     requests = (
         {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
