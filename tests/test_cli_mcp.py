@@ -136,8 +136,7 @@ class CliMcpTests(unittest.TestCase):
         self.assertTrue(validate_descriptor(descriptor))
         resources = {resource["uri"] for resource in descriptor["resources"]}
         tools = {tool["name"] for tool in descriptor["tools"]}
-        self.assertIn("aaaat://agent/work/next", resources)
-        self.assertNotIn("aaaat://agent/tasks/{task_handle}/context", resources)
+        self.assertEqual(resources, {"aaaat://agent-guide"})
         self.assertTrue(
             {
                 "get_next_agent_work",
