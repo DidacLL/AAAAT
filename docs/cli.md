@@ -1,119 +1,50 @@
-# CLI
+# Advanced and maintenance command boundary
 
-The CLI contains two categories:
+AAAAT's normal product is the wx desktop application. A normal user does not
+need a command line, and a connected LLM does not discover AAAAT by reading or
+running repository commands.
 
-- local/admin commands for the user and desktop maintenance;
-- narrow agent-facing commands over the bounded queue and action services.
+This document records the architectural boundary for developers and support. It
+is not a runtime command catalogue.
 
-Local/admin commands may use internal IDs because they are explicit local user operations. Agent-facing commands must not.
+## Normal installed surface
 
-## Local storage and desktop
+The normal packaged release exposes only:
 
-```bash
-aaaat init
-aaaat backup
-aaaat restore .private/backups/aaaat-backup-20260708T120000Z.zip --output .private-restored
-aaaat-upgrade --storage .private
-aaaat-desktop --storage .private
-```
+- the AAAAT desktop application;
+- the opaque paired host bridge used through exported integration material.
 
-Private data defaults to `.private/aaaat.sqlite3`; generated artifacts default to `.private/artifacts/`.
+The paired bridge has no storage argument and advertises only its named bounded
+tools. Tool discovery on that verified connection is the connected host's
+operation catalogue.
 
-## Local candidature operations
+## Advanced and maintenance surface
 
-```bash
-aaaat app create --company "Example Co" --role "Backend Engineer"
-aaaat app list
-aaaat app show <application_id>
-aaaat app update <application_id> --status active --keywords "Python, SQLite"
-aaaat intake add <application_id> --content "..."
-aaaat intake raw-offer --content "..."
-```
+Source installations and separate support artifacts may contain commands for
+backup, restore, upgrade, diagnostics, migration, fixtures, and direct local
+administration. Those operations may use internal identifiers or filesystem
+locations because they run under deliberate local maintainer authority.
 
-These are local user/admin operations, not agent authority.
+They are not:
 
-## Profile and career data
+- normal user setup;
+- the connected-host contract;
+- runtime guidance to copy into an LLM;
+- an alternative to the paired bridge;
+- evidence that an LLM may inspect or mutate the private workspace.
 
-```bash
-aaaat profile set display_name "Local User"
-aaaat profile missing
-aaaat profile fact add --type skill --title Python --body "Backend APIs" --use-for-cv --use-for-agent-context
-aaaat profile fact list
-aaaat career-plan add --body "Target local-first tooling roles" --target-roles "Backend Engineer"
-aaaat career-plan list
-```
+Advanced commands must remain outside the host-integration folder and outside
+normal user-facing documentation. Support procedures should identify the exact
+operation needed instead of publishing the entire administrative surface.
 
-Variables, profile facts, and career plans are exposed to agent work only through purpose-scoped work-item construction and configured exposure rules.
+## Shared domain services
 
-## Artifacts
+The desktop, paired bridge, portable fallback, and deliberate Advanced command
+may reuse the same bounded acquisition, progress, validation, result-ingestion,
+and domain-application services. Reuse does not widen authority: each wrapper
+must expose only the operations intended for its audience.
 
-```bash
-aaaat render cv --output .private/artifacts/cv.tex
-aaaat render cover-letter <application_id> --body "Draft body" --output .private/artifacts/cover-letter.tex
-aaaat artifact list <application_id>
-aaaat artifact update-state <artifact_id> --state reviewed
-```
-
-AAAAT renders and records local artifacts. External hosts submit structured data or draft text, not authoritative final files.
-
-## Connected-host control plane
-
-These are host-maintenance commands. A normal user starts **Connect my AI** in wx and does not need to see or run them.
-
-```bash
-aaaat host brief
-aaaat host pair --workspace <local-workspace>
-aaaat host status
-aaaat host revoke <connection_capability>
-aaaat-host-bridge --connection <connection_capability>
-```
-
-`host brief` returns the versioned host-only setup brief. `host pair --workspace <local-workspace>` is a local-maintenance operation that prepares an opaque connection card for that explicit workspace; the bridge uses the card's capability to locate it privately and accepts no storage argument. Configure the bridge as stdio and verify initialize, tool discovery, and ping before claiming work. Revocation invalidates the bridge connection without exposing an internal workspace identifier.
-
-## Bounded host work
-
-Claim the next eligible task:
-
-```bash
-aaaat agent next
-```
-
-The command atomically claims one task and returns one complete bounded work item. The response contains the task purpose, instructions, scoped context, output contract, response schema, privacy notes, allowed actions, and random `task_capability`.
-
-Submit a structured result:
-
-```bash
-aaaat agent submit <task_capability> --result-file result.json
-aaaat agent submit <task_capability> --result-body '{"result":"..."}'
-```
-
-Submit a supported bounded action:
-
-```bash
-aaaat agent action submit --input-file action.json
-aaaat agent action submit --input-body '{"action":"create_candidature","payload":{...}}'
-```
-
-There are no agent `context`, `packet`, `dispatch`, or `context-bundle` commands. Context is part of the claimed work item; transport dispatch belongs to the external host.
-
-`task_capability` is attempt-scoped callback authority only. It is not an internal task ID or an entity mutation handle.
-
-## Direct MCP maintenance
-
-```bash
-aaaat mcp-descriptor
-aaaat mcp-validate
-aaaat-mcp --storage .private
-```
-
-`aaaat-mcp` is a dependency-free stdio MCP server for local technical maintenance. A connected LLM should use the paired `aaaat-host-bridge` rather than receive a storage argument. Both map to the same acquisition, progress, result-ingestion, and bounded-action services.
-
-## Advanced user-owned command
-
-A user may explicitly configure `argv_custom_command`. AAAAT writes one complete bounded work item to stdin and expects one JSON result on stdout. Stderr is diagnostics.
-
-The command implementation may use any provider or runtime. AAAAT does not configure or name that provider in core behavior.
-
-## Local maintenance
-
-Additional local commands exist for tasks, notes, todos, blobs, glossary entries, variables, search, configuration, and backups. Run `aaaat <command> --help` for exact arguments. These commands are not automatically part of the agent contract.
+A generic local/admin CLI may remain useful for maintainers, but packaging it or
+documenting it does not make it an agent interface. The installed connected host
+must be structurally unable to reach arbitrary profile, candidature, keyword,
+artifact, task, database, or filesystem operations through its paired tools.
