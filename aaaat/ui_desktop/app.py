@@ -25,30 +25,6 @@ def build_desktop_projection(storage: str | Path, layout_state: DashboardLayoutS
     return build_dashboard_projection(payload, view=requested_view, layout_state=layout)
 
 
-def _select_first_run_workspace(wx: Any) -> Path | None:
-    """Ask once where the user wants AAAAT to keep its private workspace."""
-
-    suggested = default_desktop_workspace()
-    suggested.mkdir(parents=True, exist_ok=True)
-    message = (
-        "Choose where AAAAT keeps your private job-search workspace. "
-        "This folder stays on this computer and can be backed up later."
-    )
-    while True:
-        with wx.DirDialog(
-            None,
-            message,
-            defaultPath=str(suggested),
-            style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST,
-        ) as dialog:
-            if dialog.ShowModal() != wx.ID_OK:
-                return None
-            try:
-                return save_desktop_workspace(dialog.GetPath())
-            except ValueError as exc:
-                wx.MessageBox(str(exc), "Choose another folder", wx.OK | wx.ICON_WARNING)
-
-
 def launch_desktop_dashboard(storage: str | Path | None = None) -> int:
     """Launch the local desktop app.
 
@@ -63,13 +39,20 @@ def launch_desktop_dashboard(storage: str | Path | None = None) -> int:
             "wxPython is required for the desktop app. Install AAAAT with the desktop extra: pip install .[desktop]"
         ) from exc
 
+    from .first_run_workspace_dialog import select_first_run_workspace
     from .main_window import DesktopDashboardFrame
     from .services import DesktopCommandService
+
+    app = wx.App(False)
 
     if storage is None:
         storage = selected_desktop_workspace()
         if storage is None:
-            storage = _select_first_run_workspace(wx)
+            storage = select_first_run_workspace(
+                None,
+                suggested_workspace=default_desktop_workspace(),
+                save_workspace=save_desktop_workspace,
+            )
             if storage is None:
                 return 0
         else:
@@ -79,7 +62,6 @@ def launch_desktop_dashboard(storage: str | Path | None = None) -> int:
     layout = DashboardLayoutState.load(layout_path)
     projection = build_desktop_projection(storage, layout)
 
-    app = wx.App(False)
     frame = DesktopDashboardFrame(
         storage_path=str(storage),
         projection=projection,
