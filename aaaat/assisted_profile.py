@@ -6,6 +6,7 @@ from typing import Any
 
 from .db import profile_variables, set_profile_variable
 
+
 PROFILE_COMPLETION_KEYS = (
     "profile.display_name",
     "profile.email",
@@ -39,15 +40,15 @@ def profile_completion_context(conn: sqlite3.Connection) -> dict[str, Any]:
         "missing_fields": [key for key, value in current.items() if not value.strip()],
         "protected_fields": [key for key, value in current.items() if value.strip()],
         "instructions": [
-            "Return useful values only for eligible profile fields.",
-            "Do not replace protected non-empty fields unless replace_existing is explicitly true and justified.",
-            "Do not invent personal contact details or unverifiable experience.",
+            "Return grounded values only for eligible missing profile fields.",
+            "Existing non-empty desktop values are retained as authoritative.",
+            "Omit contact details or experience not supported by the supplied context.",
             "Omit fields that require information not present in the supplied context.",
         ],
     }
 
 
-def parse_profile_completion_result(result_body: str) -> tuple[dict[str, Any], bool]:
+def parse_profile_completion_result(result_body: str) -> dict[str, Any]:
     try:
         payload = json.loads(result_body)
     except json.JSONDecodeError as exc:
@@ -57,7 +58,7 @@ def parse_profile_completion_result(result_body: str) -> tuple[dict[str, Any], b
     variables = payload.get("variables", payload.get("fields"))
     if not isinstance(variables, dict):
         raise ValueError("Profile completion result requires a variables object")
-    return variables, bool(payload.get("replace_existing") or payload.get("replace"))
+    return variables
 
 
 def apply_profile_completion_result(
@@ -67,16 +68,16 @@ def apply_profile_completion_result(
     agent_name: str = "",
     agent_runtime: str = "",
 ) -> dict[str, Any]:
-    variables, replace_existing = parse_profile_completion_result(result_body)
+    variables = parse_profile_completion_result(result_body)
     current = profile_variables(conn)
     bounded: dict[str, Any] = {}
-    skipped: list[str] = []
+    retained: list[str] = []
     for key, value in variables.items():
         cleaned = str(key).strip()
         if cleaned not in PROFILE_COMPLETION_KEYS:
             raise ValueError(f"Profile variable is not permitted: {cleaned}")
-        if str(current.get(cleaned) or "").strip() and not replace_existing:
-            skipped.append(cleaned)
+        if str(current.get(cleaned) or "").strip():
+            retained.append(cleaned)
             continue
         bounded[cleaned] = value
     acknowledgement = submit_profile_updates(
@@ -85,8 +86,7 @@ def apply_profile_completion_result(
         agent_name=agent_name,
         agent_runtime=agent_runtime,
     )
-    acknowledgement["skipped"] = sorted(skipped)
-    acknowledgement["replace_existing"] = replace_existing
+    acknowledgement["retained"] = sorted(retained)
     return acknowledgement
 
 
