@@ -1,6 +1,6 @@
 # AAAAT v1 authoritative requirements
 
-Status: authoritative for v1 completion.
+Status: sole authority for v1 implementation and release decisions.
 
 Effective date: 2026-07-16.
 
@@ -10,231 +10,317 @@ AAAAT is a local-first, open-source, provider-agnostic job-application workspace
 
 AAAAT remains fully usable through its wx desktop application without external intelligence.
 
-AAAAT owns private data, local persistence, the single bounded task queue, purpose-scoped context, result validation, deterministic domain application, local rendering, provenance, and desktop state.
+AAAAT owns private data, local persistence, one bounded work queue, purpose-scoped work construction, result validation, deterministic domain application, local rendering, provenance, and desktop state.
 
 External AI or agent hosts own reasoning, provider/model/runtime selection, credentials, network policy, and provider-specific SDK, browser, command, or inference-engine interaction.
 
 AAAAT is not an LLM runtime, provider wrapper, agent orchestrator, plugin host, broad CRUD API, browser product, or named-provider integration.
 
-## 2. Canonical assisted architecture
-
-The standard assisted architecture is pull-based:
-
-```text
-AAAAT creates bounded tasks
-→ an external AI or agent host connects to AAAAT
-→ the external actor obtains one eligible task and purpose-scoped context
-→ the external actor reasons in its own runtime
-→ the external actor reports progress and submits a structured result or permitted action
-→ AAAAT validates, applies, persists and renders locally
-```
-
-AAAAT does not normally call, select, host, launch, schedule, configure, or orchestrate an LLM.
-
-MCP, CLI, HTTP, files, portable bundles, and browser bridges are thin communication wrappers over the existing bounded commands and services. They must not create another queue, mutation path, or domain pipeline.
-
-## 3. Authority order
+## 2. Authority order
 
 When sources conflict:
 
 1. direct maintainer instruction;
 2. this document;
-3. accepted wx behavior through PR #37;
-4. accepted privacy, bounded-authority, and domain-ownership corrections;
-5. current code that supports those decisions.
+3. accepted wx product behavior and explicit product corrections;
+4. current code that supports those decisions.
 
-Tests and documentation must be changed when they contradict this architecture.
+Tests, PR descriptions, review scripts, planning notes, generated documentation, historical PO annexes, and implementation comments are not authorities. They must be changed or deleted when they contradict this document.
 
-## 4. Canonical human runtime
+No test may preserve an obsolete interface merely because it already exists.
+
+## 3. Canonical human product
 
 wx is the only v1 human runtime.
 
-Required views:
+The application is a single local desktop product with four user-facing views:
 
-- Welcome: onboarding, manual continuation, and connection status;
-- User: profile completion and editing;
-- Smart: approved recruiter-call cockpit;
+- Welcome: understandable first-use state, manual continuation, assisted-use entry points, and current connection status.
+- User: human-readable profile and reusable career information editing.
+- Smart: a minimal recruiter-call cockpit.
 - Detailed: complete candidature inspection and editing.
 
-Do not introduce a browser dashboard, mandatory local server, FastAPI product runtime, static-export product mode, webview shell, or separate human data API.
+The UI must use user language. It must not expose queue terminology, task states, capabilities, transports, ports, executables, provider architecture, storage paths, database concepts, or integration internals unless the user deliberately opens an Advanced technical area.
 
-## 5. Core assisted product promise
+There is no browser dashboard, mandatory local server, FastAPI product runtime, static-export product mode, webview shell, or separate human data API in v1.
 
-The release must prove:
+## 4. Canonical candidature model
+
+A candidature is the primary user object.
+
+Its editable product fields are those implemented by the accepted candidature domain model, including the retained source material and the agreed application, preparation, evaluation, research, form, CV, cover-letter, and interview information.
+
+The product must not invent generic CRM fields such as `next action` merely because an early dashboard seed mentioned them.
+
+A candidature has one editable notes value. It is not a collection of candidature notes.
+
+Keywords are structured global records with a literal term, aliases/admitted forms, definition, and optional keyword note. Editing a candidature's keyword field must select or create keyword records; it must not silently store arbitrary comma-separated text detached from the keyword model.
+
+## 5. View responsibilities
+
+### 5.1 Smart View
+
+Smart View is optimized for an unexpected recruiter or interview call. It must remain sparse and fast.
+
+It shows only the information needed for that use case, including the selected candidature, concise offer/call context, the single candidature note, relevant questions/risks/pitch material, and selectable keywords with the focused glossary panel.
+
+Smart View must not show task lists, task states, integration status, artifact history, broad editing forms, or Detailed View clutter.
+
+The right-side panel in Smart View is the call-support/keyword context panel. Its content is specific to Smart View.
+
+### 5.2 Detailed View
+
+Detailed View is the complete readable and editable candidature form.
+
+It shows the candidature fields and local artifact references needed for editing and inspection.
+
+Detailed View must not reuse the Smart View glossary/keyword-definition panel. It contains the candidature keyword editor only. That editor creates/selects structured keywords.
+
+The right-side area in Detailed View, where present, must support Detailed View's editing use case rather than mirror Smart View.
+
+### 5.3 Welcome and empty state
+
+A clean workspace must not stop at `No candidature found`.
+
+The empty state must explain what AAAAT is for and provide an obvious human action to create/import the first candidature or continue to the relevant onboarding flow.
+
+There is no separate technical setup prerequisite for manual use.
+
+### 5.4 User and assistance UX
+
+Manual use is always available.
+
+Standard assisted-use entry points are understandable user choices, not protocol documentation:
+
+- Connect my AI.
+- Use a browser or chat AI.
+- Use a portable file.
+- Advanced integration.
+
+Standard onboarding must not require terminal knowledge or understanding of MCP, ports, executables, SDKs, commands, capabilities, task states, model architecture, or provider internals.
+
+Technical command settings and transport diagnostics appear only in Advanced integration or dedicated troubleshooting material.
+
+## 6. Canonical assisted architecture
+
+The normal architecture is external-host pull:
 
 ```text
-user action in wx
-→ AAAAT creates bounded work
-→ external AI obtains work through a supported wrapper
-→ progress, failure, and retry remain visible
-→ external AI submits a bounded result
-→ AAAAT validates and applies permitted changes
-→ artifacts render locally with provenance
-→ wx refreshes without restart
+AAAAT creates bounded work
+→ an external AI or agent host requests one eligible work item
+→ AAAAT atomically claims that attempt and returns the complete purpose-scoped work item
+→ the external actor reasons in its own runtime
+→ the external actor reports progress and submits one structured result or permitted action
+→ AAAAT validates, applies, persists and renders locally
 ```
 
-A descriptor, schema, documentation page, CLI listing, or legacy test suite is not sufficient alone.
+The complete work item includes the instructions, bounded context, response schema, privacy/disclosure information, permitted callbacks, provenance fields, and one random attempt-scoped capability.
 
-## 6. Provider-neutral bounded protocol
+There is no normal `get context after next`, `packet`, or `dispatch` step. Those split surfaces are obsolete and must not be restored through compatibility aliases, docs, tests, or wrappers.
 
-The protocol defines opaque task handles, version, task purpose, scoped context, permitted results/actions, schemas, progress, provenance, attempts, idempotency, failure, and cancellation.
+AAAAT does not normally call, select, host, launch, schedule, configure, or orchestrate an LLM.
 
-An external actor may obtain one eligible task, obtain its bounded context, report task-scoped progress, submit one result, submit explicitly permitted actions, create a candidature through the dedicated bounded action, and request supported deferred tasks.
+## 7. Capability and authority model
 
-An external actor may not enumerate private entities, search arbitrary records, mutate by internal IDs, choose authoritative artifact paths, access SQLite or arbitrary local files, bypass domain validation, or use a task handle outside its capability.
+The external actor receives a random, persisted, attempt-scoped capability. It is not an internal task ID, candidature ID, application ID, artifact ID, profile fact ID, file path, or storage path.
 
-AAAAT privately binds opaque handles to internal records.
+The capability authorizes only the callbacks declared by the work item for that active attempt.
 
-## 7. Communication wrappers
+AAAAT privately binds the capability to internal records.
 
-Supported wrappers reuse the same queue and canonical result-ingestion path:
+An external actor may:
 
-- MCP adapters;
-- bounded CLI commands;
-- narrow HTTP bridges;
-- browser/native bridges;
-- task/result files;
-- portable archives.
-
-A wrapper may expose only operations equivalent to:
-
-- obtain one eligible task;
-- obtain context for one opaque task handle;
-- report task-scoped progress;
+- obtain one complete eligible work item;
+- report progress for that attempt;
 - submit one bounded result;
-- submit one explicitly permitted action;
-- cancel or inspect one task attempt where supported.
+- submit one explicitly permitted bounded action;
+- create a new candidature through the dedicated bounded action;
+- request supported deferred work through that action;
+- cancel one attempt only where cancellation is genuinely supported.
 
-No wrapper may expose broad listing, arbitrary search, mutation by internal IDs, database access, unrestricted filesystem access, or a generic command catalogue.
+An external actor may not enumerate private entities, search arbitrary records, mutate by internal IDs, create arbitrary tasks against internal candidature IDs, choose authoritative artifact paths, access SQLite or arbitrary local files, bypass domain validation, or reuse a stale/completed/superseded capability.
 
-## 8. Standard external-host onboarding
+The broad local/admin CLI is not an agent contract and must not be used as the normal human review path for assisted behavior.
 
-The standard `Connect my AI` path provides provider-neutral instructions for configuring the user's external AI or agent host to consume AAAAT's existing bounded queue.
+## 8. Communication wrappers
 
-AAAAT may display or export setup instructions and wrapper descriptors. AAAAT must not:
+Supported wrappers reuse the same queue, work-item builder, progress service, result ingestion, action validation, and domain application:
 
-- accept generated executable connector packages;
-- parse or install generated connector code;
-- retain generated connector code in AAAAT storage;
-- activate or execute generated connectors;
-- convert generated material into the Advanced command path;
-- manage provider credentials or provider-specific configuration.
+- operational stdio MCP;
+- bounded CLI;
+- browser/native bridge;
+- portable task/result files or archives;
+- optional user-owned Advanced command.
 
-Any host-side wrapper is created, stored, configured, executed, and secured by the external host or user. AAAAT only documents the bounded commands/protocol it exposes.
+Every wrapper exposes operations equivalent to:
 
-This is configuration guidance, not a plugin system.
+- claim the next complete work item;
+- report progress;
+- submit a bounded result;
+- submit a permitted bounded action.
 
-## 9. Browser and file compatibility
+A wrapper must not add context-fetch, packet, dispatch, broad listing, arbitrary search, mutation by internal IDs, database access, unrestricted filesystem access, or a generic command catalogue.
 
-For browser-only or file-only AI:
+## 9. Browser and portable use
 
-- AAAAT groups eligible work for one candidature into one portable task bundle;
-- the bundle contains bounded context, requested tasks, instructions, and result schemas;
-- the user transfers one bundle;
+Browser-only or file-only use must be understandable from wx without requiring the user to design a transport.
+
+Portable flow:
+
+- the user selects eligible candidature assistance in wx;
+- AAAAT creates one complete portable work bundle;
+- the user transfers that bundle to the external AI;
 - the external AI returns one result bundle;
-- AAAAT validates each result section independently;
-- one invalid section does not discard unrelated valid sections.
+- AAAAT imports and validates it through canonical ingestion;
+- valid independent sections are retained when another section is invalid.
 
 Repeated card-by-card copying is not acceptable.
 
-## 10. Advanced user-owned command option
+Browser bridge flow:
 
-Advanced setup may allow a technical user to configure a command, macro, or script that triggers an LLM or another external system.
+- AAAAT provides an installable local browser companion and clear installation instructions;
+- the companion obtains complete work items and submits progress/results through the same services;
+- it does not expose broad private-data access;
+- ordinary web chat without the bridge uses the portable flow.
 
-This option is Advanced-only, explicit, user-owned, optional, isolated from standard onboarding, and constrained to the same bounded task/result contract.
+A wrapper that merely starts and waits on stdio is not a human demonstration. Review instructions must provide a real client command, fixture, or UI action that completes the round trip.
+
+## 10. Advanced user-owned command
+
+Advanced setup may allow a technical user to configure a fixed argv command, macro, or script. The command may be manually or LLM-generated, but it is explicitly user-owned and trusted.
+
+This option is Advanced-only, optional, isolated from standard onboarding, and constrained to the same complete work-item/result contract.
 
 ```text
-stdin  = one bounded task envelope
+stdin  = one complete bounded work item
 stdout = one final result envelope
 stderr = optional progress and diagnostics
 exit 0 = completed
 nonzero exit = failed
 ```
 
-The command path must reuse the existing queue, context construction, validation, and domain application. It must not introduce provider-specific behavior into core layers.
+The command path must reuse canonical acquisition, progress, validation, and domain application. It must not introduce provider-specific behavior or generated connector installation into AAAAT.
 
-## 11. Integration onboarding and disclosure
+## 11. Assisted lifecycle requirements
 
-Welcome/User provides:
+The release must implement and demonstrate, from wx where user-facing:
 
-- Continue manually;
-- Connect my AI;
-- Use a browser or chat AI;
-- Use files or a portable bundle;
-- Advanced integration.
+- manual candidature creation and editing;
+- creation from retained raw source material;
+- bounded field completion and evaluation;
+- company research where requested;
+- recruiter/interview preparation;
+- form-response preparation;
+- tailored CV data/content preparation;
+- cover-letter content preparation;
+- local rendering and artifact tracking;
+- provenance and editable results;
+- visible progress, failure, retry, and cancellation only where supported;
+- projection refresh without application restart.
 
-Standard onboarding must not require terminal knowledge or understanding of ports, executables, SDKs, or model architecture.
+AAAAT decides eligible fields, context, and permitted outputs. Results use existing domain services and deterministic application rules. There is no generic workflow engine.
 
-Before use, AAAAT shows communication type, bounded context categories, identity inclusion/redaction, research/network capability, credential ownership, and wrapper status where available.
+## 12. Error and recovery requirements
 
-Technical command settings appear only in Advanced integration.
+Expected user mistakes and invalid external input must produce concise actionable errors, not raw Python tracebacks.
 
-## 12. Assisted profile and candidature lifecycle
+This includes invalid local IDs, missing records, foreign-key violations, malformed JSON, unsupported actions, invalid result schemas, expired capabilities, missing template variables, unavailable external commands, and malformed wrapper messages.
 
-External AI may complete bounded profile and candidature tasks. AAAAT decides eligible fields, context, and permitted outputs.
+Missing template variables must identify the missing human profile information and direct the user to the User view or equivalent supported edit path.
 
-AAAAT must retain original source material and support extraction, evaluation, role strategy, company research where supported, recruiter preparation, interview preparation, form answers, tailored CV content, cover-letter content, local rendering, provenance, and visible editable results.
+A clean MCP/native host process waiting for protocol input is normal, but documentation and review instructions must never tell a human to launch it interactively without a client and then interpret waiting as failure.
 
-Results use existing domain services and deterministic application rules. Do not create a generic workflow engine.
+## 13. Backup, upgrade, and Windows support
 
-## 13. Execution and wx behavior
+Backup and upgrade are release-critical product behavior.
 
-Required states: pending, running, completed, failed, and cancelled where supported.
+Backup must work on supported Windows and Unix-like systems while the database is not actively being mutated. All SQLite connections and copied database handles must be closed before temporary files are removed or archived.
 
-Progress is visible. Failure preserves existing data. Retry creates a safe new attempt. Duplicate, stale, late, and superseded results are rejected or acknowledged idempotently. Completion refreshes the relevant projection. Manual editing remains available.
+Upgrade must:
+
+- preserve candidatures, the single note value, profile data, keywords, tasks/attempt history, artifacts, and provenance;
+- be idempotent;
+- safely remove or ignore obsolete provider/generated-connector configuration;
+- leave manual mode usable;
+- provide a restorable backup path.
+
+A green Linux CI run does not satisfy Windows backup acceptance.
 
 ## 14. Privacy and artifacts
 
-Private data remains local until AAAAT intentionally constructs bounded context.
+Private data remains local until AAAAT intentionally constructs one bounded work item.
 
-Expose only task-required context. Omit or redact identity where unnecessary. Wrappers receive no database path or ambient filesystem authority. No real user data enters source control, fixtures, or release artifacts. Generation, local rendering, and external submission remain distinct states.
+Expose only task-required context. Omit or redact identity where unnecessary. Wrappers receive no database path or ambient filesystem authority. No real user data enters source control, fixtures, or release artifacts.
 
 Artifacts retain controlled local paths, internal candidature binding, task context, agent provenance, reported provider/model metadata when supplied, timestamps, state, and notes. External actors may not choose authoritative artifact paths.
+
+Privacy acceptance must assert structure and behavior: exact allowed schemas, absence of forbidden fields in recursively inspected outputs, capability rejection, cross-task isolation, path confinement, and no mutation after invalid input. A grep for words is not sufficient.
 
 ## 15. Release acceptance
 
 Automated fake-data gates must prove:
 
-1. manual operation with no integration;
-2. standard external-host onboarding instructions and disclosure;
-3. external task acquisition through at least two independent wrappers;
-4. one portable/browser path including result import;
-5. profile completion;
-6. candidature creation from raw source;
-7. lifecycle generation and research;
-8. local rendering and artifact tracking;
-9. provenance and privacy enforcement;
-10. progress, failure, and retry;
-11. invalid, unauthorized, stale, duplicate, and superseded result handling;
-12. final results visible in desktop projections;
-13. no broad data-access or mutation service;
-14. installation, migration, backup, and supported-Python preservation.
+1. manual wx operation with no integration;
+2. correct empty-state and first-candidature guidance;
+3. Smart View and Detailed View responsibilities remain distinct;
+4. one-note candidature behavior and structured keyword editing;
+5. understandable standard assisted onboarding without internal jargon;
+6. atomic complete-work acquisition through at least two independent wrappers;
+7. browser or portable result round trip;
+8. profile completion and guided missing-profile errors;
+9. candidature creation from raw source;
+10. lifecycle generation and research;
+11. local rendering and artifact tracking;
+12. provenance and structural privacy enforcement;
+13. progress, failure, retry, and supported cancellation;
+14. invalid, unauthorized, stale, duplicate, late, and superseded result handling;
+15. final results visible in wx without restart;
+16. no broad data-access, internal-ID mutation, second queue, split context surface, or generated connector subsystem;
+17. clean installation and migration;
+18. working backup/restore on Windows and at least one Unix-like platform;
+19. concise user-facing errors without tracebacks.
 
-Before `RELEASE_READY`, manually demonstrate one real external AI connected to the queue, one independent wrapper, the browser or portable-bundle path, guided wx setup/disclosure/progress/failure/retry, and artifact rendering with editable results.
+Before `RELEASE_READY`, a human must complete documented, executable demonstrations of:
+
+- clean wx first use;
+- existing-store backup, upgrade, restart, and restore;
+- Smart View and Detailed View use cases;
+- one real external AI or deterministic external-host fixture using the complete work-item contract;
+- operational MCP with a supplied client/fixture;
+- browser companion or portable round trip;
+- Advanced command only when deliberately selected;
+- local artifact rendering after guided profile completion.
 
 No named provider or runtime is mandatory.
 
 ## 16. Implementation order
 
-1. Remove architecture drift.
-2. Stabilize queue, context, result, progress, and provenance envelopes.
-3. Ensure every wrapper reuses canonical ingestion and domain application.
-4. Complete standard external-host instructions and operational wrappers.
-5. Complete browser and portable-bundle compatibility.
-6. Keep the user-owned command isolated in Advanced setup.
-7. Complete wx lifecycle workflows.
-8. Run automated validation and manual demonstrations.
+1. Remove contradictory requirements, tests, docs, and PR claims.
+2. Correct wx product behavior and onboarding language.
+3. Correct user-facing error handling and Windows backup.
+4. Stabilize complete work acquisition, progress, result, action, provenance, and attempt rules.
+5. Ensure every wrapper reuses canonical services.
+6. Complete browser and portable workflows with executable user instructions.
+7. Complete lifecycle and rendering guidance in wx.
+8. Add structural behavioral tests and platform-specific backup tests.
+9. Run automated validation.
+10. Perform the real human review from the documented product workflow.
 
 ## 17. Explicit non-goals
 
 - broad CRUD or search APIs for agents;
 - exposing SQLite or internal entity IDs;
+- asking users to fabricate IDs for normal assisted workflows;
 - making HTTP, MCP, a provider SDK, or a named runtime the domain architecture;
 - embedding or managing an LLM runtime;
 - AAAAT-initiated provider or inference calls in the standard path;
-- generated connector package ingestion or storage;
+- generated connector package ingestion, storage, activation, or execution;
 - silent provider/model/executable/endpoint discovery;
 - a generic plugin framework;
 - a generic workflow engine;
 - a browser dashboard or mandatory local server;
+- task/state clutter in Smart View;
+- a Smart View glossary panel in Detailed View;
+- multiple candidature notes;
+- generic CRM fields not in the accepted candidature model;
 - weakening manual wx operation.
