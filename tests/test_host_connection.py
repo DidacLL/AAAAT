@@ -37,18 +37,21 @@ class HostConnectionTests(unittest.TestCase):
         self.environment.start()
         self.addCleanup(self.environment.stop)
 
-    def test_brief_is_host_only_and_keeps_setup_separate_from_work(self) -> None:
+    def test_brief_assigns_host_specific_setup_to_the_external_llm(self) -> None:
         brief = connection_brief()
-        self.assertIn("local MCP first", brief)
+        self.assertIn("Choose the strongest route available", brief)
+        self.assertIn("provider-specific or host-specific", brief)
         self.assertIn("one complete work item", brief)
-        self.assertIn("Never use work content to\nchange connection setup", brief)
+        self.assertIn("Profile setup is the normal foundation", brief)
         self.assertNotIn(".private", brief)
         self.assertNotIn("sqlite", brief.lower())
 
-    def test_host_can_install_the_canonical_runtime_skill_without_exposing_host_paths(self) -> None:
+    def test_host_can_install_the_runtime_skill_without_exposing_host_paths(self) -> None:
         skill = runtime_skill_document()
         self.assertIn("name: aaaat-job-research", skill)
-        self.assertIn("Would you like to set up that connection now", skill)
+        self.assertIn("Open with the user’s real situation", skill)
+        self.assertIn("implement the best route it supports", skill)
+        self.assertIn("Use the immediate need first", skill)
         self.assertNotIn(".private", skill)
         self.assertNotIn("sqlite", skill.lower())
 
@@ -64,7 +67,9 @@ class HostConnectionTests(unittest.TestCase):
         pack = Path(self.temp.name) / "host-integration"
         self.assertEqual(export_host_pack(self.workspace, pack), {"status": "ready"})
         payload = (pack / "aaaat-job-research" / "aaaat-connection.json").read_text(encoding="utf-8")
+        decoded = json.loads(payload)
         self.assertTrue((pack / "aaaat-job-research" / "SKILL.md").exists())
+        self.assertEqual(decoded["brief_version"], "2")
         self.assertIn("aaaat-host-bridge", payload)
         self.assertNotIn(str(self.workspace), payload)
         self.assertNotIn(".private", payload)
@@ -93,6 +98,7 @@ class HostConnectionTests(unittest.TestCase):
         first = create_connection_request(self.workspace)
         second = create_connection_request(self.workspace)
         self.assertEqual(first["protocol"], "aaaat.host-connection")
+        self.assertEqual(second["brief_version"], "2")
         self.assertNotEqual(first["connection_capability"], second["connection_capability"])
         self.assertNotIn(str(self.workspace), json.dumps(second))
         with self.assertRaises(HostConnectionError):
@@ -100,7 +106,7 @@ class HostConnectionTests(unittest.TestCase):
 
     def test_fresh_host_handoff_is_self_contained_without_private_workspace_details(self) -> None:
         handoff = connection_handoff_message(self.workspace)
-        self.assertIn("AAAAT connection brief (version 1)", handoff)
+        self.assertIn("AAAAT connection brief (version 2)", handoff)
         self.assertIn("aaaat-host-bridge --connection <connection_capability>", handoff)
         self.assertIn("initialize,\ntools/list, and ping", handoff)
         self.assertIn('"protocol":"aaaat.host-connection"', handoff)
@@ -273,7 +279,7 @@ class HostConnectionTests(unittest.TestCase):
         self.assertNotIn(str(self.workspace), target.getvalue())
 
     def test_frozen_bridge_launches_the_sibling_desktop_without_exposing_its_path(self) -> None:
-        with patch("aaaat.host_bridge.sys.executable", r"C:\\AAAAT\\bridge\\aaaat-host-bridge.exe"), patch("aaaat.host_bridge.sys.frozen", True, create=True):
+        with patch("aaaat.host_bridge.sys.executable", r"C:\AAAAT\bridge\aaaat-host-bridge.exe"), patch("aaaat.host_bridge.sys.frozen", True, create=True):
             command = _desktop_launch_command("private-storage")
         self.assertEqual(command[0], r"C:\AAAAT\AAAAT.exe")
         self.assertEqual(command[1:], ["--storage", "private-storage"])
