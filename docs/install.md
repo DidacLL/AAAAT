@@ -1,33 +1,42 @@
 # Install AAAAT
 
-## Windows installer
+Normal users receive a packaged AAAAT release built for their operating system.
+They do not install Python, open a terminal, run tests, or keep a source
+checkout.
 
-Run `AAAAT-Setup.exe` from the release you received. Choose the normal
-installation location and open **AAAAT** from the Start menu or desktop
-shortcut. No Python, terminal, virtual environment, test command, or source
-checkout is needed.
+## Open the packaged application
 
-## Portable release
+Extract or install the release using the ordinary application flow for the
+current operating system, then open AAAAT from the packaged desktop application.
+The package contains the wx workspace and its paired host bridge; development
+and maintenance commands are not part of the normal user interface.
 
-Extract `AAAAT-portable.zip` to a folder you control, such as Documents or an
-applications folder. Do not extract it inside an AI host's working folder or
-inside a source checkout. Open `AAAAT.exe`.
+Keep the application outside an AI host's working folder and outside a source
+checkout.
 
 ## First launch
 
-AAAAT asks once where to keep your private workspace. Accept the suggested
-location under your local application data or choose another private folder.
-The app remembers that choice. The workspace is separate from both the app
-installation and any connected AI host.
+AAAAT asks once where to keep the private workspace. The suggested location is
+separate from both the application and AI-host folders, and the user may choose
+another private location. AAAAT remembers that choice.
 
-Use the desktop app to add or edit your profile, opportunities, notes, and
-documents. **Connect my AI** is optional. It lets a capable AI host pair with
-AAAAT through a narrow local bridge; it does not give that host direct access
-to your files or a general editing interface.
+The desktop works fully without an AI connection. Use it to review and edit the
+profile, opportunities, notes, and documents.
 
-If an AI host cannot use local tools, it is not connected. It should say so
-plainly and you can keep using AAAAT manually.
+## Guided AI setup
+
+Choose **Connect my AI** when continuing assistance is useful. AAAAT prepares a
+separate host-integration folder and opaque pairing material. The selected LLM
+assesses its own capabilities and configures the strongest route available in
+that host: native MCP or tools first, then an approved host-owned skill, script,
+automation, or schedule, with portable task/result exchange as the final
+fallback.
+
+The user sees connection state and consent in ordinary language. Provider,
+operating-system, command, port, credential, and protocol details remain inside
+the LLM host's own setup unless the user deliberately requests technical help.
+The paired bridge exposes only AAAAT's bounded task catalogue and never grants
+general workspace editing or private-folder access.
 
 For backup, recovery, or an upgrade handled by support, see
-[maintenance.md](maintenance.md). Those actions are deliberately outside the
-normal installation and AI setup.
+[maintenance.md](maintenance.md). Those actions remain outside normal setup.
