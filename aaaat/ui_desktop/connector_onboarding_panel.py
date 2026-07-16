@@ -32,8 +32,8 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         description = wx.StaticText(
             self,
             label=(
-                "Let the AI you already use guide its own AAAAT setup. When it supports local tools, "
-                "save the setup in a folder that AI can access. It will choose and configure the best connection available."
+                "Let the AI you already use guide the connection. Save the setup in a folder that AI can access, "
+                "and it will handle the remaining steps in the way it supports best."
             ),
         )
         description.Wrap(760)
@@ -42,8 +42,8 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         disclosure = wx.StaticText(
             self,
             label=(
-                "The setup contains the paired AAAAT tool and connection permission, not your private workspace. "
-                "Your AI account, credentials, and data policy remain under your control."
+                "This setup gives your AI permission to ask AAAAT for selected help. "
+                "It does not include your private workspace. Your AI account remains managed by the service you chose."
             ),
         )
         disclosure.Wrap(760)
@@ -63,7 +63,7 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
 
         save_help = wx.StaticText(
             self,
-            label="Use this when your AI can read a local folder or install a local tool, skill, or MCP connection.",
+            label="Choose a folder your AI can read. Your AI will guide any remaining setup.",
         )
         save_help.Wrap(760)
         root.Add(save_help, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
@@ -145,7 +145,7 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
                 self.on_export_connection(Path(dialog.GetPath()))
                 self.status.SetLabel("Setup saved. Ask your AI to connect using that folder.")
                 self.instructions.SetValue(
-                    "Your AI can now read the setup and configure the strongest connection its host supports."
+                    "Your AI can now read the setup and finish the connection in the way it supports best."
                 )
                 self._refresh_connection_status()
             except Exception:
