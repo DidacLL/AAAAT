@@ -69,18 +69,6 @@ class ReleaseEngineeringTests(unittest.TestCase):
         self.assertIn("Repository, https://github.com/DidacLL/AAAAT", project_urls)
         self.assertEqual(set(console_scripts), {"aaaat-desktop", "aaaat-host-bridge"})
 
-    def test_normal_windows_release_build_excludes_developer_entry_points(self):
-        build_script = (ROOT / "tools" / "build_windows_release.ps1").read_text(encoding="utf-8")
-        self.assertIn("AAAAT-portable.zip", build_script)
-        self.assertIn("aaaat-host-bridge", build_script)
-        for developer_module in (
-            "aaaat.cli",
-            "aaaat.mcp_smoke",
-            "aaaat.demo_seed",
-            "aaaat.release_validation_cli",
-        ):
-            self.assertIn(developer_module, build_script)
-
     def test_cli_can_initialize_clean_local_storage_without_git(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = dict(os.environ)

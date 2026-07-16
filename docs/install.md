@@ -1,17 +1,12 @@
 # Install AAAAT
 
-## Windows installer
+## Installer
 
-Run `AAAAT-Setup.exe` from the release you received. Choose the normal
-installation location and open **AAAAT** from the Start menu or desktop
-shortcut. No Python, terminal, virtual environment, test command, or source
-checkout is needed.
-
-## Portable release
-
-Extract `AAAAT-portable.zip` to a folder you control, such as Documents or an
-applications folder. Do not extract it inside an AI host's working folder or
-inside a source checkout. Open `AAAAT.exe`.
+Run the AAAAT installer supplied for your operating system, then open
+**AAAAT** from its normal application launcher. No Python, terminal, virtual
+environment, test command, or source checkout is needed. The release process
+must provide equivalent native installers for every supported operating system;
+a platform-specific bundle is not the product installation model.
 
 ## First launch
 
