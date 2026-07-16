@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from aaaat.agent_access import submit_agent_task_result, task_handle
+from aaaat.agent_access import submit_agent_task_result, task_capability
 from aaaat.agent_actions import submit_agent_action
 from aaaat.assistance_service import create_profile_completion_task
 from aaaat.background_worker import OwnedTaskWorker
@@ -107,16 +107,16 @@ print(json.dumps(result))
         assert current["questions_to_ask"]
 
         completed = tasks[0]
-        with_duplicated_handle = task_handle(completed)
+        duplicated_capability = task_capability(conn, completed)
         try:
-            submit_agent_task_result(conn, with_duplicated_handle, '{"fields":{"valuation":"duplicate"}}')
+            submit_agent_task_result(conn, duplicated_capability, '{"fields":{"valuation":"duplicate"}}')
         except ValueError as exc:
             assert "not accepting results" in str(exc)
         else:
             raise AssertionError("Duplicate completed result was accepted")
 
         failed = update_task(conn, str(tasks[0]["id"]), state="failed", notes="Deterministic failure")
-        failed_handle = task_handle(failed)
+        failed_capability = task_capability(conn, failed)
 
     worker = OwnedTaskWorker(storage)
     original_submit = worker.submit
@@ -125,9 +125,11 @@ print(json.dumps(result))
     worker.submit = original_submit  # type: ignore[method-assign]
     with connect(storage) as conn:
         assert get_task(conn, str(failed["id"]))["state"] == "cancelled"
-        assert get_task(conn, retry_id)["state"] == "queued"
+        retry_task = get_task(conn, retry_id)
+        assert retry_task["state"] == "queued"
+        assert task_capability(conn, retry_task) != failed_capability
         try:
-            submit_agent_task_result(conn, failed_handle, '{"fields":{"valuation":"late"}}')
+            submit_agent_task_result(conn, failed_capability, '{"fields":{"valuation":"late"}}')
         except ValueError as exc:
             assert "not accepting results" in str(exc)
         else:
