@@ -40,7 +40,8 @@ def profile_completion_context(conn: sqlite3.Connection) -> dict[str, Any]:
         "missing_fields": [key for key, value in current.items() if not value.strip()],
         "protected_fields": [key for key, value in current.items() if value.strip()],
         "instructions": [
-            "Return grounded values only for eligible missing profile fields.",
+            "Collect grounded values only for eligible missing profile fields.",
+            "Present a concise summary of proposed values and submit after the user confirms it.",
             "Existing non-empty desktop values are retained as authoritative.",
             "Omit contact details or experience not supported by the supplied context.",
             "Omit fields that require information not present in the supplied context.",
