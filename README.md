@@ -2,9 +2,9 @@
 
 AAAAT is a local-first desktop workspace for managing job applications and producing per-application text artifacts from private local data.
 
-An AI host opening this workspace should start with [SKILL.md](SKILL.md): it
-guides the first career conversation, profile setup, and durable connection in
-user language.
+For an AI host, AAAAT opens in a career-companion runtime mode: it introduces
+continuing workspace support, begins the professional profile, and then works
+with offers. [SKILL.md](SKILL.md) carries that runtime contract.
 
 The wx desktop application is the only v1 human runtime. AAAAT remains usable manually without any AI connection.
 
