@@ -16,6 +16,8 @@ _VISIBLE_STATES = {"queued", "claimed", "in_progress", "blocked", "failed", "can
 
 def assistance_snapshot(storage_path: str | Path, *, include_advanced: bool = False, progress_by_task: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
     progress_by_task = progress_by_task or {}
+    integration = current_integration(storage_path)
+    advanced_command_active = bool(integration.get("automatic")) and str(integration.get("id") or "") == "argv_custom_command"
     with connect(storage_path) as conn:
         tasks = [{
             "id": str(task.get("id") or ""),
@@ -25,14 +27,14 @@ def assistance_snapshot(storage_path: str | Path, *, include_advanced: bool = Fa
             "priority": str(task.get("priority") or "normal"),
             "notes": str(task.get("notes") or ""),
             "updated_at": str(task.get("updated_at") or ""),
-            "can_run": str(task.get("state") or "") in {"queued", "blocked"},
+            "can_run": advanced_command_active and str(task.get("state") or "") == "queued",
             "can_retry": str(task.get("state") or "") in {"failed", "cancelled"},
             "can_cancel": str(task.get("state") or "") in {"queued", "claimed", "in_progress", "blocked", "failed"},
             "progress": dict(progress_by_task.get(str(task.get("id") or "")) or {}),
         } for task in list_tasks(conn) if str(task.get("state") or "") in _VISIBLE_STATES]
     tasks.sort(key=lambda item: (item["state"] == "completed", item["updated_at"]), reverse=False)
     return {
-        "integration": current_integration(storage_path),
+        "integration": integration,
         "connection_modes": connection_modes(),
         "options": integration_options(include_advanced=include_advanced),
         "conformance": read_conformance_state(storage_path),
@@ -64,14 +66,14 @@ def external_host_instructions(_storage_path: str | Path) -> str:
 The external host initiates every call. AAAAT does not launch, host, configure, or call an LLM.
 
 Use only the existing bounded operations:
-- obtain one eligible task;
-- obtain purpose-scoped context for one opaque task handle;
-- report task-scoped progress;
-- submit one structured result;
-- submit one explicitly permitted bounded action;
-- cancel one supported task attempt.
+- obtain one complete eligible work item, including purpose-scoped context, response schema, privacy notes, and permitted actions;
+- report progress using the work item's random task capability;
+- submit one structured result using that same capability;
+- submit one explicitly permitted bounded action.
 
-A wrapper may use MCP, CLI, HTTP, files, browser messaging, or another host-owned transport. It must reuse AAAAT's existing commands and canonical result-ingestion path. It must not create another queue, expose broad entity listing or search, access SQLite directly, use internal IDs as authority, choose artifact paths, or read arbitrary local files.
+The task capability is a random, attempt-scoped callback capability. It is not a task ID, candidature ID, database key, or permission to inspect other records.
+
+A wrapper may use MCP, CLI, HTTP, files, browser messaging, or another host-owned transport. It must reuse AAAAT's existing queue and canonical result-ingestion path. It must not create another queue, expose broad entity listing or search, access SQLite directly, use internal IDs as authority, choose artifact paths, or read arbitrary local files.
 
 Provider selection, model selection, credentials, network policy, provider SDKs, browser automation, and inference remain entirely owned by the external host.
 """
@@ -86,5 +88,5 @@ def export_browser_companion_package(storage_path: str | Path, output_path: str 
         for name, content in files.items():
             archive.writestr(f"extension/{name}", content)
         archive.writestr("native-host-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-        archive.writestr("INSTALL.txt", "Install AAAAT normally, load extension/ as an unpacked extension, replace __AAAT_EXTENSION_ID__ in the native host manifest, then install that manifest in the browser's documented native-messaging host directory. The browser initiates bounded queue calls; credentials remain with the browser or external AI host.\n")
+        archive.writestr("INSTALL.txt", "Install AAAAT normally, load extension/ as an unpacked extension, replace __AAAT_EXTENSION_ID__ in the native host manifest, then install that manifest in the browser's documented native-messaging host directory. The browser initiates complete bounded work-item calls; credentials remain with the browser or external AI host.\n")
     return target
