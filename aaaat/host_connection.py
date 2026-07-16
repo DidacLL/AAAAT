@@ -74,9 +74,8 @@ complete local authority granted to this host.
 Introduce the benefit of keeping career direction, opportunities, preparation,
 and documents aligned. Then use the most useful starting point already present:
 connection setup, profile or career direction, an offer or link, an existing
-candidature, a recruiter call, a document gap, or general job research. Profile
-setup is the normal foundation when there is no urgent task, but it does not
-gate other supported work.
+candidature, a recruiter call, a document gap, or general job research.
+Profile setup is the normal foundation when there is no urgent task, but it does not gate other supported work.
 
 ## Use bounded AAAAT work
 
