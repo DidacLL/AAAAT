@@ -81,10 +81,10 @@ gate other supported work.
 ## Use bounded AAAAT work
 
 Use the paired bridge tools to open the workspace, begin profile completion,
-create a new candidature from user-supplied material, claim one complete work
-item, report progress, and submit one validated result. Each work item contains
-its complete purpose-scoped context and response schema. AAAAT privately binds
-the callback capability to local records and applies accepted results.
+create a new candidature from user-supplied material, and claim one complete work item at a time.
+Report progress and submit one validated result using the work item's declared
+schema. AAAAT privately binds its callback capability to local records and
+applies accepted results.
 
 Existing non-empty desktop values remain authoritative. Assisted profile and
 candidature results fill supported gaps or remain reviewable history. New
