@@ -32,16 +32,8 @@ Issues = "https://github.com/DidacLL/AAAAT/issues"
 desktop = ["wxPython"]
 
 [project.scripts]
-aaaat = "aaaat.cli:main"
-aaaat-mcp = "aaaat.mcp_runtime:main"
-aaaat-host-bridge = "aaaat.host_bridge:main"
-aaaat-mcp-smoke = "aaaat.mcp_smoke:main"
-aaaat-host-bridge-smoke = "aaaat.host_bridge_smoke:main"
 aaaat-desktop = "aaaat.ui_desktop.app:main"
-aaaat-upgrade = "aaaat.upgrade:main"
-aaaat-seed-desktop-demo = "aaaat.demo_seed:main"
-aaaat-advanced-fixture = "aaaat.advanced_command_fixture:main"
-aaaat-release-validate = "aaaat.release_validation_cli:main"
+aaaat-host-bridge = "aaaat.host_bridge:main"
 
 [tool.setuptools]
 packages = ["aaaat", "aaaat.ui_desktop"]

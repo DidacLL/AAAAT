@@ -182,6 +182,35 @@ def connection_handoff_message(storage: str | Path) -> str:
     )
 
 
+def export_host_pack(storage: str | Path, directory: str | Path) -> dict[str, str]:
+    """Write a host-private connection pack to a user-selected integration folder.
+
+    The desktop reports only that the pack is ready.  Its technical launch
+    contract and opaque capability stay in the selected host configuration,
+    never in ordinary AAAAT screens or bridge responses.
+    """
+
+    request = create_connection_request(storage)
+    target = Path(directory) / "aaaat-job-research"
+    target.mkdir(parents=True, exist_ok=True)
+    (target / "SKILL.md").write_text(runtime_skill_document(), encoding="utf-8")
+    (target / "aaaat-connection.json").write_text(
+        json.dumps(
+            {
+                "protocol": REQUEST_PROTOCOL,
+                "brief_version": BRIEF_VERSION,
+                "connection": request,
+                "mcp": {"transport": "stdio", "command": "aaaat-host-bridge", "arguments": ["--connection", request["connection_capability"]]},
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return {"status": "ready"}
+
+
 def resolve_connection(capability: str) -> Path:
     """Resolve one active capability to its private workspace path."""
 

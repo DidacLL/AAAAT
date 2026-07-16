@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -54,24 +55,31 @@ class ReleaseEngineeringTests(unittest.TestCase):
         self.assertEqual(__version__, "1.0.0")
         self.assertEqual(importlib.metadata.version("aaaat"), __version__)
 
-    def test_distribution_metadata_identifies_license_repository_and_commands(self):
+    def test_distribution_metadata_identifies_license_repository_and_normal_commands(self):
         metadata = importlib.metadata.metadata("aaaat")
         classifiers = metadata.get_all("Classifier") or []
         project_urls = metadata.get_all("Project-URL") or []
-        console_scripts = {
-            item.name
-            for item in importlib.metadata.entry_points(group="console_scripts")
-            if item.value.startswith("aaaat.")
-        }
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        console_scripts = project["project"]["scripts"]
 
         self.assertIn(
             "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
             classifiers,
         )
         self.assertIn("Repository, https://github.com/DidacLL/AAAAT", project_urls)
-        self.assertTrue(
-            {"aaaat", "aaaat-mcp", "aaaat-desktop", "aaaat-upgrade", "aaaat-seed-desktop-demo"}.issubset(console_scripts)
-        )
+        self.assertEqual(set(console_scripts), {"aaaat-desktop", "aaaat-host-bridge"})
+
+    def test_normal_windows_release_build_excludes_developer_entry_points(self):
+        build_script = (ROOT / "tools" / "build_windows_release.ps1").read_text(encoding="utf-8")
+        self.assertIn("AAAAT-portable.zip", build_script)
+        self.assertIn("aaaat-host-bridge", build_script)
+        for developer_module in (
+            "aaaat.cli",
+            "aaaat.mcp_smoke",
+            "aaaat.demo_seed",
+            "aaaat.release_validation_cli",
+        ):
+            self.assertIn(developer_module, build_script)
 
     def test_cli_can_initialize_clean_local_storage_without_git(self):
         with tempfile.TemporaryDirectory() as tmp:

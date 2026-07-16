@@ -3,22 +3,124 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
+import subprocess
 import sys
-from typing import TextIO
+from pathlib import Path
+from typing import Any, TextIO
 
-from .host_connection import HostConnectionError, note_connection_verified, resolve_connection
+from .host_connection import HostConnectionError, connection_status, note_connection_verified, resolve_connection
 from .mcp_runtime import dispatch_mcp_request
+from .mcp_server import host_bridge_descriptor
 
 
 VERIFICATION_METHODS = {"initialize", "tools/list", "ping"}
+BRIDGE_TOOL_NAMES = frozenset(tool["name"] for tool in host_bridge_descriptor()["tools"])
+
+
+def _desktop_launch_command(storage: str) -> list[str]:
+    """Return the private launcher command for source and frozen runtimes."""
+
+    configured = os.environ.get("AAAAT_DESKTOP_EXECUTABLE", "").strip()
+    if configured:
+        return [configured, "--storage", storage]
+    if getattr(sys, "frozen", False):
+        # The release layout places the bridge in ``bridge/`` beside AAAAT.exe.
+        candidate = Path(sys.executable).resolve().parent.parent / "AAAAT.exe"
+        return [str(candidate), "--storage", storage]
+    return [sys.executable, "-m", "aaaat.ui_desktop.app", "--storage", storage]
+
+
+def _launch_installed_desktop(storage: str) -> None:
+    """Start the installed desktop while keeping its workspace private.
+
+    The paired host receives only an ``opening`` acknowledgement. The path is
+    used only inside the local bridge process and is never serialized into an
+    MCP request or response.
+    """
+
+    subprocess.Popen(_desktop_launch_command(storage), close_fds=os.name != "nt")
+
+
+def _result(request_id: Any, value: Any) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": request_id, "result": value}
+
+
+def _error(request_id: Any, code: int, message: str) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}
+
+
+def _tool_result(request_id: Any, value: dict[str, Any]) -> dict[str, Any]:
+    return _result(request_id, {
+        "content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False)}],
+        "structuredContent": value,
+        "isError": False,
+    })
+
+
+def _bridge_request(storage: str, connection: str, request: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch one request without widening paired-host authority."""
+
+    request_id = request.get("id")
+    method = request.get("method")
+    if method == "tools/list":
+        return _result(request_id, {"tools": host_bridge_descriptor()["tools"]})
+    if method in {"resources/list", "resources/read"}:
+        return _error(request_id, -32601, "Method not found")
+    if method != "tools/call":
+        response = dispatch_mcp_request(storage, request)
+        if method == "initialize" and response and "result" in response:
+            response["result"]["instructions"] = (
+                "Use the paired AAAAT tools only. Open the local workspace when the user asks to see it; "
+                "claim one complete bounded work item only after connection verification."
+            )
+        return response
+
+    params = request.get("params")
+    if not isinstance(params, dict):
+        return _error(request_id, -32602, "Invalid params")
+    name = params.get("name")
+    if not isinstance(name, str) or name not in BRIDGE_TOOL_NAMES:
+        return _error(request_id, -32601, "This bridge does not provide that tool.")
+    arguments = params.get("arguments") or {}
+    if not isinstance(arguments, dict):
+        return _error(request_id, -32602, "Tool arguments must be an object")
+    if name == "get_connection_status":
+        if arguments:
+            return _error(request_id, -32602, "get_connection_status does not accept arguments")
+        return _tool_result(request_id, connection_status(storage))
+    if name == "open_workspace":
+        if arguments:
+            return _error(request_id, -32602, "open_workspace does not accept arguments")
+        _launch_installed_desktop(storage)
+        return _tool_result(request_id, {"status": "opening"})
+    if name in {"start_profile", "create_candidature"}:
+        if name == "start_profile" and arguments:
+            return _error(request_id, -32602, "start_profile does not accept arguments")
+        payload = {} if name == "start_profile" else arguments.get("payload")
+        if not isinstance(payload, dict):
+            return _error(request_id, -32602, "create_candidature requires an object payload")
+        provenance = {
+            key: value for key, value in arguments.items()
+            if key in {"agent_name", "agent_runtime", "model_provider"}
+        }
+        provenance["action"] = {"action": name, "payload": payload}
+        return dispatch_mcp_request(storage, {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "tools/call",
+            "params": {"name": "submit_agent_action", "arguments": provenance},
+        })
+    return dispatch_mcp_request(storage, request)
 
 
 def run_host_bridge(connection: str, input_stream: TextIO | None = None, output_stream: TextIO | None = None) -> int:
-    """Run the normal MCP surface after resolving a paired workspace once.
+    """Run the limited paired-host surface after resolving a connection once.
 
-    The bridge intentionally accepts no storage argument.  It does not add
-    tools or alter dispatch: every operational request is handled by the
-    canonical MCP services.
+    The bridge accepts no storage argument. All ordinary operations are still
+    handled by the canonical bounded services; the bridge only removes generic
+    maintenance operations and adds a private desktop-open request.
     """
 
     storage = resolve_connection(connection)
@@ -30,11 +132,9 @@ def run_host_bridge(connection: str, input_stream: TextIO | None = None, output_
         line = raw.strip()
         if not line:
             continue
-        from json import JSONDecodeError, dumps, loads
-
         request_id = None
         try:
-            request = loads(line)
+            request = json.loads(line)
             if not isinstance(request, dict):
                 raise ValueError("request must be an object")
             request_id = request.get("id")
@@ -43,30 +143,23 @@ def run_host_bridge(connection: str, input_stream: TextIO | None = None, output_
             storage = resolve_connection(connection)
             method = request.get("method")
             if method == "tools/call" and not verified:
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {
-                        "code": -32002,
-                        "message": "Finish connection verification before requesting work.",
-                    },
-                }
+                response = _error(request_id, -32002, "Finish connection verification before requesting work.")
             else:
-                response = dispatch_mcp_request(storage, request)
+                response = _bridge_request(str(storage), connection, request)
             if response and "result" in response:
                 if method in VERIFICATION_METHODS:
                     verified_methods.add(method)
                 if VERIFICATION_METHODS <= verified_methods:
-                    # The bridge is considered connected only after the full
-                    # setup handshake. Later successful activity refreshes it.
                     note_connection_verified(connection)
                     verified = True
         except HostConnectionError:
-            response = {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32001, "message": "Connection unavailable. Pair again from your host setup."}}
-        except (JSONDecodeError, ValueError):
-            response = {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Invalid request."}}
+            response = _error(request_id, -32001, "Connection unavailable. Pair again from your host setup.")
+        except (json.JSONDecodeError, ValueError):
+            response = _error(None, -32700, "Invalid request.")
+        except OSError:
+            response = _error(request_id, -32603, "AAAAT could not open the local workspace.")
         if response is not None:
-            target.write(dumps(response, ensure_ascii=False, separators=(",", ":")) + "\n")
+            target.write(json.dumps(response, ensure_ascii=False, separators=(",", ":")) + "\n")
             target.flush()
     return 0
 

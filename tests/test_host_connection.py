@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from aaaat.cli import main
 from aaaat.db import connect, init_db
-from aaaat.host_bridge import run_host_bridge
+from aaaat.host_bridge import _desktop_launch_command, run_host_bridge
 from aaaat.host_connection import (
     HostConnectionError,
     connection_brief,
@@ -19,6 +19,7 @@ from aaaat.host_connection import (
     connection_status,
     create_connection,
     create_connection_request,
+    export_host_pack,
     revoke_connection,
     revoke_workspace_connections,
     runtime_skill_document,
@@ -58,6 +59,15 @@ class HostConnectionTests(unittest.TestCase):
         self.assertEqual(json.loads(output.getvalue()), {"status": "installed", "skill": "aaaat-job-research"})
         self.assertEqual((skill_root / "aaaat-job-research" / "SKILL.md").read_text(encoding="utf-8"), skill)
         self.assertNotIn(str(skill_root), output.getvalue())
+
+    def test_exported_host_pack_keeps_workspace_details_out_of_host_configuration(self) -> None:
+        pack = Path(self.temp.name) / "host-integration"
+        self.assertEqual(export_host_pack(self.workspace, pack), {"status": "ready"})
+        payload = (pack / "aaaat-job-research" / "aaaat-connection.json").read_text(encoding="utf-8")
+        self.assertTrue((pack / "aaaat-job-research" / "SKILL.md").exists())
+        self.assertIn("aaaat-host-bridge", payload)
+        self.assertNotIn(str(self.workspace), payload)
+        self.assertNotIn(".private", payload)
 
     def test_pairing_is_opaque_and_status_changes_after_verification_and_revocation(self) -> None:
         paired = create_connection(self.workspace)
@@ -232,6 +242,41 @@ class HostConnectionTests(unittest.TestCase):
         self.assertIn("AAAAT could not complete this request.", payload)
         self.assertNotIn(private_text, payload)
         self.assertNotIn(str(self.workspace), payload)
+
+    def test_paired_bridge_exposes_only_named_actions_and_opens_desktop_without_a_path(self) -> None:
+        paired = create_connection(self.workspace)
+        requests = (
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+            {"jsonrpc": "2.0", "id": 3, "method": "ping", "params": {}},
+            {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "open_workspace", "arguments": {}}},
+            {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "submit_agent_action", "arguments": {}}},
+            {"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "start_profile", "arguments": {}}},
+        )
+        target = io.StringIO()
+        with patch("aaaat.host_bridge._launch_installed_desktop") as launch:
+            run_host_bridge(
+                paired["connection_capability"],
+                io.StringIO("\n".join(json.dumps(item) for item in requests) + "\n"),
+                target,
+            )
+        responses = [json.loads(line) for line in target.getvalue().splitlines()]
+        tools = {tool["name"] for tool in responses[1]["result"]["tools"]}
+        self.assertEqual(tools, {
+            "get_next_agent_work", "report_agent_task_progress", "submit_agent_task_result",
+            "get_connection_status", "open_workspace", "start_profile", "create_candidature",
+        })
+        self.assertEqual(responses[3]["result"]["structuredContent"], {"status": "opening"})
+        self.assertEqual(responses[4]["error"]["code"], -32601)
+        self.assertEqual(responses[5]["result"]["structuredContent"]["status"], "accepted")
+        launch.assert_called_once_with(str(self.workspace))
+        self.assertNotIn(str(self.workspace), target.getvalue())
+
+    def test_frozen_bridge_launches_the_sibling_desktop_without_exposing_its_path(self) -> None:
+        with patch("aaaat.host_bridge.sys.executable", r"C:\\AAAAT\\bridge\\aaaat-host-bridge.exe"), patch("aaaat.host_bridge.sys.frozen", True, create=True):
+            command = _desktop_launch_command("private-storage")
+        self.assertEqual(command[0], r"C:\AAAAT\AAAAT.exe")
+        self.assertEqual(command[1:], ["--storage", "private-storage"])
 
 
 if __name__ == "__main__":

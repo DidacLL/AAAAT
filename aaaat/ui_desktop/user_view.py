@@ -6,7 +6,7 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
-from aaaat.host_connection import connection_handoff_message, connection_status, revoke_workspace_connections
+from aaaat.host_connection import connection_handoff_message, connection_status, export_host_pack, revoke_workspace_connections
 from aaaat.assistance_service import (
     assistance_snapshot,
     create_profile_completion_task,
@@ -61,6 +61,7 @@ class UserViewMixin:
         self.connector_panel = ConnectorOnboardingPanel(
             self.user_workspace,
             on_prepare_connection=self._prepare_connection_handoff,
+            on_export_connection=self._export_connection_pack,
             on_connection_status=lambda: connection_status(self.storage_path),
             on_disconnect=self._pause_ai_connection,
         )
@@ -96,6 +97,9 @@ class UserViewMixin:
 
     def _prepare_connection_handoff(self) -> str:
         return connection_handoff_message(self.storage_path)
+
+    def _export_connection_pack(self, directory: Path) -> dict[str, str]:
+        return export_host_pack(self.storage_path, directory)
 
     def _assistance_snapshot(self) -> dict[str, Any]:
         return assistance_snapshot(self.storage_path, include_advanced=True, progress_by_task=self._task_progress)

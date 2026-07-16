@@ -1,114 +1,33 @@
 # Install AAAAT
 
-AAAAT is intended for single-user local production. Install it in a local Python environment and keep private data outside tracked repository paths.
+## Windows installer
 
-## Requirements
+Run `AAAAT-Setup.exe` from the release you received. Choose the normal
+installation location and open **AAAAT** from the Start menu or desktop
+shortcut. No Python, terminal, virtual environment, test command, or source
+checkout is needed.
 
-- Python 3.11 or newer.
-- A local checkout or extracted source archive of the release.
-- A virtual environment is recommended.
-- `wxPython` for the desktop UI, installed through the `desktop` extra.
+## Portable release
 
-AAAAT does not require provider credentials during installation. Core setup is provider-agnostic.
+Extract `AAAAT-portable.zip` to a folder you control, such as Documents or an
+applications folder. Do not extract it inside an AI host's working folder or
+inside a source checkout. Open `AAAAT.exe`.
 
-## Linux / macOS
+## First launch
 
-From the release source directory:
+AAAAT asks once where to keep your private workspace. Accept the suggested
+location under your local application data or choose another private folder.
+The app remembers that choice. The workspace is separate from both the app
+installation and any connected AI host.
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install .[desktop]
-```
+Use the desktop app to add or edit your profile, opportunities, notes, and
+documents. **Connect my AI** is optional. It lets a capable AI host pair with
+AAAAT through a narrow local bridge; it does not give that host direct access
+to your files or a general editing interface.
 
-Verify the commands are available:
+If an AI host cannot use local tools, it is not connected. It should say so
+plainly and you can keep using AAAAT manually.
 
-```bash
-aaaat --version
-aaaat-desktop --help
-aaaat-upgrade --help
-```
-
-## Windows PowerShell
-
-From the release source directory:
-
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install .[desktop]
-```
-
-If script execution is restricted, activate the environment from a shell that allows local virtualenv activation or run CLI commands through `python -m aaaat.cli`.
-
-## New local storage
-
-```bash
-aaaat init
-```
-
-By default this creates local private storage under `.private/` and uses `.private/aaaat.sqlite3` for SQLite data.
-
-To use a different local storage directory:
-
-```bash
-aaaat --storage /path/to/private-aaaat init
-aaaat-desktop --storage /path/to/private-aaaat
-```
-
-For the CLI, the `--storage` flag must appear before the subcommand.
-
-## Existing local storage
-
-Back up and upgrade the existing store before launching the new desktop version:
-
-```bash
-python -m aaaat.cli --storage /path/to/private-aaaat backup
-aaaat-upgrade --storage /path/to/private-aaaat
-aaaat-desktop --storage /path/to/private-aaaat
-```
-
-The upgrade command applies all supported v1 compatibility changes in place and can be run repeatedly. It does not replace existing candidature or artifact rows.
-
-## Desktop smoke check
-
-```bash
-aaaat-desktop
-```
-
-Close the desktop window to stop the app.
-
-## Optional connected AI
-
-Manual use needs no AI setup. To connect an LLM, open the desktop app and choose **Connect my AI**. The LLM should assess its own host capabilities, obtain AAAAT's host-only connection brief, and—with the user's approval—prefer a paired local MCP bridge, then a host-native tool/skill or host-owned script. Portable files are only for a host that cannot access a local bridge.
-
-Do not give a normal user a storage path, database location, internal ID, or bridge command. Provider credentials and host configuration stay with the LLM host, not AAAAT.
-
-## Demo seed
-
-For local UI validation with fake data:
-
-```bash
-aaaat-seed-desktop-demo --reset --count 24
-aaaat-desktop
-```
-
-## Development checks
-
-```bash
-python -m unittest discover -s tests
-```
-
-## Common local checks
-
-```bash
-aaaat init
-aaaat app create --company "Example Co" --role "Backend Engineer"
-aaaat app list
-aaaat-desktop
-aaaat mcp-validate
-```
-
-Do not put real `.private/` data, rendered artifacts, local backups, or generated outputs into commits.
+For backup, recovery, or an upgrade handled by support, see
+[maintenance.md](maintenance.md). Those actions are deliberately outside the
+normal installation and AI setup.

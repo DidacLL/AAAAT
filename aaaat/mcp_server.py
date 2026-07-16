@@ -7,6 +7,15 @@ from typing import Any
 PROTOCOL_VERSION = "2025-06-18"
 PROGRESS_PHASES = ("accepted", "planning", "working", "waiting", "blocked", "finalizing")
 
+# The paired host bridge deliberately presents a smaller surface than the
+# maintenance MCP server. Its names describe the user-facing authority the
+# host has; it cannot submit an arbitrary action packet.
+HOST_BRIDGE_WORK_TOOLS = (
+    "get_next_agent_work",
+    "report_agent_task_progress",
+    "submit_agent_task_result",
+)
+
 CONTRACT_DESCRIPTION = (
     "AAAAT bounded queue operation. Acquisition atomically claims one complete purpose-scoped work item. "
     "Callbacks use a random task capability, never an internal entity or database ID."
@@ -34,6 +43,25 @@ def mcp_descriptor() -> dict[str, Any]:
             ),
             tool("submit_agent_action", {"action": "object", "agent_name": "string", "agent_runtime": "string", "model_provider": "string"}, ["action"]),
         ],
+    }
+
+
+def host_bridge_descriptor() -> dict[str, Any]:
+    """Describe only the safe operations available through a paired host."""
+
+    base = mcp_descriptor()
+    operations = [item for item in base["tools"] if item["name"] in HOST_BRIDGE_WORK_TOOLS]
+    operations.extend((
+        tool("get_connection_status", {}, []),
+        tool("open_workspace", {}, []),
+        tool("start_profile", {}, []),
+        tool("create_candidature", {"payload": "object", "agent_name": "string", "agent_runtime": "string", "model_provider": "string"}, ["payload"]),
+    ))
+    return {
+        "protocolVersion": base["protocolVersion"],
+        "capabilities": {"tools": {}},
+        "resources": [],
+        "tools": operations,
     }
 
 

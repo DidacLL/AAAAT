@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Callable
+from pathlib import Path
 
 import wx  # type: ignore[import-not-found]
 
@@ -11,12 +12,14 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         parent: wx.Window,
         *,
         on_prepare_connection: Callable[[], str],
+        on_export_connection: Callable[[Path], dict[str, str]],
         on_connection_status: Callable[[], dict[str, Any]],
         on_disconnect: Callable[[], dict[str, Any]],
     ) -> None:
         super().__init__(parent, style=wx.VSCROLL)
         self.SetScrollRate(0, 12)
         self.on_prepare_connection = on_prepare_connection
+        self.on_export_connection = on_export_connection
         self.on_connection_status = on_connection_status
         self.on_disconnect = on_disconnect
         root = wx.BoxSizer(wx.VERTICAL)
@@ -57,6 +60,10 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         button = wx.Button(self, label="Prepare connection request")
         button.Bind(wx.EVT_BUTTON, self._prepare_connection)
         root.Add(button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        save_button = wx.Button(self, label="Save connection for my AI")
+        save_button.Bind(wx.EVT_BUTTON, self._export_connection)
+        root.Add(save_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.instructions = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.instructions.SetMinSize((-1, 150))
@@ -112,6 +119,17 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         }
         self.connection.SetLabel(labels.get(state, labels["needs_attention"]))
         self.pause_button.Show(state in {"connected", "needs_attention"})
+
+    def _export_connection(self, _event: wx.CommandEvent) -> None:
+        with wx.DirDialog(self, "Choose your AI integration folder", style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST) as dialog:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            try:
+                self.on_export_connection(Path(dialog.GetPath()))
+                self.status.SetLabel("Connection saved for your AI. It will tell you if it can connect.")
+                self._refresh_connection_status()
+            except Exception:
+                self.status.SetLabel("AAAAT could not save that connection. Choose another folder and try again.")
 
     def _pause_connection(self, _event: wx.CommandEvent) -> None:
         try:

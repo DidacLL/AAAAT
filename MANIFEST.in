@@ -1,7 +1,7 @@
 include LICENSE
 include README.md
-include SKILL.md
 include pyproject.toml
+exclude SKILL.md
 recursive-include aaaat *.py *.sql
 include aaaat/host_runtime_skill.md
 
@@ -12,5 +12,9 @@ prune docs
 prune work
 prune .agents
 prune .codex
+prune examples
+prune launchers
+prune scripts
+prune tools
 global-exclude __pycache__
 global-exclude *.py[cod]
