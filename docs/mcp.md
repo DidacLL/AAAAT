@@ -1,96 +1,105 @@
-# MCP descriptor compatibility
+# AAAAT MCP server
 
-AAAAT currently implements descriptor/tool-schema compatibility through MCP-compatible descriptor and tool-schema metadata for its local agent adapter. It does not implement a full MCP server transport.
-
-## What is implemented
-
-Run:
+AAAAT ships an operational dependency-free MCP server over stdio:
 
 ```bash
-python -m aaaat.cli mcp-descriptor
-python -m aaaat.cli mcp-validate
+aaaat-mcp --storage /path/to/private-aaaat
 ```
 
-`mcp-descriptor` emits a dependency-free JSON descriptor containing:
+The external AI host starts this process as its MCP server. The host owns the provider, model, credentials, network policy and reasoning runtime. AAAAT owns the local queue, bounded context, validation, persistence and artifact rendering.
 
-- `protocolVersion`
-- capability sections for resources, tools, and prompts
-- `aaaat://` resource names for the bounded agent task/context surfaces
-- tool schemas with `inputSchema`
-- prompt metadata for task-oriented prompts
-
-Implemented resources:
+## Tool surface
 
 ```text
-aaaat://agent/tasks/next
-aaaat://agent/tasks/{task_handle}/context
-aaaat://agent/context-bundle
-aaaat://agent-guide
-```
-
-Implemented tools:
-
-```text
-get_next_agent_task
-get_agent_task_context
+get_next_agent_work
+report_agent_task_progress
 submit_agent_task_result
-get_agent_context_bundle
 submit_agent_action
 ```
 
-Implemented prompts:
+`get_next_agent_work` atomically claims one queued task attempt and returns one complete bounded work item containing:
 
-```text
-complete_agent_task
-review_task_context
+- a random attempt-scoped `task_capability`;
+- task type, purpose, title and instructions;
+- all purpose-scoped `input_context` required for that task;
+- the permitted result schema;
+- privacy/disclosure notes;
+- permitted callback actions.
+
+There is no separate context-fetch tool. The external host must not use the capability to enumerate or inspect other records.
+
+## Capability semantics
+
+`task_capability` is a random callback capability stored privately against one internal task attempt. It is not a task ID, candidature ID, database key, file path, or stable entity identifier.
+
+It may be used only to:
+
+- report progress for the claimed attempt;
+- submit one result for that attempt.
+
+Completed, cancelled and superseded attempts reject further progress or results.
+
+## Progress
+
+`report_agent_task_progress` accepts:
+
+```json
+{
+  "task_capability": "taskcap_...",
+  "phase": "working",
+  "message": "Drafting the result",
+  "percent": 40
+}
 ```
 
-The descriptor exposes AAAAT capabilities only. It does not call an LLM, choose a provider, configure model credentials, or bypass AAAAT privacy scopes.
+Supported phases are bounded and task-scoped. Progress is persisted locally and cannot mutate candidature data.
 
-## What is not implemented
+## Result submission
 
-AAAAT does not currently ship an MCP server process or transport. In particular, it does not provide:
+`submit_agent_task_result` accepts one JSON object matching the work item's `response_format`. Every result enters the same canonical ingestion and domain-application path used by browser and portable wrappers.
 
-- stdio MCP server transport
-- SSE MCP server transport
-- streamable HTTP MCP transport
-- a bundled MCP SDK dependency
-- provider-specific LLM calls
+Results containing internal IDs, storage paths, file paths, or unsupported authority are rejected.
 
-Do not document or configure AAAAT as a direct MCP server unless a real server transport is added later. For now, external tooling should consume the descriptor and map its tools/resources to AAAAT's CLI or local agent HTTP routes.
+## Resources
 
-## Local adapter mapping
-
-A lightweight adapter can map descriptor tools to existing commands or routes:
+The server exposes one read-only guide resource:
 
 ```text
-get_next_agent_task          -> aaaat agent next
-get_agent_task_context       -> aaaat agent context <task_handle>
-submit_agent_task_result     -> aaaat agent submit <task_handle> --result-file result.json
-get_agent_context_bundle     -> aaaat agent context-bundle --purpose <purpose>
-submit_agent_action          -> aaaat agent action submit --input-file action.json
+aaaat://agent-guide
 ```
 
-HTTP equivalents are documented in `docs/openapi.md`:
+Work acquisition is a tool, not a resource read, because it atomically claims an attempt.
 
-```text
-GET  /api/agent/tasks/next
-GET  /api/agent/tasks/{task_handle}/context
-POST /api/agent/tasks/{task_handle}/result
-POST /api/agent/context-bundle
-POST /api/agent/actions
+## Descriptor and validation
+
+```bash
+aaaat mcp-descriptor
+aaaat mcp-validate
 ```
 
-## Contract boundaries
+The descriptor is generated from the same operational tool definitions. It does not describe unavailable prompts, split context resources, broad CRUD operations, or provider-specific behavior.
 
-The MCP-compatible descriptor is capability-scoped. It must not expose dashboard HTML, dashboard actions, broad CRUD/list/search APIs, profile dumps, candidature database browsing, artifact mutation by ID, or internal object identifiers as mutation authority.
+## Connection configuration
 
-`task_handle` is the only agent-facing handle for task context/result flow. It is an opaque callback handle, not an application ID, candidature ID, task row ID, profile fact ID, career plan ID, artifact ID, file path, or storage path.
+A shell-capable external host typically needs only:
 
-Action acknowledgements remain narrow. They may say that work was accepted, rendered, or queued, but they must not return internal IDs or storage paths by default.
+```json
+{
+  "command": "aaaat-mcp",
+  "args": ["--storage", "/path/to/private-aaaat"]
+}
+```
 
-## Validation
+The configuration belongs to the external host. AAAAT does not ingest or install generated connector packages.
 
-`aaaat mcp-validate` is the contract test for the descriptor shape. The test validates that resources, tools, prompts, and tool input schemas are present and that the descriptor stays capability-only.
+## Boundaries
 
-Adding a full MCP server later is acceptable only if it remains small, dependency-justified, provider-agnostic, and consistent with the same task/action/context contract.
+The MCP server must never expose:
+
+- SQLite or arbitrary local files;
+- internal IDs as mutation authority;
+- broad candidature/profile listing or search;
+- dashboard projections;
+- provider credentials or model configuration;
+- a generic command catalogue;
+- a second queue or result-application path.
