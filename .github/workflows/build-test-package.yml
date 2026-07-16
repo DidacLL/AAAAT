@@ -1,9 +1,9 @@
 name: Build AAAAT test package
 
 on:
-  push:
+  pull_request:
     branches:
-      - didacll/v1-recovery-chatgpt
+      - didacll/v1-recovery-base
   workflow_dispatch:
 
 permissions:
