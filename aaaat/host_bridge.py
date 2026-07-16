@@ -13,11 +13,12 @@ from typing import Any, TextIO
 
 from .host_connection import HostConnectionError, connection_status, note_connection_verified, resolve_connection
 from .mcp_runtime import dispatch_mcp_request
-from .mcp_server import host_bridge_descriptor
+from .mcp_server import PROTOCOL_VERSION, host_bridge_descriptor
 
 
 VERIFICATION_METHODS = {"initialize", "tools/list", "ping"}
 BRIDGE_TOOL_NAMES = frozenset(tool["name"] for tool in host_bridge_descriptor()["tools"])
+BRIDGE_SERVER_INFO = {"name": "aaaat-host-bridge", "version": "1.0.0"}
 
 
 def _desktop_launch_command(storage: str) -> list[str]:
@@ -58,12 +59,7 @@ def _packaged_desktop_executable() -> str:
 
 
 def _launch_installed_desktop(storage: str) -> None:
-    """Start the installed desktop while keeping its workspace private.
-
-    The paired host receives only an ``opening`` acknowledgement. The path is
-    used only inside the local bridge process and is never serialized into an
-    MCP request or response.
-    """
+    """Start the installed desktop while keeping its workspace private."""
 
     subprocess.Popen(_desktop_launch_command(storage), close_fds=os.name != "nt")
 
@@ -89,18 +85,26 @@ def _bridge_request(storage: str, connection: str, request: dict[str, Any]) -> d
 
     request_id = request.get("id")
     method = request.get("method")
+    if method == "notifications/initialized":
+        return None
+    if method == "initialize":
+        return _result(request_id, {
+            "protocolVersion": PROTOCOL_VERSION,
+            "capabilities": {"tools": {"listChanged": False}},
+            "serverInfo": BRIDGE_SERVER_INFO,
+            "instructions": (
+                "Use only the paired AAAAT tools discovered from this connection. "
+                "Begin from the user's current job-search need and claim complete bounded work only after verification."
+            ),
+        })
+    if method == "ping":
+        return _result(request_id, {})
     if method == "tools/list":
         return _result(request_id, {"tools": host_bridge_descriptor()["tools"]})
     if method in {"resources/list", "resources/read"}:
         return _error(request_id, -32601, "Method not found")
     if method != "tools/call":
-        response = dispatch_mcp_request(storage, request)
-        if method == "initialize" and response and "result" in response:
-            response["result"]["instructions"] = (
-                "Use the paired AAAAT tools only. Open the local workspace when the user asks to see it; "
-                "claim one complete bounded work item only after connection verification."
-            )
-        return response
+        return _error(request_id, -32601, "Method not found")
 
     params = request.get("params")
     if not isinstance(params, dict):
@@ -141,12 +145,7 @@ def _bridge_request(storage: str, connection: str, request: dict[str, Any]) -> d
 
 
 def run_host_bridge(connection: str, input_stream: TextIO | None = None, output_stream: TextIO | None = None) -> int:
-    """Run the limited paired-host surface after resolving a connection once.
-
-    The bridge accepts no storage argument. All ordinary operations are still
-    handled by the canonical bounded services; the bridge only removes generic
-    maintenance operations and adds a private desktop-open request.
-    """
+    """Run the limited paired-host surface after resolving a connection once."""
 
     storage = resolve_connection(connection)
     source = input_stream or sys.stdin
