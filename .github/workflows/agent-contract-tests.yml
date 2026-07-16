@@ -36,6 +36,7 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           aaaat --version
+          aaaat-mcp --help
           aaaat-desktop --help
           aaaat-upgrade --help
           aaaat-seed-desktop-demo --help
@@ -62,6 +63,7 @@ jobs:
           python -m venv sdist-venv
           sdist-venv/bin/python -m pip install "$GITHUB_WORKSPACE"/dist/aaaat-*.tar.gz
           sdist-venv/bin/aaaat --version
+          sdist-venv/bin/aaaat-mcp --help
           sdist-venv/bin/aaaat-upgrade --help
       - name: Upload validated candidate
         if: matrix.python-version == '3.13'
