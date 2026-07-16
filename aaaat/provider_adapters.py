@@ -35,11 +35,19 @@ _TIMEOUT_FIELD = {
 
 _ADAPTERS = (
     LocalAgentAdapter(
+        adapter_id="no_ai_connection",
+        title="Not connected",
+        description="AAAAT is ready to use locally. Connect an AI when you want assistance.",
+        transport_kind="none",
+        setup_complexity="guided",
+    ),
+    LocalAgentAdapter(
         adapter_id="manual_external_agent",
         title="Portable task bundle",
         description="Groups bounded work for export and validates one returned result bundle.",
+        advanced=True,
         transport_kind="portable_bundle",
-        setup_complexity="guided",
+        setup_complexity="advanced",
     ),
     LocalAgentAdapter(
         adapter_id="file_exchange",
@@ -84,7 +92,7 @@ _ADAPTERS = (
 )
 
 ADAPTERS: Mapping[str, LocalAgentAdapter] = {item.adapter_id: item for item in _ADAPTERS}
-DEFAULT_ADAPTER_ID = "manual_external_agent"
+DEFAULT_ADAPTER_ID = "no_ai_connection"
 
 
 def adapter_definition(adapter_id: str) -> LocalAgentAdapter:
@@ -159,6 +167,8 @@ def adapter_health(adapter_id: str, settings: Mapping[str, Any] | None = None) -
     base = adapter_capabilities(adapter_id)
     if adapter_id == "manual_external_agent":
         return {"status": "ready", "message": "Portable bounded task bundles are available.", **base}
+    if adapter_id == "no_ai_connection":
+        return {"status": "ready", "message": "AAAAT is ready to use locally.", **base}
     if adapter_id == "file_exchange":
         directory = Path(normalized["directory"]).expanduser()
         try:

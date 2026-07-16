@@ -3,7 +3,11 @@
 Branch: `didacll/v1-from-pr37-clean-slice`
 Base: accepted PR37/PR39 state `97b2e474d4c609002a4c786f81c60446e3b0be5e`
 
-## Authority applied
+Status: historical. This log records a superseded branch and must not drive v1
+implementation. The authoritative requirements, gap ledger, readiness status,
+and direct maintainer decisions supersede it.
+
+## Historical decisions (superseded)
 
 - wx desktop is the only v1 human runtime.
 - HTTP/browser serving, static browser export, FastAPI/Uvicorn/Jinja/browser assets and browser launch posture are removed.

@@ -111,8 +111,6 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
             self.view_book,
             on_add_candidature=lambda: self._on_support_surface(wx.CommandEvent()),
             on_connect_ai=lambda: self._open_standard_assistance("guided_connector"),
-            on_browser_or_chat=lambda: self._open_standard_assistance("browser_or_chat"),
-            on_portable_file=lambda: self._open_standard_assistance("browser_or_chat"),
         )
         self.view_book.AddPage(self.welcome_panel, "Welcome")
         self.smart_panel = wx.Panel(self.view_book)

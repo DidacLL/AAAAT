@@ -1,12 +1,18 @@
-# AAAAT MCP server
+# AAAAT paired MCP bridge
 
-AAAAT ships an operational dependency-free MCP server over stdio:
+AAAAT ships an operational dependency-free MCP bridge over stdio. This is connected-host material, not normal-user setup:
 
 ```bash
-aaaat-mcp --storage /path/to/private-aaaat
+aaaat host brief
+aaaat host pair --workspace <local-workspace>
+aaaat-host-bridge --connection <connection_capability>
 ```
 
-The external AI host starts this process as its MCP server. The host owns the provider, model, credentials, network policy and reasoning runtime. AAAAT owns the local queue, bounded context, validation, persistence and artifact rendering.
+In normal wx use, the user selects **Prepare connection request** and pastes the copied self-contained handoff into their AI. wx does not show the card, token, bridge command, or local paths; preparing a replacement confirms before pausing an active connection.
+
+The external AI host starts the paired bridge as its MCP server. The host owns provider/model selection, credentials, network policy, reasoning, and host-specific configuration as its policy requires. The connection capability maps to local storage privately; neither host setup guidance nor the bridge command accepts or reveals a storage path. AAAAT owns the local queue, bounded context, validation, persistence and artifact rendering.
+
+The host must verify initialize, tool discovery, and ping before it claims real work. It is connected only after all three succeed; later successful bridge calls refresh that state. `aaaat host status` and `aaaat host revoke <connection_capability>` provide host maintenance and revocation.
 
 ## Tool surface
 
@@ -56,7 +62,7 @@ Supported phases are bounded and task-scoped. Progress is persisted locally and 
 
 ## Result submission
 
-`submit_agent_task_result` accepts one JSON object matching the work item's `response_format`. Every result enters the same canonical ingestion and domain-application path used by browser and portable wrappers.
+`submit_agent_task_result` accepts one JSON object matching the work item's `response_format`. Every result enters the same canonical ingestion and domain-application path used by the paired bridge, CLI, portable fallback, and Advanced wrapper.
 
 Results containing internal IDs, storage paths, file paths, or unsupported authority are rejected.
 
@@ -81,16 +87,7 @@ The descriptor is generated from the same operational tool definitions. It does 
 
 ## Connection configuration
 
-A shell-capable external host typically needs only:
-
-```json
-{
-  "command": "aaaat-mcp",
-  "args": ["--storage", "/path/to/private-aaaat"]
-}
-```
-
-The configuration belongs to the external host. AAAAT does not ingest or install generated connector packages.
+Use `aaaat host brief` to select the route the host supports. For the local MCP route, configure `aaaat-host-bridge --connection <connection_capability>` as stdio. The configuration belongs to the external host; AAAAT does not ingest, activate, or manage generated connector packages. If the host has no local-tool route, use the portable bundle fallback rather than pretending a connection exists.
 
 ## Boundaries
 

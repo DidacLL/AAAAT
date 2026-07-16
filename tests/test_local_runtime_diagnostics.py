@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import contextlib
-import io
-import json
 import unittest
 
-from aaaat.browser_companion import main as browser_host_main
 from aaaat.runtime_conformance import _runtime_preflight
 from aaaat.subprocess_output import clean_subprocess_text, subprocess_failure_message
 
@@ -28,18 +24,6 @@ class LocalRuntimeDiagnosticsTests(unittest.TestCase):
         result = _runtime_preflight("argv_custom_command", {"argv": [], "timeout_seconds": 30})
         self.assertEqual(result["status"], "error")
         self.assertIn("required", result["message"].lower())
-
-    def test_browser_host_self_test_reports_bounded_transport_metadata(self) -> None:
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            self.assertEqual(browser_host_main(["--self-test"]), 0)
-        payload = json.loads(output.getvalue())
-        self.assertEqual(payload["status"], "ready")
-        self.assertEqual(payload["protocol"], "aaaat.browser-native")
-        self.assertEqual(payload["transport"], "browser-native-messaging-stdio")
-        self.assertNotIn("applications", payload)
-        self.assertNotIn("storage", payload)
-
 
 if __name__ == "__main__":
     unittest.main()

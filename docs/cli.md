@@ -56,7 +56,21 @@ aaaat artifact update-state <artifact_id> --state reviewed
 
 AAAAT renders and records local artifacts. External hosts submit structured data or draft text, not authoritative final files.
 
-## Agent-facing work
+## Connected-host control plane
+
+These are host-maintenance commands. A normal user starts **Connect my AI** in wx and does not need to see or run them.
+
+```bash
+aaaat host brief
+aaaat host pair --workspace <local-workspace>
+aaaat host status
+aaaat host revoke <connection_capability>
+aaaat-host-bridge --connection <connection_capability>
+```
+
+`host brief` returns the versioned host-only setup brief. `host pair --workspace <local-workspace>` is a local-maintenance operation that prepares an opaque connection card for that explicit workspace; the bridge uses the card's capability to locate it privately and accepts no storage argument. Configure the bridge as stdio and verify initialize, tool discovery, and ping before claiming work. Revocation invalidates the bridge connection without exposing an internal workspace identifier.
+
+## Bounded host work
 
 Claim the next eligible task:
 
@@ -84,7 +98,7 @@ There are no agent `context`, `packet`, `dispatch`, or `context-bundle` commands
 
 `task_capability` is attempt-scoped callback authority only. It is not an internal task ID or an entity mutation handle.
 
-## MCP
+## Direct MCP maintenance
 
 ```bash
 aaaat mcp-descriptor
@@ -92,7 +106,7 @@ aaaat mcp-validate
 aaaat-mcp --storage .private
 ```
 
-`aaaat-mcp` is a dependency-free stdio MCP server. It maps its tools to the same acquisition, progress, result-ingestion, and bounded-action services as other adapters.
+`aaaat-mcp` is a dependency-free stdio MCP server for local technical maintenance. A connected LLM should use the paired `aaaat-host-bridge` rather than receive a storage argument. Both map to the same acquisition, progress, result-ingestion, and bounded-action services.
 
 ## Advanced user-owned command
 

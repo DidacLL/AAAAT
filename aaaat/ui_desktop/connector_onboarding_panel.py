@@ -10,13 +10,15 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         self,
         parent: wx.Window,
         *,
-        on_instructions: Callable[[], str],
-        on_export_browser: Callable[[], Any],
+        on_prepare_connection: Callable[[], str],
+        on_connection_status: Callable[[], dict[str, Any]],
+        on_disconnect: Callable[[], dict[str, Any]],
     ) -> None:
         super().__init__(parent, style=wx.VSCROLL)
         self.SetScrollRate(0, 12)
-        self.on_instructions = on_instructions
-        self.on_export_browser = on_export_browser
+        self.on_prepare_connection = on_prepare_connection
+        self.on_connection_status = on_connection_status
+        self.on_disconnect = on_disconnect
         root = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(root)
 
@@ -27,8 +29,8 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         description = wx.StaticText(
             self,
             label=(
-                "Use an AI tool you already trust to help with selected preparation work. "
-                "AAAAT stays usable if you do not connect one."
+                "Use the AI you already trust to help with selected preparation work. "
+                "Your AI will choose the best connection it can support and tell you if it needs anything from you."
             ),
         )
         description.Wrap(760)
@@ -37,40 +39,84 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         disclosure = wx.StaticText(
             self,
             label=(
-                "When you use assistance, AAAAT shares only the information needed for the work you choose. "
+                "AAAAT shares only the information needed for the work you choose. "
                 "Your AI account, credentials, and its data policy remain under your control."
             ),
         )
         disclosure.Wrap(760)
         root.Add(disclosure, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        button = wx.Button(self, label="Show connection guidance")
-        button.Bind(wx.EVT_BUTTON, self._show_instructions)
+        self.connection = wx.StaticText(self, label="")
+        self.connection.Wrap(760)
+        root.Add(self.connection, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
+        refresh = wx.Button(self, label="Refresh status")
+        refresh.Bind(wx.EVT_BUTTON, lambda _event: self._refresh_connection_status())
+        root.Add(refresh, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        button = wx.Button(self, label="Prepare connection request")
+        button.Bind(wx.EVT_BUTTON, self._prepare_connection)
         root.Add(button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.instructions = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
-        self.instructions.SetMinSize((-1, 300))
+        self.instructions.SetMinSize((-1, 150))
         root.Add(self.instructions, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        browser = wx.Button(self, label="Create browser helper…")
-        browser.Bind(wx.EVT_BUTTON, self._export_browser)
-        root.Add(browser, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        self.pause_button = wx.Button(self, label="Pause AI connection")
+        self.pause_button.Bind(wx.EVT_BUTTON, self._pause_connection)
+        root.Add(self.pause_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.status = wx.StaticText(self, label="")
         self.status.Wrap(760)
         root.Add(self.status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        self._refresh_connection_status()
 
-    def _show_instructions(self, _event: wx.CommandEvent) -> None:
+    def _prepare_connection(self, _event: wx.CommandEvent) -> None:
         try:
-            self.instructions.SetValue(self.on_instructions())
-            self.status.SetLabel("Follow this guidance in the AI tool you chose.")
+            state = str(self.on_connection_status().get("state") or "ready_to_connect")
+            if state in {"connected", "needs_attention"}:
+                answer = wx.MessageBox(
+                    "Preparing a new request pauses the current AI connection. Continue?",
+                    "Replace AI connection",
+                    wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+                    self,
+                )
+                if answer != wx.YES:
+                    return
+            handoff = self.on_prepare_connection()
+            if not wx.TheClipboard.Open():
+                raise RuntimeError("AAAAT could not copy the connection request. Try again.")
+            try:
+                wx.TheClipboard.SetData(wx.TextDataObject(handoff))
+            finally:
+                wx.TheClipboard.Close()
+            self.instructions.SetValue(
+                "A connection request has been copied. Paste it into the AI you want to use. "
+                "Your AI will choose the best connection it supports and tell you plainly if it cannot connect."
+            )
+            self.status.SetLabel("Connection request copied. Paste it into your AI.")
+            self._refresh_connection_status()
         except Exception as exc:
             self.status.SetLabel(str(exc))
 
-    def _export_browser(self, _event: wx.CommandEvent) -> None:
+    def _refresh_connection_status(self) -> None:
         try:
-            result = self.on_export_browser()
-            if result:
-                self.status.SetLabel(f"Browser helper created: {result}")
+            state = str(self.on_connection_status().get("state") or "ready_to_connect")
+        except Exception:
+            state = "needs_attention"
+        labels = {
+            "ready_to_connect": "Status: Ready to connect",
+            "connected": "Status: Connected",
+            "needs_attention": "Status: Needs attention",
+            "paused": "Status: Paused",
+        }
+        self.connection.SetLabel(labels.get(state, labels["needs_attention"]))
+        self.pause_button.Show(state in {"connected", "needs_attention"})
+
+    def _pause_connection(self, _event: wx.CommandEvent) -> None:
+        try:
+            self.on_disconnect()
+            self.status.SetLabel("AI connection paused")
+            self._refresh_connection_status()
         except Exception as exc:
             self.status.SetLabel(str(exc))

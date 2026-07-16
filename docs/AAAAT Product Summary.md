@@ -4,11 +4,11 @@
 
 AAAAT, Agent-Agnostic Auto Application Tracker, is a local-first, provider-agnostic job application tracker and artifact generator.
 
-It is private local software for managing candidatures, recruiter interactions, profile/CV data, generated documents, and agent-assistable tasks. It gives the user a fast operational desktop workspace and gives external LLM agents a constrained task interface for drafting, enrichment, inference, and document preparation.
+It is private local software for managing candidatures, recruiter interactions, profile/CV data, generated documents, and agent-assistable tasks. It gives the user a fast operational desktop workspace and lets a connected LLM act as an intelligent setup and assistance surface while bounded work remains constrained.
 
 AAAAT is not an LLM provider wrapper. It is not an agent runtime. It is not an agent orchestrator. It does not require OpenAI, Anthropic, Gemini, Ollama, Codex, Claude Desktop, Cursor, Continue, Aider, or any other specific model or tool.
 
-AAAAT owns the private application data, local desktop UI, validation layer, task queue, template rendering, and artifact provenance. External agents own reasoning and generation.
+AAAAT owns the private application data, local desktop UI, validation layer, task queue, template rendering, and artifact provenance. Connected hosts own reasoning, generation, provider choice, credentials, and host-specific setup under their own policies.
 
 ## Product promise
 
@@ -30,7 +30,7 @@ Public examples must use fake data only.
 
 AAAAT does not ask for model provider, model URL, API key, model name, or cloud/local model settings during core setup.
 
-The product should work with human-only usage, CLI usage, desktop usage, and external agent usage. Any agent integration is passive and optional.
+The product should work with human-only usage and connected-host assistance. Assistance is optional, but a connected LLM actively selects and configures the best route its host supports; AAAAT does not implement that configuration as a provider integration.
 
 ### 3. Deterministic ownership boundary
 
@@ -64,26 +64,24 @@ Agents must not receive classic CRUD access to candidatures, applications, deskt
 
 The aggregate relation between one user and many candidatures is private data. A list of companies, roles, stages, dates, locations, salary expectations, generated documents, and outcomes can reveal job-search strategy, financial pressure, seniority, relocation plans, and career intent.
 
-Therefore, agents should work through a task mailbox / capability membrane:
+Therefore, claimed work uses one complete work item / capability membrane:
 
 1. AAAAT creates or queues a task deterministically.
-2. The user or local scheduler decides what is available.
-3. The agent sees only pending task envelopes.
-4. The agent requests context only for one specific task.
-5. AAAAT builds a narrow context bundle for that task.
-6. The agent submits a result to that task.
-7. AAAAT stores the result with provenance.
-8. AAAAT applies it only through deterministic review/apply logic.
+2. A connected host claims one eligible task and receives its complete narrow context.
+3. The host reasons outside AAAAT, reports progress, and submits one structured result.
+4. AAAAT stores the result with provenance and applies it through deterministic domain logic.
 
-The agent is a worker consuming capability-scoped jobs, not a client browsing the user’s job-search database.
+The claimed-work actor is not a client browsing the user’s job-search database. This data boundary does not limit the user's LLM from configuring its own host connection.
 
 ### 5. Human desktop plane vs. agent plane
 
-AAAAT has two distinct access planes.
+AAAAT has three distinct access planes.
 
 The human/local desktop plane may expose rich local editing because it is the user’s own operational UI. It can show candidatures, search, profile data, notes, tasks, documents, rendered values, and editable fields.
 
-The agent plane is task-scoped only. It should expose task envelopes, task context, and task result submission. It should not expose list-all candidature routes, raw variables, raw profile facts, desktop payloads, arbitrary search, or generic patch routes.
+The host control plane supplies a concise connection brief, opaque pairing, bridge verification, status, and revocation. It lets the LLM configure its own MCP/tool/skill/script/automation route under its own host policy; it never becomes provider configuration inside AAAAT.
+
+The claimed-work plane is task-scoped only. It exposes one complete work item, progress, bounded result submission, and permitted actions. It does not expose list-all candidature routes, raw variables, raw profile facts, desktop payloads, arbitrary search, or generic patch routes.
 
 ### 6. Privacy by resolution, not by convention
 
@@ -181,7 +179,13 @@ Direct manual mode:
 
 * user can operate without an external agent.
 
-Agent access mode:
+Connected-host setup mode:
+
+* host-only connection brief and opaque paired bridge;
+* host chooses its own MCP/tool/skill/script/automation configuration;
+* portable exchange only when no local host route is available.
+
+Claimed-work mode:
 
 * external agents interact only through constrained task/capability interfaces.
 
@@ -239,4 +243,4 @@ AAAAT should not become:
 
 ## Design summary
 
-AAAAT is a local, human-owned candidature workspace with bounded optional agent assistance. The desktop is the canonical human runtime; agents work only through narrow task/context/action surfaces.
+AAAAT is a local, human-owned candidature workspace with bounded optional assistance. The desktop is the canonical human editor; a connected LLM configures its own host through a separate control plane and uses only narrow complete-work/action surfaces for private data.

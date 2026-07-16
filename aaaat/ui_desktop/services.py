@@ -95,7 +95,18 @@ class DesktopCommandService:
             terms = application_keywords(conn, candidature_ref)
             if cleaned not in terms:
                 terms.append(cleaned)
-            upsert_glossary_term(conn, cleaned, str(definition or ""))
+            existing = conn.execute(
+                "SELECT definition, category FROM glossary_terms WHERE term = ?",
+                (cleaned,),
+            ).fetchone()
+            supplied_definition = str(definition or "").strip()
+            if existing is None:
+                upsert_glossary_term(conn, cleaned, supplied_definition)
+            elif not str(existing["definition"] or "").strip() and supplied_definition:
+                # Adding an association must not silently replace an established
+                # canonical definition.  Definition changes use the explicit
+                # save_keyword_definition path instead.
+                upsert_glossary_term(conn, cleaned, supplied_definition, str(existing["category"] or ""))
             return update_candidature(conn, candidature_ref, keywords=terms)
 
     def save_keyword_definition(self, term: str, definition: str) -> dict[str, Any] | None:

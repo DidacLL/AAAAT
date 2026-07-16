@@ -6,7 +6,7 @@ import wx  # type: ignore[import-not-found]
 
 
 class WelcomePanel(wx.Panel):
-    """First-use desktop surface with a manual path that needs no setup."""
+    """First-use desktop surface for an independent or AI-assisted workspace."""
 
     def __init__(
         self,
@@ -14,8 +14,6 @@ class WelcomePanel(wx.Panel):
         *,
         on_add_candidature: Callable[[], None],
         on_connect_ai: Callable[[], None],
-        on_browser_or_chat: Callable[[], None],
-        on_portable_file: Callable[[], None],
     ) -> None:
         super().__init__(parent)
         root = wx.BoxSizer(wx.VERTICAL)
@@ -29,7 +27,7 @@ class WelcomePanel(wx.Panel):
             self,
             label=(
                 "Keep your job applications, preparation notes, and application materials together on this computer. "
-                "Start by adding a job offer or an existing candidature; you can use AAAAT entirely on your own."
+                "Start by adding a job offer or an existing candidature. You can work on your own or ask your AI to help."
             ),
         )
         purpose.Wrap(680)
@@ -40,21 +38,22 @@ class WelcomePanel(wx.Panel):
         add.Bind(wx.EVT_BUTTON, lambda _event: on_add_candidature())
         root.Add(add, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 22)
 
-        manual = wx.StaticText(self, label="Manual use is ready now. Connecting an AI is optional.")
-        manual.SetFont(manual.GetFont().Bold())
-        root.Add(manual, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 22)
-
-        assistance = wx.StaticText(self, label="Optional assistance")
+        assistance = wx.StaticText(self, label="Work with your AI")
         assistance.SetFont(assistance.GetFont().Bold().Larger())
         root.Add(assistance, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 22)
 
-        for label, handler in (
-            ("Connect my AI", on_connect_ai),
-            ("Use a browser or chat AI", on_browser_or_chat),
-            ("Use a portable file", on_portable_file),
-        ):
-            button = wx.Button(self, label=label)
-            button.Bind(wx.EVT_BUTTON, lambda _event, action=handler: action())
-            root.Add(button, 0, wx.LEFT | wx.RIGHT | wx.TOP, 22)
+        help_text = wx.StaticText(
+            self,
+            label=(
+                "Your AI can help you prepare selected work while AAAAT keeps your workspace local. "
+                "It will choose the best connection it can support and explain what it needs from you."
+            ),
+        )
+        help_text.Wrap(680)
+        root.Add(help_text, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 22)
+
+        connect = wx.Button(self, label="Connect my AI")
+        connect.Bind(wx.EVT_BUTTON, lambda _event: on_connect_ai())
+        root.Add(connect, 0, wx.LEFT | wx.RIGHT | wx.TOP, 22)
 
         root.AddStretchSpacer(1)

@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import json
-import os
-import sys
 from pathlib import Path
 from typing import Any
 
-from .browser_companion import browser_extension_bundle, native_host_manifest
 from .db import connect
+from .host_connection import connection_status
 from .integration_setup import connection_modes, configure_integration, current_integration, disable_automatic_integration, integration_options
 from .runtime_conformance import read_conformance_state, run_configured_runtime_conformance
 from .tasks import create_task, list_tasks
@@ -35,6 +32,7 @@ def assistance_snapshot(storage_path: str | Path, *, include_advanced: bool = Fa
         } for task in list_tasks(conn) if str(task.get("state") or "") in _VISIBLE_STATES]
     tasks.sort(key=lambda item: (item["state"] == "completed", item["updated_at"]), reverse=False)
     return {
+        "connection": connection_status(storage_path),
         "integration": integration,
         "connection_modes": connection_modes(),
         "options": integration_options(include_advanced=include_advanced),
@@ -59,95 +57,3 @@ def use_manual_integration(storage_path: str | Path) -> dict[str, Any]:
 def run_integration_conformance(storage_path: str | Path) -> dict[str, Any]:
     """Conformance applies only to an explicitly configured Advanced command."""
     return run_configured_runtime_conformance(storage_path)
-
-
-def external_host_instructions(_storage_path: str | Path) -> str:
-    return """Connect an external AI or agent host to AAAAT's existing bounded task queue.
-
-The external host initiates every call. AAAAT does not launch, host, configure, or call an LLM.
-
-Use only the existing bounded operations:
-- obtain one complete eligible work item, including purpose-scoped context, response schema, privacy notes, and permitted actions;
-- report progress using the work item's random task capability;
-- submit one structured result using that same capability;
-- submit one explicitly permitted bounded action.
-
-The task capability is a random, attempt-scoped callback capability. It is not a task ID, candidature ID, database key, or permission to inspect other records.
-
-A wrapper may use MCP, CLI, HTTP, files, browser messaging, or another host-owned transport. It must reuse AAAAT's existing queue and canonical result-ingestion path. It must not create another queue, expose broad entity listing or search, access SQLite directly, use internal IDs as authority, choose artifact paths, or read arbitrary local files.
-
-Provider selection, model selection, credentials, network policy, provider SDKs, browser automation, and inference remain entirely owned by the external host.
-"""
-
-
-def export_browser_companion_package(
-    storage_path: str | Path,
-    output_path: str | Path,
-    host_executable: str | Path | None = None,
-) -> Path:
-    """Create a runnable local browser-companion directory.
-
-    The extension never receives the workspace path.  A platform launcher in
-    the selected local folder supplies it only to AAAAT's native host, and the
-    generated manifest therefore has a real absolute executable path.
-    """
-
-    target = Path(output_path).resolve()
-    if target.exists() and any(target.iterdir()):
-        raise ValueError("Choose a new or empty folder for the browser companion")
-    target.mkdir(parents=True, exist_ok=True)
-    extension_dir = target / "extension"
-    extension_dir.mkdir(exist_ok=True)
-    launcher = _write_browser_host_launcher(target, storage_path, host_executable)
-    files = browser_extension_bundle()
-    for name, content in files.items():
-        (extension_dir / name).write_text(content, encoding="utf-8")
-    manifest = native_host_manifest(storage_path, launcher)
-    manifest_path = target / "native-host-manifest.json"
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    (target / "INSTALL.txt").write_text(_browser_install_instructions(manifest_path), encoding="utf-8")
-    return target
-
-
-def _browser_host_executable(host_executable: str | Path | None) -> Path:
-    if host_executable is not None:
-        candidate = Path(host_executable).resolve()
-    else:
-        suffix = ".exe" if os.name == "nt" else ""
-        candidate = Path(sys.executable).resolve().with_name(f"aaaat-browser-host{suffix}")
-    if not candidate.is_file():
-        raise ValueError("AAAAT browser host is not installed; install AAAAT before creating a browser companion")
-    return candidate
-
-
-def _write_browser_host_launcher(target: Path, storage_path: str | Path, host_executable: str | Path | None) -> Path:
-    executable = _browser_host_executable(host_executable)
-    local_storage = str(Path(storage_path).resolve())
-    launcher_dir = target / "native-host"
-    launcher_dir.mkdir(exist_ok=True)
-    if os.name == "nt":
-        launcher = launcher_dir / "aaaat-browser-host.cmd"
-        launcher.write_text(f'@echo off\r\nset "AAAAT_BROWSER_STORAGE={local_storage}"\r\n"{executable}"\r\n', encoding="utf-8")
-    else:
-        launcher = launcher_dir / "aaaat-browser-host.sh"
-        launcher.write_text(f'#!/bin/sh\nAAAAT_BROWSER_STORAGE={json.dumps(local_storage)} exec {json.dumps(str(executable))}\n', encoding="utf-8")
-        launcher.chmod(0o700)
-    return launcher.resolve()
-
-
-def _browser_install_instructions(manifest_path: Path) -> str:
-    manifest = str(manifest_path)
-    return """AAAAT browser companion installation
-
-1. In Chrome or Edge, enable Developer mode and load extension/ as an unpacked extension.
-2. Copy the extension ID into native-host-manifest.json in place of __AAAT_EXTENSION_ID__.
-3. Register this exact manifest path with your browser: """ + manifest + """
-   - Windows PowerShell: Set-ItemProperty -Path 'HKCU:\\Software\\Google\\Chrome\\NativeMessagingHosts\\org.aaaat.browser_companion' -Name '(Default)' -Value '""" + manifest + """' -Force
-     (use HKCU:\\Software\\Microsoft\\Edge\\NativeMessagingHosts\\org.aaaat.browser_companion for Edge).
-   - macOS: copy native-host-manifest.json to ~/Library/Application Support/Google/Chrome/NativeMessagingHosts/.
-   - Linux: copy native-host-manifest.json to ~/.config/google-chrome/NativeMessagingHosts/.
-
-The generated native-host launcher already points to your installed AAAAT browser host and local AAAAT workspace. Keep it outside extension/; the extension never receives the storage path.
-
-The companion can claim one work item, report progress, and submit one pasted JSON result. It cannot browse AAAAT records or access the database. Your browser or chosen AI controls credentials, network access, and any data policy.
-"""

@@ -4,10 +4,12 @@ import io
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from aaaat.db import connect, init_db
 from aaaat.mcp_runtime import dispatch_mcp_request, run_stdio_server
 from aaaat.mcp_smoke import run_mcp_smoke
+from aaaat.host_bridge_smoke import _installed_bridge_argv, run_host_bridge_smoke
 from aaaat.tasks import create_task, get_task
 
 
@@ -86,6 +88,23 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertEqual(outcome["status"], "passed")
         self.assertTrue(outcome["initialize"])
         self.assertGreaterEqual(outcome["tool_count"], 4)
+        self.assertTrue(outcome["claimed"])
+        self.assertTrue(outcome["progressed"])
+        self.assertTrue(outcome["submitted"])
+        self.assertEqual(outcome["malformed_request"], "rejected")
+
+    def test_require_installed_bridge_refuses_the_source_module_fallback(self) -> None:
+        with patch("aaaat.host_bridge_smoke.sys.argv", ["C:/missing/aaaat-host-bridge-smoke.exe"]):
+            with self.assertRaisesRegex(RuntimeError, "Installed aaaat-host-bridge"):
+                _installed_bridge_argv("hostcap_example", require_installed=True)
+
+    def test_paired_bridge_smoke_client_exercises_a_real_stdio_subprocess(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            outcome = run_host_bridge_smoke(tmp)
+        self.assertEqual(outcome["status"], "passed")
+        self.assertTrue(outcome["initialize"])
+        self.assertGreaterEqual(outcome["tool_count"], 4)
+        self.assertTrue(outcome["ping"])
         self.assertTrue(outcome["claimed"])
         self.assertTrue(outcome["progressed"])
         self.assertTrue(outcome["submitted"])

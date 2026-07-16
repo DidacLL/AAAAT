@@ -131,6 +131,20 @@ class DesktopProjectionBehaviorTests(unittest.TestCase):
         self.assertEqual(updated["keywords"], ["Local-first", "Python"])
         self.assertTrue({"Python", "Local-first"}.issubset(glossary_terms))
 
+    def test_adding_an_existing_keyword_never_overwrites_its_definition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = DesktopCommandService(tmp)
+            created = service.create_offer_first_candidature("Original offer body")
+            service.add_keyword(created["id"], "MCP", "A tool-connection protocol.")
+            service.add_keyword(created["id"], "MCP")
+            service.add_keyword(created["id"], "MCP", "Wrong replacement")
+            with connect(tmp) as conn:
+                definition = conn.execute(
+                    "SELECT definition FROM glossary_terms WHERE term = ?", ("MCP",)
+                ).fetchone()["definition"]
+
+        self.assertEqual(definition, "A tool-connection protocol.")
+
 
 class DesktopOfferFirstBehaviorTests(unittest.TestCase):
     def test_offer_first_creation_retains_source_and_blocks_dependent_documents(self):

@@ -80,6 +80,12 @@ aaaat-desktop
 
 Close the desktop window to stop the app.
 
+## Optional connected AI
+
+Manual use needs no AI setup. To connect an LLM, open the desktop app and choose **Connect my AI**. The LLM should assess its own host capabilities, obtain AAAAT's host-only connection brief, and—with the user's approval—prefer a paired local MCP bridge, then a host-native tool/skill or host-owned script. Portable files are only for a host that cannot access a local bridge.
+
+Do not give a normal user a storage path, database location, internal ID, or bridge command. Provider credentials and host configuration stay with the LLM host, not AAAAT.
+
 ## Demo seed
 
 For local UI validation with fake data:

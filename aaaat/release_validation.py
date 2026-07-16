@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import platform
 import shutil
@@ -15,11 +16,12 @@ from .agent_access import build_agent_work_item, next_agent_work_item, task_capa
 from .agent_actions import submit_agent_action
 from .assistance_service import create_profile_completion_task
 from .background_worker import OwnedTaskWorker
-from .browser_companion import PROTOCOL as BROWSER_PROTOCOL, VERSION as BROWSER_VERSION, dispatch_native_message
 from .candidature_lifecycle import ensure_lifecycle_tasks, release_ready_lifecycle_tasks
 from .candidatures import create_candidature, get_candidature
 from .db import connect, init_db, profile_variables, set_profile_variable
 from .integration_setup import configure_integration
+from .host_bridge import run_host_bridge
+from .host_connection import connection_status, create_connection_request
 from .payload import dashboard_payload
 from .portable_task_bundle import export_candidature_task_bundle, import_candidature_result_bundle, write_result_bundle
 from .result_ingestion import ingest_task_result
@@ -93,7 +95,7 @@ class ReleaseValidator:
             ("environment", self._stage_environment),
             ("empty_store", self._stage_empty_store),
             ("unified_work_acquisition", self._stage_unified_work_acquisition),
-            ("browser_wrapper", self._stage_browser_wrapper),
+            ("paired_host_bridge", self._stage_paired_host_bridge),
             ("runtime_configuration", self._stage_runtime_configuration),
             ("runtime_conformance", self._stage_runtime_conformance),
             ("profile_completion", self._stage_profile_completion),
@@ -121,7 +123,7 @@ class ReleaseValidator:
                 "guided connection choices are understandable to a non-technical user",
                 "one real external AI consumes complete bounded work through the standard MCP or equivalent wrapper",
                 "one independent real host or transport completes the same bounded lifecycle",
-                "one real browser or chat AI bundle round trip imports successfully",
+                "one connected LLM host completes a bounded bridge round trip",
                 "progress, failure, retry and cancellation where supported are visible in wx",
                 "rendered document quality and desktop responsiveness are inspected",
                 "realistic existing storage upgrades, backs up and reopens without data loss",
@@ -172,32 +174,41 @@ class ReleaseValidator:
             "Random task capability is distinct from the internal task ID",
         ])
 
-    def _stage_browser_wrapper(self, item: StageResult) -> None:
+    def _stage_paired_host_bridge(self, item: StageResult) -> None:
         with connect(self.config.storage) as conn:
-            task = get_task(conn, str(next(t["id"] for t in list_tasks(conn) if t["title"] == "Unified acquisition proof")))
-            capability = task_capability(conn, task)
-        response = dispatch_native_message(
-            self.config.storage,
-            {"protocol": BROWSER_PROTOCOL, "protocol_version": BROWSER_VERSION, "action": "next_work"},
-        )
-        _require(response.get("status") == "ready", "Browser wrapper did not return complete work")
-        browser_work = response.get("work") or {}
-        _require((browser_work.get("task") or {}).get("task_capability") == capability, "Browser wrapper returned a different task capability")
-        accepted = dispatch_native_message(
-            self.config.storage,
-            {
-                "protocol": BROWSER_PROTOCOL,
-                "protocol_version": BROWSER_VERSION,
-                "action": "submit_result",
+            task = create_task(conn, "keyword_definition", "Paired bridge proof", context_hint="keyword:Bridge", idempotent=False)
+        pairing = create_connection_request(self.config.storage)
+        connection = str(pairing["connection_capability"])
+        verify = "\n".join(
+            json.dumps({"jsonrpc": "2.0", "id": index, "method": method, "params": {}})
+            for index, method in enumerate(("initialize", "tools/list", "ping"), start=1)
+        ) + "\n"
+        target = io.StringIO()
+        _require(run_host_bridge(connection, io.StringIO(verify), target) == 0, "Paired bridge verification failed")
+        _require(connection_status(self.config.storage).get("state") == "connected", "Paired bridge did not complete verification")
+        with connect(self.config.storage) as conn:
+            _require(get_task(conn, task["id"])["state"] == "queued", "Bridge verification claimed real work")
+
+        claim = {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "get_next_agent_work", "arguments": {}}}
+        target = io.StringIO()
+        run_host_bridge(connection, io.StringIO("\n".join((verify.strip(), json.dumps(claim))) + "\n"), target)
+        claimed = json.loads(target.getvalue().splitlines()[-1])
+        work = ((claimed.get("result") or {}).get("structuredContent") or {}).get("work") or {}
+        capability = str((work.get("task") or {}).get("task_capability") or "")
+        _require(bool(capability), "Paired bridge did not return complete bounded work")
+        submit = {
+            "jsonrpc": "2.0", "id": 5, "method": "tools/call",
+            "params": {"name": "submit_agent_task_result", "arguments": {
                 "task_capability": capability,
-                "result": {"definition": "Release readiness is the verified state before human acceptance."},
-                "agent_runtime": "release-browser-fixture",
-            },
-        )
-        _require(accepted.get("status") == "accepted", "Browser wrapper result was not accepted")
+                "result_json": {"definition": "A paired bridge keeps host setup separate from bounded work."},
+            }},
+        }
+        target = io.StringIO()
+        run_host_bridge(connection, io.StringIO("\n".join((verify.strip(), json.dumps(submit))) + "\n"), target)
+        _require(not bool(((json.loads(target.getvalue().splitlines()[-1]).get("result") or {}).get("isError"))), "Paired bridge result was not accepted")
         item.assertions.extend([
-            "Browser wrapper acquired the same complete work item",
-            "Browser wrapper submitted through canonical result ingestion",
+            "Paired bridge verified without claiming work",
+            "Paired bridge completed canonical claim and result ingestion",
         ])
 
     def _stage_runtime_configuration(self, item: StageResult) -> None:

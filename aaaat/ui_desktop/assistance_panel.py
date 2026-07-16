@@ -11,13 +11,14 @@ TaskCallback = Callable[[str], None]
 
 
 class AssistancePanel(wx.ScrolledWindow):
-    """Plain-language assisted-use choices, with technical controls kept Advanced-only."""
+    """Plain-language AI status, with local fallbacks kept Advanced-only."""
 
     def __init__(
         self,
         parent: wx.Window,
         *,
         on_select_mode: ModeCallback,
+        on_disconnect: SimpleCallback,
         on_save_integration: IntegrationSaveCallback,
         on_conformance: SimpleCallback,
         on_create_profile_task: SimpleCallback,
@@ -28,6 +29,7 @@ class AssistancePanel(wx.ScrolledWindow):
         super().__init__(parent, style=wx.VSCROLL)
         self.SetScrollRate(0, 12)
         self.on_select_mode = on_select_mode
+        self.on_disconnect = on_disconnect
         self.on_save_integration = on_save_integration
         self.on_conformance = on_conformance
         self.on_create_profile_task = on_create_profile_task
@@ -46,7 +48,7 @@ class AssistancePanel(wx.ScrolledWindow):
         self.Freeze()
         try:
             self.root.Clear(delete_windows=True)
-            self._build_integration_section()
+            self._build_connection_section()
             if self.show_advanced:
                 self._build_task_section()
             self.Layout()
@@ -54,7 +56,7 @@ class AssistancePanel(wx.ScrolledWindow):
         finally:
             self.Thaw()
 
-    def _build_integration_section(self) -> None:
+    def _build_connection_section(self) -> None:
         heading = wx.StaticText(self, label="AI assistance")
         heading.SetFont(heading.GetFont().Bold().Larger())
         self.root.Add(heading, 0, wx.ALL | wx.EXPAND, 10)
@@ -62,38 +64,44 @@ class AssistancePanel(wx.ScrolledWindow):
         intro = wx.StaticText(
             self,
             label=(
-                "AAAAT works without AI. If you choose assistance, select how you want to use it; your AI account, "
-                "credentials, and data policy remain yours."
+                "Connect the AI you already use. It can choose the best connection it supports and help with selected "
+                "preparation work, while AAAAT keeps your workspace local."
             ),
         )
         intro.Wrap(760)
         self.root.Add(intro, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        current = dict(self.snapshot.get("integration") or {})
+        current = dict(self.snapshot.get("connection") or self.snapshot.get("integration") or {})
         status = wx.StaticText(
             self,
-            label=f"Current choice: {current.get('title') or 'Continue manually'}",
+            label=f"Status: {self._connection_status(current)}",
         )
         status.Wrap(760)
         self.root.Add(status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        for mode in list(self.snapshot.get("connection_modes") or []):
-            mode_id = str(mode.get("id") or "")
-            panel = wx.Panel(self, style=wx.BORDER_SIMPLE)
-            panel_sizer = wx.BoxSizer(wx.HORIZONTAL)
-            panel.SetSizer(panel_sizer)
-            text_sizer = wx.BoxSizer(wx.VERTICAL)
-            title = wx.StaticText(panel, label=str(mode.get("title") or mode_id))
-            title.SetFont(title.GetFont().Bold())
-            text_sizer.Add(title, 0, wx.BOTTOM, 3)
-            description = wx.StaticText(panel, label=self._mode_description(mode_id))
-            description.Wrap(580)
-            text_sizer.Add(description, 0, wx.EXPAND)
-            button = wx.Button(panel, label="Choose")
-            button.Bind(wx.EVT_BUTTON, lambda _event, value=mode_id: self._select_mode(value))
-            panel_sizer.Add(text_sizer, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 8)
-            panel_sizer.Add(button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 8)
-            self.root.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        disclosure = wx.StaticText(
+            self,
+            label=(
+                "AAAAT shares only the information needed for the work you choose. Your AI account, credentials, "
+                "and data policy remain under your control."
+            ),
+        )
+        disclosure.Wrap(760)
+        self.root.Add(disclosure, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
+        state = str(current.get("state") or "ready_to_connect")
+        if state in {"connected", "needs_attention"}:
+            disconnect = wx.Button(self, label="Pause AI connection")
+            disconnect.Bind(wx.EVT_BUTTON, self._disconnect)
+            self.root.Add(disconnect, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        else:
+            connect = wx.Button(self, label="Help my AI connect")
+            connect.Bind(wx.EVT_BUTTON, lambda _event: self._select_mode("guided_connector"))
+            self.root.Add(connect, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        advanced = wx.Button(self, label="Advanced options…")
+        advanced.Bind(wx.EVT_BUTTON, lambda _event: self._select_mode("advanced_integration"))
+        self.root.Add(advanced, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.integration_status = wx.StaticText(self, label="")
         self.root.Add(self.integration_status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
@@ -102,14 +110,23 @@ class AssistancePanel(wx.ScrolledWindow):
             self._build_advanced_section(current)
 
     @staticmethod
-    def _mode_description(mode_id: str) -> str:
-        descriptions = {
-            "manual": "Keep working in AAAAT without connecting an AI.",
-            "guided_connector": "Connect an AI tool you already use. AAAAT shares only the work you choose to send.",
-            "browser_or_chat": "Create a file for your selected candidature, give it to a browser or chat AI, then import its result file.",
-            "advanced_integration": "Open technical settings for a connection you manage yourself.",
-        }
-        return descriptions.get(mode_id, "Choose how you would like to use optional assistance.")
+    def _connection_status(connection: dict[str, Any]) -> str:
+        state = str(connection.get("state") or connection.get("status") or "").strip().lower()
+        if state == "connected":
+            return "Connected"
+        if state == "paused":
+            return "Paused"
+        if state == "needs_attention":
+            return "Needs attention"
+        return "Ready to connect"
+
+    def _disconnect(self, _event: wx.CommandEvent) -> None:
+        try:
+            result = self.on_disconnect()
+        except Exception as exc:
+            self.integration_status.SetLabel(str(exc))
+            return
+        self.integration_status.SetLabel("AI connection paused" if result else "AI connection paused")
 
     def _select_mode(self, mode_id: str) -> None:
         if mode_id == "advanced_integration":

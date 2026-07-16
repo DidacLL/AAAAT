@@ -23,8 +23,8 @@ All items must pass:
 - standard assisted onboarding without internal jargon;
 - complete-work acquisition through independent wrappers;
 - progress/result/action canonical equivalence;
-- MCP subprocess round trip using a supplied client or fixture;
-- browser companion or portable result round trip;
+- paired-host bridge subprocess round trip using a supplied client or fixture;
+- paired-host or portable result round trip;
 - guided profile completion and artifact rendering;
 - expected errors produce concise messages without tracebacks;
 - structural privacy, cross-task isolation, capability lifecycle, and path confinement.
@@ -41,7 +41,7 @@ Human review must use actual wx workflows. It must not require the reviewer to:
 - manually create internal tasks;
 - infer undocumented MCP JSON-RPC messages;
 - launch a stdio server without a client;
-- design a browser native-host installation;
+- design a browser native-host installation or host configuration;
 - invent a portable result format;
 - write an Advanced integration fixture from scratch;
 - interpret raw tracebacks as expected behavior;
@@ -58,7 +58,7 @@ aaaat --version
 aaaat-desktop --help
 aaaat-upgrade --help
 aaaat-mcp --help
-aaaat-browser-host --self-test
+aaaat-host-bridge --help
 aaaat mcp-validate
 python -m compileall -q aaaat tests
 python -B -m unittest discover -s tests

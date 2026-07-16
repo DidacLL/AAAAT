@@ -16,28 +16,20 @@ from .workspace_config import load_workspace_config, save_workspace_settings
 
 _CONNECTION_MODES: tuple[dict[str, Any], ...] = (
     {
-        "id": "manual",
-        "title": "Continue manually",
-        "description": "Use AAAAT without an AI connection. Portable task bundles remain available.",
-        "automatic": False,
-        "setup_complexity": "guided",
-        "adapter_ids": ("manual_external_agent",),
-    },
-    {
         "id": "guided_connector",
         "title": "Connect my AI",
-        "description": "Create host-side instructions for an external AI to consume AAAAT's existing bounded queue.",
+        "description": "Your AI chooses the best connection it supports and helps with selected preparation work.",
         "automatic": True,
         "setup_complexity": "guided",
         "adapter_ids": (),
     },
     {
-        "id": "browser_or_chat",
-        "title": "Use a browser or chat AI",
-        "description": "Exchange one bounded task bundle and one result bundle, or use the browser companion.",
+        "id": "manual",
+        "title": "Use AAAAT without AI",
+        "description": "Keep all work in the local desktop app.",
         "automatic": False,
         "setup_complexity": "guided",
-        "adapter_ids": ("manual_external_agent",),
+        "adapter_ids": ("no_ai_connection",),
     },
     {
         "id": "advanced_integration",
@@ -45,7 +37,7 @@ _CONNECTION_MODES: tuple[dict[str, Any], ...] = (
         "description": "Configure a controlled file exchange or a user-owned command explicitly.",
         "automatic": None,
         "setup_complexity": "advanced",
-        "adapter_ids": ("file_exchange", "argv_custom_command"),
+        "adapter_ids": ("manual_external_agent", "file_exchange", "argv_custom_command"),
     },
 )
 
@@ -151,7 +143,7 @@ def disable_automatic_integration(storage_path: str | Path) -> dict[str, Any]:
     save_workspace_settings(
         storage_path,
         automatic_preparation=list(current.get("automatic_preparation") or []),
-        local_agent_adapter_id="manual_external_agent",
+        local_agent_adapter_id="no_ai_connection",
         local_agent_adapter_settings={},
     )
     return current_integration(storage_path)

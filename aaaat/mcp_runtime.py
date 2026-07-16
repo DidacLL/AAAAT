@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any, TextIO
 
+from .agent_guides import agent_guide
 from .agent_actions import submit_agent_action
 from .agent_work import claim_next_agent_work, report_agent_task_progress
 from .db import connect, init_db
@@ -55,13 +56,13 @@ def dispatch_mcp_request(storage: str | Path, request: dict[str, Any]) -> dict[s
                 "structuredContent": value,
                 "isError": False,
             })
-    except (KeyError, TypeError, ValueError) as exc:
+    except (KeyError, TypeError, ValueError):
         return _result(request_id, {
-            "content": [{"type": "text", "text": str(exc)[:2000]}],
+            "content": [{"type": "text", "text": "AAAAT could not complete this request. Check the supplied bounded work and try again."}],
             "isError": True,
         })
-    except Exception as exc:
-        return _error(request_id, -32603, "Internal error", str(exc)[:2000])
+    except Exception:
+        return _error(request_id, -32603, "AAAAT could not complete this request.")
     return _error(request_id, -32601, "Method not found")
 
 
@@ -121,8 +122,8 @@ def run_stdio_server(storage: str | Path, input_stream: TextIO | None = None, ou
             if not isinstance(request, dict):
                 raise ValueError("request must be an object")
             response = dispatch_mcp_request(storage, request)
-        except (json.JSONDecodeError, ValueError) as exc:
-            response = _error(None, -32700, "Parse error", str(exc)[:1000])
+        except (json.JSONDecodeError, ValueError):
+            response = _error(None, -32700, "Invalid request.")
         if response is not None:
             target.write(json.dumps(response, ensure_ascii=False, separators=(",", ":")) + "\n")
             target.flush()
@@ -130,14 +131,7 @@ def run_stdio_server(storage: str | Path, input_stream: TextIO | None = None, ou
 
 
 def _agent_guide() -> str:
-    return """# AAAAT bounded MCP
-
-1. Call `get_next_agent_work` once to atomically claim one complete work item.
-2. Use only the included purpose-scoped context and response schema.
-3. Report optional progress with the random `task_capability`.
-4. Submit one structured result with the same capability.
-5. Never request internal IDs, database access, broad searches, or artifact paths.
-"""
+    return agent_guide()
 
 
 def _result(request_id: Any, value: Any) -> dict[str, Any]:

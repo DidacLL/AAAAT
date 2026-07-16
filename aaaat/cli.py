@@ -19,6 +19,7 @@ from .db import add_raw_intake, connect, create_application, create_raw_offer_in
 from .keywords import add_keyword_alias, create_keyword_note
 from .local_data import create_local_backup, restore_local_backup
 from .mcp_server import mcp_descriptor, validate_descriptor
+from .host_connection import connection_brief, connection_status, create_connection_request, revoke_connection
 from .notes import create_note, list_notes
 from .privacy import list_variables, set_variable
 from .profile_facts import archive_profile_fact, create_profile_fact, get_profile_fact, list_profile_facts, profile_context, update_profile_fact
@@ -82,6 +83,14 @@ def build_parser() -> argparse.ArgumentParser:
     agent_action_submit.add_argument("--agent-name", default="")
     agent_action_submit.add_argument("--agent-runtime", default="")
     agent_action_submit.add_argument("--model-provider", default="")
+
+    host = sub.add_parser("host", help="Host-only connected-LLM setup controls.").add_subparsers(dest="host_command", required=True)
+    host.add_parser("brief", help="Return the host-only connection brief.")
+    host_pair = host.add_parser("pair", help="Create a revocable connection request for an explicit local workspace.")
+    host_pair.add_argument("--workspace", required=True, help="Local maintenance workspace to prepare for pairing.")
+    host_revoke = host.add_parser("revoke", help="Revoke a host pairing capability.")
+    host_revoke.add_argument("connection_capability")
+    host.add_parser("status", help="Return the workspace connection state.")
 
     app = sub.add_parser("app").add_subparsers(dest="app_command", required=True)
     app_create = app.add_parser("create")
@@ -313,6 +322,18 @@ def _run(argv: list[str] | None = None) -> int:
     if args.command == "mcp-validate":
         validate_descriptor()
         print("ok")
+        return 0
+    if args.command == "host" and args.host_command == "brief":
+        print(connection_brief())
+        return 0
+    if args.command == "host" and args.host_command == "pair":
+        _json(create_connection_request(args.workspace))
+        return 0
+    if args.command == "host" and args.host_command == "revoke":
+        _json(revoke_connection(args.connection_capability))
+        return 0
+    if args.command == "host" and args.host_command == "status":
+        _json(connection_status(args.storage))
         return 0
     if args.command == "config" and args.config_command == "adapters":
         _json([adapter.__dict__ for adapter in visible_adapters(include_advanced=args.include_advanced)])

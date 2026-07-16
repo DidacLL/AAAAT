@@ -12,7 +12,7 @@ AAAAT remains fully usable through its wx desktop application without external i
 
 AAAAT owns private data, local persistence, one bounded work queue, purpose-scoped work construction, result validation, deterministic domain application, local rendering, provenance, and desktop state.
 
-External AI or agent hosts own reasoning, provider/model/runtime selection, credentials, network policy, and provider-specific SDK, browser, command, or inference-engine interaction.
+External AI or agent hosts own reasoning, provider/model/runtime selection, credentials, network policy, and host-specific SDK, skill, tool, browser, command, or inference-engine interaction. A connected LLM is also the user's intelligent setup surface: it may assess its host and create its own host-side configuration as that host's policy requires. AAAAT does not become a provider SDK, credential store, or host plugin framework to do that work.
 
 AAAAT is not an LLM runtime, provider wrapper, agent orchestrator, plugin host, broad CRUD API, browser product, or named-provider integration.
 
@@ -90,14 +90,9 @@ There is no separate technical setup prerequisite for manual use.
 
 Manual use is always available.
 
-Standard assisted-use entry points are understandable user choices, not protocol documentation:
+Standard assisted use starts from a plain "Connect my AI" choice. The connected LLM chooses the most suitable host-native route after assessing its own capabilities: local MCP first, then a host tool/skill, an approved host-side script or automation, and portable transfer only if no local connection is possible. The UI may also offer manual continuation and an Advanced technical area.
 
-- Connect my AI.
-- Use a browser or chat AI.
-- Use a portable file.
-- Advanced integration.
-
-Standard onboarding must not require terminal knowledge or understanding of MCP, ports, executables, SDKs, commands, capabilities, task states, model architecture, or provider internals.
+Standard onboarding must not require terminal knowledge or understanding of MCP, ports, executables, SDKs, commands, capabilities, task states, model architecture, provider internals, storage locations, or database concepts. A normal user sees only plain connection state and consent.
 
 Technical command settings and transport diagnostics appear only in Advanced integration or dedicated troubleshooting material.
 
@@ -118,7 +113,7 @@ The complete work item includes the instructions, bounded context, response sche
 
 There is no normal `get context after next`, `packet`, or `dispatch` step. Those split surfaces are obsolete and must not be restored through compatibility aliases, docs, tests, or wrappers.
 
-AAAAT does not normally call, select, host, launch, schedule, configure, or orchestrate an LLM.
+AAAAT does not call, select, host, launch, schedule, configure, or orchestrate an LLM. That limit applies to AAAAT's product runtime, not to a connected LLM configuring its own host as its host policy requires. Host setup is a separate control plane; claimed work remains the bounded data/result plane.
 
 ## 7. Capability and authority model
 
@@ -144,11 +139,11 @@ The broad local/admin CLI is not an agent contract and must not be used as the n
 
 ## 8. Communication wrappers
 
-Supported wrappers reuse the same queue, work-item builder, progress service, result ingestion, action validation, and domain application:
+The connected-host bridge and fallback wrappers reuse the same queue, work-item builder, progress service, result ingestion, action validation, and domain application:
 
 - operational stdio MCP;
 - bounded CLI;
-- browser/native bridge;
+- opaque paired local host bridge;
 - portable task/result files or archives;
 - optional user-owned Advanced command.
 
@@ -161,9 +156,13 @@ Every wrapper exposes operations equivalent to:
 
 A wrapper must not add context-fetch, packet, dispatch, broad listing, arbitrary search, mutation by internal IDs, database access, unrestricted filesystem access, or a generic command catalogue.
 
-## 9. Browser and portable use
+## 9. Connected hosts and portable fallback
 
-Browser-only or file-only use must be understandable from wx without requiring the user to design a transport.
+The normal assisted route is a paired local host connection. AAAAT supplies a versioned, host-only connection brief; the LLM uses its own capability and permission model to configure a suitable route and verifies the connection before it claims real work. The brief, pairing capability, bridge command, storage mapping, and diagnostics are host-side details, never normal user-facing content.
+
+The paired bridge exposes setup verification plus the canonical claim, progress, result, and bounded-action operations. It is not a second queue or a broad local API. It is an information and UX boundary, not an operating-system sandbox against another process running as the same user.
+
+Portable use is the last fallback when a host cannot access a local bridge. It must be understandable from wx without requiring the user to design a transport.
 
 Portable flow:
 
@@ -175,13 +174,6 @@ Portable flow:
 - valid independent sections are retained when another section is invalid.
 
 Repeated card-by-card copying is not acceptable.
-
-Browser bridge flow:
-
-- AAAAT provides an installable local browser companion and clear installation instructions;
-- the companion obtains complete work items and submits progress/results through the same services;
-- it does not expose broad private-data access;
-- ordinary web chat without the bridge uses the portable flow.
 
 A wrapper that merely starts and waits on stdio is not a human demonstration. Review instructions must provide a real client command, fixture, or UI action that completes the round trip.
 
@@ -199,7 +191,7 @@ exit 0 = completed
 nonzero exit = failed
 ```
 
-The command path must reuse canonical acquisition, progress, validation, and domain application. It must not introduce provider-specific behavior or generated connector installation into AAAAT.
+The command path must reuse canonical acquisition, progress, validation, and domain application. An LLM may author the user-owned host script when that host permits it, but AAAAT must not ingest, activate, or manage generated connectors.
 
 ## 11. Assisted lifecycle requirements
 
@@ -266,7 +258,7 @@ Automated fake-data gates must prove:
 4. one-note candidature behavior and structured keyword editing;
 5. understandable standard assisted onboarding without internal jargon;
 6. atomic complete-work acquisition through at least two independent wrappers;
-7. browser or portable result round trip;
+7. paired-host or portable result round trip;
 8. profile completion and guided missing-profile errors;
 9. candidature creation from raw source;
 10. lifecycle generation and research;
@@ -287,7 +279,7 @@ Before `RELEASE_READY`, a human must complete documented, executable demonstrati
 - Smart View and Detailed View use cases;
 - one real external AI or deterministic external-host fixture using the complete work-item contract;
 - operational MCP with a supplied client/fixture;
-- browser companion or portable round trip;
+- paired local host or portable round trip;
 - Advanced command only when deliberately selected;
 - local artifact rendering after guided profile completion.
 
@@ -314,7 +306,7 @@ No named provider or runtime is mandatory.
 - making HTTP, MCP, a provider SDK, or a named runtime the domain architecture;
 - embedding or managing an LLM runtime;
 - AAAAT-initiated provider or inference calls in the standard path;
-- generated connector package ingestion, storage, activation, or execution;
+- generated connector package ingestion, storage, activation, or execution inside AAAAT;
 - silent provider/model/executable/endpoint discovery;
 - a generic plugin framework;
 - a generic workflow engine;

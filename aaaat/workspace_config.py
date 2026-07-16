@@ -54,6 +54,11 @@ def load_workspace_config(storage_path: str | Path) -> dict[str, Any]:
     if not isinstance(adapter_value, dict):
         raise ValueError("local_agent_adapter must be an object")
     adapter_id = str(adapter_value.get("id") or DEFAULT_ADAPTER_ID)
+    if adapter_id == "manual_external_agent":
+        # v1 had not shipped when portable exchange was the default.  Treat that
+        # unreleased configuration as the new no-connection state instead of
+        # preserving a misleading manual-first setup.
+        adapter_id = DEFAULT_ADAPTER_ID
     try:
         adapter_definition(adapter_id)
     except ValueError:

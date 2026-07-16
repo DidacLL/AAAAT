@@ -2,6 +2,25 @@
 
 AAAAT is a local-first job-application workspace. It is not an LLM runtime, provider SDK, general agent orchestrator, or broad CRUD API.
 
+## Connected LLMs
+
+A connected LLM is the user's intelligent setup and assistance surface. It should
+discover its own host capabilities and, with the user's approval, choose and
+configure the best host-native connection: MCP first when available, otherwise
+a host tool, skill, approved script, browser/native bridge, or host-owned
+automation. It may give provider-specific instructions or create host-side
+configuration when its host permits it. Do not turn this into a provider SDK or
+credential store inside AAAAT.
+
+AAAAT keeps the local product boundary: it supplies a concise connection brief,
+validates the bounded work/result protocol, applies results locally, and never
+requires a normal user to know a storage path, a database, an internal ID, or a
+command. Portable copy/file exchange is a last fallback, not the primary setup.
+
+The distinction matters: host setup is user-directed intelligence; a claimed
+work item is deliberately limited local authority. Do not apply the task-worker
+limits to the host's own setup work.
+
 The canonical human runtime is the wx desktop application. External AI hosts consume one bounded queue through thin adapters.
 
 ## Bounded work
@@ -46,6 +65,9 @@ Its operational tools map to the same services: claim next work, report task pro
 
 ## Boundaries
 
-Provider/model selection, credentials, inference, research tooling, and network policy belong to the external host. Provider or model names may be returned only as optional provenance.
+Provider/model selection, credentials, inference, research tooling, network policy,
+and host-specific configuration belong to the external host. AAAAT must not
+request or store those credentials. Provider or model names may be returned only
+as optional provenance.
 
 The agent is not the user. Human notes and desktop edits remain human operations. Do not place private values in source templates, public examples, demo data, or documentation.

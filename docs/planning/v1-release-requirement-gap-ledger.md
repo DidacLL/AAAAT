@@ -110,16 +110,16 @@ Current failure: internal architecture and setup instructions leak into user UI;
 
 Required implementation:
 
-- standard choices use user language: Connect my AI, browser/chat AI, portable file;
-- explain what information may be shared and who owns credentials in plain language;
-- give a concrete next action for each choice;
+- standard onboarding starts with Connect my AI, then lets the connected LLM choose the best host-native route;
+- explain what information may be shared, who owns credentials, and when approval is needed in plain language;
+- use a paired local bridge for capable hosts; host tools/skills/scripts and portable transfer are fallbacks in that order;
 - no ports, executables, argv, task handles/capabilities, queue states, SDKs, or protocol internals outside Advanced/troubleshooting;
-- manual use remains obvious and primary;
+- manual use remains obvious; portable transfer is the last assisted fallback;
 - Advanced contains the explicit technical user-owned command.
 
 Required tests:
 
-- behavioral view tests for each standard choice and its resulting action;
+- behavioral tests for capability-led host selection, pairing, and the no-local-tools fallback;
 - source guards only for high-risk forbidden internals in standard panels;
 - Advanced-only test for command configuration.
 
@@ -155,55 +155,55 @@ Required implementation:
 Required tests:
 
 - canonical progress service state transitions;
-- CLI, MCP, and browser wrappers call the same service;
+- CLI, MCP, and paired-host bridge wrappers call the same service;
 - wx projection refreshes after progress;
 - supplied deterministic fixture demonstrates the full path.
 
-### B8. Make MCP operational and reviewable
+### B8. Make paired MCP operational and reviewable
 
-Current failure: launching `aaaat-mcp` interactively only waits on stdio, and no client instructions existed.
+Current failure: launching a raw stdio process is not a usable connected-host flow.
 
 Required implementation:
 
-- keep operational stdio MCP limited to the canonical tools;
+- keep paired stdio MCP limited to setup verification and the canonical work tools;
+- provide a host-only connection brief, opaque pairing, revocation, and a bridge that accepts no storage argument;
 - ship a small deterministic MCP smoke client or documented standard-client configuration that actually initializes, lists tools, claims work, reports progress, and submits a result;
 - stdout remains protocol-only; diagnostics use stderr;
-- user documentation must never present an idle server process as a standalone manual test.
+- normal-user documentation must never expose an idle server process, storage path, capability, or bridge command.
 
 Required tests:
 
-- subprocess round trip using the shipped smoke client/fixture;
-- initialize, tools/list, get-next-work, progress, submit-result, malformed method;
+- pair then subprocess round trip using the shipped smoke client/fixture;
+- initialize, tools/list, ping, get-next-work, progress, submit-result, malformed method;
 - no split context tool or broad data tool.
 
-### B9. Complete browser companion workflow
+### B9. Replace browser companion with a paired host bridge
 
-Current failure: self-test worked, but no complete installation or round-trip instructions existed.
+Current failure: the browser extension is an unrequested JSON-paste workflow, not a provider-agnostic connected-LLM route.
 
 Required implementation:
 
-- wx exports or guides installation of the browser companion;
-- package includes valid platform-specific native-host setup instructions;
-- companion can claim complete work, report progress, and submit a result;
-- user can understand what is shared;
-- no broad data enumeration or provider credentials in AAAAT;
-- Windows path/launcher behavior is explicitly supported and tested.
+- remove the browser extension and native-message setup from v1;
+- wx shows only ready to connect, connected, needs attention, and paused, with revocation;
+- the LLM owns provider-specific installation/configuration with its own permission model;
+- no broad data enumeration, provider credentials, storage path, command, or internal ID reaches normal UI or task data.
 
 Required tests:
 
-- native-message protocol round trip;
-- manifest/launcher correctness on Windows and Unix path conventions;
+- bridge pairing/revocation and stale-capability behavior;
+- bridge launch without a storage argument on Windows and Unix path conventions;
 - complete result ingestion through canonical services;
 - malformed/oversized messages fail safely.
 
-### B10. Complete portable task/result workflow
+### B10. Complete portable task/result fallback
 
-Current failure: no executable human instructions existed.
+Current failure: no executable last-resort fallback existed for a host without local bridge access.
 
 Required implementation:
 
 - wx action exports one complete portable work bundle for selected eligible assistance;
 - bundle explains how the external AI should return results;
+- standard connected onboarding selects this only after reporting that no local host route is available;
 - wx imports the returned result bundle;
 - independent valid sections survive unrelated invalid sections;
 - duplicate, altered, stale, unauthorized, or cross-task results are rejected;
@@ -318,7 +318,7 @@ The following categories must not drive implementation:
 - historical runtime-split documents that require a separate context fetch;
 - descriptor-only MCP claims;
 - `task_handle` terminology where the implemented contract is an attempt capability;
-- generated connector package installation/activation language;
+- AAAAT-managed generated connector installation/activation language;
 - plural candidature-note language;
 - generic `next action`, priority/location/keyword visibility assumptions not grounded in the accepted view contract;
 - tests that assert exact incidental wording instead of product behavior;
@@ -344,7 +344,7 @@ Required cleanup:
 7. guided profile completion and rendering.
 8. canonical progress UX.
 9. executable MCP fixture and documentation.
-10. browser companion installation and round trip.
+10. paired host bridge installation and round trip.
 11. portable export/import round trip.
 12. Advanced command fixture and failure handling.
 13. structural privacy and cross-wrapper equivalence tests.
@@ -363,12 +363,27 @@ Before marking ready:
 - clean wx onboarding is understandable;
 - Smart and Detailed views match their distinct use cases;
 - standard assisted onboarding is executable without internal jargon;
-- MCP, browser/portable, progress, Advanced, and rendering demonstrations have concrete supplied instructions or fixtures;
+- paired-host/portable, progress, Advanced, and rendering demonstrations have concrete supplied instructions or fixtures;
 - expected invalid inputs do not expose tracebacks;
 - the PR body lists unresolved manual gates honestly.
 
 ## F. Automated implementation closure record
 
-Implementation closure recorded after local execution: B1–B15 are implemented and covered by focused public-boundary tests. The full suite passed with 155 tests; wheel and sdist were built and installed outside the checkout; their installed MCP smoke client and release validator passed; and the installed wx desktop started against a clean Windows workspace.
+The prior closure record is superseded by the connected-LLM correction. Fresh
+automated evidence has been recorded after the paired-host implementation:
 
-This closes the implementation blockers, not the human-review gate. PR #45 remains draft until the real-user demonstrations in section E are recorded and directly approved.
+- focused host-connection/MCP/onboarding/integration/error tests passed;
+- complete suite passed: 160 tests on Windows/Python 3.13;
+- local release validator passed its automated gates, including Windows backup
+  and restore into a separate workspace;
+- wheel and sdist were built outside the checkout, installed into fresh
+  environments, and exercised through the installed MCP and paired-bridge
+  stdio smoke clients; the paired smoke requires the installed bridge console
+  command rather than a module fallback;
+- the installed release validator passed against a disposable external
+  workspace.
+
+This closes the automated implementation evidence for B1–B15. It does not
+replace the human-review eligibility gates in section E: the PR remains draft
+until a human observes the wx flows and a real host's capability-led connection
+flow.

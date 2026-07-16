@@ -4,7 +4,7 @@ AAAAT is a local-first desktop workspace for managing job applications and produ
 
 The wx desktop application is the only v1 human runtime. AAAAT remains usable manually without any AI connection.
 
-AAAAT owns local data, bounded work construction, validation, deterministic application, rendering, artifacts, and the human UI. External AI or agent hosts own reasoning, providers, models, credentials, network access, and inference.
+AAAAT owns local data, bounded work construction, validation, deterministic application, rendering, artifacts, and the human UI. A connected LLM is the user's intelligent setup and assistance surface: it owns reasoning, provider/model choice, credentials, network access, and host-specific configuration with the user's approval.
 
 AAAAT is not an LLM provider wrapper, agent orchestrator, plugin host, browser dashboard, or broad agent CRUD API.
 
@@ -71,7 +71,13 @@ aaaat --storage /path/to/private-aaaat backup
 
 Windows backup/restore remains an active release blocker until the gap ledger item is closed.
 
-## Agent-facing architecture
+## Connected LLM architecture
+
+The normal assisted path starts with **Connect my AI** in the desktop app. The LLM reads a concise host-only connection brief, assesses what its own host can do, and chooses the best available connection: MCP first, then a native tool or skill, an approved host-side script or automation, and portable transfer only as a fallback. A normal user never needs a storage path, command, database, internal ID, task capability, or protocol detail.
+
+AAAAT does not configure providers or keep credentials. It supplies the paired local bridge and validates work; the LLM configures its own host with its own permission model.
+
+## Bounded work architecture
 
 The normal external-agent flow is:
 
@@ -84,7 +90,7 @@ external host requests work
 
 The work item includes its purpose-scoped context. There is no normal second context-fetch, packet, or dispatch step.
 
-Supported wrapper directions are operational stdio MCP, bounded CLI, browser/native messaging, portable files, and an explicit Advanced user-owned command. All must reuse the same canonical queue and ingestion services.
+The paired bridge, bounded CLI, portable fallback, and explicit Advanced user-owned command all reuse the same canonical queue and ingestion services. The former browser extension is not an active v1 connection route.
 
 The normal human product must not require internal IDs, task/capability terminology, ports, executables, or protocol knowledge.
 
@@ -95,7 +101,7 @@ aaaat --version
 aaaat-desktop --help
 aaaat-upgrade --help
 aaaat-mcp --help
-aaaat-browser-host --self-test
+aaaat-host-bridge --help
 aaaat mcp-validate
 ```
 

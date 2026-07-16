@@ -23,14 +23,10 @@ class AssistanceServiceTests(unittest.TestCase):
                 failed = create_task(conn, "company_research", "Research", application_id=candidature["id"], idempotent=False)
                 update_task(conn, failed["id"], state="failed", notes="runtime failed")
             snapshot = assistance_snapshot(storage, include_advanced=True)
-            self.assertEqual(
-                [item["id"] for item in snapshot["connection_modes"]],
-                ["manual", "guided_connector", "browser_or_chat", "advanced_integration"],
-            )
-            self.assertEqual(
-                {option["id"] for option in snapshot["options"]},
-                {"manual_external_agent", "file_exchange", "argv_custom_command"},
-            )
+            self.assertEqual(snapshot["connection_modes"][0]["id"], "guided_connector")
+            self.assertNotIn("browser_or_chat", {item["id"] for item in snapshot["connection_modes"]})
+            self.assertEqual(snapshot["connection"]["state"], "ready_to_connect")
+            self.assertTrue(all(bool(option["advanced"]) or option["id"] == "no_ai_connection" for option in snapshot["options"]))
             serialized = str(snapshot["options"]).lower()
             for forbidden in ("llama", "ollama", "codex"):
                 self.assertNotIn(forbidden, serialized)
@@ -52,7 +48,7 @@ class AssistanceServiceTests(unittest.TestCase):
             current = assistance_snapshot(storage)["integration"]
             self.assertEqual(current["id"], "argv_custom_command")
             manual = use_manual_integration(storage)
-            self.assertEqual(manual["id"], "manual_external_agent")
+            self.assertEqual(manual["id"], "no_ai_connection")
 
 
 if __name__ == "__main__":

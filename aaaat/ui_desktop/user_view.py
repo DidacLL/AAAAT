@@ -6,10 +6,10 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
+from aaaat.host_connection import connection_handoff_message, connection_status, revoke_workspace_connections
 from aaaat.assistance_service import (
     assistance_snapshot,
     create_profile_completion_task,
-    export_browser_companion_package,
     run_integration_conformance,
     save_integration,
     use_manual_integration,
@@ -48,6 +48,7 @@ class UserViewMixin:
         self.assistance_panel = AssistancePanel(
             self.user_workspace,
             on_select_mode=self._select_connection_mode,
+            on_disconnect=self._pause_ai_connection,
             on_save_integration=self._save_integration,
             on_conformance=self._run_conformance,
             on_create_profile_task=self._create_profile_completion_task,
@@ -59,8 +60,9 @@ class UserViewMixin:
 
         self.connector_panel = ConnectorOnboardingPanel(
             self.user_workspace,
-            on_instructions=self._plain_connection_guidance,
-            on_export_browser=self._export_browser_companion,
+            on_prepare_connection=self._prepare_connection_handoff,
+            on_connection_status=lambda: connection_status(self.storage_path),
+            on_disconnect=self._pause_ai_connection,
         )
         self.user_workspace.AddPage(self.connector_panel, "Connect my AI")
 
@@ -69,7 +71,7 @@ class UserViewMixin:
             on_export=self._export_portable_bundle,
             on_import=self._import_portable_bundle,
         )
-        self.user_workspace.AddPage(self.portable_bundle_panel, "Browser or chat AI")
+        self.user_workspace.AddPage(self.portable_bundle_panel, "Advanced files")
 
         sizer.Add(self.user_workspace, 1, wx.ALL | wx.EXPAND, 0)
         self.view_book.AddPage(self.user_panel, "User")
@@ -92,14 +94,8 @@ class UserViewMixin:
         self._select_connection_mode(mode_id)
         self._refresh_current_if_needed()
 
-    @staticmethod
-    def _plain_connection_guidance() -> str:
-        return (
-            "1. Open the AI tool you already use.\n\n"
-            "2. Enable its AAAAT connection or follow that tool's AAAAT setup guide.\n\n"
-            "3. Return here after it is connected. You can still create, edit, and prepare candidatures manually at any time.\n\n"
-            "AAAAT shares only the selected preparation work. Your account, credentials, and the AI tool's data policy remain yours to manage."
-        )
+    def _prepare_connection_handoff(self) -> str:
+        return connection_handoff_message(self.storage_path)
 
     def _assistance_snapshot(self) -> dict[str, Any]:
         return assistance_snapshot(self.storage_path, include_advanced=True, progress_by_task=self._task_progress)
@@ -184,12 +180,18 @@ class UserViewMixin:
             return {"status": "ready", "message": "External-host connection instructions opened."}
         if mode_id == "browser_or_chat":
             self._select_user_workspace_page(self.portable_bundle_panel)
-            self.SetStatusText("Browser or chat AI workflow opened")
-            return {"status": "ready", "message": "Browser or chat AI workflow opened."}
+            self.SetStatusText("Advanced file exchange opened")
+            return {"status": "ready", "message": "Advanced file exchange opened."}
         if mode_id == "advanced_integration":
             self.SetStatusText("Advanced integration settings opened")
             return {"status": "ready", "message": "Advanced integration settings opened."}
         raise ValueError(f"Unknown connection mode: {mode_id}")
+
+    def _pause_ai_connection(self) -> dict[str, Any]:
+        result = revoke_workspace_connections(self.storage_path)
+        self.SetStatusText("AI connection paused")
+        self._schedule_assistance_refresh()
+        return result
 
     def _select_user_workspace_page(self, page: wx.Window) -> None:
         for index in range(self.user_workspace.GetPageCount()):
@@ -217,15 +219,6 @@ class UserViewMixin:
         self.SetStatusText(str(result.get("message") or result.get("status") or "Advanced command test complete"))
         if self.current_view == "user":
             self._refresh_user_view()
-
-    def _export_browser_companion(self) -> str | None:
-        with wx.DirDialog(self, "Choose an empty folder for the browser companion") as dialog:
-            if dialog.ShowModal() != wx.ID_OK:
-                return None
-            target = Path(dialog.GetPath())
-        export_browser_companion_package(self.storage_path, target)
-        self.SetStatusText("Browser companion installed in the selected folder")
-        return str(target)
 
     def _create_profile_completion_task(self) -> dict[str, Any]:
         task = create_profile_completion_task(self.storage_path)

@@ -17,7 +17,7 @@ The remaining work includes:
 - restoration of the intended distinct Smart View and Detailed View responsibilities;
 - one candidature note and structured keyword editing;
 - standard assisted onboarding without protocol or runtime jargon;
-- concrete executable MCP, browser, portable, progress, and Advanced-command workflows;
+- concrete executable paired-host, portable-fallback, progress, and Advanced-command workflows;
 - guided profile completion and local artifact rendering;
 - concise expected-error handling without Python tracebacks;
 - working Windows backup and restore;
@@ -29,6 +29,7 @@ The remaining work includes:
 - wx remains the only v1 human runtime.
 - Manual operation remains available without AI.
 - External hosts own reasoning, providers, models, credentials, and inference.
+- A connected LLM may configure its own host according to that host's permission policy; AAAAT supplies the connection brief and opaque bridge only.
 - AAAAT owns local data, one bounded work queue, complete purpose-scoped work items, validation, deterministic application, rendering, artifacts, and provenance.
 - Result and progress callbacks use random attempt-scoped capabilities rather than internal entity IDs.
 - Supported wrappers must reuse canonical services and must not restore split context, packet, dispatch, broad CRUD, generated connector ingestion, or provider-specific core behavior.

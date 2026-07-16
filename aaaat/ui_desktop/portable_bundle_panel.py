@@ -8,7 +8,7 @@ BundleCallback = Callable[[], dict[str, Any] | None]
 
 
 class PortableBundlePanel(wx.Panel):
-    """Two-transfer browser and chat AI compatibility surface."""
+    """Advanced file-exchange fallback for hosts that cannot connect directly."""
 
     def __init__(
         self,
@@ -23,15 +23,15 @@ class PortableBundlePanel(wx.Panel):
         root = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(root)
 
-        title = wx.StaticText(self, label="Use a browser or chat AI")
+        title = wx.StaticText(self, label="Advanced file exchange")
         title.SetFont(title.GetFont().Bold().Larger())
         root.Add(title, 0, wx.ALL | wx.EXPAND, 12)
 
         explanation = wx.StaticText(
             self,
             label=(
-                "For an AI that cannot connect automatically, AAAAT creates one file containing every eligible task for "
-                "the candidature you selected. Add that file to your chat, then import the single result file it returns."
+                "Use this only when your AI cannot connect directly. AAAAT creates one file containing every eligible task "
+                "for the candidature you selected, then accepts one returned result file."
             ),
         )
         explanation.Wrap(760)
