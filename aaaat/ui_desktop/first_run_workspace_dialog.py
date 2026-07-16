@@ -84,7 +84,7 @@ class FirstRunWorkspaceDialog(wx.Dialog):
         root.Add(buttons, 0, wx.ALL | wx.ALIGN_RIGHT, 16)
 
         self.SetSizerAndFit(root)
-        self.SetMinSize((660, self.GetSize().height))
+        self.SetMinSize((660, -1))
         self._on_choice_changed(None)
         self.CentreOnParent()
 
@@ -94,11 +94,12 @@ class FirstRunWorkspaceDialog(wx.Dialog):
         self.browse_button.Enable(enabled)
 
     def _choose_folder(self, _event: wx.CommandEvent) -> None:
+        style = wx.DD_DEFAULT_STYLE | getattr(wx, "DD_NEW_DIR_BUTTON", 0)
         with wx.DirDialog(
             self,
             "Choose a private workspace folder",
             defaultPath=str(self._suggested_workspace.parent),
-            style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON,
+            style=style,
         ) as dialog:
             if dialog.ShowModal() != wx.ID_OK:
                 return
@@ -134,11 +135,14 @@ def select_first_run_workspace(
     suggested_workspace: Path,
     save_workspace: Callable[[str | Path], Path],
 ) -> Path | None:
-    with FirstRunWorkspaceDialog(
+    dialog = FirstRunWorkspaceDialog(
         parent,
         suggested_workspace=suggested_workspace,
         save_workspace=save_workspace,
-    ) as dialog:
+    )
+    try:
         if dialog.ShowModal() != wx.ID_OK:
             return None
         return dialog.selected_workspace
+    finally:
+        dialog.Destroy()
