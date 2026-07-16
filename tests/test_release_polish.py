@@ -69,17 +69,18 @@ class ReleaseEngineeringTests(unittest.TestCase):
         self.assertIn("Repository, https://github.com/DidacLL/AAAAT", project_urls)
         self.assertEqual(set(console_scripts), {"aaaat-desktop", "aaaat-host-bridge"})
 
-    def test_normal_windows_release_build_excludes_developer_entry_points(self):
-        build_script = (ROOT / "tools" / "build_windows_release.ps1").read_text(encoding="utf-8")
-        self.assertIn("AAAAT-portable.zip", build_script)
+    def test_normal_release_uses_one_platform_neutral_desktop_and_bridge_recipe(self):
+        build_script_path = ROOT / "tools" / "build_release.py"
+        build_script = build_script_path.read_text(encoding="utf-8")
+
+        self.assertTrue(build_script_path.is_file())
+        self.assertIn("DESKTOP_ENTRY", build_script)
+        self.assertIn("BRIDGE_ENTRY", build_script)
         self.assertIn("aaaat-host-bridge", build_script)
-        for developer_module in (
-            "aaaat.cli",
-            "aaaat.mcp_smoke",
-            "aaaat.demo_seed",
-            "aaaat.release_validation_cli",
-        ):
-            self.assertIn(developer_module, build_script)
+        self.assertIn("_platform_label", build_script)
+        self.assertNotIn("briefcase", build_script.lower())
+        self.assertFalse((ROOT / "tools" / "build_windows_release.ps1").exists())
+        self.assertFalse((ROOT / "tools" / "aaaat-installer.iss").exists())
 
     def test_cli_can_initialize_clean_local_storage_without_git(self):
         with tempfile.TemporaryDirectory() as tmp:
