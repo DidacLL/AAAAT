@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import tempfile
@@ -7,7 +8,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from aaaat.host_connection import bridge_launch_contract, export_host_pack, host_bridge_executable
+from aaaat.host_bridge import run_host_bridge
+from aaaat.host_connection import bridge_launch_contract, create_connection, export_host_pack, host_bridge_executable
 
 
 class HostBridgeLocationTests(unittest.TestCase):
@@ -43,6 +45,25 @@ class HostBridgeLocationTests(unittest.TestCase):
         self.assertIn(str(bridge), payload)
         self.assertNotIn(str(workspace), payload)
         self.assertNotIn("sqlite", payload.lower())
+
+    def test_paired_initialize_advertises_tools_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace = root / "private-workspace"
+            registry = root / "connections.json"
+            with patch.dict(os.environ, {"AAAAT_CONNECTION_REGISTRY": str(registry)}):
+                capability = create_connection(workspace)["connection_capability"]
+                source = io.StringIO(
+                    json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}) + "\n"
+                )
+                target = io.StringIO()
+                run_host_bridge(capability, source, target)
+
+        response = json.loads(target.getvalue())
+        capabilities = response["result"]["capabilities"]
+        self.assertEqual(capabilities, {"tools": {"listChanged": False}})
+        self.assertEqual(response["result"]["serverInfo"]["name"], "aaaat-host-bridge")
+        self.assertNotIn("resources", json.dumps(response))
 
 
 if __name__ == "__main__":
