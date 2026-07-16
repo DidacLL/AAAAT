@@ -41,7 +41,7 @@ def ingest_task_result(
     agent_runtime = str(source.get("agent_runtime") or default_agent_runtime)[:500]
     model_provider = str(source.get("model_provider") or "")[:500]
 
-    return submit_agent_task_result(
+    completed = submit_agent_task_result(
         conn,
         capability,
         json.dumps(body, ensure_ascii=False),
@@ -49,6 +49,11 @@ def ingest_task_result(
         agent_runtime=agent_runtime,
         model_provider=model_provider,
     )
+    return {
+        "status": "accepted",
+        "state": str(completed.get("state") or "completed"),
+        "next": ["review_in_aaaat"],
+    }
 
 
 def _result_object(result: str | Mapping[str, Any]) -> dict[str, Any]:

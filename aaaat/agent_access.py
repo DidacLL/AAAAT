@@ -202,6 +202,8 @@ def _task_context(conn: sqlite3.Connection, task: dict[str, Any]) -> dict[str, A
     task_type = str(task.get("task_type") or "")
     if task_type == "profile_completion":
         return profile_completion_context(conn)
+    if task_type == "keyword_definition" and not task.get("application_id"):
+        return {"keyword": keyword_from_context(task.get("context_hint", ""))}
     application_id = task.get("application_id")
     if application_id:
         app = get_application(conn, application_id)

@@ -176,7 +176,13 @@ class HostConnectionTests(unittest.TestCase):
         )) + "\n")
         target = io.StringIO()
         run_host_bridge(capability, source, target)
-        self.assertFalse(json.loads(target.getvalue().splitlines()[-1])["result"]["isError"])
+        submitted_response = json.loads(target.getvalue().splitlines()[-1])
+        self.assertFalse(submitted_response["result"]["isError"])
+        acknowledgement = submitted_response["result"]["structuredContent"]["acknowledgement"]
+        self.assertEqual(acknowledgement, {"status": "accepted", "state": "completed", "next": ["review_in_aaaat"]})
+        serialized_acknowledgement = json.dumps(acknowledgement)
+        for forbidden in ("task_id", "application_id", "result_blob_id", "created_by", "notes"):
+            self.assertNotIn(forbidden, serialized_acknowledgement)
         with connect(self.workspace) as conn:
             self.assertEqual(get_task(conn, task["id"])["state"], "completed")
 

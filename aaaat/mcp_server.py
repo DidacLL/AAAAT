@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 PROTOCOL_VERSION = "2025-06-18"
+PROGRESS_PHASES = ("accepted", "planning", "working", "waiting", "blocked", "finalizing")
 
 CONTRACT_DESCRIPTION = (
     "AAAAT bounded queue operation. Acquisition atomically claims one complete purpose-scoped work item. "
@@ -28,7 +29,7 @@ def mcp_descriptor() -> dict[str, Any]:
             ),
             tool(
                 "report_agent_task_progress",
-                {"task_capability": "string", "phase": "string", "message": "string", "percent": "integer"},
+                {"task_capability": "string", "phase": {"type": "string", "enum": list(PROGRESS_PHASES)}, "message": "string", "percent": "integer"},
                 ["task_capability", "phase"],
             ),
             tool("submit_agent_action", {"action": "object", "agent_name": "string", "agent_runtime": "string", "model_provider": "string"}, ["action"]),
@@ -36,7 +37,7 @@ def mcp_descriptor() -> dict[str, Any]:
     }
 
 
-def tool(name: str, properties: dict[str, str], required: list[str]) -> dict[str, Any]:
+def tool(name: str, properties: dict[str, Any], required: list[str]) -> dict[str, Any]:
     return {
         "name": name,
         "title": name.replace("_", " ").title(),
@@ -44,7 +45,7 @@ def tool(name: str, properties: dict[str, str], required: list[str]) -> dict[str
         "inputSchema": {
             "type": "object",
             "additionalProperties": False,
-            "properties": {key: {"type": kind} for key, kind in properties.items()},
+            "properties": {key: value if isinstance(value, dict) else {"type": value} for key, value in properties.items()},
             "required": required,
         },
     }

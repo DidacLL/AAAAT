@@ -25,6 +25,11 @@ class McpRuntimeTests(unittest.TestCase):
                 {"get_next_agent_work", "report_agent_task_progress", "submit_agent_task_result", "submit_agent_action"},
             )
             self.assertNotIn("get_agent_task_context", names)
+            progress = next(item for item in listed["result"]["tools"] if item["name"] == "report_agent_task_progress")
+            self.assertEqual(
+                progress["inputSchema"]["properties"]["phase"]["enum"],
+                ["accepted", "planning", "working", "waiting", "blocked", "finalizing"],
+            )
 
     def test_mcp_claim_progress_and_result_share_one_capability(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -39,6 +44,7 @@ class McpRuntimeTests(unittest.TestCase):
             capability = work["task"]["task_capability"]
             self.assertTrue(capability.startswith("taskcap_"))
             self.assertIn("input_context", work)
+            self.assertEqual(work["input_context"], {"keyword": "MCP"})
             self.assertIn("response_format", work)
             with connect(tmp) as conn:
                 self.assertEqual(get_task(conn, task["id"])["state"], "claimed")
@@ -108,6 +114,7 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertTrue(outcome["claimed"])
         self.assertTrue(outcome["progressed"])
         self.assertTrue(outcome["submitted"])
+        self.assertTrue(outcome["safe_acknowledgement"])
         self.assertEqual(outcome["malformed_request"], "rejected")
 
 

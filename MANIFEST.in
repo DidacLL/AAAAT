@@ -1,0 +1,14 @@
+include LICENSE
+include README.md
+include pyproject.toml
+recursive-include aaaat *.py *.sql
+
+# A release artifact contains the runnable application and its metadata, not
+# repository-only review material that a locally capable host could browse.
+prune tests
+prune docs
+prune work
+prune .agents
+prune .codex
+global-exclude __pycache__
+global-exclude *.py[cod]

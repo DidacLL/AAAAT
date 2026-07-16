@@ -18,7 +18,7 @@ class ResultIngestionTests(unittest.TestCase):
                 '{"result":"ok"}',
                 provenance={"agent_name": "Agent", "agent_runtime": "http-wrapper", "model_provider": "provider:model"},
             )
-        self.assertEqual(result, {"state": "completed"})
+        self.assertEqual(result, {"status": "accepted", "state": "completed", "next": ["review_in_aaaat"]})
         self.assertEqual(submit.call_args.args[1], _CAPABILITY)
         self.assertEqual(submit.call_args.kwargs["agent_runtime"], "http-wrapper")
         self.assertIn('"result": "ok"', submit.call_args.args[2])

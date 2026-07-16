@@ -22,6 +22,9 @@ general mutation handle. AAAAT validates and applies results locally. Never
 request or expose internal IDs, database access, broad record searches,
 credentials, storage or artifact paths, or arbitrary files.
 
+Progress phases are `accepted`, `planning`, `working`, `waiting`, `blocked`,
+and `finalizing`.
+
 Supported task types are `field_inference`, `company_research`,
 `keyword_definition`, `draft_form_responses`, `draft_cv`,
 `draft_cover_letter`, and `career_plan_review`. Human notes and desktop edits

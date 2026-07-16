@@ -58,7 +58,7 @@ Completed, cancelled and superseded attempts reject further progress or results.
 }
 ```
 
-Supported phases are bounded and task-scoped. Progress is persisted locally and cannot mutate candidature data.
+Supported phases are `accepted`, `planning`, `working`, `waiting`, `blocked`, and `finalizing`. Progress is persisted locally and cannot mutate candidature data.
 
 ## Result submission
 

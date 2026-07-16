@@ -78,6 +78,9 @@ def run_host_bridge_smoke(
                 "agent_runtime": "paired-bridge-smoke-client",
             }},
         })
+        acknowledgement = _structured(submitted).get("acknowledgement")
+        if acknowledgement != {"status": "accepted", "state": "completed", "next": ["review_in_aaaat"]}:
+            raise RuntimeError("Paired bridge returned an unsafe or unexpected result acknowledgement")
         process.stdin.write("{not-json}\n")
         process.stdin.flush()
         malformed = _read_response(process.stdout)
@@ -91,6 +94,7 @@ def run_host_bridge_smoke(
             "claimed": bool(capability),
             "progressed": not bool(progressed.get("error")),
             "submitted": not bool(submitted.get("error")),
+            "safe_acknowledgement": True,
             "malformed_request": "rejected",
             "installed_bridge": require_installed,
         }
