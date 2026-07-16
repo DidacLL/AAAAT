@@ -121,7 +121,7 @@ def parse_action_packet(action: dict[str, Any] | str) -> dict[str, Any]:
 
 def _start_profile_action(conn: sqlite3.Connection, payload: dict[str, Any], *, agent_name: str, agent_runtime: str) -> dict[str, Any]:
     _ = payload
-    task = create_task(
+    create_task(
         conn,
         "profile_completion",
         "Build professional profile",
@@ -176,7 +176,7 @@ def _create_candidature_action(conn: sqlite3.Connection, payload: dict[str, Any]
     fields.update({
         "include_field_inference_task": False,
         "include_company_research_task": False,
-        "include_keyword_detection_task": False,
+        "include_keyword_detection_task": True,
         "include_cv_task": False,
         "include_cover_letter_task": False,
         "include_form_responses_task": False,
