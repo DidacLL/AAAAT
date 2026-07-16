@@ -1,34 +1,51 @@
 # AAAAT Agent Instructions
 
-AAAAT is not an LLM wrapper, provider SDK, agent orchestrator, or CRUD API for agents. Agents use capability-scoped commands with explicit input/output shapes. Do not browse, list, search, or patch the user's candidature database.
+AAAAT is a local-first job-application workspace. It is not an LLM runtime, provider SDK, general agent orchestrator, or broad CRUD API.
 
-Implemented agent task capability:
+The canonical human runtime is the wx desktop application. External AI hosts consume one bounded queue through thin adapters.
 
-- `python -m aaaat.cli agent next`
-- `python -m aaaat.cli agent context <task_handle>`
-- `python -m aaaat.cli agent packet <task_handle>`
-- `python -m aaaat.cli agent submit <task_handle> --result-body "..."`
-- `python -m aaaat.cli agent submit <task_handle> --result-file result.json`
+## Bounded work
 
-Implemented action-session capability:
+Use one acquisition operation:
 
-- `python -m aaaat.cli agent context-bundle --purpose <purpose>`
-- `python -m aaaat.cli agent action submit --input-file action.json`
-- `python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'`
+```bash
+aaaat agent next
+```
 
-A task handle is an opaque callback handle for one bounded task. It is not a task row ID, application ID, candidature ID, profile fact ID, artifact ID, file path, or storage path, and it must not be treated as mutation authority over arbitrary local state.
+It atomically claims one eligible task and returns the complete purpose-scoped work item, including instructions, input context, response schema, privacy notes, allowed actions, and a random attempt-scoped `task_capability`.
 
-AAAAT exposes MCP compatibility as a dependency-free descriptor/tool-schema surface through:
+Do not request a second context or packet. Those split surfaces do not exist.
 
-- `python -m aaaat.cli mcp-descriptor`
-- `python -m aaaat.cli mcp-validate`
+Submit one structured result through the same capability:
 
-This is descriptor-only compatibility. AAAAT does not currently implement an MCP server transport such as stdio, SSE, or streamable HTTP, and agents should not configure AAAAT as a direct MCP server unless a real server transport is added later.
+```bash
+aaaat agent submit <task_capability> --result-file result.json
+```
 
-An external LLM app may first ask AAAAT for purpose-scoped context such as `cv_generation`, `cover_letter`, `candidature_fit`, `recruiter_call`, `form_answers`, or `career_plan_review`. The LLM then submits one bounded action: create a candidature from already-inferred fields, store research/form-answer data, store cover-letter body text as render input, request local rendering, or request bounded future tasks.
+The capability is not a database ID or entity mutation handle. Never return internal IDs, storage paths, arbitrary file paths, or broad local records.
 
-The LLM is not the user and does not create final artifacts. AAAAT renders CVs and cover letters locally from templates, profile/application data, and explicit render inputs.
+## Bounded actions
 
-The browser dashboard is a compact local human working surface. Its routes are not an agent contract. Add new opportunities through dashboard raw-offer intake, user-directed local CLI use, or bounded agent actions; never by agents enumerating private data.
+External hosts may submit explicitly supported actions, currently including creation of a new candidature from supplied source material and outputs:
 
-Do not place private values in public demos, source templates, docs, or examples.
+```bash
+aaaat agent action submit --input-file action.json
+```
+
+AAAAT validates the action, creates local records and follow-up tasks internally, renders local artifacts, and returns a narrow acknowledgement.
+
+## MCP
+
+AAAAT ships a dependency-free stdio MCP server:
+
+```bash
+aaaat-mcp --storage .private
+```
+
+Its operational tools map to the same services: claim next work, report task progress, submit a task result, and submit a bounded action. MCP is not a second queue or mutation path.
+
+## Boundaries
+
+Provider/model selection, credentials, inference, research tooling, and network policy belong to the external host. Provider or model names may be returned only as optional provenance.
+
+The agent is not the user. Human notes and desktop edits remain human operations. Do not place private values in source templates, public examples, demo data, or documentation.
