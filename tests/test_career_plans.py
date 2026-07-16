@@ -136,7 +136,20 @@ class CareerPlanCliTests(unittest.TestCase):
                 )
             )
             listed = json.loads(self.run_cli(["--storage", tmp, "career-plan", "list"]))
-            context = json.loads(self.run_cli(["--storage", tmp, "agent", "context-bundle", "--purpose", "career_plan_review"]))
+            context = json.loads(
+                self.run_cli(
+                    [
+                        "--storage",
+                        tmp,
+                        "career-plan",
+                        "context",
+                        "--purpose",
+                        "career_plan_review",
+                        "--scope",
+                        "agent",
+                    ]
+                )
+            )
             archived = json.loads(self.run_cli(["--storage", tmp, "career-plan", "archive", added["id"]]))
 
         self.assertEqual(listed[0]["id"], added["id"])
