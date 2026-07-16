@@ -24,6 +24,18 @@ class ReleaseEngineeringTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(result.stdout.strip())
 
+    def test_mcp_module_help_executes_successfully(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "aaaat.mcp_runtime", "--help"],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("bounded MCP server", result.stdout)
+
     def test_upgrade_module_help_executes_successfully(self):
         result = subprocess.run(
             [sys.executable, "-m", "aaaat.upgrade", "--help"],
@@ -58,7 +70,7 @@ class ReleaseEngineeringTests(unittest.TestCase):
         )
         self.assertIn("Repository, https://github.com/DidacLL/AAAAT", project_urls)
         self.assertTrue(
-            {"aaaat", "aaaat-desktop", "aaaat-upgrade", "aaaat-seed-desktop-demo"}.issubset(console_scripts)
+            {"aaaat", "aaaat-mcp", "aaaat-desktop", "aaaat-upgrade", "aaaat-seed-desktop-demo"}.issubset(console_scripts)
         )
 
     def test_cli_can_initialize_clean_local_storage_without_git(self):
