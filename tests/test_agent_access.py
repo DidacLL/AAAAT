@@ -9,7 +9,7 @@ from aaaat.agent_access import (
     task_capability,
 )
 from aaaat.candidatures import create_candidature
-from aaaat.db import connect, init_db
+from aaaat.db import connect, init_db, profile_variables, set_profile_variable, upsert_glossary_term
 from aaaat.profile_facts import create_profile_fact
 from aaaat.tasks import create_task
 
@@ -116,6 +116,51 @@ class AgentAccessContractTests(unittest.TestCase):
 
         self.assertEqual(completed["state"], "completed")
         self.assertNotEqual(capability, task["id"])
+
+    def test_profile_result_cannot_replace_an_existing_desktop_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                set_profile_variable(conn, "profile.display_name", "User-owned name")
+                task = create_task(conn, "profile_completion", "Complete profile", context_hint="profile:completion")
+                capability = task_capability(conn, task)
+                work = next_agent_work_item(conn)
+                self.assertNotIn("replace_existing", json.dumps(work["response_format"]))
+                completed = submit_agent_task_result(
+                    conn,
+                    capability,
+                    json.dumps(
+                        {
+                            "variables": {
+                                "profile.display_name": "Agent replacement",
+                                "profile.location": "Barcelona",
+                            },
+                            "replace_existing": True,
+                        }
+                    ),
+                )
+                values = profile_variables(conn)
+
+        self.assertEqual(completed["profile_update"]["retained"], ["profile.display_name"])
+        self.assertEqual(values["profile.display_name"], "User-owned name")
+        self.assertEqual(values["profile.location"], "Barcelona")
+
+    def test_keyword_result_cannot_replace_an_existing_canonical_definition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                upsert_glossary_term(conn, "MCP", "Existing canonical definition.", "technology")
+                task = create_task(conn, "keyword_definition", "Define MCP", context_hint="keyword:MCP")
+                capability = task_capability(conn, task)
+                submit_agent_task_result(
+                    conn,
+                    capability,
+                    json.dumps({"definition": "Agent replacement.", "replace_existing": True}),
+                )
+                row = conn.execute("SELECT definition, category FROM glossary_terms WHERE term = ?", ("MCP",)).fetchone()
+
+        self.assertEqual(row["definition"], "Existing canonical definition.")
+        self.assertEqual(row["category"], "technology")
 
 
 if __name__ == "__main__":
