@@ -5,9 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, TextIO
 
 from .host_connection import HostConnectionError, connection_status, note_connection_verified, resolve_connection
@@ -20,16 +21,40 @@ BRIDGE_TOOL_NAMES = frozenset(tool["name"] for tool in host_bridge_descriptor()[
 
 
 def _desktop_launch_command(storage: str) -> list[str]:
-    """Return the private launcher command for source and frozen runtimes."""
+    """Return the private desktop command for source and installed runtimes.
+
+    Installers may provide ``AAAAT_DESKTOP_EXECUTABLE`` for any platform. A
+    frozen bridge otherwise resolves the desktop from a small portable layout
+    and finally falls back to the installed ``aaaat-desktop`` entry point.
+    """
 
     configured = os.environ.get("AAAAT_DESKTOP_EXECUTABLE", "").strip()
     if configured:
         return [configured, "--storage", storage]
     if getattr(sys, "frozen", False):
-        # The release layout places the bridge in ``bridge/`` beside AAAAT.exe.
-        candidate = Path(sys.executable).resolve().parent.parent / "AAAAT.exe"
-        return [str(candidate), "--storage", storage]
+        return [_packaged_desktop_executable(), "--storage", storage]
     return [sys.executable, "-m", "aaaat.ui_desktop.app", "--storage", storage]
+
+
+def _packaged_desktop_executable() -> str:
+    raw_executable = str(sys.executable)
+    if "\\" in raw_executable or raw_executable.lower().endswith(".exe"):
+        root = PureWindowsPath(raw_executable).parent.parent
+        return str(root / "AAAAT.exe")
+
+    root = Path(raw_executable).resolve().parent.parent
+    if sys.platform == "darwin":
+        candidates = (
+            root / "AAAAT.app" / "Contents" / "MacOS" / "AAAAT",
+            root / "AAAAT",
+            root / "aaaat-desktop",
+        )
+    else:
+        candidates = (root / "aaaat-desktop", root / "AAAAT")
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return shutil.which("aaaat-desktop") or str(candidates[0])
 
 
 def _launch_installed_desktop(storage: str) -> None:
@@ -138,8 +163,6 @@ def run_host_bridge(connection: str, input_stream: TextIO | None = None, output_
             if not isinstance(request, dict):
                 raise ValueError("request must be an object")
             request_id = request.get("id")
-            # Re-check before every operation so revocation takes effect even
-            # while a long-lived stdio process remains open.
             storage = resolve_connection(connection)
             method = request.get("method")
             if method == "tools/call" and not verified:
