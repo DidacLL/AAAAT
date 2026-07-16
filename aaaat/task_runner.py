@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import subprocess
 from pathlib import Path
 from typing import Any, Callable
@@ -63,21 +64,27 @@ class TaskRunner:
             self._emit(task_id, "failed", str(exc), 100)
             raise TaskRunnerError(str(exc)) from exc
         self._emit(task_id, "applying_result", "Applying permitted result through AAAAT", 85)
-        with connect(self.storage_path) as conn:
-            current = get_task(conn, task_id)
-            if current.get("state") == "cancelled":
-                self._emit(task_id, "cancelled", "Task cancelled before result application", 100)
-                return {"task": current, "cancelled": True}
-            submitted = ingest_task_result(
-                conn,
-                capability,
-                body,
-                provenance=provenance,
-                default_agent_runtime=f"configured-adapter:{adapter_id}",
-            )
-            application_id = str(current.get("application_id") or "")
-            released = release_ready_lifecycle_tasks(conn, application_id) if application_id else []
-            final = get_task(conn, task_id)
+        try:
+            with connect(self.storage_path) as conn:
+                current = get_task(conn, task_id)
+                if current.get("state") == "cancelled":
+                    self._emit(task_id, "cancelled", "Task cancelled before result application", 100)
+                    return {"task": current, "cancelled": True}
+                submitted = ingest_task_result(
+                    conn,
+                    capability,
+                    body,
+                    provenance=provenance,
+                    default_agent_runtime=f"configured-adapter:{adapter_id}",
+                )
+                application_id = str(current.get("application_id") or "")
+                released = release_ready_lifecycle_tasks(conn, application_id) if application_id else []
+                final = get_task(conn, task_id)
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as exc:
+            message = f"External runtime result was not accepted: {exc}"
+            self._fail(task_id, message)
+            self._emit(task_id, "failed", message, 100)
+            raise TaskRunnerError(message) from exc
         self._emit(task_id, "completed", "Task completed", 100)
         return {"submitted": submitted, "task": final, "provenance": provenance, "released_tasks": released}
 

@@ -80,27 +80,16 @@ Without `--force`, AAAAT refuses backup targets outside the configured storage p
 
 A plain directory copy is still acceptable for manual maintenance, but the CLI backup command is the preferred pre-upgrade path because it uses SQLite's backup API for the database file.
 
-## Manual restore
+## Restore for inspection
 
-Restore is intentionally manual for now:
-
-1. Stop the AAAAT desktop app.
-2. Move the current `.private/aaaat.sqlite3` aside.
-3. Extract `aaaat.sqlite3` from the chosen backup zip into `.private/`.
-4. Extract the `artifacts/` directory from the same backup into `.private/artifacts/` if needed.
-5. Run `python -m aaaat.cli init` once to verify the schema metadata and default seed rows.
-6. Launch the desktop and inspect the restored workspace before making new changes.
-
-Example:
+Stop the desktop app and restore a backup into a new or empty workspace. AAAAT verifies the archive and the restored SQLite database before it writes the workspace, and it refuses to replace an existing workspace.
 
 ```bash
-mv .private/aaaat.sqlite3 .private/aaaat.sqlite3.before-restore
-unzip .private/backups/aaaat-backup-20260708T120000Z.zip -d .private-restored
-cp .private-restored/aaaat.sqlite3 .private/aaaat.sqlite3
-cp -a .private-restored/artifacts .private/ 2>/dev/null || true
-python -m aaaat.cli init
-aaaat-desktop
+aaaat restore .private/backups/aaaat-backup-20260708T120000Z.zip --output .private-restored
+aaaat-desktop --storage .private-restored
 ```
+
+Inspect the restored workspace before choosing it as the workspace you continue to use.
 
 Keep backup zips private. They may contain the full local job-search database and rendered artifacts.
 

@@ -68,7 +68,7 @@ class PortableBundlePanel(wx.Panel):
             self.status.SetLabel(str(exc))
             return
         if result:
-            self.status.SetLabel(f"Created one file with {result.get('task_count', 0)} bounded task(s): {result.get('path', '')}")
+            self.status.SetLabel(str(result.get("message") or f"Created a file: {result.get('path', '')}"))
 
     def _import(self, _event: wx.CommandEvent) -> None:
         try:
@@ -77,7 +77,11 @@ class PortableBundlePanel(wx.Panel):
             self.status.SetLabel(str(exc))
             return
         if result:
-            self.status.SetLabel(
-                f"Import {result.get('status', '')}: {len(result.get('accepted') or [])} accepted, "
-                f"{len(result.get('rejected') or [])} rejected."
-            )
+            accepted = len(result.get("accepted") or [])
+            rejected = len(result.get("rejected") or [])
+            if accepted and rejected:
+                self.status.SetLabel(f"Imported {accepted} result(s). {rejected} could not be applied; review the returned file and try again.")
+            elif accepted:
+                self.status.SetLabel(f"Imported {accepted} result(s). Your candidature has been updated.")
+            else:
+                self.status.SetLabel("No results could be applied. Check that this is the result file returned for your exported work.")

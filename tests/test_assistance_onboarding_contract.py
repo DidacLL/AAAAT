@@ -1,36 +1,34 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
 from pathlib import Path
 
+from aaaat.integration_setup import connection_modes
+from aaaat.ui_desktop.services import DesktopCommandService
 
-ROOT = Path(__file__).resolve().parent.parent
 
+class AssistanceOnboardingBehaviorTests(unittest.TestCase):
+    def test_standard_choices_have_clear_user_intent_and_manual_use(self) -> None:
+        modes = {str(mode["id"]): mode for mode in connection_modes()}
 
-class AssistanceOnboardingContractTests(unittest.TestCase):
-    def test_standard_surface_uses_queue_first_user_intent_labels(self) -> None:
-        source = (ROOT / "aaaat" / "ui_desktop" / "assistance_panel.py").read_text(encoding="utf-8")
-        self.assertIn("Connect an external AI to AAAAT's bounded task queue", source)
-        self.assertIn("Advanced integration", source)
-        for forbidden in ("runtime", "endpoint", "model", "llama", "ollama", "codex"):
-            self.assertNotIn(forbidden, source.lower())
+        self.assertEqual(
+            [mode["title"] for mode in connection_modes()],
+            ["Continue manually", "Connect my AI", "Use a browser or chat AI", "Advanced integration"],
+        )
+        self.assertFalse(modes["manual"]["automatic"])
+        self.assertEqual(modes["guided_connector"]["setup_complexity"], "guided")
+        self.assertEqual(modes["browser_or_chat"]["setup_complexity"], "guided")
+        self.assertEqual(modes["advanced_integration"]["setup_complexity"], "advanced")
 
-    def test_technical_fields_are_built_only_in_advanced_section(self) -> None:
-        source = (ROOT / "aaaat" / "ui_desktop" / "assistance_panel.py").read_text(encoding="utf-8")
-        self.assertIn("if self.show_advanced:", source)
-        self.assertIn("self._build_advanced_section(current)", source)
-        self.assertIn("Test and save advanced integration", source)
-        self.assertIn("user-owned command", source)
+    def test_manual_first_use_creates_a_candidature_without_assistance_setup(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            created = DesktopCommandService(tmp).create_offer_first_candidature(
+                "A local job offer for a Python engineer.", company="Example Co", role="Engineer"
+            )
 
-    def test_user_intent_routes_to_existing_bounded_workflows(self) -> None:
-        source = (ROOT / "aaaat" / "ui_desktop" / "user_view.py").read_text(encoding="utf-8")
-        self.assertIn('mode_id == "manual"', source)
-        self.assertIn('mode_id == "guided_connector"', source)
-        self.assertIn('mode_id == "browser_or_chat"', source)
-        self.assertIn('mode_id == "advanced_integration"', source)
-        self.assertIn("use_manual_integration", source)
-        self.assertIn("self.connector_panel", source)
-        self.assertIn("self.portable_bundle_panel", source)
+        self.assertIsNotNone(created)
+        self.assertEqual(created["company"], "Example Co")
 
 
 if __name__ == "__main__":

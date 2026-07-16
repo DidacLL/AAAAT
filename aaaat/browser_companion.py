@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import struct
 import sys
 from pathlib import Path
@@ -17,23 +18,28 @@ PROTOCOL = "aaaat.browser-native"
 VERSION = 1
 
 
-def native_host_manifest(storage_path: str | Path, executable: str) -> dict[str, Any]:
+def native_host_manifest(_storage_path: str | Path, executable: str) -> dict[str, Any]:
+    """Return the browser-visible manifest without workspace configuration.
+
+    The native host is configured locally by its launcher or environment; the
+    extension must never receive the workspace or database location.
+    """
     return {
         "name": HOST_NAME,
         "description": "AAAAT bounded browser companion",
         "path": str(Path(executable).resolve()),
         "type": "stdio",
         "allowed_origins": ["chrome-extension://__AAAT_EXTENSION_ID__/"],
-        "aaaat": {"protocol": PROTOCOL, "protocol_version": VERSION, "storage": str(storage_directory(storage_path))},
+        "aaaat": {"protocol": PROTOCOL, "protocol_version": VERSION},
     }
 
 
 def browser_extension_bundle() -> dict[str, str]:
     return {
         "manifest.json": json.dumps({"manifest_version": 3, "name": "AAAAT Browser Companion", "version": "1.0.0", "permissions": ["nativeMessaging", "activeTab", "scripting"], "action": {"default_popup": "popup.html"}}, indent=2),
-        "popup.html": "<!doctype html><meta charset='utf-8'><button id='send'>Send next AAAAT work item</button><pre id='status'></pre><script src='popup.js'></script>",
-        "popup.js": "const status=document.getElementById('status');document.getElementById('send').onclick=()=>{const p=chrome.runtime.connectNative('org.aaaat.browser_companion');p.onMessage.addListener(m=>status.textContent=JSON.stringify(m,null,2));p.postMessage({protocol:'aaaat.browser-native',protocol_version:1,action:'next_work'});};",
-        "README.txt": "Load this unpacked extension and install the native-host manifest. The bridge claims complete bounded work items and accepts only capability-scoped progress and results. Authentication remains in the browser or external host.",
+        "popup.html": "<!doctype html><meta charset='utf-8'><style>body{min-width:360px;font:14px sans-serif}textarea{width:100%;height:100px}button{margin:4px 4px 4px 0}</style><button id='next'>Get AAAAT work</button><button id='progress' disabled>Send progress</button><button id='submit' disabled>Submit result</button><textarea id='result' placeholder='Paste one JSON result object here'></textarea><pre id='status'></pre><script src='popup.js'></script>",
+        "popup.js": _popup_script(),
+        "README.txt": "Load this unpacked extension and install the native-host manifest. Get one complete AAAAT work item, use it with the browser or chat AI you trust, then paste its one JSON result object and submit it. The bridge accepts only capability-scoped progress and results. Authentication remains with the browser or external host.",
     }
 
 
@@ -73,6 +79,16 @@ def dispatch_native_message(storage_path: str | Path, message: dict[str, Any]) -
     return {"status": "error", "error": "unsupported_action"}
 
 
+def _popup_script() -> str:
+    """Keep extension behavior deliberately small: one claim, progress, then result."""
+    return """const status=document.getElementById('status');let capability='';
+const send=(message)=>new Promise((resolve,reject)=>{const port=chrome.runtime.connectNative('org.aaaat.browser_companion');port.onMessage.addListener(resolve);port.onDisconnect.addListener(()=>{if(chrome.runtime.lastError)reject(new Error(chrome.runtime.lastError.message));});port.postMessage({protocol:'aaaat.browser-native',protocol_version:1,...message});});
+const show=(value)=>status.textContent=JSON.stringify(value,null,2);
+document.getElementById('next').onclick=async()=>{try{const response=await send({action:'next_work'});capability=String(response?.work?.task?.task_capability||'');document.getElementById('progress').disabled=!capability;document.getElementById('submit').disabled=!capability;show(response);}catch(error){show({status:'error',error:String(error)});}};
+document.getElementById('progress').onclick=async()=>{try{show(await send({action:'report_progress',task_capability:capability,phase:'working',message:'Work shared with selected browser or chat AI',percent:50}));}catch(error){show({status:'error',error:String(error)});}};
+document.getElementById('submit').onclick=async()=>{try{const result=JSON.parse(document.getElementById('result').value);const response=await send({action:'submit_result',task_capability:capability,result});if(response.status==='accepted'){capability='';document.getElementById('progress').disabled=true;document.getElementById('submit').disabled=true;}show(response);}catch(error){show({status:'error',error:'Paste one valid JSON result object: '+String(error)});}};"""
+
+
 def run_native_host(storage_path: str | Path, input_stream: BinaryIO | None = None, output_stream: BinaryIO | None = None) -> int:
     source = input_stream or sys.stdin.buffer
     target = output_stream or sys.stdout.buffer
@@ -101,7 +117,7 @@ def run_native_host(storage_path: str | Path, input_stream: BinaryIO | None = No
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="aaaat-browser-host", description="Run the AAAAT bounded browser native-messaging host.")
-    parser.add_argument("--storage", default=".private")
+    parser.add_argument("--storage", default=os.environ.get("AAAAT_BROWSER_STORAGE", ".private"))
     parser.add_argument("--print-manifest", action="store_true")
     parser.add_argument("--self-test", action="store_true", help="Print protocol metadata and exit without waiting for browser input.")
     args = parser.parse_args(argv)

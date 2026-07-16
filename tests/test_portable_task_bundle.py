@@ -17,6 +17,17 @@ from aaaat.tasks import create_task, get_task
 
 
 class PortableTaskBundleTests(unittest.TestCase):
+    def test_export_reports_a_plain_empty_outcome_when_nothing_is_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = Path(tmp) / "private"
+            init_db(storage)
+            with connect(storage) as conn:
+                candidature = create_application(conn, company="Example", role="Engineer")
+            outcome = export_candidature_task_bundle(storage, candidature["id"], Path(tmp) / "unused.zip")
+            self.assertEqual(outcome["status"], "empty")
+            self.assertEqual(outcome["task_count"], 0)
+            self.assertIn("no assistance ready", outcome["message"].lower())
+
     def test_one_archive_contains_complete_bounded_work_items_without_internal_ids(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"

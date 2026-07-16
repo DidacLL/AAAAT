@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_SMART_MODULES = ["candidature_list", "selected_candidature_summary", "primary_note", "keyword_context", "artifacts"]
-DEFAULT_DETAILED_COLUMNS = ["company", "role", "status", "priority", "next_action", "artifacts_state"]
+DEFAULT_SMART_MODULES = ["candidature_list", "selected_candidature_summary", "primary_note", "keyword_context"]
+DEFAULT_DETAILED_COLUMNS = ["company", "role", "status", "priority", "location", "remote_mode", "keywords", "artifacts_state"]
 
 
 @dataclass
@@ -31,7 +31,7 @@ class DashboardLayoutState:
     modules: dict[str, dict[str, Any]] = field(
         default_factory=lambda: {
             "smart": {"visible": list(DEFAULT_SMART_MODULES), "right_context": "primary_note"},
-            "detailed": {"visible": ["detailed_toolbox", "detailed_table", "task_queue"]},
+            "detailed": {"visible": ["detailed_table"]},
             "user": {"visible": ["profile_summary", "career_summary", "template_summary", "settings_summary"]},
             "welcome": {"visible": ["settings_summary"]},
         }

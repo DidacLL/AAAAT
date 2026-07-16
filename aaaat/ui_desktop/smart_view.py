@@ -19,7 +19,7 @@ DEFAULT_FOCUS_LEFT = 220
 DEFAULT_FOCUS_RIGHT = 220
 DEFAULT_WINDOW_SIZE = (1280, 780)
 DEFAULT_CENTER_NOTES_HEIGHT = 150
-_VIEW_TAB_INDEX = {"smart": 0, "detailed": 1, "user": 2}
+_VIEW_TAB_INDEX = {"welcome": 0, "smart": 1, "detailed": 2, "user": 3}
 
 
 class SmartViewMixin(OverviewBoardMixin):
@@ -61,7 +61,9 @@ class SmartViewMixin(OverviewBoardMixin):
             event.Skip(False)
             return
         index = event.GetSelection()
-        if index == _VIEW_TAB_INDEX["detailed"]:
+        if index == _VIEW_TAB_INDEX["welcome"]:
+            self._show_welcome()
+        elif index == _VIEW_TAB_INDEX["detailed"]:
             self._go_detailed()
         elif index == _VIEW_TAB_INDEX["user"]:
             self._go_user()
@@ -89,7 +91,9 @@ class SmartViewMixin(OverviewBoardMixin):
         self._layout_current_surface()
 
     def _update_title_for_current_view(self) -> None:
-        if self.current_view == "user":
+        if self.current_view == "welcome":
+            self.title.SetLabel("AAAAT · Welcome")
+        elif self.current_view == "user":
             self.title.SetLabel("AAAAT · User")
         elif self.current_view == "detailed":
             self.title.SetLabel("AAAAT · Detailed")
@@ -97,7 +101,9 @@ class SmartViewMixin(OverviewBoardMixin):
             self.title.SetLabel("AAAAT · Smart")
 
     def _layout_current_surface(self) -> None:
-        if self.current_view == "smart":
+        if self.current_view == "welcome":
+            self.welcome_panel.Layout()
+        elif self.current_view == "smart":
             self.smart_panel.Layout()
             self.smart_sizer.Layout()
             if self._smart_surface == "overview":
@@ -122,6 +128,11 @@ class SmartViewMixin(OverviewBoardMixin):
         self.selected_ref = None
         self.overview_panel.Show()
         self.focus_panel.Hide()
+        self._sync_view_tab()
+
+    def _show_welcome(self) -> None:
+        self.current_view = "welcome"
+        self.layout_state.selected_view = "welcome"
         self._sync_view_tab()
 
     def _show_focus(self) -> None:
@@ -159,7 +170,9 @@ class SmartViewMixin(OverviewBoardMixin):
         self.Freeze()
         try:
             self._reload_projection()
-            if self.current_view == "user":
+            if self.current_view == "welcome":
+                pass
+            elif self.current_view == "user":
                 self._refresh_user_view()
             elif self.current_view == "detailed":
                 self._refresh_detailed_view()
@@ -178,7 +191,7 @@ class SmartViewMixin(OverviewBoardMixin):
     def _reload_projection(self) -> None:
         with connect(self.storage_path) as conn:
             payload = dashboard_payload(conn, include_raw=True)
-        view = self.current_view if self.current_view in {"smart", "detailed", "user"} else "smart"
+        view = self.current_view if self.current_view in {"welcome", "smart", "detailed", "user"} else "welcome"
         self.projection = build_dashboard_projection(
             payload,
             view=view,

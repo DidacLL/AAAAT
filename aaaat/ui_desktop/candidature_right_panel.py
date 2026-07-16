@@ -171,7 +171,7 @@ class CandidatureDetailBodyPanel(wx.ScrolledWindow):
 
 
 class CandidatureOptionsPanel(wx.ScrolledWindow):
-    """Right-side context rail for selected keyword/material and Detailed record options."""
+    """View-specific right rail: Smart keyword context or Detailed record controls."""
 
     def __init__(
         self,
@@ -208,11 +208,8 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
                 self._add_empty()
             elif view_name == "smart":
                 self._add_keyword_context(projection, editable=False)
-                self._add_artifact_context(projection)
             else:
                 self._add_selection_summary(projection)
-                self._add_keyword_context(projection, editable=True)
-                self._add_artifact_context(projection)
                 self._add_record_options()
             self.Layout()
             self.FitInside()

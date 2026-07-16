@@ -36,6 +36,14 @@ def export_candidature_task_bundle(
         ]
         work_items = [build_agent_work_item(conn, task) for task in eligible]
 
+    if not work_items:
+        return {
+            "status": "empty",
+            "task_count": 0,
+            "media_type": TASK_MEDIA_TYPE,
+            "message": "There is no assistance ready to export for this candidature.",
+        }
+
     manifest = {
         "protocol": BUNDLE_PROTOCOL,
         "protocol_version": BUNDLE_VERSION,
@@ -53,7 +61,13 @@ def export_candidature_task_bundle(
         archive.writestr("manifest.json", _json_bytes(manifest))
         archive.writestr("work-items.json", _json_bytes({"work_items": work_items}))
         archive.writestr("README.txt", _bundle_readme(len(work_items)))
-    return {"path": str(target), "task_count": len(work_items), "media_type": TASK_MEDIA_TYPE}
+    return {
+        "status": "exported",
+        "path": str(target),
+        "task_count": len(work_items),
+        "media_type": TASK_MEDIA_TYPE,
+        "message": f"Created a file with {len(work_items)} item(s) for your selected AI.",
+    }
 
 
 def import_candidature_result_bundle(

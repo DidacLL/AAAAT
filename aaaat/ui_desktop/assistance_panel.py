@@ -11,7 +11,7 @@ TaskCallback = Callable[[str], None]
 
 
 class AssistancePanel(wx.ScrolledWindow):
-    """Guided integration setup and bounded task activity for User view."""
+    """Plain-language assisted-use choices, with technical controls kept Advanced-only."""
 
     def __init__(
         self,
@@ -47,7 +47,8 @@ class AssistancePanel(wx.ScrolledWindow):
         try:
             self.root.Clear(delete_windows=True)
             self._build_integration_section()
-            self._build_task_section()
+            if self.show_advanced:
+                self._build_task_section()
             self.Layout()
             self.FitInside()
         finally:
@@ -61,21 +62,17 @@ class AssistancePanel(wx.ScrolledWindow):
         intro = wx.StaticText(
             self,
             label=(
-                "Connect an external AI to AAAAT's bounded task queue, use a portable bundle, or continue manually. "
-                "A controlled file exchange or user-owned command is available only under Advanced integration."
+                "AAAAT works without AI. If you choose assistance, select how you want to use it; your AI account, "
+                "credentials, and data policy remain yours."
             ),
         )
         intro.Wrap(760)
         self.root.Add(intro, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         current = dict(self.snapshot.get("integration") or {})
-        disclosure = dict(current.get("disclosure") or {})
         status = wx.StaticText(
             self,
-            label=(
-                f"Current connection: {current.get('title') or 'Manual'} · "
-                f"data route: {disclosure.get('route') or current.get('network_access') or 'user-controlled'}"
-            ),
+            label=f"Current choice: {current.get('title') or 'Continue manually'}",
         )
         status.Wrap(760)
         self.root.Add(status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
@@ -89,7 +86,7 @@ class AssistancePanel(wx.ScrolledWindow):
             title = wx.StaticText(panel, label=str(mode.get("title") or mode_id))
             title.SetFont(title.GetFont().Bold())
             text_sizer.Add(title, 0, wx.BOTTOM, 3)
-            description = wx.StaticText(panel, label=str(mode.get("description") or ""))
+            description = wx.StaticText(panel, label=self._mode_description(mode_id))
             description.Wrap(580)
             text_sizer.Add(description, 0, wx.EXPAND)
             button = wx.Button(panel, label="Choose")
@@ -98,27 +95,21 @@ class AssistancePanel(wx.ScrolledWindow):
             panel_sizer.Add(button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 8)
             self.root.Add(panel, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        conformance_row = wx.BoxSizer(wx.HORIZONTAL)
         self.integration_status = wx.StaticText(self, label="")
-        conformance = wx.Button(self, label="Run connection test")
-        conformance.Bind(wx.EVT_BUTTON, self._conformance)
-        conformance_row.Add(self.integration_status, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-        conformance_row.Add(conformance, 0)
-        self.root.Add(conformance_row, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
-
-        conformance_state = dict(self.snapshot.get("conformance") or {})
-        conformance_label = wx.StaticText(
-            self,
-            label=(
-                f"Connection test: {conformance_state.get('status') or 'not run'} · "
-                f"{conformance_state.get('message') or 'No bounded test has been run.'}"
-            ),
-        )
-        conformance_label.Wrap(760)
-        self.root.Add(conformance_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        self.root.Add(self.integration_status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         if self.show_advanced:
             self._build_advanced_section(current)
+
+    @staticmethod
+    def _mode_description(mode_id: str) -> str:
+        descriptions = {
+            "manual": "Keep working in AAAAT without connecting an AI.",
+            "guided_connector": "Connect an AI tool you already use. AAAAT shares only the work you choose to send.",
+            "browser_or_chat": "Create a file for your selected candidature, give it to a browser or chat AI, then import its result file.",
+            "advanced_integration": "Open technical settings for a connection you manage yourself.",
+        }
+        return descriptions.get(mode_id, "Choose how you would like to use optional assistance.")
 
     def _select_mode(self, mode_id: str) -> None:
         if mode_id == "advanced_integration":
@@ -146,6 +137,21 @@ class AssistancePanel(wx.ScrolledWindow):
         )
         helper.Wrap(760)
         self.root.Add(helper, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
+        conformance = wx.Button(self, label="Run connection test")
+        conformance.Bind(wx.EVT_BUTTON, self._conformance)
+        self.root.Add(conformance, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        conformance_state = dict(self.snapshot.get("conformance") or {})
+        conformance_label = wx.StaticText(
+            self,
+            label=(
+                f"Connection test: {conformance_state.get('status') or 'not run'} · "
+                f"{conformance_state.get('message') or 'No bounded test has been run.'}"
+            ),
+        )
+        conformance_label.Wrap(760)
+        self.root.Add(conformance_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
         options = [item for item in list(self.snapshot.get("options") or []) if bool(item.get("advanced"))]
         self.option_by_title = {str(item.get("title") or item.get("id")): item for item in options}

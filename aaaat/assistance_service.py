@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-import zipfile
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -79,14 +80,74 @@ Provider selection, model selection, credentials, network policy, provider SDKs,
 """
 
 
-def export_browser_companion_package(storage_path: str | Path, output_path: str | Path, host_executable: str = "aaaat-browser-host") -> Path:
-    target = Path(output_path)
-    target.parent.mkdir(parents=True, exist_ok=True)
+def export_browser_companion_package(
+    storage_path: str | Path,
+    output_path: str | Path,
+    host_executable: str | Path | None = None,
+) -> Path:
+    """Create a runnable local browser-companion directory.
+
+    The extension never receives the workspace path.  A platform launcher in
+    the selected local folder supplies it only to AAAAT's native host, and the
+    generated manifest therefore has a real absolute executable path.
+    """
+
+    target = Path(output_path).resolve()
+    if target.exists() and any(target.iterdir()):
+        raise ValueError("Choose a new or empty folder for the browser companion")
+    target.mkdir(parents=True, exist_ok=True)
+    extension_dir = target / "extension"
+    extension_dir.mkdir(exist_ok=True)
+    launcher = _write_browser_host_launcher(target, storage_path, host_executable)
     files = browser_extension_bundle()
-    manifest = native_host_manifest(storage_path, host_executable)
-    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for name, content in files.items():
-            archive.writestr(f"extension/{name}", content)
-        archive.writestr("native-host-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-        archive.writestr("INSTALL.txt", "Install AAAAT normally, load extension/ as an unpacked extension, replace __AAAT_EXTENSION_ID__ in the native host manifest, then install that manifest in the browser's documented native-messaging host directory. The browser initiates complete bounded work-item calls; credentials remain with the browser or external AI host.\n")
+    for name, content in files.items():
+        (extension_dir / name).write_text(content, encoding="utf-8")
+    manifest = native_host_manifest(storage_path, launcher)
+    manifest_path = target / "native-host-manifest.json"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    (target / "INSTALL.txt").write_text(_browser_install_instructions(manifest_path), encoding="utf-8")
     return target
+
+
+def _browser_host_executable(host_executable: str | Path | None) -> Path:
+    if host_executable is not None:
+        candidate = Path(host_executable).resolve()
+    else:
+        suffix = ".exe" if os.name == "nt" else ""
+        candidate = Path(sys.executable).resolve().with_name(f"aaaat-browser-host{suffix}")
+    if not candidate.is_file():
+        raise ValueError("AAAAT browser host is not installed; install AAAAT before creating a browser companion")
+    return candidate
+
+
+def _write_browser_host_launcher(target: Path, storage_path: str | Path, host_executable: str | Path | None) -> Path:
+    executable = _browser_host_executable(host_executable)
+    local_storage = str(Path(storage_path).resolve())
+    launcher_dir = target / "native-host"
+    launcher_dir.mkdir(exist_ok=True)
+    if os.name == "nt":
+        launcher = launcher_dir / "aaaat-browser-host.cmd"
+        launcher.write_text(f'@echo off\r\nset "AAAAT_BROWSER_STORAGE={local_storage}"\r\n"{executable}"\r\n', encoding="utf-8")
+    else:
+        launcher = launcher_dir / "aaaat-browser-host.sh"
+        launcher.write_text(f'#!/bin/sh\nAAAAT_BROWSER_STORAGE={json.dumps(local_storage)} exec {json.dumps(str(executable))}\n', encoding="utf-8")
+        launcher.chmod(0o700)
+    return launcher.resolve()
+
+
+def _browser_install_instructions(manifest_path: Path) -> str:
+    manifest = str(manifest_path)
+    return """AAAAT browser companion installation
+
+1. In Chrome or Edge, enable Developer mode and load extension/ as an unpacked extension.
+2. Copy the extension ID into native-host-manifest.json in place of __AAAT_EXTENSION_ID__.
+3. Register this exact manifest path with your browser: """ + manifest + """
+   - Windows PowerShell: Set-ItemProperty -Path 'HKCU:\\Software\\Google\\Chrome\\NativeMessagingHosts\\org.aaaat.browser_companion' -Name '(Default)' -Value '""" + manifest + """' -Force
+     (use HKCU:\\Software\\Microsoft\\Edge\\NativeMessagingHosts\\org.aaaat.browser_companion for Edge).
+   - macOS: copy native-host-manifest.json to ~/Library/Application Support/Google/Chrome/NativeMessagingHosts/.
+   - Linux: copy native-host-manifest.json to ~/.config/google-chrome/NativeMessagingHosts/.
+
+The generated native-host launcher already points to your installed AAAAT browser host and local AAAAT workspace. Keep it outside extension/; the extension never receives the storage path.
+
+The companion can claim one work item, report progress, and submit one pasted JSON result. It cannot browse AAAAT records or access the database. Your browser or chosen AI controls credentials, network access, and any data policy.
+"""

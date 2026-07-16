@@ -10,6 +10,7 @@ from aaaat.dashboard_layout import DashboardLayoutState, layout_state_contains_p
 from aaaat.dashboard_projection import build_dashboard_projection
 from aaaat.db import connect, list_applications, list_raw_intake, profile_variables
 from aaaat.demo_seed import seed
+from aaaat.payload import dashboard_payload
 from aaaat.tasks import list_tasks
 from aaaat.ui_desktop.services import DesktopCommandService
 from aaaat.ui_desktop.user_fields import WRITABLE_USER_STORAGE_KEYS, grouped_user_fields
@@ -54,11 +55,22 @@ class DesktopReleaseReadinessSliceTests(unittest.TestCase):
         from aaaat.ui_desktop.app import build_desktop_projection
 
         with tempfile.TemporaryDirectory() as parent:
-            projection = build_desktop_projection(Path(parent) / "fresh-private")
+            storage = Path(parent) / "fresh-private"
+            persisted_smart = DashboardLayoutState.default()
+            persisted_smart.selected_view = "smart"
+            persisted_detailed = DashboardLayoutState.default()
+            persisted_detailed.selected_view = "detailed"
+            projection = build_desktop_projection(storage, persisted_smart)
+            detailed_projection = build_desktop_projection(storage, persisted_detailed)
         self.assertEqual(projection["view_state"]["current_view"], "welcome")
+        self.assertEqual(detailed_projection["view_state"]["current_view"], "welcome")
         self.assertIsNone(projection["view_state"]["selected_candidature_ref"])
         self.assertEqual(projection["welcome"]["setup_state"], "empty")
         self.assertFalse(projection["welcome"]["recent_or_important_candidatures"])
+        self.assertEqual(
+            [action["id"] for action in projection["welcome"]["primary_actions"][:2]],
+            ["create_candidature", "import_source_material"],
+        )
 
     def test_desktop_launcher_reports_missing_optional_dependency_clearly(self):
         from aaaat.ui_desktop.app import launch_desktop_dashboard
@@ -92,6 +104,32 @@ class DesktopProjectionBehaviorTests(unittest.TestCase):
         self.assertEqual(smart["view_state"]["selected_keyword"], keyword)
         available = {column["id"] for column in detailed["detailed"]["available_columns"]}
         self.assertTrue({"company", "role", "status", "priority", "source_url"}.issubset(available))
+
+    def test_smart_projection_contains_call_context_not_workflow_clutter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            seed(tmp, count=1, reset=True)
+            with connect(tmp) as conn:
+                payload = dashboard_payload(conn, include_raw=True)
+            projection = build_dashboard_projection(payload, view="smart")
+
+        smart = projection["smart"]
+        self.assertEqual([item["id"] for item in smart["context_modules"]], ["keywords"])
+        self.assertIn("primary_note", smart)
+        self.assertIn("call_card", smart)
+        self.assertNotIn("agent_suggestions", smart)
+        self.assertNotIn("artifact_summary", smart)
+
+    def test_detailed_keyword_save_creates_a_canonical_keyword_record(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = DesktopCommandService(tmp)
+            created = service.create_offer_first_candidature("Original offer body")
+            service.update_candidature_fields(created["id"], {"keywords": "Python, Local-first"})
+            with connect(tmp) as conn:
+                updated = list_applications(conn)[0]
+                glossary_terms = {row["term"] for row in conn.execute("SELECT term FROM glossary_terms").fetchall()}
+
+        self.assertEqual(updated["keywords"], ["Local-first", "Python"])
+        self.assertTrue({"Python", "Local-first"}.issubset(glossary_terms))
 
 
 class DesktopOfferFirstBehaviorTests(unittest.TestCase):

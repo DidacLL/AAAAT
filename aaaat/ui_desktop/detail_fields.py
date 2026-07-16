@@ -23,7 +23,7 @@ def build_detail_record(projection: dict[str, Any]) -> dict[str, Any]:
     selected = smart.get("selected_candidature_detail") or {}
     primary_note = smart.get("primary_note") or {}
     source_text = smart.get("source_text") or {}
-    artifact_summary = smart.get("artifact_summary") or {}
+    artifact_summary = detailed.get("artifact_summary") or {}
     company_research = smart.get("company_research") or {}
     form_answers = smart.get("form_answers") or {}
     task_queue = detailed.get("task_queue_summary") or {}

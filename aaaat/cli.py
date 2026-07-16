@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
+import subprocess
+import sys
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +17,7 @@ from .artifacts import list_artifacts, save_artifact, update_artifact_state
 from .career_plans import archive_career_plan, career_plan_context, create_career_plan, get_career_plan, list_career_plans, update_career_plan
 from .db import add_raw_intake, connect, create_application, create_raw_offer_intake, get_application, init_db, list_applications, required_profile_variables, set_profile_variable, update_application, upsert_glossary_term
 from .keywords import add_keyword_alias, create_keyword_note
-from .local_data import create_local_backup
+from .local_data import create_local_backup, restore_local_backup
 from .mcp_server import mcp_descriptor, validate_descriptor
 from .notes import create_note, list_notes
 from .privacy import list_variables, set_variable
@@ -22,7 +26,7 @@ from .provider_adapters import visible_adapters
 from .search import SearchUnavailable, rebuild_index, search
 from .task_runner import TaskRunner
 from .tasks import apply_task_result, complete_task, create_task, get_task, list_tasks, update_task
-from .templates import render_document_artifact
+from .templates import RenderFailure, TemplateVariableError, render_document_artifact
 from .text_blobs import create_text_blob, list_text_blobs
 from .todos import create_todo, list_todos, update_todo
 from .workspace_config import load_workspace_config, save_workspace_settings
@@ -37,6 +41,7 @@ APPLICATION_FIELDS = (
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="aaaat")
     parser.add_argument("--storage", default=".private")
+    parser.add_argument("--debug", action="store_true", help="Show a traceback for an expected command failure.")
     parser.add_argument("--version", action="version", version=__version__)
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -44,6 +49,9 @@ def build_parser() -> argparse.ArgumentParser:
     backup_p = sub.add_parser("backup")
     backup_p.add_argument("--output")
     backup_p.add_argument("--force", action="store_true")
+    restore_p = sub.add_parser("restore", help="Restore a backup into a new or empty workspace directory.")
+    restore_p.add_argument("backup")
+    restore_p.add_argument("--output", required=True, help="New or empty workspace directory")
 
     config = sub.add_parser("config").add_subparsers(dest="config_command", required=True)
     config.add_parser("show")
@@ -285,13 +293,16 @@ def _adapter_settings(args: argparse.Namespace) -> dict[str, Any]:
     return settings
 
 
-def main(argv: list[str] | None = None) -> int:
+def _run(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "init":
         print(init_db(args.storage))
         return 0
     if args.command == "backup":
         print(create_local_backup(args.storage, args.output, force=args.force))
+        return 0
+    if args.command == "restore":
+        _json(restore_local_backup(args.backup, args.output))
         return 0
     if args.command == "agent-guide":
         print(agent_guide())
@@ -428,6 +439,39 @@ def main(argv: list[str] | None = None) -> int:
         else:
             raise SystemExit(f"Unhandled command: {args.command}")
     return 0
+
+
+EXPECTED_COMMAND_ERRORS = (
+    ValueError,
+    KeyError,
+    sqlite3.Error,
+    OSError,
+    json.JSONDecodeError,
+    TemplateVariableError,
+    RenderFailure,
+    subprocess.SubprocessError,
+    zipfile.BadZipFile,
+)
+
+
+def _command_error_message(exc: BaseException) -> str:
+    message = str(exc).strip() or exc.__class__.__name__
+    if isinstance(exc, TemplateVariableError):
+        return f"{message}. Complete the missing profile fields with 'aaaat profile set <field> <value>', then retry."
+    return message
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the local maintenance CLI without leaking expected Python tracebacks."""
+
+    command_line = list(sys.argv[1:] if argv is None else argv)
+    try:
+        return _run(command_line)
+    except EXPECTED_COMMAND_ERRORS as exc:
+        if "--debug" in command_line:
+            raise
+        print(f"error: {_command_error_message(exc)}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

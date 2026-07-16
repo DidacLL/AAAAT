@@ -16,7 +16,7 @@ from aaaat.db import (
     list_raw_intake,
 )
 from aaaat.demo_seed import seed as seed_desktop_demo
-from aaaat.local_data import create_local_backup, verify_local_backup
+from aaaat.local_data import create_local_backup, restore_local_backup, verify_local_backup
 
 
 class DbTests(unittest.TestCase):
@@ -144,6 +144,37 @@ class DbTests(unittest.TestCase):
 
             forced = create_local_backup(storage, public_output, force=True)
             self.assertTrue(forced.exists())
+
+    def test_backup_restores_verified_database_and_artifacts_to_separate_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = Path(tmp) / "private"
+            init_db(storage)
+            with connect(storage) as conn:
+                create_application(conn, company="Restored Co", role="Engineer")
+            artifact_dir = storage / "artifacts"
+            artifact_dir.mkdir()
+            (artifact_dir / "cv.tex").write_text("private artifact", encoding="utf-8")
+            backup = create_local_backup(storage)
+
+            restored = Path(tmp) / "restored"
+            result = restore_local_backup(backup, restored)
+
+            self.assertEqual(Path(result["workspace"]), restored.resolve())
+            self.assertEqual((restored / "artifacts" / "cv.tex").read_text(encoding="utf-8"), "private artifact")
+            with connect(restored) as conn:
+                self.assertEqual(list_applications(conn)[0]["company"], "Restored Co")
+
+    def test_restore_refuses_to_replace_an_existing_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = Path(tmp) / "private"
+            init_db(storage)
+            backup = create_local_backup(storage)
+            destination = Path(tmp) / "existing"
+            destination.mkdir()
+            (destination / "keep.txt").write_text("keep", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "new or empty"):
+                restore_local_backup(backup, destination)
 
     def test_artifact_review_state_changes_and_archived_sorts_secondary(self):
         with tempfile.TemporaryDirectory() as tmp:

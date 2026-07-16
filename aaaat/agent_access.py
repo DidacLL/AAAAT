@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import secrets
 import sqlite3
 from typing import Any
@@ -247,6 +248,7 @@ def submit_agent_task_result(
     task = get_task_for_capability(conn, task_capability_value)
     if "submit_result" not in allowed_actions(task):
         raise ValueError(f"Task is not accepting results in state {task.get('state')}")
+    _validate_result_shape(task, result_body)
     completed = complete_task(
         conn,
         task["id"],
@@ -264,3 +266,17 @@ def submit_agent_task_result(
             agent_runtime=agent_runtime,
         )
     return completed
+
+
+def _validate_result_shape(task: dict[str, Any], result_body: str) -> None:
+    """Enforce the public contract's required result fields before completion."""
+    try:
+        value = json.loads(result_body)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Result must be valid JSON: {exc.msg}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("Result must be one JSON object")
+    required = [str(key) for key in response_format(task).get("required") or []]
+    missing = [key for key in required if key not in value]
+    if missing:
+        raise ValueError(f"Result does not match this task's required fields: {', '.join(missing)}")

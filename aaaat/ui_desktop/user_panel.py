@@ -36,6 +36,19 @@ class UserPanel(wx.ScrolledWindow):
             self._wrap_targets.append(body)
             self.sizer.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 12)
             self.sizer.Add(body, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 12)
+            missing = list((projection.get("user") or {}).get("profile_summary", {}).get("missing_variables") or [])
+            if missing:
+                required = ", ".join(key.removeprefix("profile.") for key in missing)
+                guidance = wx.StaticText(
+                    self,
+                    label=(
+                        f"Complete these fields before rendering a CV or cover letter: {required}. "
+                        "They are available below in this Profile workspace."
+                    ),
+                )
+                self._wrap_label(guidance)
+                self._wrap_targets.append(guidance)
+                self.sizer.Add(guidance, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
             for group in grouped_user_fields(projection):
                 self._add_group(group, can_edit=can_edit)
             self.Layout()

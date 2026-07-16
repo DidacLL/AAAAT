@@ -7,6 +7,7 @@ import unittest
 
 from aaaat.db import connect, init_db
 from aaaat.mcp_runtime import dispatch_mcp_request, run_stdio_server
+from aaaat.mcp_smoke import run_mcp_smoke
 from aaaat.tasks import create_task, get_task
 
 
@@ -78,6 +79,17 @@ class McpRuntimeTests(unittest.TestCase):
             self.assertEqual(run_stdio_server(tmp, source, target), 0)
             response = json.loads(target.getvalue())
             self.assertEqual(response, {"jsonrpc": "2.0", "id": 1, "result": {}})
+
+    def test_shipped_smoke_client_exercises_a_real_stdio_subprocess(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            outcome = run_mcp_smoke(tmp)
+        self.assertEqual(outcome["status"], "passed")
+        self.assertTrue(outcome["initialize"])
+        self.assertGreaterEqual(outcome["tool_count"], 4)
+        self.assertTrue(outcome["claimed"])
+        self.assertTrue(outcome["progressed"])
+        self.assertTrue(outcome["submitted"])
+        self.assertEqual(outcome["malformed_request"], "rejected")
 
 
 if __name__ == "__main__":

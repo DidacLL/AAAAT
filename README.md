@@ -55,7 +55,7 @@ aaaat-desktop --storage /path/to/private-aaaat
 
 ## Current development status
 
-The package and behavioral suite install and run across supported Python versions, but v1 is not yet ready for human acceptance. Confirmed blockers include wx onboarding and view-contract drift, unclear assisted setup, missing executable wrapper demonstrations, user-facing tracebacks, guided rendering gaps, and Windows backup failure.
+The implementation and automated validation gates are complete, including wx onboarding/view contracts, executable wrapper fixtures, expected-error handling, guided rendering, and Windows backup/restore. v1 is still not ready for human acceptance: PR #45 remains draft until the required real-user wx and external-host demonstrations are recorded and directly approved.
 
 See the active gap ledger for exact required implementation and acceptance criteria.
 

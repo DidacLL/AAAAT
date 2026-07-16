@@ -5,21 +5,9 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
-from aaaat.db import connect
-from aaaat.tasks import list_tasks
-
 from .candidature_right_panel import CandidatureOptionsPanel
 from .services import DesktopCommandService
 
-PREPARATION_STATE_LABELS = {
-    "queued": "Waiting to start",
-    "claimed": "Starting",
-    "in_progress": "In preparation",
-    "blocked": "Needs information",
-    "failed": "Could not complete",
-    "completed": "Ready",
-    "cancelled": "Stopped",
-}
 MATERIAL_TYPES = [
     ("CV", "cv"),
     ("Cover letter", "cover_letter"),
@@ -32,7 +20,7 @@ MATERIAL_STATE_LABELS = {"draft": "Draft", "reviewed": "Reviewed", "submitted": 
 
 
 class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
-    """Existing context rail plus compact preparation and material controls."""
+    """Detailed View material inspection and editing rail."""
 
     def __init__(self, *args: Any, storage_path: str | Path, **kwargs: Any) -> None:
         self.storage_path = str(storage_path)
@@ -41,42 +29,16 @@ class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
 
     def render(self, projection: dict[str, Any], *, can_edit: bool, view_name: str) -> None:
         super().render(projection, can_edit=can_edit, view_name=view_name)
+        if view_name != "detailed":
+            return
         ref = str((projection.get("view_state") or {}).get("selected_candidature_ref") or "")
         if not ref:
             return
         self._current_ref = ref
-        with connect(self.storage_path) as conn:
-            preparation = list_tasks(conn, application_id=ref)
         artifacts = self.command_service.list_candidature_artifacts(ref)
-        if preparation:
-            self._add_preparation_context(preparation)
         self._add_material_workflow(artifacts)
         self.Layout()
         self.FitInside()
-
-    def _add_preparation_context(self, items: list[dict[str, Any]]) -> None:
-        state_order = {"in_progress": 0, "claimed": 1, "queued": 2, "blocked": 3, "failed": 4, "completed": 5, "cancelled": 6}
-        ordered = sorted(items, key=lambda item: (state_order.get(str(item.get("state") or ""), 9), str(item.get("created_at") or "")))
-        module = wx.CollapsiblePane(self, label=f"Preparation progress · {len(ordered)}")
-        module.Collapse(False)
-        pane = module.GetPane()
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        pane.SetSizer(sizer)
-        for item in ordered[:8]:
-            state = str(item.get("state") or "queued")
-            status = PREPARATION_STATE_LABELS.get(state, "Pending")
-            title = str(item.get("title") or "Application preparation")
-            row = wx.StaticText(pane, label=f"{status} · {title}")
-            row.SetFont(row.GetFont().Bold())
-            row.Wrap(self._wrap_width())
-            sizer.Add(row, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 6)
-            notes = str(item.get("notes") or "").strip()
-            if notes:
-                detail = wx.StaticText(pane, label=notes)
-                detail.Wrap(self._wrap_width())
-                sizer.Add(detail, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
-        module.Bind(wx.EVT_COLLAPSIBLEPANE_CHANGED, lambda _event: self._fit_inside())
-        self.sizer.Add(module, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.EXPAND, 8)
 
     def _add_material_workflow(self, artifacts: list[dict[str, Any]]) -> None:
         module = wx.CollapsiblePane(self, label=f"Application material · {len(artifacts)}")

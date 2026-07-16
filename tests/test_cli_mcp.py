@@ -131,6 +131,53 @@ class CliMcpTests(unittest.TestCase):
             self.assertEqual(acknowledgement["action"], "create_candidature")
             self.assertNotIn("internal", acknowledgement)
 
+    def test_expected_cli_errors_are_concise_and_render_missing_profile_is_actionable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            missing_app = subprocess.run(
+                [sys.executable, "-B", "-m", "aaaat.cli", "--storage", tmp, "app", "show", "missing"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(missing_app.returncode, 2)
+            self.assertIn("Application not found", missing_app.stderr)
+            self.assertNotIn("Traceback", missing_app.stderr)
+            self.assertEqual(missing_app.stdout, "")
+
+            render = subprocess.run(
+                [sys.executable, "-B", "-m", "aaaat.cli", "--storage", tmp, "render", "cv"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(render.returncode, 2)
+            self.assertIn("Complete the missing profile fields", render.stderr)
+            self.assertNotIn("Traceback", render.stderr)
+
+    def test_restore_command_restores_into_new_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "source"
+            self.run_cli("--storage", str(source), "init")
+            backup = self.run_cli("--storage", str(source), "backup").stdout.strip()
+            restored = Path(tmp) / "restored"
+            result = json.loads(self.run_cli("restore", backup, "--output", str(restored)).stdout)
+            self.assertEqual(Path(result["workspace"]), restored.resolve())
+            self.assertTrue((restored / "aaaat.sqlite3").exists())
+
+    def test_restore_rejects_a_malformed_archive_without_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            malformed = Path(tmp) / "not-a-backup.zip"
+            malformed.write_bytes(b"not a zip archive")
+            result = subprocess.run(
+                [sys.executable, "-B", "-m", "aaaat.cli", "restore", str(malformed), "--output", str(Path(tmp) / "restored")],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("error:", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
     def test_mcp_descriptor_validates_unified_capability_contract(self):
         descriptor = mcp_descriptor()
         self.assertTrue(validate_descriptor(descriptor))

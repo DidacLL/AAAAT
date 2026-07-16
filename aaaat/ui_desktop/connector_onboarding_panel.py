@@ -27,8 +27,8 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         description = wx.StaticText(
             self,
             label=(
-                "Connect the AI or agent host you already use to AAAAT's existing bounded task queue. "
-                "The external host initiates every call; AAAAT does not install connector code or launch an AI."
+                "Use an AI tool you already trust to help with selected preparation work. "
+                "AAAAT stays usable if you do not connect one."
             ),
         )
         description.Wrap(760)
@@ -37,14 +37,14 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         disclosure = wx.StaticText(
             self,
             label=(
-                "Use MCP, bounded CLI commands, HTTP, files, browser messaging, or another host-owned wrapper. "
-                "Every route must reuse the same queue, opaque task handles, and canonical result validation."
+                "When you use assistance, AAAAT shares only the information needed for the work you choose. "
+                "Your AI account, credentials, and its data policy remain under your control."
             ),
         )
         disclosure.Wrap(760)
         root.Add(disclosure, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        button = wx.Button(self, label="Show connection instructions")
+        button = wx.Button(self, label="Show connection guidance")
         button.Bind(wx.EVT_BUTTON, self._show_instructions)
         root.Add(button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
@@ -52,7 +52,7 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         self.instructions.SetMinSize((-1, 300))
         root.Add(self.instructions, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        browser = wx.Button(self, label="Create browser helper package")
+        browser = wx.Button(self, label="Create browser helper…")
         browser.Bind(wx.EVT_BUTTON, self._export_browser)
         root.Add(browser, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
@@ -63,7 +63,7 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
     def _show_instructions(self, _event: wx.CommandEvent) -> None:
         try:
             self.instructions.SetValue(self.on_instructions())
-            self.status.SetLabel("Give these instructions to the external AI or agent host you control.")
+            self.status.SetLabel("Follow this guidance in the AI tool you chose.")
         except Exception as exc:
             self.status.SetLabel(str(exc))
 
@@ -71,6 +71,6 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         try:
             result = self.on_export_browser()
             if result:
-                self.status.SetLabel(f"Browser helper package created: {result}")
+                self.status.SetLabel(f"Browser helper created: {result}")
         except Exception as exc:
             self.status.SetLabel(str(exc))

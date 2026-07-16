@@ -72,7 +72,7 @@ class OverviewBoardMixin:
         body_grid.AddGrowableCol(0, 1)
         body_grid.AddGrowableCol(1, 1)
         signal = wx.StaticText(card, label=self._clip(str(item.get("call_signals") or item.get("source_excerpt") or "signal pending"), 56))
-        source = wx.StaticText(card, label=self._clip(str(item.get("source_excerpt") or item.get("next_action") or "source pending"), 64))
+        source = wx.StaticText(card, label=self._clip(str(item.get("source_excerpt") or "Offer details pending"), 64))
         signal.Wrap(170)
         source.Wrap(170)
         body_grid.Add(signal, 1, wx.EXPAND)
@@ -80,14 +80,12 @@ class OverviewBoardMixin:
         sizer.Add(body_grid, 1, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 8)
 
     def _add_overview_expanded_body(self, card: wx.Panel, sizer: wx.BoxSizer, item: dict[str, Any]) -> None:
-        grid = wx.FlexGridSizer(rows=2, cols=2, vgap=8, hgap=12)
+        grid = wx.FlexGridSizer(rows=1, cols=2, vgap=8, hgap=12)
         grid.AddGrowableCol(0, 1)
         grid.AddGrowableCol(1, 1)
         blocks = [
             ("Recognize", item.get("call_signals") or item.get("source_excerpt") or "No call signal yet."),
             ("Source", item.get("source_excerpt") or item.get("source") or "Source pending."),
-            ("Next", item.get("next_action") or "No next action yet."),
-            ("Artifacts", item.get("artifacts_state") or "No artifact state."),
         ]
         for title, body in blocks:
             panel = wx.Panel(card)

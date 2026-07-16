@@ -366,3 +366,9 @@ Before marking ready:
 - MCP, browser/portable, progress, Advanced, and rendering demonstrations have concrete supplied instructions or fixtures;
 - expected invalid inputs do not expose tracebacks;
 - the PR body lists unresolved manual gates honestly.
+
+## F. Automated implementation closure record
+
+Implementation closure recorded after local execution: B1–B15 are implemented and covered by focused public-boundary tests. The full suite passed with 155 tests; wheel and sdist were built and installed outside the checkout; their installed MCP smoke client and release validator passed; and the installed wx desktop started against a clean Windows workspace.
+
+This closes the implementation blockers, not the human-review gate. PR #45 remains draft until the real-user demonstrations in section E are recorded and directly approved.

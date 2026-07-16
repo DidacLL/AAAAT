@@ -12,6 +12,7 @@ Local/admin commands may use internal IDs because they are explicit local user o
 ```bash
 aaaat init
 aaaat backup
+aaaat restore .private/backups/aaaat-backup-20260708T120000Z.zip --output .private-restored
 aaaat-upgrade --storage .private
 aaaat-desktop --storage .private
 ```

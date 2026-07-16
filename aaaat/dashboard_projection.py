@@ -191,15 +191,12 @@ def _smart_projection(payload: dict[str, Any], apps: list[dict[str, Any]], selec
         "primary_note": _primary_note(selected),
         "context_modules": [
             {"id": "keywords", "title": "Keywords", "selected": True},
-            {"id": "artifacts", "title": "Material", "selected": False},
         ],
         "selected_keyword_definition": _glossary_definition(glossary, selected_keyword),
-        "artifact_summary": _artifact_summary(selected),
         "call_card": _call_card(selected),
         "source_text": _source_text(selected),
         "company_research": {"body": selected.get("company_research", "") if selected else ""},
         "form_answers": {"body": selected.get("form_answers", "") if selected else ""},
-        "agent_suggestions": _review_queue_summary(payload.get("review_queue") or []),
     }
 
 
@@ -213,6 +210,7 @@ def _detailed_projection(payload: dict[str, Any], apps: list[dict[str, Any]], se
         "search_query": search_query,
         "filters": {"state_model": ["active", "closed"]},
         "selected_row": _detailed_row(selected) if selected else None,
+        "artifact_summary": _artifact_summary(selected),
         "toolbox_actions": _toolbox_actions(selected),
         "task_queue_summary": _review_queue_summary(payload.get("review_queue") or []),
     }

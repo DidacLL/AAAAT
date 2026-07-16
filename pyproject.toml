@@ -34,10 +34,12 @@ desktop = ["wxPython"]
 [project.scripts]
 aaaat = "aaaat.cli:main"
 aaaat-mcp = "aaaat.mcp_runtime:main"
+aaaat-mcp-smoke = "aaaat.mcp_smoke:main"
 aaaat-desktop = "aaaat.ui_desktop.app:main"
 aaaat-upgrade = "aaaat.upgrade:main"
 aaaat-seed-desktop-demo = "aaaat.demo_seed:main"
 aaaat-browser-host = "aaaat.browser_companion:main"
+aaaat-advanced-fixture = "aaaat.advanced_command_fixture:main"
 aaaat-release-validate = "aaaat.release_validation_cli:main"
 
 [tool.setuptools]
@@ -46,9 +48,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 aaaat = [
-    "templates/*.tex",
-    "templates/*.json",
-    "mcp/*.json",
+    "schema.sql",
 ]
 
 [tool.pytest.ini_options]

@@ -10,7 +10,6 @@ from aaaat.assistance_service import (
     assistance_snapshot,
     create_profile_completion_task,
     export_browser_companion_package,
-    external_host_instructions,
     run_integration_conformance,
     save_integration,
     use_manual_integration,
@@ -60,7 +59,7 @@ class UserViewMixin:
 
         self.connector_panel = ConnectorOnboardingPanel(
             self.user_workspace,
-            on_instructions=lambda: external_host_instructions(self.storage_path),
+            on_instructions=self._plain_connection_guidance,
             on_export_browser=self._export_browser_companion,
         )
         self.user_workspace.AddPage(self.connector_panel, "Connect my AI")
@@ -86,6 +85,21 @@ class UserViewMixin:
     def _go_user(self) -> None:
         self._show_user()
         self._refresh_current_if_needed()
+
+    def _open_standard_assistance(self, mode_id: str) -> None:
+        """Open one guided route from Welcome without exposing setup internals."""
+        self._show_user()
+        self._select_connection_mode(mode_id)
+        self._refresh_current_if_needed()
+
+    @staticmethod
+    def _plain_connection_guidance() -> str:
+        return (
+            "1. Open the AI tool you already use.\n\n"
+            "2. Enable its AAAAT connection or follow that tool's AAAAT setup guide.\n\n"
+            "3. Return here after it is connected. You can still create, edit, and prepare candidatures manually at any time.\n\n"
+            "AAAAT shares only the selected preparation work. Your account, credentials, and the AI tool's data policy remain yours to manage."
+        )
 
     def _assistance_snapshot(self) -> dict[str, Any]:
         return assistance_snapshot(self.storage_path, include_advanced=True, progress_by_task=self._task_progress)
@@ -205,12 +219,12 @@ class UserViewMixin:
             self._refresh_user_view()
 
     def _export_browser_companion(self) -> str | None:
-        with wx.FileDialog(self, "Export browser companion", wildcard="AAAAT browser companion (*.zip)|*.zip", defaultFile="aaaat-browser-companion.zip", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as dialog:
+        with wx.DirDialog(self, "Choose an empty folder for the browser companion") as dialog:
             if dialog.ShowModal() != wx.ID_OK:
                 return None
             target = Path(dialog.GetPath())
         export_browser_companion_package(self.storage_path, target)
-        self.SetStatusText("Browser companion package exported")
+        self.SetStatusText("Browser companion installed in the selected folder")
         return str(target)
 
     def _create_profile_completion_task(self) -> dict[str, Any]:
@@ -273,7 +287,7 @@ class UserViewMixin:
                 return None
             target = Path(dialog.GetPath())
         result = export_candidature_task_bundle(self.storage_path, candidature_ref, target)
-        self.SetStatusText(f"Exported {result['task_count']} bounded task(s)")
+        self.SetStatusText(str(result.get("message") or f"Exported {result['task_count']} item(s)"))
         return result
 
     def _import_portable_bundle(self) -> dict[str, Any] | None:
@@ -285,7 +299,11 @@ class UserViewMixin:
         self._rendered_view_keys.clear()
         self._reload_projection()
         self._refresh_all()
-        self.SetStatusText(f"Imported bundle: {len(result.get('accepted') or [])} accepted, {len(result.get('rejected') or [])} rejected")
+        accepted = len(result.get("accepted") or [])
+        rejected = len(result.get("rejected") or [])
+        self.SetStatusText(
+            f"Imported {accepted} result(s); {rejected} could not be applied." if rejected else f"Imported {accepted} result(s)."
+        )
         return result
 
     def _stop_task_worker_on_close(self, event: wx.CloseEvent) -> None:

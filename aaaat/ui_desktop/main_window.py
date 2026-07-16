@@ -8,12 +8,13 @@ import wx  # type: ignore[import-not-found]
 from aaaat.dashboard_layout import DashboardLayoutState
 
 from .card_state import CenterCardState
+from .candidature_right_panel import CandidatureOptionsPanel
 from .detailed_view import DetailedViewMixin
 from .offer_dialog import OfferFirstDialog
-from .release_right_panel import ReleaseCandidatureOptionsPanel
 from .services import DesktopCommandService
 from .smart_view import DEFAULT_CENTER_NOTES_HEIGHT, DEFAULT_FOCUS_LEFT, DEFAULT_FOCUS_RIGHT, DEFAULT_WINDOW_SIZE, SmartViewMixin
 from .user_view import UserViewMixin
+from .welcome_panel import WelcomePanel
 
 
 class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx.Frame):
@@ -29,8 +30,8 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.layout_path = Path(layout_path)
         self.command_service = command_service or DesktopCommandService(storage_path)
         self.current_view = str(projection.get("view_state", {}).get("current_view") or layout_state.selected_view or "smart")
-        if self.current_view not in {"smart", "detailed", "user"}:
-            self.current_view = "smart"
+        if self.current_view not in {"welcome", "smart", "detailed", "user"}:
+            self.current_view = "welcome"
         self.selected_ref = layout_state.selected_candidature_ref
         self.selected_keyword = layout_state.selected_keyword
         self.search_query = str(projection.get("view_state", {}).get("search_query") or "")
@@ -54,7 +55,9 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
             self.Thaw()
 
     def _show_initial_view(self) -> None:
-        if self.current_view == "user":
+        if self.current_view == "welcome":
+            self._show_welcome()
+        elif self.current_view == "user":
             self._show_user()
         elif self.current_view == "detailed":
             self._show_detailed()
@@ -104,6 +107,14 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
 
     def _build_view_book(self) -> None:
         self.view_book = wx.Notebook(self.root, style=wx.NB_TOP)
+        self.welcome_panel = WelcomePanel(
+            self.view_book,
+            on_add_candidature=lambda: self._on_support_surface(wx.CommandEvent()),
+            on_connect_ai=lambda: self._open_standard_assistance("guided_connector"),
+            on_browser_or_chat=lambda: self._open_standard_assistance("browser_or_chat"),
+            on_portable_file=lambda: self._open_standard_assistance("browser_or_chat"),
+        )
+        self.view_book.AddPage(self.welcome_panel, "Welcome")
         self.smart_panel = wx.Panel(self.view_book)
         self.smart_sizer = wx.BoxSizer(wx.VERTICAL)
         self.smart_panel.SetSizer(self.smart_sizer)
@@ -135,9 +146,8 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self.content_splitter = wx.SplitterWindow(self.focus_splitter, style=wx.SP_LIVE_UPDATE)
         self.content_splitter.SetMinimumPaneSize(1)
         self.center_panel = wx.Panel(self.content_splitter)
-        self.smart_right_panel = ReleaseCandidatureOptionsPanel(
+        self.smart_right_panel = CandidatureOptionsPanel(
             self.content_splitter,
-            storage_path=self.storage_path,
             on_action=self._on_candidature_panel_action,
             on_delete=self._delete_candidature_from_panel,
             on_keyword_select=lambda term: self._select_keyword(term, refresh_center=False),
