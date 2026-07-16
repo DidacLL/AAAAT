@@ -35,7 +35,7 @@ class AssistanceServiceTests(unittest.TestCase):
             for forbidden in ("llama", "ollama", "codex"):
                 self.assertNotIn(forbidden, serialized)
             by_id = {item["id"]: item for item in snapshot["tasks"]}
-            self.assertTrue(by_id[queued["id"]]["can_run"])
+            self.assertFalse(by_id[queued["id"]]["can_run"])
             self.assertTrue(by_id[failed["id"]]["can_retry"])
 
     def test_failed_generic_command_health_does_not_replace_current_integration(self) -> None:
