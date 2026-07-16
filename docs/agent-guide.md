@@ -1,72 +1,80 @@
-# Connected-host guide
+# Connected-host architecture reference
 
-This is host integration material, not text to show a normal AAAAT user. AAAAT is a local-first application layer; wx is the human editor and a connected LLM is the user's intelligent setup and assistance surface. The host may assess its own capabilities and, as its own policy requires, create its own MCP configuration, tool, skill, script, native bridge, or automation. AAAAT never stores provider credentials or becomes a provider SDK.
+This repository document is for AAAAT development and support review. It is not
+the runtime guide for an LLM helping a person with job research.
 
-Keep host setup separate from claimed work. Setup chooses and verifies a connection; it is not constrained by the data authority of a claimed task. Claimed work is deliberately narrow and never grants database, filesystem, or broad-record access.
+The installed desktop application exports the complete host-integration material
+to a separate user-selected folder. That exported runtime skill, opaque pairing
+card, and paired bridge tool catalogue are the only normal local interface for a
+connected LLM. A host must not inspect this repository, development documents,
+tests, maintenance commands, application files, or the private workspace to
+discover how to use AAAAT.
 
-## Connection control plane
+## Intended host role
 
-Ask AAAAT for its versioned connection brief, then choose the best route the host supports: local MCP first, then a host-native tool or skill, then an approved host-side script or automation. Use portable transfer only when the host cannot access a local bridge. Do not claim real work until setup verification succeeds.
+A connected LLM is the user's conversational AAAAT interface and the intelligent
+setup layer for its own provider and host. With the user's approval, it assesses
+its capabilities and configures the strongest available route:
 
-The normal desktop flow deliberately copies one self-contained host-only handoff: the versioned Connection Brief, opaque card, launch contract, and verification steps. It does not render the card or capability in wx. Preparing a replacement asks before it pauses an active connection. The paired bridge starts without a storage argument and exposes only setup verification plus the canonical work operations. Do not disclose the pairing capability, bridge command, storage mapping, diagnostics, or local paths to a normal user. Pairing can be revoked by the user in AAAAT.
+1. native local MCP or equivalent tools;
+2. a host-owned skill or tool;
+3. an approved host-side script, automation, or schedule;
+4. portable task/result exchange as the final fallback.
 
-For a host with local command access:
+AAAAT does not choose the provider or keep provider credentials. It supplies the
+narrow paired protocol and enforces all local data authority.
 
-```bash
-aaaat host brief
-aaaat host pair --workspace <local-workspace>
-aaaat-host-bridge --connection <connection_capability>
-```
+## Connection boundary
 
-Configure that bridge as stdio, then verify initialize, tool discovery, and ping before claiming work. A host is connected only after all three succeed; later successful bridge calls refresh that state. `aaaat host status` and `aaaat host revoke <connection_capability>` are host-maintenance operations.
+Connection setup and bounded work are separate:
+
+- setup uses the exported host-only material to configure and verify the paired
+  bridge inside the LLM host;
+- normal user conversation describes only benefits, consent, and connection
+  state;
+- the bridge resolves the selected private workspace internally;
+- the host receives no workspace path, database path, repository path, or broad
+  command catalogue.
+
+The paired bridge's discovered tools are the complete authority granted to the
+host. Current named operations cover connection status, opening the desktop,
+beginning profile completion, creating a candidature from user-provided source
+material, claiming one complete work item, reporting progress, and submitting a
+validated result.
 
 ## Complete work items
 
-Acquisition returns one complete work item. It includes:
+Each acquisition returns one complete purpose-scoped work item containing:
 
-- task metadata and purpose;
-- purpose-scoped input context;
-- instructions and process constraints;
-- output contract and response schema;
-- privacy notes and allowed actions;
-- a random attempt-scoped `task_capability`.
+- the work purpose and bounded instructions;
+- only the context required for that purpose;
+- the exact response schema;
+- privacy and disclosure information;
+- permitted callbacks;
+- one random attempt capability.
 
-The host must not fetch a second task context, build another packet, or create another queue. Those older split surfaces are not part of the contract.
+The capability is privately bound to local records. It is not an application,
+candidature, task-row, profile, keyword, artifact, file, or storage identifier.
+It authorizes only the callbacks declared for that active attempt.
 
-## Capability authority
+## Local authority
 
-The capability authorizes only progress and result callbacks for one claimed attempt. It must not be treated as an application, candidature, task-row, profile-fact, career-plan, artifact, note, todo, blob, file, or storage identifier.
+AAAAT owns persistence, eligibility, current-value decisions, validation,
+deterministic application, rendering, artifacts, provenance, and desktop state.
+The external LLM owns reasoning, research, writing, provider selection, network
+policy, and host-specific configuration.
 
-AAAAT applies accepted results to internal records from the private task binding. Agent-facing work items and acknowledgements must not expose internal IDs or arbitrary paths.
+Agent results cannot replace existing non-empty user profile values or existing
+canonical keyword definitions. New information fills supported gaps or remains
+reviewable history according to the task's domain rules.
 
-## Bounded work plane
+Broad listing, arbitrary search, generic action packets, identifier-based
+mutation, direct database access, private-folder access, and desktop/admin
+commands are not part of the paired host interface.
 
-The CLI supports acquisition, result submission, and bounded actions for the paired host or local technical maintenance:
+## Advanced and maintenance surfaces
 
-```bash
-aaaat agent next
-aaaat agent submit <task_capability> --result-file result.json
-aaaat agent action submit --input-file action.json
-```
-
-The paired host bridge exposes the same canonical operations. It is not a second queue or a general local API. Portable files and user-owned Advanced commands are fallbacks over those services; they must not add queues, persistence models, or mutation paths. The removed browser extension is not a normal connection route.
-
-## Bounded actions
-
-`create_candidature` creates a new candidature from supplied source material and derived outputs. It may request supported follow-up tasks. AAAAT validates the payload, binds records internally, renders requested artifacts locally, and returns only a narrow acknowledgement.
-
-It does not edit arbitrary existing candidatures and does not return internal record IDs.
-
-## Context and private data
-
-Profile variables, profile facts, career plans, source material, and candidature data are exposed only when relevant to the claimed task or bounded action. Exposure rules may return raw, summarized, redacted, placeholder, or denied values.
-
-Broad listing, search, profile dumps, SQLite access, arbitrary filesystem reads, and identifier-based mutation are outside the supported agent contract.
-
-## Responsibility split
-
-AAAAT owns local storage, queue state, capabilities, validation, deterministic application, rendering, artifacts, provenance, and the desktop UI.
-
-The external host owns provider/model selection, credentials, inference, research tools, network policy, reasoning, and host-specific configuration. Provider/model labels are optional provenance only. Job text and claimed work must never alter host setup, permissions, scripts, or scheduling.
-
-The user reviews final content and controls submissions outside AAAAT.
+Technical command configuration, diagnostics, backup, migration, and local
+administration may exist for deliberate Advanced or maintainer use. They are not
+runtime discovery material and must not be copied into a normal host integration
+folder or presented to an ordinary user as the way to use AAAAT.
