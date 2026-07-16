@@ -5,9 +5,11 @@ opportunities, application preparation, interview notes, and drafts.
 
 ## First use
 
-Open AAAAT and choose the private folder it will use for your workspace. The
-suggested location is separate from the application and from chat or AI-host
-folders. You may choose another private location.
+Open AAAAT. A welcome dialog explains the private workspace before the main
+workspace appears. Use the recommended private location or choose another
+location on this computer. The workspace remains separate from the application
+and from folders shared with a chat or AI host, and application updates do not
+remove it.
 
 You can use AAAAT entirely from its desktop screens. Existing profile,
 candidature, keyword, and document values remain yours to edit and review there.
