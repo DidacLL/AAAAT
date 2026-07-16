@@ -2,95 +2,76 @@
 
 AAAAT is a local-first desktop workspace for managing job applications, preparing recruiter conversations, and generating per-application text artifacts from local user data.
 
-It is built for one person running it on their own machine. Private job-search data stays in local storage by default. The wx desktop application is the only v1 human runtime.
+It is designed for one person running it on their own machine. Private job-search data stays in local storage by default. The wx desktop application is the only v1 human runtime.
 
 ## What AAAAT does
 
-AAAAT gives you a private operational workspace for your job search:
+AAAAT provides a private operational workspace to:
 
-- store job opportunities and retained raw offer/source text;
-- inspect active candidatures quickly in Smart View during calls or low-attention review;
-- edit candidature fields in Detailed View;
-- maintain keywords with definitions so known terms can be linked and explained in context;
-- keep profile variables and reusable career facts for CVs and cover letters;
-- render local CV and cover-letter artifacts from templates;
-- use external intelligence through optional bounded task/result connections.
+- retain job opportunities and original offer/source text;
+- navigate active candidatures quickly in Smart View;
+- inspect and edit complete candidature records in Detailed View;
+- maintain profile variables, reusable evidence, keywords, notes and todos;
+- prepare recruiter, interview, CV, cover-letter and form material;
+- render and track local artifacts with provenance;
+- optionally receive bounded assistance from an external AI or agent host.
 
-External intelligence is optional. AAAAT is not a provider SDK, general agent orchestrator, or broad CRUD API. Historical browser dashboards, mandatory application servers, static-export products and runtime-mode products are not supported v1 human surfaces.
+External intelligence is optional. AAAAT is not a provider SDK, LLM runtime, provider catalogue, general agent orchestrator, or broad CRUD API.
 
-## AI assistance choices
-
-The standard assisted direction is:
+## Assisted architecture
 
 ```text
 AAAAT creates bounded work
-→ the external AI connects to AAAAT
-→ the external AI obtains one eligible task and its bounded context
-→ the external AI reasons in its own runtime
-→ the external AI submits progress and a structured result
-→ AAAAT validates, applies and renders locally
+→ an external host connects to AAAAT
+→ one call atomically claims one complete work item
+→ that work item already contains purpose-scoped context, instructions, privacy notes and its response schema
+→ the external host reasons in its own runtime
+→ it reports optional progress and submits one structured result using a random attempt-scoped capability
+→ AAAAT validates, applies, persists and renders locally
 ```
 
-MCP, CLI, generated connectors, browser bridges, files and portable bundles wrap the same existing bounded task queue and commands. They do not implement a second queue or make AAAAT an LLM runtime.
+The random `task_capability` is not a task ID or database key. It authorizes only progress and result callbacks for one task attempt. It becomes unusable when that attempt is completed, cancelled or superseded.
 
-The desktop presents these choices:
+All wrappers use the same queue and canonical result-ingestion path:
 
-- **Continue manually** — use the complete workspace without an AI connection.
-- **Connect my AI** — generate and validate a bounded connector for the AI you already use.
-- **Use a browser or chat AI** — export one candidature task file and import one returned result file.
-- **Advanced integration** — configure a user-owned command, macro or script that may trigger an LLM and must return one bounded result.
+- `aaaat-mcp` — the standard operational MCP stdio server;
+- bounded CLI commands;
+- the browser native-messaging bridge;
+- portable task/result archives;
+- an explicit Advanced user-owned command.
 
-The Advanced command option is explicit, optional and user-controlled. It is not the standard architecture.
+No wrapper may expose SQLite, internal IDs, broad listing/search, arbitrary filesystem access, or a second mutation path.
 
-Every communication path may carry only purpose-specific bounded tasks, task-scoped progress and validated results. It may not expose arbitrary candidature/profile searches, storage paths, internal IDs as mutation authority, or a broad AAAAT data API.
+## Assistance choices
 
-## Local-first privacy
+- **Continue manually** — use the complete wx workspace without external intelligence.
+- **Connect my AI** — configure the external host to start or connect to `aaaat-mcp`.
+- **Use a browser or chat AI** — use the browser bridge where supported, otherwise transfer one grouped task archive and one result archive.
+- **Advanced integration** — explicitly configure one user-owned command that receives a complete bounded work item on stdin and returns one JSON result on stdout.
 
-Private data defaults to `.private/`.
-
-Typical local layout:
-
-```text
-.private/
-  aaaat.sqlite3
-  artifacts/
-```
-
-Keep real job-search data in private local storage: raw offers, recruiter notes, profile values, CV content, generated letters, and backups.
+AAAAT never installs, retains, activates, or executes generated connector packages in the standard flow. An external host may generate and own its own MCP/client configuration outside AAAAT.
 
 ## Installation
 
 Requires Python 3.11 or newer.
 
-Linux/macOS:
-
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate        # Windows: .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install .[desktop]
 ```
 
-Windows PowerShell:
-
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install .[desktop]
-```
-
-Check the commands:
+Verify the installed commands:
 
 ```bash
 aaaat --version
+aaaat-mcp --help
 aaaat-desktop --help
 aaaat-upgrade --help
 ```
 
 ## Quick start
-
-Initialize local storage, add one opportunity, and open the desktop app:
 
 ```bash
 aaaat init
@@ -98,14 +79,14 @@ aaaat app create --company "Example Co" --role "Backend Engineer"
 aaaat-desktop
 ```
 
-To use another private storage path, put `--storage` before the CLI command or pass it to the desktop launcher:
+Use another private storage path by placing `--storage` before a CLI subcommand or passing it to the desktop launcher:
 
 ```bash
 aaaat --storage /path/to/private-aaaat init
 aaaat-desktop --storage /path/to/private-aaaat
 ```
 
-For an existing store, create a backup and apply the supported v1 compatibility upgrades before launching:
+For an existing store:
 
 ```bash
 python -m aaaat.cli --storage /path/to/private-aaaat backup
@@ -113,89 +94,81 @@ aaaat-upgrade --storage /path/to/private-aaaat
 aaaat-desktop --storage /path/to/private-aaaat
 ```
 
-The desktop launcher also applies supported idempotent v1 compatibility upgrades before loading the selected store. The explicit upgrade command remains useful for preflight verification and release maintenance.
+## Connect an external host through MCP
+
+Configure the external host to start:
+
+```text
+command: aaaat-mcp
+arguments: --storage /path/to/private-aaaat
+transport: stdio
+```
+
+The MCP server exposes only:
+
+```text
+get_next_agent_work
+report_agent_task_progress
+submit_agent_task_result
+submit_agent_action
+```
+
+`get_next_agent_work` returns the complete bounded work item. There is no second context-fetch operation.
+
+The provider, model, credentials, network policy and provider-specific interaction remain owned by the external host.
+
+## CLI compatibility surface
+
+```bash
+aaaat --storage /path/to/private-aaaat agent next
+aaaat --storage /path/to/private-aaaat agent submit <task_capability> --result-file result.json
+aaaat --storage /path/to/private-aaaat agent action submit --input-file action.json
+aaaat mcp-descriptor
+aaaat mcp-validate
+```
+
+Local user-administration commands may use internal IDs because they are operated directly by the user. Agent-facing operations never accept those IDs as authority.
+
+## Browser and chat fallback
+
+For a browser/chat AI without an operational local bridge, AAAAT exports one archive containing every eligible complete work item for the selected candidature. The AI returns one result archive. AAAAT validates each result independently so one invalid section does not discard unrelated valid results.
+
+## Local data and backup
+
+AAAAT stores its SQLite database at `.private/aaaat.sqlite3` by default and generated artifacts under `.private/artifacts/`.
+
+```bash
+python -m aaaat.cli backup
+```
+
+Keep raw offers, recruiter notes, profile values, CV content, generated letters and backups out of source control.
 
 ## Demo data
-
-For local UI validation with fake candidatures:
 
 ```bash
 aaaat-seed-desktop-demo --reset --count 24
 aaaat-desktop
 ```
 
-The demo seed writes local fake data to the selected storage path. `--reset` replaces only records previously created by the demo seeder; it does not delete unrelated user candidatures. Demo data is for local validation, not a separate browser/static export surface.
-
-## Desktop
-
-Start the editable local desktop workspace:
-
-```bash
-aaaat-desktop
-```
-
-## Local data and backup
-
-AAAAT stores its SQLite database at `.private/aaaat.sqlite3` by default and generated artifacts under `.private/artifacts/`.
-
-Create a local backup before upgrades or risky maintenance:
-
-```bash
-python -m aaaat.cli backup
-```
-
-The backup command creates a timestamped zip under `.private/backups/` containing the SQLite database and artifact files. See `docs/local-data.md` for restore notes and custom backup output behavior.
-
-## Agent/task commands
-
-Agent-facing work is task-handle scoped and descriptor-oriented. Useful commands:
-
-```bash
-aaaat agent next
-aaaat agent context <task_handle>
-aaaat agent packet <task_handle>
-aaaat agent submit <task_handle> --result-file result.json
-aaaat agent context-bundle --purpose cover_letter
-aaaat agent action submit --input-file action.json
-aaaat mcp-descriptor
-aaaat mcp-validate
-```
-
-AAAAT currently provides descriptor/tool-schema compatibility only. It does not ship a full MCP server transport.
+`--reset` replaces only demo-marked records.
 
 ## Artifact generation
 
-Render a CV:
-
 ```bash
 aaaat render cv --output .private/artifacts/cv.tex
-```
-
-Render a cover letter for an application:
-
-```bash
 aaaat render cover-letter <application_id> --body "Draft body pending review." --output .private/artifacts/cover-letter.tex
 ```
 
-Track an artifact:
-
-```bash
-aaaat artifact save --application-id <application_id> --type cover_letter --path .private/artifacts/cover-letter.tex --label "Cover letter draft"
-aaaat artifact list <application_id>
-aaaat artifact update-state <artifact_id> --state reviewed --notes "Ready to use"
-```
-
-These ID-based commands are local user administration commands. Agent-facing contracts use opaque task handles and bounded action packets instead.
-
 Review generated documents before sending them.
 
-## More docs
+## More documentation
 
-- [V1 release and upgrade notes](docs/release-notes-v1.md)
+- [V1 authoritative requirements](docs/requirements/v1-authoritative-requirements.md)
+- [Release checklist](docs/release-checklist.md)
 - [Local release validation](docs/local-release-validation.md)
 - [Install](docs/install.md)
 - [Local data and backup](docs/local-data.md)
 - [Agent workflow](docs/agent-workflow.md)
 - [CLI reference](docs/cli.md)
 - [Security model](docs/security-model.md)
-- [MCP descriptor compatibility](docs/mcp.md)
+- [MCP](docs/mcp.md)
