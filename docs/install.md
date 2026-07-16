@@ -16,9 +16,11 @@ checkout.
 
 ## First launch
 
-AAAAT asks once where to keep the private workspace. The suggested location is
-separate from both the application and AI-host folders, and the user may choose
-another private location. AAAAT remembers that choice.
+Before the dashboard opens, AAAAT shows a welcome dialog explaining the private
+workspace. The recommended private location is selected by default. The user may
+continue with it or choose another location on this computer. AAAAT remembers
+the choice, keeps it separate from application files and AI-host folders, and
+does not remove it when the application is updated.
 
 The desktop works fully without an AI connection. Use it to review and edit the
 profile, opportunities, notes, and documents.
