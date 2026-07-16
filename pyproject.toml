@@ -47,3 +47,17 @@ aaaat = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.briefcase]
+project_name = "AAAAT"
+bundle = "org.aaaat"
+version = "1.0.0"
+url = "https://github.com/DidacLL/AAAAT"
+license.file = "LICENSE"
+
+[tool.briefcase.app.aaaat]
+formal_name = "AAAAT"
+description = "Private local job-search workspace"
+sources = ["aaaat"]
+requires = ["wxPython>=4.2"]
+entry_point = "aaaat.ui_desktop.app:main"

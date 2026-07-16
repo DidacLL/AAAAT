@@ -1,0 +1,43 @@
+name: Build AAAAT installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  package:
+    name: ${{ matrix.name }} installer
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            runner: windows-latest
+            platform: windows
+            format: msi
+            artifact: windows-installer
+          - name: macos
+            runner: macos-latest
+            platform: macOS
+            format: dmg
+            artifact: macos-installer
+          - name: linux
+            runner: ubuntu-latest
+            platform: linux
+            format: appimage
+            artifact: linux-installer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --upgrade pip briefcase
+      - run: briefcase create ${{ matrix.platform }}
+      - run: briefcase build ${{ matrix.platform }}
+      - run: briefcase package ${{ matrix.platform }} -p ${{ matrix.format }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/**
