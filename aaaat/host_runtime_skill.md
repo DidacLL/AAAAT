@@ -49,7 +49,7 @@ Each claimed work item contains its complete purpose-scoped context, output sche
 
 ## Preserve user-owned values
 
-For profile completion and candidature enrichment, return only information grounded in the user’s statements or supplied sources. Existing non-empty desktop values remain authoritative and are retained for local review. New keyword definitions fill missing definitions; established canonical definitions remain unchanged.
+For profile completion and candidature enrichment, use only information grounded in the user’s statements or supplied sources. Present a concise summary of proposed profile values and submit them only after the user confirms that summary. Existing non-empty desktop values remain authoritative and are retained for local review. New keyword definitions fill missing definitions; established canonical definitions remain unchanged.
 
 ## Continue as the user’s AAAAT interface
 
