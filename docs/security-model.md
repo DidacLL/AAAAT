@@ -1,45 +1,78 @@
-# Security Model
+# Security model
 
-AAAAT v1 is a single-user local desktop application. The canonical human runtime is:
+AAAAT is a single-user local desktop application. The wx desktop is the
+canonical human workspace and owns ordinary reading, editing, review, rendering,
+and connection consent.
 
-```bash
-aaaat-desktop
-```
+## Separated locations
 
-Private data lives under `.private/` by default or another explicit local path.
+The normal product uses three distinct locations:
 
-## Trust boundary
+- the installed application package;
+- the user-selected private workspace;
+- a user-selected host-integration folder containing only runtime guidance and
+  opaque connection material.
 
-The desktop may display and edit rich local state because it is the user's local interface. External AI hosts use bounded adapters over one AAAAT-owned queue. These adapters are not broad CRUD APIs and are not independent application runtimes.
+The private workspace is not placed inside the application, repository, or AI
+host folder. The paired host receives no workspace or database path.
 
-## Work acquisition
+## Paired-host authority
 
-`aaaat agent next` atomically claims one eligible queued task and returns its complete purpose-scoped work item. The returned `task_capability` is random, persisted, and scoped to that attempt.
+The normal connected LLM receives only the exported host material and the tools
+advertised by the paired bridge. Those named operations may establish connection
+state, open the desktop, begin profile completion, create a new candidature from
+user-provided material, claim one complete work item, report progress, and
+submit one result.
 
-The capability authorizes only task progress and result submission. It is not derived from an internal task ID and is not authority over applications, candidatures, profile facts, career plans, artifacts, notes, todos, blobs, files, or storage.
+The bridge has no broad CRUD, record listing, arbitrary search, filesystem,
+database, desktop-command, maintenance, or identifier-based mutation surface.
+A generic local/admin CLI is not the agent contract and is not included in the
+normal host integration.
 
-There is no separate context endpoint or packet-generation step. Removing that split reduces confused-deputy behavior, stale-context reuse, and duplicate acquisition.
+## Work capabilities
 
-## Result and action ingestion
+Acquisition atomically claims one eligible attempt and returns its complete
+purpose-scoped work item. The random attempt capability authorizes only the
+callbacks declared for that attempt. AAAAT privately binds it to internal
+records.
 
-All transport wrappers call the same result-ingestion and bounded-action services. AAAAT validates structure, rejects forbidden authority fields, applies changes through deterministic domain logic, and returns narrow acknowledgements.
+A capability is not an application, candidature, task-row, profile, career
+plan, keyword, artifact, note, file, database, or storage identifier. Stale,
+completed, cancelled, revoked, or superseded capabilities are rejected.
 
-Agent-facing payloads must not expose or accept internal entity IDs, storage paths, arbitrary file paths, SQLite access, broad collections, profile dumps, or generic search/mutation authority.
+## Result application
 
-The supported bounded action may create a new candidature from supplied source material and outputs. AAAAT creates related records and follow-up tasks internally; acknowledgements omit internal IDs and paths.
+All normal wrappers use the same validation and domain-application services.
+External result fields cannot choose local record identifiers, storage paths,
+artifact paths, or replacement policy. Agent-supplied replacement controls are
+removed before application.
 
-## Adapter policy
+Existing non-empty desktop profile values and established canonical keyword
+definitions remain authoritative. New content fills eligible gaps or is retained
+as reviewable history according to the bounded task.
 
-CLI, stdio MCP, browser native messaging, portable files, and user-owned commands are thin mappings over the same services. They must not create another queue, state machine, persistence layer, or mutation path.
+## Host adaptability
 
-AAAAT does not own provider credentials, model selection, inference, browser automation, or external network policy. Optional runtime/model labels are provenance only.
+The external LLM owns provider/model selection, credentials, reasoning, network
+policy, research tools, and host-specific setup. With user approval, it may
+create its own MCP configuration, tool, skill, script, automation, or schedule.
+AAAAT supplies the narrow protocol and enforces local data authority; it does
+not attempt to predict every host or duplicate host permission systems.
 
 ## Data exposure
 
-Profile variables and facts follow configured exposure rules: raw, summarized, redacted, placeholder, or denied. Career plans and candidature material are included only when relevant to a bounded task or action.
+Work construction includes only purpose-required context. Profile variables and
+facts follow configured exposure rules: raw, summarized, redacted, placeholder,
+or denied. Generated artifacts remain local and under desktop review.
 
-Templates and public examples must not contain real user data. Generated artifacts remain local and require human review before external use.
+No real user data belongs in source control, fixtures, host runtime guidance, or
+release artifacts.
 
-## Limit
+## Operating-system limit
 
-AAAAT cannot constrain an external process that already has unrestricted filesystem, shell, database, or code-modification access. The capability protocol limits exposure and authority through supported integrations; operating-system permissions remain the outer security boundary.
+AAAAT's capability model is an application and information boundary, not an
+operating-system sandbox. A same-user process independently granted unrestricted
+shell, filesystem, database, or code-modification access can bypass it. Normal
+safe use grants the LLM host the exported integration folder and paired bridge,
+not the repository, maintenance shell, application internals, or private
+workspace.
