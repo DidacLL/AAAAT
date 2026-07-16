@@ -126,6 +126,9 @@ class AgentAccessContractTests(unittest.TestCase):
                 capability = task_capability(conn, task)
                 work = next_agent_work_item(conn)
                 self.assertNotIn("replace_existing", json.dumps(work["response_format"]))
+                self.assertTrue(
+                    any("confirm" in instruction.lower() for instruction in work["input_context"]["instructions"])
+                )
                 completed = submit_agent_task_result(
                     conn,
                     capability,
