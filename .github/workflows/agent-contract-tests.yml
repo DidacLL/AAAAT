@@ -43,7 +43,18 @@ jobs:
       - name: Compile package and tests
         run: python -m compileall -q aaaat tests
       - name: Run complete behavioral suite
-        run: python -B -m unittest discover -s tests
+        shell: bash
+        run: |
+          set -o pipefail
+          python -B -m unittest discover -s tests 2>&1 | tee behavioral-test-output.txt
+      - name: Upload behavioral failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: behavioral-test-output-${{ matrix.python-version }}
+          path: behavioral-test-output.txt
+          if-no-files-found: error
+          retention-days: 7
       - name: Install source distribution outside checkout
         if: matrix.python-version == '3.13'
         working-directory: ${{ runner.temp }}
