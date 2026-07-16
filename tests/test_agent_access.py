@@ -11,7 +11,7 @@ from aaaat.agent_access import (
 from aaaat.candidatures import create_candidature
 from aaaat.db import connect, init_db, profile_variables, set_profile_variable, upsert_glossary_term
 from aaaat.profile_facts import create_profile_fact
-from aaaat.tasks import create_task
+from aaaat.tasks import create_task, list_tasks
 
 
 def object_keys(value):
@@ -161,6 +161,47 @@ class AgentAccessContractTests(unittest.TestCase):
 
         self.assertEqual(row["definition"], "Existing canonical definition.")
         self.assertEqual(row["category"], "technology")
+
+    def test_inferred_keywords_queue_only_missing_canonical_definitions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                upsert_glossary_term(conn, "Python", "Existing Python definition.", "technology")
+                candidature = create_candidature(
+                    conn,
+                    company="Keyword company",
+                    role="Engineer",
+                    include_field_inference_task=False,
+                    include_company_research_task=False,
+                    include_keyword_detection_task=False,
+                )
+                task = create_task(
+                    conn,
+                    "field_inference",
+                    "Infer candidature fields",
+                    application_id=candidature["id"],
+                    context_hint="candidature:field_inference",
+                )
+                capability = task_capability(conn, task)
+                submit_agent_task_result(
+                    conn,
+                    capability,
+                    json.dumps({"fields": {"keywords": ["Python", "MCP"]}}),
+                )
+                tasks = list_tasks(conn, application_id=candidature["id"])
+                python_row = conn.execute(
+                    "SELECT definition FROM glossary_terms WHERE term = ?",
+                    ("Python",),
+                ).fetchone()
+                mcp_row = conn.execute(
+                    "SELECT definition FROM glossary_terms WHERE term = ?",
+                    ("MCP",),
+                ).fetchone()
+
+        definition_tasks = [item for item in tasks if item["task_type"] == "keyword_definition"]
+        self.assertEqual([item["context_hint"] for item in definition_tasks], ["keyword:MCP"])
+        self.assertEqual(python_row["definition"], "Existing Python definition.")
+        self.assertEqual(mcp_row["definition"], "")
 
 
 if __name__ == "__main__":
