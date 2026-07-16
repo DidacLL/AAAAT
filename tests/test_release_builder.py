@@ -3,12 +3,14 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "tools" / "build_release.py"
+ROOT = Path(__file__).resolve().parents[1]
+MODULE_PATH = ROOT / "tools" / "build_release.py"
 SPEC = importlib.util.spec_from_file_location("aaaat_build_release", MODULE_PATH)
 assert SPEC and SPEC.loader
 build_release = importlib.util.module_from_spec(SPEC)
@@ -16,6 +18,20 @@ SPEC.loader.exec_module(build_release)
 
 
 class ReleaseBuilderTests(unittest.TestCase):
+    def test_normal_package_exposes_only_desktop_and_paired_bridge_commands(self) -> None:
+        pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        scripts = pyproject["project"]["scripts"]
+        self.assertEqual(
+            scripts,
+            {
+                "aaaat-desktop": "aaaat.ui_desktop.app:main",
+                "aaaat-host-bridge": "aaaat.host_bridge:main",
+            },
+        )
+        serialized = " ".join(scripts)
+        for forbidden in ("aaaat-mcp", "aaaat-upgrade", "aaaat-seed", "aaaat-cli"):
+            self.assertNotIn(forbidden, serialized)
+
     def test_bridge_build_keeps_required_runtime_and_package_data(self) -> None:
         with patch.object(build_release.subprocess, "run") as run:
             build_release._run_pyinstaller(
