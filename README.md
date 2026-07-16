@@ -2,6 +2,10 @@
 
 AAAAT is a local-first desktop workspace for managing job applications and producing per-application text artifacts from private local data.
 
+An AI host opening this workspace should start with [SKILL.md](SKILL.md): it
+guides the first career conversation, profile setup, and durable connection in
+user language.
+
 The wx desktop application is the only v1 human runtime. AAAAT remains usable manually without any AI connection.
 
 AAAAT owns local data, bounded work construction, validation, deterministic application, rendering, artifacts, and the human UI. A connected LLM is the user's intelligent setup and assistance surface: it owns reasoning, provider/model choice, credentials, network access, and host-specific configuration with the user's approval.

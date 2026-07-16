@@ -71,9 +71,11 @@ def submit_agent_action(
 ) -> dict[str, Any]:
     _ = expose_internal_ids
     packet = parse_action_packet(action)
-    if packet["action"] != "create_candidature":
-        raise ValueError(f"Unsupported agent action: {packet['action']}")
-    return _create_candidature_action(conn, packet["payload"], agent_name=agent_name, agent_runtime=agent_runtime, model_provider=model_provider, storage_path=storage_path)
+    if packet["action"] == "create_candidature":
+        return _create_candidature_action(conn, packet["payload"], agent_name=agent_name, agent_runtime=agent_runtime, model_provider=model_provider, storage_path=storage_path)
+    if packet["action"] == "start_profile":
+        return _start_profile_action(conn, packet["payload"], agent_name=agent_name, agent_runtime=agent_runtime)
+    raise ValueError(f"Unsupported agent action: {packet['action']}")
 
 
 def parse_action_packet(action: dict[str, Any] | str) -> dict[str, Any]:
@@ -92,6 +94,13 @@ def parse_action_packet(action: dict[str, Any] | str) -> dict[str, Any]:
     payload = action.get("payload", {})
     if not isinstance(payload, dict):
         raise ValueError("Agent action payload must be an object")
+    action_name = action["action"]
+    if action_name == "start_profile":
+        if payload:
+            raise ValueError("start_profile does not require a payload")
+        return {"action": action_name, "payload": {}}
+    if action_name != "create_candidature":
+        return {"action": action_name, "payload": payload}
     unknown_payload = set(payload) - ACTION_SECTIONS
     if unknown_payload:
         raise ValueError("Unsupported create_candidature payload sections: " + ", ".join(sorted(unknown_payload)))
@@ -108,6 +117,28 @@ def parse_action_packet(action: dict[str, Any] | str) -> dict[str, Any]:
         elif not isinstance(value, list):
             raise ValueError("Agent action payload section must be a list: requested_tasks")
     return {"action": action["action"], "payload": payload}
+
+
+def _start_profile_action(conn: sqlite3.Connection, payload: dict[str, Any], *, agent_name: str, agent_runtime: str) -> dict[str, Any]:
+    _ = payload
+    task = create_task(
+        conn,
+        "profile_completion",
+        "Build professional profile",
+        instructions="Guide the user through the eligible missing professional-profile fields and return only confirmed values.",
+        state="queued",
+        priority="high",
+        context_hint="profile:completion",
+        created_by="agent",
+        agent_name=agent_name,
+        agent_runtime=agent_runtime,
+        idempotent=True,
+    )
+    return {
+        "status": "accepted",
+        "action": "start_profile",
+        "next": ["claim_profile_setup"],
+    }
 
 
 def _create_candidature_action(conn: sqlite3.Connection, payload: dict[str, Any], *, agent_name: str, agent_runtime: str, model_provider: str, storage_path: str) -> dict[str, Any]:

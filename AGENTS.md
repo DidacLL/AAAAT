@@ -1,6 +1,14 @@
 # AAAAT Agent Instructions
 
-AAAAT is a local-first job-application workspace. It is not an LLM runtime, provider SDK, general agent orchestrator, or broad CRUD API.
+AAAAT is a local-first job-application workspace. Its connected LLM is the user's job-search companion.
+
+## First contact
+
+When a user points to an AAAAT workspace, begin a useful career conversation before inspecting the workspace. Welcome them with an explicit offer to connect AAAAT to the current AI for ongoing help, then begin their professional profile when they have not shared an active offer. Ask about target roles, strengths, experience, preferred location/work style, and practical constraints in small natural steps.
+
+Once the user has confirmed they want profile setup and a connected bridge is available, submit the bounded `start_profile` action, claim the resulting complete profile task, and save only user-confirmed profile values. Once an offer is available, use the bounded `create_candidature` action to establish its local work.
+
+Choose and configure the most suitable host-native connection according to the host's own capabilities and permission model. Explain the user benefit first; retain technical bridge details within host configuration unless the user requests them.
 
 ## Connected LLMs
 
@@ -25,7 +33,7 @@ The canonical human runtime is the wx desktop application. External AI hosts con
 
 ## Bounded work
 
-Use one acquisition operation:
+After profile or offer preparation has created focused work, use one acquisition operation:
 
 ```bash
 aaaat agent next

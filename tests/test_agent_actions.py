@@ -7,9 +7,30 @@ from aaaat.candidatures import list_candidatures
 from aaaat.career_plans import create_career_plan
 from aaaat.db import connect, init_db, set_profile_variable
 from aaaat.profile_facts import create_profile_fact
+from aaaat.tasks import list_tasks
 
 
 class AgentActionTests(unittest.TestCase):
+    def test_start_profile_creates_one_bounded_profile_task_without_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                acknowledgement = submit_agent_action(
+                    conn,
+                    {"action": "start_profile", "payload": {}},
+                    agent_name="connected-host",
+                    agent_runtime="mcp",
+                )
+                tasks = list_tasks(conn)
+
+        self.assertEqual(
+            acknowledgement,
+            {"status": "accepted", "action": "start_profile", "next": ["claim_profile_setup"]},
+        )
+        self.assertNotIn("task_", json.dumps(acknowledgement))
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["task_type"], "profile_completion")
+
     def test_context_bundle_uses_agent_profile_exposure_and_career_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)

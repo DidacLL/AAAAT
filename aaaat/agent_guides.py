@@ -17,6 +17,10 @@ policy.
 4. Submit one structured result through that same capability, or submit one
    explicitly supported bounded action.
 
+For a new workspace, use the bounded `start_profile` action to prepare the
+professional-profile task, then ask the user for confirmed career details.
+Use `create_candidature` when the user shares an offer.
+
 The task capability is a callback token, not a local record identifier or a
 general mutation handle. AAAAT validates and applies results locally. Never
 request or expose internal IDs, database access, broad record searches,
