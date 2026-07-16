@@ -10,19 +10,24 @@ executables contain operating-system components.
 
 ## Automated release gate
 
-The `AAAAT Validation and Release` workflow runs:
+`AAAAT PR Validation` runs once for each pull-request update and on explicit
+manual validation. It contains six expected jobs with no conditional publish
+placeholder:
 
 - the complete behavioral suite on Python 3.11, 3.12, and 3.13;
-- the shared package builder on Windows, macOS, and Linux;
-- a packaged desktop startup check that constructs the first-run and main windows;
-- a packaged bridge handshake and exact bounded-tool-catalogue check;
-- private/development file boundary checks;
+- the shared package builder and verifier on Windows, macOS, and Linux.
+
+The package verifier checks:
+
+- packaged desktop startup, including first-run and main-window construction;
+- the paired bridge handshake and exact bounded-tool catalogue;
+- private/development file boundaries;
 - SHA-256 verification for every release ZIP.
 
-Pull requests and manual workflow runs retain the verified packages as workflow
-artifacts. Pushing a version tag such as `v1.0.0` runs the same gates and attaches
-all verified platform ZIPs and checksums to the corresponding GitHub release.
-A failed platform or behavioral job prevents publication.
+`AAAAT Release` runs only when a version tag such as `v1.0.0` is pushed. It
+repeats the same behavioral and native-package gates, then attaches the verified
+platform ZIPs and checksums to the GitHub release. A failed platform or
+behavioral job prevents publication.
 
 ## Local maintainer build
 
