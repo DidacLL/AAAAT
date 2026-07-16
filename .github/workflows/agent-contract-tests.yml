@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
 
+# One product contract; native runners only freeze operating-system components.
 jobs:
   behavioral-tests:
     name: Behavioral tests (Python ${{ matrix.python-version }})
