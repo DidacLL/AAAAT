@@ -1,83 +1,57 @@
 # Agent workflow
 
-AAAAT is provider-agnostic. It does not require a specific model, provider, SDK, or external agent. Agent-compatible workflows are optional and bounded.
+AAAAT stores local data, owns the task queue, validates results, applies domain changes, and renders local artifacts. External hosts own reasoning and generation.
 
-Do not treat AAAAT as an agent runtime, a chat application, or a broad CRUD API. AAAAT stores local data and exposes limited task/context/action capabilities so external tooling can help without receiving unrestricted access to the local job-search database.
-
-## Local runtime
-
-The wx desktop app is the human working UI:
+The wx desktop application is the canonical v1 human runtime:
 
 ```bash
 aaaat-desktop
 ```
 
-The desktop may show rich local private state because it is for the user on the local machine. Agent-compatible commands must remain narrow and task-scoped.
+## AAAAT-originated work
 
-## Task workflow
+1. AAAAT creates a bounded task.
+2. An external host atomically claims the next eligible task.
+3. AAAAT returns one complete purpose-scoped work item.
+4. The host reasons outside AAAAT and may report task-scoped progress.
+5. The host submits one structured result using the returned random capability.
+6. AAAAT validates and applies the result through its canonical domain path.
 
-AAAAT-originated work follows this shape:
-
-1. AAAAT or the user creates a task.
-2. An external tool asks for the next queued task or queued task envelopes.
-3. The tool requests context for one task handle.
-4. AAAAT returns bounded task context.
-5. The external tool produces a result outside AAAAT.
-6. The tool submits that result to the same task handle.
-7. AAAAT stores the result with provenance.
-8. AAAAT applies results only through local deterministic review/apply logic.
-
-Useful CLI commands:
+CLI acquisition and submission:
 
 ```bash
-aaaat task create --application-id <application_id> --type company_research --title "Research company"
 aaaat agent next
-aaaat agent context <task_handle>
-aaaat agent packet <task_handle>
-aaaat agent submit <task_handle> --result-file result.json
-aaaat task apply <task_id>
+aaaat agent submit <task_capability> --result-file result.json
 ```
 
-A task handle is a task callback handle. It is not authority to browse or mutate arbitrary local records.
+There is no separate context-fetch, packet-build, or dispatch operation. A work item already contains its instructions, bounded context, output contract, response schema, privacy notes, and allowed actions.
 
-## Action-session workflow
+`task_capability` is random, stored, and attempt-scoped. It is not a task row ID, application ID, candidature ID, artifact ID, file path, or general mutation authority.
 
-When work starts outside AAAAT, the external tool can use a bounded action-session flow:
+## External-host-originated work
+
+An external host may submit one explicitly supported bounded action:
 
 ```bash
-aaaat agent context-bundle --purpose cover_letter
 aaaat agent action submit --input-file action.json
 ```
 
-The action packet can request a supported bounded action, such as creating a candidature from already-derived fields, storing research/form-answer material, storing cover-letter body text as render input, requesting local rendering, or asking AAAAT to queue supported follow-up tasks.
+The initial action is `create_candidature`. It may contain source material, inferred candidature fields, generated text inputs, local render requests, and supported follow-up task requests. AAAAT creates and binds records internally and returns no internal IDs or paths.
 
-Action acknowledgements should remain narrow. They must not return application IDs, candidature IDs, artifact IDs, file paths, storage paths, note IDs, todo IDs, blob IDs, or broad database handles as mutation authority.
+## MCP
 
-## MCP-compatible descriptor
-
-AAAAT currently provides a dependency-free MCP-compatible descriptor and validation command:
+Start the dependency-free stdio server with:
 
 ```bash
-aaaat mcp-descriptor
-aaaat mcp-validate
+aaaat-mcp --storage .private
 ```
 
-This is descriptor/tool-schema compatibility for local adapters. It is not a full MCP server implementation. AAAAT does not currently provide stdio, SSE, or streamable HTTP MCP server transport.
+MCP exposes operational tools for claiming next work, reporting progress, submitting a task result, and submitting a bounded action. All tools call the same queue, ingestion, and action services used by the CLI and other wrappers.
 
-External tooling can consume the descriptor and map its resources/tools to the CLI commands above. Do not document AAAAT as a direct MCP server unless an actual MCP transport is implemented.
+## Provider neutrality
+
+AAAAT does not choose a model, request credentials, call provider SDKs, or manage an inference runtime. Optional `agent_name`, `agent_runtime`, and `model_provider` values are provenance only.
 
 ## Artifact boundary
 
-External agents or tools may provide draft content or structured results. AAAAT renders final local artifacts from local templates and stored data.
-
-For cover letters, an external tool may supply the body text that fills the local render input. AAAAT renders the output locally and records the artifact.
-
-For CVs, external tools should supply or improve bounded data used by the local template. They should not submit final generated files as authoritative AAAAT artifacts.
-
-## Provider-agnostic metadata
-
-Some commands accept optional provenance fields such as `agent_name`, `agent_runtime`, or `model_provider`. These are metadata only. They do not configure a provider, call a provider, or make AAAAT dependent on any provider.
-
-## Safety rule
-
-The agent is not the user. Agent-supplied text should land in explicit task results, candidature fields, form answers, research/preparation fields, render inputs, or bounded future-task requests. Human notes and desktop actions remain local user operations unless a future bounded action explicitly defines otherwise.
+External hosts provide structured data or draft text. AAAAT resolves local variables, renders templates, records provenance, and manages artifact state. Final files remain local and subject to human review.
