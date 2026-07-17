@@ -105,11 +105,7 @@ class UserViewMixin:
         self._refresh_current_if_needed()
 
     def _prepare_connection_handoff(self) -> str:
-        return (
-            connection_handoff_message(self.storage_path)
-            + "\n\n"
-            + runtime_skill_document()
-        )
+        return connection_handoff_message(self.storage_path)
 
     def _assistance_snapshot(self) -> dict[str, Any]:
         return assistance_snapshot(
