@@ -8,7 +8,8 @@ import os
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 
 from aaaat.host_connection import create_connection
 
@@ -64,7 +65,7 @@ def _verify_package_boundary(release_root: Path) -> None:
         raise RuntimeError("Development or private files entered the release: " + ", ".join(leaked))
 
 
-def _verify_checksum(release_root: Path) -> None:
+def _verify_checksum(release_root: Path) -> Path:
     archive = release_root.with_suffix(".zip")
     checksum = archive.with_suffix(archive.suffix + ".sha256")
     if not archive.is_file() or not checksum.is_file():
@@ -73,6 +74,24 @@ def _verify_checksum(release_root: Path) -> None:
     actual = hashlib.sha256(archive.read_bytes()).hexdigest()
     if actual != expected:
         raise RuntimeError("Release checksum does not match the archive")
+    return archive
+
+
+def _extract_verified_archive(archive: Path, target: Path) -> Path:
+    expected_root = archive.stem
+    with zipfile.ZipFile(archive) as package:
+        members = package.infolist()
+        if not members:
+            raise RuntimeError("Release archive is empty")
+        for member in members:
+            path = PurePosixPath(member.filename)
+            if path.is_absolute() or ".." in path.parts or not path.parts or path.parts[0] != expected_root:
+                raise RuntimeError("Release archive contains an unsafe or unexpected path")
+        package.extractall(target)
+    extracted = target / expected_root
+    if not extracted.is_dir():
+        raise RuntimeError("Release archive did not contain the expected application folder")
+    return extracted
 
 
 def _run_desktop_startup_check(desktop: Path, environment: dict[str, str]) -> None:
@@ -135,16 +154,18 @@ def _run_bridge_check(bridge: Path, environment: dict[str, str], temporary: Path
 
 
 def verify_release() -> None:
-    release_root = _release_root()
-    desktop, bridge = _executables(release_root)
-    if not desktop.is_file() or not bridge.is_file():
-        raise RuntimeError("Packaged desktop or paired bridge executable is missing")
-
-    _verify_package_boundary(release_root)
-    _verify_checksum(release_root)
+    built_root = _release_root()
+    _verify_package_boundary(built_root)
+    archive = _verify_checksum(built_root)
 
     with tempfile.TemporaryDirectory(prefix="aaaat-release-verification-") as temporary_name:
         temporary = Path(temporary_name)
+        release_root = _extract_verified_archive(archive, temporary / "extracted-package")
+        _verify_package_boundary(release_root)
+        desktop, bridge = _executables(release_root)
+        if not desktop.is_file() or not bridge.is_file():
+            raise RuntimeError("Packaged desktop or paired bridge executable is missing")
+
         environment = os.environ.copy()
         environment["AAAAT_APP_CONFIG_DIR"] = str(temporary / "app-config")
         environment["AAAAT_CONNECTION_REGISTRY"] = str(temporary / "connections.json")
@@ -155,7 +176,7 @@ def verify_release() -> None:
 if __name__ == "__main__":
     try:
         verify_release()
-    except (OSError, RuntimeError, subprocess.SubprocessError, json.JSONDecodeError) as exc:
+    except (OSError, RuntimeError, subprocess.SubprocessError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
     print("AAAAT release verification passed")
