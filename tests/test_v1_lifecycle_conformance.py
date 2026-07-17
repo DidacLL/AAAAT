@@ -105,6 +105,31 @@ class V1LifecycleConformanceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unsupported candidature fields"):
                 submit_agent_task_result(conn, capability, json.dumps({"fields": {"role_strategy": "Wrong contract"}}))
 
+    def test_single_field_refresh_is_exact_and_authorized_by_the_desktop_action(self) -> None:
+        service = DesktopCommandService(self.storage)
+        created = service.create_offer_first_candidature(
+            "Original offer",
+            company="Old Company",
+            role="Engineer",
+        )
+        assert created is not None
+        task = service.queue_candidature_action(created["id"], "field:company")
+        with connect(self.storage) as conn:
+            work = build_agent_work_item(conn, task)
+            self.assertEqual(work["input_context"]["allowed_fields"], ["company"])
+            submit_agent_task_result(
+                conn,
+                task_capability(conn, task),
+                json.dumps(
+                    {
+                        "fields": {"company": "New Company"},
+                        "replace_existing": False,
+                    }
+                ),
+            )
+            updated = get_candidature(conn, created["id"])
+        self.assertEqual(updated["company"], "New Company")
+
     def test_blocked_task_cannot_accept_results(self) -> None:
         with connect(self.storage) as conn:
             candidature = create_candidature(
