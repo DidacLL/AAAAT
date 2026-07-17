@@ -94,7 +94,8 @@ class HostConnectionTests(unittest.TestCase):
     def test_fresh_host_handoff_is_self_contained_without_private_workspace_details(self) -> None:
         handoff = connection_handoff_message(self.workspace)
         self.assertIn("name: AAAAT", handoff)
-        self.assertIn('"command": "aaaat-host-bridge"', handoff)
+        command = json.loads(handoff.split("```json\n", 1)[1].split("\n```", 1)[0])["mcp"]["command"]
+        self.assertEqual(Path(command).name, "aaaat-host-bridge")
         self.assertIn('"tools"', handoff)
         self.assertIn('"fallback"', handoff)
         self.assertIn('"protocol": "aaaat.host-connection"', handoff)
