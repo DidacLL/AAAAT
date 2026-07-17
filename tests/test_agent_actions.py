@@ -120,7 +120,7 @@ class AgentActionTests(unittest.TestCase):
                 "action": "create_candidature",
                 "created": True,
                 "rendered": {"cover_letter": True},
-                "next": ["open_desktop"],
+                "next": ["continue_or_open_desktop"],
             },
         )
         self.assertNotIn("internal", ack)
@@ -194,7 +194,7 @@ class AgentActionTests(unittest.TestCase):
                 loaded = list_candidatures(conn, include_related=True)[0]
 
         self.assertEqual(ack["queued"], {"count": 1})
-        self.assertEqual(ack["next"], ["open_desktop"])
+        self.assertEqual(ack["next"], ["continue_or_open_desktop"])
         serialized_ack = json.dumps(ack)
         self.assertNotIn("task_", serialized_ack)
         self.assertNotIn("app_", serialized_ack)
@@ -205,7 +205,7 @@ class AgentActionTests(unittest.TestCase):
         self.assertEqual(task["priority"], "low")
         self.assertEqual(task["context_hint"], "candidature:company_research")
         self.assertIn("Research was not completed", task["instructions"])
-        self.assertEqual(task["created_by"], "agent")
+        self.assertEqual(task["created_by"], "agent_action")
 
     def test_requested_tasks_skip_completed_outputs(self):
         with tempfile.TemporaryDirectory() as tmp:
