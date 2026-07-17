@@ -19,7 +19,7 @@ Briefly explain that a connected AAAAT workspace can keep career direction, oppo
 - a missing profile value needed for a document;
 - general job research.
 
-A useful professional profile is required before evaluating an opportunity, comparing fit, prioritizing applications, or preparing candidature-specific strategy. When the user brings an offer first, retain the offer, check which profile information is missing for that evaluation, and collect only the missing information before continuing. Do not force unrelated profile completion before connection, manual use, offer capture, or other work that does not require evaluation.
+Use the immediate need first. Before evaluating an opportunity, use the professional context the user has chosen to provide. Ask only for missing context that materially improves that specific evaluation. This may be as little as a target role plus studies, a recent job, selected experience, or another user-chosen summary. Do not define profile completeness for the user, require unrelated details, or block offer capture and manual work.
 
 ## Establish the strongest available connection
 
