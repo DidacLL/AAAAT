@@ -18,9 +18,17 @@ from .welcome_panel import WelcomePanel
 
 
 class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx.Frame):
-    """Top-level wx desktop frame for Smart, Detailed, and User desktop views."""
+    """Top-level wx desktop frame for Smart, Detailed, User, and Welcome views."""
 
-    def __init__(self, *, storage_path: str, projection: dict[str, Any], layout_state: DashboardLayoutState, layout_path: str | Path, command_service: DesktopCommandService | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        storage_path: str,
+        projection: dict[str, Any],
+        layout_state: DashboardLayoutState,
+        layout_path: str | Path,
+        command_service: DesktopCommandService | None = None,
+    ) -> None:
         super().__init__(None, title="AAAAT — Desktop", size=DEFAULT_WINDOW_SIZE)
         self.CreateStatusBar()
         self.SetStatusText("Ready")
@@ -43,16 +51,20 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._list_refs: list[str] = []
         self._overview_card_refs: list[str] = []
         self._rendered_view_keys: dict[str, tuple[Any, ...]] = {}
+        self._change_token = self.command_service.change_token()
+        self._external_refresh_timer = wx.Timer(self)
         self.Freeze()
         try:
             self._init_smart_view_helpers()
             self._build_menu()
             self._build_shell()
             self._bind_shell_events()
+            self.Bind(wx.EVT_TIMER, self._on_external_refresh, self._external_refresh_timer)
             self._show_initial_view()
             self._refresh_all()
         finally:
             self.Thaw()
+        self._external_refresh_timer.Start(1500)
 
     def _show_initial_view(self) -> None:
         if self.current_view == "welcome":
@@ -210,7 +222,23 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
         self._reload_projection()
         self._show_focus()
         self._refresh_all()
-        self.SetStatusText("Created candidature; preparation tasks are visible in the context rail")
+        self._change_token = self.command_service.change_token()
+        self.SetStatusText("Created candidature; preparation is ready in Detailed View")
+
+    def _on_external_refresh(self, _event: wx.TimerEvent) -> None:
+        try:
+            token = self.command_service.change_token()
+        except Exception:
+            return
+        if token == self._change_token:
+            return
+        active_editor = getattr(getattr(self, "detail_body_panel", None), "_active_editor", None)
+        if active_editor is not None and bool(getattr(active_editor, "_editing", False)):
+            return
+        self._change_token = token
+        self._rendered_view_keys.clear()
+        self._refresh_all()
+        self.SetStatusText("Updated from connected assistance")
 
     def _on_reset_layout(self, _event: wx.Event) -> None:
         self.layout_state = DashboardLayoutState.default()
@@ -251,9 +279,12 @@ class DesktopDashboardFrame(UserViewMixin, DetailedViewMixin, SmartViewMixin, wx
             self._refresh_all()
         else:
             self._refresh_all()
+        self._change_token = self.command_service.change_token()
         self.SetStatusText("Deleted candidature")
 
     def _on_close(self, event: wx.CloseEvent) -> None:
+        if self._external_refresh_timer.IsRunning():
+            self._external_refresh_timer.Stop()
         self.layout_state.selected_view = self.current_view
         self.layout_state.selected_candidature_ref = self.selected_ref
         self.layout_state.selected_keyword = self.selected_keyword
