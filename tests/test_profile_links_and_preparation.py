@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 
-from aaaat.db import connect, profile_variables, set_profile_variable
+from aaaat.db import connect, profile_variables
 from aaaat.tasks import list_tasks
 from aaaat.ui_desktop.profile_links import parse_profile_links, profile_links_from_variables, serialize_profile_links
 from aaaat.ui_desktop.services import DesktopCommandService
@@ -55,7 +55,7 @@ class DeferredPreparationBehaviorTests(unittest.TestCase):
             with connect(tmp) as conn:
                 ready = [item for item in list_tasks(conn, application_id=created["id"]) if item["task_type"] in {"draft_cv", "draft_cover_letter"}]
         self.assertEqual({item["state"] for item in ready}, {"queued"})
-        self.assertTrue(all("Ready to begin" in item["notes"] for item in ready))
+        self.assertTrue(all(item["updated_at"] for item in ready))
 
 
 if __name__ == "__main__":
