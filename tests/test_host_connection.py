@@ -212,7 +212,15 @@ class HostConnectionTests(unittest.TestCase):
         submitted_response = json.loads(target.getvalue().splitlines()[-1])
         self.assertFalse(submitted_response["result"]["isError"])
         acknowledgement = submitted_response["result"]["structuredContent"]["acknowledgement"]
-        self.assertEqual(acknowledgement, {"status": "accepted", "state": "completed", "next": ["review_in_aaaat"]})
+        self.assertEqual(
+            acknowledgement,
+            {
+                "status": "accepted",
+                "state": "completed",
+                "released_work": 0,
+                "next": ["continue_or_open_desktop"],
+            },
+        )
         serialized_acknowledgement = json.dumps(acknowledgement)
         for forbidden in ("task_id", "application_id", "result_blob_id", "created_by", "notes"):
             self.assertNotIn(forbidden, serialized_acknowledgement)
