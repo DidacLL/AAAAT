@@ -211,8 +211,6 @@ def _create_candidature_action(
             raise ValueError(f"Render request must be boolean: {key}")
     if render.get("cover_letter") and not str(outputs.get("cover_letter_body") or "").strip():
         raise ValueError("cover_letter_body is required to render a cover letter")
-    if render.get("cv") and not str(outputs.get("cv_positioning") or "").strip():
-        raise ValueError("cv_positioning is required to render a tailored CV")
 
     fields: dict[str, Any] = {}
     fields.update(_known_fields(candidature, APPLICATION_UPDATE_FIELDS | {"status", "priority", "company", "role"}))
@@ -236,7 +234,7 @@ def _create_candidature_action(
         {
             "include_field_inference_task": False,
             "include_company_research_task": False,
-            "include_keyword_detection_task": False,
+            "include_keyword_detection_task": True,
             "include_cv_task": False,
             "include_cover_letter_task": False,
             "include_form_responses_task": False,
