@@ -2,24 +2,16 @@
 
 All notable user-visible changes are recorded here.
 
-## Unreleased
+## 1.0.0 — Unreleased
 
-- Integrated the native wx desktop as the complete human application.
-- Added local-first private workspace selection and backup behavior.
-- Added Smart View and Detailed View candidature workflows.
-- Added profile, career-plan, preparation, rendering, and artifact support.
-- Added optional provider-neutral external-AI assistance through a bounded paired
-  bridge and portable fallback.
-- Kept candidature creation and manual operation independent from AI availability;
-  incomplete fields remain empty and can be completed later.
-- Packaged one LLM-facing skill named `AAAAT` while excluding repository-development
-  instructions from installed releases.
-- Added native Windows, macOS, and Linux packaging and verification.
-- Reorganized human documentation around the product definition, behavior,
-  mechanisms, architecture, use, development, and release process.
-
-## 1.0.0
-
-Initial public release placeholder. This entry becomes final only after the
-integration branch passes the behavioral and native package matrix and is
-explicitly authorized for release.
+- Added the native wx desktop as the complete human application.
+- Added Welcome, User, Smart, and Detailed View workflows.
+- Added local-first private workspace selection, backup, and restore behavior.
+- Added candidature capture, raw-source retention, notes, next actions, profile context, preparation, templates, rendering, and artifact provenance.
+- Kept incomplete candidature creation and every core manual workflow independent from AI availability.
+- Added optional provider-neutral external assistance through one self-contained `AAAAT` skill, a bounded paired bridge, and portable task/result fallback.
+- Enforced purpose-scoped context, opaque short-lived capabilities, task-specific schemas, local result application, and inaccessible database, path, and desktop command surfaces.
+- Removed mandatory approval and suggestion-review workflows from generated material.
+- Added native Windows x64, macOS arm64, and Linux x64 packaging, checksums, and package verification.
+- Added behavioral CI for Python 3.11, 3.12, and 3.13 plus native package builds on all three platforms.
+- Reorganized human documentation around AAAAT’s purpose, principles, behavior, mechanisms, use, architecture, development, and release process.

@@ -120,7 +120,7 @@ The normal flow is:
 2. Copy the request.
 3. Paste it into the AI host you already use.
 4. The host chooses the strongest supported local route.
-5. The host can carry out bounded work while AAAAT applies valid results locally.
+5. The host can carry out bounded work autonomously while AAAAT validates and applies results locally.
 
 AAAAT does not ask for an AI provider, API key, model name, or model URL.
 
@@ -178,7 +178,6 @@ Keep the previous application folder and a workspace backup until the new releas
 - Do not commit the private workspace to Git.
 - Do not attach real workspace databases or private documents to public issues.
 - Use fictional information in bug reproductions.
-- Check externally submitted material when the consequences require it; AAAAT does not impose a mandatory review queue.
 - Keep the workspace outside folders exposed broadly to an AI host.
 
 ## Troubleshooting

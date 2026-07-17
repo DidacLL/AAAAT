@@ -54,11 +54,11 @@
   <text x="920" y="260" font-family="Arial, sans-serif" font-size="14" fill="#4b5563">operation of a service.</text>
   <line x1="920" y1="286" x2="1123" y2="286" stroke="#e1e5ea"/>
   <text x="920" y="318" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#596273">ARTIFACTS</text>
-  <text x="920" y="350" font-family="Arial, sans-serif" font-size="14" fill="#1d4f91">CV variant · reviewed</text>
+  <text x="920" y="350" font-family="Arial, sans-serif" font-size="14" fill="#1d4f91">CV variant · current</text>
   <text x="920" y="379" font-family="Arial, sans-serif" font-size="14" fill="#1d4f91">Cover letter · draft</text>
   <text x="920" y="408" font-family="Arial, sans-serif" font-size="14" fill="#1d4f91">Interview guide · draft</text>
 
   <rect x="52" y="570" width="1094" height="96" rx="10" fill="#f8fafc" stroke="#d5d9df"/>
   <text x="72" y="604" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#596273">NEXT ACTION</text>
-  <text x="72" y="637" font-family="Arial, sans-serif" font-size="17" fill="#1f2937">Review recruiter-call notes, then open Detailed View to update the interview plan.</text>
+  <text x="72" y="637" font-family="Arial, sans-serif" font-size="17" fill="#1f2937">Check recruiter-call notes, then open Detailed View to update the interview plan.</text>
 </svg>

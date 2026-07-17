@@ -1,6 +1,6 @@
 # Architecture
 
-This document maps the implemented AAAAT system. The product definition in `product.md` explains why the system exists and which behavior is authoritative.
+This document maps the implemented AAAAT system. The product definition in `product.md` is authoritative for product behavior and principles.
 
 ## System shape
 
@@ -9,158 +9,143 @@ Human user
     ↕
 wx desktop adapter
     ↕
-application services
+explicit application services
     ↕
-SQLite workspace + local artifacts
+private SQLite workspace + local artifacts
 
 Optional external LLM host
-    ↕ bounded stdio/MCP or portable exchange
+    ↕ bounded stdio/MCP or portable files
 paired AAAAT bridge
     ↕
-application services
+explicit application services
 ```
 
-The desktop and the optional bridge are two entry points into the same local application behavior. The bridge is not a second product and does not expose the desktop command surface.
+The desktop and optional bridge are entry points into the same product domain. The bridge is not a second product and does not expose the desktop command surface.
 
 ## Runtime entry points
 
 - `aaaat-desktop` starts the wx application.
-- `aaaat-host-bridge` starts the bounded external-host bridge for an opaque connection capability.
+- `aaaat-host-bridge` starts the paired bounded bridge for an opaque connection capability.
 
-Normal users do not need the repository CLI. CLI modules remain useful for development, automation, recovery, and deterministic testing, but they are not the primary product interface granted to an LLM host.
+The repository CLI supports maintenance, deterministic testing, backup, and advanced local operation. It is not the authority granted to a connected LLM.
 
 ## Desktop adapter
 
-`aaaat/ui_desktop/` owns wx widgets, layout, event handling, and presentation state.
+`aaaat/ui_desktop/` owns wx widgets, layout, event handling, and presentation state. Widgets delegate writes to desktop services rather than writing SQL directly.
 
-The desktop delegates writes to application services rather than writing SQL from widgets. The main frame owns only top-level window behavior, view switching, menus, toolbars, and layout composition. View modules own their own rendering and interaction details.
+The four primary views are:
 
-The four primary views are Welcome, User, Smart, and Detailed. Smart View and Detailed View project the same candidature data for different operational purposes.
+- Welcome — workspace orientation and direct entry into useful work;
+- User — reusable professional context and preferences;
+- Smart — compact recruiter-call and urgent-preparation context;
+- Detailed — complete candidature inspection, editing, and material management.
+
+Smart and Detailed View project the same candidature domain for different operational needs.
 
 ## Application services
 
-Application services coordinate product use cases such as:
+Services coordinate concrete use cases:
 
-- selecting or initializing a workspace;
-- creating and editing candidatures;
-- retaining raw offer and form material;
-- maintaining profile context;
-- queuing optional assistance work;
-- applying bounded results;
-- rendering documents;
-- managing artifacts;
-- backup and restore.
+- initialize or select a workspace;
+- create and edit candidatures;
+- retain raw offer and form material;
+- maintain profile variables and facts;
+- create explicit assistance tasks;
+- apply bounded results;
+- render documents and manage artifacts;
+- back up and restore the workspace.
 
-A service may combine repository operations, but it must not make a valid candidature dependent on optional task creation or external runtime availability.
+There is no generic entity framework, connector manager, plugin system, or workflow engine.
 
 ## Persistence
 
-AAAAT uses one SQLite database in the private workspace. The schema is initialized from `aaaat/schema.sql`.
-
-The main persisted concepts are:
-
-- applications and candidature details;
-- raw intake;
-- glossary terms and keywords;
-- profile variables and reusable profile facts;
-- career plans;
-- tasks used for deferred or external work;
-- generated text and artifacts;
-- notes and todos;
-- templates and artifact events.
-
-The schema is intentionally concrete. It is not hidden behind a generic entity framework.
+AAAAT uses one SQLite database initialized from `aaaat/schema.sql`. The main persisted concepts are applications, candidature details, raw intake, keywords, profile variables and facts, career plans, explicit tasks, generated text, artifacts, notes, todos, and templates.
 
 ### Candidature creation boundary
 
-Creating a candidature stores the record and available source material immediately. Optional extraction, research, or document tasks are separate follow-up operations.
+Creating a candidature stores the local record and available source material immediately. It does not automatically create AI work. Extraction, research, evaluation, preparation, or document work is requested separately by the desktop or connected host.
 
-Unknown company, role, location, URL, or other values are stored as empty values. Placeholder facts are not inserted to satisfy the schema.
+Company, role, location, URL, and other unknown values remain empty. AAAAT does not invent placeholder facts to satisfy the schema.
 
-### Profile variable store
+### Profile storage
 
-The `variables` table is the single authoritative store for profile variable values and exposure metadata. Profile helper functions are projections over that table. There is no compatibility mirror or migration path for an unreleased alternate profile table.
+The `variables` table is the authoritative store for profile variable values and exposure metadata. `profile_facts` stores reusable structured professional context. There is no compatibility mirror or migration path for an unreleased alternate profile store.
 
 ### Transactions
 
-Transactions protect local consistency at narrow use-case boundaries. They do not include calls to an external LLM and do not turn optional task creation into a prerequisite for saving the user’s data.
+Transactions protect narrow local consistency boundaries. External AI calls and optional task creation are never prerequisites for saving a candidature.
 
 ## Templates and artifacts
 
-Templates are stored in SQLite and use variable references. Rendering resolves profile and candidature values locally, writes output only under the private artifact area, and records the result in `generated_artifacts`.
+Templates are stored in SQLite and use variable references. AAAAT resolves values locally, confines output to the private artifact area, and records provenance.
 
-Artifact states organize versions and external usage. They do not impose a mandatory approval pipeline.
+Artifact states are `draft`, `submitted`, and `archived`. They organize current work and external use; they are not approval gates.
 
-## Optional external-host bridge
+## Connection request and paired bridge
 
-The bridge resolves an opaque connection capability to one private workspace internally. The host never receives that workspace path.
+**Connect my AI** creates a self-contained handoff containing the exact packaged `AAAAT` skill and an opaque connection card. The card contains:
 
-The bridge exposes a deliberately small catalogue. Typical operations are:
+- protocol version;
+- revocable connection capability;
+- exact stdio launch command and arguments;
+- the paired tool schemas;
+- portable exchange fallback guidance.
 
-- connection status;
-- open the desktop;
-- begin profile work;
-- create a candidature from supplied material;
-- claim one bounded task;
-- optionally report lightweight progress;
-- submit one structured result.
+The host performs its standard MCP or equivalent initialization and tool discovery. AAAAT does not implement provider-specific setup logic or a connector certification protocol.
 
-The bridge does not expose arbitrary application listing, generic SQL, general CLI execution, filesystem browsing, internal identifiers as mutation authority, or desktop widget commands.
+The paired catalogue contains six operations:
+
+1. read plain connection status;
+2. open or focus the desktop;
+3. start one bounded profile task;
+4. create a candidature from supplied material and outputs;
+5. atomically claim one ready bounded task;
+6. submit one structured result.
+
+The bridge does not expose arbitrary application listing, generic SQL, general CLI execution, filesystem browsing, workspace paths, internal identifiers as mutation authority, or desktop widget commands.
 
 ## Task mechanism
 
-Tasks are deferred pieces of work attached to a candidature or profile purpose. They are not a generic workflow engine.
-
-The essential path is:
+Tasks are explicit deferred pieces of work, not an orchestration framework.
 
 ```text
 queued → claimed → completed | failed | cancelled
 ```
 
-Some candidature lifecycle work may remain blocked until a direct prerequisite exists. This is local product logic, not an external-agent orchestration framework.
+A task may be `blocked` while a concrete local prerequisite is absent. When the prerequisite becomes available, AAAAT returns it to `queued`.
 
-Task acquisition uses one atomic compare-and-set so two consumers cannot claim the same queued task. A random capability identifies the callback for that task. Results are accepted only while the task is active and are applied internally to the bound record.
+Acquisition is one atomic compare-and-set. A fresh random callback capability is created only for the claimed attempt. Completion, failure, cancellation, or release invalidates it. There are no leases, heartbeats, persisted progress streams, autonomous recovery agents, or generic transition engine.
 
-The implementation does not require leases, distributed coordination, autonomous recovery agents, or a general transition framework.
+A local user-owned command may emit transient status messages for the desktop while it runs. Those messages are not part of the external authority protocol and are not persisted.
 
-## Result validation
+## Result validation and application
 
 AAAAT validates that a result:
 
 - is one JSON object;
-- stays within a practical size and nesting bound;
-- matches the result shape declared by the task;
-- does not contain forbidden authority fields;
-- targets an active task capability.
+- stays within practical size, item, and nesting bounds;
+- matches the task-specific result schema;
+- contains no forbidden authority fields;
+- uses the active capability for the claimed task.
 
-After validation, AAAAT applies the result directly. There is no generic suggestion-approval queue between accepted work and the local record.
+AAAAT then applies the permitted result to the internally bound record and invalidates the capability. Conflicting or unsupported material may be retained as history, but there is no suggestion-approval queue.
 
 ## Privacy boundary
 
 The lower-level boundary is structural:
 
 - the bridge resolves workspace details internally;
-- contexts are purpose-scoped before they leave the application;
-- profile variables obey exposure rules;
-- capabilities are opaque and task-scoped;
-- storage paths and entity IDs are removed from external contracts;
+- contexts are purpose-scoped before leaving AAAAT;
+- profile values obey exposure rules;
+- capabilities are opaque, attempt-scoped, and short-lived;
+- storage paths and internal IDs are absent from external contracts;
 - result schemas restrict accepted writes;
-- artifact paths are chosen and confined locally.
+- artifact paths are selected and confined locally.
 
-Instructions reinforce this boundary but are not relied on as the enforcement mechanism.
+Instructions reinforce these rules but are not the enforcement mechanism.
 
-## Packaging
+## Packaging and dependencies
 
-PyInstaller produces a native desktop executable and a sibling bridge executable from the same source tree. The package includes:
+PyInstaller produces a native desktop application and sibling bridge from the same source. Packages include the application, bridge, schema, `aaaat/SKILL.md`, and concise user help. Repository instructions, tests, build tools, planning records, and private data are excluded.
 
-- the desktop application;
-- the bounded bridge;
-- `aaaat/schema.sql`;
-- `aaaat/SKILL.md`, whose skill name is `AAAAT`;
-- concise user launch material.
-
-Repository-development instructions, tests, build tools, planning files, and private data are excluded from installed releases.
-
-## Dependency policy
-
-Core runtime dependencies remain empty. wxPython is the desktop dependency. PyInstaller is a release-build dependency. New frameworks require a concrete reduction in product complexity and must not replace direct Python and SQLite code with a generic architecture.
+Core runtime dependencies remain empty. wxPython is the desktop dependency and PyInstaller is used only for native builds. New frameworks require a concrete reduction in product complexity.

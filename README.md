@@ -1,8 +1,8 @@
 # AAAAT
 
-AAAAT is a local desktop workspace for managing job applications, preparing recruiter and interview conversations, and producing candidature-specific application material.
+AAAAT is a private desktop workspace for managing job applications, preparing recruiter and interview conversations, and producing candidature-specific application material.
 
-It keeps the practical job-search record in one private place: opportunities, source text, current status, next actions, notes, professional context, research, form answers, CV and cover-letter material, and generated artifacts.
+It keeps the practical job-search record in one place: opportunities, source text, current stage, next actions, notes, professional context, research, form answers, CV and cover-letter material, and generated files.
 
 AAAAT remains fully usable without an AI connection.
 
@@ -11,35 +11,61 @@ AAAAT remains fully usable without an AI connection.
 
 ![AAAAT desktop using fictional candidature data](docs/assets/aaaat-desktop.svg)
 
-## Why AAAAT
+## What AAAAT solves
 
-Job-search information is commonly split across spreadsheets, notes, chat histories, documents, and provider-specific AI tools. AAAAT combines the operational tracker, reusable professional context, local document rendering, and optional external reasoning without surrendering the workspace to a cloud service or a particular model provider.
+A job search usually becomes fragmented across spreadsheets, notes, browser tabs, chat histories, documents, and provider-specific AI tools. AAAAT combines the operational tracker, reusable professional context, application preparation, local rendering, and optional external reasoning without turning the workspace into a cloud service or tying it to one model provider.
 
-AAAAT is not an LLM wrapper, chat client, MCP product, or agent orchestrator. The application owns local data, rendering, artifacts, and bounded access. An external LLM may supply reasoning, research, extraction, and writing through the connection method supported by its own host.
+The candidature is the central unit of work. It connects the original offer, current status, next action, notes, research, evaluation, conversation preparation, generated text, and files already used for that opportunity.
 
-## Main workflows
+## Core workflows
 
-- Create a candidature from an offer, form, link, conversation, or manual entry.
-- Save incomplete records immediately; unknown values remain empty and can be completed later.
-- Use Smart View during recruiter calls for pitch, questions, risks, keywords, notes, artifacts, and next action.
-- Use Detailed View for complete candidature inspection and editing.
-- Maintain reusable profile, skills, experience, preferences, and career direction in User View.
-- Render and retain CV, cover-letter, form-answer, recruiter, and interview material locally.
-- Continue every core workflow manually when no AI is connected.
+- Capture an offer, form, link, conversation, or manually entered opportunity.
+- Save partial candidatures immediately; unknown facts remain empty.
+- Use Smart View during recruiter calls for the essential context and live notes.
+- Use Detailed View for complete inspection and editing.
+- Maintain reusable skills, experience, preferences, constraints, and career direction in User View.
+- Prepare recruiter calls, interviews, form answers, CV positioning, and cover-letter text.
+- Render and retain local CV and cover-letter files with provenance.
+- Track what is current, sent, or archived without imposing an approval workflow.
+- Back up or move the private workspace independently from the application.
 
-## Local-first privacy
+## Product principles
 
-AAAAT stores its authoritative SQLite database and private artifacts in a user-selected local workspace separate from the installed application.
+### Local ownership
 
-Optional external assistance receives only purpose-scoped context and bounded operations. It does not receive general database access, workspace paths, repository access, arbitrary record browsing, or desktop mutation authority. Privacy is enforced by the local data model and inaccessible command surfaces, not by requiring the user to review every AI step.
+The authoritative SQLite database and private artifacts live in a user-selected local workspace, separate from the installed application. AAAAT has no required cloud account, telemetry service, or hosted database.
 
-## Optional external AI
+### Complete manual operation
 
-When assistance is useful, AAAAT can prepare a connection request for the AI environment the user already has. The installed product supplies one skill named `AAAAT`, an opaque connection capability, a small bounded tool catalogue, and portable task/result exchange as a fallback.
+Every core tracking, editing, preparation, rendering, search, and backup workflow works without an LLM, network connection, terminal, Git installation, or source checkout.
 
-Valid bounded results are applied directly to the intended local records. AAAAT does not add a mandatory approval or suggestion-review workflow. The user can edit resulting data normally, mark material as sent, or archive obsolete versions.
+### Fast operational views
 
-AAAAT does not request provider credentials, model URLs, model names, or provider SDKs.
+Smart View is a compact recruiter-call and urgent-preparation cockpit. Detailed View carries the full candidature record. User View holds reusable professional context. Welcome View handles orientation, workspace selection, and direct entry into useful work.
+
+### Provider-neutral assistance
+
+AAAAT is not an LLM wrapper, chat client, MCP product, or agent orchestrator. The application owns local data, validation, rendering, artifacts, and bounded authority. An external LLM may provide research, extraction, evaluation, strategy, and writing through the connection method supported by its own host.
+
+### Privacy by construction
+
+A connected host receives only purpose-scoped context and a small bounded operation set. It does not receive general database access, workspace paths, repository access, arbitrary record browsing, internal identifiers as mutation handles, or desktop widget commands.
+
+Privacy does not depend on a person reviewing every AI step. Valid bounded results are validated locally and applied directly to the intended records.
+
+## Connect the AI you already use
+
+Choose **Connect my AI** in AAAAT. The application prepares one self-contained request containing:
+
+- the single installed skill named `AAAAT`;
+- an opaque revocable connection capability;
+- the exact local stdio/MCP launch command;
+- the bounded tool schemas available to that host;
+- portable task/result exchange as a fallback.
+
+Copy the request and paste it into the AI host you already use. The host chooses the strongest supported local route and performs its normal tool initialization. AAAAT does not ask for provider credentials, API keys, model URLs, model names, or provider SDKs.
+
+The paired bridge supports a deliberately small workflow: read connection status, open the desktop, start bounded profile work, create a candidature from supplied material, claim one prepared work item, and submit one schema-valid result.
 
 ## Installation
 
@@ -49,29 +75,37 @@ Download the archive for your platform, extract it once, and open the applicatio
 - macOS: `AAAAT.app`
 - Linux: `AAAAT`
 
-Normal use does not require Python, Git, a terminal, or a source checkout. See the [User guide](docs/user-guide.md).
+Normal use does not require Python or a terminal. On first launch, choose the private folder that will hold your workspace. See the [User guide](docs/user-guide.md) for operation, connection, backup, restore, and troubleshooting.
 
-## Technical outline
+## Technical shape
 
 ```text
 wx desktop
     ↕
-AAAAT services and private SQLite workspace
+explicit AAAAT services
+    ↕
+private SQLite workspace + local artifacts
     ↕ optional bounded tasks/results
 external LLM host
 ```
 
-The core uses Python and SQLite. wxPython provides the desktop adapter. PyInstaller is used for native packaging. Core runtime dependencies are otherwise kept empty.
+The core uses Python and SQLite. wxPython supplies the desktop adapter. PyInstaller produces native Windows, macOS, and Linux packages. Core runtime dependencies are otherwise empty.
 
-The human-facing documentation is:
+## Project status
 
-- [Product definition](docs/product.md)
-- [User guide](docs/user-guide.md)
-- [Architecture](docs/architecture.md)
-- [Optional AI integration](docs/ai-integration.md)
-- [Development](docs/development.md)
-- [Releasing](docs/releasing.md)
+AAAAT 1.0 is the current product line. Pull-request CI validates the supported Python versions and builds the runnable Windows, macOS, and Linux packages from the same source. Version tags publish the verified archives and SHA-256 checksums.
 
-`AGENTS.md` contains repository-development constraints only and is excluded from installed releases. The installed LLM-facing instruction is `aaaat/SKILL.md`, named `AAAAT`.
+Development and contribution guidance is in [CONTRIBUTING.md](CONTRIBUTING.md). Security reports and private-data handling guidance are in [SECURITY.md](SECURITY.md).
+
+## Documentation
+
+- [Product definition](docs/product.md) — purpose, principles, behavior, value, and non-goals
+- [User guide](docs/user-guide.md) — installation and normal operation
+- [Architecture](docs/architecture.md) — implemented boundaries and data flow
+- [Optional AI integration](docs/ai-integration.md) — pairing and bounded authority
+- [Development](docs/development.md) — source layout and validation
+- [Releasing](docs/releasing.md) — native build and publication process
+
+`AGENTS.md` contains repository-development constraints only and is excluded from installed releases. The only installed LLM-facing instruction is `aaaat/SKILL.md`, whose skill name is `AAAAT`.
 
 AAAAT is licensed under GPLv3 or later. See [LICENSE](LICENSE).

@@ -1,95 +1,73 @@
 # Optional AI integration
 
-AAAAT is complete without an AI connection. This document describes the optional boundary used when an external LLM performs research, extraction, evaluation, or writing for the local workspace.
+AAAAT is complete without an AI connection. This document explains the optional boundary used when an external LLM supplies research, extraction, evaluation, strategy, or writing for the local workspace.
 
 ## Responsibility split
 
-AAAAT owns:
+AAAAT owns private local data, purpose-scoped context construction, validation, candidature and profile updates, templates, rendering, artifact paths, and bridge authority.
 
-- private local data;
-- purpose-scoped context construction;
-- validation;
-- candidature and profile updates;
-- templates and rendering;
-- artifact paths and records;
-- bridge authority.
+The external host owns model and provider selection, credentials, network access, research policy, reasoning, generated language, and host-specific tool configuration. AAAAT does not call a provider SDK or select a model.
 
-The external host owns:
+## One installed skill
 
-- model and provider selection;
-- credentials;
-- network access and research policy;
-- reasoning and generated language;
-- host-specific tool or MCP configuration.
+`aaaat/SKILL.md` is the only installed LLM-facing instruction and its skill name is `AAAAT`.
 
-AAAAT does not call a provider SDK or select a model internally.
+The copied connection request embeds that exact document. File-capable hosts receive the same document as `AAAAT/SKILL.md`. Repository files such as `AGENTS.md`, tests, development documentation, and build tooling are not part of the installed contract.
 
-## Packaged skill
+## Connect my AI
 
-The installed LLM-facing instruction is `aaaat/SKILL.md` and its skill name is `AAAAT`.
+When the user chooses **Connect my AI**, AAAAT creates one revocable opaque connection capability and one self-contained request. The request tells the current host to choose the strongest local route it supports without exposing the workspace path.
 
-Repository files such as `AGENTS.md`, development documentation, tests, and build tooling are not part of the installed LLM contract and are excluded from releases.
+For a normal MCP or equivalent stdio route, the request contains the exact bridge command, its `--connection` argument, and the complete bounded tool schemas. The host performs its ordinary initialization and tool discovery. AAAAT does not ask the user to run a connector test suite.
 
-## Pairing
+The connection states shown to the user are Ready to connect, Connected, Needs attention, and Paused.
 
-When the user chooses to connect an external host, AAAAT creates an opaque connection capability and a self-contained connection request. The host uses the supplied bridge command without receiving a workspace path or database argument.
+## Bounded tool catalogue
 
-A connection capability selects one workspace internally. It can be revoked. It is not a general bearer token for filesystem or database access.
+The paired host can:
 
-## Bounded work
+- read the connection state;
+- open or focus the desktop;
+- start a bounded profile task;
+- create a new candidature from supplied source material and completed outputs;
+- claim one complete ready work item;
+- submit one structured result for that claimed item.
 
-The bridge may expose operations for direct bounded actions and queued work. A work item contains:
+Creating a candidature through the bridge is a bounded direct action. It stores the supplied candidature first and creates follow-up work only when the host explicitly requests it in the same bounded action.
 
-- its purpose;
-- task-specific context;
-- instructions;
-- allowed operation;
-- result schema;
-- privacy notes;
-- an opaque callback capability.
+The host cannot enumerate arbitrary records, use internal IDs as general mutation handles, execute the repository CLI, browse files, read the database, learn the workspace path, or control desktop widgets.
 
-The host does not receive arbitrary record IDs to browse or mutate. AAAAT binds the task capability to the internal record and applies a valid result locally.
+## Work items and capabilities
+
+A claimed work item contains its purpose, task-specific context, instructions, permitted fields, result schema, privacy notes, and one opaque callback capability.
+
+That capability exists only for the current claimed attempt. It is not a record identifier. AAAAT invalidates it when the task completes, fails, is cancelled, or is returned to the queue.
+
+There is no progress-reporting tool, lease, heartbeat, persistent thought stream, or general agent workflow protocol.
 
 ## Autonomous application
 
-AAAAT does not create a mandatory human approval or review loop around AI work. Once a result satisfies the task contract, it is applied to the intended local data.
+Once a result satisfies the declared contract, AAAAT applies it directly to the intended local data. It does not create a mandatory approval, suggestion acceptance, or thought-review step.
 
-The user can edit the resulting record through the desktop like any other data. Artifact labels such as draft, submitted, or archived organize material and external usage; they are not mandatory AI-safety gates.
-
-The LLM may ask for a material missing fact when necessary, but it should not block routine work on repeated confirmations. An offer can be retained and a candidature can exist before a profile is complete or an AI is available.
+The LLM asks for a missing fact only when that fact is material and cannot be grounded safely in the supplied source, existing bounded context, or clearly identified research. A candidature may exist indefinitely before the profile is complete or an AI is connected.
 
 ## Privacy enforcement
 
-Privacy is enforced before data leaves AAAAT:
+Before data leaves AAAAT:
 
 - profile values are resolved according to exposure rules;
 - only purpose-relevant candidature context is included;
 - workspace and artifact paths remain local;
-- database and desktop command surfaces are unavailable;
-- result payloads are bounded and schema-validated;
-- forbidden authority fields are rejected.
+- database and desktop command surfaces remain unavailable;
+- internal identifiers are removed from public contracts;
+- result payloads are bounded and schema-validated.
 
-The product does not depend on a person reading hidden reasoning or approving every generated field.
+Privacy therefore does not depend on a person inspecting hidden reasoning or approving every generated field.
 
-## Connection methods
+## Portable and advanced fallbacks
 
-The external host chooses the strongest method it supports:
+When a live local tool route is unavailable, AAAAT can export bounded task bundles and import validated result bundles.
 
-1. the paired local bridge through MCP or equivalent stdio tools;
-2. a host-owned durable tool or skill;
-3. an approved host-side script or automation;
-4. portable task/result exchange.
+Advanced users may also configure a controlled exchange directory or one explicit user-owned command. These are simple transport primitives over the same bounded contract, not provider integrations or a connector catalogue.
 
-These are adapters to the same bounded contract. They do not change the product data model or give a provider a privileged integration.
-
-## Manual independence
-
-When no host is connected:
-
-- candidatures continue to save and remain visible;
-- queued work can remain queued indefinitely;
-- the user can edit fields manually;
-- existing text and profile values can still be rendered;
-- backup, search, Smart View, and Detailed View continue to work.
-
-A connection failure must not roll back local data or make the desktop unusable.
+Without a connection, candidatures continue to save, manual editing and rendering remain available, queued work may remain queued indefinitely, and backup, search, Smart View, and Detailed View continue to work.

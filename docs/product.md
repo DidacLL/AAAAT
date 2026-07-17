@@ -151,7 +151,6 @@ AAAAT stores generated text and rendered files with provenance. The current usef
 Artifact states are organizational metadata:
 
 - `draft` — current working material;
-- `reviewed` — optionally classified as checked;
 - `submitted` — sent or used externally;
 - `archived` — retained older material.
 
