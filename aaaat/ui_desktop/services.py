@@ -5,28 +5,16 @@ from typing import Any
 
 from aaaat.artifacts import get_artifact, list_artifacts, save_artifact, update_artifact_state
 from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
+from aaaat.candidature_lifecycle import queue_lifecycle_action, queue_lifecycle_task, release_ready_lifecycle_tasks
 from aaaat.candidatures import create_candidature, get_candidature, update_candidature
 from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, init_db, set_profile_variable, upsert_glossary_term
-from aaaat.tasks import create_task, list_tasks, update_task
+from aaaat.templates import TemplateVariableError, render_document_artifact, safe_artifact_output_path
 
 from .user_fields import WRITABLE_USER_STORAGE_KEYS
 
 SUPPORTED_DETAIL_EDIT_FIELDS = set(WRITABLE_CANDIDATURE_STORAGE_KEYS)
 SUPPORTED_PROFILE_VARIABLE_FIELDS = set(WRITABLE_USER_STORAGE_KEYS)
-
-_ACTION_TASKS = {
-    "infer_fields": ("field_inference", "Review offer details", "Infer every supported candidature field that can be grounded in the retained raw offer, current candidature data and bounded user profile. Preserve non-empty user edits unless the task result explicitly justifies a replacement.", "candidature:field_inference", "high"),
-    "regenerate_strategy": ("career_plan_review", "Prepare application approach", "Produce or refresh the role-specific strategy using current candidature, profile and career context.", "candidature:role_strategy", "high"),
-    "update_company_research": ("company_research", "Update company context", "Refresh company research and recruiter-call context.", "candidature:company_research", "normal"),
-    "regenerate_keywords": ("field_inference", "Review relevant terms", "Extract meaningful technical, product, domain and recruiting keywords from the retained raw offer and current candidature data. Preserve manually-added keywords.", "candidature:keywords", "normal"),
-    "prepare_form_answers": ("draft_form_responses", "Prepare form answers", "Generate application-form answers from the stored form, profile and current strategy.", "blob:form_responses", "normal"),
-    "generate_cv": ("draft_cv", "Prepare tailored CV", "Generate CV material using the current evaluation, strategy, candidature data and profile.", "artifact:cv", "normal"),
-    "generate_cover_letter": ("draft_cover_letter", "Prepare cover letter", "Generate cover-letter material using the current evaluation, strategy, candidature data and profile.", "artifact:cover_letter", "normal"),
-    "prepare_recruiter_call": ("recruiter_call_material", "Prepare conversation notes", "Generate concise recruiter-call or interview material for this candidature.", "call:recruiter", "normal"),
-}
 _DOCUMENT_ACTIONS = {"generate_cv", "generate_cover_letter"}
-_DOCUMENT_TASK_TYPES = {"draft_cv", "draft_cover_letter"}
-_WAITING_FOR_INPUTS_NOTE = "Waiting for the fit review and application approach to be ready."
 
 
 class DesktopCommandService:
@@ -39,7 +27,17 @@ class DesktopCommandService:
     def save_note(self, candidature_ref: str, body: str) -> None:
         self.update_candidature_fields(candidature_ref, {"notes": body})
 
-    def create_offer_first_candidature(self, raw_offer: str, *, company: str = "", role: str = "", source_url: str = "", application_form: str = "", request_cv: bool = False, request_cover_letter: bool = False) -> dict[str, Any] | None:
+    def create_offer_first_candidature(
+        self,
+        raw_offer: str,
+        *,
+        company: str = "",
+        role: str = "",
+        source_url: str = "",
+        application_form: str = "",
+        request_cv: bool = False,
+        request_cover_letter: bool = False,
+    ) -> dict[str, Any] | None:
         text = str(raw_offer or "").strip()
         if not text:
             return None
@@ -54,19 +52,38 @@ class DesktopCommandService:
                 priority="normal",
                 raw_offer=text,
                 created_by="desktop",
-                include_field_inference_task=True,
+                include_field_inference_task=False,
                 include_company_research_task=False,
-                include_keyword_detection_task=True,
+                include_keyword_detection_task=False,
             )
             candidature_ref = str(created.get("id") or "")
+            queue_lifecycle_task(conn, candidature_ref, "extract", created_by="desktop", idempotent=True)
             if request_cv:
-                self._create_action_task(conn, candidature_ref, "generate_cv", force_blocked=True)
+                queue_lifecycle_action(conn, candidature_ref, "generate_cv", force_blocked=True)
             if request_cover_letter:
-                self._create_action_task(conn, candidature_ref, "generate_cover_letter", force_blocked=True)
+                queue_lifecycle_action(conn, candidature_ref, "generate_cover_letter", force_blocked=True)
             return get_candidature(conn, candidature_ref)
 
-    def create_raw_offer_candidature(self, raw_offer: str, *, company: str = "", role: str = "", source_url: str = "", raw_application_form: str = "", request_cv: bool = False, request_cover_letter: bool = False) -> dict[str, Any] | None:
-        return self.create_offer_first_candidature(raw_offer, company=company, role=role, source_url=source_url, application_form=raw_application_form, request_cv=request_cv, request_cover_letter=request_cover_letter)
+    def create_raw_offer_candidature(
+        self,
+        raw_offer: str,
+        *,
+        company: str = "",
+        role: str = "",
+        source_url: str = "",
+        raw_application_form: str = "",
+        request_cv: bool = False,
+        request_cover_letter: bool = False,
+    ) -> dict[str, Any] | None:
+        return self.create_offer_first_candidature(
+            raw_offer,
+            company=company,
+            role=role,
+            source_url=source_url,
+            application_form=raw_application_form,
+            request_cv=request_cv,
+            request_cover_letter=request_cover_letter,
+        )
 
     def update_candidature_fields(self, candidature_ref: str, changes: dict[str, Any]) -> dict[str, Any] | None:
         safe_changes = {key: changes[key] for key in SUPPORTED_DETAIL_EDIT_FIELDS if key in changes}
@@ -77,15 +94,8 @@ class DesktopCommandService:
             if source_text is not None:
                 add_raw_intake(conn, candidature_ref, str(source_text), "user")
             updated = update_candidature(conn, candidature_ref, **safe_changes) if safe_changes else update_candidature(conn, candidature_ref)
-            self._release_deferred_document_requests(conn, candidature_ref, updated)
+            release_ready_lifecycle_tasks(conn, candidature_ref)
             return get_candidature(conn, candidature_ref)
-
-    def _release_deferred_document_requests(self, conn: Any, candidature_ref: str, candidature: dict[str, Any]) -> None:
-        if not _document_inputs_ready(candidature):
-            return
-        for item in list_tasks(conn, application_id=candidature_ref):
-            if item.get("task_type") in _DOCUMENT_TASK_TYPES and item.get("state") == "blocked":
-                update_task(conn, str(item["id"]), state="queued", notes="Ready to begin when an integration is available.")
 
     def add_keyword(self, candidature_ref: str, term: str, definition: str = "") -> dict[str, Any] | None:
         cleaned = str(term or "").strip()
@@ -103,9 +113,6 @@ class DesktopCommandService:
             if existing is None:
                 upsert_glossary_term(conn, cleaned, supplied_definition)
             elif not str(existing["definition"] or "").strip() and supplied_definition:
-                # Adding an association must not silently replace an established
-                # canonical definition.  Definition changes use the explicit
-                # save_keyword_definition path instead.
                 upsert_glossary_term(conn, cleaned, supplied_definition, str(existing["category"] or ""))
             return update_candidature(conn, candidature_ref, keywords=terms)
 
@@ -120,15 +127,43 @@ class DesktopCommandService:
         if not candidature_ref:
             return None
         with connect(self.storage_path) as conn:
-            return self._create_action_task(conn, candidature_ref, action_id)
+            return queue_lifecycle_action(
+                conn,
+                candidature_ref,
+                action_id,
+                force_blocked=action_id in _DOCUMENT_ACTIONS and not _document_inputs_ready(get_candidature(conn, candidature_ref)),
+            )
 
-    def _create_action_task(self, conn: Any, candidature_ref: str, action_id: str, *, force_blocked: bool = False) -> dict[str, Any] | None:
-        spec = _ACTION_TASKS.get(action_id)
-        if not spec or not candidature_ref:
-            return None
-        task_type, title, instructions, context_hint, priority = spec
-        blocked = force_blocked or (action_id in _DOCUMENT_ACTIONS and not _document_inputs_ready(get_candidature(conn, candidature_ref)))
-        return create_task(conn, task_type, title, application_id=candidature_ref, instructions=instructions, state="blocked" if blocked else "queued", priority=priority, context_hint=context_hint, created_by="desktop", notes=_WAITING_FOR_INPUTS_NOTE if blocked else "", idempotent=False)
+    def render_candidature_artifact(self, candidature_ref: str, artifact_type: str) -> dict[str, Any]:
+        kind = str(artifact_type or "").strip()
+        if kind not in {"cv", "cover_letter"}:
+            raise ValueError("Only CV and cover-letter rendering are supported")
+        with connect(self.storage_path) as conn:
+            candidature = get_candidature(conn, candidature_ref)
+            name = "cv" if kind == "cv" else "cover-letter"
+            extra: dict[str, Any] | None = None
+            if kind == "cover_letter":
+                body = str(candidature.get("cover_letter_material") or "").strip()
+                if not body:
+                    raise ValueError("Prepare the cover-letter content before rendering it")
+                extra = {"artifact.cover_letter.body": body}
+            elif not str(candidature.get("cv_material") or "").strip():
+                raise ValueError("Prepare the tailored CV material before rendering it")
+            output_path = safe_artifact_output_path(self.storage_path, candidature_ref, name)
+            try:
+                return render_document_artifact(
+                    conn,
+                    name,
+                    output_path,
+                    candidature_ref,
+                    extra,
+                    save_version=True,
+                )
+            except TemplateVariableError as exc:
+                missing = str(exc).partition(":")[2].strip() or str(exc)
+                raise ValueError(
+                    "Complete the required profile fields in User/Profile before rendering: " + missing
+                ) from exc
 
     def attach_existing_material(self, candidature_ref: str, path: str | Path, material_type: str, label: str = "") -> dict[str, Any] | None:
         target = Path(path)
@@ -225,6 +260,18 @@ class DesktopCommandService:
             for key, value in safe_changes.items():
                 set_profile_variable(conn, key, value)
         return safe_changes
+
+    def change_token(self) -> tuple[Any, ...]:
+        """Return a cheap local revision token for external-host refresh polling."""
+        with connect(self.storage_path) as conn:
+            applications = conn.execute("SELECT COUNT(*), COALESCE(MAX(updated_at), '') FROM applications").fetchone()
+            tasks = conn.execute("SELECT COUNT(*), COALESCE(MAX(updated_at), '') FROM tasks").fetchone()
+            artifacts = conn.execute("SELECT COUNT(*), COALESCE(MAX(created_at), '') FROM generated_artifacts").fetchone()
+            progress = (0, "")
+            table = conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'agent_task_progress'").fetchone()
+            if table:
+                progress = conn.execute("SELECT COUNT(*), COALESCE(MAX(created_at), '') FROM agent_task_progress").fetchone()
+            return tuple(applications) + tuple(tasks) + tuple(artifacts) + tuple(progress)
 
 
 def _document_inputs_ready(candidature: dict[str, Any]) -> bool:
