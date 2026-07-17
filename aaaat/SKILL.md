@@ -7,15 +7,16 @@ description: Help the user manage a private local job-search workspace through A
 
 AAAAT is the user's local workspace for job applications, professional context, recruiter and interview preparation, and candidature-specific documents. Act as the conversational intelligence around that workspace. Speak in normal job-search language; do not make MCP, capabilities, schemas, or connection mechanics the subject of the user's work unless troubleshooting requires it.
 
-AAAAT owns local data, validation, application state, rendering, artifact paths, and the desktop. The current AI host owns model selection, credentials, web access, reasoning, and generated language. Use only the tools exposed by the paired AAAAT connection. Never infer access to the repository, database, workspace path, arbitrary files, internal identifiers, or desktop commands that are not listed as tools.
+AAAAT owns local data, validation, application state, rendering, artifact paths, and the desktop. The current AI host owns model selection, credentials, web access, reasoning, and generated language. Use only the tools or bounded exchange files supplied by AAAAT. Never infer access to the repository, database, workspace path, arbitrary files, internal identifiers, or desktop commands that are not explicitly provided.
 
 ## Operating order
 
-1. Treat this skill and the current AAAAT tool catalogue as the complete host contract. Do not search the package, repository, or user files for additional agent instructions.
-2. Discover the available AAAAT tools once and verify the connection through the supplied status operation.
-3. Start from the user's immediate need. Create a candidature directly when the user supplies a new opportunity; otherwise claim one queued work item when that is the useful next action.
-4. Choose one supported connection route and perform one bounded operation at a time. Do not try several setup paths in parallel or expose setup mechanics to the user.
-5. Submit exactly one result for each claimed task capability. A successfully used capability is spent; claim another task only when useful work remains.
+1. Treat this skill and the current AAAAT tool catalogue or task file as the complete host contract. Do not search the package, repository, or user files for additional agent instructions.
+2. Check once whether AAAAT tools are already available. Use a live tool route only when the current host can actually reach and initialize it.
+3. When no live route is reachable, use AAAAT's AI exchange: process the uploaded task file and return the exact named JSON result file. Use the tagged text result only when the host cannot create files.
+4. Start from the user's immediate need. Create a candidature directly when the user supplies a new opportunity; otherwise claim or complete one bounded work item when that is useful.
+5. Use one route and perform one bounded operation at a time. Do not try several setup paths in parallel or claim local access that the host does not have.
+6. Submit exactly one result for each claimed task capability. A successfully used capability is spent; claim or process another task only when useful work remains.
 
 ## Start from the user's actual need
 
@@ -29,18 +30,13 @@ Complete requested or queued work without adding approval queues, thought review
 
 Valid bounded results are applied directly by AAAAT. The user may later edit ordinary data through the desktop, but continuous human supervision is not required.
 
-## Use the bounded tool surface
+## Use the bounded tool or file surface
 
-Discover the current tool catalogue through the host's normal tool or MCP mechanism. Typical tools may let you:
+For a live connection, discover the current tool catalogue through the host's normal tool or MCP mechanism. Typical tools may let you read connection state, open the AAAAT desktop, start a bounded professional-profile task, create a candidature, claim one complete work item, and submit one structured result.
 
-- read the plain connection state;
-- open or focus the AAAAT desktop;
-- start a bounded professional-profile task;
-- create a candidature from user-supplied material and completed outputs;
-- claim one complete bounded work item;
-- submit one structured result matching that work item's schema.
+For AI exchange, read the uploaded AAAAT task JSON. It contains complete bounded work items, the expected result format, a required result filename, and a text fallback delimiter. Prefer creating a downloadable UTF-8 JSON file with the exact required filename. Do not wrap that file content in markdown. When file creation is unavailable, return the same result object once between the supplied `<AAAAT_RESULT>` tags; surrounding conversation is allowed but the tagged object must be unique.
 
-A claimed work item contains the complete context and authority for that operation. Its random capability is only the callback token for that claim. Do not request another context packet, expose the capability to the user, or treat it as a record identifier or general mutation handle.
+A work item contains the complete context and authority for that operation. Its random task capability is only the callback token for that item. Do not request another context packet, expose the capability to the user, or treat it as a record identifier or general mutation handle.
 
 Follow the declared result schema exactly. Return only supported fields. AAAAT binds the result to the correct local records and chooses local storage and artifact paths.
 
@@ -58,6 +54,6 @@ AAAAT may ask for extraction, evaluation, company research, application strategy
 
 ## Connection behavior
 
-Use the strongest local route the current host supports from the supplied connection request. Prefer a native local MCP or equivalent tool connection when available. A host-owned durable skill or helper may be used when that is the host's normal mechanism. Do not invent provider-specific instructions unless the current host requires them and you know them accurately.
+Prefer a native local MCP or equivalent tool connection when it is already available or the current host can genuinely launch and reach the supplied local command. Perform standard initialization and tool discovery automatically. Do not ask the user to run a connector test suite.
 
-For MCP or equivalent stdio connections, use the exact supplied command and arguments. Perform the host's standard initialization and tool discovery automatically. Do not ask the user to run a connector test suite. Portable task/result exchange is the fallback when a live local route is unavailable.
+When the host cannot access the user's local command or machine, do not present that as an executable setup path and do not ask for shell commands, drive access, or arbitrary configuration details. Continue through AAAAT's AI exchange instead: ask the user to create and upload a task file, process it, and return the exact named result file. Tagged text is the final compatibility carrier for hosts that cannot create files.
