@@ -6,15 +6,15 @@ import unittest
 from pathlib import Path
 
 from aaaat.release_validation import (
-    VERDICT_MANUAL,
     VERDICT_PASSED,
+    VERDICT_READY,
     ReleaseValidator,
     ValidationConfig,
 )
 
 
 class ReleaseValidationHarnessTests(unittest.TestCase):
-    def test_deterministic_profile_generates_evidence_and_manual_pending_verdict(self) -> None:
+    def test_deterministic_profile_generates_evidence_and_release_ready_verdict(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             storage = root / "private"
@@ -29,7 +29,8 @@ class ReleaseValidationHarnessTests(unittest.TestCase):
             ).run()
 
             self.assertEqual(report["automated_verdict"], VERDICT_PASSED)
-            self.assertEqual(report["release_verdict"], VERDICT_MANUAL)
+            self.assertEqual(report["release_verdict"], VERDICT_READY)
+            self.assertNotIn("manual_gates", report)
             self.assertTrue((evidence / "release-report.json").is_file())
             self.assertTrue((evidence / "release-report.md").is_file())
             self.assertTrue((evidence / "runtime-conformance.json").is_file())
@@ -38,7 +39,7 @@ class ReleaseValidationHarnessTests(unittest.TestCase):
             self.assertTrue(all(stage["status"] == "passed" for stage in report["stages"]))
 
             stored = json.loads((evidence / "release-report.json").read_text(encoding="utf-8"))
-            self.assertEqual(stored["release_verdict"], VERDICT_MANUAL)
+            self.assertEqual(stored["release_verdict"], VERDICT_READY)
             packet = (evidence / "bounded-task-packet.json").read_text(encoding="utf-8")
             self.assertNotIn(str(storage), packet)
 
