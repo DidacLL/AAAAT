@@ -88,10 +88,27 @@ def _extract_verified_archive(archive: Path, target: Path) -> Path:
             if path.is_absolute() or ".." in path.parts or not path.parts or path.parts[0] != expected_root:
                 raise RuntimeError("Release archive contains an unsafe or unexpected path")
         package.extractall(target)
+        if os.name != "nt":
+            for member in members:
+                mode = (member.external_attr >> 16) & 0o777
+                if not mode:
+                    continue
+                extracted_path = target.joinpath(*PurePosixPath(member.filename).parts)
+                if extracted_path.exists():
+                    extracted_path.chmod(mode)
     extracted = target / expected_root
     if not extracted.is_dir():
         raise RuntimeError("Release archive did not contain the expected application folder")
     return extracted
+
+
+def _verify_executables(release_root: Path) -> tuple[Path, Path]:
+    desktop, bridge = _executables(release_root)
+    if not desktop.is_file() or not bridge.is_file():
+        raise RuntimeError("Packaged desktop or paired bridge executable is missing")
+    if os.name != "nt" and (not os.access(desktop, os.X_OK) or not os.access(bridge, os.X_OK)):
+        raise RuntimeError("Release archive did not preserve executable permissions")
+    return desktop, bridge
 
 
 def _run_desktop_startup_check(desktop: Path, environment: dict[str, str]) -> None:
@@ -162,9 +179,7 @@ def verify_release() -> None:
         temporary = Path(temporary_name)
         release_root = _extract_verified_archive(archive, temporary / "extracted-package")
         _verify_package_boundary(release_root)
-        desktop, bridge = _executables(release_root)
-        if not desktop.is_file() or not bridge.is_file():
-            raise RuntimeError("Packaged desktop or paired bridge executable is missing")
+        desktop, bridge = _verify_executables(release_root)
 
         environment = os.environ.copy()
         environment["AAAAT_APP_CONFIG_DIR"] = str(temporary / "app-config")
