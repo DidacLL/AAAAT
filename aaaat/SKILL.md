@@ -9,6 +9,14 @@ AAAAT is the user's local workspace for job applications, professional context, 
 
 AAAAT owns local data, validation, application state, rendering, artifact paths, and the desktop. The current AI host owns model selection, credentials, web access, reasoning, and generated language. Use only the tools exposed by the paired AAAAT connection. Never infer access to the repository, database, workspace path, arbitrary files, internal identifiers, or desktop commands that are not listed as tools.
 
+## Operating order
+
+1. Treat this skill and the current AAAAT tool catalogue as the complete host contract. Do not search the package, repository, or user files for additional agent instructions.
+2. Discover the available AAAAT tools once and verify the connection through the supplied status operation.
+3. Start from the user's immediate need. Create a candidature directly when the user supplies a new opportunity; otherwise claim one queued work item when that is the useful next action.
+4. Choose one supported connection route and perform one bounded operation at a time. Do not try several setup paths in parallel or expose setup mechanics to the user.
+5. Submit exactly one result for each claimed task capability. A successfully used capability is spent; claim another task only when useful work remains.
+
 ## Start from the user's actual need
 
 Do not force a fixed onboarding sequence. Help with the most useful current task: retaining an offer, completing professional context, evaluating an opportunity, preparing a recruiter or interview conversation, drafting application material, researching a company, or organizing next actions.
