@@ -4,7 +4,7 @@ Status: automated implementation closure ledger for `didacll/v1-lifecycle-confor
 
 Authority: `docs/requirements/v1-authoritative-requirements.md`.
 
-This ledger records implementation closure only. It is not a second requirements source and it does not assign review work to an end user. Historical investigation detail remains available in repository history.
+This ledger records implementation closure only. It is not a second requirements source. Historical investigation detail remains available in repository history.
 
 ## Preserved product constraints
 
@@ -90,6 +90,6 @@ Release eligibility is determined from the exact candidate head by:
 3. native Windows, macOS, and Linux package build and verification;
 4. checksum verification and execution from the exact archive after extraction outside the checkout;
 5. direct release assets containing the platform ZIP and checksum;
-6. pull-request artifacts containing the runnable platform folder directly inside GitHub's single artifact wrapper.
+6. pull-request artifacts containing the runnable platform folder directly inside GitHub's artifact wrapper.
 
-A failing maintained gate reopens the relevant implementation gap. A passing gate does not create QA work, documentation, screenshots, demonstrations, or approval tasks for a human user.
+A failing maintained gate reopens the relevant implementation gap.
