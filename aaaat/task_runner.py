@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .agent_access import build_agent_work_item, task_capability
-from .candidature_lifecycle import release_ready_lifecycle_tasks
 from .db import connect, utc_now
 from .provider_adapters import adapter_definition
 from .result_ingestion import ingest_task_result
@@ -28,7 +27,7 @@ class TaskRunnerError(RuntimeError):
 
 
 class TaskRunner:
-    """Run one bounded work item through the explicit Advanced command transport."""
+    """Run one ready bounded work item through the explicit Advanced command transport."""
 
     def __init__(self, storage_path: str | Path, *, on_progress: ProgressCallback | None = None) -> None:
         self.storage_path = str(storage_path)
@@ -50,8 +49,8 @@ class TaskRunner:
         self._emit(task_id, "preparing_context", "Preparing bounded work item", 5)
         with connect(self.storage_path) as conn:
             task = get_task(conn, task_id)
-            if task.get("state") not in {"queued", "blocked", "failed"}:
-                raise TaskRunnerError(f"Task cannot run from state {task.get('state')}")
+            if task.get("state") != "queued":
+                raise TaskRunnerError(f"Task is not ready to run from state {task.get('state')}")
             update_task(conn, task_id, state="in_progress", notes="")
             work_item = build_agent_work_item(conn, task)
             capability = task_capability(conn, task)
@@ -77,8 +76,6 @@ class TaskRunner:
                     provenance=provenance,
                     default_agent_runtime=f"configured-adapter:{adapter_id}",
                 )
-                application_id = str(current.get("application_id") or "")
-                released = release_ready_lifecycle_tasks(conn, application_id) if application_id else []
                 final = get_task(conn, task_id)
         except (KeyError, TypeError, ValueError, sqlite3.Error) as exc:
             message = f"External runtime result was not accepted: {exc}"
@@ -86,7 +83,7 @@ class TaskRunner:
             self._emit(task_id, "failed", message, 100)
             raise TaskRunnerError(message) from exc
         self._emit(task_id, "completed", "Task completed", 100)
-        return {"submitted": submitted, "task": final, "provenance": provenance, "released_tasks": released}
+        return {"submitted": submitted, "task": final, "provenance": provenance}
 
     def _execute_adapter(self, adapter_id: str, settings: dict[str, Any], context: dict[str, Any]) -> tuple[str, dict[str, str]]:
         execution = execute_configured_transport(adapter_id, settings, context, run_stdio=self._run_stdio)
