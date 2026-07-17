@@ -7,8 +7,6 @@ Implementation authority:
 - `docs/requirements/v1-authoritative-requirements.md`
 - `docs/planning/v1-release-requirement-gap-ledger.md`
 
-This checklist is intentionally short. Release validation is executable and must not become work assigned to an end user.
-
 ## Required automated gates
 
 All items must pass from the exact candidate head:
@@ -33,9 +31,9 @@ A green subset is not sufficient. Every maintained gate must pass.
 
 ## Distribution shape
 
-- GitHub Release assets are the platform ZIP and checksum directly. A normal user extracts once.
-- Pull-request Actions artifacts contain the runnable platform folder directly inside GitHub's unavoidable artifact ZIP wrapper. A reviewer extracts once; there is no ZIP inside the downloaded ZIP.
-- End users do not install Python, use Git, run tests, create reports, take screenshots, or follow QA scripts.
+- GitHub Release assets are the platform ZIP and checksum directly.
+- Pull-request Actions artifacts contain the runnable platform folder directly inside GitHub's artifact ZIP wrapper.
+- Each platform package opens after one extraction and does not require Python, Git, or a source checkout.
 
 ## Final decision
 
@@ -45,5 +43,3 @@ A green subset is not sufficient. Every maintained gate must pass.
 2. the automated lifecycle validator reports `RELEASE_READY`;
 3. no unresolved release blocker remains in the authoritative gap ledger;
 4. the release workflow publishes only the packages produced and verified by that head.
-
-No human-in-the-loop validation gate, demonstration document, screenshot collection, or maintainer QA procedure is required.
