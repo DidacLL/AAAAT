@@ -4,13 +4,14 @@ import json
 import sqlite3
 from typing import Any
 
+from .candidature_lifecycle import lifecycle_task_spec, queue_lifecycle_task
 from .candidatures import CANDIDATURE_DETAIL_FIELDS, create_candidature
 from .career_plans import CONTEXT_PURPOSES as CAREER_PLAN_PURPOSES
 from .career_plans import career_plan_context
 from .db import APPLICATION_UPDATE_FIELDS
 from .profile_facts import PURPOSE_FLAGS as PROFILE_CONTEXT_PURPOSES
 from .profile_facts import profile_context
-from .tasks import create_task, find_open_task
+from .tasks import create_task, find_open_task, update_task
 from .templates import render_document_artifact, safe_artifact_output_path
 from .text_blobs import create_text_blob
 
@@ -19,35 +20,77 @@ DICT_ACTION_SECTIONS = ACTION_SECTIONS - {"requested_tasks"}
 PACKET_KEYS = {"action", "payload"}
 SOURCE_MATERIAL_FIELDS = {"offer_text", "offer_url", "application_form_text", "user_instructions", "conversation_context"}
 CANDIDATURE_FIELDS = {
-    "company", "role", "status", "priority", "source", "source_url", "location", "remote_mode",
-    "offer_snapshot", "keywords", "description", "salary_expectation", "publication_date", "application_date", "tech_stack", "valuation",
+    "company",
+    "role",
+    "status",
+    "priority",
+    "source",
+    "source_url",
+    "location",
+    "remote_mode",
+    "offer_snapshot",
+    "keywords",
+    "description",
+    "salary_expectation",
+    "publication_date",
+    "application_date",
+    "tech_stack",
+    "valuation",
 }
 OUTPUT_FIELDS = {
-    "company_research", "call_signals", "pitch", "smart_question", "risks_to_avoid",
-    "form_answers", "cover_letter_body", "cv_positioning",
+    "candidature_evaluation",
+    "role_strategy",
+    "strengths",
+    "risks_to_avoid",
+    "questions_to_ask",
+    "company_research",
+    "call_signals",
+    "pitch",
+    "smart_question",
+    "recruiter_material",
+    "form_answers",
+    "cover_letter_body",
+    "cv_positioning",
 }
 OUTPUT_APP_FIELDS = {
-    "company_research", "call_signals", "pitch", "smart_question", "risks_to_avoid", "form_answers",
+    "candidature_evaluation",
+    "role_strategy",
+    "strengths",
+    "risks_to_avoid",
+    "questions_to_ask",
+    "company_research",
+    "call_signals",
+    "pitch",
+    "smart_question",
+    "recruiter_material",
+    "form_answers",
 }
 OUTPUT_BLOB_FIELDS = {"cover_letter_body", "cv_positioning"}
+OUTPUT_CANDIDATURE_FIELDS = {"cover_letter_body": "cover_letter_material", "cv_positioning": "cv_material"}
 RENDER_FIELDS = {"cover_letter", "cv"}
 REQUESTED_TASK_FIELDS = {"task_type", "priority", "reason", "keyword"}
 REQUESTED_TASK_PRIORITIES = {"low", "normal", "medium", "high"}
 REQUESTED_TASK_ALIASES = {
-    "company_research": "company_research",
-    "form_answers": "draft_form_responses",
-    "draft_form_responses": "draft_form_responses",
-    "cover_letter": "draft_cover_letter",
-    "draft_cover_letter": "draft_cover_letter",
-    "cv": "draft_cv",
-    "draft_cv": "draft_cv",
+    "extract": "extract",
+    "field_inference": "extract",
+    "evaluate": "evaluate",
+    "evaluation": "evaluate",
+    "strategy": "strategy",
+    "application_strategy": "strategy",
+    "company_research": "research",
+    "research": "research",
+    "recruiter": "recruiter",
+    "recruiter_call": "recruiter",
+    "interview": "interview",
+    "interview_preparation": "interview",
+    "form_answers": "forms",
+    "draft_form_responses": "forms",
+    "cover_letter": "cover_letter",
+    "draft_cover_letter": "cover_letter",
+    "cv": "cv",
+    "draft_cv": "cv",
+    "keywords": "keywords",
     "keyword_definition": "keyword_definition",
-}
-REQUESTED_TASK_DEFINITIONS = {
-    "company_research": ("Research company context", "Prepare company research for the current candidature.", "candidature:company_research"),
-    "draft_form_responses": ("Prepare form responses", "Prepare application form responses.", "blob:form_responses"),
-    "draft_cover_letter": ("Prepare cover letter", "Prepare cover-letter body for local rendering.", "artifact:cover_letter"),
-    "draft_cv": ("Prepare CV adaptation", "Prepare CV positioning for local rendering.", "artifact:cv"),
 }
 
 
@@ -72,7 +115,14 @@ def submit_agent_action(
     _ = expose_internal_ids
     packet = parse_action_packet(action)
     if packet["action"] == "create_candidature":
-        return _create_candidature_action(conn, packet["payload"], agent_name=agent_name, agent_runtime=agent_runtime, model_provider=model_provider, storage_path=storage_path)
+        return _create_candidature_action(
+            conn,
+            packet["payload"],
+            agent_name=agent_name,
+            agent_runtime=agent_runtime,
+            model_provider=model_provider,
+            storage_path=storage_path,
+        )
     if packet["action"] == "start_profile":
         return _start_profile_action(conn, packet["payload"], agent_name=agent_name, agent_runtime=agent_runtime)
     raise ValueError(f"Unsupported agent action: {packet['action']}")
@@ -124,24 +174,28 @@ def _start_profile_action(conn: sqlite3.Connection, payload: dict[str, Any], *, 
     create_task(
         conn,
         "profile_completion",
-        "Build professional profile",
-        instructions="Guide the user through the eligible missing professional-profile fields and return only confirmed values.",
+        "Add professional profile information",
+        instructions="Discuss the profile naturally and return only eligible missing values the user chooses to provide.",
         state="queued",
         priority="high",
         context_hint="profile:completion",
-        created_by="agent",
+        created_by="agent_action",
         agent_name=agent_name,
         agent_runtime=agent_runtime,
         idempotent=True,
     )
-    return {
-        "status": "accepted",
-        "action": "start_profile",
-        "next": ["claim_profile_setup"],
-    }
+    return {"status": "accepted", "action": "start_profile", "next": ["claim_profile_setup"]}
 
 
-def _create_candidature_action(conn: sqlite3.Connection, payload: dict[str, Any], *, agent_name: str, agent_runtime: str, model_provider: str, storage_path: str) -> dict[str, Any]:
+def _create_candidature_action(
+    conn: sqlite3.Connection,
+    payload: dict[str, Any],
+    *,
+    agent_name: str,
+    agent_runtime: str,
+    model_provider: str,
+    storage_path: str,
+) -> dict[str, Any]:
     source_material = payload.get("source_material", {})
     candidature = payload.get("candidature", {})
     outputs = payload.get("outputs", {})
@@ -157,11 +211,16 @@ def _create_candidature_action(conn: sqlite3.Connection, payload: dict[str, Any]
             raise ValueError(f"Render request must be boolean: {key}")
     if render.get("cover_letter") and not str(outputs.get("cover_letter_body") or "").strip():
         raise ValueError("cover_letter_body is required to render a cover letter")
+    if render.get("cv") and not str(outputs.get("cv_positioning") or "").strip():
+        raise ValueError("cv_positioning is required to render a tailored CV")
 
     fields: dict[str, Any] = {}
     fields.update(_known_fields(candidature, APPLICATION_UPDATE_FIELDS | {"status", "priority", "company", "role"}))
     fields.update(_known_fields(candidature, CANDIDATURE_DETAIL_FIELDS))
     fields.update(_known_fields(outputs, OUTPUT_APP_FIELDS))
+    for output_key, candidature_key in OUTPUT_CANDIDATURE_FIELDS.items():
+        if str(outputs.get(output_key) or "").strip():
+            fields[candidature_key] = outputs[output_key]
     if "keywords" in candidature:
         fields["keywords"] = candidature["keywords"]
     if source_material.get("offer_url") and not fields.get("source_url"):
@@ -173,40 +232,87 @@ def _create_candidature_action(conn: sqlite3.Connection, payload: dict[str, Any]
         fields["created_by"] = "agent"
     fields.setdefault("status", "active")
     fields.setdefault("priority", "normal")
-    fields.update({
-        "include_field_inference_task": False,
-        "include_company_research_task": False,
-        "include_keyword_detection_task": True,
-        "include_cv_task": False,
-        "include_cover_letter_task": False,
-        "include_form_responses_task": False,
-    })
+    fields.update(
+        {
+            "include_field_inference_task": False,
+            "include_company_research_task": False,
+            "include_keyword_detection_task": False,
+            "include_cv_task": False,
+            "include_cover_letter_task": False,
+            "include_form_responses_task": False,
+        }
+    )
 
     created = create_candidature(conn, **fields)
-    application_id = created["id"]
+    application_id = str(created["id"])
 
     for key in ("user_instructions", "conversation_context"):
         body = str(source_material.get(key) or "").strip()
         if body:
-            _create_agent_blob(conn, key, body, application_id=application_id, title=key.replace("_", " ").title(), source_context=f"agent_action:create_candidature:{key}", agent_name=agent_name, agent_runtime=agent_runtime, model_provider=model_provider, current=False)
+            _create_agent_blob(
+                conn,
+                key,
+                body,
+                application_id=application_id,
+                title=key.replace("_", " ").title(),
+                source_context=f"agent_action:create_candidature:{key}",
+                agent_name=agent_name,
+                agent_runtime=agent_runtime,
+                model_provider=model_provider,
+                current=False,
+            )
 
     for key in OUTPUT_BLOB_FIELDS:
         body = str(outputs.get(key) or "").strip()
         if body:
-            _create_agent_blob(conn, key, body, application_id=application_id, title=key.replace("_", " ").title(), source_context=f"agent_action:create_candidature:{key}", agent_name=agent_name, agent_runtime=agent_runtime, model_provider=model_provider, current=True)
+            _create_agent_blob(
+                conn,
+                key,
+                body,
+                application_id=application_id,
+                title=key.replace("_", " ").title(),
+                source_context=f"agent_action:create_candidature:{key}",
+                agent_name=agent_name,
+                agent_runtime=agent_runtime,
+                model_provider=model_provider,
+                current=True,
+            )
 
     rendered: dict[str, bool] = {}
     if render.get("cover_letter"):
         output_path = safe_artifact_output_path(storage_path, application_id, "cover-letter")
-        render_document_artifact(conn, "cover-letter", output_path, application_id, {"artifact.cover_letter.body": str(outputs.get("cover_letter_body") or "").strip()}, save_version=True)
+        render_document_artifact(
+            conn,
+            "cover-letter",
+            output_path,
+            application_id,
+            {"artifact.cover_letter.body": str(outputs.get("cover_letter_body") or "").strip()},
+            save_version=True,
+        )
         rendered["cover_letter"] = True
     if render.get("cv"):
         output_path = safe_artifact_output_path(storage_path, application_id, "cv")
         render_document_artifact(conn, "cv", output_path, application_id, save_version=True)
         rendered["cv"] = True
 
-    queued_count = _queue_requested_tasks(conn, application_id, requested_tasks, outputs=outputs, render=render, agent_name=agent_name, agent_runtime=agent_runtime)
-    acknowledgement: dict[str, Any] = {"status": "accepted", "action": "create_candidature", "created": True, "rendered": rendered, "next": ["open_desktop"]}
+    if source_material.get("offer_text") and not str(fields.get("company") or "").strip():
+        queue_lifecycle_task(conn, application_id, "extract", created_by="agent_action", idempotent=True)
+    queued_count = _queue_requested_tasks(
+        conn,
+        application_id,
+        requested_tasks,
+        outputs=outputs,
+        render=render,
+        agent_name=agent_name,
+        agent_runtime=agent_runtime,
+    )
+    acknowledgement: dict[str, Any] = {
+        "status": "accepted",
+        "action": "create_candidature",
+        "created": True,
+        "rendered": rendered,
+        "next": ["continue_or_open_desktop"],
+    }
     if requested_tasks_present:
         acknowledgement["queued"] = {"count": queued_count}
     return acknowledgement
@@ -223,8 +329,8 @@ def _known_fields(source: dict[str, Any], allowed: set[str]) -> dict[str, Any]:
 
 
 def _normalize_requested_tasks(requested_tasks: list[Any]) -> list[dict[str, str]]:
-    if len(requested_tasks) > 8:
-        raise ValueError("requested_tasks may contain at most 8 tasks")
+    if len(requested_tasks) > 12:
+        raise ValueError("requested_tasks may contain at most 12 tasks")
     normalized: list[dict[str, str]] = []
     for index, item in enumerate(requested_tasks):
         if not isinstance(item, dict):
@@ -235,8 +341,8 @@ def _normalize_requested_tasks(requested_tasks: list[Any]) -> list[dict[str, str
         raw_task_type = item.get("task_type")
         if not isinstance(raw_task_type, str) or not raw_task_type.strip():
             raise ValueError(f"requested_tasks item requires task_type: {index}")
-        task_type = REQUESTED_TASK_ALIASES.get(raw_task_type.strip())
-        if not task_type:
+        task_key = REQUESTED_TASK_ALIASES.get(raw_task_type.strip())
+        if not task_key:
             raise ValueError(f"Unsupported requested task type: {raw_task_type}")
         priority = item.get("priority", "normal")
         if not isinstance(priority, str) or priority not in REQUESTED_TASK_PRIORITIES:
@@ -248,51 +354,101 @@ def _normalize_requested_tasks(requested_tasks: list[Any]) -> list[dict[str, str
         if not isinstance(keyword, str):
             raise ValueError(f"requested_tasks keyword must be a string: {index}")
         keyword = keyword.strip()
-        if task_type == "keyword_definition" and not keyword:
+        if task_key == "keyword_definition" and not keyword:
             raise ValueError("keyword_definition requested task requires keyword")
-        if task_type != "keyword_definition" and keyword:
+        if task_key != "keyword_definition" and keyword:
             raise ValueError("requested_tasks keyword is only supported for keyword_definition")
-        normalized.append({"task_type": task_type, "priority": priority, "reason": reason.strip()[:1000], "keyword": keyword})
+        normalized.append({"task_key": task_key, "priority": priority, "reason": reason.strip()[:1000], "keyword": keyword})
     return normalized
 
 
-def _queue_requested_tasks(conn: sqlite3.Connection, application_id: str, requested_tasks: list[dict[str, str]], *, outputs: dict[str, Any], render: dict[str, Any], agent_name: str, agent_runtime: str) -> int:
+def _queue_requested_tasks(
+    conn: sqlite3.Connection,
+    application_id: str,
+    requested_tasks: list[dict[str, str]],
+    *,
+    outputs: dict[str, Any],
+    render: dict[str, Any],
+    agent_name: str,
+    agent_runtime: str,
+) -> int:
     queued_count = 0
     for request in requested_tasks:
-        if _requested_task_completed(request["task_type"], outputs=outputs, render=render):
+        task_key = request["task_key"]
+        if _requested_task_completed(task_key, outputs=outputs, render=render):
             continue
-        task_type = request["task_type"]
-        if task_type == "keyword_definition":
+        if task_key == "keyword_definition":
             keyword = request["keyword"]
-            title = f"Define keyword: {keyword}"
-            default_instructions = f"Define {keyword} for this candidature context."
             context_hint = f"keyword:{keyword}"
-        else:
-            title, default_instructions, context_hint = REQUESTED_TASK_DEFINITIONS[task_type]
-        existing = find_open_task(conn, application_id, task_type, context_hint)
-        create_task(conn, task_type, title, application_id=application_id, instructions=request["reason"] or default_instructions, priority=request["priority"], context_hint=context_hint, created_by="agent", agent_name=agent_name, agent_runtime=agent_runtime, notes="Requested by create_candidature action.", idempotent=True)
+            existing = find_open_task(conn, application_id, "keyword_definition", context_hint)
+            create_task(
+                conn,
+                "keyword_definition",
+                f"Define keyword: {keyword}",
+                application_id=application_id,
+                instructions=request["reason"] or f"Define {keyword} for this candidature context.",
+                priority=request["priority"],
+                context_hint=context_hint,
+                created_by="agent_action",
+                agent_name=agent_name,
+                agent_runtime=agent_runtime,
+                notes="Requested through the bounded create-candidature action.",
+                idempotent=True,
+            )
+            if not existing:
+                queued_count += 1
+            continue
+
+        spec = lifecycle_task_spec(task_key)
+        existing = find_open_task(conn, application_id, spec.task_type, spec.context_hint)
+        task = queue_lifecycle_task(conn, application_id, task_key, created_by="agent_action", idempotent=True)
+        changes: dict[str, Any] = {"agent_name": agent_name, "agent_runtime": agent_runtime}
+        if request["reason"]:
+            changes["instructions"] = request["reason"]
+        if request["priority"]:
+            changes["priority"] = request["priority"]
+        update_task(conn, str(task["id"]), **changes)
         if not existing:
             queued_count += 1
     return queued_count
 
 
-def _requested_task_completed(task_type: str, *, outputs: dict[str, Any], render: dict[str, Any]) -> bool:
-    if task_type == "company_research":
-        return _has_text(outputs.get("company_research"))
-    if task_type == "draft_form_responses":
-        return _has_text(outputs.get("form_answers"))
-    if task_type == "draft_cover_letter":
+def _requested_task_completed(task_key: str, *, outputs: dict[str, Any], render: dict[str, Any]) -> bool:
+    fields = {
+        "evaluate": "candidature_evaluation",
+        "strategy": "role_strategy",
+        "research": "company_research",
+        "recruiter": "recruiter_material",
+        "interview": "questions_to_ask",
+        "forms": "form_answers",
+        "cover_letter": "cover_letter_body",
+        "cv": "cv_positioning",
+    }
+    if task_key == "cover_letter":
         return _has_text(outputs.get("cover_letter_body")) or bool(render.get("cover_letter"))
-    if task_type == "draft_cv":
+    if task_key == "cv":
         return _has_text(outputs.get("cv_positioning")) or bool(render.get("cv"))
-    return False
+    field = fields.get(task_key)
+    return bool(field and _has_text(outputs.get(field)))
 
 
 def _has_text(value: Any) -> bool:
     return bool(str(value or "").strip())
 
 
-def _create_agent_blob(conn: sqlite3.Connection, blob_type: str, body: str, *, application_id: str, title: str, source_context: str, agent_name: str, agent_runtime: str, model_provider: str, current: bool) -> dict[str, Any]:
+def _create_agent_blob(
+    conn: sqlite3.Connection,
+    blob_type: str,
+    body: str,
+    *,
+    application_id: str,
+    title: str,
+    source_context: str,
+    agent_name: str,
+    agent_runtime: str,
+    model_provider: str,
+    current: bool,
+) -> dict[str, Any]:
     return create_text_blob(
         conn,
         blob_type,
