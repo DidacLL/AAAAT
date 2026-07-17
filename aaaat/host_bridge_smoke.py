@@ -23,7 +23,7 @@ def run_host_bridge_smoke(
 ) -> dict[str, Any]:
     """Exercise a paired bridge as a real stdio child process.
 
-    The fixture owns only deterministic fake work.  The launched bridge receives
+    The fixture owns only deterministic fake work. The launched bridge receives
     an opaque pairing capability and never a workspace argument.
     """
 
@@ -66,7 +66,7 @@ def run_host_bridge_smoke(
         progressed = _request(process.stdin, process.stdout, {
             "jsonrpc": "2.0", "id": 5, "method": "tools/call",
             "params": {"name": "report_agent_task_progress", "arguments": {
-                "task_capability": capability, "phase": "smoke", "message": "Paired bridge smoke client", "percent": 50,
+                "task_capability": capability, "phase": "working", "message": "Paired bridge smoke client", "percent": 50,
             }},
         })
         submitted = _request(process.stdin, process.stdout, {
@@ -79,7 +79,13 @@ def run_host_bridge_smoke(
             }},
         })
         acknowledgement = _structured(submitted).get("acknowledgement")
-        if acknowledgement != {"status": "accepted", "state": "completed", "next": ["review_in_aaaat"]}:
+        expected = {
+            "status": "accepted",
+            "state": "completed",
+            "released_work": 0,
+            "next": ["continue_or_open_desktop"],
+        }
+        if acknowledgement != expected:
             raise RuntimeError("Paired bridge returned an unsafe or unexpected result acknowledgement")
         process.stdin.write("{not-json}\n")
         process.stdin.flush()
