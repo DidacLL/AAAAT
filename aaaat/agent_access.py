@@ -176,6 +176,21 @@ def get_task_for_capability(conn: sqlite3.Connection, capability: str) -> dict[s
 
 def _field_task_config(task: dict[str, Any]) -> dict[str, Any]:
     hint = safe_context_hint(task.get("context_hint"))
+    if hint.startswith("field:"):
+        field = hint.removeprefix("field:").strip()
+        if field not in FIELD_INFERENCE_ALLOWED:
+            return {"purpose": "unsupported_field_request", "fields": set(), "profile_purpose": ""}
+        if field in _EVALUATION_FIELDS | _STRATEGY_FIELDS:
+            profile_purpose = "candidature_fit"
+        elif field in _RECRUITER_FIELDS | _INTERVIEW_FIELDS:
+            profile_purpose = "recruiter_call"
+        else:
+            profile_purpose = ""
+        return {
+            "purpose": f"candidature_field_{field}",
+            "fields": {field},
+            "profile_purpose": profile_purpose,
+        }
     return _FIELD_TASKS.get(
         hint,
         {
@@ -218,7 +233,7 @@ def output_contract(task: dict[str, Any]) -> dict[str, Any]:
         "entity_ids_allowed": False,
         "deterministic_apply_by_aaaat": True,
         "human_review_optional": True,
-        "apply_model": "AAAAT validates and applies the bounded result. User-owned values are replaced only for an explicit desktop refresh action; otherwise conflicts remain history.",
+        "apply_model": "AAAAT validates and applies the bounded result. A single-field desktop Refresh replaces only that selected field; other conflicts remain history.",
         "writes": _writes_description(task),
     }
 
@@ -491,10 +506,11 @@ def submit_agent_task_result(
         raise ValueError(f"Task is not accepting results in state {task.get('state')}")
     safe_result_body = _without_agent_control_keys(result_body)
     _validate_result_shape(task, safe_result_body)
+    applied_result_body = _with_trusted_desktop_refresh(task, safe_result_body)
     completed = complete_task(
         conn,
         task["id"],
-        result_body=safe_result_body,
+        result_body=applied_result_body,
         result_title=result_title,
         agent_name=agent_name,
         agent_runtime=agent_runtime,
@@ -518,6 +534,15 @@ def _without_agent_control_keys(result_body: str) -> str:
     if not isinstance(value, dict):
         raise ValueError("Result must be one JSON object")
     return json.dumps(_strip_agent_control_keys(value), ensure_ascii=False)
+
+
+def _with_trusted_desktop_refresh(task: dict[str, Any], result_body: str) -> str:
+    hint = safe_context_hint(task.get("context_hint"))
+    if str(task.get("created_by") or "") != "desktop_action" or not hint.startswith("field:"):
+        return result_body
+    value = json.loads(result_body)
+    value["replace_existing"] = True
+    return json.dumps(value, ensure_ascii=False)
 
 
 def _strip_agent_control_keys(value: Any) -> Any:
