@@ -20,7 +20,7 @@ MATERIAL_STATE_LABELS = {"draft": "Draft", "reviewed": "Reviewed", "submitted": 
 
 
 class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
-    """Detailed View material inspection and editing rail."""
+    """Detailed View material inspection, rendering and editing rail."""
 
     def __init__(self, *args: Any, storage_path: str | Path, **kwargs: Any) -> None:
         self.storage_path = str(storage_path)
@@ -46,9 +46,24 @@ class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
         pane = module.GetPane()
         sizer = wx.BoxSizer(wx.VERTICAL)
         pane.SetSizer(sizer)
+
+        render_label = wx.StaticText(pane, label="Create local material")
+        render_label.SetFont(render_label.GetFont().Bold())
+        sizer.Add(render_label, 0, wx.ALL | wx.EXPAND, 6)
+        render_actions = wx.WrapSizer(wx.HORIZONTAL)
+        render_cv = wx.Button(pane, label="Render tailored CV")
+        render_letter = wx.Button(pane, label="Render cover letter")
+        render_cv.Enable(self._can_edit)
+        render_letter.Enable(self._can_edit)
+        render_cv.Bind(wx.EVT_BUTTON, lambda _event: self._render_material("cv"))
+        render_letter.Bind(wx.EVT_BUTTON, lambda _event: self._render_material("cover_letter"))
+        render_actions.Add(render_cv, 0, wx.RIGHT | wx.BOTTOM, 4)
+        render_actions.Add(render_letter, 0, wx.RIGHT | wx.BOTTOM, 4)
+        sizer.Add(render_actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 6)
+
         attach = wx.Button(pane, label="Attach existing file…")
         attach.Bind(wx.EVT_BUTTON, self._attach_material)
-        sizer.Add(attach, 0, wx.ALL, 6)
+        sizer.Add(attach, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
         if not artifacts:
             empty = wx.StaticText(pane, label="No files attached or prepared yet.")
             empty.Wrap(self._wrap_width())
@@ -96,6 +111,17 @@ class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
             button.Bind(wx.EVT_BUTTON, handler)
             actions.Add(button, 0, wx.RIGHT | wx.BOTTOM, 4)
         sizer.Add(actions, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM | wx.EXPAND, 6)
+
+    def _render_material(self, artifact_type: str) -> None:
+        try:
+            result = self.command_service.render_candidature_artifact(self._current_ref, artifact_type)
+        except (KeyError, OSError, ValueError) as exc:
+            wx.MessageBox(str(exc), "Material could not be rendered", wx.OK | wx.ICON_WARNING, self)
+            return
+        path = str(result.get("path") or "")
+        self._refresh_panel()
+        if path:
+            wx.MessageBox(f"Created local material:\n{path}", "Material created", wx.OK | wx.ICON_INFORMATION, self)
 
     def _attach_material(self, _event: wx.CommandEvent) -> None:
         file_dialog = wx.FileDialog(self, "Attach existing application material", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
