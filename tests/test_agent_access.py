@@ -53,7 +53,7 @@ class AgentAccessContractTests(unittest.TestCase):
         self.assertNotEqual(capability, task["id"])
         self.assertIn("input_context", work)
         self.assertIn("response_format", work)
-        self.assertEqual(work["task"]["allowed_actions"], ["report_progress", "submit_result"])
+        self.assertEqual(work["task"]["allowed_actions"], ["submit_result"])
         self.assertNotIn(task["id"], serialized)
         self.assertNotIn(candidature["id"], serialized)
         self.assertTrue(FORBIDDEN_AGENT_CONTEXT_KEYS.isdisjoint(object_keys(work)))
@@ -126,9 +126,8 @@ class AgentAccessContractTests(unittest.TestCase):
                 capability = task_capability(conn, task)
                 work = next_agent_work_item(conn)
                 self.assertNotIn("replace_existing", json.dumps(work["response_format"]))
-                self.assertTrue(
-                    any("confirm" in instruction.lower() for instruction in work["input_context"]["instructions"])
-                )
+                self.assertNotIn("User-owned name", json.dumps(work["input_context"]))
+                self.assertIn("profile.display_name", work["input_context"]["protected_fields"])
                 completed = submit_agent_task_result(
                     conn,
                     capability,
