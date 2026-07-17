@@ -13,7 +13,7 @@ class DesktopConnectionHandoffTests(unittest.TestCase):
         for module_name, class_name in (
             ("aaaat.ui_desktop.assistance_panel", "AssistancePanel"),
             ("aaaat.ui_desktop.connector_onboarding_panel", "ConnectorOnboardingPanel"),
-            ("aaaat.ui_desktop.portable_bundle_panel", "PortableBundlePanel"),
+            ("aaaat.ui_desktop.file_exchange_panel", "FileExchangePanel"),
             ("aaaat.ui_desktop.profile_facts_panel", "ProfileFactsPanel"),
             ("aaaat.ui_desktop.user_panel", "UserPanel"),
         ):
