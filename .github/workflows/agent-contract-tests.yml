@@ -98,12 +98,10 @@ jobs:
           .release-venv/bin/python tools/build_release.py
           xvfb-run -a .release-venv/bin/python tools/verify_release.py
 
-      - name: Upload verified package
+      - name: Upload directly runnable package
         uses: actions/upload-artifact@v4
         with:
           name: AAAAT-${{ runner.os }}-${{ runner.arch }}
-          path: |
-            dist/AAAAT-*.zip
-            dist/AAAAT-*.zip.sha256
+          path: dist/AAAAT-*/
           if-no-files-found: error
           retention-days: 14
