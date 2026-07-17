@@ -67,11 +67,11 @@ class DetailedViewMixin:
         toolbar.Add(self.detailed_search, 1, wx.ALL | wx.EXPAND, 6)
         toolbar.Add(self.detailed_columns_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         sizer.Add(toolbar, 0, wx.EXPAND)
-        self.detailed_splitter = wx.SplitterWindow(self.detailed_panel)
-        self.detailed_splitter.SetMinimumPaneSize(240)
+        self.detailed_splitter = wx.SplitterWindow(self.detailed_panel, style=wx.SP_LIVE_UPDATE)
+        self.detailed_splitter.SetMinimumPaneSize(1)
         self.detail_table = DetailTable(self.detailed_splitter, on_select=self._select_detailed_ref)
-        self.detailed_body_splitter = wx.SplitterWindow(self.detailed_splitter)
-        self.detailed_body_splitter.SetMinimumPaneSize(220)
+        self.detailed_body_splitter = wx.SplitterWindow(self.detailed_splitter, style=wx.SP_LIVE_UPDATE)
+        self.detailed_body_splitter.SetMinimumPaneSize(1)
         self.detail_body_panel = CandidatureDetailBodyPanel(
             self.detailed_body_splitter,
             on_save=self._save_candidature_panel_edits,
