@@ -9,7 +9,7 @@ from typing import Any
 from .agent_access import TASK_CAPABILITY_PREFIX, build_agent_work_item
 from .db import connect
 from .result_ingestion import ingest_task_result
-from .tasks import list_tasks
+from .tasks import list_tasks, update_task
 
 BUNDLE_PROTOCOL = "aaaat.portable-bundle"
 BUNDLE_VERSION = 1
@@ -23,18 +23,26 @@ def export_candidature_task_bundle(
     candidature_ref: str,
     output_path: str | Path,
     *,
-    states: tuple[str, ...] = ("queued", "blocked", "failed"),
+    states: tuple[str, ...] = ("queued",),
 ) -> dict[str, Any]:
-    """Write all eligible complete bounded work items for one candidature."""
+    """Claim and write all ready complete work items for one candidature."""
+    if set(states) != {"queued"}:
+        raise ValueError("Portable export accepts ready queued work only")
     target = Path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
+    claimed_ids: list[str] = []
     with connect(storage_path) as conn:
         eligible = [
             task
             for task in list_tasks(conn, application_id=candidature_ref)
-            if str(task.get("state") or "") in states
+            if str(task.get("state") or "") == "queued"
         ]
-        work_items = [build_agent_work_item(conn, task) for task in eligible]
+        work_items: list[dict[str, Any]] = []
+        for task in eligible:
+            task_id = str(task.get("id") or "")
+            claimed = update_task(conn, task_id, state="claimed", notes="Exported through portable exchange.")
+            claimed_ids.append(task_id)
+            work_items.append(build_agent_work_item(conn, claimed))
 
     if not work_items:
         return {
@@ -53,20 +61,28 @@ def export_candidature_task_bundle(
             "Complete each bounded work item independently using only its supplied input_context.",
             "Return one result bundle containing results.json.",
             "Use task_capability only for the matching result section.",
-            "Do not add entity IDs, file paths, storage paths, or unsupported actions.",
+            "Do not add entity IDs, file paths, storage paths, replacement controls or unsupported actions.",
             "A failed result must not prevent returning unrelated valid results.",
         ],
     }
-    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("manifest.json", _json_bytes(manifest))
-        archive.writestr("work-items.json", _json_bytes({"work_items": work_items}))
-        archive.writestr("README.txt", _bundle_readme(len(work_items)))
+    try:
+        with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("manifest.json", _json_bytes(manifest))
+            archive.writestr("work-items.json", _json_bytes({"work_items": work_items}))
+            archive.writestr("README.txt", _bundle_readme(len(work_items)))
+    except Exception:
+        with connect(storage_path) as conn:
+            for task_id in claimed_ids:
+                row = conn.execute("SELECT state FROM tasks WHERE id = ?", (task_id,)).fetchone()
+                if row and str(row["state"] or "") == "claimed":
+                    update_task(conn, task_id, state="queued", notes="Portable export failed before transfer.")
+        raise
     return {
         "status": "exported",
         "path": str(target),
         "task_count": len(work_items),
         "media_type": TASK_MEDIA_TYPE,
-        "message": f"Created a file with {len(work_items)} item(s) for your selected AI.",
+        "message": f"Created a file with {len(work_items)} ready item(s) for your selected AI.",
     }
 
 
@@ -75,7 +91,7 @@ def import_candidature_result_bundle(
     result_path: str | Path,
     *,
     agent_name: str = "portable-bundle",
-    agent_runtime: str = "browser-or-manual",
+    agent_runtime: str = "portable-exchange",
 ) -> dict[str, Any]:
     payload = _read_result_payload(result_path)
     results = payload.get("results")
@@ -177,5 +193,5 @@ def _bundle_readme(task_count: int) -> str:
         "AAAAT portable bounded work bundle\n\n"
         f"This archive contains {task_count} independent complete work item(s).\n"
         "Read manifest.json and work-items.json. Return one AAAAT result archive with results.json.\n"
-        "Do not return internal IDs, local paths, credentials, or unsupported actions.\n"
+        "Do not return internal IDs, local paths, credentials, replacement controls or unsupported actions.\n"
     )
