@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Callable
 
 import wx  # type: ignore[import-not-found]
@@ -12,14 +11,12 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         parent: wx.Window,
         *,
         on_prepare_connection: Callable[[], str],
-        on_export_connection: Callable[[Path], dict[str, str]],
         on_connection_status: Callable[[], dict[str, Any]],
         on_disconnect: Callable[[], dict[str, Any]],
     ) -> None:
         super().__init__(parent, style=wx.VSCROLL)
         self.SetScrollRate(0, 12)
         self.on_prepare_connection = on_prepare_connection
-        self.on_export_connection = on_export_connection
         self.on_connection_status = on_connection_status
         self.on_disconnect = on_disconnect
         root = wx.BoxSizer(wx.VERTICAL)
@@ -32,18 +29,25 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         description = wx.StaticText(
             self,
             label=(
-                "Let the AI you already use guide the connection. Save the setup in a folder that AI can access, "
-                "and it will handle the remaining steps in the way it supports best."
+                "Open the AI you already use and ask it to connect to AAAAT. "
+                "It will choose the best connection it can support and explain any approval it needs from you."
             ),
         )
         description.Wrap(760)
         root.Add(description, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
+        manual = wx.StaticText(
+            self,
+            label="No AI is required. You can keep using AAAAT normally without connecting one.",
+        )
+        manual.Wrap(760)
+        root.Add(manual, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+
         disclosure = wx.StaticText(
             self,
             label=(
-                "This setup gives your AI permission to ask AAAAT for selected help. "
-                "It does not include your private workspace. Your AI account remains managed by the service you chose."
+                "AAAAT keeps your workspace local and shares only information prepared for the work you choose. "
+                "AAAAT does not ask for or store your AI credentials."
             ),
         )
         disclosure.Wrap(760)
@@ -53,35 +57,23 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         self.connection.Wrap(760)
         root.Add(self.connection, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        refresh = wx.Button(self, label="Refresh status")
-        refresh.Bind(wx.EVT_BUTTON, lambda _event: self._refresh_connection_status())
-        root.Add(refresh, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
-
-        save_button = wx.Button(self, label="Save setup for my AI")
-        save_button.Bind(wx.EVT_BUTTON, self._export_connection)
-        root.Add(save_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
-
-        save_help = wx.StaticText(
-            self,
-            label="Choose a folder your AI can read. Your AI will guide any remaining setup.",
-        )
-        save_help.Wrap(760)
-        root.Add(save_help, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
-
-        copy_button = wx.Button(self, label="Copy setup message")
+        copy_button = wx.Button(self, label="Copy connection request")
         copy_button.Bind(wx.EVT_BUTTON, self._prepare_connection)
         root.Add(copy_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         copy_help = wx.StaticText(
             self,
-            label="Use this fallback only when your AI asks you to paste the setup into the conversation.",
+            label=(
+                "Paste the copied request into your AI. It will configure the strongest connection available to it, "
+                "or explain the safe fallback it can use."
+            ),
         )
         copy_help.Wrap(760)
         root.Add(copy_help, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
 
-        self.instructions = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
-        self.instructions.SetMinSize((-1, 100))
-        root.Add(self.instructions, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        refresh = wx.Button(self, label="Refresh status")
+        refresh.Bind(wx.EVT_BUTTON, lambda _event: self._refresh_connection_status())
+        root.Add(refresh, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.pause_button = wx.Button(self, label="Pause AI connection")
         self.pause_button.Bind(wx.EVT_BUTTON, self._pause_connection)
@@ -97,7 +89,7 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
             state = str(self.on_connection_status().get("state") or "ready_to_connect")
             if state in {"connected", "needs_attention"}:
                 answer = wx.MessageBox(
-                    "Creating new setup permission pauses the current AI connection. Continue?",
+                    "Creating a new connection request pauses the current AI connection. Continue?",
                     "Replace AI connection",
                     wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
                     self,
@@ -106,15 +98,12 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
                     return
             handoff = self.on_prepare_connection()
             if not wx.TheClipboard.Open():
-                raise RuntimeError("AAAAT could not copy the setup message. Try again.")
+                raise RuntimeError("AAAAT could not copy the connection request. Try again.")
             try:
                 wx.TheClipboard.SetData(wx.TextDataObject(handoff))
             finally:
                 wx.TheClipboard.Close()
-            self.instructions.SetValue(
-                "Setup message copied. Paste it into your AI only when that AI cannot read the saved setup folder."
-            )
-            self.status.SetLabel("Setup message copied")
+            self.status.SetLabel("Connection request copied. Paste it into your AI.")
             self._refresh_connection_status()
         except Exception as exc:
             self.status.SetLabel(str(exc))
@@ -132,24 +121,6 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         }
         self.connection.SetLabel(labels.get(state, labels["needs_attention"]))
         self.pause_button.Show(state in {"connected", "needs_attention"})
-
-    def _export_connection(self, _event: wx.CommandEvent) -> None:
-        with wx.DirDialog(
-            self,
-            "Choose a folder your AI can access",
-            style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST,
-        ) as dialog:
-            if dialog.ShowModal() != wx.ID_OK:
-                return
-            try:
-                self.on_export_connection(Path(dialog.GetPath()))
-                self.status.SetLabel("Setup saved. Ask your AI to connect using that folder.")
-                self.instructions.SetValue(
-                    "Your AI can now read the setup and finish the connection in the way it supports best."
-                )
-                self._refresh_connection_status()
-            except Exception:
-                self.status.SetLabel("AAAAT could not save the setup there. Choose another folder and try again.")
 
     def _pause_connection(self, _event: wx.CommandEvent) -> None:
         try:
