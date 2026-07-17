@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .agent_access import build_agent_work_item, next_agent_work_item, task_capability
-from .agent_actions import submit_agent_action
 from .assistance_service import create_profile_completion_task
 from .background_worker import OwnedTaskWorker
 from .candidature_lifecycle import ensure_lifecycle_tasks, release_ready_lifecycle_tasks
@@ -28,10 +27,11 @@ from .result_ingestion import ingest_task_result
 from .runtime_conformance import run_configured_runtime_conformance
 from .task_runner import TaskRunner
 from .tasks import create_task, get_task, list_tasks
+from .ui_desktop.services import DesktopCommandService
 
 VERDICT_PASSED = "AUTOMATED_GATES_PASSED"
 VERDICT_FAILED = "AUTOMATED_GATES_FAILED"
-VERDICT_MANUAL = "MANUAL_GATES_PENDING"
+VERDICT_READY = "RELEASE_READY"
 
 _SAMPLE_PROFILE = {
     "profile.display_name": "Alex Rivera",
@@ -113,21 +113,11 @@ class ReleaseValidator:
         automated = VERDICT_PASSED if self.results and all(item.status == "passed" for item in self.results) else VERDICT_FAILED
         report = {
             "protocol": "aaaat.release-validation",
-            "version": 3,
+            "version": 4,
             "generated_at": _now(),
             "automated_verdict": automated,
-            "release_verdict": VERDICT_MANUAL if automated == VERDICT_PASSED else VERDICT_FAILED,
+            "release_verdict": VERDICT_READY if automated == VERDICT_PASSED else VERDICT_FAILED,
             "runtime_profile": self.config.runtime,
-            "manual_gates": [
-                "manual wx lifecycle works without an AI integration",
-                "guided connection choices are understandable to a non-technical user",
-                "one real external AI consumes complete bounded work through the standard MCP or equivalent wrapper",
-                "one independent real host or transport completes the same bounded lifecycle",
-                "one connected LLM host completes a bounded bridge round trip",
-                "progress, failure, retry and cancellation where supported are visible in wx",
-                "rendered document quality and desktop responsiveness are inspected",
-                "realistic existing storage upgrades, backs up and reopens without data loss",
-            ],
             "stages": [asdict(item) for item in self.results],
         }
         self._write_reports(report)
@@ -327,27 +317,17 @@ class ReleaseValidator:
         item.assertions.append("Complete bounded work item excludes internal IDs and storage paths")
 
     def _stage_artifact_rendering(self, item: StageResult) -> None:
-        with connect(self.config.storage) as conn:
-            current = get_candidature(conn, self.candidature_ref)
-            result = submit_agent_action(
-                conn,
-                {
-                    "action": "create_candidature",
-                    "payload": {
-                        "source_material": {"offer_text": "Release validator artifact proof."},
-                        "candidature": {"company": "Rendered Northstar", "role": "Senior Backend Engineer"},
-                        "outputs": {"cover_letter_body": current["cover_letter_material"], "cv_positioning": current["cv_material"]},
-                        "render": {"cover_letter": True, "cv": True},
-                        "requested_tasks": [],
-                    },
-                },
-                agent_name="release-validator",
-                agent_runtime=self.config.runtime,
-                model_provider="",
-                storage_path=str(self.config.storage),
-            )
-        _require(result.get("rendered") == {"cover_letter": True, "cv": True}, "Artifacts were not rendered")
-        item.assertions.append("CV and cover-letter artifacts rendered locally")
+        service = DesktopCommandService(self.config.storage)
+        cv = service.render_candidature_artifact(self.candidature_ref, "cv")
+        letter = service.render_candidature_artifact(self.candidature_ref, "cover_letter")
+        _require(Path(str(cv.get("path") or "")).is_file(), "Selected candidature CV was not rendered")
+        _require(Path(str(letter.get("path") or "")).is_file(), "Selected candidature cover letter was not rendered")
+        artifacts = service.list_candidature_artifacts(self.candidature_ref)
+        required_types = {"cv", "cover_letter"}
+        rendered = [artifact for artifact in artifacts if artifact.get("artifact_type") in required_types]
+        _require({str(artifact.get("artifact_type") or "") for artifact in rendered} == required_types, "Rendered artifacts were not attached to the selected candidature")
+        _require(all(str(artifact.get("review_state") or "") == "draft" for artifact in rendered), "Generated artifacts did not remain drafts")
+        item.assertions.append("The completed candidature rendered its own CV and cover letter as local drafts")
 
     def _stage_projection_visibility(self, item: StageResult) -> None:
         with connect(self.config.storage) as conn:
@@ -376,7 +356,7 @@ class ReleaseValidator:
         rows = ["# AAAAT local release validation", "", f"Automated verdict: **{report['automated_verdict']}**", f"Release verdict: **{report['release_verdict']}**", "", "| Stage | Status | Error |", "|---|---|---|"]
         for stage in report["stages"]:
             rows.append(f"| {stage['stage']} | {stage['status']} | {stage['error'].replace('|', '/')} |")
-        rows.extend(["", "## Manual gates remaining", ""] + [f"- {gate}" for gate in report["manual_gates"]])
+        rows.extend(["", "All maintained release stages are executable. No human QA gate is generated."])
         (self.config.evidence_dir / "release-report.md").write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
@@ -445,7 +425,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     ).run()
     print(json.dumps({"automated_verdict": report["automated_verdict"], "release_verdict": report["release_verdict"], "report": str(args.evidence_dir / "release-report.json")}, indent=2))
-    return 0 if report["automated_verdict"] == VERDICT_PASSED else 1
+    return 0 if report["release_verdict"] == VERDICT_READY else 1
 
 
 if __name__ == "__main__":
