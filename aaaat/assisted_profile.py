@@ -34,17 +34,18 @@ DENIED_PROFILE_KEYS = {"profile.internal_id", "profile.storage_path"}
 
 def profile_completion_context(conn: sqlite3.Connection) -> dict[str, Any]:
     values = profile_variables(conn)
-    current = {key: str(values.get(key) or "") for key in PROFILE_COMPLETION_KEYS}
+    missing = [key for key in PROFILE_COMPLETION_KEYS if not str(values.get(key) or "").strip()]
+    protected = [key for key in PROFILE_COMPLETION_KEYS if str(values.get(key) or "").strip()]
     return {
-        "current_fields": current,
-        "missing_fields": [key for key, value in current.items() if not value.strip()],
-        "protected_fields": [key for key, value in current.items() if value.strip()],
+        "eligible_fields": list(PROFILE_COMPLETION_KEYS),
+        "missing_fields": missing,
+        "protected_fields": protected,
         "instructions": [
-            "Collect grounded values only for eligible missing profile fields.",
-            "Present a concise summary of proposed values and submit after the user confirms it.",
-            "Existing non-empty desktop values are retained as authoritative.",
-            "Omit contact details or experience not supported by the supplied context.",
-            "Omit fields that require information not present in the supplied context.",
+            "Discuss the professional profile naturally and follow the user's chosen level of detail.",
+            "Store only grounded values the user chooses to provide for eligible missing fields.",
+            "The user decides when the supplied profile information is enough for their current purpose.",
+            "Existing non-empty desktop values are protected; their raw contents are intentionally not included here.",
+            "Omit fields that the user does not provide or does not want to include.",
         ],
     }
 
@@ -117,5 +118,5 @@ def submit_profile_updates(
         "action": "update_profile",
         "updated": sorted(updated),
         "provenance": {"agent_name": agent_name, "agent_runtime": agent_runtime},
-        "next": ["open_desktop"],
+        "next": ["continue_conversation"],
     }
