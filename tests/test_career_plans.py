@@ -42,7 +42,7 @@ class CareerPlanServiceTests(unittest.TestCase):
                 )
                 updated = update_career_plan(conn, plan["id"], objectives=["platform ownership"], target_roles="Platform Engineer")
                 agent_context = career_plan_context(conn, "cover_letter", scope="agent")
-                local_context = career_plan_context(conn, "cover_letter", scope="local_dashboard")
+                local_context = career_plan_context(conn, "cover_letter", scope="local")
                 archived = archive_career_plan(conn, plan["id"])
                 active = list_career_plans(conn)
                 all_plans = list_career_plans(conn, include_archived=True)
@@ -136,7 +136,20 @@ class CareerPlanCliTests(unittest.TestCase):
                 )
             )
             listed = json.loads(self.run_cli(["--storage", tmp, "career-plan", "list"]))
-            context = json.loads(self.run_cli(["--storage", tmp, "agent", "context-bundle", "--purpose", "career_plan_review"]))
+            context = json.loads(
+                self.run_cli(
+                    [
+                        "--storage",
+                        tmp,
+                        "career-plan",
+                        "context",
+                        "--purpose",
+                        "career_plan_review",
+                        "--scope",
+                        "agent",
+                    ]
+                )
+            )
             archived = json.loads(self.run_cli(["--storage", tmp, "career-plan", "archive", added["id"]]))
 
         self.assertEqual(listed[0]["id"], added["id"])

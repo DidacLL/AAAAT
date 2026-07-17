@@ -1,234 +1,77 @@
-# Agent-Agnostic Auto Application Tracker
+# AAAAT
 
-<p align="center">
-  <img src="aaaat/templates_ui/assets/AAAATbanner.png" alt="AAAAT logo" width="720">
-</p>
+AAAAT is a local desktop workspace for managing job applications, preparing recruiter and interview conversations, and producing candidature-specific application material.
 
-AAAAT is a local-first job application workspace. It helps you track opportunities, prepare recruiter conversations, keep reusable profile material, and generate per-application artifacts such as CV variants and cover-letter drafts from your own local data.
+It keeps the practical job-search record in one private place: opportunities, source text, current status, next actions, notes, professional context, research, form answers, CV and cover-letter material, and generated artifacts.
 
-AAAAT is built for one person running it on their own machine. Your job-search data lives in local storage by default, and the dashboard runs on localhost.
+AAAAT remains fully usable without an AI connection.
 
-## What AAAAT does
+[![CI](https://github.com/DidacLL/AAAAT/actions/workflows/ci.yml/badge.svg)](https://github.com/DidacLL/AAAAT/actions/workflows/ci.yml)
+[![GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
-AAAAT gives you a private operational dashboard for your job search:
+![AAAAT desktop using fictional candidature data](docs/assets/aaaat-desktop.svg)
 
-- store job opportunities and raw offer text;
-- track status, priority, next action, notes, keywords, and recruiter-call material;
-- keep profile variables and reusable career facts for CVs and letters;
-- render local CV and cover-letter artifacts from templates;
-- keep generated artifacts with review state and provenance;
-- export a static fake-data demo for sharing the project safely;
-- expose optional bounded task/context surfaces for external tools or agents.
+## Why AAAAT
 
-The dashboard can be used manually. External agent workflows are optional.
+Job-search information is commonly split across spreadsheets, notes, chat histories, documents, and provider-specific AI tools. AAAAT combines the operational tracker, reusable professional context, local document rendering, and optional external reasoning without surrendering the workspace to a cloud service or a particular model provider.
+
+AAAAT is not an LLM wrapper, chat client, MCP product, or agent orchestrator. The application owns local data, rendering, artifacts, and bounded access. An external LLM may supply reasoning, research, extraction, and writing through the connection method supported by its own host.
+
+## Main workflows
+
+- Create a candidature from an offer, form, link, conversation, or manual entry.
+- Save incomplete records immediately; unknown values remain empty and can be completed later.
+- Use Smart View during recruiter calls for pitch, questions, risks, keywords, notes, artifacts, and next action.
+- Use Detailed View for complete candidature inspection and editing.
+- Maintain reusable profile, skills, experience, preferences, and career direction in User View.
+- Render and retain CV, cover-letter, form-answer, recruiter, and interview material locally.
+- Continue every core workflow manually when no AI is connected.
 
 ## Local-first privacy
 
-Private data defaults to `.private/`.
+AAAAT stores its authoritative SQLite database and private artifacts in a user-selected local workspace separate from the installed application.
 
-Typical local layout:
+Optional external assistance receives only purpose-scoped context and bounded operations. It does not receive general database access, workspace paths, repository access, arbitrary record browsing, or desktop mutation authority. Privacy is enforced by the local data model and inaccessible command surfaces, not by requiring the user to review every AI step.
 
-```text
-.private/
-  aaaat.sqlite3
-  artifacts/
-```
+## Optional external AI
 
-Keep real job-search data in private local storage: raw offers, recruiter notes, profile values, CV content, generated letters, and backups. Static demos use fake data from `examples/demo_payload.json`, not your private database.
+When assistance is useful, AAAAT can prepare a connection request for the AI environment the user already has. The installed product supplies one skill named `AAAAT`, an opaque connection capability, a small bounded tool catalogue, and portable task/result exchange as a fallback.
 
-The dashboard binds to `127.0.0.1` by default. Do not run it as a public website.
+Valid bounded results are applied directly to the intended local records. AAAAT does not add a mandatory approval or suggestion-review workflow. The user can edit resulting data normally, mark material as sent, or archive obsolete versions.
+
+AAAAT does not request provider credentials, model URLs, model names, or provider SDKs.
 
 ## Installation
 
-Requires Python 3.11 or newer.
+Download the archive for your platform, extract it once, and open the application:
 
-Linux/macOS:
+- Windows: `AAAAT.exe`
+- macOS: `AAAAT.app`
+- Linux: `AAAAT`
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e .
-```
+Normal use does not require Python, Git, a terminal, or a source checkout. See the [User guide](docs/user-guide.md).
 
-Windows PowerShell:
-
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e .
-```
-
-Check the command:
-
-```bash
-aaaat --version
-```
-
-You can also run AAAAT as a module:
-
-```bash
-python -m aaaat.cli --version
-```
-
-Private data defaults to `.private/`. Static demos use `examples/demo_payload.json` only.
-
-## Local data and backup
-
-AAAAT stores its local SQLite database at `.private/aaaat.sqlite3` by default and generated artifacts under `.private/artifacts/`. New and existing databases are initialized idempotently and include lightweight schema metadata with `schema_version`.
-
-Create a local backup before upgrades or risky maintenance:
-
-```bash
-python -m aaaat.cli backup
-```
-
-The backup command creates a timestamped zip under `.private/backups/` containing the SQLite database and artifact files. See `docs/local-data.md` for restore notes and custom backup output behavior.
-
-## Quick start
-
-Initialize local storage, add one opportunity, and open the dashboard:
-
-```bash
-aaaat init
-aaaat app create --company "Example Co" --role "Backend Engineer"
-aaaat launch
-```
-
-Open the printed local URL, normally:
+## Technical outline
 
 ```text
-http://127.0.0.1:8765
+wx desktop
+    ↕
+AAAAT services and private SQLite workspace
+    ↕ optional bounded tasks/results
+external LLM host
 ```
 
-To use another private storage path, put `--storage` before the command:
+The core uses Python and SQLite. wxPython provides the desktop adapter. PyInstaller is used for native packaging. Core runtime dependencies are otherwise kept empty.
 
-```bash
-aaaat --storage /path/to/private-aaaat init
-aaaat --storage /path/to/private-aaaat launch
-```
+The human-facing documentation is:
 
-## Dashboard mode
+- [Product definition](docs/product.md)
+- [User guide](docs/user-guide.md)
+- [Architecture](docs/architecture.md)
+- [Optional AI integration](docs/ai-integration.md)
+- [Development](docs/development.md)
+- [Releasing](docs/releasing.md)
 
-Start the editable local dashboard:
+`AGENTS.md` contains repository-development constraints only and is excluded from installed releases. The installed LLM-facing instruction is `aaaat/SKILL.md`, named `AAAAT`.
 
-```bash
-aaaat launch
-```
-
-Use it to add opportunities, edit fields, paste raw offer text, manage tasks, add notes, and render artifacts.
-
-## Read-only mode
-
-Start the same dashboard without write controls:
-
-```bash
-aaaat launch --read-only
-```
-
-Use this for recruiter calls or review sessions when you want to inspect data without changing it.
-
-## Local launchers
-
-The `launchers/` directory contains small convenience wrappers. They run the installed or local Python module and do not require Git.
-
-Unix:
-
-```bash
-sh launchers/open-aaaat.sh
-sh launchers/open-aaaat-read-only.sh
-```
-
-Windows:
-
-```cmd
-launchers\Open AAAAT.cmd
-launchers\Open AAAAT Read Only.cmd
-```
-
-The launchers accept extra CLI flags after the script name, such as `--storage /path/to/private-aaaat` or `--port 8766`.
-
-## Agent mode
-
-Start the bounded machine-facing runtime:
-
-```bash
-aaaat launch --agent-api
-```
-
-Agent mode is optional. It is for external tools that work through AAAAT task handles, task context, result submission, bounded action packets, and purpose-scoped context bundles.
-
-Useful commands:
-
-```bash
-aaaat agent tasks --state queued
-aaaat agent next
-aaaat agent context <task_handle>
-aaaat agent packet <task_handle>
-aaaat agent submit <task_handle> --result-file result.json
-aaaat agent context-bundle --purpose cover_letter
-aaaat agent action submit --input-file action.json
-```
-
-MCP-compatible descriptor commands:
-
-```bash
-aaaat mcp-descriptor
-aaaat mcp-validate
-```
-
-AAAAT currently provides descriptor/tool-schema compatibility only. It does not ship a full MCP server transport. External adapters can use the descriptor and map its tools/resources to the CLI commands above or to the local agent HTTP routes in `docs/openapi.md`.
-
-## Artifact generation
-
-Render a CV:
-
-```bash
-aaaat render cv --output .private/artifacts/cv.tex
-```
-
-Render a cover letter for an application:
-
-```bash
-aaaat render cover-letter <application_id> --body "Draft body pending review." --output .private/artifacts/cover-letter.tex
-```
-
-Track an artifact:
-
-```bash
-aaaat artifact save --application-id <application_id> --type cover_letter --path .private/artifacts/cover-letter.tex --label "Cover letter draft"
-aaaat artifact list <application_id>
-aaaat artifact update-state <artifact_id> --state reviewed --notes "Ready to use"
-```
-
-Review generated documents before sending them.
-
-## Static demo export
-
-Generate a standalone demo page from fake data:
-
-```bash
-aaaat export static-demo outputs/static-demo.html
-```
-
-The static demo is safe for showing the product shape because it uses fake demo data and has no backend write flow.
-
-## Local data and backup
-
-Back up AAAAT by copying the full private storage directory while the app is stopped:
-
-```bash
-cp -a .private ~/private-backups/aaaat/private-$(date +%Y%m%d-%H%M%S)
-```
-
-Restore by stopping AAAAT and copying the backup back to `.private/`, or by launching AAAAT with `--storage` pointed at the restored directory.
-
-## More docs
-
-- [Install](docs/install.md)
-- [Local data and backup](docs/local-data.md)
-- [Agent workflow](docs/agent-workflow.md)
-- [CLI reference](docs/cli.md)
-- [Security model](docs/security-model.md)
-- [MCP descriptor compatibility](docs/mcp.md)
+AAAAT is licensed under GPLv3 or later. See [LICENSE](LICENSE).

@@ -7,7 +7,7 @@ from .db import row_to_dict, utc_now
 
 
 EXPOSURES = {"raw", "redacted", "summarized", "placeholder", "denied"}
-RESOLUTION_SCOPES = {"local_render", "local_dashboard", "read_only_dashboard", "agent", "static_demo"}
+RESOLUTION_SCOPES = {"local", "agent"}
 CANONICAL_NAMESPACES = {"profile", "application", "artifact", "candidature"}
 
 
@@ -30,19 +30,6 @@ def placeholder_for(key: str) -> str:
     return "{{ " + canonical_variable_key(key) + " }}"
 
 
-def migrate_profile_variables(conn: sqlite3.Connection) -> None:
-    rows = conn.execute("SELECT key, value, updated_at FROM profile_variables").fetchall()
-    for row in rows:
-        canonical = canonical_variable_key(row["key"])
-        conn.execute(
-            """INSERT OR IGNORE INTO variables(
-              key, placeholder, value, is_sensitive, exposure, summary, updated_at
-            ) VALUES (?, ?, ?, 1, 'placeholder', '', ?)""",
-            (canonical, placeholder_for(canonical), row["value"], row["updated_at"]),
-        )
-    conn.commit()
-
-
 def set_variable(
     conn: sqlite3.Connection,
     key: str,
@@ -52,7 +39,6 @@ def set_variable(
     is_sensitive: bool = True,
     exposure: str = "placeholder",
     summary: str = "",
-    mirror_profile: bool = True,
 ) -> dict[str, Any]:
     canonical = canonical_variable_key(key)
     if exposure not in EXPOSURES:
@@ -71,12 +57,6 @@ def set_variable(
           updated_at=excluded.updated_at""",
         (canonical, placeholder or placeholder_for(canonical), value, 1 if is_sensitive else 0, exposure, summary, now),
     )
-    if mirror_profile and canonical.startswith("profile."):
-        conn.execute(
-            """INSERT INTO profile_variables(key, value, updated_at) VALUES (?, ?, ?)
-            ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at""",
-            (short_profile_key(canonical), value, now),
-        )
     conn.commit()
     return get_variable(conn, canonical)
 
@@ -97,10 +77,8 @@ def list_variables(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 def resolve_variable_value(item: dict[str, Any], scope: str) -> str | None:
     if scope not in RESOLUTION_SCOPES:
         raise ValueError(f"Invalid variable resolution scope: {scope}")
-    if scope in {"local_render", "local_dashboard", "read_only_dashboard"}:
+    if scope == "local":
         return str(item.get("value") or "")
-    if scope == "static_demo":
-        return None
     exposure = item.get("exposure") or "placeholder"
     if exposure == "raw":
         return str(item.get("value") or "")
@@ -128,13 +106,8 @@ def resolve_variables(conn: sqlite3.Connection, scope: str) -> dict[str, str]:
     return resolved
 
 
-def profile_variables_compat(conn: sqlite3.Connection) -> dict[str, str]:
-    migrate_profile_variables(conn)
-    return resolve_variables(conn, "local_render")
-
-
 def required_profile_variables(conn: sqlite3.Connection, required: set[str]) -> list[str]:
-    existing = resolve_variables(conn, "local_render")
+    existing = resolve_variables(conn, "local")
     missing = []
     for key in sorted(required):
         canonical = canonical_variable_key(key)

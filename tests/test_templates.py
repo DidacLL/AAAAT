@@ -1,18 +1,35 @@
 import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
-from aaaat.db import connect, create_application, init_db, required_profile_variables, set_profile_variable
 from aaaat.artifacts import list_artifacts
-from aaaat.templates import TemplateVariableError, escape_latex, render_document_artifact, render_named_template
+from aaaat.db import (
+    connect,
+    create_application,
+    get_template,
+    init_db,
+    required_profile_variables,
+    set_profile_variable,
+)
+from aaaat.templates import (
+    TemplateVariableError,
+    escape_latex,
+    render_document_artifact,
+    render_named_template,
+)
 
 
 class TemplateTests(unittest.TestCase):
-    def test_source_templates_use_variables_not_private_identity(self):
-        root = Path(__file__).resolve().parent.parent
-        for name in ("cv.tex", "cover-letter.tex", "recruiter-message.md"):
-            body = (root / "templates" / name).read_text(encoding="utf-8")
+    def test_canonical_templates_use_variables_not_private_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            init_db(tmp)
+            with connect(tmp) as conn:
+                bodies = [
+                    get_template(conn, name)["body"]
+                    for name in ("cv", "cover-letter")
+                ]
+        for body in bodies:
             self.assertIn("{{", body)
             self.assertNotIn("SCVRI", body)
             self.assertNotRegex(body, r"[\w.+-]+@[\w.-]+")
@@ -23,7 +40,11 @@ class TemplateTests(unittest.TestCase):
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Demo Candidate")
                 set_profile_variable(conn, "email", "demo@example.invalid")
-                set_profile_variable(conn, "summary.default", "Builds useful local tools.")
+                set_profile_variable(
+                    conn,
+                    "summary.default",
+                    "Builds useful local tools.",
+                )
                 rendered = render_named_template(conn, "cv")
 
         self.assertIn("Demo Candidate", rendered)
@@ -58,7 +79,11 @@ class TemplateTests(unittest.TestCase):
 
                 set_profile_variable(conn, "display_name", "Demo Candidate")
                 set_profile_variable(conn, "email", "demo@example.invalid")
-                set_profile_variable(conn, "summary.default", "Builds local tools.")
+                set_profile_variable(
+                    conn,
+                    "summary.default",
+                    "Builds local tools.",
+                )
                 self.assertEqual(required_profile_variables(conn), [])
 
     def test_missing_required_template_variables_fail_clearly(self):
@@ -66,7 +91,10 @@ class TemplateTests(unittest.TestCase):
             init_db(tmp)
             with connect(tmp) as conn:
                 app = create_application(conn, company="Demo Co", role="Engineer")
-                with self.assertRaisesRegex(TemplateVariableError, "Missing required template variables"):
+                with self.assertRaisesRegex(
+                    TemplateVariableError,
+                    "Missing required template variables",
+                ):
                     render_named_template(conn, "cover-letter", app["id"])
 
     def test_latex_escaping_for_normal_scalar_values(self):
@@ -91,8 +119,18 @@ class TemplateTests(unittest.TestCase):
                 set_profile_variable(conn, "display_name", "Demo Candidate")
                 set_profile_variable(conn, "email", "demo@example.invalid")
                 app = create_application(conn, company="Demo Co", role="Engineer")
-                plain = render_named_template(conn, "cover-letter", app["id"], {"artifact.cover_letter.body": "A&B_#1"})
-                trusted = render_named_template(conn, "cover-letter", app["id"], {"artifact.cover_letter.body_tex": r"\textbf{A&B}"})
+                plain = render_named_template(
+                    conn,
+                    "cover-letter",
+                    app["id"],
+                    {"artifact.cover_letter.body": "A&B_#1"},
+                )
+                trusted = render_named_template(
+                    conn,
+                    "cover-letter",
+                    app["id"],
+                    {"artifact.cover_letter.body_tex": r"\textbf{A&B}"},
+                )
 
         self.assertIn(r"A\&B\_\#1", plain)
         self.assertIn(r"\textbf{A&B}", trusted)
@@ -104,7 +142,11 @@ class TemplateTests(unittest.TestCase):
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Demo Candidate")
                 set_profile_variable(conn, "email", "demo@example.invalid")
-                set_profile_variable(conn, "summary.default", "Builds local tools.")
+                set_profile_variable(
+                    conn,
+                    "summary.default",
+                    "Builds local tools.",
+                )
                 app = create_application(conn, company="Render Co", role="Engineer")
                 first = render_document_artifact(conn, "cv", output, app["id"])
                 second = render_document_artifact(conn, "cv", output, app["id"])
@@ -152,9 +194,19 @@ class TemplateTests(unittest.TestCase):
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Demo Candidate")
                 set_profile_variable(conn, "email", "demo@example.invalid")
-                set_profile_variable(conn, "summary.default", "Builds local tools.")
+                set_profile_variable(
+                    conn,
+                    "summary.default",
+                    "Builds local tools.",
+                )
                 app = create_application(conn, company="Render Co", role="Engineer")
-                result = render_document_artifact(conn, "cv", output, app["id"], compile_pdf=True)
+                result = render_document_artifact(
+                    conn,
+                    "cv",
+                    output,
+                    app["id"],
+                    compile_pdf=True,
+                )
 
             self.assertEqual(result["pdf_status"], "success")
             self.assertTrue(Path(result["pdf_path"]).exists())

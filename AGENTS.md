@@ -1,34 +1,53 @@
-# AAAAT Agent Instructions
+# AAAAT repository development
 
-AAAAT is not an LLM wrapper, provider SDK, agent orchestrator, or CRUD API for agents. Agents use capability-scoped commands with explicit input/output shapes. Do not browse, list, search, or patch the user's candidature database.
+This file applies only to work on the source repository. It is excluded from installed releases. The installed LLM-facing product instruction is `aaaat/SKILL.md`, whose skill name is `AAAAT`.
 
-Implemented agent task capability:
+## Product invariants
 
-- `python -m aaaat.cli agent next`
-- `python -m aaaat.cli agent context <task_handle>`
-- `python -m aaaat.cli agent packet <task_handle>`
-- `python -m aaaat.cli agent submit <task_handle> --result-body "..."`
-- `python -m aaaat.cli agent submit <task_handle> --result-file result.json`
+- AAAAT is a local job-application workspace, not an LLM wrapper or agent framework.
+- The wx desktop is fully usable without an external LLM.
+- Incomplete candidatures and raw source material save immediately.
+- Optional AI work never gates local persistence or manual operation.
+- Valid bounded AI results apply directly; do not introduce mandatory review or approval queues.
+- Privacy is enforced through local scoping, schemas, capabilities, and inaccessible command surfaces.
+- AAAAT remains provider-neutral and dependency-light.
 
-Implemented action-session capability:
+## Change constraints
 
-- `python -m aaaat.cli agent context-bundle --purpose <purpose>`
-- `python -m aaaat.cli agent action submit --input-file action.json`
-- `python -m aaaat.cli agent action submit --input-body '{"action":"create_candidature","payload":{...}}'`
+- Preserve Smart View and Detailed View behavior unless a product requirement explicitly changes it.
+- Keep `aaaat/ui_desktop/` as the wx adapter.
+- Prefer explicit application services and concrete SQLite operations.
+- Do not add provider SDKs, connector catalogues, certification systems, workflow engines, telemetry, generic plugin systems, or broad agent CRUD APIs.
+- Do not retain duplicate modules, migration paths, or compatibility aliases for unreleased contracts.
+- Do not fabricate company, role, identity, or other facts as placeholders.
+- Keep task and capability logic limited to the bounded work it actually supports.
+- Do not place personal data in tests, examples, screenshots, documentation, or issues.
 
-A task handle is an opaque callback handle for one bounded task. It is not a task row ID, application ID, candidature ID, profile fact ID, artifact ID, file path, or storage path, and it must not be treated as mutation authority over arbitrary local state.
+## Authority boundary
 
-AAAAT exposes MCP compatibility as a dependency-free descriptor/tool-schema surface through:
+A connected host receives only the `AAAAT` skill, prepared connection material, the bounded bridge catalogue, purpose-scoped context, and callback capabilities for permitted operations.
 
-- `python -m aaaat.cli mcp-descriptor`
-- `python -m aaaat.cli mcp-validate`
+It does not receive repository access, private-workspace paths, database authority, general CLI commands, arbitrary record enumeration, desktop widget commands, or internal identifiers as broad mutation handles.
 
-This is descriptor-only compatibility. AAAAT does not currently implement an MCP server transport such as stdio, SSE, or streamable HTTP, and agents should not configure AAAAT as a direct MCP server unless a real server transport is added later.
+## Validation
 
-An external LLM app may first ask AAAAT for purpose-scoped context such as `cv_generation`, `cover_letter`, `candidature_fit`, `recruiter_call`, `form_answers`, or `career_plan_review`. The LLM then submits one bounded action: create a candidature from already-inferred fields, store research/form-answer data, store cover-letter body text as render input, request local rendering, or request bounded future tasks.
+```text
+python -B -m compileall -q aaaat tests tools scripts
+python -B -m aaaat.cli mcp-validate
+python -B -m unittest discover -s tests
+```
 
-The LLM is not the user and does not create final artifacts. AAAAT renders CVs and cover letters locally from templates, profile/application data, and explicit render inputs.
+For native package changes:
 
-The browser dashboard is a compact local human working surface. Its routes are not an agent contract. Add new opportunities through dashboard raw-offer intake, user-directed local CLI use, or bounded agent actions; never by agents enumerating private data.
+```text
+python tools/build_release.py
+python tools/verify_release.py
+```
 
-Do not place private values in public demos, source templates, docs, or examples.
+Test executable product behavior. Do not add tests for exact documentation wording, fixed file lists, branch names, PR numbers, source layout preferences, or temporary implementation labels.
+
+## Documentation
+
+Human documentation explains AAAAT’s product definition, behavior, mechanisms, architecture, use, development, and release process. Do not make development-agent instructions the main subject of product documentation.
+
+Do not commit temporary prompts, sprint reports, handoffs, acceptance ledgers, or generated review transcripts. Ordinary `.gitignore`, package manifests, and focused review handle repository cleanliness.

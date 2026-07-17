@@ -26,12 +26,19 @@ CANDIDATURE_DETAIL_FIELDS = {
     "publication_date",
     "application_date",
     "raw_application_form",
+    "form_answers",
     "cv_sent_artifact_id",
     "cover_letter_artifact_id",
     "strengths",
     "questions_to_ask",
     "tech_stack",
     "valuation",
+    "candidature_evaluation",
+    "role_strategy",
+    "cv_material",
+    "cover_letter_material",
+    "recruiter_material",
+    "material_sent_notes",
 }
 
 
@@ -85,13 +92,22 @@ def get_candidature_details(conn: sqlite3.Connection, application_id: str) -> di
 
 def update_candidature(conn: sqlite3.Connection, application_id: str, **fields: Any) -> dict[str, Any]:
     app_fields = {key: fields[key] for key in APPLICATION_UPDATE_FIELDS if key in fields}
-    if "keywords" in fields:
+    keywords_changed = "keywords" in fields
+    if keywords_changed:
         app_fields["keywords"] = fields["keywords"]
     if app_fields:
         update_application(conn, application_id, **app_fields)
     detail_fields = {key: fields[key] for key in CANDIDATURE_DETAIL_FIELDS if key in fields}
     if detail_fields:
         ensure_candidature_details(conn, application_id, **detail_fields)
+    if keywords_changed:
+        ensure_initial_tasks(
+            conn,
+            application_id,
+            include_field_inference=False,
+            include_company_research=False,
+            include_keyword_detection=True,
+        )
     return get_candidature(conn, application_id)
 
 
@@ -99,6 +115,7 @@ def get_candidature(conn: sqlite3.Connection, application_id: str, *, include_re
     app = get_application(conn, application_id)
     app["domain_type"] = "Candidature"
     app["details"] = get_candidature_details(conn, application_id)
+    app.update(app["details"])
     if include_related:
         app["raw_intake"] = list_raw_intake(conn, application_id)
         app["artifacts"] = list_artifacts(conn, application_id)
