@@ -5,6 +5,7 @@ import sqlite3
 from typing import Any, Mapping
 
 from .agent_access import TASK_CAPABILITY_PREFIX, submit_agent_task_result
+from .candidature_lifecycle import release_ready_lifecycle_tasks
 
 _FORBIDDEN_AUTHORITY_KEYS = {
     "application_id",
@@ -27,12 +28,7 @@ def ingest_task_result(
     default_agent_name: str = "",
     default_agent_runtime: str = "",
 ) -> dict[str, Any]:
-    """Validate one transport-neutral result and apply it through AAAAT.
-
-    External results provide task content only. Local replacement authority is
-    deliberately removed before domain application so an LLM cannot overwrite
-    an existing desktop value by adding a control flag to its result.
-    """
+    """Validate one transport-neutral result and apply it through AAAAT."""
     capability = str(task_capability or "").strip()
     if not capability.startswith(TASK_CAPABILITY_PREFIX):
         raise ValueError("Result has an invalid task capability")
@@ -55,10 +51,13 @@ def ingest_task_result(
         agent_runtime=agent_runtime,
         model_provider=model_provider,
     )
+    candidature_ref = str(completed.get("application_id") or "")
+    released = release_ready_lifecycle_tasks(conn, candidature_ref) if candidature_ref else []
     return {
         "status": "accepted",
         "state": str(completed.get("state") or "completed"),
-        "next": ["review_in_aaaat"],
+        "released_work": len(released),
+        "next": ["continue_or_open_desktop"],
     }
 
 
