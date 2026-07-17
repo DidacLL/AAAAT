@@ -42,7 +42,7 @@ class DbTests(unittest.TestCase):
                     agent_name="TestAgent",
                     agent_runtime="codex",
                     model_provider="optional-provider",
-                    review_state="reviewed",
+                    state="draft",
                 )
                 stored = list_artifacts(conn, app["id"])[0]
                 self.assertEqual(stored["id"], artifact["id"])
@@ -55,7 +55,7 @@ class DbTests(unittest.TestCase):
                 self.assertEqual(stored["agent_runtime"], "codex")
                 self.assertEqual(stored["model_provider"], "optional-provider")
                 self.assertEqual(stored["source_context"], "application-context")
-                self.assertEqual(stored["review_state"], "reviewed")
+                self.assertEqual(stored["state"], "draft")
                 self.assertEqual(stored["notes"], "")
 
     def test_raw_offer_intake_creates_active_candidature_with_retained_source(self):
@@ -176,23 +176,23 @@ class DbTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "new or empty"):
                 restore_local_backup(backup, destination)
 
-    def test_artifact_review_state_changes_and_archived_sorts_secondary(self):
+    def test_artifact_state_changes_and_archived_sorts_secondary(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
                 app = create_application(conn, company="Demo Co", role="Engineer")
-                archived = save_artifact(conn, app["id"], "cover_letter", "archived.pdf", "Archived", review_state="archived")
-                draft = save_artifact(conn, app["id"], "cover_letter", "draft.pdf", "Draft", review_state="draft")
-                reviewed = save_artifact(conn, app["id"], "cover_letter", "reviewed.pdf", "Reviewed", review_state="reviewed")
-                submitted = save_artifact(conn, app["id"], "cover_letter", "submitted.pdf", "Submitted", review_state="submitted")
+                archived = save_artifact(conn, app["id"], "cover_letter", "archived.pdf", "Archived", state="archived")
+                draft = save_artifact(conn, app["id"], "cover_letter", "draft.pdf", "Draft", state="draft")
+                current = save_artifact(conn, app["id"], "cover_letter", "current.pdf", "Current", state="draft")
+                submitted = save_artifact(conn, app["id"], "cover_letter", "submitted.pdf", "Submitted", state="submitted")
 
                 updated = update_artifact_state(conn, draft["id"], "archived", "Old draft")
-                self.assertEqual(updated["review_state"], "archived")
+                self.assertEqual(updated["state"], "archived")
                 self.assertEqual(updated["notes"], "Old draft")
 
                 ordered = list_artifacts(conn, app["id"])
 
-        self.assertEqual([item["id"] for item in ordered[:2]], [submitted["id"], reviewed["id"]])
+        self.assertEqual([item["id"] for item in ordered[:2]], [submitted["id"], current["id"]])
         self.assertEqual(ordered[-1]["id"], draft["id"])
         self.assertIn(archived["id"], [item["id"] for item in ordered[-2:]])
 

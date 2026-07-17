@@ -23,7 +23,7 @@ from aaaat.tasks import create_task, get_task, list_tasks
 from aaaat.ui_desktop.services import DesktopCommandService
 
 
-class V1LifecycleConformanceTests(unittest.TestCase):
+class LifecycleContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.storage = Path(self.temporary.name) / "private"
@@ -42,9 +42,6 @@ class V1LifecycleConformanceTests(unittest.TestCase):
                     "raw_offer",
                     "Example Co seeks a backend engineer.",
                 ),
-                include_field_inference_task=False,
-                include_company_research_task=False,
-                include_keyword_detection_task=False,
                 **fields,
             )
 
@@ -58,10 +55,7 @@ class V1LifecycleConformanceTests(unittest.TestCase):
         assert created is not None
         with connect(self.storage) as conn:
             tasks = list_tasks(conn, application_id=created["id"])
-        self.assertEqual(
-            [(task["task_type"], task["context_hint"]) for task in tasks],
-            [("field_inference", "candidature:extraction")],
-        )
+        self.assertEqual(tasks, [])
 
         strategy = service.queue_candidature_action(
             created["id"],
@@ -89,12 +83,11 @@ class V1LifecycleConformanceTests(unittest.TestCase):
                 raw_offer="Example Co seeks a Python engineer.",
                 candidature_evaluation="Strong fit",
                 role_strategy="Lead with reliable local systems.",
-                include_field_inference_task=False,
-                include_company_research_task=False,
-                include_keyword_detection_task=False,
             )
             evaluation = queue_lifecycle_task(conn, candidature["id"], "evaluate")
             cv = queue_lifecycle_task(conn, candidature["id"], "cv")
+            evaluation = claim_agent_work(conn, str(evaluation["id"]))
+            cv = claim_agent_work(conn, str(cv["id"]))
             evaluation_work = build_agent_work_item(conn, evaluation)
             cv_work = build_agent_work_item(conn, cv)
 
@@ -121,12 +114,9 @@ class V1LifecycleConformanceTests(unittest.TestCase):
                 conn,
                 company="Example Co",
                 role="Engineer",
-                include_field_inference_task=False,
-                include_company_research_task=False,
-                include_keyword_detection_task=False,
             )
             task = queue_lifecycle_task(conn, candidature["id"], "evaluate")
-            claim_agent_work(conn, str(task["id"]))
+            task = claim_agent_work(conn, str(task["id"]))
             capability = task_capability(conn, task)
             with self.assertRaisesRegex(ValueError, "unsupported candidature fields"):
                 submit_agent_task_result(
@@ -145,9 +135,9 @@ class V1LifecycleConformanceTests(unittest.TestCase):
         assert created is not None
         task = service.queue_candidature_action(created["id"], "field:company")
         with connect(self.storage) as conn:
+            task = claim_agent_work(conn, str(task["id"]))
             work = build_agent_work_item(conn, task)
             self.assertEqual(work["input_context"]["allowed_fields"], ["company"])
-            claim_agent_work(conn, str(task["id"]))
             submit_agent_task_result(
                 conn,
                 task_capability(conn, task),
@@ -167,19 +157,11 @@ class V1LifecycleConformanceTests(unittest.TestCase):
                 conn,
                 company="Example Co",
                 role="Engineer",
-                include_field_inference_task=False,
-                include_company_research_task=False,
-                include_keyword_detection_task=False,
             )
             task = queue_lifecycle_task(conn, candidature["id"], "cv")
             self.assertEqual(task["state"], "blocked")
-            capability = task_capability(conn, task)
-            with self.assertRaisesRegex(ValueError, "not accepting results"):
-                submit_agent_task_result(
-                    conn,
-                    capability,
-                    json.dumps({"cv_positioning": "Premature"}),
-                )
+            with self.assertRaisesRegex(ValueError, "only for claimed work"):
+                task_capability(conn, task)
 
     def test_ingestion_releases_downstream_work_for_every_transport(self) -> None:
         with connect(self.storage) as conn:
@@ -187,14 +169,11 @@ class V1LifecycleConformanceTests(unittest.TestCase):
                 conn,
                 company="Example Co",
                 role="Engineer",
-                include_field_inference_task=False,
-                include_company_research_task=False,
-                include_keyword_detection_task=False,
             )
             evaluation = queue_lifecycle_task(conn, candidature["id"], "evaluate")
             strategy = queue_lifecycle_task(conn, candidature["id"], "strategy")
             self.assertEqual(strategy["state"], "blocked")
-            claim_agent_work(conn, str(evaluation["id"]))
+            evaluation = claim_agent_work(conn, str(evaluation["id"]))
             capability = task_capability(conn, evaluation)
             outcome = ingest_task_result(
                 conn,
@@ -246,13 +225,13 @@ class V1LifecycleConformanceTests(unittest.TestCase):
             create_task(
                 conn,
                 "field_inference",
-                "User requested review",
+                "User requested refresh",
                 priority="normal",
-                context_hint="candidature:review",
+                context_hint="candidature:refresh",
                 created_by="desktop_action",
             )
             claimed = claim_next_agent_work(conn)
-        self.assertEqual(claimed["task"]["title"], "User requested review")
+        self.assertEqual(claimed["task"]["title"], "User requested refresh")
 
     def test_profile_completion_does_not_disclose_existing_raw_values(self) -> None:
         with connect(self.storage) as conn:

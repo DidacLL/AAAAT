@@ -16,10 +16,10 @@ MATERIAL_TYPES = [
     ("Other", "other"),
 ]
 MATERIAL_TYPE_LABELS = {value: label for label, value in MATERIAL_TYPES}
-MATERIAL_STATE_LABELS = {"draft": "Draft", "reviewed": "Reviewed", "submitted": "Sent", "archived": "Older version"}
+MATERIAL_STATE_LABELS = {"draft": "Draft", "submitted": "Sent", "archived": "Older version"}
 
 
-class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
+class CandidatureMaterialPanel(CandidatureOptionsPanel):
     """Detailed View material inspection, rendering and editing rail."""
 
     def __init__(self, *args: Any, storage_path: str | Path, **kwargs: Any) -> None:
@@ -76,7 +76,7 @@ class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
     def _add_material_item(self, pane: wx.Window, sizer: wx.BoxSizer, item: dict[str, Any]) -> None:
         artifact_id = str(item.get("id") or "")
         label = str(item.get("label") or item.get("artifact_type") or "Material")
-        state = str(item.get("review_state") or "draft")
+        state = str(item.get("state") or "draft")
         material_type = MATERIAL_TYPE_LABELS.get(str(item.get("artifact_type") or ""), "Other material")
         heading = wx.StaticText(pane, label=f"{label} · {MATERIAL_STATE_LABELS.get(state, state)}")
         heading.SetFont(heading.GetFont().Bold())
@@ -102,7 +102,6 @@ class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
         buttons = [
             ("Open", lambda _event, target=artifact_id: self._open_artifact(target)),
             ("Edit details", lambda _event, target=item: self._edit_artifact_details(target)),
-            ("Mark reviewed", lambda _event, target=artifact_id: self._set_artifact_state(target, "reviewed")),
             ("Mark sent", lambda _event, target=artifact_id: self._set_artifact_state(target, "submitted")),
             ("Older version", lambda _event, target=artifact_id: self._set_artifact_state(target, "archived")),
         ]
@@ -171,7 +170,7 @@ class ReleaseCandidatureOptionsPanel(CandidatureOptionsPanel):
         wx.LaunchDefaultApplication(path)
 
     def _set_artifact_state(self, artifact_id: str, state: str) -> None:
-        messages = {"reviewed": "Material marked as reviewed.", "submitted": "Material marked as sent.", "archived": "Material moved to older versions."}
+        messages = {"submitted": "Material marked as sent.", "archived": "Material moved to older versions."}
         self.command_service.set_artifact_state(artifact_id, state, messages.get(state, "Material updated."))
         self._refresh_panel()
 

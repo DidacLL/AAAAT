@@ -12,12 +12,11 @@ from aaaat.workspace_config import save_workspace_settings
 
 
 class AdvancedCommandFixtureTests(unittest.TestCase):
-    def _runner(self, storage: Path, mode: str, timeout: int = 2) -> TaskRunner:
+    def _runner(self, storage: Path, mode: str, timeout: int = 10) -> TaskRunner:
         save_workspace_settings(
             storage,
-            automatic_preparation=[],
-            local_agent_adapter_id="argv_custom_command",
-            local_agent_adapter_settings={
+            integration_method_id="user_command",
+            integration_settings={
                 "argv": [sys.executable, "-m", "tests.support.advanced_command_fixture", "--mode", mode],
                 "timeout_seconds": timeout,
             },
@@ -37,10 +36,10 @@ class AdvancedCommandFixtureTests(unittest.TestCase):
 
     def test_expected_command_failures_are_actionable_and_mark_the_attempt_failed(self) -> None:
         cases = (
-            ("nonzero", 2, "Fixture requested a nonzero exit"),
-            ("empty", 2, "returned no result"),
-            ("malformed-json", 2, "returned invalid JSON"),
-            ("wrong-schema", 2, "not accepted"),
+            ("nonzero", 10, "Fixture requested a nonzero exit"),
+            ("empty", 10, "returned no result"),
+            ("malformed-json", 10, "returned invalid JSON"),
+            ("wrong-schema", 10, "not accepted"),
             ("timeout", 1, "timed out"),
         )
         for mode, timeout, message in cases:

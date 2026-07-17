@@ -22,7 +22,7 @@ class DesktopMaterialDetailsTests(unittest.TestCase):
 
         self.assertEqual(updated["label"], "CV for final review")
         self.assertEqual(updated["notes"], "Version received from the user on 14 July.")
-        self.assertEqual(updated["review_state"], "draft")
+        self.assertEqual(updated["state"], "draft")
         self.assertEqual(updated["path"], str(source))
         self.assertEqual(updated["source_context"], "desktop:attached")
 

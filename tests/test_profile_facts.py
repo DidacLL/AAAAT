@@ -44,7 +44,7 @@ class ProfileFactServiceTests(unittest.TestCase):
                 self.assertEqual(updated["exposure"], "placeholder")
                 self.assertFalse(updated["use_for_cv"])
                 archived = archive_profile_fact(conn, fact["id"])
-                self.assertEqual(archived["review_state"], "archived")
+                self.assertEqual(archived["state"], "archived")
 
                 self.assertEqual(list_profile_facts(conn), [])
                 self.assertEqual(len(list_profile_facts(conn, include_archived=True)), 1)

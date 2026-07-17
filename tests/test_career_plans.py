@@ -55,7 +55,7 @@ class CareerPlanServiceTests(unittest.TestCase):
         self.assertNotIn("id", agent_context["career_plans"][0])
         self.assertIn("plan_ref", agent_context["career_plans"][0])
         self.assertEqual(local_context["career_plans"][0]["id"], plan["id"])
-        self.assertEqual(archived["review_state"], "archived")
+        self.assertEqual(archived["state"], "archived")
         self.assertEqual(active, [])
         self.assertEqual(len(all_plans), 1)
 
@@ -156,7 +156,7 @@ class CareerPlanCliTests(unittest.TestCase):
         self.assertEqual(listed[0]["target_roles"], ["Backend Engineer"])
         self.assertEqual(context["career_plans"][0]["body"], "Target product engineering roles.")
         self.assertNotIn("id", context["career_plans"][0])
-        self.assertEqual(archived["review_state"], "archived")
+        self.assertEqual(archived["state"], "archived")
 
 
 if __name__ == "__main__":

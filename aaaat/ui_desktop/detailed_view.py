@@ -7,7 +7,7 @@ import wx  # type: ignore[import-not-found]
 from .candidature_right_panel import CandidatureDetailBodyPanel, FIELD_ACTIONS
 from .detail_columns import available_column_ids, column_title, normalize_visible_columns
 from .detail_table import DetailTable
-from .release_right_panel import ReleaseCandidatureOptionsPanel
+from .material_panel import CandidatureMaterialPanel
 
 DEFAULT_DETAILED_FRAME_WIDTH = 1280
 DEFAULT_DETAILED_LEFT = 330
@@ -79,7 +79,7 @@ class DetailedViewMixin:
             on_keyword_select=self._select_detailed_keyword,
             on_add_keyword=self._add_keyword_to_candidature,
         )
-        self.detail_options_panel = ReleaseCandidatureOptionsPanel(
+        self.detail_options_panel = CandidatureMaterialPanel(
             self.detailed_body_splitter,
             storage_path=self.storage_path,
             on_action=self._on_candidature_panel_action,

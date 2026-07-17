@@ -16,7 +16,7 @@ from aaaat.ui_desktop.services import DesktopCommandService
 from aaaat.ui_desktop.user_fields import WRITABLE_USER_STORAGE_KEYS, grouped_user_fields
 
 
-class DesktopReleaseReadinessSliceTests(unittest.TestCase):
+class DesktopStartupBehaviorTests(unittest.TestCase):
     def test_clean_storage_seed_builds_smart_projection_without_wx(self):
         from aaaat.ui_desktop.app import build_desktop_projection
 
@@ -116,7 +116,6 @@ class DesktopProjectionBehaviorTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in smart["context_modules"]], ["keywords"])
         self.assertIn("primary_note", smart)
         self.assertIn("call_card", smart)
-        self.assertNotIn("agent_suggestions", smart)
         self.assertNotIn("artifact_summary", smart)
 
     def test_detailed_keyword_save_creates_a_canonical_keyword_record(self):
@@ -189,12 +188,11 @@ class DesktopMaterialWorkflowBehaviorTests(unittest.TestCase):
             artifact_path.write_bytes(b"fake-pdf")
             with connect(tmp) as conn:
                 artifact = save_artifact(conn, created["id"], "cover_letter", str(artifact_path), "Cover letter v1")
-            self.assertEqual(service.list_candidature_artifacts(created["id"])[0]["review_state"], "draft")
-            service.set_artifact_state(artifact["id"], "reviewed", "Reviewed locally")
+            self.assertEqual(service.list_candidature_artifacts(created["id"])[0]["state"], "draft")
             submitted = service.set_artifact_state(artifact["id"], "submitted", "Sent to employer")
             resolved_path = service.artifact_path(artifact["id"])
 
-        self.assertEqual(submitted["review_state"], "submitted")
+        self.assertEqual(submitted["state"], "submitted")
         self.assertEqual(resolved_path, str(artifact_path))
 
 

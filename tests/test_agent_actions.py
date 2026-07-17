@@ -108,7 +108,6 @@ class AgentActionTests(unittest.TestCase):
                     agent_name="Agent",
                     agent_runtime="cli",
                     model_provider="local",
-                    expose_internal_ids=True,
                     storage_path=tmp,
                 )
                 loaded = list_candidatures(conn, include_related=True)[0]
@@ -140,10 +139,9 @@ class AgentActionTests(unittest.TestCase):
         self.assertEqual(blob_types["cv_positioning"]["body"], "Lead with Python automation.")
         self.assertEqual(blob_types["user_instructions"]["created_by"], "agent")
         self.assertTrue(any(item["artifact_type"] == "cover_letter" for item in loaded["artifacts"]))
-        keyword_tasks = [item for item in loaded["tasks"] if item["task_type"] == "keyword_definition"]
-        self.assertEqual({item["context_hint"] for item in keyword_tasks}, {"keyword:APIs", "keyword:Python"})
+        self.assertEqual(loaded["tasks"], [])
 
-    def test_create_candidature_queues_only_missing_keyword_definitions(self):
+    def test_create_candidature_does_not_schedule_unrequested_keyword_work(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -164,8 +162,7 @@ class AgentActionTests(unittest.TestCase):
                 )
                 loaded = list_candidatures(conn, include_related=True)[0]
 
-        keyword_tasks = [item for item in loaded["tasks"] if item["task_type"] == "keyword_definition"]
-        self.assertEqual([item["context_hint"] for item in keyword_tasks], ["keyword:MCP"])
+        self.assertEqual(loaded["tasks"], [])
 
     def test_create_candidature_requested_tasks_queue_bounded_follow_up(self):
         with tempfile.TemporaryDirectory() as tmp:

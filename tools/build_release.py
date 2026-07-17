@@ -161,6 +161,15 @@ def _require_sources() -> None:
         raise FileNotFoundError("Missing release source: " + ", ".join(str(path) for path in missing))
 
 
+def _architecture_label(machine: str) -> str:
+    normalized = str(machine or "").strip().lower().replace(" ", "-")
+    if normalized in {"amd64", "x86_64", "x86-64"}:
+        return "x64"
+    if normalized in {"arm64", "aarch64"}:
+        return "arm64"
+    return normalized or "unknown"
+
+
 def _platform_label() -> str:
     system = platform.system().lower() or sys.platform.lower()
     if system.startswith("darwin"):
@@ -169,8 +178,7 @@ def _platform_label() -> str:
         system = "windows"
     elif system.startswith("linux"):
         system = "linux"
-    machine = (platform.machine() or "unknown").lower().replace(" ", "-")
-    return f"{system}-{machine}"
+    return f"{system}-{_architecture_label(platform.machine())}"
 
 
 def _user_readme() -> str:

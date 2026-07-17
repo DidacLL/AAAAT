@@ -282,7 +282,7 @@ class CandidatureOptionsPanel(wx.ScrolledWindow):
             rows = []
             for item in items[:5]:
                 if isinstance(item, dict):
-                    rows.append(" · ".join(str(part) for part in (item.get("artifact_type"), item.get("label"), item.get("review_state")) if part))
+                    rows.append(" · ".join(str(part) for part in (item.get("artifact_type"), item.get("label"), item.get("state")) if part))
                 else:
                     rows.append(str(item))
             text = "\n".join(rows)

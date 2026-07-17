@@ -61,7 +61,7 @@ class AgentAccessContractTests(unittest.TestCase):
         self.assertIn("response_format", work)
         self.assertEqual(
             work["task"]["allowed_actions"],
-            ["report_progress", "submit_result"],
+            ["submit_result"],
         )
         self.assertNotIn(task["id"], serialized)
         self.assertNotIn(candidature["id"], serialized)
@@ -85,8 +85,10 @@ class AgentAccessContractTests(unittest.TestCase):
                     context_hint="keyword:Second",
                     idempotent=False,
                 )
+                first = claim_agent_work(conn, str(first["id"]))
                 first_capability = task_capability(conn, first)
                 self.assertEqual(task_capability(conn, first), first_capability)
+                second = claim_agent_work(conn, str(second["id"]))
                 second_capability = task_capability(conn, second)
 
         self.assertNotEqual(first_capability, second_capability)
@@ -109,9 +111,6 @@ class AgentAccessContractTests(unittest.TestCase):
                     conn,
                     company="CV company",
                     role="Writer",
-                    include_field_inference_task=False,
-                    include_company_research_task=False,
-                    include_keyword_detection_task=False,
                 )
                 create_task(
                     conn,
@@ -137,13 +136,8 @@ class AgentAccessContractTests(unittest.TestCase):
                     "Define term",
                     context_hint="keyword:Portfolio",
                 )
-                capability = task_capability(conn, task)
-                with self.assertRaisesRegex(ValueError, "not accepting results"):
-                    submit_agent_task_result(
-                        conn,
-                        capability,
-                        json.dumps({"definition": "A collection of work."}),
-                    )
+                with self.assertRaisesRegex(ValueError, "only for claimed work"):
+                    task_capability(conn, task)
 
     def test_submit_uses_capability_for_claimed_task(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -155,7 +149,7 @@ class AgentAccessContractTests(unittest.TestCase):
                     "Define term",
                     context_hint="keyword:Portfolio",
                 )
-                claim_agent_work(conn, str(task["id"]))
+                task = claim_agent_work(conn, str(task["id"]))
                 capability = task_capability(conn, task)
                 completed = submit_agent_task_result(
                     conn,
@@ -229,7 +223,7 @@ class AgentAccessContractTests(unittest.TestCase):
                     "Define MCP",
                     context_hint="keyword:MCP",
                 )
-                claim_agent_work(conn, str(task["id"]))
+                task = claim_agent_work(conn, str(task["id"]))
                 capability = task_capability(conn, task)
                 submit_agent_task_result(
                     conn,
@@ -263,9 +257,6 @@ class AgentAccessContractTests(unittest.TestCase):
                     conn,
                     company="Keyword company",
                     role="Engineer",
-                    include_field_inference_task=False,
-                    include_company_research_task=False,
-                    include_keyword_detection_task=False,
                 )
                 task = create_task(
                     conn,
@@ -274,7 +265,7 @@ class AgentAccessContractTests(unittest.TestCase):
                     application_id=candidature["id"],
                     context_hint="candidature:field_inference",
                 )
-                claim_agent_work(conn, str(task["id"]))
+                task = claim_agent_work(conn, str(task["id"]))
                 capability = task_capability(conn, task)
                 submit_agent_task_result(
                     conn,
@@ -291,13 +282,8 @@ class AgentAccessContractTests(unittest.TestCase):
                     ("MCP",),
                 ).fetchone()
 
-        definition_tasks = [
-            item for item in tasks if item["task_type"] == "keyword_definition"
-        ]
-        self.assertEqual(
-            [item["context_hint"] for item in definition_tasks],
-            ["keyword:MCP"],
-        )
+        definition_tasks = [item for item in tasks if item["task_type"] == "keyword_definition"]
+        self.assertEqual(definition_tasks, [])
         self.assertEqual(python_row["definition"], "Existing Python definition.")
         self.assertEqual(mcp_row["definition"], "")
 
@@ -311,7 +297,7 @@ class AgentAccessContractTests(unittest.TestCase):
                     "Research",
                     idempotent=False,
                 )
-                claim_agent_work(conn, str(task["id"]))
+                task = claim_agent_work(conn, str(task["id"]))
                 capability = task_capability(conn, task)
                 with self.assertRaisesRegex(ValueError, "too many items"):
                     submit_agent_task_result(

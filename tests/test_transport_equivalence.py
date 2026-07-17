@@ -10,10 +10,10 @@ _CAPABILITY = "taskcap_" + "b" * 48
 
 
 class TransportEquivalenceTests(unittest.TestCase):
-    def test_generic_command_result_uses_canonical_ingestion(self) -> None:
+    def test_user_command_result_uses_canonical_ingestion(self) -> None:
         work = {"task": {"task_capability": _CAPABILITY}, "input_context": {}}
         execution = execute_configured_transport(
-            "argv_custom_command",
+            "user_command",
             {"argv": ["fixture-command"], "timeout_seconds": 30},
             work,
             run_stdio=lambda *_args, **_kwargs: '{"result":"complete"}',

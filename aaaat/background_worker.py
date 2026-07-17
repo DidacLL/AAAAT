@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 from .db import connect, utc_now
 from .task_runner import TaskRunner, TaskRunnerError
-from .tasks import create_task, get_task, update_task
+from .tasks import get_task, retry_task, update_task
 
 WorkerCallback = Callable[[dict[str, Any]], None]
 
@@ -61,32 +61,9 @@ class OwnedTaskWorker:
         return task
 
     def retry(self, task_id: str) -> str:
-        """Create a distinct retry task so late results cannot target the new attempt."""
+        """Queue a distinct retry attempt so old callbacks remain invalid."""
         with connect(self.storage_path) as conn:
-            previous = get_task(conn, task_id)
-            if previous.get("state") not in {"failed", "blocked", "cancelled"}:
-                raise ValueError(f"Task cannot be retried from state {previous.get('state')}")
-            if previous.get("state") != "cancelled":
-                update_task(
-                    conn,
-                    task_id,
-                    state="cancelled",
-                    notes=(str(previous.get("notes") or "") + "\nSuperseded by a new retry attempt.").strip(),
-                )
-            retry_task = create_task(
-                conn,
-                str(previous.get("task_type") or "task"),
-                str(previous.get("title") or "Retry task"),
-                application_id=previous.get("application_id"),
-                instructions=str(previous.get("instructions") or ""),
-                state="queued",
-                priority=str(previous.get("priority") or "normal"),
-                context_hint=str(previous.get("context_hint") or ""),
-                created_by="retry",
-                notes=f"Retry of superseded task {task_id}.",
-                idempotent=False,
-            )
-            retry_id = str(retry_task["id"])
+            retry_id = str(retry_task(conn, task_id)["id"])
         self.submit(retry_id)
         return retry_id
 

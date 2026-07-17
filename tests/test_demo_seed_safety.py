@@ -19,9 +19,6 @@ class DemoSeedSafetyTests(unittest.TestCase):
                     source_url=first_demo["source_url"],
                     raw_offer="A real user-created offer.",
                     created_by="user",
-                    include_field_inference_task=False,
-                    include_company_research_task=False,
-                    include_keyword_detection_task=False,
                 )
 
             seed(tmp, count=3, reset=True)

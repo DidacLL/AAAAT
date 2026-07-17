@@ -4,16 +4,12 @@ import json
 import sqlite3
 from typing import Any
 
-from .db import application_keywords, get_application, new_id, row_to_dict, upsert_glossary_term, utc_now
+from .db import new_id, row_to_dict, upsert_glossary_term, utc_now
 from .text_blobs import create_text_blob, get_text_blob, update_text_blob
 
-TASK_STATES = {"queued", "claimed", "in_progress", "blocked", "completed", "failed", "cancelled"}
-OPEN_TASK_STATES = {"queued", "claimed", "in_progress", "blocked", "failed"}
-INITIAL_OPTIONAL_TASKS = {
-    "cv": ("draft_cv", "Prepare CV", "Prepare role-specific CV positioning for local rendering.", "artifact:cv"),
-    "cover_letter": ("draft_cover_letter", "Prepare cover letter", "Prepare cover-letter body text for local rendering.", "artifact:cover_letter"),
-    "form_responses": ("draft_form_responses", "Prepare form answers", "Prepare application form answers.", "blob:form_responses"),
-}
+TASK_STATES = {"queued", "claimed", "blocked", "completed", "failed", "cancelled"}
+OPEN_TASK_STATES = {"queued", "claimed", "blocked"}
+TASK_PRIORITIES = {"low", "normal", "medium", "high"}
 
 FIELD_INFERENCE_ALLOWED = {
     "company",
@@ -61,6 +57,8 @@ def create_task(
 ) -> dict[str, Any]:
     if state not in TASK_STATES:
         raise ValueError(f"Invalid task state: {state}")
+    if priority not in TASK_PRIORITIES:
+        raise ValueError(f"Invalid task priority: {priority}")
     if idempotent:
         existing = find_open_task(conn, application_id, task_type, context_hint)
         if existing:
@@ -166,13 +164,54 @@ def update_task(conn: sqlite3.Connection, task_id: str, **fields: Any) -> dict[s
     updates = {key: fields[key] for key in allowed if key in fields}
     if "state" in updates and updates["state"] not in TASK_STATES:
         raise ValueError(f"Invalid task state: {updates['state']}")
+    if "priority" in updates and updates["priority"] not in TASK_PRIORITIES:
+        raise ValueError(f"Invalid task priority: {updates['priority']}")
     if updates:
         updates["updated_at"] = utc_now()
         updates["id"] = task_id
         assignments = ", ".join(f"{key} = :{key}" for key in updates if key != "id")
         conn.execute(f"UPDATE tasks SET {assignments} WHERE id = :id", updates)
+        if "state" in updates and updates["state"] != "claimed":
+            conn.execute("DELETE FROM agent_task_capabilities WHERE task_id = ?", (task_id,))
         conn.commit()
     return get_task(conn, task_id)
+
+
+def retry_task(
+    conn: sqlite3.Connection,
+    task_id: str,
+    *,
+    created_by: str = "retry",
+) -> dict[str, Any]:
+    """Create a distinct queued attempt and retire the previous task."""
+
+    previous = get_task(conn, task_id)
+    state = str(previous.get("state") or "")
+    if state not in {"failed", "blocked", "cancelled"}:
+        raise ValueError(f"Task cannot be retried from state {state}")
+    if state != "cancelled":
+        update_task(
+            conn,
+            task_id,
+            state="cancelled",
+            notes=(
+                str(previous.get("notes") or "")
+                + "\nSuperseded by a new retry attempt."
+            ).strip(),
+        )
+    return create_task(
+        conn,
+        str(previous.get("task_type") or "task"),
+        str(previous.get("title") or "Retry task"),
+        application_id=previous.get("application_id"),
+        instructions=str(previous.get("instructions") or ""),
+        state="queued",
+        priority=str(previous.get("priority") or "normal"),
+        context_hint=str(previous.get("context_hint") or ""),
+        created_by=created_by,
+        notes="Retry of a superseded task.",
+        idempotent=False,
+    )
 
 
 def complete_task(
@@ -196,7 +235,7 @@ def complete_task(
             application_id=task.get("application_id"),
             title=result_title or task.get("title", ""),
             source_context=f"task:{task_id}",
-            review_state="current",
+            state="current",
             created_by="agent" if agent_name or agent_runtime else "user",
             agent_name=agent_name,
             agent_runtime=agent_runtime,
@@ -259,7 +298,7 @@ def apply_task_result(conn: sqlite3.Connection, task_id: str) -> dict[str, Any]:
         applied, notes = apply_single_field_result(conn, application_id, "recruiter_material", result_body, default_title="Recruiter-call material")
 
     if result_blob_id:
-        update_text_blob(conn, result_blob_id, review_state="current" if applied else "history")
+        update_text_blob(conn, result_blob_id, state="current" if applied else "history")
     if notes:
         existing_notes = str(task.get("notes") or "").strip()
         suffix = "Apply notes: " + "; ".join(notes)
@@ -351,7 +390,7 @@ def apply_single_field_result(conn: sqlite3.Connection, application_id: str, fie
         application_id=application_id,
         title=default_title,
         source_context=f"stale:{field_name}",
-        review_state="history",
+        state="history",
         created_by="agent",
         notes=f"Non-current because {field_name} already had user/current content.",
     )
@@ -375,64 +414,3 @@ def apply_keyword_definition(conn: sqlite3.Connection, term: str, result_body: s
 def keyword_from_context(context_hint: str) -> str:
     prefix = "keyword:"
     return context_hint[len(prefix) :].strip() if context_hint.startswith(prefix) else ""
-
-
-def ensure_initial_tasks(
-    conn: sqlite3.Connection,
-    application_id: str,
-    *,
-    include_field_inference: bool = True,
-    include_company_research: bool = True,
-    include_keyword_detection: bool = True,
-    include_cv: bool = False,
-    include_cover_letter: bool = False,
-    include_form_responses: bool = False,
-) -> list[dict[str, Any]]:
-    app = get_application(conn, application_id)
-    created: list[dict[str, Any]] = []
-    if include_field_inference:
-        created.append(
-            create_task(
-                conn,
-                "field_inference",
-                "Analyze candidature",
-                application_id=application_id,
-                instructions="Extract company, role, URL, logistics, literal role text, evaluation, strategy, keywords, risks, strengths and recruiter-call preparation from retained source material. Do not infer lifecycle, user priority, lead source, CV/letter bodies, sent-material notes, or form answers.",
-                priority="high",
-                context_hint="candidature:field_inference",
-            )
-        )
-    if include_company_research and not str(app.get("company_research") or "").strip():
-        created.append(
-            create_task(
-                conn,
-                "company_research",
-                "Research company context",
-                application_id=application_id,
-                instructions="Prepare company research as current candidature context.",
-                priority="normal",
-                context_hint="candidature:company_research",
-            )
-        )
-    glossary = {row["term"]: row["definition"] for row in conn.execute("SELECT term, definition FROM glossary_terms").fetchall()}
-    if include_keyword_detection:
-        for keyword in application_keywords(conn, application_id):
-            if not str(glossary.get(keyword) or "").strip():
-                created.append(
-                    create_task(
-                        conn,
-                        "keyword_definition",
-                        f"Define keyword: {keyword}",
-                        application_id=application_id,
-                        instructions=f"Define {keyword} for this candidature context.",
-                        priority="medium",
-                        context_hint=f"keyword:{keyword}",
-                    )
-                )
-    optional = {"cv": include_cv, "cover_letter": include_cover_letter, "form_responses": include_form_responses}
-    for key, enabled in optional.items():
-        if not enabled:
-            continue
-        task_type, title, instructions, context_hint = INITIAL_OPTIONAL_TASKS[key]
-        created.append(create_task(conn, task_type, title, application_id=application_id, instructions=instructions, priority="normal", context_hint=context_hint))
-    return created

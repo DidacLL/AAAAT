@@ -4,20 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .provider_adapters import DEFAULT_ADAPTER_ID, adapter_definition, validate_adapter_settings
-
-DEFAULT_AUTOMATIC_TASKS = [
-    "field_inference",
-    "company_research",
-    "career_plan_review",
-]
-DEFAULT_SETTINGS = {
-    "automatic_preparation": DEFAULT_AUTOMATIC_TASKS,
-    "local_agent_adapter": {
-        "id": DEFAULT_ADAPTER_ID,
-        "settings": {},
-    },
-}
+DEFAULT_SETTINGS = {"integration": {"id": "no_ai_connection", "settings": {}}}
 
 
 def storage_directory(storage_path: str | Path) -> Path:
@@ -38,6 +25,8 @@ def ensure_workspace_config(storage_path: str | Path) -> Path:
 
 
 def load_workspace_config(storage_path: str | Path) -> dict[str, Any]:
+    from .integration_setup import validate_integration_settings
+
     target = ensure_workspace_config(storage_path)
     try:
         payload = json.loads(target.read_text(encoding="utf-8"))
@@ -45,53 +34,25 @@ def load_workspace_config(storage_path: str | Path) -> dict[str, Any]:
         raise ValueError(f"Invalid workspace settings file {target}: {exc.msg}") from exc
     if not isinstance(payload, dict):
         raise ValueError("Workspace settings must be a JSON object")
-
-    automatic = payload.get("automatic_preparation", DEFAULT_AUTOMATIC_TASKS)
-    if not isinstance(automatic, list) or any(not isinstance(item, str) or not item.strip() for item in automatic):
-        raise ValueError("automatic_preparation must be a list of task type strings")
-
-    adapter_value = payload.get("local_agent_adapter") or payload.get("provider_adapter") or DEFAULT_SETTINGS["local_agent_adapter"]
-    if not isinstance(adapter_value, dict):
-        raise ValueError("local_agent_adapter must be an object")
-    adapter_id = str(adapter_value.get("id") or DEFAULT_ADAPTER_ID)
-    if adapter_id == "manual_external_agent":
-        # v1 had not shipped when portable exchange was the default.  Treat that
-        # unreleased configuration as the new no-connection state instead of
-        # preserving a misleading manual-first setup.
-        adapter_id = DEFAULT_ADAPTER_ID
-    try:
-        adapter_definition(adapter_id)
-    except ValueError:
-        adapter_id = DEFAULT_ADAPTER_ID
-        settings: dict[str, Any] = {}
-    else:
-        settings = validate_adapter_settings(adapter_id, adapter_value.get("settings"))
-    return {
-        "automatic_preparation": list(dict.fromkeys(str(item).strip() for item in automatic if str(item).strip())),
-        "local_agent_adapter": {
-            "id": adapter_id,
-            "settings": settings,
-        },
-    }
+    selected = payload.get("integration", DEFAULT_SETTINGS["integration"])
+    if not isinstance(selected, dict):
+        raise ValueError("integration must be an object")
+    method_id = str(selected.get("id") or "no_ai_connection")
+    settings = validate_integration_settings(method_id, selected.get("settings"))
+    return {"integration": {"id": method_id, "settings": settings}}
 
 
 def save_workspace_settings(
     storage_path: str | Path,
     *,
-    automatic_preparation: list[str],
-    local_agent_adapter_id: str,
-    local_agent_adapter_settings: dict[str, Any] | None = None,
+    integration_method_id: str,
+    integration_settings: dict[str, Any] | None = None,
 ) -> Path:
-    adapter_definition(local_agent_adapter_id)
-    settings = validate_adapter_settings(local_agent_adapter_id, local_agent_adapter_settings)
+    from .integration_setup import validate_integration_settings
+
+    settings = validate_integration_settings(integration_method_id, integration_settings)
     target = config_path(storage_path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "automatic_preparation": list(dict.fromkeys(str(item).strip() for item in automatic_preparation if str(item).strip())),
-        "local_agent_adapter": {
-            "id": local_agent_adapter_id,
-            "settings": settings,
-        },
-    }
+    payload = {"integration": {"id": integration_method_id, "settings": settings}}
     target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return target

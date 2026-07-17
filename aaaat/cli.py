@@ -11,7 +11,6 @@ from typing import Any
 from . import __version__
 from .agent_access import submit_agent_task_result, task_result_ack
 from .agent_actions import submit_agent_action
-from .agent_guides import agent_guide
 from .agent_work import claim_next_agent_work
 from .artifacts import list_artifacts, save_artifact, update_artifact_state
 from .career_plans import (
@@ -35,7 +34,7 @@ from .db import (
     update_application,
     upsert_glossary_term,
 )
-from .host_connection import connection_brief, runtime_skill_document
+from .host_connection import runtime_skill_document
 from .keywords import add_keyword_alias, create_keyword_note
 from .local_data import create_local_backup, restore_local_backup
 from .mcp_server import mcp_descriptor, validate_descriptor
@@ -49,7 +48,7 @@ from .profile_facts import (
     profile_context,
     update_profile_fact,
 )
-from .provider_adapters import visible_adapters
+from .integration_setup import integration_options
 from .search import SearchUnavailable, rebuild_index, search
 from .task_runner import TaskRunner
 from .tasks import (
@@ -58,6 +57,7 @@ from .tasks import (
     create_task,
     get_task,
     list_tasks,
+    retry_task,
     update_task,
 )
 from .templates import RenderFailure, TemplateVariableError, render_document_artifact
@@ -111,13 +111,13 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
     config.add_parser("show")
-    adapters = config.add_parser("adapters")
-    adapters.add_argument("--include-advanced", action="store_true")
-    adapter_set = config.add_parser("set-adapter")
-    adapter_set.add_argument("adapter_id")
-    adapter_set.add_argument("--argv", action="append", default=[])
-    adapter_set.add_argument("--timeout-seconds", type=int)
-    adapter_set.add_argument("--automatic-task", action="append", default=[])
+    methods = config.add_parser("methods")
+    methods.add_argument("--include-advanced", action="store_true")
+    method_set = config.add_parser("set-method")
+    method_set.add_argument("method_id")
+    method_set.add_argument("--argv", action="append", default=[])
+    method_set.add_argument("--timeout-seconds", type=int)
+    method_set.add_argument("--directory")
 
     agent = sub.add_parser("agent").add_subparsers(
         dest="agent_command",
@@ -155,7 +155,6 @@ def build_parser() -> argparse.ArgumentParser:
         "host",
         help="Host-only connected-LLM setup controls.",
     ).add_subparsers(dest="host_command", required=True)
-    host.add_parser("brief", help="Return the host-only connection brief.")
     host.add_parser(
         "skill",
         help="Print the packaged AAAAT skill.",
@@ -209,14 +208,14 @@ def build_parser() -> argparse.ArgumentParser:
     artifact_save.add_argument(
         "--state",
         default="draft",
-        choices=["draft", "reviewed", "submitted", "archived"],
+        choices=["draft", "submitted", "archived"],
     )
     artifact_update = artifact.add_parser("update-state")
     artifact_update.add_argument("artifact_id")
     artifact_update.add_argument(
         "--state",
         required=True,
-        choices=["draft", "reviewed", "submitted", "archived"],
+        choices=["draft", "submitted", "archived"],
     )
     artifact_update.add_argument("--notes")
 
@@ -312,7 +311,7 @@ def build_parser() -> argparse.ArgumentParser:
         "target-markets",
         "target-roles",
         "source",
-        "review-state",
+        "state",
     ):
         career_plan_update.add_argument(f"--{field}")
     career_plan_archive = career_plan.add_parser("archive")
@@ -412,7 +411,7 @@ def build_parser() -> argparse.ArgumentParser:
     blob_add.add_argument("--type", required=True)
     blob_add.add_argument("--title", default="")
     blob_add.add_argument("--body", required=True)
-    blob_add.add_argument("--review-state", default="draft")
+    blob_add.add_argument("--state", default="current", choices=["current", "history", "archived"])
     blob_list = blob.add_parser("list")
     blob_list.add_argument("--application-id")
 
@@ -433,7 +432,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     search_p = sub.add_parser("search")
     search_p.add_argument("query")
-    sub.add_parser("agent-guide")
     sub.add_parser("mcp-descriptor")
     sub.add_parser("mcp-validate")
     return parser
@@ -455,12 +453,14 @@ def _provided_fields(
     }
 
 
-def _adapter_settings(args: argparse.Namespace) -> dict[str, Any]:
+def _integration_settings(args: argparse.Namespace) -> dict[str, Any]:
     settings: dict[str, Any] = {}
     if args.argv:
         settings["argv"] = args.argv
     if args.timeout_seconds is not None:
         settings["timeout_seconds"] = args.timeout_seconds
+    if getattr(args, "directory", None):
+        settings["directory"] = args.directory
     return settings
 
 
@@ -475,18 +475,12 @@ def _run(argv: list[str] | None = None) -> int:
     if args.command == "restore":
         _json(restore_local_backup(args.backup, args.output))
         return 0
-    if args.command == "agent-guide":
-        print(agent_guide())
-        return 0
     if args.command == "mcp-descriptor":
         _json(mcp_descriptor())
         return 0
     if args.command == "mcp-validate":
         validate_descriptor()
         print("ok")
-        return 0
-    if args.command == "host" and args.host_command == "brief":
-        print(connection_brief())
         return 0
     if args.command == "host" and args.host_command == "skill":
         print(runtime_skill_document())
@@ -497,30 +491,18 @@ def _run(argv: list[str] | None = None) -> int:
         target.write_text(runtime_skill_document(), encoding="utf-8")
         _json({"status": "installed", "skill": "AAAAT"})
         return 0
-    if args.command == "config" and args.config_command == "adapters":
-        _json(
-            [
-                adapter.__dict__
-                for adapter in visible_adapters(
-                    include_advanced=args.include_advanced,
-                )
-            ]
-        )
+    if args.command == "config" and args.config_command == "methods":
+        _json(integration_options(include_advanced=args.include_advanced))
         return 0
     if args.command == "config" and args.config_command == "show":
         _json(load_workspace_config(args.storage))
         return 0
-    if args.command == "config" and args.config_command == "set-adapter":
-        automatic = (
-            args.automatic_task
-            or load_workspace_config(args.storage)["automatic_preparation"]
-        )
+    if args.command == "config" and args.config_command == "set-method":
         print(
             save_workspace_settings(
                 args.storage,
-                automatic_preparation=automatic,
-                local_agent_adapter_id=args.adapter_id,
-                local_agent_adapter_settings=_adapter_settings(args),
+                integration_method_id=args.method_id,
+                integration_settings=_integration_settings(args),
             )
         )
         return 0
@@ -609,7 +591,7 @@ def _run(argv: list[str] | None = None) -> int:
                     args.path,
                     args.label,
                     source_context="cli",
-                    review_state=args.state,
+                    state=args.state,
                 )
             )
         elif args.command == "artifact" and args.artifact_command == "update-state":
@@ -736,7 +718,7 @@ def _run(argv: list[str] | None = None) -> int:
                     "target_markets",
                     "target_roles",
                     "source",
-                    "review_state",
+                    "state",
                 }
                 and value is not None
             }
@@ -804,7 +786,7 @@ def _run(argv: list[str] | None = None) -> int:
         elif args.command == "task" and args.task_command == "run":
             _json(TaskRunner(args.storage).run(args.id))
         elif args.command == "task" and args.task_command == "retry":
-            _json(update_task(conn, args.id, state="queued", notes=""))
+            _json(retry_task(conn, args.id, created_by="cli_retry"))
         elif args.command == "task" and args.task_command == "cancel":
             _json(
                 update_task(
@@ -854,7 +836,7 @@ def _run(argv: list[str] | None = None) -> int:
                     args.body,
                     application_id=args.application_id,
                     title=args.title,
-                    review_state=args.review_state,
+                    state=args.state,
                     created_by="cli",
                 )
             )

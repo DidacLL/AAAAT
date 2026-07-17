@@ -24,7 +24,7 @@ class TaskTransportTests(unittest.TestCase):
             "response_format": {"type": "json_object"},
         }
         execution = execute_configured_transport(
-            "argv_custom_command",
+            "user_command",
             {"argv": ["user-connector", "--fixed"], "timeout_seconds": 30},
             work,
             run_stdio=run_stdio,
@@ -34,20 +34,20 @@ class TaskTransportTests(unittest.TestCase):
         self.assertEqual(calls[0][0], ["user-connector", "--fixed"])
         self.assertEqual(json.loads(calls[0][1] or "{}"), work)
 
-    def test_named_or_unknown_adapter_is_not_executable(self) -> None:
+    def test_unknown_method_is_not_executable(self) -> None:
         with self.assertRaisesRegex(ValueError, "not executable"):
             execute_configured_transport("named_provider", {}, {}, run_stdio=lambda *_args, **_kwargs: "{}")
 
-    def test_task_runner_delegates_to_generic_transport_boundary(self) -> None:
+    def test_task_runner_delegates_to_user_command_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             runner = TaskRunner(Path(tmp))
             expected = TransportExecution(body='{"result":"complete"}', provenance={"agent_runtime": "fixture"})
             work = {"task": {"task_capability": "taskcap_fixture"}, "input_context": {}}
             with patch("aaaat.task_runner.execute_configured_transport", return_value=expected) as execute:
-                body, provenance = runner._execute_adapter("argv_custom_command", {"argv": ["connector"]}, work)
+                body, provenance = runner._execute_method("user_command", {"argv": ["connector"]}, work)
         self.assertEqual(body, expected.body)
         self.assertEqual(provenance, expected.provenance)
-        self.assertEqual(execute.call_args.args[0], "argv_custom_command")
+        self.assertEqual(execute.call_args.args[0], "user_command")
         self.assertEqual(execute.call_args.args[2], work)
 
 

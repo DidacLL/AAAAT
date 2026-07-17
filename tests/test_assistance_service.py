@@ -23,13 +23,12 @@ class AssistanceServiceTests(unittest.TestCase):
                 failed = create_task(conn, "company_research", "Research", application_id=candidature["id"], idempotent=False)
                 update_task(conn, failed["id"], state="failed", notes="runtime failed")
             snapshot = assistance_snapshot(storage, include_advanced=True)
-            self.assertEqual(snapshot["connection_modes"][0]["id"], "guided_connector")
-            self.assertNotIn("browser_or_chat", {item["id"] for item in snapshot["connection_modes"]})
             self.assertEqual(snapshot["connection"]["state"], "ready_to_connect")
             self.assertTrue(all(bool(option["advanced"]) or option["id"] == "no_ai_connection" for option in snapshot["options"]))
-            serialized = str(snapshot["options"]).lower()
-            for forbidden in ("llama", "ollama", "codex"):
-                self.assertNotIn(forbidden, serialized)
+            self.assertEqual(
+                {option["id"] for option in snapshot["options"]},
+                {"no_ai_connection", "portable_bundle", "file_exchange", "user_command"},
+            )
             by_id = {item["id"]: item for item in snapshot["tasks"]}
             self.assertFalse(by_id[queued["id"]]["can_run"])
             self.assertTrue(by_id[failed["id"]]["can_retry"])
@@ -40,13 +39,13 @@ class AssistanceServiceTests(unittest.TestCase):
             init_db(storage)
             script = Path(tmp) / "connector.py"
             script.write_text("import json,sys; json.load(sys.stdin); print(json.dumps({'result':'ok'}))", encoding="utf-8")
-            ready = save_integration(storage, "argv_custom_command", {"argv": [sys.executable, str(script)], "timeout_seconds": 10})
+            ready = save_integration(storage, "user_command", {"argv": [sys.executable, str(script)], "timeout_seconds": 10})
             self.assertTrue(ready["saved"])
-            with patch("aaaat.integration_setup.adapter_health", return_value={"status": "error", "message": "unavailable"}):
-                failed = save_integration(storage, "argv_custom_command", {"argv": ["missing"]})
+            with patch("aaaat.integration_setup.integration_health", return_value={"status": "error", "message": "unavailable"}):
+                failed = save_integration(storage, "user_command", {"argv": ["missing"]})
             self.assertFalse(failed["saved"])
             current = assistance_snapshot(storage)["integration"]
-            self.assertEqual(current["id"], "argv_custom_command")
+            self.assertEqual(current["id"], "user_command")
             manual = use_manual_integration(storage)
             self.assertEqual(manual["id"], "no_ai_connection")
 

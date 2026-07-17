@@ -11,12 +11,11 @@ from .agent_access import build_agent_work_item, task_capability
 from .agent_work import claim_agent_work
 from .bounded_subprocess import OutputLimitExceeded, run_bounded_process
 from .db import connect, utc_now
-from .provider_adapters import adapter_definition
 from .result_ingestion import ingest_task_result
 from .subprocess_output import subprocess_failure_message
 from .task_transports import execute_configured_transport
 from .tasks import get_task
-from .workspace_config import load_workspace_config, storage_directory
+from .workspace_config import load_workspace_config
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 _MAX_STDOUT_BYTES = 2_000_000
@@ -43,29 +42,25 @@ class TaskRunner:
         self._active_task_id = task_id
         self._external_progress_count = 0
         config = load_workspace_config(self.storage_path)
-        adapter_config = config["local_agent_adapter"]
-        adapter_id = str(adapter_config["id"])
-        adapter = adapter_definition(adapter_id)
-        if not adapter.automatic_execution:
-            raise TaskRunnerError(
-                f"{adapter.title} is not an automatic integration. "
-                "Export bounded work and import its result."
-            )
+        method_config = config["integration"]
+        method_id = str(method_config["id"])
+        if method_id != "user_command":
+            raise TaskRunnerError("The selected integration method does not execute tasks automatically.")
 
         self._emit(task_id, "preparing_context", "Preparing bounded work item", 5)
         try:
             with connect(self.storage_path) as conn:
-                task = claim_agent_work(conn, task_id, target_state="in_progress", notes="")
+                task = claim_agent_work(conn, task_id, notes="")
                 work_item = build_agent_work_item(conn, task)
                 capability = task_capability(conn, task)
         except (KeyError, ValueError, sqlite3.Error) as exc:
             raise TaskRunnerError(str(exc)) from exc
 
         try:
-            self._emit(task_id, "invoking_runtime", f"Running through {adapter.title}", 25)
-            body, provenance = self._execute_adapter(
-                adapter_id,
-                adapter_config.get("settings") or {},
+            self._emit(task_id, "invoking_runtime", "Running the user-owned command", 25)
+            body, provenance = self._execute_method(
+                method_id,
+                method_config.get("settings") or {},
                 work_item,
             )
             self._emit(task_id, "validating_result", "Validating structured result", 70)
@@ -86,7 +81,7 @@ class TaskRunner:
                     capability,
                     body,
                     provenance=provenance,
-                    default_agent_runtime=f"configured-adapter:{adapter_id}",
+                    default_agent_runtime="user-owned-command",
                 )
                 final = get_task(conn, task_id)
         except (KeyError, TypeError, ValueError, sqlite3.Error) as exc:
@@ -98,14 +93,14 @@ class TaskRunner:
         self._emit(task_id, "completed", "Task completed", 100)
         return {"submitted": submitted, "task": final, "provenance": provenance}
 
-    def _execute_adapter(
+    def _execute_method(
         self,
-        adapter_id: str,
+        method_id: str,
         settings: dict[str, Any],
         context: dict[str, Any],
     ) -> tuple[str, dict[str, str]]:
         execution = execute_configured_transport(
-            adapter_id,
+            method_id,
             settings,
             context,
             run_stdio=self._run_stdio,
@@ -193,21 +188,7 @@ class TaskRunner:
             "sequence": self._sequence,
             "occurred_at": utc_now(),
         }
-        self._persist_progress(event)
         self.on_progress(event)
-
-    def _persist_progress(self, event: dict[str, Any]) -> None:
-        safe_task_id = "".join(
-            char
-            for char in str(event.get("task_id") or "")
-            if char.isalnum() or char in {"-", "_"}
-        )[:96]
-        if not safe_task_id:
-            return
-        root = storage_directory(self.storage_path) / "task-progress"
-        root.mkdir(parents=True, exist_ok=True)
-        with (root / f"{safe_task_id}.ndjson").open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
 
     def _fail(self, task_id: str, message: str) -> None:
         with connect(self.storage_path) as conn:
@@ -217,4 +198,5 @@ class TaskRunner:
                     "UPDATE tasks SET state = ?, notes = ?, updated_at = ? WHERE id = ?",
                     ("failed", message[:4000], utc_now(), task_id),
                 )
+                conn.execute("DELETE FROM agent_task_capabilities WHERE task_id = ?", (task_id,))
                 conn.commit()

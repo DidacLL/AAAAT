@@ -17,7 +17,6 @@ class LifecycleTaskSpec:
     context_hint: str
     priority: str = "normal"
     requires: tuple[str, ...] = ()
-    capability: str = "generation"
 
 
 LIFECYCLE_TASKS: tuple[LifecycleTaskSpec, ...] = (
@@ -55,7 +54,6 @@ LIFECYCLE_TASKS: tuple[LifecycleTaskSpec, ...] = (
         "candidature:company_research",
         "normal",
         ("company", "role"),
-        "research",
     ),
     LifecycleTaskSpec(
         "recruiter",
@@ -106,11 +104,11 @@ LIFECYCLE_TASKS: tuple[LifecycleTaskSpec, ...] = (
 
 INTERACTIVE_TASKS: tuple[LifecycleTaskSpec, ...] = (
     LifecycleTaskSpec(
-        "review",
+        "refresh",
         "field_inference",
-        "Review candidature details",
+        "Refresh candidature details",
         "Return only grounded fields that materially improve the candidature for the user's explicit desktop request. Do not return unrelated fields.",
-        "candidature:review",
+        "candidature:refresh",
         "high",
     ),
     LifecycleTaskSpec(
@@ -125,7 +123,7 @@ INTERACTIVE_TASKS: tuple[LifecycleTaskSpec, ...] = (
 
 TASK_SPECS = {spec.key: spec for spec in (*LIFECYCLE_TASKS, *INTERACTIVE_TASKS)}
 ACTION_TASK_KEYS = {
-    "infer_fields": "review",
+    "infer_fields": "refresh",
     "regenerate_strategy": "strategy",
     "update_company_research": "research",
     "regenerate_keywords": "keywords",
@@ -186,7 +184,7 @@ def queue_lifecycle_task(
     blocked = force_blocked or bool(missing)
     reason = "Missing prerequisites: " + ", ".join(missing) if missing else ""
     if force_blocked and not reason:
-        reason = "Waiting for the fit review and application strategy to be ready."
+        reason = "Waiting for the fit evaluation and application strategy to be ready."
     return create_task(
         conn,
         spec.task_type,
@@ -220,63 +218,6 @@ def queue_lifecycle_action(
     )
 
 
-def lifecycle_plan(conn: sqlite3.Connection, candidature_ref: str, *, research_capable: bool = False) -> list[dict[str, Any]]:
-    current = _current_values(conn, candidature_ref)
-    existing = {
-        (str(task.get("task_type") or ""), str(task.get("context_hint") or "")): task
-        for task in list_tasks(conn, application_id=candidature_ref)
-        if str(task.get("state") or "") in {"queued", "claimed", "in_progress", "blocked", "failed"}
-    }
-    plan: list[dict[str, Any]] = []
-    for spec in LIFECYCLE_TASKS:
-        if spec.capability == "research" and not research_capable:
-            plan.append(_planned(spec, "unavailable", "Selected integration does not declare research capability."))
-            continue
-        if spec.key == "forms" and not str(current.get("raw_application_form") or "").strip():
-            plan.append(_planned(spec, "not_needed", "No application form is stored."))
-            continue
-        missing = _missing_requirements(spec, current)
-        existing_task = existing.get((spec.task_type, spec.context_hint))
-        if existing_task:
-            state = str(existing_task.get("state") or "queued")
-            reason = str(existing_task.get("notes") or "")
-            if state == "blocked" and not missing:
-                state = "ready"
-                reason = "Prerequisites are now available."
-            item = _planned(spec, state, reason)
-            item["task_id"] = str(existing_task.get("id") or "")
-            plan.append(item)
-            continue
-        plan.append(_planned(spec, "blocked" if missing else "ready", "Missing prerequisites: " + ", ".join(missing) if missing else ""))
-    return plan
-
-
-def ensure_lifecycle_tasks(conn: sqlite3.Connection, candidature_ref: str, *, research_capable: bool = False) -> list[dict[str, Any]]:
-    current = _current_values(conn, candidature_ref)
-    created: list[dict[str, Any]] = []
-    for spec in LIFECYCLE_TASKS:
-        if spec.capability == "research" and not research_capable:
-            continue
-        if spec.key == "forms" and not str(current.get("raw_application_form") or "").strip():
-            continue
-        missing = _missing_requirements(spec, current)
-        created.append(
-            create_task(
-                conn,
-                spec.task_type,
-                spec.title,
-                application_id=candidature_ref,
-                instructions=spec.instructions,
-                state="blocked" if missing else "queued",
-                priority=spec.priority,
-                context_hint=spec.context_hint,
-                created_by="lifecycle_planner",
-                notes="Missing prerequisites: " + ", ".join(missing) if missing else "",
-                idempotent=True,
-            )
-        )
-    return created
-
 
 def release_ready_lifecycle_tasks(conn: sqlite3.Connection, candidature_ref: str) -> list[dict[str, Any]]:
     """Queue blocked lifecycle tasks whose required inputs are now present."""
@@ -302,16 +243,3 @@ def _current_values(conn: sqlite3.Connection, candidature_ref: str) -> dict[str,
 
 def _missing_requirements(spec: LifecycleTaskSpec, current: dict[str, Any]) -> list[str]:
     return [field for field in spec.requires if not str(current.get(field) or "").strip()]
-
-
-def _planned(spec: LifecycleTaskSpec, state: str, reason: str) -> dict[str, Any]:
-    return {
-        "key": spec.key,
-        "task_type": spec.task_type,
-        "title": spec.title,
-        "context_hint": spec.context_hint,
-        "priority": spec.priority,
-        "capability": spec.capability,
-        "state": state,
-        "reason": reason,
-    }

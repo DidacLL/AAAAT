@@ -17,6 +17,11 @@ SPEC = importlib.util.spec_from_file_location("aaaat_build_release", MODULE_PATH
 assert SPEC and SPEC.loader
 build_release = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(build_release)
+VERIFY_MODULE_PATH = ROOT / "tools" / "verify_release.py"
+VERIFY_SPEC = importlib.util.spec_from_file_location("aaaat_verify_release", VERIFY_MODULE_PATH)
+assert VERIFY_SPEC and VERIFY_SPEC.loader
+verify_release = importlib.util.module_from_spec(VERIFY_SPEC)
+VERIFY_SPEC.loader.exec_module(verify_release)
 
 
 class ReleaseBuilderTests(unittest.TestCase):
@@ -99,6 +104,46 @@ class ReleaseBuilderTests(unittest.TestCase):
             digest, filename = checksum.read_text(encoding="utf-8").split()
             self.assertEqual(digest, hashlib.sha256(b"verified release").hexdigest())
             self.assertEqual(filename, archive.name)
+
+
+    def test_release_architecture_names_are_stable(self) -> None:
+        aliases = {
+            "amd64": "x64",
+            "x86_64": "x64",
+            "x86-64": "x64",
+            "arm64": "arm64",
+            "aarch64": "arm64",
+            "riscv64": "riscv64",
+            "": "unknown",
+        }
+        for machine, expected in aliases.items():
+            with self.subTest(machine=machine):
+                self.assertEqual(build_release._architecture_label(machine), expected)
+
+    def test_release_platform_label_uses_public_asset_names(self) -> None:
+        cases = (
+            ("Windows", "AMD64", "windows-x64"),
+            ("Linux", "x86_64", "linux-x64"),
+            ("Darwin", "arm64", "macos-arm64"),
+        )
+        for system, machine, expected in cases:
+            with self.subTest(system=system, machine=machine):
+                with patch.object(build_release.platform, "system", return_value=system), patch.object(
+                    build_release.platform, "machine", return_value=machine
+                ):
+                    self.assertEqual(build_release._platform_label(), expected)
+
+    def test_release_verification_requires_the_named_aaaat_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            packaged = root / "_internal" / "aaaat" / "SKILL.md"
+            packaged.parent.mkdir(parents=True)
+            packaged.write_text("---\nname: AAAAT\n---\n", encoding="utf-8")
+            verify_release._verify_packaged_skill(root)
+
+            packaged.write_text("---\nname: other\n---\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "not named AAAAT"):
+                verify_release._verify_packaged_skill(root)
 
     def test_user_readme_requires_no_console_setup(self) -> None:
         text = build_release._user_readme()

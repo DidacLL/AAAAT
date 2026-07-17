@@ -8,7 +8,7 @@ from aaaat.keywords import add_keyword_alias, create_keyword_note, list_keywords
 from aaaat.notes import create_note, list_notes
 from aaaat.privacy import get_variable, resolve_variables, set_variable
 from aaaat.search import SearchUnavailable, rebuild_index, safe_match_query, search
-from aaaat.tasks import complete_task, create_task, ensure_initial_tasks, list_tasks
+from aaaat.tasks import complete_task, create_task, list_tasks
 from aaaat.text_blobs import create_text_blob, list_text_blobs
 from aaaat.todos import create_todo, list_todos, update_todo
 
@@ -48,7 +48,7 @@ class DomainServiceTests(unittest.TestCase):
         self.assertNotIn("profile.denied_value", agent)
         self.assertEqual(local["profile.denied_value"], "secret")
 
-    def test_candidature_related_records_and_initial_preparation_are_durable(self):
+    def test_candidature_related_records_are_durable_without_implicit_ai_work(self):
         with tempfile.TemporaryDirectory() as tmp:
             init_db(tmp)
             with connect(tmp) as conn:
@@ -58,17 +58,13 @@ class DomainServiceTests(unittest.TestCase):
                     role="Platform Engineer",
                     keywords=["Python"],
                     raw_offer="Python platform role.",
-                    include_cover_letter_task=True,
                 )
-                first = list_tasks(conn, application_id=candidature["id"])
-                ensure_initial_tasks(conn, candidature["id"], include_cover_letter=True)
-                second = list_tasks(conn, application_id=candidature["id"])
+                tasks = list_tasks(conn, application_id=candidature["id"])
                 create_todo(conn, "Call recruiter", application_id=candidature["id"], pinned=True)
                 create_note(conn, "Human note", application_id=candidature["id"])
                 create_text_blob(conn, "company_research", "Research draft", application_id=candidature["id"])
                 loaded = get_candidature(conn, candidature["id"])
-        self.assertEqual(len(first), len(second))
-        self.assertTrue({"field_inference", "company_research", "keyword_definition", "draft_cover_letter"}.issubset({item["task_type"] for item in second}))
+        self.assertEqual(tasks, [])
         self.assertEqual(loaded["domain_type"], "Candidature")
         self.assertEqual(len(loaded["todos"]), 1)
         self.assertEqual(len(loaded["notes_records"]), 1)
@@ -83,9 +79,6 @@ class DomainServiceTests(unittest.TestCase):
                     company="Apply Co",
                     role="Engineer",
                     pitch="Human pitch",
-                    include_field_inference_task=False,
-                    include_company_research_task=False,
-                    include_keyword_detection_task=False,
                 )
                 task = create_task(conn, "field_inference", "Review offer details", application_id=candidature["id"], context_hint="candidature:field_inference")
                 completed = complete_task(conn, task["id"], result_body='{"fields": {"pitch": "Generated pitch", "location": "Remote"}}')
@@ -103,9 +96,6 @@ class DomainServiceTests(unittest.TestCase):
                     company="Result Co",
                     role="Engineer",
                     company_research="Human research",
-                    include_field_inference_task=False,
-                    include_company_research_task=False,
-                    include_keyword_detection_task=False,
                 )
                 task = create_task(conn, "company_research", "Update company context", application_id=candidature["id"], context_hint="candidature:company_research")
                 completed = complete_task(conn, task["id"], result_body="Generated research")
@@ -113,7 +103,7 @@ class DomainServiceTests(unittest.TestCase):
                 blobs = list_text_blobs(conn, candidature["id"])
         self.assertEqual(loaded["company_research"], "Human research")
         self.assertIn("Stale company_research", completed["notes"])
-        self.assertTrue(any(item["blob_type"] == "company_research" and item["review_state"] == "history" for item in blobs))
+        self.assertTrue(any(item["blob_type"] == "company_research" and item["state"] == "history" for item in blobs))
 
     def test_keyword_result_updates_empty_definition(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -124,9 +114,6 @@ class DomainServiceTests(unittest.TestCase):
                     company="Keyword Co",
                     role="Engineer",
                     keywords=["NewTerm"],
-                    include_field_inference_task=False,
-                    include_company_research_task=False,
-                    include_keyword_detection_task=False,
                 )
                 task = create_task(conn, "keyword_definition", "Define term", application_id=candidature["id"], context_hint="keyword:NewTerm")
                 complete_task(conn, task["id"], result_body='{"definition": "New definition"}')
@@ -141,16 +128,13 @@ class DomainServiceTests(unittest.TestCase):
                     conn,
                     company="Artifact Co",
                     role="Writer",
-                    include_field_inference_task=False,
-                    include_company_research_task=False,
-                    include_keyword_detection_task=False,
                 )
                 artifact = save_artifact(conn, candidature["id"], "cv", "draft.tex", "CV draft", source_context="task:test")
                 task = create_task(conn, "draft_cv", "Prepare tailored CV", application_id=candidature["id"], context_hint="artifact:cv")
                 complete_task(conn, task["id"], artifact_id=artifact["id"])
                 loaded = get_candidature(conn, candidature["id"])
         current = next(item for item in loaded["artifacts"] if item["id"] == artifact["id"])
-        self.assertEqual(current["review_state"], "draft")
+        self.assertEqual(current["state"], "draft")
 
     def test_todo_note_and_text_blob_are_durable(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -160,9 +144,6 @@ class DomainServiceTests(unittest.TestCase):
                     conn,
                     company="Durable Co",
                     role="Engineer",
-                    include_field_inference_task=False,
-                    include_company_research_task=False,
-                    include_keyword_detection_task=False,
                 )
                 todo = create_todo(conn, "Prepare", application_id=candidature["id"])
                 update_todo(conn, todo["id"], state="done")

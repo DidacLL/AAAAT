@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-"""MCP metadata for AAAAT's bounded stdio services."""
+"""MCP metadata for AAAAT's small bounded stdio surfaces."""
 
 from typing import Any
 
 PROTOCOL_VERSION = "2025-06-18"
-PROGRESS_PHASES = ("accepted", "planning", "working", "waiting", "blocked", "finalizing")
 
 STRING = {"type": "string", "maxLength": 20000}
 SHORT_STRING = {"type": "string", "maxLength": 1000}
@@ -132,36 +131,34 @@ CREATE_CANDIDATURE_PAYLOAD_SCHEMA = {
 }
 
 TOOL_DESCRIPTIONS = {
-    "get_connection_status": "Read the plain AAAAT connection state and neutral assistant role for this paired workspace.",
+    "get_connection_status": "Read the plain AAAAT connection state for this paired workspace.",
     "open_workspace": "Open or focus the local wx AAAAT desktop without receiving its private path.",
-    "start_profile": "Start one bounded conversational profile task when the user chooses to add professional information.",
-    "create_candidature": "Create a new candidature from user-provided material, bounded derived outputs, and supported lifecycle requests. This never edits an existing candidature.",
-    "get_next_agent_work": "Atomically claim one complete ready AAAAT work item. The latest explicit desktop request is selected before background work.",
-    "report_agent_task_progress": "Report user-meaningful progress for one active work capability.",
+    "start_profile": "Start one bounded profile task when professional context would help the user's current work.",
+    "create_candidature": "Create a new candidature from user-provided material, supplied derived outputs and explicitly requested follow-up work. This never edits an existing candidature.",
+    "get_next_agent_work": "Atomically claim one complete ready AAAAT work item. Explicit desktop requests are selected before older background work.",
     "submit_agent_task_result": "Submit one structured result matching the claimed work item's response schema.",
     "submit_agent_action": "Submit one validated bounded action through the local maintenance MCP surface.",
 }
 
 
 def mcp_descriptor() -> dict[str, Any]:
-    """Describe the technical local MCP surface used by support fixtures."""
+    """Describe the bounded maintenance MCP surface used by local tooling."""
+
     return {
         "protocolVersion": PROTOCOL_VERSION,
-        "capabilities": {"resources": {}, "tools": {}},
-        "resources": [
-            {"uri": "aaaat://agent-guide", "name": "agent-guide", "title": "Capability-Scoped Agent Guide", "mimeType": "text/markdown"},
-        ],
+        "capabilities": {"tools": {}},
+        "resources": [],
         "tools": [
             _get_next_work_tool(),
             _submit_result_tool(),
-            _progress_tool(),
             tool("submit_agent_action", {"action": {"type": "object"}, **PROVENANCE_PROPERTIES}, ["action"]),
         ],
     }
 
 
 def host_bridge_descriptor() -> dict[str, Any]:
-    """Describe exactly the named authority available through a paired host."""
+    """Describe exactly the authority available through a paired AI host."""
+
     return {
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {"tools": {}},
@@ -176,7 +173,6 @@ def host_bridge_descriptor() -> dict[str, Any]:
                 ["payload"],
             ),
             _get_next_work_tool(),
-            _progress_tool(),
             _submit_result_tool(),
         ],
     }
@@ -195,19 +191,6 @@ def _submit_result_tool() -> dict[str, Any]:
             **PROVENANCE_PROPERTIES,
         },
         ["task_capability", "result_json"],
-    )
-
-
-def _progress_tool() -> dict[str, Any]:
-    return tool(
-        "report_agent_task_progress",
-        {
-            "task_capability": {"type": "string", "minLength": 30, "maxLength": 200},
-            "phase": {"type": "string", "enum": list(PROGRESS_PHASES)},
-            "message": SHORT_STRING,
-            "percent": {"type": "integer", "minimum": 0, "maximum": 100},
-        },
-        ["task_capability", "phase"],
     )
 
 
@@ -231,11 +214,8 @@ def validate_descriptor(descriptor: dict[str, Any] | None = None) -> bool:
     if "tools" not in capabilities:
         raise ValueError("Missing MCP capability: tools")
     resources = descriptor.get("resources", [])
-    if resources and "resources" not in capabilities:
-        raise ValueError("Descriptor exposes resources without the MCP resource capability")
-    for resource in resources:
-        if not resource.get("uri", "").startswith("aaaat://") or not resource.get("name") or not resource.get("mimeType"):
-            raise ValueError(f"Invalid MCP resource: {resource}")
+    if resources:
+        raise ValueError("AAAAT's bounded MCP surface does not expose resources")
     for item in descriptor.get("tools", []):
         schema = item.get("inputSchema", {})
         if not item.get("name") or not item.get("description") or schema.get("type") != "object" or "properties" not in schema:

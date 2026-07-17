@@ -112,7 +112,7 @@ We are looking for a pragmatic engineer to join a small product/platform team. T
 What you will do
 - Own backend services related to {focus}, integrations, and operational workflows.
 - Review existing scripts and services, identify fragile points, and replace them with simpler, observable components.
-- Work with product and operations to translate ambiguous requirements into small deliverable slices.
+- Work with product and operations to translate ambiguous requirements into small deliverable increments.
 - Improve deployment, monitoring, and incident response around systems that affect customer-facing workflows.
 - Document decisions clearly enough that another engineer can continue the work without tribal knowledge.
 
@@ -150,9 +150,6 @@ def upsert_application(conn: sqlite3.Connection, record: dict[str, Any], raw_off
         created = create_candidature(
             conn,
             **record,
-            include_field_inference_task=False,
-            include_company_research_task=False,
-            include_keyword_detection_task=False,
         )
         app_id = str(created["id"])
         result = "created"

@@ -1,4 +1,3 @@
-import importlib.metadata
 import importlib.resources
 import os
 import subprocess
@@ -41,21 +40,21 @@ class ReleaseEngineeringTests(unittest.TestCase):
     def test_runtime_and_distribution_versions_match_v1(self):
         from aaaat import __version__
 
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(__version__, "1.0.0")
-        self.assertEqual(importlib.metadata.version("aaaat"), __version__)
+        self.assertEqual(project["project"]["version"], __version__)
 
     def test_distribution_metadata_identifies_license_repository_and_normal_commands(self):
-        metadata = importlib.metadata.metadata("aaaat")
-        classifiers = metadata.get_all("Classifier") or []
-        project_urls = metadata.get_all("Project-URL") or []
         project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        classifiers = project["project"]["classifiers"]
+        project_urls = project["project"]["urls"]
         console_scripts = project["project"]["scripts"]
 
         self.assertIn(
             "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
             classifiers,
         )
-        self.assertIn("Repository, https://github.com/DidacLL/AAAAT", project_urls)
+        self.assertEqual(project_urls["Repository"], "https://github.com/DidacLL/AAAAT")
         self.assertEqual(set(console_scripts), {"aaaat-desktop", "aaaat-host-bridge"})
 
 

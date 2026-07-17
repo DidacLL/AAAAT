@@ -21,8 +21,8 @@ from typing import Any
 from .db import init_db
 
 
-BRIEF_VERSION = "2"
 REQUEST_PROTOCOL = "aaaat.host-connection"
+REQUEST_VERSION = 1
 REGISTRY_VERSION = 1
 CONNECTION_PREFIX = "hostcap_"
 CONNECTED_WINDOW = timedelta(minutes=15)
@@ -33,64 +33,8 @@ class HostConnectionError(ValueError):
     """A safe, expected pairing or bridge failure."""
 
 
-def connection_brief() -> str:
-    """Return the compact host-only onboarding brief."""
-
-    return """# AAAAT connection brief (version 2)
-
-AAAAT is the user's private local job-search workspace. You are the user's
-conversational AAAAT interface and the intelligent setup layer for your own
-host. AAAAT supplies the paired bridge, bounded schemas, validation, local
-persistence, and desktop review. You supply provider-specific or host-specific
-configuration, reasoning, research, writing, and any host-owned automation the
-the host supports.
-
-## Choose the strongest route available
-
-Assess the capabilities and permission model of the current host, then implement
-the best route it supports:
-
-1. native local MCP or an equivalent tool connection;
-2. a host-owned tool or durable skill;
-3. a host-supported helper script, automation, or schedule;
-4. AAAAT portable task/result exchange when a live local route is unavailable.
-
-When the host permits configuration changes, create the required MCP entry,
-tool, skill, or helper script directly. Otherwise provide exact instructions
-for the current provider, host, and operating system. Keep these implementation
-details inside host setup and describe the result to the user in plain terms.
-
-## Verify the paired connection
-
-Use the prepared opaque connection card and its exact MCP launch configuration.
-The bridge resolves the private workspace internally. Verify initialize,
-tools/list, and ping before claiming work. The bridge tool catalogue is the
-complete local authority granted to this host.
-
-## Begin from the user's current need
-
-Introduce the benefit of keeping career direction, opportunities, preparation,
-and documents aligned. Then use the most useful starting point already present:
-connection setup, profile or career direction, an offer or link, an existing
-candidature, a recruiter call, a document gap, or general job research.
-Profile setup is the normal foundation when there is no urgent task, but it does not gate other supported work.
-
-## Use bounded AAAAT work
-
-Use the paired bridge tools to open the workspace, begin profile completion,
-create a new candidature from user-supplied material, and claim one complete work item at a time.
-Report progress and submit one validated result using the work item's declared
-schema. AAAAT privately binds its callback capability to local records and
-applies valid results directly.
-
-Assisted profile and candidature results update only the fields permitted by the bounded task. Unsupported or superseded material may remain as history. New
-keyword definitions fill missing definitions; established canonical definitions
-remain unchanged.
-"""
-
-
 def runtime_skill_document() -> str:
-    """Return the packaged AAAAT skill bundled with AAAAT."""
+    """Return the single packaged AAAAT instruction used by connected LLMs."""
 
     return files("aaaat").joinpath("SKILL.md").read_text(encoding="utf-8")
 
@@ -109,12 +53,7 @@ def registry_path() -> Path:
 
 
 def host_bridge_executable() -> str:
-    """Locate the paired bridge without exposing private workspace details.
-
-    A package or installer may set ``AAAAT_HOST_BRIDGE_EXECUTABLE``. The
-    portable release layout is resolved relative to the frozen desktop; source
-    installations fall back to the installed console entry point.
-    """
+    """Locate the paired bridge without exposing private workspace details."""
 
     configured = os.environ.get("AAAAT_HOST_BRIDGE_EXECUTABLE", "").strip()
     if configured:
@@ -134,7 +73,7 @@ def host_bridge_executable() -> str:
 
 
 def bridge_launch_contract(capability: str) -> dict[str, Any]:
-    """Return the host-only stdio launch configuration for one pairing."""
+    """Return the exact provider-neutral stdio launch configuration."""
 
     return {
         "transport": "stdio",
@@ -162,8 +101,10 @@ def create_connection(storage: str | Path) -> dict[str, str]:
     return {"connection_capability": capability, "state": "ready"}
 
 
-def create_connection_request(storage: str | Path) -> dict[str, str]:
-    """Prepare one opaque handoff card for the host that owns this workspace."""
+def create_connection_request(storage: str | Path) -> dict[str, Any]:
+    """Prepare one opaque connection card for the host that owns this workspace."""
+
+    from .mcp_server import host_bridge_descriptor
 
     workspace = str(Path(storage).resolve())
     registry = _read_registry()
@@ -173,57 +114,45 @@ def create_connection_request(storage: str | Path) -> dict[str, str]:
             entry["revoked_at"] = now
     _write_registry(registry)
     pairing = create_connection(workspace)
+    capability = pairing["connection_capability"]
     return {
         "protocol": REQUEST_PROTOCOL,
-        "brief_version": BRIEF_VERSION,
-        "connection_capability": pairing["connection_capability"],
+        "version": REQUEST_VERSION,
+        "connection_capability": capability,
+        "mcp": bridge_launch_contract(capability),
+        "tools": host_bridge_descriptor()["tools"],
+        "fallback": "Use AAAAT portable task/result exchange when a live local tool connection is unavailable.",
     }
 
 
 def connection_handoff_message(storage: str | Path) -> str:
-    """Create the self-contained host-only message copied by the desktop."""
+    """Create the self-contained connection request copied by the desktop."""
 
-    request = create_connection_request(storage)
-    card = {
-        **request,
-        "mcp": bridge_launch_contract(request["connection_capability"]),
-    }
+    card = create_connection_request(storage)
     return (
-        "# AAAAT connection request for the AI host\n\n"
-        "AAAAT has prepared this connection request for the current host. Use this material "
-        "inside host setup, complete the strongest supported configuration, and "
-        "report the result to the user in plain language.\n\n"
-        + connection_brief()
-        + "\n## Host launch contract\n\n"
-        "For local MCP or stdio tools, use the exact `mcp` command and arguments "
-        "in the opaque connection card below. The launch shape is "
-        "`aaaat-host-bridge --connection <connection_capability>`; do not add a "
-        "workspace, storage, database, or repository argument. Initialize, "
-        "discover tools, and ping before requesting work.\n\n"
-        "## Opaque connection card\n\n"
-        + json.dumps(card, ensure_ascii=False, separators=(",", ":"))
+        "# Connect this AI host to AAAAT\n\n"
+        "Use the AAAAT skill below as the behavioral instruction for this workspace. "
+        "Choose the strongest local connection route supported by the current host. "
+        "For MCP or equivalent stdio tools, use the exact command and arguments in the connection card, "
+        "perform normal initialization and tool discovery, then continue in plain language. "
+        "Do not ask the user to run a connector test suite.\n\n"
+        "## AAAAT skill\n\n"
+        + runtime_skill_document().rstrip()
+        + "\n\n## Opaque connection card\n\n```json\n"
+        + json.dumps(card, ensure_ascii=False, indent=2)
+        + "\n```\n"
     )
 
 
 def export_host_pack(storage: str | Path, directory: str | Path) -> dict[str, str]:
-    """Write a host-private connection pack to a selected integration folder."""
+    """Write the same skill and connection card for a file-capable host."""
 
-    request = create_connection_request(storage)
+    card = create_connection_request(storage)
     target = Path(directory) / "AAAAT"
     target.mkdir(parents=True, exist_ok=True)
     (target / "SKILL.md").write_text(runtime_skill_document(), encoding="utf-8")
     (target / "aaaat-connection.json").write_text(
-        json.dumps(
-            {
-                "protocol": REQUEST_PROTOCOL,
-                "brief_version": BRIEF_VERSION,
-                "connection": request,
-                "mcp": bridge_launch_contract(request["connection_capability"]),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
+        json.dumps(card, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     return {"status": "ready"}

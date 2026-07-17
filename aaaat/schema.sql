@@ -45,18 +45,6 @@ CREATE TABLE IF NOT EXISTS application_keywords (
   PRIMARY KEY(application_id, term)
 );
 
-CREATE TABLE IF NOT EXISTS agent_suggestions (
-  id TEXT PRIMARY KEY,
-  application_id TEXT REFERENCES applications(id),
-  field_name TEXT NOT NULL,
-  value TEXT NOT NULL,
-  source_context TEXT DEFAULT '',
-  agent_name TEXT DEFAULT '',
-  agent_runtime TEXT DEFAULT '',
-  review_state TEXT NOT NULL DEFAULT 'draft',
-  notes TEXT DEFAULT '',
-  created_at TEXT NOT NULL
-);
 
 CREATE TABLE IF NOT EXISTS generated_artifacts (
   id TEXT PRIMARY KEY,
@@ -69,7 +57,7 @@ CREATE TABLE IF NOT EXISTS generated_artifacts (
   agent_name TEXT DEFAULT '',
   agent_runtime TEXT DEFAULT '',
   model_provider TEXT DEFAULT '',
-  review_state TEXT NOT NULL DEFAULT 'draft',
+  state TEXT NOT NULL DEFAULT 'draft',
   notes TEXT DEFAULT ''
 );
 
@@ -136,7 +124,7 @@ CREATE TABLE IF NOT EXISTS profile_facts (
   use_for_market_research INTEGER NOT NULL DEFAULT 0,
   use_for_desktop INTEGER NOT NULL DEFAULT 1,
   source TEXT NOT NULL DEFAULT 'user',
-  review_state TEXT NOT NULL DEFAULT 'active',
+  state TEXT NOT NULL DEFAULT 'active',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   notes TEXT NOT NULL DEFAULT ''
@@ -150,7 +138,7 @@ CREATE TABLE IF NOT EXISTS career_plans (
   target_markets TEXT NOT NULL DEFAULT '[]',
   target_roles TEXT NOT NULL DEFAULT '[]',
   source TEXT NOT NULL DEFAULT 'user',
-  review_state TEXT NOT NULL DEFAULT 'active',
+  state TEXT NOT NULL DEFAULT 'active',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -162,7 +150,7 @@ CREATE TABLE IF NOT EXISTS text_blobs (
   title TEXT NOT NULL DEFAULT '',
   body TEXT NOT NULL DEFAULT '',
   source_context TEXT NOT NULL DEFAULT '',
-  review_state TEXT NOT NULL DEFAULT 'current',
+  state TEXT NOT NULL DEFAULT 'current',
   created_by TEXT NOT NULL DEFAULT 'user',
   agent_name TEXT NOT NULL DEFAULT '',
   agent_runtime TEXT NOT NULL DEFAULT '',
@@ -199,16 +187,6 @@ CREATE TABLE IF NOT EXISTS agent_task_capabilities (
   FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS agent_task_progress (
-  task_id TEXT NOT NULL,
-  sequence INTEGER NOT NULL,
-  phase TEXT NOT NULL,
-  message TEXT NOT NULL DEFAULT '',
-  percent INTEGER,
-  created_at TEXT NOT NULL,
-  PRIMARY KEY(task_id, sequence),
-  FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
-);
 
 CREATE TABLE IF NOT EXISTS notes (
   id TEXT PRIMARY KEY,

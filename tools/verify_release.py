@@ -22,7 +22,6 @@ EXPECTED_TOOLS = {
     "start_profile",
     "create_candidature",
     "get_next_agent_work",
-    "report_agent_task_progress",
     "submit_agent_task_result",
 }
 
@@ -63,6 +62,16 @@ def _verify_package_boundary(release_root: Path) -> None:
     leaked = sorted(path.name for path in release_root.iterdir() if path.name in forbidden_top_level)
     if leaked:
         raise RuntimeError("Development or private files entered the release: " + ", ".join(leaked))
+    if any(path.name == "AGENTS.md" for path in release_root.rglob("AGENTS.md")):
+        raise RuntimeError("Repository-development instructions entered the release")
+
+
+def _verify_packaged_skill(release_root: Path) -> None:
+    skills = sorted(path for path in release_root.rglob("SKILL.md") if path.is_file())
+    if not skills:
+        raise RuntimeError("Packaged AAAAT skill is missing")
+    if not any("name: AAAAT" in path.read_text(encoding="utf-8") for path in skills):
+        raise RuntimeError("Packaged skill is not named AAAAT")
 
 
 def _verify_checksum(release_root: Path) -> Path:
@@ -173,12 +182,14 @@ def _run_bridge_check(bridge: Path, environment: dict[str, str], temporary: Path
 def verify_release() -> None:
     built_root = _release_root()
     _verify_package_boundary(built_root)
+    _verify_packaged_skill(built_root)
     archive = _verify_checksum(built_root)
 
     with tempfile.TemporaryDirectory(prefix="aaaat-release-verification-") as temporary_name:
         temporary = Path(temporary_name)
         release_root = _extract_verified_archive(archive, temporary / "extracted-package")
         _verify_package_boundary(release_root)
+        _verify_packaged_skill(release_root)
         desktop, bridge = _verify_executables(release_root)
 
         environment = os.environ.copy()

@@ -178,7 +178,7 @@ def _profile_fact_items(facts: list[Any]) -> list[dict[str, Any]]:
     items = []
     for fact in facts:
         if isinstance(fact, dict):
-            items.append({"fact_type": fact.get("fact_type") or "", "title": fact.get("title") or "", "body": fact.get("body") or "", "tags": list(fact.get("tags") or []), "visibility": fact.get("visibility") or "", "exposure": fact.get("exposure") or "", "source": fact.get("source") or "", "review_state": fact.get("review_state") or "", "usage": {"cv": bool(fact.get("use_for_cv")), "cover_letter": bool(fact.get("use_for_cover_letter")), "agent_context": bool(fact.get("use_for_agent_context")), "market_research": bool(fact.get("use_for_market_research")), "desktop": bool(fact.get("use_for_desktop"))}, "updated_at": fact.get("updated_at") or ""})
+            items.append({"fact_type": fact.get("fact_type") or "", "title": fact.get("title") or "", "body": fact.get("body") or "", "tags": list(fact.get("tags") or []), "visibility": fact.get("visibility") or "", "exposure": fact.get("exposure") or "", "source": fact.get("source") or "", "state": fact.get("state") or "", "usage": {"cv": bool(fact.get("use_for_cv")), "cover_letter": bool(fact.get("use_for_cover_letter")), "agent_context": bool(fact.get("use_for_agent_context")), "market_research": bool(fact.get("use_for_market_research")), "desktop": bool(fact.get("use_for_desktop"))}, "updated_at": fact.get("updated_at") or ""})
     return items
 
 
@@ -308,7 +308,7 @@ def _artifact_state_label(app: dict[str, Any] | None) -> str:
 def _artifact_items(app: dict[str, Any]) -> str:
     items = []
     for item in app.get("artifacts") or []:
-        items.append(" · ".join(str(part) for part in (item.get("artifact_type"), item.get("label"), item.get("review_state"), item.get("created_at")) if part))
+        items.append(" · ".join(str(part) for part in (item.get("artifact_type"), item.get("label"), item.get("state"), item.get("created_at")) if part))
     return "\n".join(items)
 
 
@@ -349,7 +349,7 @@ def _preparation_queue_summary(items: list[Any]) -> dict[str, Any]:
     iterable = [items] if isinstance(items, dict) else list(items or [])
     grouped: dict[str, int] = {}
     for item in iterable:
-        state = str(item.get("state") or item.get("review_state") or item.get("status") or "pending") if isinstance(item, dict) else "pending"
+        state = str(item.get("state") or item.get("state") or item.get("status") or "pending") if isinstance(item, dict) else "pending"
         grouped[state] = grouped.get(state, 0) + 1
     return {"count": len(iterable), "groups": grouped}
 

@@ -19,7 +19,7 @@ class DesktopMaterialAttachmentTests(unittest.TestCase):
 
             self.assertIsNotNone(attached)
             self.assertEqual(attached["path"], str(source))
-            self.assertEqual(attached["review_state"], "draft")
+            self.assertEqual(attached["state"], "draft")
             self.assertEqual(attached["source_context"], "desktop:attached")
             with connect(tmp) as conn:
                 events = list_artifact_events(conn, attached["id"])

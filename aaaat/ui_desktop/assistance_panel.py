@@ -351,12 +351,12 @@ class AssistancePanel(wx.ScrolledWindow):
 
     def _save(self, _event: wx.CommandEvent) -> None:
         option = self._selected_option()
-        adapter_id = str(option.get("id") or "")
-        if not adapter_id:
+        method_id = str(option.get("id") or "")
+        if not method_id:
             return
         self.integration_status.SetLabel("Validating local settings…")
         try:
-            result = self.on_save_integration(adapter_id, self._settings())
+            result = self.on_save_integration(method_id, self._settings())
         except Exception as exc:
             self.integration_status.SetLabel(str(exc))
             return

@@ -1,65 +1,56 @@
 from __future__ import annotations
 
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from aaaat.integration_setup import configure_integration, connection_modes, current_integration, disable_automatic_integration, integration_options
-from aaaat.provider_adapters import adapter_capabilities
+from aaaat.integration_setup import (
+    configure_integration,
+    current_integration,
+    disconnect_integration,
+    integration_health,
+    integration_options,
+)
 from aaaat.workspace_config import load_workspace_config
 
 
 class IntegrationSetupTests(unittest.TestCase):
-    def test_connection_modes_are_user_intent_first(self) -> None:
-        modes = connection_modes()
-        self.assertEqual(modes[0]["id"], "guided_connector")
-        self.assertEqual(modes[0]["adapter_ids"], [])
-        self.assertNotIn("browser_or_chat", [item["id"] for item in modes])
-        self.assertIn("manual_external_agent", modes[-1]["adapter_ids"])
-
-    def test_default_options_expose_a_no_connection_state_not_portable_exchange(self) -> None:
+    def test_default_options_expose_only_the_local_no_connection_state(self) -> None:
         self.assertEqual([item["id"] for item in integration_options()], ["no_ai_connection"])
 
-    def test_advanced_options_are_provider_neutral(self) -> None:
+    def test_advanced_methods_are_fixed_provider_neutral_primitives(self) -> None:
         options = integration_options(include_advanced=True)
         ids = {item["id"] for item in options}
-        self.assertEqual(ids, {"no_ai_connection", "manual_external_agent", "file_exchange", "argv_custom_command"})
-        command = next(item for item in options if item["id"] == "argv_custom_command")
-        self.assertEqual(command["capabilities"]["transport_kind"], "stdio")
-        self.assertTrue(command["capabilities"]["progress"])
-        serialized = str(options).lower()
-        for forbidden in ("llama", "ollama", "codex", "model name", "endpoint"):
-            self.assertNotIn(forbidden, serialized)
-
-    def test_capabilities_are_declared_by_generic_adapter(self) -> None:
-        disconnected = adapter_capabilities("no_ai_connection")
-        manual = adapter_capabilities("manual_external_agent")
-        command = adapter_capabilities("argv_custom_command")
-        self.assertEqual(disconnected["transport_kind"], "none")
-        self.assertFalse(manual["automatic"])
-        self.assertEqual(manual["transport_kind"], "portable_bundle")
+        self.assertEqual(ids, {"no_ai_connection", "portable_bundle", "file_exchange", "user_command"})
+        command = next(item for item in options if item["id"] == "user_command")
         self.assertTrue(command["automatic"])
-        self.assertEqual(command["credential_ownership"], "external-host")
+        field_keys = {field["key"] for item in options for field in item["fields"]}
+        self.assertEqual(field_keys, {"directory", "argv", "timeout_seconds"})
 
-    def test_failed_health_does_not_replace_current_configuration(self) -> None:
+    def test_failed_command_validation_does_not_replace_current_configuration(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             before = current_integration(storage)
-            with patch("aaaat.integration_setup.adapter_health", return_value={"status": "error", "message": "command unavailable"}):
-                result = configure_integration(storage, "argv_custom_command", {"argv": ["missing"]})
+            result = configure_integration(storage, "user_command", {"argv": ["missing-aaaat-command"]})
             self.assertFalse(result["saved"])
             self.assertEqual(current_integration(storage)["id"], before["id"])
 
-    def test_ready_generic_command_is_persisted_and_can_be_disabled(self) -> None:
+    def test_ready_user_command_is_persisted_and_can_be_disabled(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            with patch("aaaat.integration_setup.adapter_health", return_value={"status": "ready", "message": "verified"}):
-                result = configure_integration(storage, "argv_custom_command", {"argv": ["connector"], "timeout_seconds": 30})
+            with patch("aaaat.integration_setup.shutil.which", return_value=sys.executable):
+                result = configure_integration(
+                    storage,
+                    "user_command",
+                    {"argv": [sys.executable], "timeout_seconds": 30},
+                )
             self.assertTrue(result["saved"])
-            selected = load_workspace_config(storage)["local_agent_adapter"]
-            self.assertEqual(selected["id"], "argv_custom_command")
-            disabled = disable_automatic_integration(storage)
+            selected = load_workspace_config(storage)["integration"]
+            self.assertEqual(selected["id"], "user_command")
+            self.assertEqual(integration_health("portable_bundle")["status"], "ready")
+            disabled = disconnect_integration(storage)
             self.assertEqual(disabled["id"], "no_ai_connection")
 
 

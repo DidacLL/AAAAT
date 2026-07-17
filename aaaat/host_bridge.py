@@ -18,31 +18,6 @@ from .mcp_server import PROTOCOL_VERSION, host_bridge_descriptor
 VERIFICATION_METHODS = {"initialize", "tools/list", "ping"}
 BRIDGE_TOOL_NAMES = frozenset(tool["name"] for tool in host_bridge_descriptor()["tools"])
 BRIDGE_SERVER_INFO = {"name": "aaaat-host-bridge", "version": "1.0.0"}
-ASSISTANT_CONTRACT = {
-    "product": "AAAAT is the user's local job-application workspace and artifact generator.",
-    "role": "Act as the conversational intelligence for the user's job-search work while AAAAT owns local data, validation, application and rendering.",
-    "conversation": [
-        "Talk naturally; do not impose a scripted questionnaire or a universal profile-completeness rule.",
-        "Store only professional information the user chooses to provide and accept when the user says it is enough.",
-        "Use profile context when evaluating opportunities or preparing application material, and ask the user only when important context is missing for the current purpose.",
-        "When the user selects assistance in the desktop, claim the next ready work item; explicit desktop requests are prioritized.",
-    ],
-    "capabilities": [
-        "add professional profile information",
-        "create a candidature from user-provided material",
-        "extract and evaluate opportunity information",
-        "prepare application strategy, company research, recruiter and interview material",
-        "prepare form answers, tailored CV material and cover-letter content",
-        "report progress and submit bounded results",
-    ],
-    "boundaries": [
-        "Do not request or inspect the private workspace, repository, database, application files or unrelated folders.",
-        "Use only the tools and complete work items provided by this paired connection.",
-        "Do not invent internal identifiers, paths, replacement controls or unsupported actions.",
-        "Provider, model, credentials, research tools and host configuration remain owned by this LLM host.",
-    ],
-}
-
 
 def _desktop_launch_command(storage: str) -> list[str]:
     """Return the private desktop command for source and installed runtimes."""
@@ -98,12 +73,6 @@ def _tool_result(request_id: Any, value: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _connection_contract(storage: str) -> dict[str, Any]:
-    status = dict(connection_status(storage))
-    status["assistant_contract"] = ASSISTANT_CONTRACT
-    return status
-
-
 def _bridge_request(storage: str, connection: str, request: dict[str, Any]) -> dict[str, Any] | None:
     """Dispatch one request without widening paired-host authority."""
     request_id = request.get("id")
@@ -118,8 +87,8 @@ def _bridge_request(storage: str, connection: str, request: dict[str, Any]) -> d
                 "capabilities": {"tools": {"listChanged": False}},
                 "serverInfo": BRIDGE_SERVER_INFO,
                 "instructions": (
-                    "Verify this connection, read get_connection_status for the neutral AAAAT assistant contract, "
-                    "then use only paired tools and complete bounded work items."
+                    "Use the installed AAAAT skill and listed bounded tools. "
+                    "The bridge grants no authority beyond this catalogue."
                 ),
             },
         )
@@ -144,7 +113,7 @@ def _bridge_request(storage: str, connection: str, request: dict[str, Any]) -> d
     if name == "get_connection_status":
         if arguments:
             return _error(request_id, -32602, "get_connection_status does not accept arguments")
-        return _tool_result(request_id, _connection_contract(storage))
+        return _tool_result(request_id, connection_status(storage))
     if name == "open_workspace":
         if arguments:
             return _error(request_id, -32602, "open_workspace does not accept arguments")
@@ -194,7 +163,7 @@ def run_host_bridge(connection: str, input_stream: TextIO | None = None, output_
             storage = resolve_connection(connection)
             method = request.get("method")
             if method == "tools/call" and not verified:
-                response = _error(request_id, -32002, "Finish connection verification before requesting work.")
+                response = _error(request_id, -32002, "Complete normal MCP initialization, tool discovery and ping before requesting work.")
             else:
                 response = _bridge_request(str(storage), connection, request)
             if response and "result" in response:

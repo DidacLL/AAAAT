@@ -53,12 +53,8 @@ class DesktopCommandService:
                 priority="normal",
                 raw_offer=text,
                 created_by="desktop",
-                include_field_inference_task=False,
-                include_company_research_task=False,
-                include_keyword_detection_task=False,
             )
             candidature_ref = str(created.get("id") or "")
-            queue_lifecycle_task(conn, candidature_ref, "extract", created_by="desktop", idempotent=True)
             if request_cv:
                 queue_lifecycle_action(conn, candidature_ref, "generate_cv", force_blocked=True)
             if request_cover_letter:
@@ -182,7 +178,7 @@ class DesktopCommandService:
                 str(target),
                 cleaned_label,
                 source_context="desktop:attached",
-                review_state="draft",
+                state="draft",
                 notes="Attached from an existing local file.",
                 lifecycle_event="attach",
             )
@@ -270,11 +266,7 @@ class DesktopCommandService:
             applications = conn.execute("SELECT COUNT(*), COALESCE(MAX(updated_at), '') FROM applications").fetchone()
             tasks = conn.execute("SELECT COUNT(*), COALESCE(MAX(updated_at), '') FROM tasks").fetchone()
             artifacts = conn.execute("SELECT COUNT(*), COALESCE(MAX(created_at), '') FROM generated_artifacts").fetchone()
-            progress = (0, "")
-            table = conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'agent_task_progress'").fetchone()
-            if table:
-                progress = conn.execute("SELECT COUNT(*), COALESCE(MAX(created_at), '') FROM agent_task_progress").fetchone()
-            return tuple(applications) + tuple(tasks) + tuple(artifacts) + tuple(progress)
+            return tuple(applications) + tuple(tasks) + tuple(artifacts)
 
 
 def _document_inputs_ready(candidature: dict[str, Any]) -> bool:

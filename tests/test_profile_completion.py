@@ -82,7 +82,7 @@ class ProfileCompletionTaskTests(unittest.TestCase):
             init_db(storage)
             task = create_profile_completion_task(storage)
             with connect(storage) as conn:
-                claim_agent_work(conn, str(task["id"]))
+                task = claim_agent_work(conn, str(task["id"]))
                 capability = task_capability(conn, task)
                 with self.assertRaisesRegex(ValueError, "not permitted"):
                     submit_agent_task_result(
@@ -99,41 +99,38 @@ class ProfileCompletionTaskTests(unittest.TestCase):
             init_db(storage)
             save_workspace_settings(
                 storage,
-                automatic_preparation=[],
-                local_agent_adapter_id="argv_custom_command",
-                local_agent_adapter_settings={
+                integration_method_id="user_command",
+                integration_settings={
                     "argv": ["local-runtime-connector", "--fixed"],
                     "timeout_seconds": 30,
                 },
             )
             with patch(
-                "aaaat.integration_readiness.adapter_health",
+                "aaaat.integration_setup.integration_health",
                 return_value={"status": "ready", "message": "Local command found."},
             ) as health:
                 readiness = integration_readiness(storage)
             self.assertEqual(readiness["status"], "ready")
-            self.assertEqual(readiness["adapter_id"], "argv_custom_command")
+            self.assertEqual(readiness["method_id"], "user_command")
             health.assert_called_once()
             serialized = json.dumps(readiness)
             for forbidden in (
                 "challenge_nonce",
-                "conformance",
                 "certification",
                 "storage_path",
                 str(storage),
             ):
                 self.assertNotIn(forbidden, serialized)
 
-    def test_runner_emits_ordered_progress_phases(self) -> None:
+    def test_runner_emits_transient_status_events(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             init_db(storage)
             task = create_profile_completion_task(storage)
             save_workspace_settings(
                 storage,
-                automatic_preparation=[],
-                local_agent_adapter_id="argv_custom_command",
-                local_agent_adapter_settings={
+                integration_method_id="user_command",
+                integration_settings={
                     "argv": ["fake"],
                     "timeout_seconds": 30,
                 },
@@ -142,7 +139,7 @@ class ProfileCompletionTaskTests(unittest.TestCase):
             runner = TaskRunner(storage, on_progress=events.append)
             with patch.object(
                 runner,
-                "_execute_adapter",
+                "_execute_method",
                 return_value=(
                     json.dumps(
                         {

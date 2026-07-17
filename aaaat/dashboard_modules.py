@@ -94,7 +94,7 @@ DEFAULT_MODULES: tuple[ModuleDefinition, ...] = (
     ModuleDefinition(
         "artifacts",
         "Artifacts",
-        "Current generated artifacts and review state.",
+        "Current generated artifacts and lifecycle state.",
         ("smart", "detailed"),
         {"smart": True, "detailed": True},
         {"smart": "right", "detailed": "left"},
@@ -129,17 +129,7 @@ DEFAULT_MODULES: tuple[ModuleDefinition, ...] = (
         {"smart": False},
         {"smart": "right"},
         (300, 180),
-        ("review_answers",),
-    ),
-    ModuleDefinition(
-        "agent_suggestions",
-        "Agent suggestions",
-        "Human-facing review queue and generated suggestions.",
-        ("smart",),
-        {"smart": False},
-        {"smart": "right"},
-        (300, 180),
-        ("review",),
+        ("open_answers",),
     ),
     ModuleDefinition(
         "detailed_table",
@@ -164,12 +154,12 @@ DEFAULT_MODULES: tuple[ModuleDefinition, ...] = (
     ModuleDefinition(
         "task_queue",
         "Task queue",
-        "Human-facing task status summary for review and follow-up.",
+        "Task status summary and follow-up actions.",
         ("detailed",),
         {"detailed": True},
         {"detailed": "right"},
         (300, 320),
-        ("review_task",),
+        ("open_task",),
     ),
     ModuleDefinition(
         "profile_summary",

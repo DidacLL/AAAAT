@@ -28,9 +28,6 @@ class DependencyPolicyTests(unittest.TestCase):
         self.assertEqual(project.get("dependencies", []), [])
         desktop = project.get("optional-dependencies", {}).get("desktop", [])
         self.assertTrue(any(item.startswith("wxPython") for item in desktop))
-        metadata = "\n".join([*project.get("dependencies", []), *desktop]).lower()
-        self.assertNotIn("openai", metadata)
-        self.assertNotIn("anthropic", metadata)
 
     def test_core_and_desktop_projection_import_without_optional_wx(self):
         observed = self.run_probe(

@@ -19,7 +19,6 @@ class PairedToolCatalogueTests(unittest.TestCase):
                 "start_profile",
                 "create_candidature",
                 "get_next_agent_work",
-                "report_agent_task_progress",
                 "submit_agent_task_result",
             },
         )

@@ -109,10 +109,8 @@ def submit_agent_action(
     agent_name: str = "",
     agent_runtime: str = "",
     model_provider: str = "",
-    expose_internal_ids: bool = False,
     storage_path: str = ".private",
 ) -> dict[str, Any]:
-    _ = expose_internal_ids
     packet = parse_action_packet(action)
     if packet["action"] == "create_candidature":
         return _create_candidature_action(
@@ -230,17 +228,6 @@ def _create_candidature_action(
         fields["created_by"] = "agent"
     fields.setdefault("status", "active")
     fields.setdefault("priority", "normal")
-    fields.update(
-        {
-            "include_field_inference_task": False,
-            "include_company_research_task": False,
-            "include_keyword_detection_task": True,
-            "include_cv_task": False,
-            "include_cover_letter_task": False,
-            "include_form_responses_task": False,
-        }
-    )
-
     created = create_candidature(conn, **fields)
     application_id = str(created["id"])
 
@@ -293,8 +280,6 @@ def _create_candidature_action(
         render_document_artifact(conn, "cv", output_path, application_id, save_version=True)
         rendered["cv"] = True
 
-    if source_material.get("offer_text") and not str(fields.get("company") or "").strip():
-        queue_lifecycle_task(conn, application_id, "extract", created_by="agent_action", idempotent=True)
     queued_count = _queue_requested_tasks(
         conn,
         application_id,
@@ -454,7 +439,7 @@ def _create_agent_blob(
         application_id=application_id,
         title=title,
         source_context=source_context,
-        review_state="current" if current else "history",
+        state="current" if current else "history",
         created_by="agent",
         agent_name=agent_name,
         agent_runtime=agent_runtime,

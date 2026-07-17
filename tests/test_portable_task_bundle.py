@@ -60,8 +60,6 @@ class PortableTaskBundleTests(unittest.TestCase):
                     application_id=candidature["id"],
                     context_hint="artifact:cover_letter",
                 )
-                first_capability = task_capability(conn, first)
-                second_capability = task_capability(conn, second)
 
             bundle = Path(tmp) / "candidature.aaaat-task"
             summary = export_candidature_task_bundle(
@@ -70,6 +68,9 @@ class PortableTaskBundleTests(unittest.TestCase):
                 bundle,
             )
             self.assertEqual(summary["task_count"], 2)
+            with connect(storage) as conn:
+                first_capability = task_capability(conn, get_task(conn, first["id"]))
+                second_capability = task_capability(conn, get_task(conn, second["id"]))
             with zipfile.ZipFile(bundle) as archive:
                 payload = json.loads(archive.read("work-items.json"))
             serialized = json.dumps(payload)

@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from .provider_adapters import validate_adapter_settings
+from .integration_setup import validate_integration_settings
 
 
 class StdioRunner(Protocol):
@@ -25,16 +25,16 @@ class TransportExecution:
 
 
 def execute_configured_transport(
-    adapter_id: str,
+    method_id: str,
     settings: dict[str, Any],
     context: dict[str, Any],
     *,
     run_stdio: StdioRunner,
 ) -> TransportExecution:
     """Execute the explicit Advanced user-owned command against one bounded task."""
-    if adapter_id != "argv_custom_command":
-        raise ValueError(f"Configured adapter '{adapter_id}' is not executable")
-    normalized = validate_adapter_settings(adapter_id, settings)
+    if method_id != "user_command":
+        raise ValueError(f"Configured integration method '{method_id}' is not executable")
+    normalized = validate_integration_settings(method_id, settings)
     argv = list(normalized.get("argv") or [])
     if not argv:
         raise ValueError("User-owned command is not configured")

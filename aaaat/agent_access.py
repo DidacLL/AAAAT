@@ -112,8 +112,8 @@ _FIELD_TASKS: dict[str, dict[str, Any]] = {
         "fields": _KEYWORD_FIELDS,
         "profile_purpose": "",
     },
-    "candidature:review": {
-        "purpose": "candidature_user_requested_review",
+    "candidature:refresh": {
+        "purpose": "candidature_user_requested_refresh",
         "fields": set(FIELD_INFERENCE_ALLOWED),
         "profile_purpose": "candidature_fit",
     },
@@ -182,8 +182,8 @@ def safe_context_hint(value: str | None) -> str:
 
 def allowed_actions(task: dict[str, Any]) -> list[str]:
     state = str(task.get("state") or "")
-    if state in {"claimed", "in_progress"}:
-        return ["report_progress", "submit_result"]
+    if state == "claimed":
+        return ["submit_result"]
     return []
 
 
@@ -191,6 +191,8 @@ def task_capability(conn: sqlite3.Connection, task: dict[str, Any]) -> str:
     task_id = str(task.get("id") or "")
     if not task_id:
         raise ValueError("Task capability requires a persisted task")
+    if str(task.get("state") or "") != "claimed":
+        raise ValueError("Task capability is available only for claimed work")
     row = conn.execute(
         "SELECT capability FROM agent_task_capabilities WHERE task_id = ?",
         (task_id,),
@@ -300,7 +302,6 @@ def output_contract(task: dict[str, Any]) -> dict[str, Any]:
         "for_task_type": task_type,
         "entity_ids_allowed": False,
         "deterministic_apply_by_aaaat": True,
-        "human_review_optional": True,
         "apply_model": (
             "AAAAT validates and applies the bounded result. A single-field "
             "desktop Refresh replaces only that selected field; other conflicts "
@@ -470,10 +471,7 @@ def task_result_ack(
 ) -> dict[str, Any]:
     return {
         "status": "accepted",
-        "task": {
-            "task_capability": task_capability(conn, task),
-            "state": task.get("state", ""),
-        },
+        "state": task.get("state", ""),
         "next": ["continue_or_open_desktop"],
     }
 
@@ -672,6 +670,8 @@ def submit_agent_task_result(
             agent_name=agent_name,
             agent_runtime=agent_runtime,
         )
+    conn.execute("DELETE FROM agent_task_capabilities WHERE task_id = ?", (task["id"],))
+    conn.commit()
     return completed
 
 

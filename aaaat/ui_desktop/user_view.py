@@ -16,7 +16,6 @@ from aaaat.host_connection import (
     connection_handoff_message,
     connection_status,
     revoke_workspace_connections,
-    runtime_skill_document,
 )
 from aaaat.portable_task_bundle import (
     export_candidature_task_bundle,
@@ -195,10 +194,10 @@ class UserViewMixin:
 
     def _save_integration(
         self,
-        adapter_id: str,
+        method_id: str,
         settings: dict[str, Any],
     ) -> dict[str, Any]:
-        result = save_integration(self.storage_path, adapter_id, settings)
+        result = save_integration(self.storage_path, method_id, settings)
         self.SetStatusText(
             "Advanced integration saved"
             if result.get("saved")

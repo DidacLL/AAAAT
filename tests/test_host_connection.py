@@ -14,7 +14,6 @@ from aaaat.db import connect, init_db
 from aaaat.host_bridge import _desktop_launch_command, run_host_bridge
 from aaaat.host_connection import (
     HostConnectionError,
-    connection_brief,
     connection_handoff_message,
     connection_status,
     create_connection,
@@ -37,11 +36,6 @@ class HostConnectionTests(unittest.TestCase):
         self.environment.start()
         self.addCleanup(self.environment.stop)
 
-    def test_brief_assigns_host_specific_setup_to_the_external_llm(self) -> None:
-        brief = connection_brief()
-        self.assertNotIn(".private", brief)
-        self.assertNotIn("sqlite", brief.lower())
-
     def test_host_can_install_the_runtime_skill_without_exposing_host_paths(self) -> None:
         skill = runtime_skill_document()
         self.assertIn("name: AAAAT", skill)
@@ -62,7 +56,7 @@ class HostConnectionTests(unittest.TestCase):
         payload = (pack / "AAAAT" / "aaaat-connection.json").read_text(encoding="utf-8")
         decoded = json.loads(payload)
         self.assertTrue((pack / "AAAAT" / "SKILL.md").exists())
-        self.assertEqual(decoded["brief_version"], "2")
+        self.assertEqual(decoded["version"], 1)
         self.assertIn("aaaat-host-bridge", payload)
         self.assertNotIn(str(self.workspace), payload)
         self.assertNotIn(".private", payload)
@@ -91,7 +85,7 @@ class HostConnectionTests(unittest.TestCase):
         first = create_connection_request(self.workspace)
         second = create_connection_request(self.workspace)
         self.assertEqual(first["protocol"], "aaaat.host-connection")
-        self.assertEqual(second["brief_version"], "2")
+        self.assertEqual(second["version"], 1)
         self.assertNotEqual(first["connection_capability"], second["connection_capability"])
         self.assertNotIn(str(self.workspace), json.dumps(second))
         with self.assertRaises(HostConnectionError):
@@ -99,10 +93,11 @@ class HostConnectionTests(unittest.TestCase):
 
     def test_fresh_host_handoff_is_self_contained_without_private_workspace_details(self) -> None:
         handoff = connection_handoff_message(self.workspace)
-        self.assertIn("AAAAT connection brief (version 2)", handoff)
-        self.assertIn("aaaat-host-bridge --connection <connection_capability>", handoff)
-        self.assertIn("initialize,\ntools/list, and ping", handoff)
-        self.assertIn('"protocol":"aaaat.host-connection"', handoff)
+        self.assertIn("name: AAAAT", handoff)
+        self.assertIn('"command": "aaaat-host-bridge"', handoff)
+        self.assertIn('"tools"', handoff)
+        self.assertIn('"fallback"', handoff)
+        self.assertIn('"protocol": "aaaat.host-connection"', handoff)
         self.assertIn("hostcap_", handoff)
         self.assertNotIn(str(self.workspace), handoff)
         self.assertNotIn(".private", handoff)
@@ -270,7 +265,7 @@ class HostConnectionTests(unittest.TestCase):
         responses = [json.loads(line) for line in target.getvalue().splitlines()]
         tools = {tool["name"] for tool in responses[1]["result"]["tools"]}
         self.assertEqual(tools, {
-            "get_next_agent_work", "report_agent_task_progress", "submit_agent_task_result",
+            "get_next_agent_work", "submit_agent_task_result",
             "get_connection_status", "open_workspace", "start_profile", "create_candidature",
         })
         self.assertEqual(responses[3]["result"]["structuredContent"], {"status": "opening"})

@@ -470,7 +470,7 @@ class SmartViewMixin(OverviewBoardMixin):
         self._refresh_all()
 
     def _on_support_surface(self, _event: wx.Event) -> None:
-        wx.MessageBox("This desktop slice keeps candidature creation in existing flows.", "AAAAT Desktop")
+        wx.MessageBox("Create candidatures from Welcome View or import source material into the current workspace.", "AAAAT Desktop")
 
     def _on_reset_layout(self, _event: wx.Event) -> None:
         current_view = self.current_view

@@ -74,7 +74,6 @@ def init_db(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
         conn.executescript(Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"))
         ensure_schema_version(conn)
         seed_defaults(conn)
-        normalize_existing_application_statuses(conn)
         check_schema_version(conn)
     return target
 
@@ -98,15 +97,6 @@ def check_schema_version(conn: sqlite3.Connection) -> None:
     version = get_schema_version(conn)
     if version != SCHEMA_VERSION:
         raise RuntimeError(f"Unsupported AAAAT schema version {version}; expected {SCHEMA_VERSION}")
-
-
-def normalize_existing_application_statuses(conn: sqlite3.Connection) -> None:
-    rows = conn.execute("SELECT id, status FROM applications").fetchall()
-    for row in rows:
-        normalized = normalize_candidature_status(row["status"])
-        if normalized != row["status"]:
-            conn.execute("UPDATE applications SET status = ?, updated_at = ? WHERE id = ?", (normalized, utc_now(), row["id"]))
-    conn.commit()
 
 
 def seed_defaults(conn: sqlite3.Connection) -> None:
@@ -291,7 +281,6 @@ def delete_application(conn: sqlite3.Connection, app_id: str) -> bool:
     conn.execute("DELETE FROM candidature_details WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM raw_intake WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM application_keywords WHERE application_id = ?", (app_id,))
-    conn.execute("DELETE FROM agent_suggestions WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM generated_artifacts WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM notes WHERE application_id = ?", (app_id,))
     conn.execute("DELETE FROM applications WHERE id = ?", (app_id,))

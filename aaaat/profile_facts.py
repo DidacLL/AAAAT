@@ -25,7 +25,7 @@ FACT_TYPES = {
 }
 VISIBILITIES = {"public", "professional", "private", "sensitive"}
 EXPOSURES = {"raw", "anonymized", "summarized", "placeholder", "redacted", "denied"}
-REVIEW_STATES = {"active", "archived"}
+STATES = {"active", "archived"}
 CONTEXT_SCOPES = {"agent", "local"}
 PURPOSE_FLAGS = {
     "cv_generation": "use_for_cv",
@@ -61,7 +61,7 @@ def create_profile_fact(conn: sqlite3.Connection, **fields: Any) -> dict[str, An
         "use_for_market_research": bool_int(fields.get("use_for_market_research", False)),
         "use_for_desktop": bool_int(fields.get("use_for_desktop", True)),
         "source": fields.get("source", "user"),
-        "review_state": fields.get("review_state", "active"),
+        "state": fields.get("state", "active"),
         "created_at": now,
         "updated_at": now,
         "notes": fields.get("notes", ""),
@@ -71,11 +71,11 @@ def create_profile_fact(conn: sqlite3.Connection, **fields: Any) -> dict[str, An
         """INSERT INTO profile_facts(
           id, fact_type, title, body, tags, visibility, exposure, use_for_cv,
           use_for_cover_letter, use_for_agent_context, use_for_market_research,
-          use_for_desktop, source, review_state, created_at, updated_at, notes
+          use_for_desktop, source, state, created_at, updated_at, notes
         ) VALUES (
           :id, :fact_type, :title, :body, :tags, :visibility, :exposure, :use_for_cv,
           :use_for_cover_letter, :use_for_agent_context, :use_for_market_research,
-          :use_for_desktop, :source, :review_state, :created_at, :updated_at, :notes
+          :use_for_desktop, :source, :state, :created_at, :updated_at, :notes
         )""",
         item,
     )
@@ -94,7 +94,7 @@ def list_profile_facts(
         clauses.append("fact_type = ?")
         params.append(fact_type)
     if not include_archived:
-        clauses.append("review_state != 'archived'")
+        clauses.append("state != 'archived'")
     where = " WHERE " + " AND ".join(clauses) if clauses else ""
     rows = conn.execute(
         f"""SELECT * FROM profile_facts{where}
@@ -125,7 +125,7 @@ def update_profile_fact(conn: sqlite3.Connection, fact_id: str, **fields: Any) -
         "use_for_market_research",
         "use_for_desktop",
         "source",
-        "review_state",
+        "state",
         "notes",
     }
     updates = {key: fields[key] for key in allowed if key in fields}
@@ -149,7 +149,7 @@ def update_profile_fact(conn: sqlite3.Connection, fact_id: str, **fields: Any) -
 
 
 def archive_profile_fact(conn: sqlite3.Connection, fact_id: str) -> dict[str, Any]:
-    return update_profile_fact(conn, fact_id, review_state="archived")
+    return update_profile_fact(conn, fact_id, state="archived")
 
 
 def profile_context(conn: sqlite3.Connection, purpose: str, scope: str = "agent") -> dict[str, Any]:
@@ -208,7 +208,7 @@ def public_fact_metadata(item: dict[str, Any], denied: bool = False, include_id:
         "visibility": item["visibility"],
         "exposure": "denied" if denied else item["exposure"],
         "source": item["source"],
-        "review_state": item["review_state"],
+        "state": item["state"],
         "usage": {
             "cv": bool(item.get("use_for_cv")),
             "cover_letter": bool(item.get("use_for_cover_letter")),
@@ -255,8 +255,8 @@ def validate_fact(item: dict[str, Any]) -> None:
         raise ValueError(f"Invalid profile fact visibility: {item['visibility']}")
     if item["exposure"] not in EXPOSURES:
         raise ValueError(f"Invalid profile fact exposure: {item['exposure']}")
-    if item["review_state"] not in REVIEW_STATES:
-        raise ValueError(f"Invalid profile fact review state: {item['review_state']}")
+    if item["state"] not in STATES:
+        raise ValueError(f"Invalid profile fact state: {item['state']}")
 
 
 def encode_tags(value: Any) -> str:

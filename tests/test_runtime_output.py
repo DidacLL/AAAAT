@@ -12,7 +12,7 @@ from aaaat.tasks import create_task
 from aaaat.workspace_config import save_workspace_settings
 
 
-class RuntimeOutputAndProgressTests(unittest.TestCase):
+class RuntimeOutputTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.storage = Path(self.temporary.name) / "private"
@@ -24,15 +24,14 @@ class RuntimeOutputAndProgressTests(unittest.TestCase):
     def _configure(self, script: str) -> None:
         save_workspace_settings(
             self.storage,
-            automatic_preparation=[],
-            local_agent_adapter_id="argv_custom_command",
-            local_agent_adapter_settings={
+            integration_method_id="user_command",
+            integration_settings={
                 "argv": [sys.executable, "-c", script],
                 "timeout_seconds": 5,
             },
         )
 
-    def test_structured_stderr_progress_is_forwarded_and_persisted(self) -> None:
+    def test_structured_stderr_status_is_forwarded_without_persistence(self) -> None:
         self._configure(
             "import json,sys; sys.stdin.read(); "
             "print('diagnostic', file=sys.stderr); "
@@ -49,13 +48,8 @@ class RuntimeOutputAndProgressTests(unittest.TestCase):
         events: list[dict] = []
         TaskRunner(self.storage, on_progress=events.append).run(str(task["id"]))
         self.assertTrue(any(event["phase"] == "runtime_progress" for event in events))
-        progress_path = self.storage / "task-progress" / f"{task['id']}.ndjson"
-        self.assertTrue(progress_path.is_file())
-        stored = [
-            json.loads(line)
-            for line in progress_path.read_text(encoding="utf-8").splitlines()
-        ]
-        self.assertEqual(stored[-1]["phase"], "completed")
+        self.assertFalse((self.storage / "task-progress").exists())
+        self.assertEqual(events[-1]["phase"], "completed")
 
     def test_oversized_stdout_is_stopped_during_execution(self) -> None:
         runner = TaskRunner(self.storage)
