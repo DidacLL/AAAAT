@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .candidatures import get_candidature
-from .tasks import create_task, list_tasks, update_task
+from .tasks import FIELD_INFERENCE_ALLOWED, create_task, list_tasks, update_task
 
 
 @dataclass(frozen=True)
@@ -148,6 +148,27 @@ def lifecycle_action_spec(action_id: str) -> LifecycleTaskSpec:
     if not key:
         raise ValueError(f"Unsupported candidature action: {action_id}")
     return lifecycle_task_spec(key)
+
+
+def queue_field_task(conn: sqlite3.Connection, candidature_ref: str, field_name: str) -> dict[str, Any]:
+    field = str(field_name or "").strip()
+    if field not in FIELD_INFERENCE_ALLOWED:
+        raise ValueError(f"Unsupported assisted candidature field: {field}")
+    current = _current_values(conn, candidature_ref)
+    refreshing = bool(str(current.get(field) or "").strip())
+    return create_task(
+        conn,
+        "field_inference",
+        ("Refresh " if refreshing else "Prepare ") + field.replace("_", " "),
+        application_id=candidature_ref,
+        instructions=f"Return only {field}, grounded in the supplied bounded context.",
+        state="queued",
+        priority="high" if field in {"candidature_evaluation", "role_strategy"} else "normal",
+        context_hint=f"field:{field}",
+        created_by="desktop_action",
+        notes="Explicit desktop refresh." if refreshing else "Explicit desktop field request.",
+        idempotent=False,
+    )
 
 
 def queue_lifecycle_task(
