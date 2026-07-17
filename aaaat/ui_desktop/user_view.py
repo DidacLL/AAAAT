@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import wx  # type: ignore[import-not-found]
@@ -17,14 +16,16 @@ from aaaat.host_connection import (
     connection_status,
     revoke_workspace_connections,
 )
-from aaaat.portable_task_bundle import (
-    export_candidature_task_bundle,
-    import_candidature_result_bundle,
+from aaaat.file_exchange import (
+    exchange_status,
+    export_candidature_task_file,
+    import_result_text,
+    scan_exchange_results,
 )
 
 from .assistance_panel import AssistancePanel
 from .connector_onboarding_panel import ConnectorOnboardingPanel
-from .portable_bundle_panel import PortableBundlePanel
+from .file_exchange_panel import FileExchangePanel
 from .profile_facts_panel import ProfileFactsPanel
 from .user_panel import UserPanel
 
@@ -76,12 +77,14 @@ class UserViewMixin:
         )
         self.user_workspace.AddPage(self.connector_panel, "Connect my AI")
 
-        self.portable_bundle_panel = PortableBundlePanel(
+        self.file_exchange_panel = FileExchangePanel(
             self.user_workspace,
-            on_export=self._export_portable_bundle,
-            on_import=self._import_portable_bundle,
+            on_export=self._export_exchange_task_file,
+            on_scan=self._scan_exchange_results,
+            on_import_text=self._import_exchange_text,
+            on_status=lambda: exchange_status(self.storage_path),
         )
-        self.user_workspace.AddPage(self.portable_bundle_panel, "Advanced files")
+        self.user_workspace.AddPage(self.file_exchange_panel, "AI exchange")
 
         sizer.Add(self.user_workspace, 1, wx.ALL | wx.EXPAND, 0)
         self.view_book.AddPage(self.user_panel, "User")
@@ -218,11 +221,11 @@ class UserViewMixin:
                 "message": "AI connection guidance opened.",
             }
         if mode_id == "browser_or_chat":
-            self._select_user_workspace_page(self.portable_bundle_panel)
-            self.SetStatusText("Advanced file exchange opened")
+            self._select_user_workspace_page(self.file_exchange_panel)
+            self.SetStatusText("AI exchange opened")
             return {
                 "status": "ready",
-                "message": "Advanced file exchange opened.",
+                "message": "AI exchange opened.",
             }
         if mode_id == "advanced_integration":
             self.SetStatusText("Advanced integration settings opened")
@@ -299,7 +302,7 @@ class UserViewMixin:
         elif self.current_view == "user":
             self._refresh_user_view()
 
-    def _export_portable_bundle(self) -> dict[str, Any] | None:
+    def _export_exchange_task_file(self) -> dict[str, Any] | None:
         candidature_ref = str(self.selected_ref or "")
         if not candidature_ref:
             wx.MessageBox(
@@ -309,58 +312,35 @@ class UserViewMixin:
                 self,
             )
             return None
-        default_name = (
-            f"aaaat-candidature-tasks-{candidature_ref[-8:]}.aaaat-task.zip"
-        )
-        with wx.FileDialog(
-            self,
-            "Export bounded candidature tasks",
-            wildcard=(
-                "AAAAT task bundle (*.aaaat-task.zip)|*.aaaat-task.zip|"
-                "ZIP archive (*.zip)|*.zip"
-            ),
-            defaultFile=default_name,
-            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
-        ) as dialog:
-            if dialog.ShowModal() != wx.ID_OK:
-                return None
-            target = Path(dialog.GetPath())
-        result = export_candidature_task_bundle(
+        result = export_candidature_task_file(
             self.storage_path,
             candidature_ref,
-            target,
         )
-        self.SetStatusText(
-            str(
-                result.get("message")
-                or f"Exported {result['task_count']} item(s)"
-            )
-        )
+        self.SetStatusText(str(result.get("message") or "Task file created"))
         return result
 
-    def _import_portable_bundle(self) -> dict[str, Any] | None:
-        with wx.FileDialog(
-            self,
-            "Import AAAAT result bundle",
-            wildcard=(
-                "AAAAT result bundle (*.aaaat-result.zip)|*.aaaat-result.zip|"
-                "ZIP archive (*.zip)|*.zip"
-            ),
-            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
-        ) as dialog:
-            if dialog.ShowModal() != wx.ID_OK:
-                return None
-            source = Path(dialog.GetPath())
-        result = import_candidature_result_bundle(self.storage_path, source)
+    def _scan_exchange_results(self) -> dict[str, Any]:
+        result = scan_exchange_results(self.storage_path)
+        if int(result.get("processed_files") or 0):
+            self._rendered_view_keys.clear()
+            self._reload_projection()
+            self._refresh_all()
+            self.SetStatusText(
+                f"Applied {int(result.get('accepted_count') or 0)} returned result(s)."
+            )
+        return result
+
+    def _import_exchange_text(self, text: str) -> dict[str, Any]:
+        result = import_result_text(self.storage_path, text)
         self._rendered_view_keys.clear()
         self._reload_projection()
         self._refresh_all()
         accepted = len(result.get("accepted") or [])
         rejected = len(result.get("rejected") or [])
         self.SetStatusText(
-            f"Imported {accepted} result(s); {rejected} could not be applied."
+            f"Applied {accepted} result(s); {rejected} could not be applied."
             if rejected
-            else f"Imported {accepted} result(s)."
+            else f"Applied {accepted} copied result(s)."
         )
         return result
 
