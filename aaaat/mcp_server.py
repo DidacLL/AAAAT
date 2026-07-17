@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 PROTOCOL_VERSION = "2025-06-18"
 PROGRESS_PHASES = ("accepted", "planning", "working", "waiting", "blocked", "finalizing")
 
@@ -51,18 +50,23 @@ CANDIDATURE_SCHEMA = {
         "publication_date": SHORT_STRING,
         "application_date": SHORT_STRING,
         "tech_stack": STRING,
-        "valuation": {"type": "integer"},
+        "valuation": {"oneOf": [{"type": "integer"}, SHORT_STRING]},
     },
 }
 OUTPUTS_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
+        "candidature_evaluation": STRING,
+        "role_strategy": STRING,
+        "strengths": STRING,
+        "risks_to_avoid": STRING,
+        "questions_to_ask": STRING,
         "company_research": STRING,
         "call_signals": STRING,
         "pitch": STRING,
         "smart_question": STRING,
-        "risks_to_avoid": STRING,
+        "recruiter_material": STRING,
         "form_answers": {"oneOf": [STRING, {"type": "object"}]},
         "cover_letter_body": STRING,
         "cv_positioning": STRING,
@@ -78,7 +82,7 @@ RENDER_SCHEMA = {
 }
 REQUESTED_TASKS_SCHEMA = {
     "type": "array",
-    "maxItems": 8,
+    "maxItems": 12,
     "items": {
         "type": "object",
         "additionalProperties": False,
@@ -86,13 +90,25 @@ REQUESTED_TASKS_SCHEMA = {
             "task_type": {
                 "type": "string",
                 "enum": [
+                    "extract",
+                    "field_inference",
+                    "evaluate",
+                    "evaluation",
+                    "strategy",
+                    "application_strategy",
                     "company_research",
+                    "research",
+                    "recruiter",
+                    "recruiter_call",
+                    "interview",
+                    "interview_preparation",
                     "form_answers",
                     "draft_form_responses",
                     "cover_letter",
                     "draft_cover_letter",
                     "cv",
                     "draft_cv",
+                    "keywords",
                     "keyword_definition",
                 ],
             },
@@ -116,11 +132,11 @@ CREATE_CANDIDATURE_PAYLOAD_SCHEMA = {
 }
 
 TOOL_DESCRIPTIONS = {
-    "get_connection_status": "Read the plain AAAAT connection state for this paired workspace.",
+    "get_connection_status": "Read the plain AAAAT connection state and neutral assistant role for this paired workspace.",
     "open_workspace": "Open or focus the local wx AAAAT desktop without receiving its private path.",
-    "start_profile": "Create one bounded profile-completion work item when the user chooses profile setup.",
-    "create_candidature": "Create a new candidature from user-provided offer material and bounded derived outputs. This never edits an existing candidature.",
-    "get_next_agent_work": "Atomically claim one complete eligible AAAAT work item with its context, schema, privacy notes, and callback capability.",
+    "start_profile": "Start one bounded conversational profile task when the user chooses to add professional information.",
+    "create_candidature": "Create a new candidature from user-provided material, bounded derived outputs, and supported lifecycle requests. This never edits an existing candidature.",
+    "get_next_agent_work": "Atomically claim one complete ready AAAAT work item. The latest explicit desktop request is selected before background work.",
     "report_agent_task_progress": "Report user-meaningful progress for one active work capability.",
     "submit_agent_task_result": "Submit one structured result matching the claimed work item's response schema.",
     "submit_agent_action": "Submit one validated bounded action through the local maintenance MCP surface.",
@@ -129,7 +145,6 @@ TOOL_DESCRIPTIONS = {
 
 def mcp_descriptor() -> dict[str, Any]:
     """Describe the technical local MCP surface used by support fixtures."""
-
     return {
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {"resources": {}, "tools": {}},
@@ -140,18 +155,13 @@ def mcp_descriptor() -> dict[str, Any]:
             _get_next_work_tool(),
             _submit_result_tool(),
             _progress_tool(),
-            tool(
-                "submit_agent_action",
-                {"action": {"type": "object"}, **PROVENANCE_PROPERTIES},
-                ["action"],
-            ),
+            tool("submit_agent_action", {"action": {"type": "object"}, **PROVENANCE_PROPERTIES}, ["action"]),
         ],
     }
 
 
 def host_bridge_descriptor() -> dict[str, Any]:
     """Describe exactly the named authority available through a paired host."""
-
     return {
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {"tools": {}},
