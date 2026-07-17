@@ -1,77 +1,49 @@
 # AAAAT v1 release checklist
 
-Status: blocked. PR #45 must remain draft.
+Status: automated release gates.
 
 Implementation authority:
 
 - `docs/requirements/v1-authoritative-requirements.md`
 - `docs/planning/v1-release-requirement-gap-ledger.md`
 
-This checklist intentionally does not repeat detailed requirements. Repetition previously allowed obsolete concepts to survive in release review material.
+This checklist is intentionally short. Release validation is executable and must not become work assigned to an end user.
 
-## Automated eligibility
+## Required automated gates
 
-All items must pass:
+All items must pass from the exact candidate head:
 
-- supported Python installation and packaging;
-- complete behavioral suite;
-- Windows and Unix backup/restore;
-- upgrade idempotency and data preservation;
-- wx clean-workspace onboarding behavior;
+- wheel build and installed entry-point checks;
+- complete behavioral suite on Python 3.11, 3.12, and 3.13;
+- upgrade idempotency, backup/restore, and data-preservation tests;
+- clean-workspace onboarding and independent private-workspace behavior;
 - distinct Smart View and Detailed View contracts;
-- one candidature note and structured keyword editing;
+- manual desktop operations represented by behavioral tests;
 - standard assisted onboarding without internal jargon;
-- complete-work acquisition through independent wrappers;
-- progress/result/action canonical equivalence;
-- paired-host bridge subprocess round trip using a supplied client or fixture;
-- paired-host or portable result round trip;
-- guided profile completion and artifact rendering;
-- expected errors produce concise messages without tracebacks;
-- structural privacy, cross-task isolation, capability lifecycle, and path confinement.
+- complete bounded work acquisition through paired, portable, and Advanced wrappers;
+- progress, result, retry, cancellation, and downstream-release equivalence;
+- task-specific schemas, capability lifecycle, privacy boundaries, and path confinement;
+- complete deterministic profile and candidature lifecycle;
+- selected-candidature CV and cover-letter rendering;
+- expected errors remain concise and traceback-free;
+- native package build and verification on Windows, macOS, and Linux;
+- checksum verification and execution from the exact archive after extraction outside the repository checkout.
 
-A green Linux/Python matrix alone is not release eligibility.
+A green subset is not sufficient. Every maintained gate must pass.
 
-## Human-review eligibility
+## Distribution shape
 
-Do not ask for human review until the gap ledger is closed and the repository contains concrete executable instructions or fixtures for every requested demonstration.
-
-Human review must use actual wx workflows. It must not require the reviewer to:
-
-- fabricate or discover internal IDs;
-- manually create internal tasks;
-- infer undocumented MCP JSON-RPC messages;
-- launch a stdio server without a client;
-- design a browser native-host installation or host configuration;
-- invent a portable result format;
-- write an Advanced integration fixture from scratch;
-- interpret raw tracebacks as expected behavior;
-- validate privacy with word searches.
-
-## Build gates
-
-The release candidate must still pass:
-
-```bash
-python -m pip wheel . --no-deps --wheel-dir dist
-python -m pip install dist/aaaat-*.whl
-aaaat --version
-aaaat-desktop --help
-aaaat-upgrade --help
-aaaat-mcp --help
-aaaat-host-bridge --help
-aaaat mcp-validate
-python -m compileall -q aaaat tests
-python -B -m unittest discover -s tests
-```
-
-The complete suite must pass on Python 3.11, 3.12, and 3.13. Windows-specific backup/restore behavior must run on Windows CI or equivalent maintained validation.
+- GitHub Release assets are the platform ZIP and checksum directly. A normal user extracts once.
+- Pull-request Actions artifacts contain the runnable platform folder directly inside GitHub's unavoidable artifact ZIP wrapper. A reviewer extracts once; there is no ZIP inside the downloaded ZIP.
+- End users do not install Python, use Git, run tests, create reports, take screenshots, or follow QA scripts.
 
 ## Final decision
 
 `RELEASE_READY` requires:
 
-1. all automated eligibility items green;
-2. all human demonstrations completed on supported platforms;
-3. no unresolved release blocker in the gap ledger;
-4. PR body updated with the exact validated head and remaining non-blocking notes;
-5. direct maintainer approval.
+1. every automated gate above is green for the exact candidate head;
+2. the automated lifecycle validator reports `RELEASE_READY`;
+3. no unresolved release blocker remains in the authoritative gap ledger;
+4. the release workflow publishes only the packages produced and verified by that head.
+
+No human-in-the-loop validation gate, demonstration document, screenshot collection, or maintainer QA procedure is required.
