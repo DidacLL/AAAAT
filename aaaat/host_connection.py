@@ -13,13 +13,20 @@ import os
 import secrets
 import shutil
 import sys
-from importlib.resources import files
 from datetime import datetime, timedelta, timezone
+from importlib.resources import files
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from .db import init_db
-
+from .file_exchange import (
+    RESULT_MEDIA_TYPE,
+    RESULT_PROTOCOL,
+    TASK_MEDIA_TYPE,
+    TASK_PROTOCOL,
+    TEXT_RESULT_BEGIN,
+    TEXT_RESULT_END,
+)
 
 REQUEST_PROTOCOL = "aaaat.host-connection"
 REQUEST_VERSION = 1
@@ -121,7 +128,19 @@ def create_connection_request(storage: str | Path) -> dict[str, Any]:
         "connection_capability": capability,
         "mcp": bridge_launch_contract(capability),
         "tools": host_bridge_descriptor()["tools"],
-        "fallback": "Use AAAAT portable task/result exchange when a live local tool connection is unavailable.",
+        "fallback": {
+            "preferred": "file",
+            "task_protocol": TASK_PROTOCOL,
+            "task_media_type": TASK_MEDIA_TYPE,
+            "result_protocol": RESULT_PROTOCOL,
+            "result_media_type": RESULT_MEDIA_TYPE,
+            "text_result_begin": TEXT_RESULT_BEGIN,
+            "text_result_end": TEXT_RESULT_END,
+            "instruction": (
+                "When a reachable live tool connection is unavailable, ask the user to create a task file in AAAAT's AI exchange, "
+                "process that uploaded file, and return the exact named JSON result file. Use the tagged text result only when this host cannot create files."
+            ),
+        },
     }
 
 
@@ -132,10 +151,12 @@ def connection_handoff_message(storage: str | Path) -> str:
     return (
         "# Connect this AI host to AAAAT\n\n"
         "Use the AAAAT skill below as the behavioral instruction for this workspace. "
-        "Choose the strongest local connection route supported by the current host. "
-        "For MCP or equivalent stdio tools, use the exact command and arguments in the connection card, "
+        "First check whether AAAAT tools are already available. Choose one route that the current host can actually use. "
+        "For MCP or equivalent stdio tools, use the exact command and arguments in the connection card only when this host can launch that local command and reach the user's machine; "
         "perform normal initialization and tool discovery, then continue in plain language. "
-        "Do not ask the user to run a connector test suite.\n\n"
+        "Do not claim local access that this host does not have, and do not ask the user to run a connector test suite. "
+        "When a live connection is unavailable, continue through AAAAT's AI exchange: ask the user to create and upload the task file, then return the exact named JSON result file. "
+        f"Only when this host cannot create files, return the result once between {TEXT_RESULT_BEGIN} and {TEXT_RESULT_END}.\n\n"
         "## AAAAT skill\n\n"
         + runtime_skill_document().rstrip()
         + "\n\n## Opaque connection card\n\n```json\n"
