@@ -114,35 +114,47 @@ Generated material is stored directly as current working material. Artifact stat
 
 Choose **Connect my AI** when you want an external AI to help with bounded work.
 
-The normal flow is:
+AAAAT first offers a direct connection request:
 
-1. AAAAT prepares a connection request.
-2. Copy the request.
-3. Paste it into the AI host you already use.
-4. The host chooses the strongest supported local route.
-5. The host can carry out bounded work autonomously while AAAAT validates and applies results locally.
+1. Copy the request.
+2. Paste it into the AI host you already use.
+3. The host checks whether AAAAT tools are already available or whether it can genuinely launch and reach the supplied local bridge.
+4. When that live route is reachable, the host initializes it and works through AAAAT's bounded tools.
+5. When the host cannot reach your computer, it must not pretend that the local command will work. Continue with **AI exchange** instead.
 
 AAAAT does not ask for an AI provider, API key, model name, or model URL.
 
-The connected host can receive bounded work and return structured results. It
-cannot browse the workspace, operate the desktop, access the database, or edit
-arbitrary records.
+## AI exchange files
+
+Use the **AI exchange** page when a direct connection is unavailable:
+
+1. Select a candidature in Smart or Detailed View.
+2. Choose **Create task file for selected candidature**.
+3. AAAAT writes one bounded JSON task file under `AAAAT Exchange/pending` in your private workspace.
+4. Upload that task file to the AI.
+5. Ask the AI to return the exact JSON result filename declared in the task file.
+6. Save or move the returned file into `AAAAT Exchange/results`.
+7. AAAAT checks that folder automatically, validates the result, applies accepted items, and moves files to `processed` or `rejected`.
+
+The task file contains only the complete purpose-specific work items and their single-use callback capabilities. It does not expose your database, workspace path, unrelated candidatures, or general mutation authority.
+
+When an AI cannot generate files, copy its complete response and choose **Import copied AI response**. AAAAT reads only one result object between the supplied `<AAAAT_RESULT>` tags and ignores surrounding conversation. This tagged-text route is the final compatibility fallback, not the preferred exchange method.
 
 ## Connection status
 
-AAAAT shows one of four simple states:
+AAAAT shows one of four simple live-connection states:
 
 - **Ready to connect** — connection material is available.
-- **Connected** — the bridge has recent successful activity.
-- **Needs attention** — setup exists but recent activity indicates a problem.
-- **Paused** — assisted work is disabled until you resume it.
+- **Connected** — the direct bridge has recent successful activity.
+- **Needs attention** — direct setup exists but recent activity indicates a problem.
+- **Paused** — direct assisted work is disabled until you resume it.
 
-You do not need to run a connection test suite.
+AI exchange files remain an independent bounded carrier when no live connection is active. You do not need to run a connection test suite.
 
 ## Pause or disconnect
 
-Pause the connection when you do not want the external host to claim new work.
-Manual desktop operation remains available.
+Pause the direct connection when you do not want the external host to claim new work.
+Manual desktop operation and explicit AI exchange remain available.
 
 Connection material can be regenerated if necessary. Old or invalid capabilities
 are not general access to the workspace.
@@ -188,6 +200,5 @@ you are starting the application from that folder.
 If a workspace cannot be opened, restore from a backup rather than manually
 changing database files.
 
-If optional AI assistance needs attention, pause the connection and continue
-manually. Your candidature data and desktop workflows do not depend on the AI
-connection.
+If optional AI assistance needs attention, use AI exchange or continue manually.
+Your candidature data and desktop workflows do not depend on the AI connection.
