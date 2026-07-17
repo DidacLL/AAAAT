@@ -34,4 +34,4 @@ The maintained validation matrix passes:
 4. directly runnable pull-request artifacts for all three platforms;
 5. no unresolved blocker in the authoritative requirement gap ledger.
 
-AAAAT does not require an end user to perform QA, produce documents or screenshots, follow demonstration scripts, or approve automated behavior. Integration or merge remains a repository change decision, not a human validation gate.
+Integration or merge is handled separately from release-gate execution.
