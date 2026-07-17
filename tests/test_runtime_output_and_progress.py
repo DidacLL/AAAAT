@@ -35,7 +35,7 @@ class RuntimeOutputAndProgressTests(unittest.TestCase):
         completed = subprocess.CompletedProcess(
             args=["fake-runner"],
             returncode=0,
-            stdout='{"fields":{}}',
+            stdout='{"fields":{"company":"Example Co"}}',
             stderr='diagnostic\n{"type":"progress","message":"Reading source","percent":40}\n',
         )
         with patch("aaaat.task_runner.subprocess.run", return_value=completed):
