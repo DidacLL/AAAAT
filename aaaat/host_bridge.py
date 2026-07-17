@@ -15,20 +15,37 @@ from .host_connection import HostConnectionError, connection_status, note_connec
 from .mcp_runtime import dispatch_mcp_request
 from .mcp_server import PROTOCOL_VERSION, host_bridge_descriptor
 
-
 VERIFICATION_METHODS = {"initialize", "tools/list", "ping"}
 BRIDGE_TOOL_NAMES = frozenset(tool["name"] for tool in host_bridge_descriptor()["tools"])
 BRIDGE_SERVER_INFO = {"name": "aaaat-host-bridge", "version": "1.0.0"}
+ASSISTANT_CONTRACT = {
+    "product": "AAAAT is the user's local job-application workspace and artifact generator.",
+    "role": "Act as the conversational intelligence for the user's job-search work while AAAAT owns local data, validation, application and rendering.",
+    "conversation": [
+        "Talk naturally; do not impose a scripted questionnaire or a universal profile-completeness rule.",
+        "Store only professional information the user chooses to provide and accept when the user says it is enough.",
+        "Use profile context when evaluating opportunities or preparing application material, and ask the user only when important context is missing for the current purpose.",
+        "When the user selects assistance in the desktop, claim the next ready work item; explicit desktop requests are prioritized.",
+    ],
+    "capabilities": [
+        "add professional profile information",
+        "create a candidature from user-provided material",
+        "extract and evaluate opportunity information",
+        "prepare application strategy, company research, recruiter and interview material",
+        "prepare form answers, tailored CV material and cover-letter content",
+        "report progress and submit bounded results",
+    ],
+    "boundaries": [
+        "Do not request or inspect the private workspace, repository, database, application files or unrelated folders.",
+        "Use only the tools and complete work items provided by this paired connection.",
+        "Do not invent internal identifiers, paths, replacement controls or unsupported actions.",
+        "Provider, model, credentials, research tools and host configuration remain owned by this LLM host.",
+    ],
+}
 
 
 def _desktop_launch_command(storage: str) -> list[str]:
-    """Return the private desktop command for source and installed runtimes.
-
-    Installers may provide ``AAAAT_DESKTOP_EXECUTABLE`` for any platform. A
-    frozen bridge otherwise resolves the desktop from a small portable layout
-    and finally falls back to the installed ``aaaat-desktop`` entry point.
-    """
-
+    """Return the private desktop command for source and installed runtimes."""
     configured = os.environ.get("AAAAT_DESKTOP_EXECUTABLE", "").strip()
     if configured:
         return [configured, "--storage", storage]
@@ -42,7 +59,6 @@ def _packaged_desktop_executable() -> str:
     if "\\" in raw_executable or raw_executable.lower().endswith(".exe"):
         root = PureWindowsPath(raw_executable).parent.parent
         return str(root / "AAAAT.exe")
-
     root = Path(raw_executable).resolve().parent.parent
     if sys.platform == "darwin":
         candidates = (
@@ -59,8 +75,7 @@ def _packaged_desktop_executable() -> str:
 
 
 def _launch_installed_desktop(storage: str) -> None:
-    """Start the installed desktop while keeping its workspace private."""
-
+    """Start the packaged desktop while keeping its workspace private."""
     subprocess.Popen(_desktop_launch_command(storage), close_fds=os.name != "nt")
 
 
@@ -73,30 +88,41 @@ def _error(request_id: Any, code: int, message: str) -> dict[str, Any]:
 
 
 def _tool_result(request_id: Any, value: dict[str, Any]) -> dict[str, Any]:
-    return _result(request_id, {
-        "content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False)}],
-        "structuredContent": value,
-        "isError": False,
-    })
+    return _result(
+        request_id,
+        {
+            "content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False)}],
+            "structuredContent": value,
+            "isError": False,
+        },
+    )
+
+
+def _connection_contract(storage: str) -> dict[str, Any]:
+    status = dict(connection_status(storage))
+    status["assistant_contract"] = ASSISTANT_CONTRACT
+    return status
 
 
 def _bridge_request(storage: str, connection: str, request: dict[str, Any]) -> dict[str, Any] | None:
     """Dispatch one request without widening paired-host authority."""
-
     request_id = request.get("id")
     method = request.get("method")
     if method == "notifications/initialized":
         return None
     if method == "initialize":
-        return _result(request_id, {
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {"tools": {"listChanged": False}},
-            "serverInfo": BRIDGE_SERVER_INFO,
-            "instructions": (
-                "Use only the paired AAAAT tools discovered from this connection. "
-                "Begin from the user's current job-search need and claim complete bounded work only after verification."
-            ),
-        })
+        return _result(
+            request_id,
+            {
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {"tools": {"listChanged": False}},
+                "serverInfo": BRIDGE_SERVER_INFO,
+                "instructions": (
+                    "Verify this connection, read get_connection_status for the neutral AAAAT assistant contract, "
+                    "then use only paired tools and complete bounded work items."
+                ),
+            },
+        )
     if method == "ping":
         return _result(request_id, {})
     if method == "tools/list":
@@ -118,7 +144,7 @@ def _bridge_request(storage: str, connection: str, request: dict[str, Any]) -> d
     if name == "get_connection_status":
         if arguments:
             return _error(request_id, -32602, "get_connection_status does not accept arguments")
-        return _tool_result(request_id, connection_status(storage))
+        return _tool_result(request_id, _connection_contract(storage))
     if name == "open_workspace":
         if arguments:
             return _error(request_id, -32602, "open_workspace does not accept arguments")
@@ -131,22 +157,25 @@ def _bridge_request(storage: str, connection: str, request: dict[str, Any]) -> d
         if not isinstance(payload, dict):
             return _error(request_id, -32602, "create_candidature requires an object payload")
         provenance = {
-            key: value for key, value in arguments.items()
+            key: value
+            for key, value in arguments.items()
             if key in {"agent_name", "agent_runtime", "model_provider"}
         }
         provenance["action"] = {"action": name, "payload": payload}
-        return dispatch_mcp_request(storage, {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "method": "tools/call",
-            "params": {"name": "submit_agent_action", "arguments": provenance},
-        })
+        return dispatch_mcp_request(
+            storage,
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "method": "tools/call",
+                "params": {"name": "submit_agent_action", "arguments": provenance},
+            },
+        )
     return dispatch_mcp_request(storage, request)
 
 
 def run_host_bridge(connection: str, input_stream: TextIO | None = None, output_stream: TextIO | None = None) -> int:
     """Run the limited paired-host surface after resolving a connection once."""
-
     storage = resolve_connection(connection)
     source = input_stream or sys.stdin
     target = output_stream or sys.stdout
