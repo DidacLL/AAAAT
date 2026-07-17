@@ -30,7 +30,7 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
             self,
             label=(
                 "Open the AI you already use and ask it to connect to AAAAT. "
-                "It will choose the best connection it can support and explain any host permission needed for setup."
+                "It will choose the best connection it can actually support. If a live connection is unavailable, use the AI exchange task file instead."
             ),
         )
         description.Wrap(760)
@@ -64,8 +64,8 @@ class ConnectorOnboardingPanel(wx.ScrolledWindow):
         copy_help = wx.StaticText(
             self,
             label=(
-                "Paste the copied request into your AI. It will configure the strongest connection available to it, "
-                "or explain the safe fallback it can use."
+                "Paste the copied request into your AI. It will use a reachable direct connection when possible, "
+                "or tell you to create an AI exchange task file and return a result file."
             ),
         )
         copy_help.Wrap(760)
