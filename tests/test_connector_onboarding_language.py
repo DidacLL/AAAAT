@@ -19,8 +19,11 @@ class ConnectorOnboardingLanguageTests(unittest.TestCase):
         ).lower()
 
         self.assertIn("connect my ai", visible_text)
-        self.assertIn("save setup for my ai", visible_text)
-        self.assertIn("copy setup message", visible_text)
+        self.assertIn("copy connection request", visible_text)
+        self.assertIn("choose the best connection", visible_text)
+        self.assertIn("no ai is required", visible_text)
+        self.assertNotIn("choose a folder", visible_text)
+        self.assertNotIn("save setup for my ai", visible_text)
         for forbidden in (
             "mcp",
             "executable",
