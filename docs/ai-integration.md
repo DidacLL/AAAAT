@@ -12,15 +12,25 @@ The external host owns model and provider selection, credentials, network access
 
 `aaaat/SKILL.md` is the only installed LLM-facing instruction and its skill name is `AAAAT`.
 
-The copied connection request embeds that exact document. File-capable hosts receive the same document as `AAAAT/SKILL.md`. Repository files such as `AGENTS.md`, tests, development documentation, and build tooling are not part of the installed contract.
+The copied connection request embeds that exact document. Packaged desktop and bridge applications contain the same skill as application data. Repository files such as `AGENTS.md`, `CLAUDE.md`, tests, development documentation, and build tooling are not part of the installed runtime contract.
 
-## Connect my AI
+## V1 bridge routes
 
-When the user chooses **Connect my AI**, AAAAT creates one revocable opaque connection capability and one self-contained request. The request tells the current host to choose the strongest local route it supports without exposing the workspace path.
+AAAAT uses one bounded task/result contract over three carriers:
 
-For a normal MCP or equivalent stdio route, the request contains the exact bridge command, its `--connection` argument, and the complete bounded tool schemas. The host performs its ordinary initialization and tool discovery. AAAAT does not ask the user to run a connector test suite.
+1. direct MCP or an equivalent live tool connection when the host can genuinely reach and initialize it;
+2. watched-folder JSON task and result files when a live route is unavailable;
+3. one tagged JSON result in chat text only when the host cannot create files.
 
-The connection states shown to the user are Ready to connect, Connected, Needs attention, and Paused.
+The host selects one route it can actually use. It must not claim access to a local executable, drive, folder, or machine that is outside its environment.
+
+## Direct connection
+
+When the user chooses **Connect my AI**, AAAAT creates one revocable opaque connection capability and one self-contained request. The request includes the exact stdio bridge command, its `--connection` argument, and the complete bounded tool schemas without exposing the workspace path.
+
+A local-capable host performs ordinary initialization and tool discovery. A remote host that cannot launch or reach the command continues through AI exchange rather than sending the user into an unusable local setup path. AAAAT does not ask the user to run a connector test suite.
+
+The direct connection states shown to the user are Ready to connect, Connected, Needs attention, and Paused.
 
 ## Bounded tool catalogue
 
@@ -37,9 +47,28 @@ Creating a candidature through the bridge is a bounded direct action. It stores 
 
 The host cannot enumerate arbitrary records, use internal IDs as general mutation handles, execute the repository CLI, browse files, read the database, learn the workspace path, or control desktop widgets.
 
+## AI exchange
+
+AAAAT creates a workspace-owned `AAAAT Exchange` directory with four subdirectories:
+
+- `pending` contains uploadable task JSON files;
+- `results` is watched for returned result JSON files;
+- `processed` receives fully accepted task and result files;
+- `rejected` receives invalid files and concise error reports.
+
+Creating a task file atomically claims the eligible work for the selected candidature and writes complete bounded work items, the exact expected result envelope, and the required result filename. The returned file is processed only after it has remained stable long enough to avoid reading a partial download.
+
+Each result section is applied through the same transport-neutral ingestion function used by the live bridge. Invalid authority fields, schemas, capabilities, duplicate callbacks, and malformed envelopes are rejected. A partially valid file applies independent valid sections but keeps the original task file pending so omitted work can be corrected. Successfully used task capabilities cannot be reused.
+
+## Tagged text compatibility
+
+Some AI hosts cannot generate files. Their task file instructs them to return the same result envelope once between `<AAAAT_RESULT>` and `</AAAAT_RESULT>`.
+
+AAAAT may receive the complete conversational response, but it extracts only one uniquely tagged JSON object and ignores surrounding prose. Multiple tagged objects, invalid JSON, or ambiguous content are rejected. This carrier exists for compatibility and is not preferred over result files.
+
 ## Work items and capabilities
 
-A claimed work item contains its purpose, task-specific context, instructions, permitted fields, result schema, privacy notes, and one opaque callback capability.
+A work item contains its purpose, task-specific context, instructions, permitted fields, result schema, privacy notes, and one opaque callback capability.
 
 That capability exists only for the current claimed attempt. It is not a record identifier. AAAAT invalidates it when the task completes, fails, is cancelled, or is returned to the queue.
 
@@ -63,11 +92,5 @@ Before data leaves AAAAT:
 - result payloads are bounded and schema-validated.
 
 Privacy therefore does not depend on a person inspecting hidden reasoning or approving every generated field.
-
-## Portable and advanced fallbacks
-
-When a live local tool route is unavailable, AAAAT can export bounded task bundles and import validated result bundles.
-
-Advanced users may also configure a controlled exchange directory or one explicit user-owned command. These are simple transport primitives over the same bounded contract, not provider integrations or a connector catalogue.
 
 Without a connection, candidatures continue to save, manual editing and rendering remain available, queued work may remain queued indefinitely, and backup, search, Smart View, and Detailed View continue to work.
