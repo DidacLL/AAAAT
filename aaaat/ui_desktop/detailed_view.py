@@ -4,7 +4,7 @@ from typing import Any
 
 import wx  # type: ignore[import-not-found]
 
-from .candidature_right_panel import CandidatureDetailBodyPanel
+from .candidature_right_panel import CandidatureDetailBodyPanel, FIELD_ACTIONS
 from .detail_columns import available_column_ids, column_title, normalize_visible_columns
 from .detail_table import DetailTable
 from .release_right_panel import ReleaseCandidatureOptionsPanel
@@ -12,6 +12,41 @@ from .release_right_panel import ReleaseCandidatureOptionsPanel
 DEFAULT_DETAILED_FRAME_WIDTH = 1280
 DEFAULT_DETAILED_LEFT = 330
 DEFAULT_DETAILED_RIGHT = 300
+
+# Detailed View owns the user-facing action semantics for each editable field.
+# Single-field actions carry the exact field in their bounded task. Broader
+# operations use the canonical lifecycle registry.
+FIELD_ACTIONS.clear()
+FIELD_ACTIONS.update(
+    {
+        "company": ("field:company", "Infer", "Refresh"),
+        "role": ("field:role", "Infer", "Refresh"),
+        "source_url": ("field:source_url", "Infer", "Refresh"),
+        "location": ("field:location", "Infer", "Refresh"),
+        "remote_mode": ("field:remote_mode", "Infer", "Refresh"),
+        "salary_expectation": ("field:salary_expectation", "Infer", "Refresh"),
+        "publication_date": ("field:publication_date", "Infer", "Refresh"),
+        "application_date": ("field:application_date", "Infer", "Refresh"),
+        "description": ("field:description", "Infer", "Refresh"),
+        "offer_snapshot": ("field:offer_snapshot", "Infer", "Refresh"),
+        "candidature_evaluation": ("field:candidature_evaluation", "Assess fit", "Refresh fit"),
+        "strengths": ("field:strengths", "Prepare", "Refresh"),
+        "risks_to_avoid": ("field:risks_to_avoid", "Prepare", "Refresh"),
+        "questions_to_ask": ("field:questions_to_ask", "Prepare", "Refresh"),
+        "tech_stack": ("field:tech_stack", "Infer", "Refresh"),
+        "valuation": ("field:valuation", "Assess", "Refresh"),
+        "role_strategy": ("regenerate_strategy", "Prepare", "Refresh"),
+        "company_research": ("update_company_research", "Research", "Refresh"),
+        "call_signals": ("field:call_signals", "Prepare", "Refresh"),
+        "pitch": ("field:pitch", "Draft", "Refresh"),
+        "smart_question": ("field:smart_question", "Draft", "Refresh"),
+        "recruiter_material": ("prepare_recruiter_call", "Prepare", "Refresh"),
+        "keywords": ("regenerate_keywords", "Extract", "Refresh"),
+        "form_answers": ("prepare_form_answers", "Draft", "Refresh"),
+        "cv_material": ("generate_cv", "Draft CV", "Refresh CV"),
+        "cover_letter_material": ("generate_cover_letter", "Draft letter", "Refresh letter"),
+    }
+)
 
 
 class DetailedViewMixin:
@@ -32,11 +67,11 @@ class DetailedViewMixin:
         toolbar.Add(self.detailed_search, 1, wx.ALL | wx.EXPAND, 6)
         toolbar.Add(self.detailed_columns_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 6)
         sizer.Add(toolbar, 0, wx.EXPAND)
-        self.detailed_splitter = wx.SplitterWindow(self.detailed_panel, style=wx.SP_LIVE_UPDATE)
-        self.detailed_splitter.SetMinimumPaneSize(1)
+        self.detailed_splitter = wx.SplitterWindow(self.detailed_panel)
+        self.detailed_splitter.SetMinimumPaneSize(240)
         self.detail_table = DetailTable(self.detailed_splitter, on_select=self._select_detailed_ref)
-        self.detailed_body_splitter = wx.SplitterWindow(self.detailed_splitter, style=wx.SP_LIVE_UPDATE)
-        self.detailed_body_splitter.SetMinimumPaneSize(1)
+        self.detailed_body_splitter = wx.SplitterWindow(self.detailed_splitter)
+        self.detailed_body_splitter.SetMinimumPaneSize(220)
         self.detail_body_panel = CandidatureDetailBodyPanel(
             self.detailed_body_splitter,
             on_save=self._save_candidature_panel_edits,
