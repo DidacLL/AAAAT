@@ -1,6 +1,6 @@
 # AAAAT v1 release readiness status
 
-Status: LIFECYCLE AND RELEASE-CONFORMANCE CORRECTIONS IMPLEMENTED; AUTOMATED VALIDATION RUNNING.
+Status: AUTOMATED LIFECYCLE AND PACKAGE VALIDATION PASSED; RELEASE CANDIDATE ELIGIBLE.
 
 Branch: `didacll/v1-lifecycle-conformance`
 Base reviewed head: `c9f1713375c532cf67543a3f2c6262d740f2fcea`
@@ -21,16 +21,17 @@ Base reviewed head: `c9f1713375c532cf67543a3f2c6262d740f2fcea`
 - the open wx desktop refreshes after paired or portable results;
 - the paired status tool returns a provider-neutral AAAAT assistant contract without a plugin framework or broad resource surface;
 - host-originated candidature creation can request all defined V1 assistance stages through the same lifecycle definitions;
-- release verification checks the checksum, extracts the exact platform archive outside the repository checkout, and runs the packaged desktop and bridge from that extracted copy;
+- release verification checks the checksum, extracts the exact platform archive outside the repository checkout, preserves packaged executable permissions, and runs the packaged desktop and bridge from that extracted copy;
 - pull-request artifacts contain the runnable platform folder directly, avoiding a nested installation ZIP.
 
-## Release decision
+## Automated release evidence
 
-`RELEASE_READY` is determined by maintained executable gates:
+The maintained validation matrix passes:
 
-1. complete behavioral matrix on Python 3.11, 3.12, and 3.13;
+1. complete behavioral suite on Python 3.11, 3.12, and 3.13;
 2. native package build and extracted-archive verification on Windows, macOS, and Linux;
 3. deterministic provider-neutral lifecycle validation reporting `RELEASE_READY`;
-4. no unresolved blocker in the authoritative requirement gap ledger.
+4. directly runnable pull-request artifacts for all three platforms;
+5. no unresolved blocker in the authoritative requirement gap ledger.
 
 AAAAT does not require an end user to perform QA, produce documents or screenshots, follow demonstration scripts, or approve automated behavior. Integration or merge remains a repository change decision, not a human validation gate.
