@@ -1,15 +1,17 @@
 # Local release validation
 
-Status: automated evidence only; human review remains pending.
+Status: automated release validation.
 
-Do not use historical validation commands as a human-review script. Earlier versions required fabricated internal IDs, obsolete split task/context operations, interactive stdio servers without clients, and superficial privacy checks.
+AAAAT does not assign QA work, documentation, screenshots, or approval procedures to the end user. Release confidence comes from executable checks maintained with the product.
 
-The active implementation and acceptance sources are:
+The active validation sources are:
 
 - `docs/requirements/v1-authoritative-requirements.md`
 - `docs/planning/v1-release-requirement-gap-ledger.md`
 - `docs/release-checklist.md`
 
-`aaaat-release-validate` provides developer evidence and now follows the complete-work contract. Its passing result does not by itself establish human-review eligibility; real wx and external-host demonstrations remain required.
+`aaaat-release-validate` executes the provider-neutral application lifecycle with deterministic fixtures: profile context, candidature extraction and preparation, paired-host work, portable exchange, retry semantics, privacy boundaries, rendering, and desktop projection visibility.
 
-A replacement human-review procedure must be written only after the required wx workflows, wrapper fixtures, Windows backup/restore, guided rendering, and expected-error handling are implemented. That procedure must use actual user actions and supplied deterministic fixtures. It must not ask the reviewer to design missing product behavior.
+`tools/verify_release.py` verifies the archive checksum, extracts the exact release ZIP into a temporary directory outside the repository checkout, and runs the packaged desktop startup check and paired bridge from that extracted copy.
+
+A failing automated gate blocks release. A passing automated gate does not create follow-up work for a human user.
