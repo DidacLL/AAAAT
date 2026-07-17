@@ -18,7 +18,15 @@ class ResultIngestionTests(unittest.TestCase):
                 '{"result":"ok"}',
                 provenance={"agent_name": "Agent", "agent_runtime": "http-wrapper", "model_provider": "provider:model"},
             )
-        self.assertEqual(result, {"status": "accepted", "state": "completed", "next": ["review_in_aaaat"]})
+        self.assertEqual(
+            result,
+            {
+                "status": "accepted",
+                "state": "completed",
+                "released_work": 0,
+                "next": ["continue_or_open_desktop"],
+            },
+        )
         self.assertEqual(submit.call_args.args[1], _CAPABILITY)
         self.assertEqual(submit.call_args.kwargs["agent_runtime"], "http-wrapper")
         self.assertIn('"result": "ok"', submit.call_args.args[2])
@@ -44,10 +52,10 @@ class ResultIngestionTests(unittest.TestCase):
                 _CAPABILITY,
                 {"result": "ok"},
                 default_agent_name="portable-bundle",
-                default_agent_runtime="browser-or-manual",
+                default_agent_runtime="portable-exchange",
             )
         self.assertEqual(submit.call_args.kwargs["agent_name"], "portable-bundle")
-        self.assertEqual(submit.call_args.kwargs["agent_runtime"], "browser-or-manual")
+        self.assertEqual(submit.call_args.kwargs["agent_runtime"], "portable-exchange")
 
 
 if __name__ == "__main__":
