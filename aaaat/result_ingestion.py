@@ -5,6 +5,7 @@ import sqlite3
 from typing import Any, Mapping
 
 from .agent_access import TASK_CAPABILITY_PREFIX, submit_agent_task_result
+from .artifacts import update_artifact_state
 from .candidature_lifecycle import release_ready_lifecycle_tasks
 
 _FORBIDDEN_AUTHORITY_KEYS = {
@@ -51,6 +52,9 @@ def ingest_task_result(
         agent_runtime=agent_runtime,
         model_provider=model_provider,
     )
+    artifact_id = str(completed.get("artifact_id") or "")
+    if artifact_id and str(completed.get("task_type") or "") in {"draft_cv", "draft_cover_letter"}:
+        update_artifact_state(conn, artifact_id, "draft", "Generated material; review remains optional and user-controlled.")
     candidature_ref = str(completed.get("application_id") or "")
     released = release_ready_lifecycle_tasks(conn, candidature_ref) if candidature_ref else []
     return {
