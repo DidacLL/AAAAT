@@ -1,53 +1,48 @@
 # AAAAT User Guide
 
-AAAAT keeps your job search in one private place: your professional profile,
-opportunities, application preparation, interview notes, and drafts.
+AAAAT keeps your job search in one private local workspace: professional context, opportunities, application preparation, recruiter and interview notes, drafts, and generated material.
 
 ## First use
 
-Open AAAAT. A welcome dialog explains the private workspace before the main
-workspace appears. Use the recommended private location or choose another
-location on this computer. The workspace remains separate from the application
-and from folders shared with a chat or AI host, and application updates do not
-remove it.
+Open AAAAT. A welcome dialog explains the private workspace before the main window appears. Use the recommended private location or choose another location on this computer. The workspace remains separate from the application and from folders managed by an AI host, and application updates do not remove it.
 
-You can use AAAAT entirely from its desktop screens. Existing profile,
-candidature, keyword, and document values remain yours to edit and review there.
+You can use AAAAT entirely from its desktop screens. Manual creation, editing, notes, keywords, profile information, rendering, and material tracking do not require an AI connection.
 
 ## Connect my AI
 
-Choose **Connect my AI** when you want an AI conversation to work alongside the
-local workspace. AAAAT prepares a separate connection package for that AI host.
-The selected LLM then checks what its own environment supports and guides the
-setup in ordinary language.
+Choose **Connect my AI** when you want an existing AI conversation to work alongside AAAAT. AAAAT copies one provider-neutral connection request. The selected LLM assesses what its own environment supports and guides any host-side configuration in ordinary language.
 
-A capable host may configure native MCP or tools, install a host-owned skill,
-create an approved helper script or automation, or use portable task/result
-exchange when no live local route is possible. Provider and operating-system
-details stay inside the AI host's setup. You do not need to understand commands,
-ports, storage paths, internal identifiers, or model configuration.
+A capable host may use local MCP or native tools, represent the supplied guide in a host-owned skill, create an approved helper script or automation, or use portable task/result exchange when no live local route is possible. AAAAT does not install provider plugins, select a provider, store provider credentials, or decide how the host manages its own configuration.
 
-The connection is optional and can be paused or revoked in AAAAT. A host should
-state plainly whether it is connected, needs attention, or is using the portable
-fallback.
+You do not need to understand commands, ports, storage paths, internal identifiers, or model configuration. The connection is optional and can be paused or replaced in AAAAT. The host should state plainly whether it is connected, needs attention, or is using portable exchange.
 
-## Working with your real situation
+## Conversational use
 
-You may begin with whichever situation is useful now: profile setup, career
-direction, a job offer or link, an existing candidature, a recruiter call,
-general research, or missing information required for a document.
+The connected LLM acts as AAAAT's conversational intelligence. It can discuss professional context, create a candidature from material you provide, and help with the bounded work AAAAT exposes.
 
-The connected AI can create a candidature from material you provide and can
-complete only the bounded preparation AAAAT makes available. It cannot browse
-the workspace freely or replace existing user-owned values. Review resulting
-information and drafts in the desktop app.
+Conversation is flexible. There is no mandatory questionnaire, universal profile-completeness score, or fixed question order. You choose what professional information to provide and when it is enough. Opportunity evaluation and application material use the professional context available for that purpose; the LLM may ask when important context is missing, but it must not repeatedly request declined information.
+
+Supported candidature work includes:
+
+- extracting grounded offer details;
+- evaluating opportunity fit;
+- preparing an application strategy;
+- company research;
+- recruiter-call and interview preparation;
+- application-form answers;
+- tailored CV material;
+- cover-letter content.
+
+The most recent assistance action selected in Detailed View is handled before background work. Blocked work waits until its prerequisites exist. Progress and accepted results appear in the open desktop without restarting it.
+
+## Local material
+
+Detailed View can render the selected candidature's prepared CV and cover-letter content into controlled local artifact files. When required profile values are missing, AAAAT directs you to User/Profile instead of exposing a technical traceback.
+
+Generated material starts as a draft. You may open it, edit its label or notes, mark it reviewed, mark it sent, or move it to older versions. Review is optional; AAAAT does not falsely mark generated material as reviewed.
 
 ## Keeping control
 
-AAAAT never chooses your AI provider or stores its credentials. The AI host uses
-its own permissions and reasoning tools. AAAAT keeps the private workspace,
-controls what each work item contains, validates returned work, preserves
-canonical keyword definitions, and leaves ordinary edits under your control.
+AAAAT never gives the connected host general access to the private workspace. Each work item contains only the context, schema, privacy information, and callback authority required for that purpose. The host cannot browse candidatures, choose local paths, mutate by internal identifiers, or replace existing profile values and canonical keyword definitions by adding control flags.
 
-For backup, restore, or technical recovery, use the separate maintenance path
-with a trusted maintainer or support process.
+For backup, restore, or technical recovery, use the separate maintenance path with a trusted maintainer or support process.
