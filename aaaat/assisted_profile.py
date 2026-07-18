@@ -43,6 +43,8 @@ def profile_completion_context(conn: sqlite3.Connection) -> dict[str, Any]:
         "instructions": [
             "Discuss the professional profile naturally and follow the user's chosen level of detail.",
             "Store only grounded values the user chooses to provide for eligible missing fields.",
+            "Return variables as one object with eligible profile keys and one plain JSON string per value.",
+            "Flatten lists, timelines, projects and other structured material into readable text; do not return arrays or nested objects as profile values.",
             "The user decides when the supplied profile information is enough for their current purpose.",
             "Existing non-empty desktop values are protected; their raw contents are intentionally not included here.",
             "Omit fields that the user does not provide or does not want to include.",
@@ -63,6 +65,22 @@ def parse_profile_completion_result(result_body: str) -> dict[str, Any]:
     return variables
 
 
+def validate_profile_completion_result(result_body: str) -> dict[str, str]:
+    """Validate and normalize one profile result without changing local state."""
+    variables = parse_profile_completion_result(result_body)
+    if len(variables) > 64:
+        raise ValueError("Profile updates must contain at most 64 values")
+    normalized: dict[str, str] = {}
+    for raw_key, value in variables.items():
+        key = str(raw_key).strip()
+        if key not in PROFILE_COMPLETION_KEYS or key in DENIED_PROFILE_KEYS:
+            raise ValueError(f"Profile variable is not permitted: {key}")
+        if not isinstance(value, str) or len(value) > 20000:
+            raise ValueError(f"Profile variable must be bounded text: {key}")
+        normalized[key] = value.strip()
+    return normalized
+
+
 def apply_profile_completion_result(
     conn: sqlite3.Connection,
     result_body: str,
@@ -70,7 +88,7 @@ def apply_profile_completion_result(
     agent_name: str = "",
     agent_runtime: str = "",
 ) -> dict[str, Any]:
-    variables = parse_profile_completion_result(result_body)
+    variables = validate_profile_completion_result(result_body)
     current = profile_variables(conn)
     bounded: dict[str, Any] = {}
     retained: list[str] = []

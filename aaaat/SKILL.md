@@ -40,6 +40,8 @@ A work item contains the complete context and authority for that operation. Its 
 
 Follow the declared result schema exactly. Return only supported fields. AAAAT binds the result to the correct local records and chooses local storage and artifact paths.
 
+For profile-completion work, return `variables` with only eligible keys from the work item and one plain JSON string per value. Flatten lists, timelines, projects, education and experience into readable text instead of arrays or nested objects. When AAAAT returns a retryable validation error, correct the payload and reuse the same task capability; do not claim new work.
+
 ## Preserve factual integrity
 
 Ground factual fields in user-supplied material, existing AAAAT data, or clearly identified research. Do not fabricate company, role, location, identity, contact, employment, education, salary, application, or recruiter facts.

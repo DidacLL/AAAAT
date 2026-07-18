@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, TextIO
@@ -60,17 +61,43 @@ def dispatch_mcp_request(storage: str | Path, request: dict[str, Any]) -> dict[s
                     "isError": False,
                 },
             )
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError) as exc:
+        detail, retryable = _safe_tool_rejection(exc)
         return _result(
             request_id,
             {
-                "content": [{"type": "text", "text": "AAAAT could not complete this request. Check the bounded input and try again."}],
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"AAAAT rejected the bounded request: {detail} "
+                            + ("Correct the payload and retry the same task capability." if retryable else "Request or claim a new bounded task before continuing.")
+                        ),
+                    }
+                ],
+                "structuredContent": {
+                    "status": "rejected",
+                    "retryable": retryable,
+                    "error": detail,
+                },
                 "isError": True,
             },
         )
     except Exception:
         return _error(request_id, -32603, "AAAAT could not complete this request.")
     return _error(request_id, -32601, "Method not found")
+
+
+def _safe_tool_rejection(exc: Exception) -> tuple[str, bool]:
+    if isinstance(exc, KeyError):
+        return "Task capability is unavailable or already spent.", False
+    detail = " ".join(str(exc).strip().strip("'").split())
+    if not detail:
+        detail = "The bounded input is invalid."
+    detail = re.sub(r"\b(?:task|app|artifact|blob|profile)_[A-Za-z0-9_-]+\b", "[internal reference]", detail)
+    detail = detail[:500]
+    retryable = "not accepting results" not in detail.lower()
+    return detail, retryable
 
 
 def _call_tool(storage: str | Path, name: str, arguments: dict[str, Any]) -> dict[str, Any]:

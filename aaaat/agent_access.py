@@ -5,7 +5,11 @@ import secrets
 import sqlite3
 from typing import Any
 
-from .assisted_profile import apply_profile_completion_result, profile_completion_context
+from .assisted_profile import (
+    PROFILE_COMPLETION_KEYS,
+    apply_profile_completion_result,
+    profile_completion_context,
+)
 from .candidatures import get_candidature_details
 from .career_plans import career_plan_context
 from .db import application_keywords, get_application, list_raw_intake, utc_now
@@ -318,7 +322,7 @@ def _writes_description(task: dict[str, Any]) -> str:
         return "Only these candidature fields under fields: " + allowed
     return {
         "profile_completion": (
-            "Eligible missing profile variables under variables. Existing values are retained."
+            "Eligible missing profile variables under variables, with one plain text string per value. Existing values are retained."
         ),
         "company_research": "Company research text for the selected candidature.",
         "keyword_definition": (
@@ -351,7 +355,15 @@ def response_format(task: dict[str, Any]) -> dict[str, Any]:
             "type": "json_object",
             "required": ["variables"],
             "additional_properties": False,
-            "schema": {"variables": {"type": "object"}},
+            "schema": {
+                "variables": {
+                    "type": "object",
+                    "allowed_fields": list(PROFILE_COMPLETION_KEYS),
+                    "additional_properties": False,
+                    "value_type": "string",
+                    "max_value_length": 20000,
+                }
+            },
         },
         "company_research": {
             "type": "json_object",

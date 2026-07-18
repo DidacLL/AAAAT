@@ -4,6 +4,7 @@ import json
 import sqlite3
 from typing import Any
 
+from .assisted_profile import validate_profile_completion_result
 from .db import new_id, row_to_dict, upsert_glossary_term, utc_now
 from .text_blobs import create_text_blob, get_text_blob, update_text_blob
 
@@ -226,6 +227,8 @@ def complete_task(
     model_provider: str = "",
 ) -> dict[str, Any]:
     task = get_task(conn, task_id)
+    if result_body and str(task.get("task_type") or "") == "profile_completion":
+        validate_profile_completion_result(result_body)
     result_blob_id = task.get("result_blob_id")
     if result_body:
         blob = create_text_blob(

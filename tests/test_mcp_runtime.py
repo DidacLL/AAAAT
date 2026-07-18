@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 
-from aaaat.db import connect, ensure_workspace_database
+from aaaat.db import connect, ensure_workspace_database, profile_variables
 from aaaat.mcp_runtime import dispatch_mcp_request, run_stdio_server
 from aaaat.tasks import create_task, get_task
 
@@ -95,6 +95,85 @@ class McpRuntimeTests(unittest.TestCase):
             self.assertTrue(duplicate["result"]["isError"])
             with connect(tmp) as conn:
                 self.assertEqual(get_task(conn, task["id"])["state"], "completed")
+
+    def test_profile_validation_error_is_specific_retryable_and_does_not_spend_capability(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ensure_workspace_database(tmp)
+            with connect(tmp) as conn:
+                task = create_task(
+                    conn,
+                    "profile_completion",
+                    "Complete profile",
+                    context_hint="profile:completion",
+                    idempotent=False,
+                )
+            claimed = dispatch_mcp_request(
+                tmp,
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {"name": "get_next_agent_work", "arguments": {}},
+                },
+            )
+            work = claimed["result"]["structuredContent"]["work"]
+            capability = work["task"]["task_capability"]
+            self.assertEqual(
+                work["response_format"]["schema"]["variables"]["value_type"],
+                "string",
+            )
+
+            rejected = dispatch_mcp_request(
+                tmp,
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "submit_agent_task_result",
+                        "arguments": {
+                            "task_capability": capability,
+                            "result_json": {
+                                "variables": {
+                                    "profile.links": ["https://example.test"]
+                                }
+                            },
+                        },
+                    },
+                },
+            )
+            self.assertTrue(rejected["result"]["isError"])
+            self.assertTrue(rejected["result"]["structuredContent"]["retryable"])
+            self.assertIn("profile.links", rejected["result"]["structuredContent"]["error"])
+            with connect(tmp) as conn:
+                self.assertEqual(get_task(conn, task["id"])["state"], "claimed")
+
+            accepted = dispatch_mcp_request(
+                tmp,
+                {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "submit_agent_task_result",
+                        "arguments": {
+                            "task_capability": capability,
+                            "result_json": {
+                                "variables": {
+                                    "profile.links": "Portfolio: https://example.test"
+                                }
+                            },
+                        },
+                    },
+                },
+            )
+            self.assertFalse(accepted["result"]["isError"])
+            with connect(tmp) as conn:
+                self.assertEqual(get_task(conn, task["id"])["state"], "completed")
+                self.assertEqual(
+                    profile_variables(conn)["profile.links"],
+                    "Portfolio: https://example.test",
+                )
 
     def test_stdio_transport_is_line_delimited_json_rpc(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
