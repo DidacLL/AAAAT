@@ -51,7 +51,7 @@ AAAAT is not an LLM wrapper, chat client, MCP product, or agent orchestrator. Th
 
 A connected host receives only purpose-scoped context and a small bounded operation set. It does not receive general database access, workspace paths, repository access, arbitrary record browsing, internal identifiers as mutation handles, or desktop widget commands.
 
-Privacy does not depend on a person reviewing every AI step. Valid bounded results are validated locally and applied directly to the intended records.
+Privacy does not depend on a person reviewing every AI step. Valid bounded results are validated locally and applied directly to the intended records. Invalid results do not consume their task capability; a connected host receives a safe retryable error and may correct the same bounded result.
 
 ## Connect the AI you already use
 
@@ -61,11 +61,14 @@ Choose **Connect my AI** in AAAAT. The application prepares one self-contained r
 - an opaque revocable connection capability;
 - the exact local stdio/MCP launch command;
 - the bounded tool schemas available to that host;
-- portable task/result exchange as a fallback.
+- watched-folder task/result exchange as the preferred fallback;
+- tagged result text only for hosts that cannot generate files.
 
-Copy the request and paste it into the AI host you already use. The host chooses the strongest supported local route and performs its normal tool initialization. AAAAT does not ask for provider credentials, API keys, model URLs, model names, or provider SDKs.
+Copy the request and paste it into the AI host you already use. A local host that can launch the paired bridge may initialize it directly. A remote host must use a reachable transport or AAAAT's file exchange rather than claiming local access it does not have. AAAAT does not ask for provider credentials, API keys, model URLs, model names, or provider SDKs.
 
 The paired bridge supports a deliberately small workflow: read connection status, open the desktop, start bounded profile work, create a candidature from supplied material, claim one prepared work item, and submit one schema-valid result.
+
+For profile completion, every returned variable value is plain text. Lists, timelines, education, experience, skills, links and projects are flattened into readable strings. AAAAT reports the rejected field precisely and keeps the same task capability available when the host submits an invalid shape.
 
 ## Installation
 
