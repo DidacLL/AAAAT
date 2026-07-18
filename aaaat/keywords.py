@@ -20,13 +20,14 @@ def add_keyword_alias(conn: sqlite3.Connection, keyword: str, alias: str) -> dic
     cleaned_alias = alias.strip()
     if not cleaned_keyword or not cleaned_alias:
         raise ValueError("Keyword and alias are required")
+    created_at = utc_now()
     conn.execute("INSERT OR IGNORE INTO glossary_terms(term, definition, category) VALUES (?, '', '')", (cleaned_keyword,))
     conn.execute(
         "INSERT OR IGNORE INTO keyword_aliases(keyword, alias, created_at) VALUES (?, ?, ?)",
-        (cleaned_keyword, cleaned_alias, utc_now()),
+        (cleaned_keyword, cleaned_alias, created_at),
     )
     conn.commit()
-    return {"keyword": cleaned_keyword, "alias": cleaned_alias}
+    return {"keyword": cleaned_keyword, "alias": cleaned_alias, "created_at": created_at}
 
 
 def keyword_aliases(conn: sqlite3.Connection, keyword: str) -> list[str]:
@@ -53,7 +54,7 @@ def create_keyword_note(
         "id": new_id("keyword_note"),
         "keyword": cleaned_keyword,
         "body": body,
-        "created_by": created_by,
+        "created_by": created_by or "user",
         "created_at": now,
         "updated_at": now,
     }

@@ -1,27 +1,35 @@
-# AAAAT private/local data - never commit
+# Private workspace and local data
 .private/
-.private/**
 *.sqlite
 *.sqlite3
 *.db
 
-# Python generated files
+# Python environments and caches
+.venv/
+venv/
 __pycache__/
 *.py[cod]
-*$py.class
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.venv/
-venv/
 
-# Local outputs
-outputs/
+# Build and package outputs
+build/
+dist/
+*.egg-info/
+*.spec
+
+# Local tools and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*.tmp
 local/
 tmp/
-*.tmp
+outputs/
 
-# LaTeX/build artifacts
+# Document rendering by-products
 *.aux
 *.log
 *.out
@@ -29,58 +37,3 @@ tmp/
 *.fls
 *.fdb_latexmk
 *.synctex.gz
-*.pdfsync
-*.bbl
-*.blg
-*.bcf
-*.run.xml
-*.dvi
-*.xdv
-
-# Editor/OS files
-.DS_Store
-Thumbs.db
-*.swp
-*.bak
-*.sav
-
-# Texpad
-.texpadtmp
-
-# LyX
-*.lyx~
-
-# Kile
-*.backup
-
-# gummi
-.*.swp
-
-# KBibTeX
-*~[0-9]*
-
-# TeXnicCenter
-*.tps
-
-# auto folder when using emacs and auctex
-./auto/*
-*.el
-
-# expex forward references with \gathertags
-*-tags.tex
-
-# standalone packages
-*.sta
-
-# Makeindex log files
-*.lpz
-
-# xwatermark package
-*.xwm
-
-# REVTeX puts footnotes in the bibliography by default, unless the nofootinbib
-# option is specified. Footnotes are the stored in a file with suffix Notes.bib.
-# Uncomment the next line to have this generated file ignored.
-#*Notes.bib
-/*/__pycache__
-/aaaat.egg-info

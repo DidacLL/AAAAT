@@ -5,14 +5,35 @@ import unittest
 from aaaat.agent_actions import get_agent_context_bundle, submit_agent_action
 from aaaat.candidatures import list_candidatures
 from aaaat.career_plans import create_career_plan
-from aaaat.db import connect, init_db, set_profile_variable
+from aaaat.db import connect, ensure_workspace_database, set_profile_variable, upsert_glossary_term
 from aaaat.profile_facts import create_profile_fact
+from aaaat.tasks import list_tasks
 
 
 class AgentActionTests(unittest.TestCase):
+    def test_start_profile_creates_one_bounded_profile_task_without_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ensure_workspace_database(tmp)
+            with connect(tmp) as conn:
+                acknowledgement = submit_agent_action(
+                    conn,
+                    {"action": "start_profile", "payload": {}},
+                    agent_name="connected-host",
+                    agent_runtime="mcp",
+                )
+                tasks = list_tasks(conn)
+
+        self.assertEqual(
+            acknowledgement,
+            {"status": "accepted", "action": "start_profile", "next": ["claim_profile_setup"]},
+        )
+        self.assertNotIn("task_", json.dumps(acknowledgement))
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["task_type"], "profile_completion")
+
     def test_context_bundle_uses_agent_profile_exposure_and_career_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 create_profile_fact(
                     conn,
@@ -43,7 +64,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_create_candidature_preserves_source_outputs_and_renders_locally(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Local Candidate")
                 set_profile_variable(conn, "email", "candidate@example.invalid")
@@ -53,7 +74,6 @@ class AgentActionTests(unittest.TestCase):
                         "source_material": {
                             "offer_text": "Full raw offer with Python and APIs.",
                             "offer_url": "https://example.invalid/jobs/1",
-                            "offer_source": "job board",
                             "application_form_text": "Raw form asks salary and availability.",
                             "user_instructions": "Keep the letter concise.",
                             "conversation_context": "The user prefers backend automation roles.",
@@ -71,13 +91,10 @@ class AgentActionTests(unittest.TestCase):
                         },
                         "outputs": {
                             "company_research": "Acme builds developer tools.",
-                            "technical_reading": "Read their API docs.",
                             "call_signals": "Ask about platform ownership.",
                             "pitch": "Backend automation positioning.",
                             "smart_question": "How do teams ship internal tooling?",
                             "risks_to_avoid": "Avoid over-indexing on management.",
-                            "prepare_first": "Review API product.",
-                            "prepare_later": "Map team structure.",
                             "form_answers": "Salary: flexible. Availability: two weeks.",
                             "cover_letter_body": "I can help Acme automate backend workflows.",
                             "cv_positioning": "Lead with Python automation.",
@@ -91,7 +108,6 @@ class AgentActionTests(unittest.TestCase):
                     agent_name="Agent",
                     agent_runtime="cli",
                     model_provider="local",
-                    expose_internal_ids=True,
                     storage_path=tmp,
                 )
                 loaded = list_candidatures(conn, include_related=True)[0]
@@ -103,17 +119,15 @@ class AgentActionTests(unittest.TestCase):
                 "action": "create_candidature",
                 "created": True,
                 "rendered": {"cover_letter": True},
-                "next": ["open_dashboard"],
+                "next": ["continue_or_open_desktop"],
             },
         )
         self.assertNotIn("internal", ack)
         self.assertEqual(loaded["company"], "Acme")
         self.assertEqual(loaded["role"], "Backend Engineer")
-        self.assertEqual(loaded["source"], "job board")
         self.assertEqual(loaded["source_url"], "https://example.invalid/jobs/1")
         self.assertEqual(loaded["keywords"], ["APIs", "Python"])
         self.assertEqual(loaded["company_research"], "Acme builds developer tools.")
-        self.assertEqual(loaded["technical_reading"], "Read their API docs.")
         self.assertEqual(loaded["form_answers"], "Salary: flexible. Availability: two weeks.")
         self.assertEqual(loaded["details"]["raw_application_form"], "Raw form asks salary and availability.")
         self.assertEqual(loaded["details"]["description"], "Build platform automation.")
@@ -127,9 +141,32 @@ class AgentActionTests(unittest.TestCase):
         self.assertTrue(any(item["artifact_type"] == "cover_letter" for item in loaded["artifacts"]))
         self.assertEqual(loaded["tasks"], [])
 
+    def test_create_candidature_does_not_schedule_unrequested_keyword_work(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ensure_workspace_database(tmp)
+            with connect(tmp) as conn:
+                upsert_glossary_term(conn, "Python", "A programming language.", "technology")
+                submit_agent_action(
+                    conn,
+                    {
+                        "action": "create_candidature",
+                        "payload": {
+                            "candidature": {
+                                "company": "Keyword Co",
+                                "role": "Engineer",
+                                "keywords": ["Python", "MCP"],
+                            }
+                        },
+                    },
+                    storage_path=tmp,
+                )
+                loaded = list_candidatures(conn, include_related=True)[0]
+
+        self.assertEqual(loaded["tasks"], [])
+
     def test_create_candidature_requested_tasks_queue_bounded_follow_up(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 ack = submit_agent_action(
                     conn,
@@ -154,7 +191,7 @@ class AgentActionTests(unittest.TestCase):
                 loaded = list_candidatures(conn, include_related=True)[0]
 
         self.assertEqual(ack["queued"], {"count": 1})
-        self.assertEqual(ack["next"], ["open_dashboard"])
+        self.assertEqual(ack["next"], ["continue_or_open_desktop"])
         serialized_ack = json.dumps(ack)
         self.assertNotIn("task_", serialized_ack)
         self.assertNotIn("app_", serialized_ack)
@@ -165,11 +202,11 @@ class AgentActionTests(unittest.TestCase):
         self.assertEqual(task["priority"], "low")
         self.assertEqual(task["context_hint"], "candidature:company_research")
         self.assertIn("Research was not completed", task["instructions"])
-        self.assertEqual(task["created_by"], "agent")
+        self.assertEqual(task["created_by"], "agent_action")
 
     def test_requested_tasks_skip_completed_outputs(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Local Candidate")
                 set_profile_variable(conn, "email", "candidate@example.invalid")
@@ -206,7 +243,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_requested_tasks_reject_unsupported_types_and_malformed_keyword_tasks(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 with self.assertRaisesRegex(ValueError, "Unsupported requested task type: career_plan_review"):
                     submit_agent_action(
@@ -227,7 +264,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_cv_render_uses_existing_template_data(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Local Candidate")
                 set_profile_variable(conn, "email", "candidate@example.invalid")
@@ -251,7 +288,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_action_validation_rejects_unknown_and_malformed_packets(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 with self.assertRaisesRegex(ValueError, "Unsupported agent action"):
                     submit_agent_action(conn, {"action": "delete_candidature", "payload": {}})

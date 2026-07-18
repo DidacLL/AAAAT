@@ -15,7 +15,7 @@ from .db import (
     utc_now,
 )
 from .notes import list_notes
-from .tasks import ensure_initial_tasks, list_tasks
+from .tasks import list_tasks
 from .text_blobs import list_text_blobs
 from .todos import list_todos
 
@@ -26,12 +26,19 @@ CANDIDATURE_DETAIL_FIELDS = {
     "publication_date",
     "application_date",
     "raw_application_form",
+    "form_answers",
     "cv_sent_artifact_id",
     "cover_letter_artifact_id",
     "strengths",
     "questions_to_ask",
     "tech_stack",
     "valuation",
+    "candidature_evaluation",
+    "role_strategy",
+    "cv_material",
+    "cover_letter_material",
+    "recruiter_material",
+    "material_sent_notes",
 }
 
 
@@ -47,16 +54,6 @@ def create_candidature(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
     ensure_candidature_details(conn, app["id"], **detail_fields)
     if fields.get("raw_offer"):
         add_raw_intake(conn, app["id"], fields["raw_offer"], fields.get("created_by", "user"))
-    ensure_initial_tasks(
-        conn,
-        app["id"],
-        include_field_inference=fields.get("include_field_inference_task", True),
-        include_company_research=fields.get("include_company_research_task", True),
-        include_keyword_detection=fields.get("include_keyword_detection_task", True),
-        include_cv=bool(fields.get("include_cv_task")),
-        include_cover_letter=bool(fields.get("include_cover_letter_task")),
-        include_form_responses=bool(fields.get("include_form_responses_task")),
-    )
     return get_candidature(conn, app["id"])
 
 
@@ -99,6 +96,7 @@ def get_candidature(conn: sqlite3.Connection, application_id: str, *, include_re
     app = get_application(conn, application_id)
     app["domain_type"] = "Candidature"
     app["details"] = get_candidature_details(conn, application_id)
+    app.update(app["details"])
     if include_related:
         app["raw_intake"] = list_raw_intake(conn, application_id)
         app["artifacts"] = list_artifacts(conn, application_id)

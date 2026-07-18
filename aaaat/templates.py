@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
-import sqlite3
 import shutil
+import sqlite3
 import subprocess
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,10 @@ LOG_LIMIT = 40000
 
 
 class TemplateVariableError(ValueError):
+    pass
+
+
+class RenderFailure(RuntimeError):
     pass
 
 
@@ -61,7 +66,7 @@ def render_string(template: str, values: dict[str, Any], required: list[str] | N
 
 def context_for_application(conn: sqlite3.Connection, application_id: str | None = None, extra: dict[str, Any] | None = None) -> dict[str, Any]:
     values: dict[str, Any] = {}
-    for key, value in resolve_variables(conn, "local_render").items():
+    for key, value in resolve_variables(conn, "local").items():
         values[key] = tex_value(key, value)
     if application_id:
         app = get_application(conn, application_id)
@@ -121,6 +126,13 @@ def render_tex_to_file(
     return target
 
 
+def versioned_output_path(output_path: str | Path) -> Path:
+    target = Path(output_path)
+    suffix = target.suffix or ".tex"
+    stem = target.stem or "artifact"
+    return target.with_name(f"{stem}-{uuid.uuid4().hex[:12]}{suffix}")
+
+
 def storage_artifact_root(storage_path: str | Path, application_id: str | None) -> Path:
     base = Path(storage_path)
     if base.suffix:
@@ -175,6 +187,13 @@ def compile_pdf_with_pdflatex(tex_path: str | Path, *, timeout: int = 30) -> dic
         return {"pdf_status": "timeout", "pdf_path": None, "log_path": str(log_path)}
 
 
+def _raise_pdf_failure(status: str, log_path: str | None) -> None:
+    detail = f"pdflatex {status}"
+    if log_path:
+        detail = f"{detail}; see {log_path}"
+    raise RenderFailure(detail)
+
+
 def render_document_artifact(
     conn: sqlite3.Connection,
     name: str,
@@ -185,7 +204,8 @@ def render_document_artifact(
     compile_pdf: bool = False,
     save_version: bool = False,
 ) -> dict[str, Any]:
-    tex_path = render_tex_to_file(conn, name, output_path, application_id, extra)
+    target_output = versioned_output_path(output_path) if save_version else Path(output_path)
+    tex_path = render_tex_to_file(conn, name, target_output, application_id, extra)
     artifact_path = tex_path
     pdf_status = "not_requested"
     pdf_path: str | None = None
@@ -200,11 +220,9 @@ def render_document_artifact(
             artifact_path = Path(pdf_path)
             notes = "Rendered local TeX template and compiled with pdflatex."
         elif pdf_status == "unavailable":
-            notes = "Rendered local TeX template; pdflatex unavailable, keeping TeX artifact."
-        elif pdf_status == "timeout":
-            notes = "Rendered local TeX template; pdflatex timed out, keeping TeX artifact."
+            notes = "Rendered local TeX template; pdflatex is unavailable, so the TeX file remains the current artifact."
         else:
-            notes = "Rendered local TeX template; pdflatex failed, keeping TeX artifact."
+            _raise_pdf_failure(pdf_status, log_path)
     artifact = artifacts.save_or_update_draft_artifact(
         conn,
         application_id,

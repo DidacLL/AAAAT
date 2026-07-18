@@ -8,7 +8,7 @@ from typing import Any
 from .db import new_id, row_to_dict, utc_now
 
 
-REVIEW_STATES = {"active", "archived"}
+STATES = {"active", "archived"}
 CONTEXT_PURPOSES = {
     "cover_letter",
     "cv_generation",
@@ -18,9 +18,8 @@ CONTEXT_PURPOSES = {
     "form_answers",
     "career_plan_review",
 }
+CONTEXT_SCOPES = {"agent", "local"}
 LIST_FIELDS = {"objectives", "constraints", "target_markets", "target_roles"}
-LOCAL_SCOPES = {"local_render", "local_dashboard", "dashboard", "read_only_dashboard"}
-
 
 def create_career_plan(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any]:
     now = utc_now()
@@ -32,7 +31,7 @@ def create_career_plan(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
         "target_markets": encode_list(fields.get("target_markets", [])),
         "target_roles": encode_list(fields.get("target_roles", [])),
         "source": fields.get("source", "user"),
-        "review_state": fields.get("review_state", "active"),
+        "state": fields.get("state", "active"),
         "created_at": now,
         "updated_at": now,
     }
@@ -40,10 +39,10 @@ def create_career_plan(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
     conn.execute(
         """INSERT INTO career_plans(
           id, body, objectives, constraints, target_markets, target_roles,
-          source, review_state, created_at, updated_at
+          source, state, created_at, updated_at
         ) VALUES (
           :id, :body, :objectives, :constraints, :target_markets, :target_roles,
-          :source, :review_state, :created_at, :updated_at
+          :source, :state, :created_at, :updated_at
         )""",
         item,
     )
@@ -52,7 +51,7 @@ def create_career_plan(conn: sqlite3.Connection, **fields: Any) -> dict[str, Any
 
 
 def list_career_plans(conn: sqlite3.Connection, include_archived: bool = False) -> list[dict[str, Any]]:
-    where = "" if include_archived else " WHERE review_state != 'archived'"
+    where = "" if include_archived else " WHERE state != 'archived'"
     rows = conn.execute(
         f"SELECT * FROM career_plans{where} ORDER BY updated_at DESC, created_at DESC"
     ).fetchall()
@@ -67,7 +66,7 @@ def get_career_plan(conn: sqlite3.Connection, plan_id: str) -> dict[str, Any]:
 
 
 def update_career_plan(conn: sqlite3.Connection, plan_id: str, **fields: Any) -> dict[str, Any]:
-    allowed = {"body", "objectives", "constraints", "target_markets", "target_roles", "source", "review_state"}
+    allowed = {"body", "objectives", "constraints", "target_markets", "target_roles", "source", "state"}
     updates = {key: fields[key] for key in allowed if key in fields}
     for key in LIST_FIELDS & updates.keys():
         updates[key] = encode_list(updates[key])
@@ -86,13 +85,15 @@ def update_career_plan(conn: sqlite3.Connection, plan_id: str, **fields: Any) ->
 
 
 def archive_career_plan(conn: sqlite3.Connection, plan_id: str) -> dict[str, Any]:
-    return update_career_plan(conn, plan_id, review_state="archived")
+    return update_career_plan(conn, plan_id, state="archived")
 
 
 def career_plan_context(conn: sqlite3.Connection, purpose: str, scope: str = "agent") -> dict[str, Any]:
     if purpose not in CONTEXT_PURPOSES:
         raise ValueError(f"Unsupported career plan context purpose: {purpose}")
-    include_internal_id = scope in LOCAL_SCOPES
+    if scope not in CONTEXT_SCOPES:
+        raise ValueError(f"Unsupported career plan context scope: {scope}")
+    include_internal_id = scope == "local"
     plans = [public_career_plan(item, include_id=include_internal_id) for item in list_career_plans(conn)]
     return {"purpose": purpose, "scope": scope, "career_plans": plans}
 
@@ -106,7 +107,7 @@ def public_career_plan(item: dict[str, Any], include_id: bool = False) -> dict[s
         "target_markets": item.get("target_markets", []),
         "target_roles": item.get("target_roles", []),
         "source": item.get("source", ""),
-        "review_state": item.get("review_state", ""),
+        "state": item.get("state", ""),
     }
     if include_id:
         plan["id"] = item["id"]
@@ -123,8 +124,8 @@ def career_plan_reference(item: dict[str, Any]) -> str:
 
 
 def validate_career_plan(item: dict[str, Any]) -> None:
-    if item["review_state"] not in REVIEW_STATES:
-        raise ValueError(f"Invalid career plan review state: {item['review_state']}")
+    if item["state"] not in STATES:
+        raise ValueError(f"Invalid career plan state: {item['state']}")
 
 
 def encode_list(value: Any) -> str:
