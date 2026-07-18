@@ -1,0 +1,310 @@
+from pathlib import Path
+
+
+def replace_once(path: str, old: str, new: str) -> None:
+    target = Path(path)
+    text = target.read_text(encoding="utf-8")
+    if new in text:
+        return
+    if old not in text:
+        raise SystemExit(f"Expected source block not found in {path}")
+    target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
+replace_once(
+    "aaaat/agent_access.py",
+    "from .assisted_profile import apply_profile_completion_result, profile_completion_context",
+    "from .assisted_profile import (\n    PROFILE_COMPLETION_KEYS,\n    apply_profile_completion_result,\n    profile_completion_context,\n)",
+)
+replace_once(
+    "aaaat/agent_access.py",
+    '            "schema": {"variables": {"type": "object"}},',
+    '''            "schema": {
+                "variables": {
+                    "type": "object",
+                    "allowed_fields": list(PROFILE_COMPLETION_KEYS),
+                    "additional_properties": False,
+                    "value_type": "string",
+                    "max_value_length": 20000,
+                }
+            },''',
+)
+replace_once(
+    "aaaat/agent_access.py",
+    '            "Eligible missing profile variables under variables. Existing values are retained."',
+    '            "Eligible missing profile variables under variables, with one plain text string per value. Existing values are retained."',
+)
+
+replace_once(
+    "aaaat/assisted_profile.py",
+    '            "Store only grounded values the user chooses to provide for eligible missing fields.",\n',
+    '            "Store only grounded values the user chooses to provide for eligible missing fields.",\n            "Return variables as one object with eligible profile keys and one plain JSON string per value.",\n            "Flatten lists, timelines, projects and other structured material into readable text; do not return arrays or nested objects as profile values.",\n',
+)
+replace_once(
+    "aaaat/assisted_profile.py",
+    '''def apply_profile_completion_result(
+    conn: sqlite3.Connection,
+    result_body: str,
+    *,
+    agent_name: str = "",
+    agent_runtime: str = "",
+) -> dict[str, Any]:
+    variables = parse_profile_completion_result(result_body)
+''',
+    '''def validate_profile_completion_result(result_body: str) -> dict[str, str]:
+    """Validate and normalize one profile result without changing local state."""
+    variables = parse_profile_completion_result(result_body)
+    if len(variables) > 64:
+        raise ValueError("Profile updates must contain at most 64 values")
+    normalized: dict[str, str] = {}
+    for raw_key, value in variables.items():
+        key = str(raw_key).strip()
+        if key not in PROFILE_COMPLETION_KEYS or key in DENIED_PROFILE_KEYS:
+            raise ValueError(f"Profile variable is not permitted: {key}")
+        if not isinstance(value, str) or len(value) > 20000:
+            raise ValueError(f"Profile variable must be bounded text: {key}")
+        normalized[key] = value.strip()
+    return normalized
+
+
+def apply_profile_completion_result(
+    conn: sqlite3.Connection,
+    result_body: str,
+    *,
+    agent_name: str = "",
+    agent_runtime: str = "",
+) -> dict[str, Any]:
+    variables = validate_profile_completion_result(result_body)
+''',
+)
+
+replace_once(
+    "aaaat/tasks.py",
+    "from .db import new_id, row_to_dict, upsert_glossary_term, utc_now\n",
+    "from .assisted_profile import validate_profile_completion_result\nfrom .db import new_id, row_to_dict, upsert_glossary_term, utc_now\n",
+)
+replace_once(
+    "aaaat/tasks.py",
+    '''    task = get_task(conn, task_id)
+    result_blob_id = task.get("result_blob_id")
+    if result_body:
+''',
+    '''    task = get_task(conn, task_id)
+    if result_body and str(task.get("task_type") or "") == "profile_completion":
+        validate_profile_completion_result(result_body)
+    result_blob_id = task.get("result_blob_id")
+    if result_body:
+''',
+)
+
+replace_once(
+    "aaaat/mcp_runtime.py",
+    "import json\nimport sys\n",
+    "import json\nimport re\nimport sys\n",
+)
+replace_once(
+    "aaaat/mcp_runtime.py",
+    '''    except (KeyError, TypeError, ValueError):
+        return _result(
+            request_id,
+            {
+                "content": [{"type": "text", "text": "AAAAT could not complete this request. Check the bounded input and try again."}],
+                "isError": True,
+            },
+        )
+''',
+    '''    except (KeyError, TypeError, ValueError) as exc:
+        detail, retryable = _safe_tool_rejection(exc)
+        return _result(
+            request_id,
+            {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"AAAAT rejected the bounded request: {detail} "
+                            + ("Correct the payload and retry the same task capability." if retryable else "Request or claim a new bounded task before continuing.")
+                        ),
+                    }
+                ],
+                "structuredContent": {
+                    "status": "rejected",
+                    "retryable": retryable,
+                    "error": detail,
+                },
+                "isError": True,
+            },
+        )
+''',
+)
+replace_once(
+    "aaaat/mcp_runtime.py",
+    '''def _call_tool(storage: str | Path, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+''',
+    '''def _safe_tool_rejection(exc: Exception) -> tuple[str, bool]:
+    if isinstance(exc, KeyError):
+        return "Task capability is unavailable or already spent.", False
+    detail = " ".join(str(exc).strip().strip("'").split())
+    if not detail:
+        detail = "The bounded input is invalid."
+    detail = re.sub(r"\\b(?:task|app|artifact|blob|profile)_[A-Za-z0-9_-]+\\b", "[internal reference]", detail)
+    detail = detail[:500]
+    retryable = "not accepting results" not in detail.lower()
+    return detail, retryable
+
+
+def _call_tool(storage: str | Path, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+''',
+)
+
+replace_once(
+    "aaaat/SKILL.md",
+    "Follow the declared result schema exactly. Return only supported fields. AAAAT binds the result to the correct local records and chooses local storage and artifact paths.\n",
+    "Follow the declared result schema exactly. Return only supported fields. AAAAT binds the result to the correct local records and chooses local storage and artifact paths.\n\nFor profile-completion work, return `variables` with only eligible keys from the work item and one plain JSON string per value. Flatten lists, timelines, projects, education and experience into readable text instead of arrays or nested objects. When AAAAT returns a retryable validation error, correct the payload and reuse the same task capability; do not claim new work.\n",
+)
+
+replace_once(
+    "tests/test_profile_completion.py",
+    "from aaaat.task_runner import TaskRunner\n",
+    "from aaaat.task_runner import TaskRunner\nfrom aaaat.tasks import get_task\n",
+)
+replace_once(
+    "tests/test_profile_completion.py",
+    '''    def test_local_readiness_does_not_execute_or_certify_the_external_host(self) -> None:
+''',
+    '''    def test_invalid_structured_profile_value_keeps_capability_for_corrected_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = Path(tmp) / "private"
+            ensure_workspace_database(storage)
+            task = create_profile_completion_task(storage)
+            with connect(storage) as conn:
+                task = claim_agent_work(conn, str(task["id"]))
+                capability = task_capability(conn, task)
+                with self.assertRaisesRegex(ValueError, "bounded text: profile.links"):
+                    submit_agent_task_result(
+                        conn,
+                        capability,
+                        json.dumps(
+                            {
+                                "variables": {
+                                    "profile.links": ["https://example.test"],
+                                    "profile.projects": [{"name": "Example"}],
+                                }
+                            }
+                        ),
+                    )
+                self.assertEqual(get_task(conn, str(task["id"]))["state"], "claimed")
+
+                completed = submit_agent_task_result(
+                    conn,
+                    capability,
+                    json.dumps(
+                        {
+                            "variables": {
+                                "profile.links": "Portfolio: https://example.test",
+                                "profile.projects": "Example: bounded local project.",
+                            }
+                        }
+                    ),
+                )
+                values = profile_variables(conn)
+
+            self.assertEqual(completed["state"], "completed")
+            self.assertEqual(values["profile.links"], "Portfolio: https://example.test")
+            self.assertEqual(values["profile.projects"], "Example: bounded local project.")
+
+    def test_local_readiness_does_not_execute_or_certify_the_external_host(self) -> None:
+''',
+)
+
+replace_once(
+    "tests/test_mcp_runtime.py",
+    "from aaaat.db import connect, ensure_workspace_database\n",
+    "from aaaat.db import connect, ensure_workspace_database, profile_variables\n",
+)
+replace_once(
+    "tests/test_mcp_runtime.py",
+    '''    def test_stdio_transport_is_line_delimited_json_rpc(self) -> None:
+''',
+    '''    def test_profile_validation_error_is_specific_retryable_and_does_not_spend_capability(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ensure_workspace_database(tmp)
+            with connect(tmp) as conn:
+                task = create_task(
+                    conn,
+                    "profile_completion",
+                    "Complete profile",
+                    context_hint="profile:completion",
+                    idempotent=False,
+                )
+            claimed = dispatch_mcp_request(
+                tmp,
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {"name": "get_next_agent_work", "arguments": {}},
+                },
+            )
+            work = claimed["result"]["structuredContent"]["work"]
+            capability = work["task"]["task_capability"]
+            self.assertEqual(
+                work["response_format"]["schema"]["variables"]["value_type"],
+                "string",
+            )
+
+            rejected = dispatch_mcp_request(
+                tmp,
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "submit_agent_task_result",
+                        "arguments": {
+                            "task_capability": capability,
+                            "result_json": {
+                                "variables": {
+                                    "profile.links": ["https://example.test"]
+                                }
+                            },
+                        },
+                    },
+                },
+            )
+            self.assertTrue(rejected["result"]["isError"])
+            self.assertTrue(rejected["result"]["structuredContent"]["retryable"])
+            self.assertIn("profile.links", rejected["result"]["structuredContent"]["error"])
+            with connect(tmp) as conn:
+                self.assertEqual(get_task(conn, task["id"])["state"], "claimed")
+
+            accepted = dispatch_mcp_request(
+                tmp,
+                {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "submit_agent_task_result",
+                        "arguments": {
+                            "task_capability": capability,
+                            "result_json": {
+                                "variables": {
+                                    "profile.links": "Portfolio: https://example.test"
+                                }
+                            },
+                        },
+                    },
+                },
+            )
+            self.assertFalse(accepted["result"]["isError"])
+            with connect(tmp) as conn:
+                self.assertEqual(get_task(conn, task["id"])["state"], "completed")
+                self.assertEqual(
+                    profile_variables(conn)["profile.links"],
+                    "Portfolio: https://example.test",
+                )
+
+    def test_stdio_transport_is_line_delimited_json_rpc(self) -> None:
+''',
+)
