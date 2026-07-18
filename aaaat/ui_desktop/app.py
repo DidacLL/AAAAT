@@ -10,6 +10,7 @@ from aaaat.dashboard_projection import build_dashboard_projection
 from aaaat.db import connect, ensure_workspace_database
 from aaaat.desktop_workspace import default_desktop_workspace, save_desktop_workspace, selected_desktop_workspace
 from aaaat.payload import dashboard_payload
+from aaaat.workspace_recovery import recover_legacy_profile_completion
 
 
 def build_desktop_projection(storage: str | Path, layout_state: DashboardLayoutState | None = None) -> dict[str, Any]:
@@ -18,6 +19,7 @@ def build_desktop_projection(storage: str | Path, layout_state: DashboardLayoutS
     ensure_workspace_database(storage)
     layout = layout_state or DashboardLayoutState.load(layout_state_path(storage))
     with connect(storage) as conn:
+        recover_legacy_profile_completion(conn)
         payload = dashboard_payload(conn, include_raw=True)
     requested_view = layout.selected_view
     if not payload.get("applications") and requested_view in {"smart", "detailed"}:

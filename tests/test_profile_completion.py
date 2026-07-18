@@ -12,7 +12,10 @@ from aaaat.assistance_service import create_profile_completion_task
 from aaaat.db import connect, ensure_workspace_database, profile_variables, set_profile_variable
 from aaaat.integration_readiness import integration_readiness
 from aaaat.task_runner import TaskRunner
-from aaaat.tasks import get_task
+from aaaat.tasks import get_task, update_task
+from aaaat.text_blobs import create_text_blob
+from aaaat.ui_desktop.app import build_desktop_projection
+from aaaat.workspace_recovery import recover_legacy_profile_completion
 from aaaat.workspace_config import save_workspace_settings
 
 
@@ -134,6 +137,58 @@ class ProfileCompletionTaskTests(unittest.TestCase):
             self.assertEqual(completed["state"], "completed")
             self.assertEqual(values["profile.links"], "Portfolio: https://example.test")
             self.assertEqual(values["profile.projects"], "Example: bounded local project.")
+
+    def test_opening_workspace_recovers_profile_result_consumed_by_old_bridge(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = Path(tmp) / "private"
+            ensure_workspace_database(storage)
+            task = create_profile_completion_task(storage)
+            with connect(storage) as conn:
+                task = claim_agent_work(conn, str(task["id"]))
+                blob = create_text_blob(
+                    conn,
+                    "task_result",
+                    json.dumps(
+                        {
+                            "variables": {
+                                "profile.display_name": "Recovered Name",
+                                "profile.links": ["https://example.test", "https://code.example.test"],
+                                "profile.projects": [{"name": "AAAAT", "role": "Local tool"}],
+                            }
+                        }
+                    ),
+                    title="Legacy profile result",
+                    source_context="legacy-test",
+                    state="history",
+                    created_by="agent",
+                )
+                update_task(
+                    conn,
+                    str(task["id"]),
+                    state="completed",
+                    result_blob_id=str(blob["id"]),
+                    completed_at="2026-07-18T00:00:00+00:00",
+                    notes="Result kept as history: Profile variable must be bounded text: profile.links",
+                    agent_name="Codex",
+                    agent_runtime="OpenAI Codex",
+                )
+
+            build_desktop_projection(storage)
+
+            with connect(storage) as conn:
+                values = profile_variables(conn)
+                repaired = get_task(conn, str(task["id"]))
+                second = recover_legacy_profile_completion(conn)
+
+            self.assertEqual(values["profile.display_name"], "Recovered Name")
+            self.assertEqual(
+                values["profile.links"],
+                "https://example.test; https://code.example.test",
+            )
+            self.assertIn('"name": "AAAAT"', values["profile.projects"])
+            self.assertEqual(repaired["state"], "completed")
+            self.assertIn("Legacy profile result recovered automatically.", repaired["notes"])
+            self.assertEqual(second, {"status": "none", "recovered": 0})
 
     def test_local_readiness_does_not_execute_or_certify_the_external_host(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

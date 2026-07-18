@@ -7,7 +7,8 @@ import unittest
 
 from aaaat.db import connect, ensure_workspace_database, profile_variables
 from aaaat.mcp_runtime import dispatch_mcp_request, run_stdio_server
-from aaaat.tasks import create_task, get_task
+from aaaat.tasks import create_task, get_task, update_task
+from aaaat.text_blobs import create_text_blob
 
 
 class McpRuntimeTests(unittest.TestCase):
@@ -174,6 +175,52 @@ class McpRuntimeTests(unittest.TestCase):
                     profile_variables(conn)["profile.links"],
                     "Portfolio: https://example.test",
                 )
+
+    def test_get_next_work_reports_automatic_legacy_profile_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ensure_workspace_database(tmp)
+            with connect(tmp) as conn:
+                task = create_task(
+                    conn,
+                    "profile_completion",
+                    "Complete profile",
+                    context_hint="profile:completion",
+                    idempotent=False,
+                )
+                blob = create_text_blob(
+                    conn,
+                    "task_result",
+                    json.dumps({"variables": {"profile.skills": ["Python", "MCP"]}}),
+                    title="Legacy profile result",
+                    source_context="legacy-test",
+                    state="history",
+                    created_by="agent",
+                )
+                update_task(
+                    conn,
+                    str(task["id"]),
+                    state="completed",
+                    result_blob_id=str(blob["id"]),
+                    completed_at="2026-07-18T00:00:00+00:00",
+                    notes="Result kept as history: Profile variable must be bounded text: profile.skills",
+                )
+
+            response = dispatch_mcp_request(
+                tmp,
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {"name": "get_next_agent_work", "arguments": {}},
+                },
+            )
+
+            self.assertEqual(
+                response["result"]["structuredContent"],
+                {"status": "recovered", "recovered_work": "profile_completion"},
+            )
+            with connect(tmp) as conn:
+                self.assertEqual(profile_variables(conn)["profile.skills"], "Python; MCP")
 
     def test_stdio_transport_is_line_delimited_json_rpc(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

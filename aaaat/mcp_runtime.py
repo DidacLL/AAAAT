@@ -12,6 +12,7 @@ from .agent_work import claim_next_agent_work
 from .db import connect, ensure_workspace_database
 from .mcp_server import PROTOCOL_VERSION, mcp_descriptor
 from .result_ingestion import ingest_task_result
+from .workspace_recovery import recover_legacy_profile_completion
 
 SERVER_INFO = {"name": "aaaat", "version": "1.0.0"}
 
@@ -103,9 +104,14 @@ def _safe_tool_rejection(exc: Exception) -> tuple[str, bool]:
 def _call_tool(storage: str | Path, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     ensure_workspace_database(storage)
     with connect(storage) as conn:
+        recovery = recover_legacy_profile_completion(conn)
         if name == "get_next_agent_work":
             work = claim_next_agent_work(conn)
-            return {"status": "empty"} if work is None else {"status": "ready", "work": work}
+            if work is not None:
+                return {"status": "ready", "work": work}
+            if recovery.get("status") == "recovered":
+                return {"status": "recovered", "recovered_work": "profile_completion"}
+            return {"status": "empty"}
         if name == "submit_agent_task_result":
             result = arguments.get("result_json")
             if not isinstance(result, dict):
