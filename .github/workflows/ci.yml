@@ -36,10 +36,23 @@ jobs:
         run: python -B tools/_apply_workspace_recovery_patch.py
 
       - name: Verify recovery behavior
+        shell: bash
         run: |
-          python -B -m compileall -q aaaat tests tools scripts
-          python -B tools/validate_mcp.py
-          python -B -m unittest tests.test_profile_completion tests.test_mcp_runtime
+          set -o pipefail
+          {
+            python -B -m compileall -q aaaat tests tools scripts
+            python -B tools/validate_mcp.py
+            python -B -m unittest tests.test_profile_completion tests.test_mcp_runtime
+          } 2>&1 | tee workspace-recovery-output.txt
+
+      - name: Upload recovery diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-recovery-diagnostics
+          path: workspace-recovery-output.txt
+          if-no-files-found: error
+          retention-days: 2
 
       - name: Commit source repair
         shell: bash
