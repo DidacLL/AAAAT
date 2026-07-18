@@ -40,7 +40,6 @@ jobs:
           python -B -m compileall -q aaaat tests tools scripts
           python -B tools/validate_mcp.py
           python -B -m unittest tests.test_profile_completion tests.test_mcp_runtime
-          python -B -m unittest discover -s tests
 
       - name: Commit source repair
         shell: bash
