@@ -14,7 +14,7 @@ def replace_once(path: str, old: str, new: str) -> None:
 
 
 Path("aaaat/workspace_recovery.py").write_text(
-    '''from __future__ import annotations
+    r'''from __future__ import annotations
 
 import json
 import sqlite3
