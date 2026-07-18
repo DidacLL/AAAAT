@@ -8,64 +8,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  apply-workspace-recovery:
-    name: Apply automatic workspace recovery
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Check out release branch
-        uses: actions/checkout@v4
-        with:
-          ref: didacll/v1-clean-integration
-          fetch-depth: 0
-          show-progress: false
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Apply recovery patch
-        run: python -B tools/_apply_workspace_recovery_patch.py
-
-      - name: Verify recovery behavior
-        shell: bash
-        run: |
-          set -o pipefail
-          {
-            python -B -m compileall -q aaaat tests tools scripts
-            python -B tools/validate_mcp.py
-            python -B -m unittest tests.test_profile_completion tests.test_mcp_runtime
-          } 2>&1 | tee workspace-recovery-output.txt
-
-      - name: Upload recovery diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: workspace-recovery-diagnostics
-          path: workspace-recovery-output.txt
-          if-no-files-found: error
-          retention-days: 2
-
-      - name: Commit source repair
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add aaaat/workspace_recovery.py aaaat/mcp_runtime.py aaaat/ui_desktop/app.py tests/test_profile_completion.py tests/test_mcp_runtime.py
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "Recover consumed profile results automatically"
-          git push origin HEAD:didacll/v1-clean-integration
-
   behavioral-tests:
     name: Behavioral tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
