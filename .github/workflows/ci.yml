@@ -1,190 +1,142 @@
-name: Temporary CLI source cleanup
+name: CI
 
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: temporary-cli-source-cleanup
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  cleanup-cli:
-    name: Remove obsolete CLI surface
+  behavioral-tests:
+    name: Behavioral tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - name: Check out release branch
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
           show-progress: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build wheel
+        run: python -m pip wheel . --no-deps --wheel-dir dist
+
+      - name: Install wheel
+        run: python -m pip install dist/aaaat-*.whl
+
+      - name: Check installed entry points
+        working-directory: ${{ runner.temp }}
+        run: |
+          aaaat-desktop --help
+          aaaat-host-bridge --help
+
+      - name: Compile Python sources
+        run: python -B -m compileall -q aaaat tests tools scripts
+
+      - name: Validate MCP descriptor
+        run: python -B tools/validate_mcp.py
+
+      - name: Run behavioral suite
+        shell: bash
+        run: |
+          set -o pipefail
+          python -B -m unittest discover -s tests 2>&1 | tee behavioral-test-output.txt
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: behavioral-diagnostics-${{ matrix.python-version }}
+          path: behavioral-test-output.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+  release-packages:
+    name: Package and verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: Set up Python
+        if: runner.os != 'Linux'
+        uses: actions/setup-python@v5
+        with:
           python-version: "3.12"
 
-      - name: Apply cleanup
+      - name: Install package-build dependencies
+        if: runner.os != 'Linux'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[desktop,release]"
+
+      - name: Install Linux package-build dependencies
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-          python - <<'PY'
-          from __future__ import annotations
+          sudo apt-get update
+          sudo apt-get install -y python3-venv python3-wxgtk4.0 xvfb
+          python3 -m venv --system-site-packages .release-venv
+          .release-venv/bin/python -m pip install --upgrade pip
+          .release-venv/bin/python -m pip install ".[release]"
 
-          import re
-          from pathlib import Path
-
-          ROOT = Path.cwd()
-
-          for base_name in ('aaaat', 'tests', 'tools', 'scripts'):
-              base = ROOT / base_name
-              if not base.exists():
-                  continue
-              for path in base.rglob('*.py'):
-                  text = path.read_text(encoding='utf-8')
-                  updated = re.sub(r'\binit_db\b', 'ensure_workspace_database', text)
-                  if updated != text:
-                      path.write_text(updated, encoding='utf-8')
-
-          for relative in (
-              '.github/pull_request_template.md',
-              'AGENTS.md',
-              'CONTRIBUTING.md',
-              'docs/development.md',
-          ):
-              path = ROOT / relative
-              if not path.exists():
-                  continue
-              text = path.read_text(encoding='utf-8')
-              text = text.replace(
-                  'python -B -m aaaat.cli mcp-validate',
-                  'python -B tools/validate_mcp.py',
-              )
-              path.write_text(text, encoding='utf-8')
-
-          for relative in ('aaaat/cli.py', 'tests/test_cli_mcp.py', 'docs/cli.md'):
-              (ROOT / relative).unlink(missing_ok=True)
-
-          career = ROOT / 'tests/test_career_plans.py'
-          text = career.read_text(encoding='utf-8')
-          text = text.replace('import contextlib\n', '').replace('import io\n', '')
-          text = text.replace('from aaaat.cli import main\n', '')
-          text = re.sub(
-              r'\nclass CareerPlanCliTests\(unittest\.TestCase\):.*?(?=\n\nif __name__ == "__main__":)',
-              '',
-              text,
-              flags=re.S,
-          )
-          career.write_text(text, encoding='utf-8')
-
-          profile = ROOT / 'tests/test_profile_facts.py'
-          text = profile.read_text(encoding='utf-8')
-          text = text.replace('import contextlib\n', '').replace('import io\n', '')
-          text = text.replace('from aaaat.cli import main\n', '')
-          text = re.sub(
-              r'\nclass ProfileFactCliTests\(unittest\.TestCase\):.*?(?=\n\nif __name__ == "__main__":)',
-              '',
-              text,
-              flags=re.S,
-          )
-          profile.write_text(text, encoding='utf-8')
-
-          host = ROOT / 'tests/test_host_connection.py'
-          text = host.read_text(encoding='utf-8')
-          text = text.replace('from aaaat.cli import main\n', '')
-          replacement = '''    def test_runtime_skill_is_packaged_without_private_paths(self) -> None:\n        skill = runtime_skill_document()\n        self.assertIn("name: AAAAT", skill)\n        self.assertNotIn(".private", skill)\n        self.assertNotIn("sqlite", skill.lower())\n\n'''
-          text, count = re.subn(
-              r'    def test_host_can_install_the_runtime_skill_without_exposing_host_paths\(self\) -> None:.*?(?=    def test_exported_host_pack_keeps_workspace_details_out_of_host_configuration)',
-              replacement,
-              text,
-              flags=re.S,
-          )
-          if count != 1:
-              raise RuntimeError(f'Could not rewrite host skill CLI test: {count}')
-          host.write_text(text, encoding='utf-8')
-
-          policy = ROOT / 'tests/test_dependency_policy.py'
-          text = policy.read_text(encoding='utf-8')
-          text = text.replace(
-              '            "importlib.import_module(\'aaaat.cli\'); "\n',
-              '',
-          )
-          policy.write_text(text, encoding='utf-8')
-
-          polish = ROOT / 'tests/test_release_polish.py'
-          text = polish.read_text(encoding='utf-8')
-          text = text.replace('import os\n', '')
-          text = re.sub(
-              r'    def test_cli_module_help_executes_successfully\(self\):.*?(?=    def test_mcp_module_help_executes_successfully)',
-              '',
-              text,
-              flags=re.S,
-          )
-          replacement = '''    def test_desktop_projection_initializes_clean_local_storage(self):\n        from aaaat.ui_desktop.app import build_desktop_projection\n\n        with tempfile.TemporaryDirectory() as tmp:\n            projection = build_desktop_projection(tmp)\n            self.assertIsInstance(projection, dict)\n            self.assertTrue((Path(tmp) / "aaaat.sqlite3").exists())\n\n'''
-          text, count = re.subn(
-              r'    def test_cli_can_initialize_clean_local_storage_without_git\(self\):.*?(?=    def test_runtime_schema_resource_is_available)',
-              replacement,
-              text,
-              flags=re.S,
-          )
-          if count != 1:
-              raise RuntimeError(f'Could not rewrite release init test: {count}')
-          polish.write_text(text, encoding='utf-8')
-
-          validator = ROOT / 'tools/validate_mcp.py'
-          validator.write_text(
-              '''"""Validate the public MCP descriptor during development and release checks."""\n\nfrom pathlib import Path\nimport sys\n\nROOT = Path(__file__).resolve().parents[1]\nif str(ROOT) not in sys.path:\n    sys.path.insert(0, str(ROOT))\n\nfrom aaaat.mcp_server import validate_descriptor\n\n\ndef main() -> int:\n    validate_descriptor()\n    print("ok")\n    return 0\n\n\nif __name__ == "__main__":\n    raise SystemExit(main())\n''',
-              encoding='utf-8',
-          )
-
-          db = ROOT / 'aaaat/db.py'
-          text = db.read_text(encoding='utf-8')
-          marker = 'def ensure_workspace_database(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:\n'
-          if marker not in text:
-              raise RuntimeError('Workspace initializer rename did not reach aaaat/db.py')
-          text = text.replace(
-              marker,
-              marker + '    """Create or upgrade the selected workspace database idempotently."""\n',
-              1,
-          )
-          db.write_text(text, encoding='utf-8')
-
-          forbidden = []
-          for path in ROOT.rglob('*'):
-              if not path.is_file() or '.git' in path.parts:
-                  continue
-              if '.github/workflows' in path.as_posix():
-                  continue
-              if path.suffix not in {'.py', '.md', '.yml', '.yaml', '.toml', '.txt'}:
-                  continue
-              source = path.read_text(encoding='utf-8', errors='ignore')
-              if 'aaaat.cli' in source:
-                  forbidden.append(f'{path}: aaaat.cli')
-              if re.search(r'\binit_db\b', source):
-                  forbidden.append(f'{path}: init_db')
-          if forbidden:
-              raise RuntimeError('Cleanup left obsolete references:\n' + '\n'.join(forbidden))
-          PY
-
-      - name: Verify cleanup
+      - name: Build and verify package
+        if: runner.os != 'Linux'
         shell: bash
         run: |
-          python -m pip wheel . --no-deps --wheel-dir dist
-          python -m pip install --force-reinstall dist/aaaat-*.whl
-          python -B -m compileall -q aaaat tests tools scripts
-          python -B tools/validate_mcp.py
-          python -B -m unittest discover -s tests
-          git diff --check
+          set -o pipefail
+          {
+            python tools/build_release.py
+            python tools/verify_release.py
+          } 2>&1 | tee package-output.txt
 
-      - name: Commit source cleanup
+      - name: Build and verify Linux package
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add aaaat tests tools scripts docs AGENTS.md CONTRIBUTING.md .github/pull_request_template.md
-          git commit -m 'Remove obsolete CLI surface'
-          git push origin HEAD:${{ github.head_ref }}
+          set -o pipefail
+          {
+            .release-venv/bin/python tools/build_release.py
+            xvfb-run -a .release-venv/bin/python tools/verify_release.py
+          } 2>&1 | tee package-output.txt
+
+      - name: Upload package failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-diagnostics-${{ runner.os }}-${{ runner.arch }}
+          path: package-output.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload directly runnable package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AAAAT-${{ runner.os }}-${{ runner.arch }}
+          path: dist/AAAAT-*/
+          if-no-files-found: error
+          retention-days: 14
