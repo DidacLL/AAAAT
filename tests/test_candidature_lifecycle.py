@@ -10,7 +10,7 @@ from aaaat.agent_work import claim_agent_work
 from aaaat.background_worker import OwnedTaskWorker
 from aaaat.candidature_lifecycle import queue_lifecycle_task, release_ready_lifecycle_tasks
 from aaaat.candidatures import create_candidature, update_candidature
-from aaaat.db import connect, init_db
+from aaaat.db import connect, ensure_workspace_database
 from aaaat.tasks import create_task, get_task, list_tasks, update_task
 
 
@@ -18,7 +18,7 @@ class CandidatureLifecycleTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.storage = Path(self.temporary.name) / "private"
-        init_db(self.storage)
+        ensure_workspace_database(self.storage)
 
     def tearDown(self) -> None:
         self.temporary.cleanup()

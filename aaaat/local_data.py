@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .db import DEFAULT_PRIVATE_DIR, init_db
+from .db import DEFAULT_PRIVATE_DIR, ensure_workspace_database
 
 
 def local_storage_root(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
@@ -86,7 +86,7 @@ def create_local_backup(
 ) -> Path:
     """Create and verify a timestamped backup zip for SQLite and artifact files."""
 
-    source_db = init_db(storage)
+    source_db = ensure_workspace_database(storage)
     storage_root = source_db.parent
     backup_path = _resolve_backup_path(storage, output, force)
     backup_path.parent.mkdir(parents=True, exist_ok=True)

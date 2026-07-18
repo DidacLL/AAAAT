@@ -3,7 +3,7 @@ import tempfile
 import unittest
 
 from aaaat.dashboard_layout import DashboardLayoutState
-from aaaat.db import connect, create_application, get_application, init_db
+from aaaat.db import connect, create_application, get_application, ensure_workspace_database
 
 
 class DesktopStateAndRefreshContractTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class DesktopStateAndRefreshContractTests(unittest.TestCase):
         from aaaat.ui_desktop.app import build_desktop_projection
 
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 app = create_application(conn, company="Before", role="Engineer", notes="Old note")
             service = DesktopCommandService(tmp)

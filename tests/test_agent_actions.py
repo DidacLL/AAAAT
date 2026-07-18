@@ -5,7 +5,7 @@ import unittest
 from aaaat.agent_actions import get_agent_context_bundle, submit_agent_action
 from aaaat.candidatures import list_candidatures
 from aaaat.career_plans import create_career_plan
-from aaaat.db import connect, init_db, set_profile_variable, upsert_glossary_term
+from aaaat.db import connect, ensure_workspace_database, set_profile_variable, upsert_glossary_term
 from aaaat.profile_facts import create_profile_fact
 from aaaat.tasks import list_tasks
 
@@ -13,7 +13,7 @@ from aaaat.tasks import list_tasks
 class AgentActionTests(unittest.TestCase):
     def test_start_profile_creates_one_bounded_profile_task_without_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 acknowledgement = submit_agent_action(
                     conn,
@@ -33,7 +33,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_context_bundle_uses_agent_profile_exposure_and_career_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 create_profile_fact(
                     conn,
@@ -64,7 +64,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_create_candidature_preserves_source_outputs_and_renders_locally(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Local Candidate")
                 set_profile_variable(conn, "email", "candidate@example.invalid")
@@ -143,7 +143,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_create_candidature_does_not_schedule_unrequested_keyword_work(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 upsert_glossary_term(conn, "Python", "A programming language.", "technology")
                 submit_agent_action(
@@ -166,7 +166,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_create_candidature_requested_tasks_queue_bounded_follow_up(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 ack = submit_agent_action(
                     conn,
@@ -206,7 +206,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_requested_tasks_skip_completed_outputs(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Local Candidate")
                 set_profile_variable(conn, "email", "candidate@example.invalid")
@@ -243,7 +243,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_requested_tasks_reject_unsupported_types_and_malformed_keyword_tasks(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 with self.assertRaisesRegex(ValueError, "Unsupported requested task type: career_plan_review"):
                     submit_agent_action(
@@ -264,7 +264,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_cv_render_uses_existing_template_data(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Local Candidate")
                 set_profile_variable(conn, "email", "candidate@example.invalid")
@@ -288,7 +288,7 @@ class AgentActionTests(unittest.TestCase):
 
     def test_action_validation_rejects_unknown_and_malformed_packets(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 with self.assertRaisesRegex(ValueError, "Unsupported agent action"):
                     submit_agent_action(conn, {"action": "delete_candidature", "payload": {}})

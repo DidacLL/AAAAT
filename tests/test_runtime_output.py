@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aaaat.db import connect, init_db
+from aaaat.db import connect, ensure_workspace_database
 from aaaat.task_runner import TaskRunner, TaskRunnerError
 from aaaat.tasks import create_task
 from aaaat.workspace_config import save_workspace_settings
@@ -16,7 +16,7 @@ class RuntimeOutputTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.storage = Path(self.temporary.name) / "private"
-        init_db(self.storage)
+        ensure_workspace_database(self.storage)
 
     def tearDown(self) -> None:
         self.temporary.cleanup()

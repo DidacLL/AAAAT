@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aaaat.db import connect, init_db
+from aaaat.db import connect, ensure_workspace_database
 from aaaat.task_runner import TaskRunner, TaskRunnerError
 from aaaat.tasks import create_task, get_task
 from aaaat.workspace_config import save_workspace_settings
@@ -26,7 +26,7 @@ class AdvancedCommandFixtureTests(unittest.TestCase):
     def test_success_fixture_completes_a_bounded_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             with connect(storage) as conn:
                 task = create_task(conn, "keyword_definition", "Fixture success", context_hint="keyword:Fixture", idempotent=False)
             result = self._runner(storage, "success").run(str(task["id"]))
@@ -45,7 +45,7 @@ class AdvancedCommandFixtureTests(unittest.TestCase):
         for mode, timeout, message in cases:
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
                 storage = Path(tmp) / "private"
-                init_db(storage)
+                ensure_workspace_database(storage)
                 with connect(storage) as conn:
                     task = create_task(conn, "keyword_definition", f"Fixture {mode}", context_hint="keyword:Fixture", idempotent=False)
                 with self.assertRaisesRegex(TaskRunnerError, message):

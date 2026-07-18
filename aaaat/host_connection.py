@@ -18,7 +18,7 @@ from importlib.resources import files
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
-from .db import init_db
+from .db import ensure_workspace_database
 from .file_exchange import (
     RESULT_MEDIA_TYPE,
     RESULT_PROTOCOL,
@@ -93,7 +93,7 @@ def create_connection(storage: str | Path) -> dict[str, str]:
     """Create a revocable opaque capability for one workspace."""
 
     workspace = str(Path(storage).resolve())
-    init_db(workspace)
+    ensure_workspace_database(workspace)
     capability = CONNECTION_PREFIX + secrets.token_urlsafe(32)
     digest = _digest(capability)
     now = _utc_now()

@@ -1,5 +1,4 @@
 import importlib.resources
-import os
 import subprocess
 import sys
 import tempfile
@@ -12,18 +11,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class ReleaseEngineeringTests(unittest.TestCase):
-    def test_cli_module_help_executes_successfully(self):
-        result = subprocess.run(
-            [sys.executable, "-m", "aaaat.cli", "--help"],
-            cwd=ROOT,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(result.stdout.strip())
-
     def test_mcp_module_help_executes_successfully(self):
         result = subprocess.run(
             [sys.executable, "-m", "aaaat.mcp_runtime", "--help"],
@@ -58,20 +45,12 @@ class ReleaseEngineeringTests(unittest.TestCase):
         self.assertEqual(set(console_scripts), {"aaaat-desktop", "aaaat-host-bridge"})
 
 
-    def test_cli_can_initialize_clean_local_storage_without_git(self):
+    def test_desktop_projection_initializes_clean_local_storage(self):
+        from aaaat.ui_desktop.app import build_desktop_projection
+
         with tempfile.TemporaryDirectory() as tmp:
-            env = dict(os.environ)
-            env["PATH"] = ""
-            result = subprocess.run(
-                [sys.executable, "-m", "aaaat.cli", "--storage", tmp, "init"],
-                cwd=ROOT,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=False,
-                env=env,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
+            projection = build_desktop_projection(tmp)
+            self.assertIsInstance(projection, dict)
             self.assertTrue((Path(tmp) / "aaaat.sqlite3").exists())
 
     def test_runtime_schema_resource_is_available(self):

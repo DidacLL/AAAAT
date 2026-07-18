@@ -11,7 +11,7 @@ from aaaat.db import (
     create_application,
     create_raw_offer_intake,
     get_schema_version,
-    init_db,
+    ensure_workspace_database,
     list_applications,
     list_raw_intake,
 )
@@ -22,7 +22,7 @@ from aaaat.local_data import create_local_backup, restore_local_backup, verify_l
 class DbTests(unittest.TestCase):
     def test_database_initializes_application_raw_intake_and_artifact_provenance(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = init_db(tmp)
+            path = ensure_workspace_database(tmp)
             self.assertTrue(path.exists())
             with connect(tmp) as conn:
                 app = create_application(conn, company="Demo Co", role="Engineer", keywords=["ATS"])
@@ -60,7 +60,7 @@ class DbTests(unittest.TestCase):
 
     def test_raw_offer_intake_creates_active_candidature_with_retained_source(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 app = create_raw_offer_intake(conn, "Acme needs a Python engineer", "user")
                 stored = list_applications(conn)[0]
@@ -88,8 +88,8 @@ class DbTests(unittest.TestCase):
 
     def test_schema_version_and_init_are_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
-            init_db(tmp)
+            ensure_workspace_database(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 self.assertEqual(get_schema_version(conn), SCHEMA_VERSION)
                 self.assertEqual(
@@ -107,7 +107,7 @@ class DbTests(unittest.TestCase):
 
     def test_backup_creation_includes_database_and_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             artifact_dir = Path(tmp) / "artifacts"
             artifact_dir.mkdir()
             (artifact_dir / "cover-letter.tex").write_text("private local artifact", encoding="utf-8")
@@ -137,7 +137,7 @@ class DbTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             public_output = Path(tmp) / "public-backups"
-            init_db(storage)
+            ensure_workspace_database(storage)
 
             with self.assertRaises(ValueError):
                 create_local_backup(storage, public_output)
@@ -148,7 +148,7 @@ class DbTests(unittest.TestCase):
     def test_backup_restores_verified_database_and_artifacts_to_separate_workspace(self):
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             with connect(storage) as conn:
                 create_application(conn, company="Restored Co", role="Engineer")
             artifact_dir = storage / "artifacts"
@@ -167,7 +167,7 @@ class DbTests(unittest.TestCase):
     def test_restore_refuses_to_replace_an_existing_workspace(self):
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             backup = create_local_backup(storage)
             destination = Path(tmp) / "existing"
             destination.mkdir()
@@ -178,7 +178,7 @@ class DbTests(unittest.TestCase):
 
     def test_artifact_state_changes_and_archived_sorts_secondary(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 app = create_application(conn, company="Demo Co", role="Engineer")
                 archived = save_artifact(conn, app["id"], "cover_letter", "archived.pdf", "Archived", state="archived")

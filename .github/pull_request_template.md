@@ -10,7 +10,7 @@ neutrality, and bounded external-AI authority.
 ## Validation
 
 - [ ] `python -B -m compileall -q aaaat tests tools scripts`
-- [ ] `python -B -m aaaat.cli mcp-validate`
+- [ ] `python -B tools/validate_mcp.py`
 - [ ] `python -B -m unittest discover -s tests`
 - [ ] Native package checks, when applicable
 

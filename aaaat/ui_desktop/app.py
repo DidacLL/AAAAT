@@ -7,7 +7,7 @@ from typing import Any
 
 from aaaat.dashboard_layout import DashboardLayoutState, layout_state_path
 from aaaat.dashboard_projection import build_dashboard_projection
-from aaaat.db import connect, init_db
+from aaaat.db import connect, ensure_workspace_database
 from aaaat.desktop_workspace import default_desktop_workspace, save_desktop_workspace, selected_desktop_workspace
 from aaaat.payload import dashboard_payload
 
@@ -15,7 +15,7 @@ from aaaat.payload import dashboard_payload
 def build_desktop_projection(storage: str | Path, layout_state: DashboardLayoutState | None = None) -> dict[str, Any]:
     """Build the current desktop projection without importing any GUI toolkit."""
 
-    init_db(storage)
+    ensure_workspace_database(storage)
     layout = layout_state or DashboardLayoutState.load(layout_state_path(storage))
     with connect(storage) as conn:
         payload = dashboard_payload(conn, include_raw=True)

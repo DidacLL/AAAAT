@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from aaaat.candidatures import create_candidature, update_candidature
-from aaaat.db import add_raw_intake, connect, delete_application, init_db, upsert_glossary_term
+from aaaat.db import add_raw_intake, connect, delete_application, ensure_workspace_database, upsert_glossary_term
 
 
 COMPANIES = [
@@ -185,7 +185,7 @@ def _find_seed_application_id(conn: sqlite3.Connection, record: dict[str, Any]) 
 
 
 def seed(storage: str | Path, count: int = 48, *, reset: bool = False) -> dict[str, int]:
-    init_db(storage)
+    ensure_workspace_database(storage)
     created = 0
     updated = 0
     with connect(storage) as conn:

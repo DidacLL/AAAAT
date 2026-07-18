@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 
-from aaaat.db import connect, init_db
+from aaaat.db import connect, ensure_workspace_database
 from aaaat.mcp_runtime import dispatch_mcp_request, run_stdio_server
 from aaaat.tasks import create_task, get_task
 
@@ -36,7 +36,7 @@ class McpRuntimeTests(unittest.TestCase):
 
     def test_mcp_claim_and_result_use_one_single_use_capability(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 task = create_task(
                     conn,

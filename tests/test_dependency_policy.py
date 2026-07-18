@@ -32,7 +32,6 @@ class DependencyPolicyTests(unittest.TestCase):
     def test_core_and_desktop_projection_import_without_optional_wx(self):
         observed = self.run_probe(
             "import importlib, json, sys; "
-            "importlib.import_module('aaaat.cli'); "
             "app = importlib.import_module('aaaat.ui_desktop.app'); "
             "print(json.dumps({'callable': callable(app.build_desktop_projection), "
             "'wx_loaded': any(n == 'wx' or n.startswith('wx.') for n in sys.modules)}))"

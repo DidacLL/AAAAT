@@ -1,11 +1,8 @@
-import contextlib
-import io
 import json
 import tempfile
 import unittest
 
-from aaaat.cli import main
-from aaaat.db import connect, init_db
+from aaaat.db import connect, ensure_workspace_database
 from aaaat.profile_facts import (
     archive_profile_fact,
     create_profile_fact,
@@ -18,7 +15,7 @@ from aaaat.profile_facts import (
 class ProfileFactServiceTests(unittest.TestCase):
     def test_schema_init_creates_profile_facts_table(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 row = conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'profile_facts'").fetchone()
 
@@ -26,7 +23,7 @@ class ProfileFactServiceTests(unittest.TestCase):
 
     def test_service_create_list_update_and_archive(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 fact = create_profile_fact(
                     conn,
@@ -51,7 +48,7 @@ class ProfileFactServiceTests(unittest.TestCase):
 
     def test_profile_context_filters_by_purpose_and_exposure(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 create_profile_fact(
                     conn,
@@ -90,44 +87,6 @@ class ProfileFactServiceTests(unittest.TestCase):
             self.assertNotIn("id", fact)
             self.assertIn("fact_ref", fact)
 
-
-class ProfileFactCliTests(unittest.TestCase):
-    def run_cli(self, args):
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            self.assertEqual(main(args), 0)
-        return output.getvalue()
-
-    def test_cli_add_list_and_context_smoke(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            add = self.run_cli(
-                [
-                    "--storage",
-                    tmp,
-                    "profile",
-                    "fact",
-                    "add",
-                    "--type",
-                    "skill",
-                    "--title",
-                    "Python",
-                    "--body",
-                    "Backend APIs",
-                    "--visibility",
-                    "professional",
-                    "--exposure",
-                    "summarized",
-                    "--use-for-cv",
-                    "--use-for-agent-context",
-                ]
-            )
-            fact_id = json.loads(add)["id"]
-            listed = json.loads(self.run_cli(["--storage", tmp, "profile", "fact", "list"]))
-            context = json.loads(self.run_cli(["--storage", tmp, "profile", "context", "--purpose", "cv_generation"]))
-
-        self.assertEqual(listed[0]["id"], fact_id)
-        self.assertEqual(context["facts"][0]["title"], "Python")
-        self.assertNotIn("id", context["facts"][0])
 
 
 if __name__ == "__main__":

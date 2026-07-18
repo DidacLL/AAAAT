@@ -8,7 +8,7 @@ from aaaat.db import (
     connect,
     create_application,
     get_template,
-    init_db,
+    ensure_workspace_database,
     required_profile_variables,
     set_profile_variable,
 )
@@ -23,7 +23,7 @@ from aaaat.templates import (
 class TemplateTests(unittest.TestCase):
     def test_canonical_templates_use_variables_not_private_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 bodies = [
                     get_template(conn, name)["body"]
@@ -36,7 +36,7 @@ class TemplateTests(unittest.TestCase):
 
     def test_profile_variables_render_into_latex(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Demo Candidate")
                 set_profile_variable(conn, "email", "demo@example.invalid")
@@ -53,7 +53,7 @@ class TemplateTests(unittest.TestCase):
 
     def test_application_variables_render_into_cover_letter(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Demo Candidate")
                 app = create_application(conn, company="Demo Co", role="Engineer")
@@ -70,7 +70,7 @@ class TemplateTests(unittest.TestCase):
 
     def test_profile_missing_reports_and_clears_required_variables(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 missing = required_profile_variables(conn)
                 self.assertIn("profile.display_name", missing)
@@ -88,7 +88,7 @@ class TemplateTests(unittest.TestCase):
 
     def test_missing_required_template_variables_fail_clearly(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 app = create_application(conn, company="Demo Co", role="Engineer")
                 with self.assertRaisesRegex(
@@ -100,7 +100,7 @@ class TemplateTests(unittest.TestCase):
     def test_latex_escaping_for_normal_scalar_values(self):
         self.assertEqual(escape_latex("&%_#${}"), r"\&\%\_\#\$\{\}")
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "A&B_%#${}")
                 set_profile_variable(conn, "email", "demo_a@example.invalid")
@@ -114,7 +114,7 @@ class TemplateTests(unittest.TestCase):
 
     def test_cover_letter_body_is_escaped_unless_body_tex_is_used(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Demo Candidate")
                 set_profile_variable(conn, "email", "demo@example.invalid")
@@ -137,7 +137,7 @@ class TemplateTests(unittest.TestCase):
 
     def test_render_document_artifact_writes_tex_and_reuses_draft_row(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             output = Path(tmp) / "cv.tex"
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Demo Candidate")
@@ -162,7 +162,7 @@ class TemplateTests(unittest.TestCase):
 
     def test_pdflatex_unavailable_keeps_tex_artifact(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             output = Path(tmp) / "cover-letter.tex"
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Demo Candidate")
@@ -189,7 +189,7 @@ class TemplateTests(unittest.TestCase):
         if shutil.which("pdflatex") is None:
             self.skipTest("pdflatex is not installed")
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             output = Path(tmp) / "cv.tex"
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Demo Candidate")

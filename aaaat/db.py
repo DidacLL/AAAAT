@@ -68,7 +68,8 @@ def connect(path: str | Path = DEFAULT_PRIVATE_DIR) -> sqlite3.Connection:
     return conn
 
 
-def init_db(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
+def ensure_workspace_database(path: str | Path = DEFAULT_PRIVATE_DIR) -> Path:
+    """Create or upgrade the selected workspace database idempotently."""
     target = db_path(path)
     with connect(path) as conn:
         conn.executescript(Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"))

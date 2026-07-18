@@ -14,7 +14,7 @@ from aaaat.assistance_service import create_profile_completion_task
 from aaaat.background_worker import OwnedTaskWorker
 from aaaat.candidature_lifecycle import queue_lifecycle_task, release_ready_lifecycle_tasks
 from aaaat.candidatures import create_candidature, get_candidature
-from aaaat.db import connect, init_db, profile_variables
+from aaaat.db import connect, ensure_workspace_database, profile_variables
 from aaaat.payload import dashboard_payload
 from aaaat.integration_setup import integration_health
 from aaaat.task_runner import TaskRunner
@@ -27,7 +27,7 @@ class ReleaseLifecycleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             storage = root / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             settings = {
                 "argv": [sys.executable],
                 "timeout_seconds": 10,

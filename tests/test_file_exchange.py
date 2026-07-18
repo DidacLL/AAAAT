@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aaaat.db import connect, create_application, init_db
+from aaaat.db import connect, create_application, ensure_workspace_database
 from aaaat.file_exchange import (
     RESULT_MEDIA_TYPE,
     RESULT_PROTOCOL,
@@ -25,7 +25,7 @@ from aaaat.tasks import create_task, get_task
 class FileExchangeTests(unittest.TestCase):
     def _workspace_with_tasks(self, root: Path, count: int = 1):
         storage = root / "private"
-        init_db(storage)
+        ensure_workspace_database(storage)
         with connect(storage) as conn:
             candidature = create_application(conn, company="Example", role="Engineer")
             tasks = [
@@ -45,7 +45,7 @@ class FileExchangeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
             registry = Path(tmp) / "registry.json"
-            init_db(storage)
+            ensure_workspace_database(storage)
             previous = os.environ.get("AAAAT_CONNECTION_REGISTRY")
             os.environ["AAAAT_CONNECTION_REGISTRY"] = str(registry)
             try:

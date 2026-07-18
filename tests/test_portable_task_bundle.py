@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 from aaaat.agent_access import task_capability
-from aaaat.db import connect, create_application, init_db
+from aaaat.db import connect, create_application, ensure_workspace_database
 from aaaat.portable_task_bundle import (
     export_candidature_task_bundle,
     import_candidature_result_bundle,
@@ -20,7 +20,7 @@ class PortableTaskBundleTests(unittest.TestCase):
     def test_export_reports_a_plain_empty_outcome_when_nothing_is_ready(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             with connect(storage) as conn:
                 candidature = create_application(
                     conn,
@@ -39,7 +39,7 @@ class PortableTaskBundleTests(unittest.TestCase):
     def test_one_archive_contains_complete_bounded_work_items_without_internal_ids(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             with connect(storage) as conn:
                 candidature = create_application(
                     conn,
@@ -91,7 +91,7 @@ class PortableTaskBundleTests(unittest.TestCase):
     def test_result_sections_are_imported_independently(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             with connect(storage) as conn:
                 candidature = create_application(
                     conn,

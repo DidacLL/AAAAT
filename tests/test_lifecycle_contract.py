@@ -15,7 +15,7 @@ from aaaat.agent_work import claim_agent_work, claim_next_agent_work
 from aaaat.assisted_profile import profile_completion_context
 from aaaat.candidature_lifecycle import queue_lifecycle_task
 from aaaat.candidatures import create_candidature, get_candidature
-from aaaat.db import connect, init_db
+from aaaat.db import connect, ensure_workspace_database
 from aaaat.portable_task_bundle import export_candidature_task_bundle
 from aaaat.privacy import set_variable
 from aaaat.result_ingestion import ingest_task_result
@@ -27,7 +27,7 @@ class LifecycleContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.storage = Path(self.temporary.name) / "private"
-        init_db(self.storage)
+        ensure_workspace_database(self.storage)
 
     def tearDown(self) -> None:
         self.temporary.cleanup()

@@ -9,7 +9,7 @@ from unittest.mock import patch
 from aaaat.agent_access import submit_agent_task_result, task_capability
 from aaaat.agent_work import claim_agent_work, claim_next_agent_work
 from aaaat.assistance_service import create_profile_completion_task
-from aaaat.db import connect, init_db, profile_variables, set_profile_variable
+from aaaat.db import connect, ensure_workspace_database, profile_variables, set_profile_variable
 from aaaat.integration_readiness import integration_readiness
 from aaaat.task_runner import TaskRunner
 from aaaat.workspace_config import save_workspace_settings
@@ -19,7 +19,7 @@ class ProfileCompletionTaskTests(unittest.TestCase):
     def test_profile_completion_uses_complete_bounded_work_and_preserves_existing_values(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             with connect(storage) as conn:
                 set_profile_variable(conn, "profile.display_name", "Existing Name")
             create_profile_completion_task(storage)
@@ -79,7 +79,7 @@ class ProfileCompletionTaskTests(unittest.TestCase):
     def test_profile_completion_rejects_unknown_profile_authority(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             task = create_profile_completion_task(storage)
             with connect(storage) as conn:
                 task = claim_agent_work(conn, str(task["id"]))
@@ -96,7 +96,7 @@ class ProfileCompletionTaskTests(unittest.TestCase):
     def test_local_readiness_does_not_execute_or_certify_the_external_host(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             save_workspace_settings(
                 storage,
                 integration_method_id="user_command",
@@ -125,7 +125,7 @@ class ProfileCompletionTaskTests(unittest.TestCase):
     def test_runner_emits_transient_status_events(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             storage = Path(tmp) / "private"
-            init_db(storage)
+            ensure_workspace_database(storage)
             task = create_profile_completion_task(storage)
             save_workspace_settings(
                 storage,

@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 
-from aaaat.db import connect, create_application, create_raw_offer_intake, init_db, list_raw_intake, update_application, upsert_glossary_term
+from aaaat.db import connect, create_application, create_raw_offer_intake, ensure_workspace_database, list_raw_intake, update_application, upsert_glossary_term
 from aaaat.payload import dashboard_payload
 from aaaat.preparation_queue import preparation_queue
 
@@ -9,7 +9,7 @@ from aaaat.preparation_queue import preparation_queue
 class PreparationQueueTests(unittest.TestCase):
     def test_review_summary_includes_missing_fields_and_keyword_definitions_then_shrinks(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 app = create_application(conn, company="Queue Co", role="Engineer", keywords=["Unexplained"])
                 summary = preparation_queue(dashboard_payload(conn), app["id"])
@@ -39,7 +39,7 @@ class PreparationQueueTests(unittest.TestCase):
 
     def test_raw_offer_intake_keeps_unknown_fields_empty_and_reports_missing_information(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 app = create_raw_offer_intake(conn, "Raw offer text for a backend role.", "user")
                 intake = list_raw_intake(conn, app["id"])

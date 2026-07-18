@@ -11,7 +11,7 @@ from aaaat.agent_work import claim_agent_work, claim_next_agent_work
 from aaaat.candidatures import create_candidature
 from aaaat.db import (
     connect,
-    init_db,
+    ensure_workspace_database,
     profile_variables,
     set_profile_variable,
     upsert_glossary_term,
@@ -35,7 +35,7 @@ def object_keys(value):
 class AgentAccessContractTests(unittest.TestCase):
     def test_next_atomically_returns_complete_bounded_work_item(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 candidature = create_candidature(
                     conn,
@@ -69,7 +69,7 @@ class AgentAccessContractTests(unittest.TestCase):
 
     def test_capability_is_random_persisted_and_task_scoped(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 first = create_task(
                     conn,
@@ -97,7 +97,7 @@ class AgentAccessContractTests(unittest.TestCase):
 
     def test_profile_context_respects_fact_exposure(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 fact = create_profile_fact(
                     conn,
@@ -128,7 +128,7 @@ class AgentAccessContractTests(unittest.TestCase):
 
     def test_queued_task_cannot_submit_without_acquisition(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 task = create_task(
                     conn,
@@ -141,7 +141,7 @@ class AgentAccessContractTests(unittest.TestCase):
 
     def test_submit_uses_capability_for_claimed_task(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 task = create_task(
                     conn,
@@ -162,7 +162,7 @@ class AgentAccessContractTests(unittest.TestCase):
 
     def test_profile_result_cannot_replace_an_existing_desktop_value(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "profile.display_name", "User-owned name")
                 task = create_task(
@@ -209,7 +209,7 @@ class AgentAccessContractTests(unittest.TestCase):
 
     def test_keyword_result_cannot_replace_an_existing_canonical_definition(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 upsert_glossary_term(
                     conn,
@@ -245,7 +245,7 @@ class AgentAccessContractTests(unittest.TestCase):
 
     def test_inferred_keywords_queue_only_missing_canonical_definitions(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 upsert_glossary_term(
                     conn,
@@ -289,7 +289,7 @@ class AgentAccessContractTests(unittest.TestCase):
 
     def test_nested_result_limits_are_enforced(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 task = create_task(
                     conn,

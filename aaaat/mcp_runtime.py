@@ -8,7 +8,7 @@ from typing import Any, TextIO
 
 from .agent_actions import submit_agent_action
 from .agent_work import claim_next_agent_work
-from .db import connect, init_db
+from .db import connect, ensure_workspace_database
 from .mcp_server import PROTOCOL_VERSION, mcp_descriptor
 from .result_ingestion import ingest_task_result
 
@@ -74,7 +74,7 @@ def dispatch_mcp_request(storage: str | Path, request: dict[str, Any]) -> dict[s
 
 
 def _call_tool(storage: str | Path, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    init_db(storage)
+    ensure_workspace_database(storage)
     with connect(storage) as conn:
         if name == "get_next_agent_work":
             work = claim_next_agent_work(conn)

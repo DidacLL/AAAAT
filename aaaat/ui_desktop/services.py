@@ -7,7 +7,7 @@ from aaaat.artifacts import get_artifact, list_artifacts, save_artifact, update_
 from aaaat.candidature_fields import WRITABLE_CANDIDATURE_STORAGE_KEYS
 from aaaat.candidature_lifecycle import queue_field_task, queue_lifecycle_action, queue_lifecycle_task, release_ready_lifecycle_tasks
 from aaaat.candidatures import create_candidature, get_candidature, update_candidature
-from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, init_db, set_profile_variable, upsert_glossary_term
+from aaaat.db import add_raw_intake, application_keywords, connect, delete_application, ensure_workspace_database, set_profile_variable, upsert_glossary_term
 from aaaat.templates import TemplateVariableError, render_document_artifact, safe_artifact_output_path
 
 from .user_fields import WRITABLE_USER_STORAGE_KEYS
@@ -23,7 +23,7 @@ class DesktopCommandService:
 
     def __init__(self, storage_path: str | Path) -> None:
         self.storage_path = str(storage_path)
-        init_db(self.storage_path)
+        ensure_workspace_database(self.storage_path)
 
     def save_note(self, candidature_ref: str, body: str) -> None:
         self.update_candidature_fields(candidature_ref, {"notes": body})

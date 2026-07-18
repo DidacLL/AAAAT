@@ -9,8 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from aaaat.cli import main
-from aaaat.db import connect, init_db
+from aaaat.db import connect, ensure_workspace_database
 from aaaat.host_bridge import _desktop_launch_command, run_host_bridge
 from aaaat.host_connection import (
     HostConnectionError,
@@ -36,19 +35,11 @@ class HostConnectionTests(unittest.TestCase):
         self.environment.start()
         self.addCleanup(self.environment.stop)
 
-    def test_host_can_install_the_runtime_skill_without_exposing_host_paths(self) -> None:
+    def test_runtime_skill_is_packaged_without_private_paths(self) -> None:
         skill = runtime_skill_document()
         self.assertIn("name: AAAAT", skill)
         self.assertNotIn(".private", skill)
         self.assertNotIn("sqlite", skill.lower())
-
-        output = io.StringIO()
-        skill_root = Path(self.temp.name) / "host-skills"
-        with patch("sys.stdout", output):
-            self.assertEqual(main(["host", "install-skill", "--directory", str(skill_root)]), 0)
-        self.assertEqual(json.loads(output.getvalue()), {"status": "installed", "skill": "AAAAT"})
-        self.assertEqual((skill_root / "AAAAT" / "SKILL.md").read_text(encoding="utf-8"), skill)
-        self.assertNotIn(str(skill_root), output.getvalue())
 
     def test_exported_host_pack_keeps_workspace_details_out_of_host_configuration(self) -> None:
         pack = Path(self.temp.name) / "host-integration"

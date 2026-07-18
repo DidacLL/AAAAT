@@ -3,7 +3,7 @@ import unittest
 
 from aaaat.artifacts import save_artifact
 from aaaat.candidatures import create_candidature, get_candidature
-from aaaat.db import connect, init_db, set_profile_variable
+from aaaat.db import connect, ensure_workspace_database, set_profile_variable
 from aaaat.keywords import add_keyword_alias, create_keyword_note, list_keywords
 from aaaat.notes import create_note, list_notes
 from aaaat.privacy import get_variable, resolve_variables, set_variable
@@ -16,7 +16,7 @@ from aaaat.todos import create_todo, list_todos, update_todo
 class DomainServiceTests(unittest.TestCase):
     def test_profile_variables_use_canonical_privacy_storage(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_profile_variable(conn, "display_name", "Local Candidate")
                 item = get_variable(conn, "profile.display_name")
@@ -32,7 +32,7 @@ class DomainServiceTests(unittest.TestCase):
 
     def test_privacy_exposure_is_scope_specific(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 set_variable(conn, "raw_value", "secret", exposure="raw")
                 set_variable(conn, "redacted_value", "secret", exposure="redacted")
@@ -50,7 +50,7 @@ class DomainServiceTests(unittest.TestCase):
 
     def test_candidature_related_records_are_durable_without_implicit_ai_work(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 candidature = create_candidature(
                     conn,
@@ -72,7 +72,7 @@ class DomainServiceTests(unittest.TestCase):
 
     def test_field_inference_preserves_current_user_values(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 candidature = create_candidature(
                     conn,
@@ -89,7 +89,7 @@ class DomainServiceTests(unittest.TestCase):
 
     def test_conflicting_text_result_remains_history(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 candidature = create_candidature(
                     conn,
@@ -107,7 +107,7 @@ class DomainServiceTests(unittest.TestCase):
 
     def test_keyword_result_updates_empty_definition(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 candidature = create_candidature(
                     conn,
@@ -122,7 +122,7 @@ class DomainServiceTests(unittest.TestCase):
 
     def test_artifact_backed_document_result_remains_current_draft(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 candidature = create_candidature(
                     conn,
@@ -138,7 +138,7 @@ class DomainServiceTests(unittest.TestCase):
 
     def test_todo_note_and_text_blob_are_durable(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 candidature = create_candidature(
                     conn,
@@ -158,7 +158,7 @@ class DomainServiceTests(unittest.TestCase):
 
     def test_keyword_alias_and_note_are_durable(self):
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 add_keyword_alias(conn, "ATS", "Applicant tracker")
                 create_keyword_note(conn, "ATS", "Important for screening.")
@@ -170,7 +170,7 @@ class DomainServiceTests(unittest.TestCase):
         self.assertEqual(safe_match_query(""), "")
         self.assertEqual(safe_match_query("C++ / Python!!!"), '"C" "Python"')
         with tempfile.TemporaryDirectory() as tmp:
-            init_db(tmp)
+            ensure_workspace_database(tmp)
             with connect(tmp) as conn:
                 candidature = create_candidature(conn, company="Search Co", role="Python Engineer", raw_offer="C++ and Python role.")
                 create_note(conn, "Screening call note", application_id=candidature["id"])
