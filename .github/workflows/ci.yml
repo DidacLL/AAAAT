@@ -1,62 +1,142 @@
-name: Temporary profile result repair
+name: CI
 
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: temporary-profile-result-repair
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  repair:
-    name: Repair profile task result contract
+  behavioral-tests:
+    name: Behavioral tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - name: Check out release branch
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
-          ref: didacll/v1-clean-integration
-          fetch-depth: 0
           show-progress: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
-      - name: Apply repair
-        run: python .temporary-profile-fix.py
+      - name: Build wheel
+        run: python -m pip wheel . --no-deps --wheel-dir dist
 
-      - name: Verify repair
+      - name: Install wheel
+        run: python -m pip install dist/aaaat-*.whl
+
+      - name: Check installed entry points
+        working-directory: ${{ runner.temp }}
+        run: |
+          aaaat-desktop --help
+          aaaat-host-bridge --help
+
+      - name: Compile Python sources
+        run: python -B -m compileall -q aaaat tests tools scripts
+
+      - name: Validate MCP descriptor
+        run: python -B tools/validate_mcp.py
+
+      - name: Run behavioral suite
         shell: bash
         run: |
           set -o pipefail
-          python -B -m compileall -q aaaat tests tools scripts
-          python -B tools/validate_mcp.py
-          python -B -m unittest tests.test_profile_completion tests.test_mcp_runtime
-          python -B -m unittest discover -s tests
+          python -B -m unittest discover -s tests 2>&1 | tee behavioral-test-output.txt
 
-      - name: Commit source repair
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: behavioral-diagnostics-${{ matrix.python-version }}
+          path: behavioral-test-output.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+  release-packages:
+    name: Package and verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: Set up Python
+        if: runner.os != 'Linux'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package-build dependencies
+        if: runner.os != 'Linux'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[desktop,release]"
+
+      - name: Install Linux package-build dependencies
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-          git add \
-            aaaat/SKILL.md \
-            aaaat/agent_access.py \
-            aaaat/assisted_profile.py \
-            aaaat/mcp_runtime.py \
-            aaaat/tasks.py \
-            tests/test_mcp_runtime.py \
-            tests/test_profile_completion.py
-          if git diff --cached --quiet; then
-            echo "Profile-result repair already present."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Preserve profile tasks on validation failure"
-          git push origin HEAD:didacll/v1-clean-integration
+          sudo apt-get update
+          sudo apt-get install -y python3-venv python3-wxgtk4.0 xvfb
+          python3 -m venv --system-site-packages .release-venv
+          .release-venv/bin/python -m pip install --upgrade pip
+          .release-venv/bin/python -m pip install ".[release]"
+
+      - name: Build and verify package
+        if: runner.os != 'Linux'
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            python tools/build_release.py
+            python tools/verify_release.py
+          } 2>&1 | tee package-output.txt
+
+      - name: Build and verify Linux package
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            .release-venv/bin/python tools/build_release.py
+            xvfb-run -a .release-venv/bin/python tools/verify_release.py
+          } 2>&1 | tee package-output.txt
+
+      - name: Upload package failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-diagnostics-${{ runner.os }}-${{ runner.arch }}
+          path: package-output.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload directly runnable package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AAAAT-${{ runner.os }}-${{ runner.arch }}
+          path: dist/AAAAT-*/
+          if-no-files-found: error
+          retention-days: 14
