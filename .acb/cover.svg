@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">AAAAT desktop with fictional candidature data</title>
+  <desc id="desc">A simplified Smart View showing three fictional job applications, a selected recruiter call card, keywords, notes, and next actions.</desc>
+  <rect width="1200" height="720" fill="#f4f5f7"/>
+  <rect x="28" y="24" width="1144" height="672" rx="14" fill="#ffffff" stroke="#c9ced6"/>
+  <rect x="28" y="24" width="1144" height="58" rx="14" fill="#20252d"/>
+  <text x="58" y="61" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff">AAAAT</text>
+  <text x="164" y="60" font-family="Arial, sans-serif" font-size="15" fill="#cfd5dd">Smart View · Private workspace</text>
+  <rect x="970" y="39" width="168" height="30" rx="15" fill="#36404d"/>
+  <circle cx="991" cy="54" r="6" fill="#66c28a"/>
+  <text x="1006" y="59" font-family="Arial, sans-serif" font-size="13" fill="#ffffff">AI connection paused</text>
+
+  <text x="54" y="119" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#596273">CANDIDATURES</text>
+  <rect x="52" y="137" width="320" height="142" rx="10" fill="#eef3ff" stroke="#7596d8"/>
+  <text x="70" y="168" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1f2937">Northstar Systems</text>
+  <text x="70" y="193" font-family="Arial, sans-serif" font-size="15" fill="#374151">Backend Engineer</text>
+  <text x="70" y="224" font-family="Arial, sans-serif" font-size="13" fill="#596273">Interview · High priority</text>
+  <text x="70" y="252" font-family="Arial, sans-serif" font-size="13" fill="#1d4f91">Next: recruiter call, Tuesday 10:00</text>
+
+  <rect x="52" y="294" width="320" height="116" rx="10" fill="#ffffff" stroke="#d5d9df"/>
+  <text x="70" y="326" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1f2937">Acme Research</text>
+  <text x="70" y="351" font-family="Arial, sans-serif" font-size="14" fill="#374151">Applied ML Engineer</text>
+  <text x="70" y="382" font-family="Arial, sans-serif" font-size="13" fill="#596273">Preparing · Normal priority</text>
+
+  <rect x="52" y="425" width="320" height="116" rx="10" fill="#ffffff" stroke="#d5d9df"/>
+  <text x="70" y="457" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1f2937">Example Cooperative</text>
+  <text x="70" y="482" font-family="Arial, sans-serif" font-size="14" fill="#374151">Platform Developer</text>
+  <text x="70" y="513" font-family="Arial, sans-serif" font-size="13" fill="#596273">Interested · Low priority</text>
+
+  <rect x="397" y="112" width="475" height="429" rx="10" fill="#ffffff" stroke="#d5d9df"/>
+  <text x="420" y="148" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#596273">RECRUITER CALL CARD</text>
+  <text x="420" y="182" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#1f2937">Northstar Systems · Backend Engineer</text>
+  <text x="420" y="216" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#374151">Pitch</text>
+  <text x="420" y="241" font-family="Arial, sans-serif" font-size="14" fill="#4b5563">Reliable Python services, local-first systems, and clear operational ownership.</text>
+  <text x="420" y="279" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#374151">Ask</text>
+  <text x="420" y="304" font-family="Arial, sans-serif" font-size="14" fill="#4b5563">How does the team balance delivery speed with production reliability?</text>
+  <text x="420" y="342" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#374151">Avoid</text>
+  <text x="420" y="367" font-family="Arial, sans-serif" font-size="14" fill="#4b5563">Do not overstate distributed-systems scale.</text>
+  <text x="420" y="405" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#374151">Prepare first</text>
+  <rect x="420" y="423" width="128" height="30" rx="15" fill="#edf2f7"/>
+  <text x="438" y="443" font-family="Arial, sans-serif" font-size="13" fill="#334155">service ownership</text>
+  <rect x="558" y="423" width="98" height="30" rx="15" fill="#edf2f7"/>
+  <text x="576" y="443" font-family="Arial, sans-serif" font-size="13" fill="#334155">PostgreSQL</text>
+  <rect x="666" y="423" width="89" height="30" rx="15" fill="#edf2f7"/>
+  <text x="684" y="443" font-family="Arial, sans-serif" font-size="13" fill="#334155">incident duty</text>
+  <rect x="420" y="476" width="426" height="42" rx="8" fill="#f8fafc" stroke="#e1e5ea"/>
+  <text x="438" y="502" font-family="Arial, sans-serif" font-size="13" fill="#596273">Notes: recruiter emphasized autonomy and practical communication.</text>
+
+  <rect x="897" y="112" width="249" height="429" rx="10" fill="#ffffff" stroke="#d5d9df"/>
+  <text x="920" y="148" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#596273">SELECTED KEYWORD</text>
+  <text x="920" y="183" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#1f2937">service ownership</text>
+  <text x="920" y="216" font-family="Arial, sans-serif" font-size="14" fill="#4b5563">Responsibility for design,</text>
+  <text x="920" y="238" font-family="Arial, sans-serif" font-size="14" fill="#4b5563">delivery, observability, and</text>
+  <text x="920" y="260" font-family="Arial, sans-serif" font-size="14" fill="#4b5563">operation of a service.</text>
+  <line x1="920" y1="286" x2="1123" y2="286" stroke="#e1e5ea"/>
+  <text x="920" y="318" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#596273">ARTIFACTS</text>
+  <text x="920" y="350" font-family="Arial, sans-serif" font-size="14" fill="#1d4f91">CV variant · current</text>
+  <text x="920" y="379" font-family="Arial, sans-serif" font-size="14" fill="#1d4f91">Cover letter · draft</text>
+  <text x="920" y="408" font-family="Arial, sans-serif" font-size="14" fill="#1d4f91">Interview guide · draft</text>
+
+  <rect x="52" y="570" width="1094" height="96" rx="10" fill="#f8fafc" stroke="#d5d9df"/>
+  <text x="72" y="604" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#596273">NEXT ACTION</text>
+  <text x="72" y="637" font-family="Arial, sans-serif" font-size="17" fill="#1f2937">Check recruiter-call notes, then open Detailed View to update the interview plan.</text>
+</svg>
