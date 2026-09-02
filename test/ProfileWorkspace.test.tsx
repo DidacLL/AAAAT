@@ -160,11 +160,21 @@ describe("manual profile workspace", () => {
     expect(resolveVariant).toHaveBeenCalledWith(variant.id);
 
     const rules = screen.getAllByRole("button", { name: "Apply item rule" });
-    expect(rules).toHaveLength(2);
-
     const overrideTitles = screen.getAllByLabelText("Override title");
-    await user.type(overrideTitles[0], "Focused summary");
-    await user.click(rules[0]);
+    const downButtons = screen.getAllByRole("button", { name: "Down" });
+    expect(rules).toHaveLength(2);
+    expect(overrideTitles).toHaveLength(2);
+    expect(downButtons).toHaveLength(2);
+
+    const firstRule = rules[0];
+    const firstOverrideTitle = overrideTitles[0];
+    const firstDown = downButtons[0];
+    if (!firstRule || !firstOverrideTitle || !firstDown) {
+      throw new Error("Expected variant rule controls are missing");
+    }
+
+    await user.type(firstOverrideTitle, "Focused summary");
+    await user.click(firstRule);
 
     expect(configureVariantItem).toHaveBeenCalledWith({
       variantId: variant.id,
@@ -173,8 +183,7 @@ describe("manual profile workspace", () => {
       contentPatch: { title: "Focused summary" },
     });
 
-    const downButtons = screen.getAllByRole("button", { name: "Down" });
-    await user.click(downButtons[0]);
+    await user.click(firstDown);
     expect(reorderVariant).toHaveBeenCalledWith({
       variantId: variant.id,
       itemIds: [itemB.id, itemA.id],
