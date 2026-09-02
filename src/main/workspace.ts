@@ -13,10 +13,12 @@ import {
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import workspaceMigrationSql from "./migrations/001_workspace.sql?raw";
 import type { WorkspaceInfo } from "../shared/contracts";
+import workspaceMigrationSql from "./migrations/001_workspace.sql?raw";
+import profileMigrationSql from "./migrations/002_profile.sql?raw";
 
 interface MigrationRow {
+  readonly version: number;
   readonly name: string;
   readonly sha256: string;
 }
@@ -25,22 +27,36 @@ interface InitializedRow {
   readonly initializedAt: string;
 }
 
-interface VersionRow {
-  readonly schemaVersion: number | null;
-}
-
 interface WorkspaceSettings {
   readonly lastWorkspacePath?: string;
 }
 
+interface MigrationDefinition {
+  readonly version: number;
+  readonly name: string;
+  readonly sql: string;
+  readonly sha256: string;
+}
+
 const workspaceDatabaseName = "workspace.sqlite";
 
-const workspaceMigration = Object.freeze({
-  version: 1,
-  name: "workspace",
-  sql: workspaceMigrationSql,
-  sha256: createHash("sha256").update(workspaceMigrationSql).digest("hex"),
-});
+function migration(
+  version: number,
+  name: string,
+  sql: string,
+): MigrationDefinition {
+  return Object.freeze({
+    version,
+    name,
+    sql,
+    sha256: createHash("sha256").update(sql).digest("hex"),
+  });
+}
+
+const migrations = Object.freeze([
+  migration(1, "workspace", workspaceMigrationSql),
+  migration(2, "profile", profileMigrationSql),
+]);
 
 class WorkspaceError extends Error {
   constructor(message: string) {
@@ -72,37 +88,67 @@ function transact(database: DatabaseSync, action: () => void): void {
   }
 }
 
-function applyWorkspaceMigration(
-  database: DatabaseSync,
-  now: string,
-): void {
-  const applied = database
-    .prepare("SELECT name, sha256 FROM schema_migrations WHERE version = ?")
-    .get(workspaceMigration.version) as MigrationRow | undefined;
-
-  if (
-    applied &&
-    (applied.name !== workspaceMigration.name ||
-      applied.sha256 !== workspaceMigration.sha256)
-  ) {
+function validateAppliedMigrations(rows: readonly MigrationRow[]): void {
+  const firstMigration = rows.find((row) => row.version === 1);
+  if (!firstMigration) {
     throw new WorkspaceError("The workspace migration history is incompatible.");
   }
 
-  transact(database, () => {
-    if (!applied) {
-      database.exec(workspaceMigration.sql);
+  for (const row of rows) {
+    const expected = migrations.find(
+      (candidate) => candidate.version === row.version,
+    );
+    if (
+      !expected ||
+      row.name !== expected.name ||
+      row.sha256 !== expected.sha256
+    ) {
+      throw new WorkspaceError("The workspace migration history is incompatible.");
+    }
+  }
+}
+
+function appliedMigrations(database: DatabaseSync): MigrationRow[] {
+  return database
+    .prepare(
+      "SELECT version, name, sha256 FROM schema_migrations ORDER BY version",
+    )
+    .all() as unknown as MigrationRow[];
+}
+
+function applyMigrations(database: DatabaseSync, now: string): void {
+  validateAppliedMigrations(appliedMigrations(database));
+
+  for (const current of migrations) {
+    const applied = database
+      .prepare(
+        "SELECT version, name, sha256 FROM schema_migrations WHERE version = ?",
+      )
+      .get(current.version) as unknown as MigrationRow | undefined;
+
+    if (applied) {
+      if (
+        applied.name !== current.name ||
+        applied.sha256 !== current.sha256
+      ) {
+        throw new WorkspaceError(
+          "The workspace migration history is incompatible.",
+        );
+      }
+      continue;
+    }
+
+    transact(database, () => {
+      database.exec(current.sql);
       database
         .prepare(
           "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
         )
-        .run(
-          workspaceMigration.version,
-          workspaceMigration.name,
-          workspaceMigration.sha256,
-          now,
-        );
-    }
+        .run(current.version, current.name, current.sha256, now);
+    });
+  }
 
+  transact(database, () => {
     database
       .prepare(
         "INSERT OR IGNORE INTO workspace_metadata(key, value) VALUES (?, ?)",
@@ -146,35 +192,20 @@ function verifyExistingWorkspace(rootPath: string): void {
   let database: DatabaseSync | undefined;
   try {
     database = new DatabaseSync(databasePath, { readOnly: true });
-    const migration = database
-      .prepare("SELECT name, sha256 FROM schema_migrations WHERE version = ?")
-      .get(workspaceMigration.version) as MigrationRow | undefined;
-    const version = database
-      .prepare("SELECT MAX(version) AS schemaVersion FROM schema_migrations")
-      .get() as unknown as VersionRow;
+    const rows = appliedMigrations(database);
     const initialized = database
       .prepare(
         "SELECT value AS initializedAt FROM workspace_metadata WHERE key = ?",
       )
       .get("workspace.initialized_at") as InitializedRow | undefined;
 
-    if (
-      !migration ||
-      migration.name !== workspaceMigration.name ||
-      migration.sha256 !== workspaceMigration.sha256 ||
-      version.schemaVersion === null ||
-      version.schemaVersion > workspaceMigration.version ||
-      !initialized
-    ) {
+    validateAppliedMigrations(rows);
+    if (!initialized) {
       throw new WorkspaceError(
         "The selected folder is not a compatible AAAAT workspace.",
       );
     }
-  } catch (error) {
-    if (error instanceof WorkspaceError) {
-      throw error;
-    }
-
+  } catch {
     throw new WorkspaceError(
       "The selected folder is not a compatible AAAAT workspace.",
     );
@@ -190,7 +221,24 @@ function migrateDatabase(databasePath: string): void {
   try {
     configureDatabase(database);
     ensureMigrationTable(database);
-    applyWorkspaceMigration(database, now);
+
+    const rows = appliedMigrations(database);
+    if (rows.length === 0) {
+      const first = migrations[0];
+      if (!first) {
+        throw new WorkspaceError("AAAAT has no workspace migration.");
+      }
+      transact(database, () => {
+        database.exec(first.sql);
+        database
+          .prepare(
+            "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
+          )
+          .run(first.version, first.name, first.sha256, now);
+      });
+    }
+
+    applyMigrations(database, now);
   } finally {
     database.close();
   }
@@ -248,6 +296,24 @@ export function openWorkspace(rootPath: string): WorkspaceInfo {
     }
 
     throw new WorkspaceError("AAAAT could not open this workspace.");
+  }
+}
+
+export function withWorkspaceDatabase<T>(
+  rootPath: string,
+  action: (database: DatabaseSync) => T,
+): T {
+  const canonicalPath = canonicalizeWorkspaceRoot(rootPath);
+  verifyExistingWorkspace(canonicalPath);
+  const databasePath = databasePathFor(canonicalPath);
+  migrateDatabase(databasePath);
+
+  const database = new DatabaseSync(databasePath);
+  try {
+    configureDatabase(database);
+    return action(database);
+  } finally {
+    database.close();
   }
 }
 

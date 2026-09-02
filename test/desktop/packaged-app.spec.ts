@@ -259,14 +259,27 @@ test("packaged desktop preserves the bounded workspace boundary", async () => {
       root: Object.keys(window.aaaat),
       system: Object.keys(window.aaaat.system),
       workspace: Object.keys(window.aaaat.workspace),
+      profile: Object.keys(window.aaaat.profile),
     }));
 
     expect(boundary).toEqual({
       processType: "undefined",
       requireType: "undefined",
-      root: ["system", "workspace"],
+      root: ["system", "workspace", "profile"],
       system: ["info"],
       workspace: ["current", "choose"],
+      profile: [
+        "current",
+        "addItem",
+        "updateItem",
+        "removeItem",
+        "createVariant",
+        "updateVariant",
+        "removeVariant",
+        "configureVariantItem",
+        "reorderVariant",
+        "resolveVariant",
+      ],
     });
 
     const csp = await running.page
@@ -301,6 +314,11 @@ test("packaged desktop preserves the bounded workspace boundary", async () => {
           )
           .get(),
       ).toMatchObject({ value: expect.any(String) });
+      expect(
+        database
+          .prepare("SELECT name FROM schema_migrations WHERE version = 2")
+          .get(),
+      ).toEqual({ name: "profile" });
     } finally {
       database.close();
     }

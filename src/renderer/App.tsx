@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 
+import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import logo from "./assets/aaaat-logo-light.png";
-import type {
-  WorkspaceChoice,
-  WorkspaceInfo,
-} from "../shared/contracts";
+import { ProfileWorkspace } from "./ProfileWorkspace";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
 
@@ -89,65 +87,78 @@ export function App() {
         <span className="brand-name">AAAAT</span>
       </header>
 
-      <main className="empty-state">
-        <img
-          className="hero-logo"
-          src={logo}
-          alt="AAAAT explorer robot holding a magnifying glass"
-        />
-        <p className="tagline">Your career workspace, on your computer.</p>
-        <span className="accent-line" aria-hidden="true" />
-
-        <h1>
-          {loading
-            ? "Opening your workspace..."
-            : ready
-              ? "Workspace ready."
-              : "Choose where AAAAT should keep your career workspace."}
-        </h1>
-
-        {ready ? (
-          <>
-            <p className="workspace-path">
-              <span>Workspace</span>
-              <code>{workspace.rootPath}</code>
-            </p>
+      {ready ? (
+        <main className="workspace-screen">
+          <section className="workspace-heading">
+            <div>
+              <p className="eyebrow">Local workspace</p>
+              <h1>Workspace ready.</h1>
+              <p className="workspace-path">
+                <code>{workspace.rootPath}</code>
+              </p>
+            </div>
             <button
-              className="primary-action"
+              className="compact-secondary"
               type="button"
               disabled={choosing}
               onClick={() => void chooseWorkspace("create")}
             >
               {choosing ? "Choosing workspace..." : "Choose another workspace"}
             </button>
-          </>
-        ) : loading ? null : (
-          <div className="workspace-actions">
-            <button
-              className="primary-action"
-              type="button"
-              disabled={choosing}
-              onClick={() => void chooseWorkspace("create")}
-            >
-              {choosing ? "Choosing workspace..." : "Create workspace"}
-            </button>
-            <button
-              className="secondary-action"
-              type="button"
-              disabled={choosing}
-              onClick={() => void chooseWorkspace("open")}
-            >
-              Open existing workspace
-            </button>
-          </div>
-        )}
+          </section>
 
-        {workspaceError ? (
-          <p className="error-message" role="alert">
-            {workspaceError}
-          </p>
-        ) : null}
-      </main>
+          {workspaceError ? (
+            <p className="error-message" role="alert">
+              {workspaceError}
+            </p>
+          ) : null}
+
+          <ProfileWorkspace key={workspace.rootPath} />
+        </main>
+      ) : (
+        <main className="empty-state">
+          <img
+            className="hero-logo"
+            src={logo}
+            alt="AAAAT explorer robot holding a magnifying glass"
+          />
+          <p className="tagline">Your career workspace, on your computer.</p>
+          <span className="accent-line" aria-hidden="true" />
+
+          <h1>
+            {loading
+              ? "Opening your workspace..."
+              : "Choose where AAAAT should keep your career workspace."}
+          </h1>
+
+          {loading ? null : (
+            <div className="workspace-actions">
+              <button
+                className="primary-action"
+                type="button"
+                disabled={choosing}
+                onClick={() => void chooseWorkspace("create")}
+              >
+                {choosing ? "Choosing workspace..." : "Create workspace"}
+              </button>
+              <button
+                className="secondary-action"
+                type="button"
+                disabled={choosing}
+                onClick={() => void chooseWorkspace("open")}
+              >
+                Open existing workspace
+              </button>
+            </div>
+          )}
+
+          {workspaceError ? (
+            <p className="error-message" role="alert">
+              {workspaceError}
+            </p>
+          ) : null}
+        </main>
+      )}
 
       <footer className="app-footer">
         <p>

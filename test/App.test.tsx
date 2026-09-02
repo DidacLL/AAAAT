@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/renderer/App";
 import type {
   DesktopApi,
+  ProfileSnapshot,
   WorkspaceInfo,
 } from "../src/shared/contracts";
 
@@ -12,6 +13,7 @@ const readyWorkspace: WorkspaceInfo = {
   rootPath: "/tmp/aaaat-workspace",
 };
 
+const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
 const current = vi.fn<DesktopApi["workspace"]["current"]>();
 const choose = vi.fn<DesktopApi["workspace"]["choose"]>();
 
@@ -26,6 +28,20 @@ const desktopApi: DesktopApi = {
   workspace: {
     current,
     choose,
+  },
+  profile: {
+    current: async () => emptyProfile,
+    addItem: async () => emptyProfile,
+    updateItem: async () => emptyProfile,
+    removeItem: async () => emptyProfile,
+    createVariant: async () => emptyProfile,
+    updateVariant: async () => emptyProfile,
+    removeVariant: async () => emptyProfile,
+    configureVariantItem: async () => emptyProfile,
+    reorderVariant: async () => emptyProfile,
+    resolveVariant: async () => {
+      throw new Error("No profile variant in this workspace test.");
+    },
   },
 };
 

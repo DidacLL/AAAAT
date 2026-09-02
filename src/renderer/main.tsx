@@ -1,9 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import type { DesktopApi } from "../shared/contracts";
+import type { DesktopApi, ProfileSnapshot } from "../shared/contracts";
 import { App } from "./App";
 import "./styles.css";
+
+const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
 
 function createPreviewApi(): DesktopApi {
   return Object.freeze({
@@ -19,6 +21,20 @@ function createPreviewApi(): DesktopApi {
       choose: async () => ({
         rootPath: "/Users/example/AAAAT Workspace",
       }),
+    }),
+    profile: Object.freeze({
+      current: async () => emptyProfile,
+      addItem: async () => emptyProfile,
+      updateItem: async () => emptyProfile,
+      removeItem: async () => emptyProfile,
+      createVariant: async () => emptyProfile,
+      updateVariant: async () => emptyProfile,
+      removeVariant: async () => emptyProfile,
+      configureVariantItem: async () => emptyProfile,
+      reorderVariant: async () => emptyProfile,
+      resolveVariant: async () => {
+        throw new Error("Create a preview variant before resolving it.");
+      },
     }),
   });
 }
