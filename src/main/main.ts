@@ -12,10 +12,32 @@ import {
 import {
   channels,
   optionalWorkspaceInfoSchema,
+  profileItemInputSchema,
+  profileItemSchema,
+  profileItemUpdateSchema,
+  profileSnapshotSchema,
+  profileVariantInputSchema,
+  profileVariantItemRuleInputSchema,
+  profileVariantReorderSchema,
+  profileVariantSchema,
+  profileVariantUpdateSchema,
+  resolvedProfileSchema,
   systemInfoSchema,
   workspaceChoiceSchema,
   type WorkspaceInfo,
 } from "../shared/contracts";
+import {
+  addProfileItem,
+  configureProfileVariantItem,
+  createProfileVariant,
+  getProfile,
+  removeProfileItem,
+  removeProfileVariant,
+  reorderProfileVariant,
+  resolveProfileVariant,
+  updateProfileItem,
+  updateProfileVariant,
+} from "./profile-service";
 import { createWindowOptions } from "./window-options";
 import {
   createOrOpenWorkspace,
@@ -58,6 +80,14 @@ function currentOrRememberedWorkspace(): WorkspaceInfo | null {
   return currentWorkspace;
 }
 
+function requireWorkspaceRoot(): string {
+  const workspace = currentOrRememberedWorkspace();
+  if (!workspace) {
+    throw new Error("Choose an AAAAT workspace first.");
+  }
+  return workspace.rootPath;
+}
+
 async function chooseWorkspace(
   mainWindow: BrowserWindow,
   choice: unknown,
@@ -93,9 +123,9 @@ async function chooseWorkspace(
 }
 
 function registerIpc(mainWindow: BrowserWindow): void {
-  ipcMain.removeHandler(channels.systemInfo);
-  ipcMain.removeHandler(channels.workspaceCurrent);
-  ipcMain.removeHandler(channels.workspaceChoose);
+  for (const channel of Object.values(channels)) {
+    ipcMain.removeHandler(channel);
+  }
 
   ipcMain.handle(channels.systemInfo, (event) => {
     assertTrustedSender(event, mainWindow);
@@ -115,6 +145,101 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return optionalWorkspaceInfoSchema.parse(
       await chooseWorkspace(mainWindow, choice),
+    );
+  });
+
+  ipcMain.handle(channels.profileCurrent, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return profileSnapshotSchema.parse(getProfile(requireWorkspaceRoot()));
+  });
+
+  ipcMain.handle(channels.profileAddItem, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return profileSnapshotSchema.parse(
+      addProfileItem(requireWorkspaceRoot(), profileItemInputSchema.parse(input)),
+    );
+  });
+
+  ipcMain.handle(channels.profileUpdateItem, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return profileSnapshotSchema.parse(
+      updateProfileItem(
+        requireWorkspaceRoot(),
+        profileItemUpdateSchema.parse(input),
+      ),
+    );
+  });
+
+  ipcMain.handle(channels.profileRemoveItem, (event, itemId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return profileSnapshotSchema.parse(
+      removeProfileItem(
+        requireWorkspaceRoot(),
+        profileItemSchema.shape.id.parse(itemId),
+      ),
+    );
+  });
+
+  ipcMain.handle(channels.profileCreateVariant, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return profileSnapshotSchema.parse(
+      createProfileVariant(
+        requireWorkspaceRoot(),
+        profileVariantInputSchema.parse(input),
+      ),
+    );
+  });
+
+  ipcMain.handle(channels.profileUpdateVariant, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return profileSnapshotSchema.parse(
+      updateProfileVariant(
+        requireWorkspaceRoot(),
+        profileVariantUpdateSchema.parse(input),
+      ),
+    );
+  });
+
+  ipcMain.handle(channels.profileRemoveVariant, (event, variantId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return profileSnapshotSchema.parse(
+      removeProfileVariant(
+        requireWorkspaceRoot(),
+        profileVariantSchema.shape.id.parse(variantId),
+      ),
+    );
+  });
+
+  ipcMain.handle(
+    channels.profileConfigureVariantItem,
+    (event, input: unknown) => {
+      assertTrustedSender(event, mainWindow);
+      return profileSnapshotSchema.parse(
+        configureProfileVariantItem(
+          requireWorkspaceRoot(),
+          profileVariantItemRuleInputSchema.parse(input),
+        ),
+      );
+    },
+  );
+
+  ipcMain.handle(channels.profileReorderVariant, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return profileSnapshotSchema.parse(
+      reorderProfileVariant(
+        requireWorkspaceRoot(),
+        profileVariantReorderSchema.parse(input),
+      ),
+    );
+  });
+
+  ipcMain.handle(channels.profileResolveVariant, (event, variantId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return resolvedProfileSchema.parse(
+      resolveProfileVariant(
+        requireWorkspaceRoot(),
+        profileVariantSchema.shape.id.parse(variantId),
+      ),
     );
   });
 }
