@@ -53,6 +53,10 @@ function createPreviewApi(): DesktopApi {
       create: previewUnavailable,
       update: previewUnavailable,
       setDocuments: previewUnavailable,
+      listConcepts: async () => [],
+      createConcept: previewUnavailable,
+      updateConcept: previewUnavailable,
+      setConcepts: previewUnavailable,
     }),
   });
 }
