@@ -58,15 +58,25 @@ describe("latex runner", () => {
     process.env.AAAAT_FAKE_LATEX_SENTINEL = sentinel;
 
     await expect(runLatexmk(project, "pdflatex", 40)).rejects.toThrow("timed out");
-    await new Promise((resolve) => setTimeout(resolve, 180));
+    await new Promise((resolve) => setTimeout(resolve, 600));
     expect(existsSync(sentinel)).toBe(false);
   });
 
-  it("reports a non-zero latexmk exit", async () => {
+  it("reports the non-zero latexmk exit code", async () => {
     const project = fakeLatexmk();
     process.env.AAAAT_FAKE_LATEX_MODE = "fail";
     await expect(runLatexmk(project, "pdflatex", 1_000)).rejects.toThrow(
-      "TeX rendering failed",
+      "exit code 2",
+    );
+  });
+
+  it("keeps a missing latexmk error actionable", async () => {
+    const project = mkdtempSync(path.join(tmpdir(), "aaaat-missing-latex-"));
+    roots.push(project);
+    process.env.PATH = project;
+
+    await expect(runLatexmk(project, "pdflatex", 1_000)).rejects.toThrow(
+      "Install latexmk and pdflatex",
     );
   });
 });
