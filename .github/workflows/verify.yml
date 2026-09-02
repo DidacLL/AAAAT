@@ -68,6 +68,8 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
+      - name: Verify TeX runner process behavior
+        run: npx vitest run test/latex-runner.test.ts
       - run: npm run build
       - name: Configure packaged Chromium sandbox (Linux)
         if: runner.os == 'Linux'
