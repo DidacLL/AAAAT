@@ -8,6 +8,8 @@ Builder → Reviewer → Integrator
 
 Use the Skeptical Simplifier and temporary expert committees only when the change justifies them. Class C always requires a separate Reviewer reasoning context and a Skeptical Simplifier pass.
 
+Reviewer separation is about reasoning context, not provider identity. A separate GitHub account, reviewer request, or formal approval object is not required. In this single-maintainer repository, Builder, Reviewer, Simplifier, and Integrator evidence may all be published through the same GitHub identity. Do not add accounts, bots, teams, or provider-specific reviewer integrations merely to represent those roles.
+
 ## Constitutional and specification gates
 
 Before weighing ordinary review priorities, verify that the change preserves applicable non-negotiable constraints from the Constitution and SPEC, including:
@@ -50,7 +52,7 @@ Class C review evidence must identify:
 - Skeptical Simplifier findings about unnecessary complexity and the smallest acceptable design;
 - the Integrator outcome: `MERGE`, `CORRECT`, `COMMITTEE`, or `OWNER_DECISION`.
 
-The evidence must be published against the exact final corrective SHA before merge. If the same GitHub account has to publish Builder and independent-review evidence, say so explicitly. A separate reasoning context published by the same account may satisfy the reasoning requirement, but it is not a distinct GitHub identity or a formal independent GitHub approval and must not be described as one.
+The evidence must be published against the exact final corrective SHA before merge. Publication identity is not evidence of reasoning independence: the same GitHub account may publish all role evidence, and no GitHub reviewer registration or approval object is required by this policy. Do not describe same-account publication as a distinct GitHub approval.
 
 ## Integration outcomes
 
