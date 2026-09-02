@@ -6,21 +6,9 @@ Default topology:
 Builder → Reviewer → Integrator
 ```
 
-Use the Skeptical Simplifier and temporary expert committees only when the change justifies them. Class C always requires a separate Reviewer reasoning context and a Skeptical Simplifier pass.
+Reviewer challenges Builder assumptions and reports concrete evidence-backed findings. Use a separate reasoning context or specialist when the change's risk or novelty makes that useful. Material corrective changes invalidate the affected review; the Integrator decides whether a correction requires review to repeat.
 
-Reviewer separation means a distinct reasoning pass over the same bounded change and evidence. Use the simplest adequate existing execution surface. Do not add review-management infrastructure or ceremony merely to represent the roles in this topology.
-
-## Constitutional and specification gates
-
-Before weighing ordinary review priorities, verify that the change preserves applicable non-negotiable constraints from the Constitution and SPEC, including:
-
-- local user ownership and manual independence;
-- renderer sandboxing, context isolation, and bounded privileged authority;
-- privacy boundaries and no unintended disclosure of private data;
-- portable, user-owned generated LaTeX/output where document behavior is involved;
-- provider-neutral domain behavior and bounded external capabilities where AI/integration behavior is involved.
-
-These are gates, not preferences to trade against simplicity, maintainability, convenience, or schedule. A violated gate is a blocking finding unless the governing constraint itself is changed through a Class D owner decision and corresponding authoritative update.
+Security, privacy, renderer isolation, local data ownership, manual independence, and portable user-owned output are hard review and merge gates where applicable. They are not preferences to trade against simplicity, convenience, or schedule; changing a governing constraint requires the corresponding authoritative decision.
 
 ## Priorities after gates pass
 
@@ -33,30 +21,15 @@ These are gates, not preferences to trade against simplicity, maintainability, c
 7. ecosystem convention
 8. hypothetical future flexibility
 
-Security and privacy remain mandatory through the gates above rather than a weighted priority.
-
 ## Required search
 
 Reviewers actively search for scope expansion, SPEC violations, duplicate mutation paths, unused abstractions, premature frameworks, manual workflows depending on AI, renderer security weakening, privacy leaks, non-portable LaTeX, v1 architecture leaking into v2, and tests that freeze incidental implementation structure.
 
 Deletion is a valid recommendation. Executable evidence outranks agent opinion or committee majority.
 
-## Class C evidence contract
-
-Class C review evidence must identify:
-
-- the exact reviewed commit SHA;
-- whether the Reviewer reasoning context was separate from the Builder reasoning context;
-- the relevant Issue, SPEC/Mission/ADR constraints and executable evidence inspected;
-- concrete Reviewer findings, including explicit `none` where a searched category produced no finding, rather than bare `PASS` language;
-- Skeptical Simplifier findings about unnecessary complexity and the smallest acceptable design;
-- the Integrator outcome: `MERGE`, `CORRECT`, `COMMITTEE`, or `OWNER_DECISION`.
-
-The evidence must be published against the exact final corrective SHA before merge. The publication mechanism is incidental; the evidence must make the separate reasoning pass and its basis auditable without requiring additional process machinery.
-
 ## Integration outcomes
 
-- `MERGE`: acceptance criteria and relevant CI pass; constitutional/specification gates pass; no blocking finding, unjustified complexity, undocumented Class C decision, or Class D change remains.
-- `CORRECT`: Builder corrects the same branch, then verification and exact-head review repeat.
-- `COMMITTEE`: a minimal relevant expert group evaluates the same evidence independently.
+- `MERGE`: acceptance criteria and relevant CI pass; applicable hard gates pass; no blocking finding, unjustified complexity, undocumented Class C decision, or Class D change remains.
+- `CORRECT`: Builder corrects the same branch; the Integrator determines which verification and review evidence must repeat.
+- `COMMITTEE`: a minimal relevant expert group evaluates materially unresolved evidence.
 - `OWNER_DECISION`: a concrete Class D Issue is prepared.
