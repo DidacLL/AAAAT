@@ -22,8 +22,6 @@ export type WorkspaceChoice = z.infer<typeof workspaceChoiceSchema>;
 export const workspaceInfoSchema = z
   .object({
     rootPath: z.string().min(1),
-    schemaVersion: z.number().int().positive(),
-    initializedAt: z.string().min(1),
   })
   .strict();
 
