@@ -21,7 +21,7 @@ const latexIt = process.env.AAAAT_LATEX_TEST === "1" ? it : it.skip;
 
 latexIt(
   "renders with supported built-in engines and compiles after unrelated-directory export",
-  () => {
+  async () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-latex-workspace-"));
     const exportRoot = mkdtempSync(path.join(tmpdir(), "aaaat-latex-export-"));
     try {
@@ -61,7 +61,7 @@ latexIt(
           engine,
           bodyParagraphs: [],
         });
-        const rendered = renderDocument(root, document.id);
+        const rendered = await renderDocument(root, document.id);
         expect(existsSync(rendered.artifactPath)).toBe(true);
       }
 
@@ -72,7 +72,7 @@ latexIt(
         engine: "pdflatex",
         bodyParagraphs: [],
       });
-      renderDocument(root, document.id);
+      await renderDocument(root, document.id);
       const exported = exportDocumentProject(root, document.id, exportRoot);
       rmSync(path.join(exported, "build"), { recursive: true, force: true });
 
