@@ -42,6 +42,12 @@ const desktopApi: DesktopApi = {
     regenerate: unavailable,
     exportProject: async () => null,
   },
+  candidatures: {
+    list: async () => [],
+    create: unavailable,
+    update: unavailable,
+    setDocuments: unavailable,
+  },
 };
 
 describe("AAAAT workspace state", () => {
@@ -67,6 +73,7 @@ describe("AAAAT workspace state", () => {
     expect(choose).toHaveBeenCalledWith("create");
     expect(await screen.findByRole("heading", { name: "Workspace ready." })).toBeInTheDocument();
     expect(screen.getByText(readyWorkspace.rootPath)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Candidatures" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Profile" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Documents" })).toBeInTheDocument();
   });
@@ -91,5 +98,6 @@ describe("AAAAT workspace state", () => {
     expect(await screen.findByRole("heading", { name: "Workspace ready." })).toBeInTheDocument();
     expect(screen.getByText(readyWorkspace.rootPath)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose another workspace" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
   });
 });

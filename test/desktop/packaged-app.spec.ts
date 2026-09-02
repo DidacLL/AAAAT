@@ -164,7 +164,7 @@ function chooseLinuxDirectory(): void {
   );
 }
 
-test("packaged desktop preserves bounded workspace, profile, and document boundaries", async () => {
+test("packaged desktop preserves bounded workspace, profile, document, and candidature boundaries", async () => {
   const executablePath = packagedExecutable();
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
@@ -189,12 +189,13 @@ test("packaged desktop preserves bounded workspace, profile, and document bounda
       workspace: Object.keys(window.aaaat.workspace),
       profile: Object.keys(window.aaaat.profile),
       documents: Object.keys(window.aaaat.documents),
+      candidatures: Object.keys(window.aaaat.candidatures),
     }));
 
     expect(boundary).toEqual({
       processType: "undefined",
       requireType: "undefined",
-      root: ["system", "workspace", "profile", "documents"],
+      root: ["system", "workspace", "profile", "documents", "candidatures"],
       system: ["info"],
       workspace: ["current", "choose"],
       profile: [
@@ -221,6 +222,7 @@ test("packaged desktop preserves bounded workspace, profile, and document bounda
         "regenerate",
         "exportProject",
       ],
+      candidatures: ["list", "create", "update", "setDocuments"],
     });
 
     const csp = await running.page
@@ -235,6 +237,7 @@ test("packaged desktop preserves bounded workspace, profile, and document bounda
     chooseLinuxDirectory();
     await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Candidatures" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Documents" })).toBeVisible();
 
     const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
@@ -248,6 +251,7 @@ test("packaged desktop preserves bounded workspace, profile, and document bounda
       ).toMatchObject({ value: expect.any(String) });
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 2").get()).toEqual({ name: "profile" });
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 3").get()).toEqual({ name: "documents" });
+      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 4").get()).toEqual({ name: "candidatures" });
     } finally {
       database.close();
     }
@@ -257,6 +261,7 @@ test("packaged desktop preserves bounded workspace, profile, and document bounda
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

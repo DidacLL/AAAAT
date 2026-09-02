@@ -49,6 +49,9 @@ const resolve = vi.fn<DesktopApi["documents"]["resolve"]>();
 const renderDocument = vi.fn<DesktopApi["documents"]["render"]>();
 const regenerate = vi.fn<DesktopApi["documents"]["regenerate"]>();
 const exportProject = vi.fn<DesktopApi["documents"]["exportProject"]>();
+const unavailable = async (): Promise<never> => {
+  throw new Error("Unavailable in document test");
+};
 
 const desktopApi: DesktopApi = {
   system: { info: async () => ({ appVersion: "2", electronVersion: "44", nodeVersion: "24" }) },
@@ -79,6 +82,12 @@ const desktopApi: DesktopApi = {
     render: renderDocument,
     regenerate,
     exportProject,
+  },
+  candidatures: {
+    list: async () => [],
+    create: unavailable,
+    update: unavailable,
+    setDocuments: unavailable,
   },
 };
 

@@ -1,4 +1,9 @@
 import {
+  candidatureDocumentSelectionSchema,
+  candidatureInputSchema,
+  candidatureListSchema,
+  candidatureRecordSchema,
+  candidatureUpdateSchema,
   channels,
   documentExportResultSchema,
   documentInputSchema,
@@ -89,5 +94,26 @@ export function createDesktopApi(invoke: Invoke): DesktopApi {
       ),
   });
 
-  return Object.freeze({ system, workspace, profile, documents });
+  const candidatures = Object.freeze({
+    list: async () => candidatureListSchema.parse(await invoke(channels.candidatureList)),
+    create: async (input: Parameters<DesktopApi["candidatures"]["create"]>[0]) =>
+      candidatureRecordSchema.parse(
+        await invoke(channels.candidatureCreate, candidatureInputSchema.parse(input)),
+      ),
+    update: async (update: Parameters<DesktopApi["candidatures"]["update"]>[0]) =>
+      candidatureRecordSchema.parse(
+        await invoke(channels.candidatureUpdate, candidatureUpdateSchema.parse(update)),
+      ),
+    setDocuments: async (
+      selection: Parameters<DesktopApi["candidatures"]["setDocuments"]>[0],
+    ) =>
+      candidatureRecordSchema.parse(
+        await invoke(
+          channels.candidatureSetDocuments,
+          candidatureDocumentSelectionSchema.parse(selection),
+        ),
+      ),
+  });
+
+  return Object.freeze({ system, workspace, profile, documents, candidatures });
 }

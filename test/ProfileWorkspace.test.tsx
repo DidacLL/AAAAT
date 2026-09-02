@@ -76,6 +76,12 @@ const desktopApi: DesktopApi = {
     regenerate: unavailable,
     exportProject: async () => null,
   },
+  candidatures: {
+    list: async () => [],
+    create: unavailable,
+    update: unavailable,
+    setDocuments: unavailable,
+  },
 };
 
 describe("manual profile workspace", () => {

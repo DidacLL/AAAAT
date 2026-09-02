@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import type { DesktopApi, ProfileSnapshot } from "../shared/contracts";
 import { App } from "./App";
 import "./styles.css";
+import "./candidatures.css";
 
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
 const previewUnavailable = async (): Promise<never> => {
@@ -46,6 +47,12 @@ function createPreviewApi(): DesktopApi {
       render: previewUnavailable,
       regenerate: previewUnavailable,
       exportProject: async () => null,
+    }),
+    candidatures: Object.freeze({
+      list: async () => [],
+      create: previewUnavailable,
+      update: previewUnavailable,
+      setDocuments: previewUnavailable,
     }),
   });
 }

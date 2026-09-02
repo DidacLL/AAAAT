@@ -10,6 +10,11 @@ import {
 } from "electron";
 
 import {
+  candidatureDocumentSelectionSchema,
+  candidatureInputSchema,
+  candidatureListSchema,
+  candidatureRecordSchema,
+  candidatureUpdateSchema,
   channels,
   documentExportResultSchema,
   documentInputSchema,
@@ -34,6 +39,12 @@ import {
   workspaceChoiceSchema,
   type WorkspaceInfo,
 } from "../shared/contracts";
+import {
+  createCandidature,
+  listCandidatures,
+  setCandidatureDocuments,
+  updateCandidature,
+} from "./candidature-service";
 import {
   configureDocumentItem,
   createDocument,
@@ -293,6 +304,32 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return documentExportResultSchema.parse(
       await exportDocument(mainWindow, documentRecordSchema.shape.id.parse(documentId)),
+    );
+  });
+
+  ipcMain.handle(channels.candidatureList, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureListSchema.parse(listCandidatures(requireWorkspaceRoot()));
+  });
+  ipcMain.handle(channels.candidatureCreate, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureRecordSchema.parse(
+      createCandidature(requireWorkspaceRoot(), candidatureInputSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureUpdate, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureRecordSchema.parse(
+      updateCandidature(requireWorkspaceRoot(), candidatureUpdateSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureSetDocuments, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureRecordSchema.parse(
+      setCandidatureDocuments(
+        requireWorkspaceRoot(),
+        candidatureDocumentSelectionSchema.parse(input),
+      ),
     );
   });
 }
