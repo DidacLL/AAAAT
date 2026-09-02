@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const channels = Object.freeze({
   systemInfo: "aaaat:system-info",
-  workspaceInitialize: "aaaat:workspace-initialize",
+  workspaceCurrent: "aaaat:workspace-current",
+  workspaceChoose: "aaaat:workspace-choose",
 } as const);
 
 export const systemInfoSchema = z
@@ -15,21 +16,26 @@ export const systemInfoSchema = z
 
 export type SystemInfo = z.infer<typeof systemInfoSchema>;
 
-export const workspaceStatusSchema = z
+export const workspaceChoiceSchema = z.enum(["create", "open"]);
+export type WorkspaceChoice = z.infer<typeof workspaceChoiceSchema>;
+
+export const workspaceInfoSchema = z
   .object({
-    state: z.literal("ready"),
+    rootPath: z.string().min(1),
     schemaVersion: z.number().int().positive(),
     initializedAt: z.string().min(1),
   })
   .strict();
 
-export type WorkspaceStatus = z.infer<typeof workspaceStatusSchema>;
+export const optionalWorkspaceInfoSchema = workspaceInfoSchema.nullable();
+export type WorkspaceInfo = z.infer<typeof workspaceInfoSchema>;
 
 export interface DesktopApi {
   readonly system: {
     readonly info: () => Promise<SystemInfo>;
   };
   readonly workspace: {
-    readonly initialize: () => Promise<WorkspaceStatus>;
+    readonly current: () => Promise<WorkspaceInfo | null>;
+    readonly choose: (choice: WorkspaceChoice) => Promise<WorkspaceInfo | null>;
   };
 }
