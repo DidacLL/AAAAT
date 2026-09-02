@@ -9,10 +9,9 @@ import type { CandidatureRecord } from "../shared/contracts";
 
 interface Props {
   readonly record: CandidatureRecord;
-  readonly disabled: boolean;
 }
 
-export function CandidatureFitPanel({ record, disabled }: Props) {
+export function CandidatureFitPanel({ record }: Props) {
   const [identityPrivacy, setIdentityPrivacy] = useState<PrivacyMode>("token");
   const [contactPrivacy, setContactPrivacy] = useState<PrivacyMode>("token");
   const [preview, setPreview] = useState<FitAssessmentPreview | null>(null);
@@ -80,7 +79,6 @@ export function CandidatureFitPanel({ record, disabled }: Props) {
 
   const canAssess =
     preview !== null &&
-    !disabled &&
     !busy &&
     (!preview.requiresRemoteDisclosure || acknowledged);
 
@@ -90,17 +88,11 @@ export function CandidatureFitPanel({ record, disabled }: Props) {
         <p className="eyebrow">Optional AI</p>
         <h4>Fit assessment</h4>
         <p>
-          AAAAT builds a read-only context from the saved candidature and your profile. It does
-          not change candidature, profile, or document data.
+          AAAAT builds a read-only context from the saved candidature snapshot and your profile.
+          Unsaved candidature edits are not included. The operation does not mutate candidature,
+          profile, or document data.
         </p>
       </div>
-
-      {disabled ? (
-        <p className="error-message">
-          Save or discard unsaved candidature changes before preparing an AI assessment so the
-          preview matches authoritative data.
-        </p>
-      ) : null}
 
       <div className="candidature-filters">
         <label>
@@ -133,7 +125,7 @@ export function CandidatureFitPanel({ record, disabled }: Props) {
         </label>
       </div>
 
-      <button type="button" disabled={disabled || busy} onClick={() => void buildPreview()}>
+      <button type="button" disabled={busy} onClick={() => void buildPreview()}>
         {busy && !preview ? "Preparing…" : "Preview AI context"}
       </button>
 
