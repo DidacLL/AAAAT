@@ -28,6 +28,10 @@ export const channels = Object.freeze({
   candidatureCreate: "aaaat:candidature-create",
   candidatureUpdate: "aaaat:candidature-update",
   candidatureSetDocuments: "aaaat:candidature-set-documents",
+  candidatureListConcepts: "aaaat:candidature-list-concepts",
+  candidatureCreateConcept: "aaaat:candidature-create-concept",
+  candidatureUpdateConcept: "aaaat:candidature-update-concept",
+  candidatureSetConcepts: "aaaat:candidature-set-concepts",
 } as const);
 
 export const systemInfoSchema = z
@@ -298,6 +302,7 @@ export const candidatureRecordSchema = candidatureInputSchema
     id: z.string().uuid(),
     archived: z.boolean(),
     documentIds: z.array(z.string().uuid()),
+    conceptIds: z.array(z.string().uuid()),
   })
   .strict();
 export type CandidatureRecord = z.infer<typeof candidatureRecordSchema>;
@@ -314,6 +319,42 @@ export const candidatureDocumentSelectionSchema = z
     message: "Each document can be associated only once.",
   });
 export type CandidatureDocumentSelection = z.infer<typeof candidatureDocumentSelectionSchema>;
+
+const conceptAliasSchema = z.string().trim().min(1).max(120);
+export const conceptInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    definition: z.string().max(3000),
+    aliases: z.array(conceptAliasSchema).max(30),
+  })
+  .strict()
+  .refine(
+    (value) => new Set(value.aliases.map((alias) => alias.toLocaleLowerCase())).size === value.aliases.length,
+    { message: "Concept aliases must be unique." },
+  );
+export type ConceptInput = z.infer<typeof conceptInputSchema>;
+
+export const conceptRecordSchema = conceptInputSchema
+  .extend({ id: z.string().uuid() })
+  .strict();
+export type ConceptRecord = z.infer<typeof conceptRecordSchema>;
+export const conceptListSchema = z.array(conceptRecordSchema);
+
+export const conceptUpdateSchema = conceptInputSchema
+  .extend({ id: z.string().uuid() })
+  .strict();
+export type ConceptUpdate = z.infer<typeof conceptUpdateSchema>;
+
+export const candidatureConceptSelectionSchema = z
+  .object({
+    candidatureId: z.string().uuid(),
+    conceptIds: z.array(z.string().uuid()).max(100),
+  })
+  .strict()
+  .refine((value) => new Set(value.conceptIds).size === value.conceptIds.length, {
+    message: "Each concept can be associated only once.",
+  });
+export type CandidatureConceptSelection = z.infer<typeof candidatureConceptSelectionSchema>;
 
 export interface DesktopApi {
   readonly system: { readonly info: () => Promise<SystemInfo> };
@@ -350,5 +391,9 @@ export interface DesktopApi {
     readonly create: (input: CandidatureInput) => Promise<CandidatureRecord>;
     readonly update: (update: CandidatureUpdate) => Promise<CandidatureRecord>;
     readonly setDocuments: (selection: CandidatureDocumentSelection) => Promise<CandidatureRecord>;
+    readonly listConcepts: () => Promise<ConceptRecord[]>;
+    readonly createConcept: (input: ConceptInput) => Promise<ConceptRecord>;
+    readonly updateConcept: (update: ConceptUpdate) => Promise<ConceptRecord>;
+    readonly setConcepts: (selection: CandidatureConceptSelection) => Promise<CandidatureRecord>;
   };
 }
