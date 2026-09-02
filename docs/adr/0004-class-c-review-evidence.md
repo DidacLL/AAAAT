@@ -2,7 +2,7 @@
 
 ## Context
 
-AAAAT already requires Class C review for meaningful shared-contract/database-representation changes and process boundaries. Merged PRs #67 and #73 demonstrate that small implementations can nevertheless be classified downward. The project also needs review evidence to distinguish a separate reasoning pass from merely relabeling Builder output, without turning that requirement into GitHub identity or reviewer-management ceremony.
+AAAAT already requires Class C review for meaningful shared-contract/database-representation changes and process boundaries. Merged PRs #67 and #73 demonstrate that small implementations can nevertheless be classified downward. The review contract also needs to distinguish a genuine separate reasoning pass from merely relabeling Builder output without adding process machinery beyond what the harness already provides.
 
 ## Decision
 
@@ -10,7 +10,7 @@ Class C classification is a lower bound for new or materially changed durable sc
 
 Class C evidence is tied to the exact reviewed commit SHA and records a Reviewer reasoning context separate from the Builder, evidence inspected, concrete Reviewer findings, Skeptical Simplifier findings, and Integrator outcome.
 
-Reasoning independence is provider-agnostic. The same GitHub identity may publish Builder, Reviewer, Simplifier, and Integrator evidence. A separate GitHub account, reviewer request, formal approval object, bot, team, or provider-specific review integration is neither required nor evidence of reasoning independence, and must not be introduced solely to satisfy this contract.
+Review execution uses the simplest adequate existing execution surface. The review contract does not itself justify new orchestration, state, or ceremony; additional machinery requires its own bounded need.
 
 Constitutional and SPEC security, privacy, renderer-isolation, local-ownership, manual-independence, and portable-output constraints are review gates rather than weighted preferences.
 
@@ -18,7 +18,7 @@ Constitutional and SPEC security, privacy, renderer-isolation, local-ownership, 
 
 - Small patches cannot bypass architectural review by self-classifying downward.
 - Review provenance is auditable without storing transcripts or introducing a reviewer orchestration system.
-- Review roles remain compatible with a single-maintainer repository and provider-neutral execution.
+- Review remains compatible with a single-maintainer project and provider-neutral execution.
 - Existing accepted ADR decisions can be implemented without duplicate ADRs when the decision itself is unchanged.
 
 ## Rejected alternatives
@@ -26,5 +26,5 @@ Constitutional and SPEC security, privacy, renderer-isolation, local-ownership, 
 - A generic policy engine or semantic classifier bot.
 - Treating green CI as architectural approval.
 - Treating role headings as proof of separate reasoning.
-- Requiring separate GitHub identities, reviewer registrations, approval objects, bots, or teams to represent reasoning roles.
+- Adding review-management infrastructure or ceremony when existing execution surfaces already satisfy the bounded review need.
 - Rewriting old merged PR history.
