@@ -822,7 +822,9 @@ export async function renderDocument(
       await runLatexmk(paths.projectPath, document.engine, timeoutMs);
     } catch (error) {
       if (error instanceof LatexRunnerError) {
-        throw new DocumentServiceError(error.message);
+        throw new DocumentServiceError(
+          `${error.message} Check that latexmk and ${document.engine} are installed and compatible.`,
+        );
       }
       throw error;
     }
