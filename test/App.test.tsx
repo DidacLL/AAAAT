@@ -10,8 +10,6 @@ import type {
 
 const readyWorkspace: WorkspaceInfo = {
   rootPath: "/tmp/aaaat-workspace",
-  schemaVersion: 1,
-  initializedAt: "2026-09-02T12:00:00.000Z",
 };
 
 const current = vi.fn<DesktopApi["workspace"]["current"]>();
