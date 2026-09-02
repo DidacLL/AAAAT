@@ -5,10 +5,20 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  safeStorage,
   type IpcMainInvokeEvent,
   session,
 } from "electron";
 
+import {
+  aiConnectionInputSchema,
+  aiConnectionStatusSchema,
+  aiChannels,
+  fitAssessmentPreviewSchema,
+  fitAssessmentRequestSchema,
+  fitAssessmentResultSchema,
+  optionalAiConnectionStatusSchema,
+} from "../shared/ai-contracts";
 import {
   candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
@@ -44,6 +54,12 @@ import {
   workspaceChoiceSchema,
   type WorkspaceInfo,
 } from "../shared/contracts";
+import {
+  assessFit,
+  getAiConnection,
+  previewFitAssessment,
+  saveAiConnection,
+} from "./ai-service";
 import {
   createCandidature,
   listCandidatures,
@@ -170,7 +186,7 @@ async function exportDocument(mainWindow: BrowserWindow, documentId: string) {
 }
 
 function registerIpc(mainWindow: BrowserWindow): void {
-  for (const channel of Object.values(channels)) {
+  for (const channel of [...Object.values(channels), ...Object.values(aiChannels)]) {
     ipcMain.removeHandler(channel);
   }
 
@@ -361,6 +377,43 @@ function registerIpc(mainWindow: BrowserWindow): void {
       setCandidatureConcepts(
         requireWorkspaceRoot(),
         candidatureConceptSelectionSchema.parse(input),
+      ),
+    );
+  });
+
+  ipcMain.handle(aiChannels.connectionCurrent, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return optionalAiConnectionStatusSchema.parse(
+      getAiConnection(requireWorkspaceRoot(), safeStorage),
+    );
+  });
+  ipcMain.handle(aiChannels.connectionSave, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return aiConnectionStatusSchema.parse(
+      saveAiConnection(
+        requireWorkspaceRoot(),
+        aiConnectionInputSchema.parse(input),
+        safeStorage,
+      ),
+    );
+  });
+  ipcMain.handle(aiChannels.fitPreview, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return fitAssessmentPreviewSchema.parse(
+      previewFitAssessment(
+        requireWorkspaceRoot(),
+        fitAssessmentRequestSchema.parse(input),
+        safeStorage,
+      ),
+    );
+  });
+  ipcMain.handle(aiChannels.fitAssess, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return fitAssessmentResultSchema.parse(
+      await assessFit(
+        requireWorkspaceRoot(),
+        fitAssessmentRequestSchema.parse(input),
+        safeStorage,
       ),
     );
   });
