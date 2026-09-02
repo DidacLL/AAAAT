@@ -229,6 +229,9 @@ function migrateDatabase(databasePath: string): void {
     const rows = appliedMigrations(database);
     if (rows.length === 0) {
       const first = migrations[0];
+      if (!first) {
+        throw new WorkspaceError("AAAAT has no workspace migration.");
+      }
       transact(database, () => {
         database.exec(first.sql);
         database
