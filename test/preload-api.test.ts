@@ -6,19 +6,19 @@ import { channels } from "../src/shared/contracts";
 const emptyProfile = { items: [], variants: [] };
 
 describe("desktop preload API", () => {
-  it("exposes only fixed system, workspace, profile, and document intentions", async () => {
+  it("exposes only fixed workspace, profile, document, and candidature intentions", async () => {
     const invoke = vi.fn(async (channel: string) => {
       if (channel === channels.systemInfo) {
         return { appVersion: "2.0.0", electronVersion: "44.1.1", nodeVersion: "24.19.0" };
       }
       if (channel === channels.workspaceCurrent) return null;
       if (channel === channels.workspaceChoose) return { rootPath: "/tmp/aaaat-workspace" };
-      if (channel === channels.documentList) return [];
+      if (channel === channels.documentList || channel === channels.candidatureList) return [];
       return emptyProfile;
     });
 
     const api = createDesktopApi(invoke);
-    expect(Object.keys(api)).toEqual(["system", "workspace", "profile", "documents"]);
+    expect(Object.keys(api)).toEqual(["system", "workspace", "profile", "documents", "candidatures"]);
     expect(Object.keys(api.system)).toEqual(["info"]);
     expect(Object.keys(api.workspace)).toEqual(["current", "choose"]);
     expect(Object.keys(api.profile)).toEqual([
@@ -45,12 +45,19 @@ describe("desktop preload API", () => {
       "regenerate",
       "exportProject",
     ]);
+    expect(Object.keys(api.candidatures)).toEqual([
+      "list",
+      "create",
+      "update",
+      "setDocuments",
+    ]);
 
     await expect(api.system.info()).resolves.toMatchObject({ electronVersion: "44.1.1" });
     await expect(api.workspace.current()).resolves.toBeNull();
     await expect(api.workspace.choose("create")).resolves.toEqual({ rootPath: "/tmp/aaaat-workspace" });
     await expect(api.profile.addItem({ kind: "skill", title: "TypeScript" })).resolves.toEqual(emptyProfile);
     await expect(api.documents.list()).resolves.toEqual([]);
+    await expect(api.candidatures.list()).resolves.toEqual([]);
 
     expect(invoke).toHaveBeenNthCalledWith(1, channels.systemInfo);
     expect(invoke).toHaveBeenNthCalledWith(2, channels.workspaceCurrent);
@@ -60,6 +67,7 @@ describe("desktop preload API", () => {
       title: "TypeScript",
     });
     expect(invoke).toHaveBeenNthCalledWith(5, channels.documentList);
+    expect(invoke).toHaveBeenNthCalledWith(6, channels.candidatureList);
   });
 
   it("rejects malformed privileged responses and invalid domain input", async () => {
@@ -73,6 +81,25 @@ describe("desktop preload API", () => {
         variantId: "00000000-0000-4000-8000-000000000001",
         engine: "pdflatex",
         bodyParagraphs: [],
+      }),
+    ).rejects.toThrow();
+    await expect(
+      api.candidatures.update({
+        id: "not-an-id",
+        company: "",
+        role: "",
+        location: "",
+        workMode: "",
+        salaryText: "",
+        source: "",
+        sourceUrl: "",
+        sourceText: "",
+        status: "saved",
+        applicationDate: "",
+        nextAction: "",
+        nextActionDate: "",
+        notes: "",
+        archived: false,
       }),
     ).rejects.toThrow();
   });
