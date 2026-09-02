@@ -18,11 +18,25 @@ const itemB = {
   title: "TypeScript",
   sortOrder: 1,
 };
+const itemC = {
+  id: "00000000-0000-4000-8000-000000000004",
+  kind: "skill" as const,
+  title: "React",
+  sortOrder: 2,
+};
 const variant: ProfileVariant = {
   id: "00000000-0000-4000-8000-000000000003",
   name: "Platform focus",
   focus: "Platform roles",
   targetTags: ["platform"],
+  preferredLanguage: "en",
+  rules: [],
+};
+const secondVariant: ProfileVariant = {
+  id: "00000000-0000-4000-8000-000000000005",
+  name: "Backend focus",
+  focus: "Backend roles",
+  targetTags: ["backend"],
   preferredLanguage: "en",
   rules: [],
 };
@@ -115,7 +129,10 @@ describe("manual profile workspace", () => {
     Object.defineProperty(window, "aaaat", { configurable: true, value: desktopApi });
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it("adds structured canonical career data without JSON entry", async () => {
     const user = userEvent.setup();
@@ -179,5 +196,92 @@ describe("manual profile workspace", () => {
       variantId: variant.id,
       itemIds: [itemB.id, itemA.id],
     });
+  });
+
+  it("preserves dirty variant metadata through canonical item and variant rule mutations", async () => {
+    current.mockResolvedValueOnce(focusedProfile);
+    addItem.mockResolvedValue({ items: [itemA, itemB, itemC], variants: [variant] });
+    configureVariantItem.mockResolvedValue({
+      items: [itemA, itemB, itemC],
+      variants: [{
+        ...variant,
+        rules: [{
+          itemId: itemA.id,
+          excluded: false,
+          contentPatch: { title: "Focused summary" },
+          orderRank: null,
+        }],
+      }],
+    });
+    const user = userEvent.setup();
+    render(<ProfileWorkspace />);
+
+    const focus = await screen.findByLabelText("Focus");
+    await user.clear(focus);
+    await user.type(focus, "Unsaved platform metadata");
+
+    await user.selectOptions(screen.getByLabelText("Type"), "skill");
+    await user.type(screen.getByLabelText("Title"), "React");
+    await user.click(screen.getByRole("button", { name: "Add item" }));
+    expect(screen.getByLabelText("Focus")).toHaveValue("Unsaved platform metadata");
+
+    const firstRule = screen.getAllByRole("button", { name: "Apply item rule" })[0];
+    const firstOverride = screen.getAllByLabelText("Override title")[0];
+    if (!firstRule || !firstOverride) throw new Error("Expected variant rule controls");
+    await user.type(firstOverride, "Focused summary");
+    await user.click(firstRule);
+    expect(screen.getByLabelText("Focus")).toHaveValue("Unsaved platform metadata");
+  });
+
+  it("preserves a new variant draft through canonical item mutations", async () => {
+    current.mockResolvedValueOnce(focusedProfile);
+    addItem.mockResolvedValue({ items: [itemA, itemB, itemC], variants: [variant] });
+    const user = userEvent.setup();
+    render(<ProfileWorkspace />);
+
+    await screen.findByDisplayValue("Platform focus");
+    await user.click(screen.getByRole("button", { name: "New" }));
+    await user.type(screen.getByLabelText("Name"), "New focus");
+    await user.type(screen.getByLabelText("Focus"), "Unsaved new variant");
+
+    await user.selectOptions(screen.getByLabelText("Type"), "skill");
+    await user.type(screen.getByLabelText("Title"), "React");
+    await user.click(screen.getByRole("button", { name: "Add item" }));
+
+    expect(screen.getByLabelText("Name")).toHaveValue("New focus");
+    expect(screen.getByLabelText("Focus")).toHaveValue("Unsaved new variant");
+    expect(screen.getByRole("button", { name: "Create variant" })).toBeInTheDocument();
+  });
+
+  it("cancels dirty variant selection and removal until discard is confirmed", async () => {
+    const twoVariants: ProfileSnapshot = {
+      items: [itemA, itemB],
+      variants: [variant, secondVariant],
+    };
+    current.mockResolvedValueOnce(twoVariants);
+    resolveVariant.mockImplementation(async (variantId) => ({
+      variant: variantId === variant.id ? variant : secondVariant,
+      items: [itemA, itemB],
+    }));
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<ProfileWorkspace />);
+
+    const focus = await screen.findByLabelText("Focus");
+    await user.clear(focus);
+    await user.type(focus, "Unsaved focus");
+    await user.click(screen.getByRole("button", { name: "Backend focus" }));
+
+    expect(confirm).toHaveBeenCalled();
+    expect(screen.getByLabelText("Name")).toHaveValue("Platform focus");
+    expect(screen.getByLabelText("Focus")).toHaveValue("Unsaved focus");
+
+    await user.click(screen.getByRole("button", { name: "Remove variant" }));
+    expect(removeVariant).not.toHaveBeenCalled();
+
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Backend focus" }));
+    expect(screen.getByLabelText("Name")).toHaveValue("Backend focus");
+    expect(screen.getByLabelText("Focus")).toHaveValue("Backend roles");
   });
 });

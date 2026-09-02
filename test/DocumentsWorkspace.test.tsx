@@ -12,6 +12,12 @@ const item = {
   description: "General profile text",
   sortOrder: 0,
 };
+const itemB = {
+  id: "00000000-0000-4000-8000-000000000105",
+  kind: "skill" as const,
+  title: "TypeScript",
+  sortOrder: 1,
+};
 const variant: ProfileVariant = {
   id: "00000000-0000-4000-8000-000000000102",
   name: "Platform focus",
@@ -20,7 +26,7 @@ const variant: ProfileVariant = {
   preferredLanguage: "en",
   rules: [],
 };
-const profile: ProfileSnapshot = { items: [item], variants: [variant] };
+const profile: ProfileSnapshot = { items: [item, itemB], variants: [variant] };
 
 function record(overrides: Partial<DocumentRecord> = {}): DocumentRecord {
   return {
@@ -69,7 +75,7 @@ const desktopApi: DesktopApi = {
     removeVariant: async () => profile,
     configureVariantItem: async () => profile,
     reorderVariant: async () => profile,
-    resolveVariant: async () => ({ variant, items: [item] }),
+    resolveVariant: async () => ({ variant, items: [item, itemB] }),
   },
   documents: {
     list,
@@ -106,14 +112,17 @@ describe("manual Documents workspace", () => {
     remove.mockResolvedValue([]);
     configureItem.mockResolvedValue(record());
     reorder.mockResolvedValue(record());
-    resolve.mockImplementation(async () => ({ document: record(), items: [item] }));
+    resolve.mockImplementation(async () => ({ document: record(), items: [item, itemB] }));
     renderDocument.mockResolvedValue(record());
     regenerate.mockResolvedValue(record());
     exportProject.mockResolvedValue(null);
     Object.defineProperty(window, "aaaat", { configurable: true, value: desktopApi });
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it("creates a CV from a focused profile variant and exposes portable locations", async () => {
     const user = userEvent.setup();
@@ -145,7 +154,7 @@ describe("manual Documents workspace", () => {
       closing: "Regards",
     });
     list.mockResolvedValueOnce([cover]);
-    resolve.mockResolvedValue({ document: cover, items: [item] });
+    resolve.mockResolvedValue({ document: cover, items: [item, itemB] });
     update.mockResolvedValue({ ...cover, recipient: "Hiring manager", bodyParagraphs: ["Edited paragraph"] });
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
@@ -165,6 +174,99 @@ describe("manual Documents workspace", () => {
       recipient: "Hiring manager",
       bodyParagraphs: ["Edited paragraph"],
     }));
+  });
+
+  it("preserves a dirty document body while reordering document items", async () => {
+    const cover = record({
+      kind: "cover_letter",
+      title: "Cover letter",
+      bodyParagraphs: ["Persisted body"],
+    });
+    list.mockResolvedValueOnce([cover]);
+    resolve.mockResolvedValue({ document: cover, items: [item, itemB] });
+    reorder.mockResolvedValue({
+      ...cover,
+      rules: [
+        { itemId: item.id, excluded: false, contentPatch: null, orderRank: 1 },
+        { itemId: itemB.id, excluded: false, contentPatch: null, orderRank: 0 },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<DocumentsWorkspace />);
+
+    const body = await screen.findByLabelText("Body paragraphs");
+    await user.clear(body);
+    await user.type(body, "Unsaved body");
+    const down = screen.getAllByRole("button", { name: "Down" })[0];
+    if (!down) throw new Error("Expected reorder control");
+    await user.click(down);
+
+    expect(reorder).toHaveBeenCalledWith({
+      documentId: cover.id,
+      itemIds: [itemB.id, item.id],
+    });
+    expect(screen.getByLabelText("Body paragraphs")).toHaveValue("Unsaved body");
+  });
+
+  it("requires structured edits to be saved before render export or regeneration", async () => {
+    const manual = record({
+      kind: "cover_letter",
+      title: "Manual cover",
+      bodyParagraphs: ["Persisted body"],
+      mode: "manual",
+    });
+    list.mockResolvedValueOnce([manual]);
+    resolve.mockResolvedValue({ document: manual, items: [item, itemB] });
+    const user = userEvent.setup();
+    render(<DocumentsWorkspace />);
+
+    const body = await screen.findByLabelText("Body paragraphs");
+    await user.clear(body);
+    await user.type(body, "Unsaved body");
+
+    expect(screen.getByRole("button", { name: "Render PDF" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Export portable project" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Replace manual source from structured data" })).toBeDisabled();
+    expect(screen.getByText(/Unsaved structured edits are local/)).toBeInTheDocument();
+    expect(renderDocument).not.toHaveBeenCalled();
+    expect(exportProject).not.toHaveBeenCalled();
+    expect(regenerate).not.toHaveBeenCalled();
+  });
+
+  it("cancels dirty document selection and removal until discard is confirmed", async () => {
+    const first = record({
+      kind: "cover_letter",
+      title: "First cover",
+      bodyParagraphs: ["First body"],
+    });
+    const second = record({
+      id: "00000000-0000-4000-8000-000000000104",
+      kind: "cover_letter",
+      title: "Second cover",
+      bodyParagraphs: ["Second body"],
+    });
+    list.mockResolvedValueOnce([first, second]);
+    resolve.mockImplementation(async (documentId) => ({
+      document: documentId === first.id ? first : second,
+      items: [item, itemB],
+    }));
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<DocumentsWorkspace />);
+
+    const body = await screen.findByLabelText("Body paragraphs");
+    await user.clear(body);
+    await user.type(body, "Unsaved body");
+    await user.click(screen.getByRole("button", { name: /Second cover/ }));
+    expect(confirm).toHaveBeenCalled();
+    expect(screen.getByLabelText("Body paragraphs")).toHaveValue("Unsaved body");
+
+    await user.click(screen.getByRole("button", { name: "Remove document" }));
+    expect(remove).not.toHaveBeenCalled();
+
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: /Second cover/ }));
+    expect(screen.getByLabelText("Body paragraphs")).toHaveValue("Second body");
   });
 
   it("resets document-specific controls when selecting another document", async () => {
@@ -195,17 +297,17 @@ describe("manual Documents workspace", () => {
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
 
-    expect(await screen.findByLabelText("Override title")).toHaveValue("First override");
-    expect(screen.getByLabelText("Include")).toBeChecked();
+    expect((await screen.findAllByLabelText("Override title"))[0]).toHaveValue("First override");
+    expect(screen.getAllByLabelText("Include")[0]).toBeChecked();
     await user.click(screen.getByRole("button", { name: /Second CV/ }));
-    expect(await screen.findByLabelText("Override title")).toHaveValue("Second override");
-    expect(screen.getByLabelText("Include")).not.toBeChecked();
+    expect((await screen.findAllByLabelText("Override title"))[0]).toHaveValue("Second override");
+    expect(screen.getAllByLabelText("Include")[0]).not.toBeChecked();
   });
 
   it("makes manual TeX preservation explicit before any overwrite", async () => {
     const manual = record({ mode: "manual" });
     list.mockResolvedValueOnce([manual]);
-    resolve.mockResolvedValue({ document: manual, items: [item] });
+    resolve.mockResolvedValue({ document: manual, items: [item, itemB] });
     regenerate.mockResolvedValue(record());
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);

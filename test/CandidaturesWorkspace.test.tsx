@@ -143,7 +143,10 @@ describe("manual Candidatures workspace", () => {
     Object.defineProperty(window, "aaaat", { configurable: true, value: desktopApi });
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it("creates a partial candidature without requiring invented details", async () => {
     const user = userEvent.setup();
@@ -206,6 +209,107 @@ describe("manual Candidatures workspace", () => {
       candidatureId: existing.id,
       documentIds: [document.id],
     });
+  });
+
+  it("keeps dirty candidature notes while saving document and concept associations", async () => {
+    const existing = candidature();
+    list.mockResolvedValueOnce([existing]);
+    listConcepts.mockResolvedValueOnce([concept]);
+    setDocuments.mockImplementation(async ({ documentIds }) =>
+      candidature({ ...existing, documentIds }),
+    );
+    setConcepts.mockImplementation(async ({ conceptIds }) =>
+      candidature({ ...existing, conceptIds }),
+    );
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    const notes = await screen.findByLabelText("Notes");
+    await user.clear(notes);
+    await user.type(notes, "Unsaved local notes");
+
+    await user.click(screen.getByLabelText(/Backend CV/));
+    await user.click(screen.getByRole("button", { name: "Save document associations" }));
+    expect(screen.getByLabelText("Notes")).toHaveValue("Unsaved local notes");
+
+    await user.click(screen.getByLabelText("TypeScript"));
+    await user.click(screen.getByRole("button", { name: "Save concept associations" }));
+    expect(screen.getByLabelText("Notes")).toHaveValue("Unsaved local notes");
+  });
+
+  it("keeps dirty association selections while saving the candidature draft", async () => {
+    const existing = candidature();
+    list.mockResolvedValueOnce([existing]);
+    listConcepts.mockResolvedValueOnce([concept]);
+    update.mockImplementation(async (value) => candidature({ ...value }));
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    await screen.findByDisplayValue("Acme");
+    const documentToggle = screen.getByLabelText(/Backend CV/);
+    const conceptToggle = screen.getByLabelText("TypeScript");
+    await user.click(documentToggle);
+    await user.click(conceptToggle);
+    await user.clear(screen.getByLabelText("Notes"));
+    await user.type(screen.getByLabelText("Notes"), "Saved main draft");
+    await user.click(screen.getByRole("button", { name: "Save candidature" }));
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ notes: "Saved main draft" }));
+    expect(documentToggle).toBeChecked();
+    expect(conceptToggle).toBeChecked();
+    expect(setDocuments).not.toHaveBeenCalled();
+    expect(setConcepts).not.toHaveBeenCalled();
+  });
+
+  it("archives from persisted candidature data without committing unrelated dirty fields", async () => {
+    const existing = candidature();
+    list.mockResolvedValueOnce([existing]);
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    const company = await screen.findByLabelText("Company");
+    const role = screen.getByLabelText("Role");
+    await user.clear(company);
+    await user.type(company, "Unsaved Co");
+    await user.clear(role);
+    await user.type(role, "Unsaved role");
+    await user.click(screen.getByRole("button", { name: "Archive candidature" }));
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      id: existing.id,
+      company: "Acme",
+      role: "Backend engineer",
+      archived: true,
+    }));
+    expect(screen.getByLabelText("Company")).toHaveValue("Unsaved Co");
+    expect(screen.getByLabelText("Role")).toHaveValue("Unsaved role");
+    expect(screen.getByRole("button", { name: "Restore from archive" })).toBeInTheDocument();
+  });
+
+  it("cancels or discards dirty candidature state explicitly when selection changes", async () => {
+    const first = candidature();
+    const second = candidature({
+      id: "00000000-0000-4000-8000-000000000209",
+      company: "Other Co",
+      role: "Data engineer",
+    });
+    list.mockResolvedValueOnce([first, second]);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    const notes = await screen.findByLabelText("Notes");
+    await user.clear(notes);
+    await user.type(notes, "Unsaved selection draft");
+    await user.click(screen.getByRole("button", { name: /Other Co — Data engineer/ }));
+
+    expect(confirm).toHaveBeenCalled();
+    expect(screen.getByLabelText("Company")).toHaveValue("Acme");
+    expect(screen.getByLabelText("Notes")).toHaveValue("Unsaved selection draft");
+
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: /Other Co — Data engineer/ }));
+    expect(screen.getByLabelText("Company")).toHaveValue("Other Co");
   });
 
   it("searches concept aliases and keeps recruiter-call context together", async () => {

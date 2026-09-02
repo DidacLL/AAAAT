@@ -74,6 +74,16 @@ export function DocumentsWorkspace() {
     setClosing(document.closing ?? "");
   };
 
+  const editorDirty = selected
+    ? title !== selected.title ||
+      language !== (selected.language ?? "") ||
+      engine !== selected.engine ||
+      recipient !== (selected.recipient ?? "") ||
+      subject !== (selected.subject ?? "") ||
+      body !== selected.bodyParagraphs.join("\n\n") ||
+      closing !== (selected.closing ?? "")
+    : false;
+
   const refreshResolved = async (document: DocumentRecord) => {
     const [variant, resolved] = await Promise.all([
       window.aaaat.profile.resolveVariant(document.variantId),
@@ -83,15 +93,24 @@ export function DocumentsWorkspace() {
     setResolvedCount(resolved.items.length);
   };
 
-  const acceptDocument = async (document: DocumentRecord) => {
+  const storeDocument = (document: DocumentRecord) => {
     setDocuments((current) => {
       const found = current.some((item) => item.id === document.id);
       return found
         ? current.map((item) => (item.id === document.id ? document : item))
         : [...current, document];
     });
+  };
+
+  const acceptSavedDocument = async (document: DocumentRecord) => {
+    storeDocument(document);
     setSelectedId(document.id);
     fillEditor(document);
+    await refreshResolved(document);
+  };
+
+  const acceptAdjacentDocument = async (document: DocumentRecord) => {
+    storeDocument(document);
     await refreshResolved(document);
   };
 
@@ -121,6 +140,9 @@ export function DocumentsWorkspace() {
   const create = async (event: FormEvent) => {
     event.preventDefault();
     if (!newVariantId) return;
+    if (editorDirty && !window.confirm("Discard unsaved document edits and create a new document?")) {
+      return;
+    }
     setError(null);
     setNotice(null);
     try {
@@ -132,7 +154,7 @@ export function DocumentsWorkspace() {
         bodyParagraphs: [],
       });
       setNewTitle("");
-      await acceptDocument(created);
+      await acceptSavedDocument(created);
     } catch {
       setError("Check the document title and selected profile variant.");
     }
@@ -144,7 +166,7 @@ export function DocumentsWorkspace() {
     setError(null);
     setNotice(null);
     try {
-      await acceptDocument(
+      await acceptSavedDocument(
         await window.aaaat.documents.update({
           id: selected.id,
           title: title.trim(),
@@ -163,6 +185,10 @@ export function DocumentsWorkspace() {
   };
 
   const select = async (document: DocumentRecord) => {
+    if (document.id === selectedId) return;
+    if (editorDirty && !window.confirm("Discard unsaved document edits and switch documents?")) {
+      return;
+    }
     setSelectedId(document.id);
     fillEditor(document);
     setError(null);
@@ -176,6 +202,12 @@ export function DocumentsWorkspace() {
 
   const remove = async () => {
     if (!selected) return;
+    const confirmed = window.confirm(
+      editorDirty
+        ? "Remove this document and discard its unsaved structured edits?"
+        : "Remove this document?",
+    );
+    if (!confirmed) return;
     setError(null);
     setNotice(null);
     try {
@@ -196,11 +228,15 @@ export function DocumentsWorkspace() {
 
   const render = async () => {
     if (!selected) return;
+    if (editorDirty) {
+      setError("Save structured content before rendering the persisted document.");
+      return;
+    }
     setError(null);
     setNotice(null);
     try {
       const rendered = await window.aaaat.documents.render(selected.id);
-      await acceptDocument(rendered);
+      await acceptAdjacentDocument(rendered);
       setNotice(`Rendered PDF: ${rendered.artifactPath}`);
     } catch {
       setError("Rendering failed. Install a compatible TeX distribution with latexmk and the selected engine.");
@@ -209,6 +245,10 @@ export function DocumentsWorkspace() {
 
   const exportProject = async () => {
     if (!selected) return;
+    if (editorDirty) {
+      setError("Save structured content before exporting the persisted document.");
+      return;
+    }
     setError(null);
     setNotice(null);
     try {
@@ -221,11 +261,15 @@ export function DocumentsWorkspace() {
 
   const regenerate = async () => {
     if (!selected) return;
+    if (editorDirty) {
+      setError("Save structured content before regenerating managed source.");
+      return;
+    }
     setError(null);
     setNotice(null);
     try {
       const regenerated = await window.aaaat.documents.regenerate(selected.id);
-      await acceptDocument(regenerated);
+      await acceptAdjacentDocument(regenerated);
       setNotice("Managed source regenerated from structured content.");
     } catch {
       setError("AAAAT could not regenerate the managed document source.");
@@ -247,7 +291,7 @@ export function DocumentsWorkspace() {
     else delete patch.description;
     setError(null);
     try {
-      await acceptDocument(
+      await acceptAdjacentDocument(
         await window.aaaat.documents.configureItem({
           documentId: selected.id,
           itemId: item.id,
@@ -274,7 +318,7 @@ export function DocumentsWorkspace() {
     ids[target] = first;
     setError(null);
     try {
-      await acceptDocument(
+      await acceptAdjacentDocument(
         await window.aaaat.documents.reorder({ documentId: selected.id, itemIds: ids }),
       );
     } catch {
@@ -322,8 +366,9 @@ export function DocumentsWorkspace() {
         ) : (
           <>
             <div className="section-heading"><div><p className="eyebrow">{selected.mode === "managed" ? "Managed source" : "Manual TeX mode"}</p><h2>{selected.title}</h2></div><span>{resolvedCount} selected items</span></div>
+            {editorDirty ? <p className="document-notice">Unsaved structured edits are local. Save before rendering, exporting, or regenerating source.</p> : null}
             {selected.mode === "manual" ? (
-              <div className="manual-source-warning"><p>Direct TeX edits were detected. AAAAT will preserve them and will not silently regenerate the source.</p><button type="button" onClick={() => void regenerate()}>Replace manual source from structured data</button></div>
+              <div className="manual-source-warning"><p>Direct TeX edits were detected. AAAAT will preserve them and will not silently regenerate the source.</p><button type="button" disabled={editorDirty} onClick={() => void regenerate()}>Replace manual source from structured data</button></div>
             ) : null}
 
             <form className="document-fields" onSubmit={(event) => void save(event)}>
@@ -340,8 +385,8 @@ export function DocumentsWorkspace() {
               ) : null}
               <div className="document-actions wide-field">
                 <button className="compact-primary" type="submit">Save structured content</button>
-                <button type="button" onClick={() => void render()}>Render PDF</button>
-                <button type="button" onClick={() => void exportProject()}>Export portable project</button>
+                <button type="button" disabled={editorDirty} onClick={() => void render()}>Render PDF</button>
+                <button type="button" disabled={editorDirty} onClick={() => void exportProject()}>Export portable project</button>
                 <button type="button" onClick={() => void remove()}>Remove document</button>
               </div>
             </form>
