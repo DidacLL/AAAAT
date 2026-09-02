@@ -14,12 +14,12 @@ The SPEC and accepted ADRs are authoritative. The Constitution, current Mission,
 
 Build only what the current Mission and Issue require. Do not introduce speculative future infrastructure. Manual workflows remain independent from AI. Generated LaTeX remains portable. Durable product mutations use application services. The Electron renderer remains sandboxed and unprivileged.
 
-Use the cheapest adequate execution surface, but use available local, browser, visual, runtime, packaging, and multi-agent capabilities when they materially strengthen evidence. GitHub Actions remains the independent cross-platform evidence plane.
+Use the cheapest adequate execution surface, but use available local, browser, visual, runtime, packaging, and multi-agent capabilities when they materially strengthen evidence. GitHub Actions remains the independent cross-platform evidence plane. Review topology does not by itself justify additional process machinery or ceremony.
 
 Before completion:
 
 - run `npm run verify` and Issue-specific checks;
-- obtain a Reviewer pass from a reasoning context separate from the Builder, with evidence tied to the exact reviewed commit SHA; this does not require a separate GitHub identity, reviewer registration, or formal approval object;
+- obtain a Reviewer pass from a reasoning context separate from the Builder, with evidence tied to the exact reviewed commit SHA;
 - invoke the Simplifier for material new complexity;
 - resolve Class A/B/C decisions autonomously;
 - escalate only Class D decisions.
