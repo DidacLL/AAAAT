@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
@@ -18,9 +19,52 @@ import {
   readLastWorkspacePath,
   rememberWorkspacePath,
 } from "../src/main/workspace";
+import workspaceMigrationSql from "../src/main/migrations/001_workspace.sql?raw";
+import profileMigrationSql from "../src/main/migrations/002_profile.sql?raw";
+import documentMigrationSql from "../src/main/migrations/003_documents.sql?raw";
+import candidatureMigrationSql from "../src/main/migrations/004_candidatures.sql?raw";
+import conceptMigrationSql from "../src/main/migrations/005_concepts.sql?raw";
 
 function temporaryDirectory(): string {
   return mkdtempSync(path.join(tmpdir(), "aaaat-workspace-"));
+}
+
+function createV5Workspace(directory: string): void {
+  const database = new DatabaseSync(path.join(directory, "workspace.sqlite"));
+  const now = "2026-01-01T00:00:00.000Z";
+  const migrations = [
+    [1, "workspace", workspaceMigrationSql],
+    [2, "profile", profileMigrationSql],
+    [3, "documents", documentMigrationSql],
+    [4, "candidatures", candidatureMigrationSql],
+    [5, "concepts", conceptMigrationSql],
+  ] as const;
+
+  try {
+    database.exec(
+      "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;",
+    );
+    for (const [version, name, sql] of migrations) {
+      database.exec(sql);
+      database
+        .prepare(
+          "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
+        )
+        .run(
+          version,
+          name,
+          createHash("sha256").update(sql).digest("hex"),
+          now,
+        );
+    }
+    database
+      .prepare(
+        "INSERT INTO workspace_metadata(key, value) VALUES (?, ?)",
+      )
+      .run("workspace.initialized_at", now);
+  } finally {
+    database.close();
+  }
 }
 
 describe("user-owned workspace", () => {
@@ -38,10 +82,10 @@ describe("user-owned workspace", () => {
         expect(
           database
             .prepare(
-              "SELECT version, name, length(sha256) AS hashLength FROM schema_migrations",
+              "SELECT version, name, length(sha256) AS hashLength FROM schema_migrations ORDER BY version DESC LIMIT 1",
             )
             .get(),
-        ).toMatchObject({ version: 1, name: "workspace", hashLength: 64 });
+        ).toMatchObject({ version: 6, name: "activity", hashLength: 64 });
         database.exec(
           "CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;",
         );
@@ -66,6 +110,44 @@ describe("user-owned workspace", () => {
         ).toMatchObject({ value: "survives-reopen" });
       } finally {
         reopenedDatabase.close();
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("upgrades an exact v5 migration prefix to v6", () => {
+    const directory = temporaryDirectory();
+    const databasePath = path.join(directory, "workspace.sqlite");
+
+    try {
+      createV5Workspace(directory);
+      expect(openWorkspace(directory)).toEqual({ rootPath: directory });
+
+      const database = new DatabaseSync(databasePath, { readOnly: true });
+      try {
+        expect(
+          database
+            .prepare("SELECT version, name FROM schema_migrations ORDER BY version")
+            .all(),
+        ).toEqual([
+          { version: 1, name: "workspace" },
+          { version: 2, name: "profile" },
+          { version: 3, name: "documents" },
+          { version: 4, name: "candidatures" },
+          { version: 5, name: "concepts" },
+          { version: 6, name: "activity" },
+        ]);
+        expect(
+          database
+            .prepare(
+              "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'concept_activity'",
+            )
+            .get(),
+        ).toEqual({ name: "concept_activity" });
+        expect(database.prepare("PRAGMA foreign_key_list(document_activity)").all()).toEqual([]);
+      } finally {
+        database.close();
       }
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -120,7 +202,7 @@ describe("user-owned workspace", () => {
     }
   });
 
-  it("fails closed when migration history is incompatible", () => {
+  it("fails closed when a migration hash is incompatible", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
     const badHash = "0".repeat(64);
@@ -151,6 +233,92 @@ describe("user-owned workspace", () => {
       } finally {
         unchanged.close();
       }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed when a migration name is incompatible", () => {
+    const directory = temporaryDirectory();
+    const databasePath = path.join(directory, "workspace.sqlite");
+
+    try {
+      createOrOpenWorkspace(directory);
+      const database = new DatabaseSync(databasePath);
+      try {
+        database
+          .prepare("UPDATE schema_migrations SET name = ? WHERE version = 2")
+          .run("not-profile");
+      } finally {
+        database.close();
+      }
+
+      expect(() => openWorkspace(directory)).toThrow(
+        "The selected folder is not a compatible AAAAT workspace.",
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed when migration history contains a gap", () => {
+    const directory = temporaryDirectory();
+    const databasePath = path.join(directory, "workspace.sqlite");
+
+    try {
+      createOrOpenWorkspace(directory);
+      const database = new DatabaseSync(databasePath);
+      try {
+        database.prepare("DELETE FROM schema_migrations WHERE version = 2").run();
+      } finally {
+        database.close();
+      }
+
+      expect(() => openWorkspace(directory)).toThrow(
+        "The selected folder is not a compatible AAAAT workspace.",
+      );
+
+      const unchanged = new DatabaseSync(databasePath, { readOnly: true });
+      try {
+        expect(
+          unchanged
+            .prepare("SELECT version FROM schema_migrations ORDER BY version")
+            .all(),
+        ).toEqual([
+          { version: 1 },
+          { version: 3 },
+          { version: 4 },
+          { version: 5 },
+          { version: 6 },
+        ]);
+      } finally {
+        unchanged.close();
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed when migration history contains a future version", () => {
+    const directory = temporaryDirectory();
+    const databasePath = path.join(directory, "workspace.sqlite");
+
+    try {
+      createOrOpenWorkspace(directory);
+      const database = new DatabaseSync(databasePath);
+      try {
+        database
+          .prepare(
+            "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
+          )
+          .run(7, "future", "f".repeat(64), new Date().toISOString());
+      } finally {
+        database.close();
+      }
+
+      expect(() => openWorkspace(directory)).toThrow(
+        "The selected folder is not a compatible AAAAT workspace.",
+      );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
