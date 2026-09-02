@@ -196,7 +196,9 @@ function chooseLinuxDirectory(directory: string): void {
         "xdotool type --window \"$window\" --clearmodifiers --delay 1 \"$AAAAT_WORKSPACE_PATH\"",
         "xdotool key --window \"$window\" --clearmodifiers Return",
         "sleep 0.3",
-        "xdotool key --window \"$window\" --clearmodifiers Return",
+        "if xdotool search --onlyvisible --name 'Create or select an AAAAT workspace' 2>/dev/null | grep -qx \"$window\"; then",
+        "  xdotool key --window \"$window\" --clearmodifiers Return 2>/dev/null || true",
+        "fi",
       ].join("\n"),
     ],
     {
