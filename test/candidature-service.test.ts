@@ -15,6 +15,7 @@ import {
 import { createDocument, removeDocument } from "../src/main/document-service";
 import { createProfileVariant } from "../src/main/profile-service";
 import { createOrOpenWorkspace, openWorkspace } from "../src/main/workspace";
+import type { CandidatureRecord, CandidatureUpdate } from "../src/shared/contracts";
 
 function temporaryWorkspace(): string {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-candidature-"));
@@ -38,6 +39,30 @@ const partialInput = {
   notes: "Need location details",
 };
 
+function editable(
+  record: CandidatureRecord,
+  changes: Partial<CandidatureUpdate> = {},
+): CandidatureUpdate {
+  return {
+    id: record.id,
+    company: record.company,
+    role: record.role,
+    location: record.location,
+    workMode: record.workMode,
+    salaryText: record.salaryText,
+    source: record.source,
+    sourceUrl: record.sourceUrl,
+    sourceText: record.sourceText,
+    status: record.status,
+    applicationDate: record.applicationDate,
+    nextAction: record.nextAction,
+    nextActionDate: record.nextActionDate,
+    notes: record.notes,
+    archived: record.archived,
+    ...changes,
+  };
+}
+
 describe("manual candidature service", () => {
   it("persists partial records and keeps archive independent from lifecycle status", () => {
     const root = temporaryWorkspace();
@@ -52,19 +77,24 @@ describe("manual candidature service", () => {
         documentIds: [],
       });
 
-      const archived = updateCandidature(root, {
-        ...created,
-        status: "applied",
-        applicationDate: "2026-09-02",
-        archived: true,
-      });
+      const archived = updateCandidature(
+        root,
+        editable(created, {
+          status: "applied",
+          applicationDate: "2026-09-02",
+          archived: true,
+        }),
+      );
       expect(archived.status).toBe("applied");
       expect(archived.archived).toBe(true);
 
       openWorkspace(root);
       expect(listCandidatures(root)).toEqual([archived]);
 
-      const restored = updateCandidature(root, { ...archived, archived: false });
+      const restored = updateCandidature(
+        root,
+        editable(archived, { archived: false }),
+      );
       expect(restored.status).toBe("applied");
       expect(restored.archived).toBe(false);
     } finally {
