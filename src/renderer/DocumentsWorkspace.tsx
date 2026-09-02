@@ -355,8 +355,9 @@ export function DocumentsWorkspace() {
               <div className="section-heading"><div><p className="eyebrow">Document-specific</p><h3>Selection and overrides</h3></div></div>
               {orderedItems.map((item, index) => {
                 const rule = selected.rules.find((candidate) => candidate.itemId === item.id);
+                const formKey = `${selected.id}:${item.id}:${JSON.stringify(rule ?? null)}`;
                 return (
-                  <form className="document-item" key={item.id} onSubmit={(event) => void applyItem(event, item)}>
+                  <form className="document-item" key={formKey} onSubmit={(event) => void applyItem(event, item)}>
                     <div><span className="item-kind">{item.kind}</span><strong>{item.title}</strong></div>
                     <label className="include-control"><input name="included" type="checkbox" defaultChecked={!rule?.excluded} /> Include</label>
                     <label>Override title<input name="overrideTitle" defaultValue={rule?.contentPatch?.title ?? ""} /></label>
