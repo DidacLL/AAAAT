@@ -659,7 +659,6 @@ function writeManagedProject(rootPath: string, documentId: string): string {
   ] as const;
   const installed: string[] = [];
   const backedUp: Array<readonly [string, string]> = [];
-  let hash: string | null = null;
 
   try {
     mkdirSync(stagePaths.projectPath, { recursive: true });
@@ -676,7 +675,7 @@ function writeManagedProject(rootPath: string, documentId: string): string {
       "utf8",
     );
     writeFileSync(stagePaths.stylePath, aaatStyle, "utf8");
-    hash = sourceHash(stagePaths);
+    const hash = sourceHash(stagePaths);
     if (!hash) {
       throw new Error("staged source incomplete");
     }
@@ -691,6 +690,15 @@ function writeManagedProject(rootPath: string, documentId: string): string {
       renameSync(stagedFile, targetFile);
       installed.push(targetFile);
     }
+
+    for (const directory of [stagePaths.projectPath, backupPaths.projectPath]) {
+      try {
+        rmSync(directory, { recursive: true, force: true });
+      } catch (error) {
+        console.warn("AAAAT preserved staged managed-source files after cleanup failed.", error);
+      }
+    }
+    return hash;
   } catch {
     let recoveryFailed = false;
     for (const targetFile of [...installed].reverse()) {
@@ -720,18 +728,6 @@ function writeManagedProject(rootPath: string, documentId: string): string {
         : "AAAAT could not safely replace the managed document source.",
     );
   }
-
-  if (!hash) {
-    throw new DocumentServiceError("AAAAT could not create the managed document source.");
-  }
-  for (const directory of [stagePaths.projectPath, backupPaths.projectPath]) {
-    try {
-      rmSync(directory, { recursive: true, force: true });
-    } catch (error) {
-      console.warn("AAAAT preserved staged managed-source files after cleanup failed.", error);
-    }
-  }
-  return hash;
 }
 
 function setSourceState(
