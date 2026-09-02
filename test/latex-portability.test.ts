@@ -27,7 +27,8 @@ latexIt("renders with supported built-in engines and compiles after unrelated-di
     addProfileItem(root, {
       kind: "summary",
       title: "R&D_50% & Platform #1",
-      description: "Portable {LaTeX} source with $special$ characters.",
+      description:
+        "Portable {LaTeX} source with $special$ characters, C:\\tools, ^carets^, and ~tildes~.",
     });
     const profile = createProfileVariant(root, {
       name: "Portable",
@@ -46,7 +47,11 @@ latexIt("renders with supported built-in engines and compiles after unrelated-di
       bodyParagraphs: [],
     });
 
-    for (const engine of ["pdflatex", "lualatex", "xelatex"] as const satisfies readonly DocumentEngine[]) {
+    for (const engine of [
+      "pdflatex",
+      "lualatex",
+      "xelatex",
+    ] as const satisfies readonly DocumentEngine[]) {
       document = updateDocument(root, {
         id: document.id,
         title: document.title,
@@ -77,7 +82,13 @@ latexIt("renders with supported built-in engines and compiles after unrelated-di
 
     const compiled = spawnSync(
       "latexmk",
-      ["-pdf", "-interaction=nonstopmode", "-halt-on-error", "-outdir=build", "main.tex"],
+      [
+        "-pdf",
+        "-interaction=nonstopmode",
+        "-halt-on-error",
+        "-outdir=build",
+        "main.tex",
+      ],
       { cwd: exported, encoding: "utf8" },
     );
     expect(compiled.error).toBeUndefined();
