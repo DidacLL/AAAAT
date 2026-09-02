@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   type IpcMainInvokeEvent,
   session,
@@ -10,13 +11,23 @@ import {
 
 import {
   channels,
+  optionalWorkspaceInfoSchema,
   systemInfoSchema,
-  workspaceStatusSchema,
+  workspaceChoiceSchema,
+  workspaceInfoSchema,
+  type WorkspaceInfo,
 } from "../shared/contracts";
 import { createWindowOptions } from "./window-options";
-import { initializeWorkspace } from "./workspace";
+import {
+  createOrOpenWorkspace,
+  openWorkspace,
+  readLastWorkspacePath,
+  rememberWorkspacePath,
+} from "./workspace";
 
 app.enableSandbox();
+
+let currentWorkspace: WorkspaceInfo | null = null;
 
 function assertTrustedSender(
   event: IpcMainInvokeEvent,
@@ -30,9 +41,62 @@ function assertTrustedSender(
   }
 }
 
+function workspaceSettingsPath(): string {
+  return path.join(app.getPath("userData"), "workspace-settings.json");
+}
+
+function currentOrRememberedWorkspace(): WorkspaceInfo | null {
+  if (currentWorkspace) {
+    return currentWorkspace;
+  }
+
+  const rememberedPath = readLastWorkspacePath(workspaceSettingsPath());
+  if (!rememberedPath) {
+    return null;
+  }
+
+  currentWorkspace = openWorkspace(rememberedPath);
+  return currentWorkspace;
+}
+
+async function chooseWorkspace(
+  mainWindow: BrowserWindow,
+  choice: unknown,
+): Promise<WorkspaceInfo | null> {
+  const validatedChoice = workspaceChoiceSchema.parse(choice);
+  const creating = validatedChoice === "create";
+  const selection = await dialog.showOpenDialog(mainWindow, {
+    title: creating
+      ? "Create or select an AAAAT workspace"
+      : "Open an AAAAT workspace",
+    buttonLabel: creating ? "Use this folder" : "Open workspace",
+    properties: creating
+      ? ["openDirectory", "createDirectory", "promptToCreate"]
+      : ["openDirectory"],
+  });
+
+  if (selection.canceled) {
+    return null;
+  }
+
+  const selectedPath = selection.filePaths[0];
+  if (!selectedPath) {
+    return null;
+  }
+
+  const workspace = creating
+    ? createOrOpenWorkspace(selectedPath)
+    : openWorkspace(selectedPath);
+
+  rememberWorkspacePath(workspaceSettingsPath(), workspace.rootPath);
+  currentWorkspace = workspace;
+  return workspace;
+}
+
 function registerIpc(mainWindow: BrowserWindow): void {
   ipcMain.removeHandler(channels.systemInfo);
-  ipcMain.removeHandler(channels.workspaceInitialize);
+  ipcMain.removeHandler(channels.workspaceCurrent);
+  ipcMain.removeHandler(channels.workspaceChoose);
 
   ipcMain.handle(channels.systemInfo, (event) => {
     assertTrustedSender(event, mainWindow);
@@ -43,10 +107,16 @@ function registerIpc(mainWindow: BrowserWindow): void {
     });
   });
 
-  ipcMain.handle(channels.workspaceInitialize, (event) => {
+  ipcMain.handle(channels.workspaceCurrent, (event) => {
     assertTrustedSender(event, mainWindow);
-    const databasePath = path.join(app.getPath("userData"), "workspace.sqlite");
-    return workspaceStatusSchema.parse(initializeWorkspace(databasePath));
+    return optionalWorkspaceInfoSchema.parse(currentOrRememberedWorkspace());
+  });
+
+  ipcMain.handle(channels.workspaceChoose, async (event, choice: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return optionalWorkspaceInfoSchema.parse(
+      await chooseWorkspace(mainWindow, choice),
+    );
   });
 }
 
