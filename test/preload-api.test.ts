@@ -16,7 +16,7 @@ describe("desktop preload API", () => {
       if (
         channel === channels.documentList ||
         channel === channels.candidatureList ||
-        channel === channels.conceptList
+        channel === channels.candidatureListConcepts
       ) return [];
       return emptyProfile;
     });
@@ -77,7 +77,7 @@ describe("desktop preload API", () => {
     });
     expect(invoke).toHaveBeenNthCalledWith(5, channels.documentList);
     expect(invoke).toHaveBeenNthCalledWith(6, channels.candidatureList);
-    expect(invoke).toHaveBeenNthCalledWith(7, channels.conceptList);
+    expect(invoke).toHaveBeenNthCalledWith(7, channels.candidatureListConcepts);
   });
 
   it("rejects malformed privileged responses and invalid domain input", async () => {
