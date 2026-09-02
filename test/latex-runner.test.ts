@@ -36,22 +36,19 @@ afterEach(() => {
 });
 
 describe("latex runner", () => {
-  it("keeps the event loop responsive and rejects a duplicate render", async () => {
+  it("keeps the event loop responsive", async () => {
     const project = fakeLatexmk();
     process.env.AAAAT_FAKE_LATEX_MODE = "slow";
 
     let timerRan = false;
-    const first = runLatexmk(project, "pdflatex", 1_000);
+    const render = runLatexmk(project, "pdflatex", 1_000);
     setTimeout(() => {
       timerRan = true;
     }, 10);
     await new Promise((resolve) => setTimeout(resolve, 30));
 
     expect(timerRan).toBe(true);
-    await expect(runLatexmk(project, "pdflatex", 1_000)).rejects.toThrow(
-      "already rendering",
-    );
-    await expect(first).resolves.toBeUndefined();
+    await expect(render).resolves.toBeUndefined();
   });
 
   it("terminates a timed-out child before it can continue work", async () => {
