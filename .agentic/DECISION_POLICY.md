@@ -1,6 +1,6 @@
 # Decision Policy
 
-Decision classes describe the minimum review required by the decision being made, not the apparent size of its implementation. A small patch does not lower the class of a decision whose representation or boundary is Class C.
+Decision classes describe the minimum review required by the decision being made, not the apparent size of its implementation.
 
 ## Class A — Implementation detail
 
@@ -12,13 +12,11 @@ Builder and Reviewer resolve. No ADR. No owner involvement.
 
 Examples: two reasonable bounded APIs, local UX behavior, or a small internal contract that does not cross a Class C lower bound.
 
-Integrator resolves. Use a temporary expert committee only when disagreement remains materially unresolved. No owner involvement.
+Integrator resolves. No ADR or owner involvement unless the decision grows beyond the local scope.
 
 ## Class C — Architectural but bounded and reversible
 
-Examples include a significant runtime dependency, meaningful shared-contract or database-representation change, a demonstrated module/process boundary, or a material build-integration change.
-
-The following are Class C lower bounds when introduced or materially changed:
+The following are Class C when introduced or materially changed:
 
 - durable schema or storage representation;
 - shared desktop/preload contracts;
@@ -26,12 +24,12 @@ The following are Class C lower bounds when introduced or materially changed:
 - process or privilege boundaries;
 - material build or packaging integration.
 
-A change matching one of these lower bounds cannot be downgraded merely because the code is small, reuses the approved architecture, or appears easy to reverse. An accepted ADR may pre-authorize the exact representation or boundary; ordinary implementation that stays wholly inside that accepted decision need not create a duplicate ADR. Changing the accepted decision remains Class C.
+A small patch does not downgrade one of these decisions. An accepted ADR may already cover the exact decision; implementation that stays inside it does not need a duplicate ADR.
 
-Class C requires independent expert review, Skeptical Simplifier review, a short ADR for the bounded decision, and Integrator approval. It may be resolved autonomously.
+Class C requires a deliberate review pass, a Skeptical Simplifier pass, and a short ADR when a new architectural decision is being made. In this single-maintainer project these passes may be performed by the same maintainer or agent in sequence; a separate identity or reasoning context is not required.
 
 ## Class D — Constitutional
 
 Examples: replacing Electron or SQLite; making AI or cloud infrastructure mandatory; abandoning local ownership or portable LaTeX; dropping the pdfLaTeX baseline; weakening renderer isolation; introducing a general plugin/workflow/agent platform; changing canonical-profile semantics; or sending previously local private data remotely by default.
 
-Requires an owner decision. Create an `owner-decision` Issue containing the concrete problem, evidence, alternatives, committee recommendations, simplest viable option, consequences, and proposed ADR. Do not ask a vague architectural question.
+Requires an owner decision. Create an `owner-decision` Issue containing the concrete problem, evidence, alternatives, simplest viable option, consequences, and proposed ADR. Do not ask a vague architectural question.
