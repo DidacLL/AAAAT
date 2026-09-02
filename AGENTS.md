@@ -10,7 +10,7 @@ Before working:
 6. Read the relevant GitHub Issue.
 7. Read relevant accepted ADRs.
 
-The SPEC and accepted ADRs are authoritative. GitHub Issues, branches, Pull Requests, reviews, Actions, and milestones contain dynamic engineering state.
+The SPEC and accepted ADRs are authoritative. The Constitution, current Mission, routing/decision/review policies, and the bounded current Issue constrain execution. GitHub Issues, branches, Pull Requests, reviews, Actions, and milestones contain dynamic engineering state. Pre-canonical bootstrap inputs, ignored legacy assets, old PR comments, and prior implementation documents are advisory or research evidence only; they do not override current canonical authority.
 
 Build only what the current Mission and Issue require. Do not introduce speculative future infrastructure. Manual workflows remain independent from AI. Generated LaTeX remains portable. Durable product mutations use application services. The Electron renderer remains sandboxed and unprivileged.
 
@@ -19,7 +19,7 @@ Use the cheapest adequate execution surface, but use available local, browser, v
 Before completion:
 
 - run `npm run verify` and Issue-specific checks;
-- obtain independent review;
+- obtain independent review with evidence tied to the exact reviewed commit SHA;
 - invoke the Simplifier for material new complexity;
 - resolve Class A/B/C decisions autonomously;
 - escalate only Class D decisions.
