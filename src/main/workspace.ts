@@ -205,11 +205,7 @@ function verifyExistingWorkspace(rootPath: string): void {
         "The selected folder is not a compatible AAAAT workspace.",
       );
     }
-  } catch (error) {
-    if (error instanceof WorkspaceError) {
-      throw error;
-    }
-
+  } catch {
     throw new WorkspaceError(
       "The selected folder is not a compatible AAAAT workspace.",
     );
