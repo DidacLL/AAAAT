@@ -6,14 +6,18 @@ import { channels } from "../src/shared/contracts";
 const emptyProfile = { items: [], variants: [] };
 
 describe("desktop preload API", () => {
-  it("exposes only fixed workspace, profile, document, and candidature intentions", async () => {
+  it("exposes only fixed workspace, profile, document, candidature, and concept intentions", async () => {
     const invoke = vi.fn(async (channel: string) => {
       if (channel === channels.systemInfo) {
         return { appVersion: "2.0.0", electronVersion: "44.1.1", nodeVersion: "24.19.0" };
       }
       if (channel === channels.workspaceCurrent) return null;
       if (channel === channels.workspaceChoose) return { rootPath: "/tmp/aaaat-workspace" };
-      if (channel === channels.documentList || channel === channels.candidatureList) return [];
+      if (
+        channel === channels.documentList ||
+        channel === channels.candidatureList ||
+        channel === channels.conceptList
+      ) return [];
       return emptyProfile;
     });
 
@@ -50,6 +54,10 @@ describe("desktop preload API", () => {
       "create",
       "update",
       "setDocuments",
+      "listConcepts",
+      "createConcept",
+      "updateConcept",
+      "setConcepts",
     ]);
 
     await expect(api.system.info()).resolves.toMatchObject({ electronVersion: "44.1.1" });
@@ -58,6 +66,7 @@ describe("desktop preload API", () => {
     await expect(api.profile.addItem({ kind: "skill", title: "TypeScript" })).resolves.toEqual(emptyProfile);
     await expect(api.documents.list()).resolves.toEqual([]);
     await expect(api.candidatures.list()).resolves.toEqual([]);
+    await expect(api.candidatures.listConcepts()).resolves.toEqual([]);
 
     expect(invoke).toHaveBeenNthCalledWith(1, channels.systemInfo);
     expect(invoke).toHaveBeenNthCalledWith(2, channels.workspaceCurrent);
@@ -68,6 +77,7 @@ describe("desktop preload API", () => {
     });
     expect(invoke).toHaveBeenNthCalledWith(5, channels.documentList);
     expect(invoke).toHaveBeenNthCalledWith(6, channels.candidatureList);
+    expect(invoke).toHaveBeenNthCalledWith(7, channels.conceptList);
   });
 
   it("rejects malformed privileged responses and invalid domain input", async () => {
@@ -100,6 +110,13 @@ describe("desktop preload API", () => {
         nextActionDate: "",
         notes: "",
         archived: false,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      api.candidatures.createConcept({
+        name: "",
+        definition: "",
+        aliases: [],
       }),
     ).rejects.toThrow();
   });
