@@ -18,8 +18,6 @@ function createPreviewApi(): DesktopApi {
       current: async () => null,
       choose: async () => ({
         rootPath: "/Users/example/AAAAT Workspace",
-        schemaVersion: 1,
-        initializedAt: new Date().toISOString(),
       }),
     }),
   });
