@@ -19,7 +19,7 @@ Use the cheapest adequate execution surface, but use available local, browser, v
 Before completion:
 
 - run `npm run verify` and Issue-specific checks;
-- obtain independent review with evidence tied to the exact reviewed commit SHA;
+- obtain a Reviewer pass from a reasoning context separate from the Builder, with evidence tied to the exact reviewed commit SHA; this does not require a separate GitHub identity, reviewer registration, or formal approval object;
 - invoke the Simplifier for material new complexity;
 - resolve Class A/B/C decisions autonomously;
 - escalate only Class D decisions.
