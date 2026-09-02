@@ -2,18 +2,19 @@ import { useEffect, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import logo from "./assets/aaaat-logo-light.png";
+import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
-type ProductView = "profile" | "documents";
+type ProductView = "candidatures" | "profile" | "documents";
 
 export function App() {
   const [foundationReady, setFoundationReady] = useState(true);
   const [workspacePhase, setWorkspacePhase] = useState<WorkspacePhase>("loading");
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
-  const [productView, setProductView] = useState<ProductView>("profile");
+  const [productView, setProductView] = useState<ProductView>("candidatures");
 
   useEffect(() => {
     let active = true;
@@ -58,7 +59,7 @@ export function App() {
       }
       setWorkspace(selectedWorkspace);
       setWorkspacePhase("ready");
-      setProductView("profile");
+      setProductView("candidatures");
     } catch {
       setWorkspacePhase(workspace ? "ready" : "idle");
       setWorkspaceError(
@@ -103,6 +104,13 @@ export function App() {
           <nav className="product-tabs" aria-label="Workspace areas">
             <button
               type="button"
+              className={productView === "candidatures" ? "active-product-tab" : ""}
+              onClick={() => setProductView("candidatures")}
+            >
+              Candidatures
+            </button>
+            <button
+              type="button"
               className={productView === "profile" ? "active-product-tab" : ""}
               onClick={() => setProductView("profile")}
             >
@@ -117,7 +125,9 @@ export function App() {
             </button>
           </nav>
 
-          {productView === "profile" ? (
+          {productView === "candidatures" ? (
+            <CandidaturesWorkspace key={`candidatures-${workspace.rootPath}`} />
+          ) : productView === "profile" ? (
             <ProfileWorkspace key={`profile-${workspace.rootPath}`} />
           ) : (
             <DocumentsWorkspace key={`documents-${workspace.rootPath}`} />
