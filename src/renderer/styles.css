@@ -100,7 +100,8 @@ button {
 }
 
 .empty-state h1 {
-  margin: 0 0 32px;
+  max-width: 720px;
+  margin: 0 0 28px;
   color: var(--ink);
   font-size: clamp(30px, 2.7vw, 40px);
   font-weight: 400;
@@ -108,16 +109,40 @@ button {
   letter-spacing: -0.02em;
 }
 
-.primary-action {
+.workspace-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.workspace-path {
+  display: flex;
+  max-width: min(720px, 90vw);
+  flex-direction: column;
+  gap: 8px;
+  margin: -8px 0 24px;
+  color: var(--muted-ink);
+}
+
+.workspace-path span {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.workspace-path code {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 15px;
+}
+
+.primary-action,
+.secondary-action {
   min-width: 372px;
   padding: 19px 34px;
-  border: 3px solid var(--accent);
   border-radius: 11px;
-  outline: 2px solid var(--canvas);
-  outline-offset: -7px;
-  color: #ffffff;
-  background: var(--accent);
-  box-shadow: 0 6px 18px rgb(216 77 11 / 18%);
   cursor: pointer;
   font-size: 23px;
   font-weight: 400;
@@ -128,25 +153,47 @@ button {
     box-shadow 140ms ease;
 }
 
+.primary-action {
+  border: 3px solid var(--accent);
+  outline: 2px solid var(--canvas);
+  outline-offset: -7px;
+  color: #ffffff;
+  background: var(--accent);
+  box-shadow: 0 6px 18px rgb(216 77 11 / 18%);
+}
+
+.secondary-action {
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: transparent;
+}
+
 .primary-action:hover:not(:disabled) {
   background: var(--accent-dark);
   box-shadow: 0 8px 22px rgb(216 77 11 / 25%);
   transform: translateY(-1px);
 }
 
-.primary-action:focus-visible {
+.secondary-action:hover:not(:disabled) {
+  background: #f4eee5;
+  transform: translateY(-1px);
+}
+
+.primary-action:focus-visible,
+.secondary-action:focus-visible {
   box-shadow:
     0 0 0 4px var(--canvas),
     0 0 0 7px var(--focus);
 }
 
-.primary-action:disabled {
+.primary-action:disabled,
+.secondary-action:disabled {
   cursor: default;
   opacity: 0.76;
 }
 
 .error-message {
-  max-width: 420px;
+  max-width: 520px;
   margin: 18px 0 0;
   color: #a62d1f;
   font-size: 15px;
@@ -193,10 +240,11 @@ button {
   }
 
   .empty-state h1 {
-    margin-bottom: 28px;
+    margin-bottom: 24px;
   }
 
-  .primary-action {
+  .primary-action,
+  .secondary-action {
     width: min(100%, 372px);
     min-width: 0;
     padding: 17px 22px;
@@ -213,7 +261,8 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .primary-action {
+  .primary-action,
+  .secondary-action {
     transition: none;
   }
 }
