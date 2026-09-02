@@ -81,23 +81,27 @@ export async function runLatexmk(
   timeoutMs = 30_000,
 ): Promise<void> {
   const engineFlag = engine === "pdflatex" ? "-pdf" : `-${engine}`;
+  const latexArgs = [
+    engineFlag,
+    "-interaction=nonstopmode",
+    "-halt-on-error",
+    "-outdir=build",
+    "main.tex",
+  ];
+  const command =
+    process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "latexmk";
+  const args =
+    process.platform === "win32"
+      ? ["/d", "/s", "/c", "latexmk", ...latexArgs]
+      : latexArgs;
+
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(
-      "latexmk",
-      [
-        engineFlag,
-        "-interaction=nonstopmode",
-        "-halt-on-error",
-        "-outdir=build",
-        "main.tex",
-      ],
-      {
-        cwd: projectPath,
-        stdio: "ignore",
-        windowsHide: true,
-        detached: process.platform !== "win32",
-      },
-    );
+    const child = spawn(command, args, {
+      cwd: projectPath,
+      stdio: "ignore",
+      windowsHide: true,
+      detached: process.platform !== "win32",
+    });
     let settled = false;
     let timingOut = false;
     const finish = (error?: Error) => {
