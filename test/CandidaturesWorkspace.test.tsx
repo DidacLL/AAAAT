@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -178,10 +178,14 @@ describe("manual Candidatures workspace", () => {
     render(<CandidaturesWorkspace />);
 
     expect(await screen.findByDisplayValue("Acme")).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText("Status"), "applied");
-    await user.clear(screen.getByLabelText("Notes"));
-    await user.type(screen.getByLabelText("Notes"), "Application submitted");
-    await user.click(screen.getByRole("button", { name: "Save candidature" }));
+    const saveButton = screen.getByRole("button", { name: "Save candidature" });
+    const form = saveButton.closest("form");
+    if (!form) throw new Error("Expected candidature edit form");
+    const editor = within(form);
+    await user.selectOptions(editor.getByLabelText("Status"), "applied");
+    await user.clear(editor.getByLabelText("Notes"));
+    await user.type(editor.getByLabelText("Notes"), "Application submitted");
+    await user.click(saveButton);
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
       id: existing.id,
       status: "applied",
@@ -216,9 +220,10 @@ describe("manual Candidatures workspace", () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    expect(await screen.findByRole("heading", { name: /Acme — Backend engineer/ })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Recruiter call focus" })).toHaveTextContent("Backend CV");
-    expect(screen.getByRole("region", { name: "Recruiter call focus" })).toHaveTextContent(concept.definition);
+    const focus = await screen.findByRole("region", { name: "Recruiter call focus" });
+    expect(within(focus).getByRole("heading", { name: /Acme — Backend engineer/ })).toBeInTheDocument();
+    expect(focus).toHaveTextContent("Backend CV");
+    expect(focus).toHaveTextContent(concept.definition);
 
     await user.type(screen.getByLabelText("Search"), "TS");
     expect(screen.getByRole("button", { name: /Acme — Backend engineer/ })).toBeInTheDocument();
