@@ -4,8 +4,16 @@ import type {
   CandidatureInput,
   CandidatureRecord,
   CandidatureUpdate,
+  ConceptInput,
+  ConceptRecord,
   DocumentRecord,
 } from "../shared/contracts";
+import { CandidatureFocusPanel } from "./CandidatureFocusPanel";
+import {
+  filterCandidatures,
+  type ArchiveFilter,
+  type StatusFilter,
+} from "./candidature-projections";
 
 const emptyCandidature: CandidatureInput = {
   company: "",
@@ -21,6 +29,12 @@ const emptyCandidature: CandidatureInput = {
   nextAction: "",
   nextActionDate: "",
   notes: "",
+};
+
+const emptyConcept: ConceptInput = {
+  name: "",
+  definition: "",
+  aliases: [],
 };
 
 function recordLabel(record: CandidatureRecord): string {
@@ -49,18 +63,36 @@ function editableRecord(record: CandidatureRecord): CandidatureUpdate {
   };
 }
 
+function aliasesFromText(value: string): string[] {
+  return value
+    .split(",")
+    .map((alias) => alias.trim())
+    .filter((alias) => alias.length > 0);
+}
+
 export function CandidaturesWorkspace() {
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [concepts, setConcepts] = useState<ConceptRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CandidatureUpdate | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [selectedConceptIds, setSelectedConceptIds] = useState<string[]>([]);
+  const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
+  const [editingConceptId, setEditingConceptId] = useState<string | null>(null);
+  const [conceptDraft, setConceptDraft] = useState<ConceptInput>(emptyConcept);
+  const [aliasesText, setAliasesText] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const selectRecord = (record: CandidatureRecord) => {
     setSelectedId(record.id);
     setDraft(editableRecord(record));
     setSelectedDocumentIds(record.documentIds);
+    setSelectedConceptIds(record.conceptIds);
+    setSelectedConceptId(record.conceptIds[0] ?? null);
   };
 
   useEffect(() => {
@@ -68,16 +100,20 @@ export function CandidaturesWorkspace() {
     void Promise.all([
       window.aaaat.candidatures.list(),
       window.aaaat.documents.list(),
+      window.aaaat.candidatures.listConcepts(),
     ])
-      .then(([nextRecords, nextDocuments]) => {
+      .then(([nextRecords, nextDocuments, nextConcepts]) => {
         if (!active) return;
         setRecords(nextRecords);
         setDocuments(nextDocuments);
-        const first = nextRecords[0];
+        setConcepts(nextConcepts);
+        const first = nextRecords.find((record) => !record.archived) ?? nextRecords[0];
         if (first) {
           setSelectedId(first.id);
           setDraft(editableRecord(first));
           setSelectedDocumentIds(first.documentIds);
+          setSelectedConceptIds(first.conceptIds);
+          setSelectedConceptId(first.conceptIds[0] ?? null);
         }
       })
       .catch(() => {
@@ -89,6 +125,13 @@ export function CandidaturesWorkspace() {
   }, []);
 
   const selected = records.find((record) => record.id === selectedId) ?? null;
+  const visibleRecords = filterCandidatures(
+    records,
+    concepts,
+    query,
+    statusFilter,
+    archiveFilter,
+  );
 
   const replaceRecord = (record: CandidatureRecord) => {
     setRecords((current) => {
@@ -146,12 +189,80 @@ export function CandidaturesWorkspace() {
     }
   };
 
+  const saveConceptAssociations = async () => {
+    if (!draft) return;
+    setError(null);
+    try {
+      replaceRecord(
+        await window.aaaat.candidatures.setConcepts({
+          candidatureId: draft.id,
+          conceptIds: selectedConceptIds,
+        }),
+      );
+    } catch {
+      setError("AAAAT could not save the concept associations.");
+    }
+  };
+
+  const saveConcept = async () => {
+    setError(null);
+    const input = { ...conceptDraft, aliases: aliasesFromText(aliasesText) };
+    try {
+      const saved = editingConceptId
+        ? await window.aaaat.candidatures.updateConcept({ id: editingConceptId, ...input })
+        : await window.aaaat.candidatures.createConcept(input);
+      setConcepts((current) => {
+        const present = current.some((concept) => concept.id === saved.id);
+        return present
+          ? current.map((concept) => (concept.id === saved.id ? saved : concept))
+          : [...current, saved].sort((left, right) => left.name.localeCompare(right.name));
+      });
+      setEditingConceptId(saved.id);
+      setConceptDraft({
+        name: saved.name,
+        definition: saved.definition,
+        aliases: saved.aliases,
+      });
+      setAliasesText(saved.aliases.join(", "));
+      setSelectedConceptId(saved.id);
+    } catch {
+      setError("AAAAT could not save this concept. Concept names must be unique.");
+    }
+  };
+
+  const chooseConceptForEdit = (conceptId: string) => {
+    if (!conceptId) {
+      setEditingConceptId(null);
+      setConceptDraft(emptyConcept);
+      setAliasesText("");
+      return;
+    }
+    const concept = concepts.find((candidate) => candidate.id === conceptId);
+    if (!concept) return;
+    setEditingConceptId(concept.id);
+    setConceptDraft({
+      name: concept.name,
+      definition: concept.definition,
+      aliases: concept.aliases,
+    });
+    setAliasesText(concept.aliases.join(", "));
+  };
+
   const toggleDocument = (documentId: string, checked: boolean) => {
     setSelectedDocumentIds((current) =>
       checked
         ? [...current.filter((id) => id !== documentId), documentId]
         : current.filter((id) => id !== documentId),
     );
+  };
+
+  const toggleConcept = (conceptId: string, checked: boolean) => {
+    setSelectedConceptIds((current) =>
+      checked
+        ? [...current.filter((id) => id !== conceptId), conceptId]
+        : current.filter((id) => id !== conceptId),
+    );
+    if (checked) setSelectedConceptId(conceptId);
   };
 
   return (
@@ -166,14 +277,47 @@ export function CandidaturesWorkspace() {
         </button>
       </div>
 
+      <div className="candidature-filters" aria-label="Candidature filters">
+        <label>
+          Search
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Company, role, source, notes, concept…"
+          />
+        </label>
+        <label>
+          Status
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+            <option value="all">All statuses</option>
+            <option value="saved">Saved</option>
+            <option value="applied">Applied</option>
+            <option value="interview">Interview</option>
+            <option value="offer">Offer</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
+        <label>
+          Archive
+          <select value={archiveFilter} onChange={(event) => setArchiveFilter(event.target.value as ArchiveFilter)}>
+            <option value="active">Active</option>
+            <option value="archived">Archived</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+      </div>
+
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
       <div className="candidature-layout">
         <aside className="candidature-list" aria-label="Candidature list">
           {records.length === 0 ? (
             <p>No candidatures yet. Create one even if some details are still unknown.</p>
+          ) : visibleRecords.length === 0 ? (
+            <p>No candidatures match these filters.</p>
           ) : (
-            records.map((record) => (
+            visibleRecords.map((record) => (
               <button
                 type="button"
                 key={record.id}
@@ -188,8 +332,16 @@ export function CandidaturesWorkspace() {
         </aside>
 
         <div className="candidature-editor">
-          {draft ? (
+          {draft && selected ? (
             <>
+              <CandidatureFocusPanel
+                record={selected}
+                concepts={concepts}
+                documents={documents}
+                selectedConceptId={selectedConceptId}
+                onSelectConcept={setSelectedConceptId}
+              />
+
               <form
                 className="candidature-form"
                 onSubmit={(event) => {
@@ -199,8 +351,8 @@ export function CandidaturesWorkspace() {
               >
                 <div className="candidature-editor-heading">
                   <div>
-                    <p className="eyebrow">Selected opportunity</p>
-                    <h3>{selected ? recordLabel(selected) : "Candidature"}</h3>
+                    <p className="eyebrow">Edit selected opportunity</p>
+                    <h3>{recordLabel(selected)}</h3>
                   </div>
                   <button
                     type="button"
@@ -261,6 +413,57 @@ export function CandidaturesWorkspace() {
                 )}
                 <button type="button" onClick={() => void saveDocuments()}>
                   Save document associations
+                </button>
+              </section>
+
+              <section className="candidature-concepts" aria-label="Associated concepts">
+                <div>
+                  <h3>Shared concepts</h3>
+                  <p>Associate reusable technologies, domain concepts, or role keywords with this candidature.</p>
+                </div>
+                {concepts.length === 0 ? (
+                  <p>No shared concepts yet.</p>
+                ) : (
+                  <div className="document-association-list">
+                    {concepts.map((concept) => (
+                      <label key={concept.id}>
+                        <input
+                          type="checkbox"
+                          checked={selectedConceptIds.includes(concept.id)}
+                          onChange={(event) => toggleConcept(concept.id, event.target.checked)}
+                        />
+                        {concept.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => void saveConceptAssociations()}>
+                  Save concept associations
+                </button>
+              </section>
+
+              <section className="concept-editor" aria-label="Concept editor">
+                <div>
+                  <h3>Concept definitions</h3>
+                  <p>Definitions and aliases are shared across candidatures.</p>
+                </div>
+                <label>
+                  Concept to edit
+                  <select
+                    value={editingConceptId ?? ""}
+                    onChange={(event) => chooseConceptForEdit(event.target.value)}
+                  >
+                    <option value="">New concept</option>
+                    {concepts.map((concept) => (
+                      <option key={concept.id} value={concept.id}>{concept.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>Name<input value={conceptDraft.name} onChange={(event) => setConceptDraft({ ...conceptDraft, name: event.target.value })} /></label>
+                <label>Aliases<input value={aliasesText} onChange={(event) => setAliasesText(event.target.value)} placeholder="TypeScript, TS" /></label>
+                <label>Definition<textarea rows={4} value={conceptDraft.definition} onChange={(event) => setConceptDraft({ ...conceptDraft, definition: event.target.value })} /></label>
+                <button type="button" onClick={() => void saveConcept()}>
+                  {editingConceptId ? "Save concept" : "Create concept"}
                 </button>
               </section>
             </>
