@@ -97,7 +97,11 @@ async function waitForDebugger(
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  throw new Error("Packaged application did not expose its test endpoint");
+  const error = processError().trim();
+  throw new Error(
+    "Packaged application did not expose its test endpoint" +
+      (error ? ":\n" + error : ""),
+  );
 }
 
 async function stopProcess(child: ChildProcess): Promise<void> {
@@ -184,6 +188,12 @@ test("packaged desktop starts and initializes through the bounded bridge", async
       system: ["info"],
       workspace: ["initialize"],
     });
+
+    const csp = await page
+      .locator('meta[http-equiv="Content-Security-Policy"]')
+      .getAttribute("content");
+    expect(csp).toContain("connect-src 'self'");
+    expect(csp).not.toContain("ws://localhost:");
 
     await page
       .getByRole("button", { name: "Create local workspace" })

@@ -48,6 +48,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Configure packaged Chromium sandbox (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sandbox_path="out/AAAAT-linux-$(node -p 'process.arch')/chrome-sandbox"
+          sudo chown root:root "$sandbox_path"
+          sudo chmod 4755 "$sandbox_path"
+          stat -c '%U %a %n' "$sandbox_path"
       - name: Packaged runtime smoke
         if: runner.os != 'Linux'
         run: npm run test:desktop
