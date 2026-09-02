@@ -71,6 +71,8 @@ class DocumentServiceError extends Error {
   }
 }
 
+const activeRenders = new Set<string>();
+
 function transact(database: DatabaseSync, action: () => void): void {
   database.exec("BEGIN IMMEDIATE");
   try {
@@ -102,6 +104,12 @@ function pathsForProject(projectPath: string) {
 
 function projectPaths(rootPath: string, documentId: string) {
   return pathsForProject(path.join(rootPath, "documents", documentId));
+}
+
+function assertProjectIdle(rootPath: string, documentId: string): void {
+  if (activeRenders.has(projectPaths(rootPath, documentId).projectPath)) {
+    throw new DocumentServiceError("This document is currently rendering.");
+  }
 }
 
 function parseBody(value: string): string[] {
@@ -383,6 +391,7 @@ export function removeDocument(
   rootPath: string,
   documentId: string,
 ): DocumentRecord[] {
+  assertProjectIdle(rootPath, documentId);
   const paths = projectPaths(rootPath, documentId);
   const stagedPath = path.join(
     path.dirname(paths.projectPath),
@@ -650,6 +659,7 @@ function writeManagedProject(rootPath: string, documentId: string): string {
   ] as const;
   const installed: string[] = [];
   const backedUp: Array<readonly [string, string]> = [];
+  let hash: string | null = null;
 
   try {
     mkdirSync(stagePaths.projectPath, { recursive: true });
@@ -666,7 +676,7 @@ function writeManagedProject(rootPath: string, documentId: string): string {
       "utf8",
     );
     writeFileSync(stagePaths.stylePath, aaatStyle, "utf8");
-    const hash = sourceHash(stagePaths);
+    hash = sourceHash(stagePaths);
     if (!hash) {
       throw new Error("staged source incomplete");
     }
@@ -681,9 +691,6 @@ function writeManagedProject(rootPath: string, documentId: string): string {
       renameSync(stagedFile, targetFile);
       installed.push(targetFile);
     }
-    rmSync(stagePaths.projectPath, { recursive: true, force: true });
-    rmSync(backupPaths.projectPath, { recursive: true, force: true });
-    return hash;
   } catch {
     let recoveryFailed = false;
     for (const targetFile of [...installed].reverse()) {
@@ -713,6 +720,18 @@ function writeManagedProject(rootPath: string, documentId: string): string {
         : "AAAAT could not safely replace the managed document source.",
     );
   }
+
+  if (!hash) {
+    throw new DocumentServiceError("AAAAT could not create the managed document source.");
+  }
+  for (const directory of [stagePaths.projectPath, backupPaths.projectPath]) {
+    try {
+      rmSync(directory, { recursive: true, force: true });
+    } catch (error) {
+      console.warn("AAAAT preserved staged managed-source files after cleanup failed.", error);
+    }
+  }
+  return hash;
 }
 
 function setSourceState(
@@ -777,6 +796,7 @@ export function regenerateDocument(
   rootPath: string,
   documentId: string,
 ): DocumentRecord {
+  assertProjectIdle(rootPath, documentId);
   getDocument(rootPath, documentId);
   const hash = writeManagedProject(rootPath, documentId);
   return setSourceState(
@@ -793,28 +813,37 @@ export async function renderDocument(
   documentId: string,
   timeoutMs = 30_000,
 ): Promise<DocumentRecord> {
-  const document = prepareProject(rootPath, documentId);
   const paths = projectPaths(rootPath, documentId);
-  mkdirSync(path.dirname(paths.artifactPath), { recursive: true });
+  if (activeRenders.has(paths.projectPath)) {
+    throw new DocumentServiceError("This document is already rendering.");
+  }
+  activeRenders.add(paths.projectPath);
+
   try {
-    await runLatexmk(paths.projectPath, document.engine, timeoutMs);
-  } catch (error) {
-    if (error instanceof LatexRunnerError) {
-      throw new DocumentServiceError(error.message);
+    const document = prepareProject(rootPath, documentId);
+    mkdirSync(path.dirname(paths.artifactPath), { recursive: true });
+    try {
+      await runLatexmk(paths.projectPath, document.engine, timeoutMs);
+    } catch (error) {
+      if (error instanceof LatexRunnerError) {
+        throw new DocumentServiceError(error.message);
+      }
+      throw error;
     }
-    throw error;
+    if (!existsSync(paths.artifactPath)) {
+      throw new DocumentServiceError(
+        `TeX rendering failed. Check that latexmk and ${document.engine} are installed and compatible.`,
+      );
+    }
+    withWorkspaceDatabase(rootPath, (database) => {
+      transact(database, () =>
+        recordActivity(database, documentId, "document.render"),
+      );
+    });
+    return getDocument(rootPath, documentId);
+  } finally {
+    activeRenders.delete(paths.projectPath);
   }
-  if (!existsSync(paths.artifactPath)) {
-    throw new DocumentServiceError(
-      `TeX rendering failed. Check that latexmk and ${document.engine} are installed and compatible.`,
-    );
-  }
-  withWorkspaceDatabase(rootPath, (database) => {
-    transact(database, () =>
-      recordActivity(database, documentId, "document.render"),
-    );
-  });
-  return getDocument(rootPath, documentId);
 }
 
 function safeProjectName(document: DocumentRecord): string {
@@ -832,6 +861,7 @@ export function exportDocumentProject(
   documentId: string,
   targetParent: string,
 ): string {
+  assertProjectIdle(rootPath, documentId);
   const document = prepareProject(rootPath, documentId);
   try {
     if (!statSync(targetParent).isDirectory()) {
