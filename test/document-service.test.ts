@@ -291,6 +291,31 @@ describe("manual document service", () => {
     ).toBe(false);
   });
 
+  it("removes provisional activity when document creation fails", () => {
+    const root = workspace();
+    const { variant } = seeded(root);
+
+    process.env.AAAAT_TEST_RENAME_FAILURE = "managed-rollback";
+    expect(() =>
+      createDocument(root, {
+        kind: "cv",
+        title: "Failed CV",
+        variantId: variant.id,
+        engine: "pdflatex",
+        bodyParagraphs: [],
+      }),
+    ).toThrow("could not safely replace");
+
+    const evidence = withWorkspaceDatabase(root, (database) => ({
+      documents: database.prepare("SELECT COUNT(*) AS count FROM documents").get(),
+      activity: database
+        .prepare("SELECT action FROM document_activity ORDER BY id")
+        .all(),
+    }));
+    expect(evidence.documents).toEqual({ count: 0 });
+    expect(evidence.activity).toEqual([]);
+  });
+
   const permissionIt = process.platform === "win32" ? it.skip : it;
   permissionIt("keeps the previous managed source when replacement cannot commit", () => {
     const root = workspace();

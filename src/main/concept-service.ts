@@ -26,6 +26,31 @@ class ConceptServiceError extends Error {
   }
 }
 
+function transact(database: DatabaseSync, action: () => void): void {
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    action();
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function recordActivity(
+  database: DatabaseSync,
+  conceptId: string,
+  action: string,
+  occurredAt: string,
+): void {
+  database
+    .prepare(
+      `INSERT INTO concept_activity(occurred_at, concept_id, action)
+       VALUES (?, ?, ?)`,
+    )
+    .run(occurredAt, conceptId, action);
+}
+
 function toRecord(row: ConceptRow): ConceptRecord {
   let aliases: unknown;
   try {
@@ -76,19 +101,22 @@ export function createConcept(
   return withWorkspaceDatabase(rootPath, (database) => {
     const id = randomUUID();
     const now = new Date().toISOString();
-    database
-      .prepare(
-        `INSERT INTO concepts(id, name, definition, aliases_json, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        id,
-        concept.name,
-        concept.definition,
-        JSON.stringify(concept.aliases),
-        now,
-        now,
-      );
+    transact(database, () => {
+      database
+        .prepare(
+          `INSERT INTO concepts(id, name, definition, aliases_json, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          concept.name,
+          concept.definition,
+          JSON.stringify(concept.aliases),
+          now,
+          now,
+        );
+      recordActivity(database, id, "concept.created", now);
+    });
     return readConcept(database, id);
   });
 }
@@ -99,20 +127,24 @@ export function updateConcept(
 ): ConceptRecord {
   const update = conceptUpdateSchema.parse(input);
   return withWorkspaceDatabase(rootPath, (database) => {
-    readConcept(database, update.id);
-    database
-      .prepare(
-        `UPDATE concepts
-            SET name = ?, definition = ?, aliases_json = ?, updated_at = ?
-          WHERE id = ?`,
-      )
-      .run(
-        update.name,
-        update.definition,
-        JSON.stringify(update.aliases),
-        new Date().toISOString(),
-        update.id,
-      );
+    const now = new Date().toISOString();
+    transact(database, () => {
+      readConcept(database, update.id);
+      database
+        .prepare(
+          `UPDATE concepts
+              SET name = ?, definition = ?, aliases_json = ?, updated_at = ?
+            WHERE id = ?`,
+        )
+        .run(
+          update.name,
+          update.definition,
+          JSON.stringify(update.aliases),
+          now,
+          update.id,
+        );
+      recordActivity(database, update.id, "concept.updated", now);
+    });
     return readConcept(database, update.id);
   });
 }

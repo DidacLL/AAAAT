@@ -19,6 +19,7 @@ import profileMigrationSql from "./migrations/002_profile.sql?raw";
 import documentMigrationSql from "./migrations/003_documents.sql?raw";
 import candidatureMigrationSql from "./migrations/004_candidatures.sql?raw";
 import conceptMigrationSql from "./migrations/005_concepts.sql?raw";
+import activityMigrationSql from "./migrations/006_activity.sql?raw";
 
 interface MigrationRow {
   readonly version: number;
@@ -62,6 +63,7 @@ const migrations = Object.freeze([
   migration(3, "documents", documentMigrationSql),
   migration(4, "candidatures", candidatureMigrationSql),
   migration(5, "concepts", conceptMigrationSql),
+  migration(6, "activity", activityMigrationSql),
 ]);
 
 class WorkspaceError extends Error {
@@ -95,23 +97,21 @@ function transact(database: DatabaseSync, action: () => void): void {
 }
 
 function validateAppliedMigrations(rows: readonly MigrationRow[]): void {
-  const firstMigration = rows.find((row) => row.version === 1);
-  if (!firstMigration) {
+  if (rows.length === 0 || rows.length > migrations.length) {
     throw new WorkspaceError("The workspace migration history is incompatible.");
   }
 
-  for (const row of rows) {
-    const expected = migrations.find(
-      (candidate) => candidate.version === row.version,
-    );
+  rows.forEach((row, index) => {
+    const expected = migrations[index];
     if (
       !expected ||
+      row.version !== expected.version ||
       row.name !== expected.name ||
       row.sha256 !== expected.sha256
     ) {
       throw new WorkspaceError("The workspace migration history is incompatible.");
     }
-  }
+  });
 }
 
 function appliedMigrations(database: DatabaseSync): MigrationRow[] {

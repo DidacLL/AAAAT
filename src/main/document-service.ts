@@ -345,7 +345,12 @@ export function createDocument(
     return regenerateDocument(rootPath, id);
   } catch (error) {
     withWorkspaceDatabase(rootPath, (database) => {
-      database.prepare("DELETE FROM documents WHERE id = ?").run(id);
+      transact(database, () => {
+        database
+          .prepare("DELETE FROM document_activity WHERE document_id = ?")
+          .run(id);
+        database.prepare("DELETE FROM documents WHERE id = ?").run(id);
+      });
     });
     rmSync(projectPaths(rootPath, id).projectPath, {
       recursive: true,
