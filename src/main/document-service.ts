@@ -298,13 +298,9 @@ export function createDocument(
   rawInput: DocumentInput,
 ): DocumentRecord {
   const input = documentInputSchema.parse(rawInput);
-  const resolved = resolveProfileVariant(rootPath, input.variantId);
+  resolveProfileVariant(rootPath, input.variantId);
   const id = randomUUID();
   const now = new Date().toISOString();
-  const body =
-    input.kind === "cover_letter" && input.bodyParagraphs.length === 0
-      ? defaultCoverParagraphs(resolved.items)
-      : input.bodyParagraphs;
 
   withWorkspaceDatabase(rootPath, (database) => {
     transact(database, () => {
@@ -324,7 +320,7 @@ export function createDocument(
           input.engine,
           nullable(input.recipient),
           nullable(input.subject),
-          JSON.stringify(body),
+          JSON.stringify(input.bodyParagraphs),
           nullable(input.closing),
           now,
           now,
@@ -732,8 +728,16 @@ export function renderDocument(
       "-outdir=build",
       "main.tex",
     ],
-    { cwd: paths.projectPath, encoding: "utf8", windowsHide: true },
+    {
+      cwd: paths.projectPath,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 30_000,
+    },
   );
+  if (result.error?.code === "ETIMEDOUT") {
+    throw new DocumentServiceError("TeX rendering timed out.");
+  }
   if (result.error) {
     throw new DocumentServiceError(
       `TeX rendering is unavailable. Install latexmk and ${document.engine}.`,
