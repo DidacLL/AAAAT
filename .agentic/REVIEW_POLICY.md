@@ -6,19 +6,32 @@ Default topology:
 Builder → Reviewer → Integrator
 ```
 
-Use the Skeptical Simplifier and temporary expert committees only when the change justifies them.
+Use the Skeptical Simplifier and temporary expert committees only when the change justifies them. Class C always requires a separate Reviewer reasoning context and a Skeptical Simplifier pass.
 
-## Priorities
+## Constitutional and specification gates
+
+Before weighing ordinary review priorities, verify that the change preserves applicable non-negotiable constraints from the Constitution and SPEC, including:
+
+- local user ownership and manual independence;
+- renderer sandboxing, context isolation, and bounded privileged authority;
+- privacy boundaries and no unintended disclosure of private data;
+- portable, user-owned generated LaTeX/output where document behavior is involved;
+- provider-neutral domain behavior and bounded external capabilities where AI/integration behavior is involved.
+
+These are gates, not preferences to trade against simplicity, maintainability, convenience, or schedule. A violated gate is a blocking finding unless an accepted higher-authority decision explicitly changes the constraint.
+
+## Priorities after gates pass
 
 1. correctness
 2. approved product behavior
 3. simplicity
 4. maintainability
 5. portability
-6. security and privacy
-7. testability
-8. ecosystem convention
-9. hypothetical future flexibility
+6. testability
+7. ecosystem convention
+8. hypothetical future flexibility
+
+Security and privacy remain mandatory through the gates above rather than a weighted priority.
 
 ## Required search
 
@@ -26,9 +39,22 @@ Reviewers actively search for scope expansion, SPEC violations, duplicate mutati
 
 Deletion is a valid recommendation. Executable evidence outranks agent opinion or committee majority.
 
+## Class C evidence contract
+
+Class C review evidence must identify:
+
+- the exact reviewed commit SHA;
+- whether the Reviewer reasoning context was separate from the Builder reasoning context;
+- the relevant Issue, SPEC/Mission/ADR constraints and executable evidence inspected;
+- concrete Reviewer findings, including explicit `none` where a searched category produced no finding, rather than bare `PASS` language;
+- Skeptical Simplifier findings about unnecessary complexity and the smallest acceptable design;
+- the Integrator outcome: `MERGE`, `CORRECT`, `COMMITTEE`, or `OWNER_DECISION`.
+
+The evidence must be published against the exact final corrective SHA before merge. If the same GitHub account has to publish Builder and independent-review evidence, say so explicitly. A separate reasoning context published by the same account may satisfy the reasoning requirement, but it is not a distinct GitHub identity or a formal independent GitHub approval and must not be described as one.
+
 ## Integration outcomes
 
-- `MERGE`: acceptance criteria and relevant CI pass; no blocking finding, unjustified complexity, undocumented Class C decision, or Class D change remains.
-- `CORRECT`: Builder corrects the same branch, then verification and review repeat.
+- `MERGE`: acceptance criteria and relevant CI pass; constitutional/specification gates pass; no blocking finding, unjustified complexity, undocumented Class C decision, or Class D change remains.
+- `CORRECT`: Builder corrects the same branch, then verification and exact-head review repeat.
 - `COMMITTEE`: a minimal relevant expert group evaluates the same evidence independently.
 - `OWNER_DECISION`: a concrete Class D Issue is prepared.
