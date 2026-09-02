@@ -191,7 +191,7 @@ function chooseLinuxDirectory(directory: string): void {
         "  sleep 0.1",
         "done",
         "test -n \"$window\"",
-        "xdotool windowactivate --sync \"$window\"",
+        "xdotool windowfocus --sync \"$window\"",
         "xdotool key --window \"$window\" --clearmodifiers ctrl+l",
         "xdotool type --window \"$window\" --clearmodifiers --delay 1 \"$AAAAT_WORKSPACE_PATH\"",
         "xdotool key --window \"$window\" --clearmodifiers Return",
