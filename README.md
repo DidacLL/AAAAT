@@ -6,7 +6,9 @@ AAAAT v2 is a clean restart. The Python/wxPython v1 implementation remains avail
 
 ## Current mission
 
-M1 - Manual VCVGenerator establishes the real user-owned workspace, canonical career data and profile variants, editable manual CV and cover-letter documents, portable LaTeX projects, and local rendering. Candidature tracking, AI assistance, and agent interoperability remain later Missions.
+M2 - Candidature Workspace adds manual opportunity tracking over the proven local workspace: partial candidature records, source material, status and archive organization, search, notes, shared concepts, recruiter-call focus views, and associations to existing CV/cover-letter documents. AI assistance and agent interoperability remain later Missions.
+
+M1 - Manual VCVGenerator is complete. The user-owned workspace, canonical career data and focused variants, editable manual CV/cover-letter documents, portable LaTeX projects, local rendering, direct-edit preservation, and unrelated-directory compilation evidence remain the product baseline.
 
 M0 - Foundation is complete. The secure Electron + React + TypeScript + SQLite boundary, verification path, and native packaging evidence remain the development baseline rather than current product scope.
 
