@@ -45,15 +45,17 @@ it("upgrades an existing workspace-root database through current product schemas
         { version: 2, name: "profile" },
         { version: 3, name: "documents" },
         { version: 4, name: "candidatures" },
+        { version: 5, name: "concepts" },
       ]);
       expect(
         upgraded
           .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('profile_items', 'documents', 'candidatures') ORDER BY name",
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('profile_items', 'documents', 'candidatures', 'concepts') ORDER BY name",
           )
           .all(),
       ).toEqual([
         { name: "candidatures" },
+        { name: "concepts" },
         { name: "documents" },
         { name: "profile_items" },
       ]);
