@@ -14,7 +14,6 @@ import {
   optionalWorkspaceInfoSchema,
   systemInfoSchema,
   workspaceChoiceSchema,
-  workspaceInfoSchema,
   type WorkspaceInfo,
 } from "../shared/contracts";
 import { createWindowOptions } from "./window-options";
