@@ -20,8 +20,6 @@ describe("desktop preload API", () => {
 
       return {
         rootPath: "/tmp/aaaat-workspace",
-        schemaVersion: 1,
-        initializedAt: "2026-09-02T12:00:00.000Z",
       };
     });
 
@@ -34,9 +32,8 @@ describe("desktop preload API", () => {
       electronVersion: "44.1.1",
     });
     await expect(api.workspace.current()).resolves.toBeNull();
-    await expect(api.workspace.choose("create")).resolves.toMatchObject({
+    await expect(api.workspace.choose("create")).resolves.toEqual({
       rootPath: "/tmp/aaaat-workspace",
-      schemaVersion: 1,
     });
     expect(invoke).toHaveBeenNthCalledWith(1, channels.systemInfo);
     expect(invoke).toHaveBeenNthCalledWith(2, channels.workspaceCurrent);
