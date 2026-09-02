@@ -1,21 +1,23 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
-function developmentStyleCsp(): Plugin {
+function developmentCsp(): Plugin {
   return {
-    name: "aaaat-development-style-csp",
+    name: "aaaat-development-csp",
     transformIndexHtml(html) {
-      return html.replace(
-        "style-src 'self'",
-        "style-src 'self' 'unsafe-inline'",
-      );
+      return html
+        .replace(
+          "style-src 'self'",
+          "style-src 'self' 'unsafe-inline'",
+        )
+        .replace(
+          "connect-src 'self'",
+          "connect-src 'self' ws://localhost:*",
+        );
     },
   };
 }
 
 export default defineConfig(({ command }) => ({
-  plugins: [
-    react(),
-    ...(command === "serve" ? [developmentStyleCsp()] : []),
-  ],
+  plugins: [react(), ...(command === "serve" ? [developmentCsp()] : [])],
 }));
