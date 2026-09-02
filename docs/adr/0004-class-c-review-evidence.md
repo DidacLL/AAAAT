@@ -6,7 +6,7 @@ AAAAT already requires Class C review for meaningful shared-contract/database-re
 
 ## Decision
 
-Class C classification is a lower bound for new or materially changed durable schema/storage representation, shared desktop contracts, production runtime dependencies, process/privilege boundaries, and material build integration unless an accepted ADR already covers the exact decision.
+Class C classification is a lower bound for new or materially changed durable schema/storage representation, shared desktop/preload contracts, production runtime dependencies, process/privilege boundaries, and material build or packaging integration unless an accepted ADR already covers the exact decision.
 
 Class C evidence is tied to the exact reviewed commit SHA and records a Reviewer reasoning context separate from the Builder, evidence inspected, concrete Reviewer findings, Skeptical Simplifier findings, and Integrator outcome.
 
