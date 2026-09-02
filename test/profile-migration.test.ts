@@ -46,6 +46,7 @@ it("upgrades an existing workspace-root database through current product schemas
         { version: 3, name: "documents" },
         { version: 4, name: "candidatures" },
         { version: 5, name: "concepts" },
+        { version: 6, name: "activity" },
       ]);
       expect(
         upgraded
