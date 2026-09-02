@@ -10,12 +10,17 @@ import {
 } from "electron";
 
 import {
+  candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
   candidatureInputSchema,
   candidatureListSchema,
   candidatureRecordSchema,
   candidatureUpdateSchema,
   channels,
+  conceptInputSchema,
+  conceptListSchema,
+  conceptRecordSchema,
+  conceptUpdateSchema,
   documentExportResultSchema,
   documentInputSchema,
   documentItemRuleInputSchema,
@@ -42,9 +47,11 @@ import {
 import {
   createCandidature,
   listCandidatures,
+  setCandidatureConcepts,
   setCandidatureDocuments,
   updateCandidature,
 } from "./candidature-service";
+import { createConcept, listConcepts, updateConcept } from "./concept-service";
 import {
   configureDocumentItem,
   createDocument,
@@ -329,6 +336,31 @@ function registerIpc(mainWindow: BrowserWindow): void {
       setCandidatureDocuments(
         requireWorkspaceRoot(),
         candidatureDocumentSelectionSchema.parse(input),
+      ),
+    );
+  });
+  ipcMain.handle(channels.candidatureListConcepts, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return conceptListSchema.parse(listConcepts(requireWorkspaceRoot()));
+  });
+  ipcMain.handle(channels.candidatureCreateConcept, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return conceptRecordSchema.parse(
+      createConcept(requireWorkspaceRoot(), conceptInputSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureUpdateConcept, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return conceptRecordSchema.parse(
+      updateConcept(requireWorkspaceRoot(), conceptUpdateSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureSetConcepts, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureRecordSchema.parse(
+      setCandidatureConcepts(
+        requireWorkspaceRoot(),
+        candidatureConceptSelectionSchema.parse(input),
       ),
     );
   });

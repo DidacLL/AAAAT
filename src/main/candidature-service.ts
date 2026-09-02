@@ -2,11 +2,13 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
+  candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
   candidatureInputSchema,
   candidatureListSchema,
   candidatureRecordSchema,
   candidatureUpdateSchema,
+  type CandidatureConceptSelection,
   type CandidatureDocumentSelection,
   type CandidatureInput,
   type CandidatureRecord,
@@ -32,8 +34,8 @@ interface CandidatureRow {
   readonly archived: number;
 }
 
-interface DocumentIdRow {
-  readonly documentId: string;
+interface IdRow {
+  readonly id: string;
 }
 
 class CandidatureServiceError extends Error {
@@ -58,13 +60,26 @@ function readDocumentIds(database: DatabaseSync, candidatureId: string): string[
   return (
     database
       .prepare(
-        `SELECT document_id AS documentId
+        `SELECT document_id AS id
            FROM candidature_documents
           WHERE candidature_id = ?
           ORDER BY document_id`,
       )
-      .all(candidatureId) as unknown as DocumentIdRow[]
-  ).map((row) => row.documentId);
+      .all(candidatureId) as unknown as IdRow[]
+  ).map((row) => row.id);
+}
+
+function readConceptIds(database: DatabaseSync, candidatureId: string): string[] {
+  return (
+    database
+      .prepare(
+        `SELECT concept_id AS id
+           FROM candidature_concepts
+          WHERE candidature_id = ?
+          ORDER BY concept_id`,
+      )
+      .all(candidatureId) as unknown as IdRow[]
+  ).map((row) => row.id);
 }
 
 function toRecord(database: DatabaseSync, row: CandidatureRow): CandidatureRecord {
@@ -85,6 +100,7 @@ function toRecord(database: DatabaseSync, row: CandidatureRow): CandidatureRecor
     notes: row.notes,
     archived: row.archived === 1,
     documentIds: readDocumentIds(database, row.id),
+    conceptIds: readConceptIds(database, row.id),
   });
 }
 
@@ -133,6 +149,13 @@ function requireDocument(database: DatabaseSync, documentId: string): void {
   const present = database.prepare("SELECT 1 FROM documents WHERE id = ?").get(documentId);
   if (!present) {
     throw new CandidatureServiceError("An associated document no longer exists.");
+  }
+}
+
+function requireConcept(database: DatabaseSync, conceptId: string): void {
+  const present = database.prepare("SELECT 1 FROM concepts WHERE id = ?").get(conceptId);
+  if (!present) {
+    throw new CandidatureServiceError("An associated concept no longer exists.");
   }
 }
 
@@ -249,6 +272,39 @@ export function setCandidatureDocuments(
         database,
         selection.candidatureId,
         "candidature.documents-updated",
+        now,
+      );
+    });
+    return readCandidature(database, selection.candidatureId);
+  });
+}
+
+export function setCandidatureConcepts(
+  rootPath: string,
+  input: CandidatureConceptSelection,
+): CandidatureRecord {
+  const selection = candidatureConceptSelectionSchema.parse(input);
+  return withWorkspaceDatabase(rootPath, (database) => {
+    const now = new Date().toISOString();
+    transact(database, () => {
+      readCandidature(database, selection.candidatureId);
+      for (const conceptId of selection.conceptIds) {
+        requireConcept(database, conceptId);
+      }
+      database
+        .prepare("DELETE FROM candidature_concepts WHERE candidature_id = ?")
+        .run(selection.candidatureId);
+      const insert = database.prepare(
+        `INSERT INTO candidature_concepts(candidature_id, concept_id)
+         VALUES (?, ?)`,
+      );
+      for (const conceptId of selection.conceptIds) {
+        insert.run(selection.candidatureId, conceptId);
+      }
+      recordActivity(
+        database,
+        selection.candidatureId,
+        "candidature.concepts-updated",
         now,
       );
     });
