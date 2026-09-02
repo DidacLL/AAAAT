@@ -8,6 +8,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -21,6 +22,7 @@ import {
   getDocument,
   regenerateDocument,
   removeDocument,
+  renderDocument,
   reorderDocument,
   resolveDocument,
   updateDocument,
@@ -33,6 +35,8 @@ import {
 import { createOrOpenWorkspace, withWorkspaceDatabase } from "../src/main/workspace";
 
 const roots: string[] = [];
+const originalPath = process.env.PATH;
+
 function workspace(): string {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-document-"));
   roots.push(root);
@@ -40,7 +44,23 @@ function workspace(): string {
   return root;
 }
 
+function installSlowLatexmk(): void {
+  const root = mkdtempSync(path.join(tmpdir(), "aaaat-document-latex-"));
+  roots.push(root);
+  const script = path.join(root, "fake-latex.js");
+  writeFileSync(
+    script,
+    `const fs = require("node:fs");\nconst path = require("node:path");\nsetTimeout(() => {\n  fs.mkdirSync(path.join(process.cwd(), "build"), { recursive: true });\n  fs.writeFileSync(path.join(process.cwd(), "build", "main.pdf"), "pdf");\n  process.exit(0);\n}, 150);\n`,
+    "utf8",
+  );
+  const executable = path.join(root, "latexmk");
+  writeFileSync(executable, `#!/usr/bin/env node\nrequire(${JSON.stringify(script)});\n`, "utf8");
+  chmodSync(executable, 0o755);
+  process.env.PATH = `${root}${path.delimiter}${originalPath ?? ""}`;
+}
+
 afterEach(() => {
+  process.env.PATH = originalPath;
   for (const root of roots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
   }
@@ -180,6 +200,35 @@ describe("manual document service", () => {
     const managed = regenerateDocument(root, document.id);
     expect(managed.mode).toBe("managed");
     expect(readFileSync(managed.sourcePath, "utf8")).not.toContain("% direct user edit");
+  });
+
+  it("owns the project for the full render operation", async () => {
+    const root = workspace();
+    const exportRoot = mkdtempSync(path.join(tmpdir(), "aaaat-render-export-"));
+    roots.push(exportRoot);
+    installSlowLatexmk();
+    const { variant } = seeded(root);
+    const document = createDocument(root, {
+      kind: "cv",
+      title: "Render-locked CV",
+      variantId: variant.id,
+      engine: "pdflatex",
+      bodyParagraphs: [],
+    });
+
+    const rendering = renderDocument(root, document.id, 1_000);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    await expect(renderDocument(root, document.id, 1_000)).rejects.toThrow(
+      "already rendering",
+    );
+    expect(() => regenerateDocument(root, document.id)).toThrow("currently rendering");
+    expect(() => exportDocumentProject(root, document.id, exportRoot)).toThrow(
+      "currently rendering",
+    );
+    expect(() => removeDocument(root, document.id)).toThrow("currently rendering");
+    await expect(rendering).resolves.toMatchObject({ id: document.id });
+    expect(existsSync(document.artifactPath)).toBe(true);
   });
 
   it("restores a staged project when document deletion fails", () => {
