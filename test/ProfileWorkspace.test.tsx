@@ -3,11 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProfileWorkspace } from "../src/renderer/ProfileWorkspace";
-import type {
-  DesktopApi,
-  ProfileSnapshot,
-  ProfileVariant,
-} from "../src/shared/contracts";
+import type { DesktopApi, ProfileSnapshot, ProfileVariant } from "../src/shared/contracts";
 
 const itemA = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -16,14 +12,12 @@ const itemA = {
   description: "General experience",
   sortOrder: 0,
 };
-
 const itemB = {
   id: "00000000-0000-4000-8000-000000000002",
   kind: "skill" as const,
   title: "TypeScript",
   sortOrder: 1,
 };
-
 const variant: ProfileVariant = {
   id: "00000000-0000-4000-8000-000000000003",
   name: "Platform focus",
@@ -32,16 +26,9 @@ const variant: ProfileVariant = {
   preferredLanguage: "en",
   rules: [],
 };
-
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
-const canonicalProfile: ProfileSnapshot = {
-  items: [itemA, itemB],
-  variants: [],
-};
-const focusedProfile: ProfileSnapshot = {
-  items: [itemA, itemB],
-  variants: [variant],
-};
+const canonicalProfile: ProfileSnapshot = { items: [itemA, itemB], variants: [] };
+const focusedProfile: ProfileSnapshot = { items: [itemA, itemB], variants: [variant] };
 
 const current = vi.fn<DesktopApi["profile"]["current"]>();
 const addItem = vi.fn<DesktopApi["profile"]["addItem"]>();
@@ -50,18 +37,16 @@ const removeItem = vi.fn<DesktopApi["profile"]["removeItem"]>();
 const createVariant = vi.fn<DesktopApi["profile"]["createVariant"]>();
 const updateVariant = vi.fn<DesktopApi["profile"]["updateVariant"]>();
 const removeVariant = vi.fn<DesktopApi["profile"]["removeVariant"]>();
-const configureVariantItem =
-  vi.fn<DesktopApi["profile"]["configureVariantItem"]>();
+const configureVariantItem = vi.fn<DesktopApi["profile"]["configureVariantItem"]>();
 const reorderVariant = vi.fn<DesktopApi["profile"]["reorderVariant"]>();
 const resolveVariant = vi.fn<DesktopApi["profile"]["resolveVariant"]>();
+const unavailable = async (): Promise<never> => {
+  throw new Error("Unavailable in profile test");
+};
 
 const desktopApi: DesktopApi = {
   system: {
-    info: async () => ({
-      appVersion: "2.0.0",
-      electronVersion: "44.1.1",
-      nodeVersion: "24.19.0",
-    }),
+    info: async () => ({ appVersion: "2.0.0", electronVersion: "44.1.1", nodeVersion: "24.19.0" }),
   },
   workspace: {
     current: async () => ({ rootPath: "/tmp/aaaat" }),
@@ -78,6 +63,18 @@ const desktopApi: DesktopApi = {
     configureVariantItem,
     reorderVariant,
     resolveVariant,
+  },
+  documents: {
+    list: async () => [],
+    create: unavailable,
+    update: unavailable,
+    remove: async () => [],
+    configureItem: unavailable,
+    reorder: unavailable,
+    resolve: unavailable,
+    render: unavailable,
+    regenerate: unavailable,
+    exportProject: async () => null,
   },
 };
 
@@ -97,7 +94,6 @@ describe("manual profile workspace", () => {
     ]) {
       mock.mockReset();
     }
-
     current.mockResolvedValue(emptyProfile);
     addItem.mockResolvedValue({ items: [itemB], variants: [] });
     createVariant.mockResolvedValue(focusedProfile);
@@ -106,11 +102,7 @@ describe("manual profile workspace", () => {
     configureVariantItem.mockResolvedValue(focusedProfile);
     reorderVariant.mockResolvedValue(focusedProfile);
     resolveVariant.mockResolvedValue({ variant, items: [itemA, itemB] });
-
-    Object.defineProperty(window, "aaaat", {
-      configurable: true,
-      value: desktopApi,
-    });
+    Object.defineProperty(window, "aaaat", { configurable: true, value: desktopApi });
   });
 
   afterEach(() => cleanup());
@@ -118,15 +110,10 @@ describe("manual profile workspace", () => {
   it("adds structured canonical career data without JSON entry", async () => {
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
-
-    expect(
-      await screen.findByRole("heading", { name: "Canonical profile" }),
-    ).toBeInTheDocument();
-
+    expect(await screen.findByRole("heading", { name: "Canonical profile" })).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Type"), "skill");
     await user.type(screen.getByLabelText("Title"), "TypeScript");
     await user.click(screen.getByRole("button", { name: "Add item" }));
-
     expect(addItem).toHaveBeenCalledWith({
       kind: "skill",
       title: "TypeScript",
@@ -143,14 +130,12 @@ describe("manual profile workspace", () => {
     current.mockResolvedValueOnce(canonicalProfile);
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
-
     await screen.findByText("Canonical summary");
     await user.type(screen.getByLabelText("Name"), "Platform focus");
     await user.type(screen.getByLabelText("Focus"), "Platform roles");
     await user.type(screen.getByLabelText("Target tags"), "platform");
     await user.type(screen.getByLabelText("Preferred language"), "en");
     await user.click(screen.getByRole("button", { name: "Create variant" }));
-
     expect(createVariant).toHaveBeenCalledWith({
       name: "Platform focus",
       focus: "Platform roles",
@@ -165,24 +150,20 @@ describe("manual profile workspace", () => {
     expect(rules).toHaveLength(2);
     expect(overrideTitles).toHaveLength(2);
     expect(downButtons).toHaveLength(2);
-
     const firstRule = rules[0];
     const firstOverrideTitle = overrideTitles[0];
     const firstDown = downButtons[0];
     if (!firstRule || !firstOverrideTitle || !firstDown) {
       throw new Error("Expected variant rule controls are missing");
     }
-
     await user.type(firstOverrideTitle, "Focused summary");
     await user.click(firstRule);
-
     expect(configureVariantItem).toHaveBeenCalledWith({
       variantId: variant.id,
       itemId: itemA.id,
       included: true,
       contentPatch: { title: "Focused summary" },
     });
-
     await user.click(firstDown);
     expect(reorderVariant).toHaveBeenCalledWith({
       variantId: variant.id,
