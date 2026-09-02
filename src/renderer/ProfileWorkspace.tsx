@@ -176,11 +176,12 @@ export function ProfileWorkspace() {
     preserveVariantDraft = false,
   ) => {
     setSnapshot(next);
-    const nextSelected = next.variants.some(
-      (variant) => variant.id === preferredVariantId,
-    )
-      ? preferredVariantId
-      : (next.variants[0]?.id ?? null);
+    const nextSelected =
+      preserveVariantDraft && preferredVariantId === null
+        ? null
+        : next.variants.some((variant) => variant.id === preferredVariantId)
+          ? preferredVariantId
+          : (next.variants[0]?.id ?? null);
     const keepDraft = preserveVariantDraft && nextSelected === selectedVariantId;
     setSelectedVariantId(nextSelected);
     if (!keepDraft) {
