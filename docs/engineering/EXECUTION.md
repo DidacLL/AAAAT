@@ -4,12 +4,14 @@ This file is advisory and non-authoritative. It records reproducible execution q
 
 ## Current execution split
 
-For the current M0 launch:
+Current tool mapping:
 
-- **Codex desktop:** repository inspection and editing, shell commands, dependency installation, tests, Electron startup, packaging, browser/visual checks, and recoverable local Git operations.
-- **ChatGPT Classic with the full-permissions GitHub connector:** GitHub Issue and Pull Request administration, independent review publication, required-check inspection, merge, and optional repository metadata that the current Codex connector cannot manage.
+- **ChatGPT Classic + GitHub + GitHub Actions:** normal engineering lane for requirements interpretation, bounded repository changes, source review, documentation, Issue/PR administration, independent review publication, CI inspection, and merge/lifecycle work when local interactive execution is not required.
+- **Codex desktop:** execution-heavy lane for work whose acceptance evidence materially requires a local repository/worktree, shell commands, dependency installation, Electron/native runtime startup, packaging, browser interaction, visual inspection, TeX/PDF execution, filesystem/process integration, or iterative environment-specific debugging.
 
-The split describes current tool access, not AAAAT architecture. A later capable surface may complete either lane without changing the product or harness.
+Do not choose Codex merely because it is already active or capable of ordinary repository work. Select it when the Issue requires local, interactive, native, browser, visual, or similarly execution-heavy evidence. Return bounded commits and evidence to the normal GitHub/CI/review lane after that need is satisfied.
+
+This mapping records current economics and tool access, not AAAAT architecture or provider authority. A later capable surface may fill either lane without changing the product or harness.
 
 ## Standard handoff contract
 
