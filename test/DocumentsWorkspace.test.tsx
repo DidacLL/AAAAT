@@ -154,6 +154,41 @@ describe("manual Documents workspace", () => {
     }));
   });
 
+  it("resets document-specific controls when selecting another document", async () => {
+    const first = record({
+      title: "First CV",
+      rules: [{
+        itemId: item.id,
+        excluded: false,
+        contentPatch: { title: "First override" },
+        orderRank: null,
+      }],
+    });
+    const second = record({
+      id: "00000000-0000-4000-8000-000000000104",
+      title: "Second CV",
+      rules: [{
+        itemId: item.id,
+        excluded: true,
+        contentPatch: { title: "Second override" },
+        orderRank: null,
+      }],
+    });
+    list.mockResolvedValueOnce([first, second]);
+    resolve.mockImplementation(async (documentId) => ({
+      document: documentId === first.id ? first : second,
+      items: documentId === first.id ? [item] : [],
+    }));
+    const user = userEvent.setup();
+    render(<DocumentsWorkspace />);
+
+    expect(await screen.findByLabelText("Override title")).toHaveValue("First override");
+    expect(screen.getByLabelText("Include")).toBeChecked();
+    await user.click(screen.getByRole("button", { name: /Second CV/ }));
+    expect(await screen.findByLabelText("Override title")).toHaveValue("Second override");
+    expect(screen.getByLabelText("Include")).not.toBeChecked();
+  });
+
   it("makes manual TeX preservation explicit before any overwrite", async () => {
     const manual = record({ mode: "manual" });
     list.mockResolvedValueOnce([manual]);
