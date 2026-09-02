@@ -14,10 +14,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import workspaceMigrationSql from "./migrations/001_workspace.sql?raw";
-import {
-  workspaceInfoSchema,
-  type WorkspaceInfo,
-} from "../shared/contracts";
+import type { WorkspaceInfo } from "../shared/contracts";
 
 interface MigrationRow {
   readonly name: string;
@@ -138,10 +135,6 @@ function databasePathFor(rootPath: string): string {
   return path.join(rootPath, workspaceDatabaseName);
 }
 
-function workspaceInfo(rootPath: string): WorkspaceInfo {
-  return workspaceInfoSchema.parse({ rootPath });
-}
-
 function verifyExistingWorkspace(rootPath: string): void {
   const databasePath = databasePathFor(rootPath);
   if (!existsSync(databasePath) || !statSync(databasePath).isFile()) {
@@ -214,7 +207,7 @@ function initializeNewWorkspace(rootPath: string): WorkspaceInfo {
 
   try {
     migrateDatabase(databasePath);
-    return workspaceInfo(rootPath);
+    return { rootPath };
   } catch (error) {
     cleanFailedNewDatabase(databasePath);
     if (error instanceof WorkspaceError) {
@@ -248,7 +241,7 @@ export function openWorkspace(rootPath: string): WorkspaceInfo {
 
   try {
     migrateDatabase(databasePathFor(canonicalPath));
-    return workspaceInfo(canonicalPath);
+    return { rootPath: canonicalPath };
   } catch (error) {
     if (error instanceof WorkspaceError) {
       throw error;
