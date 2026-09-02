@@ -38,12 +38,12 @@ afterEach(() => {
 });
 
 function seeded(root: string) {
-  let profile = addProfileItem(root, {
+  addProfileItem(root, {
     kind: "summary",
     title: "General profile",
     description: "I build reliable local-first software.",
   });
-  profile = addProfileItem(root, {
+  addProfileItem(root, {
     kind: "experience",
     title: "Platform Engineer",
     subtitle: "Example Corp",
@@ -51,11 +51,11 @@ function seeded(root: string) {
     startDate: "2024",
     endDate: "2026",
   });
-  profile = addProfileItem(root, {
+  addProfileItem(root, {
     kind: "skill",
     title: "TypeScript",
   });
-  profile = createProfileVariant(root, {
+  const profile = createProfileVariant(root, {
     name: "Platform focus",
     focus: "Platform engineering",
     targetTags: ["platform"],
