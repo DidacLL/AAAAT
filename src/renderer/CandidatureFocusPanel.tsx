@@ -3,6 +3,7 @@ import type {
   ConceptRecord,
   DocumentRecord,
 } from "../shared/contracts";
+import { CandidatureFitPanel } from "./CandidatureFitPanel";
 
 interface Props {
   readonly record: CandidatureRecord;
@@ -99,6 +100,8 @@ export function CandidatureFocusPanel({
           </article>
         ) : null}
       </section>
+
+      <CandidatureFitPanel record={record} />
     </section>
   );
 }
