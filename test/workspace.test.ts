@@ -30,14 +30,18 @@ describe("user-owned workspace", () => {
 
     try {
       const first = createOrOpenWorkspace(directory);
-      expect(first).toMatchObject({
-        rootPath: directory,
-        schemaVersion: 1,
-      });
+      expect(first).toEqual({ rootPath: directory });
       expect(existsSync(databasePath)).toBe(true);
 
       const database = new DatabaseSync(databasePath);
       try {
+        expect(
+          database
+            .prepare(
+              "SELECT version, name, length(sha256) AS hashLength FROM schema_migrations",
+            )
+            .get(),
+        ).toMatchObject({ version: 1, name: "workspace", hashLength: 64 });
         database.exec(
           "CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;",
         );
