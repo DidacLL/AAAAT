@@ -28,7 +28,7 @@ The following are Class C lower bounds when introduced or materially changed:
 
 A change matching one of these lower bounds cannot be downgraded merely because the code is small, reuses the approved architecture, or appears easy to reverse. An accepted ADR may pre-authorize the exact representation or boundary; ordinary implementation that stays wholly inside that accepted decision need not create a duplicate ADR. Changing the accepted decision remains Class C.
 
-Class C requires a Reviewer pass from a reasoning context separate from the Builder, a Skeptical Simplifier pass, a short ADR for the bounded decision, and Integrator approval. Reasoning separation is the requirement; a separate GitHub identity, reviewer request, or formal GitHub approval object is not. Do not create or register reviewer identities solely to satisfy this policy. Class C may be resolved autonomously.
+Class C requires a Reviewer pass from a reasoning context separate from the Builder, a Skeptical Simplifier pass, a short ADR for the bounded decision, and Integrator approval. Satisfy those requirements with the simplest adequate existing execution surface; they do not justify additional process machinery or ceremony that the bounded Issue does not require. Class C may be resolved autonomously.
 
 ## Class D — Constitutional
 
