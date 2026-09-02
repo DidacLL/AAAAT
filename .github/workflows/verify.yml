@@ -56,6 +56,12 @@ jobs:
           sudo chown root:root "$sandbox_path"
           sudo chmod 4755 "$sandbox_path"
           stat -c '%U %a %n' "$sandbox_path"
+      - name: Install native dialog smoke helper (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xdotool
       - name: Packaged runtime smoke
         if: runner.os != 'Linux'
         run: npm run test:desktop
