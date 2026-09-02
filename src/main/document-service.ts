@@ -735,12 +735,9 @@ export function renderDocument(
       timeout: 30_000,
     },
   );
-  if (result.error?.code === "ETIMEDOUT") {
-    throw new DocumentServiceError("TeX rendering timed out.");
-  }
   if (result.error) {
     throw new DocumentServiceError(
-      `TeX rendering is unavailable. Install latexmk and ${document.engine}.`,
+      `TeX rendering could not start or timed out. Install latexmk and ${document.engine}.`,
     );
   }
   if (result.status !== 0 || !existsSync(paths.artifactPath)) {
