@@ -47,6 +47,10 @@ const desktopApi: DesktopApi = {
     create: unavailable,
     update: unavailable,
     setDocuments: unavailable,
+    listConcepts: async () => [],
+    createConcept: unavailable,
+    updateConcept: unavailable,
+    setConcepts: unavailable,
   },
 };
 
