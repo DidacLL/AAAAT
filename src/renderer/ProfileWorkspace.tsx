@@ -373,7 +373,14 @@ export function ProfileWorkspace() {
       return;
     }
 
-    [ids[index], ids[target]] = [ids[target], ids[index]];
+    const moved = ids[index];
+    const displaced = ids[target];
+    if (!moved || !displaced) {
+      return;
+    }
+    ids[index] = displaced;
+    ids[target] = moved;
+
     setError(null);
     try {
       await acceptSnapshot(
