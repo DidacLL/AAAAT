@@ -4,5 +4,5 @@ import { createDesktopApi } from "./api";
 
 contextBridge.exposeInMainWorld(
   "aaaat",
-  createDesktopApi((channel) => ipcRenderer.invoke(channel)),
+  createDesktopApi((channel, ...args) => ipcRenderer.invoke(channel, ...args)),
 );
