@@ -237,6 +237,30 @@ describe("manual Candidatures workspace", () => {
     expect(screen.getByLabelText("Notes")).toHaveValue("Unsaved local notes");
   });
 
+  it("keeps dirty association selections while saving the candidature draft", async () => {
+    const existing = candidature();
+    list.mockResolvedValueOnce([existing]);
+    listConcepts.mockResolvedValueOnce([concept]);
+    update.mockImplementation(async (value) => candidature({ ...value }));
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    await screen.findByDisplayValue("Acme");
+    const documentToggle = screen.getByLabelText(/Backend CV/);
+    const conceptToggle = screen.getByLabelText("TypeScript");
+    await user.click(documentToggle);
+    await user.click(conceptToggle);
+    await user.clear(screen.getByLabelText("Notes"));
+    await user.type(screen.getByLabelText("Notes"), "Saved main draft");
+    await user.click(screen.getByRole("button", { name: "Save candidature" }));
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ notes: "Saved main draft" }));
+    expect(documentToggle).toBeChecked();
+    expect(conceptToggle).toBeChecked();
+    expect(setDocuments).not.toHaveBeenCalled();
+    expect(setConcepts).not.toHaveBeenCalled();
+  });
+
   it("archives from persisted candidature data without committing unrelated dirty fields", async () => {
     const existing = candidature();
     list.mockResolvedValueOnce([existing]);
