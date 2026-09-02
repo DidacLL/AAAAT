@@ -1,9 +1,11 @@
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -131,7 +133,10 @@ interface RunningApp {
   readonly page: Page;
 }
 
-async function startPackagedApp(userData: string): Promise<RunningApp> {
+async function startPackagedApp(
+  userData: string,
+  linuxHome?: string,
+): Promise<RunningApp> {
   const port = await reservePort();
   const endpoint = "http://127.0.0.1:" + port;
   const child = spawn(
@@ -140,7 +145,16 @@ async function startPackagedApp(userData: string): Promise<RunningApp> {
     {
       env:
         process.platform === "linux"
-          ? { ...process.env, GTK_USE_PORTAL: "0" }
+          ? {
+              ...process.env,
+              GTK_USE_PORTAL: "0",
+              ...(linuxHome
+                ? {
+                    HOME: linuxHome,
+                    XDG_CONFIG_HOME: path.join(linuxHome, ".config"),
+                  }
+                : {}),
+            }
           : process.env,
       stdio: ["ignore", "ignore", "pipe"],
       windowsHide: true,
@@ -177,7 +191,22 @@ async function stopPackagedApp(app: RunningApp): Promise<void> {
   await stopProcess(app.child);
 }
 
-function chooseLinuxDirectory(directory: string): void {
+function prepareLinuxChooserHome(workspacePath: string): string {
+  const homePath = mkdtempSync(path.join(tmpdir(), "aaaat-home-"));
+  const configPath = path.join(homePath, ".config");
+  mkdirSync(configPath, { recursive: true });
+  const escapedWorkspacePath = workspacePath
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"');
+  writeFileSync(
+    path.join(configPath, "user-dirs.dirs"),
+    `XDG_DOWNLOAD_DIR="${escapedWorkspacePath}"\n`,
+    "utf8",
+  );
+  return homePath;
+}
+
+function chooseLinuxDirectory(): void {
   execFileSync(
     "bash",
     [
@@ -192,22 +221,11 @@ function chooseLinuxDirectory(directory: string): void {
         "done",
         "test -n \"$window\"",
         "xdotool windowactivate --sync \"$window\"",
-        "xdotool key --clearmodifiers ctrl+l",
-        "xdotool type --clearmodifiers --delay 1 \"$AAAAT_WORKSPACE_PATH\"",
-        "xdotool key --clearmodifiers Return",
-        "sleep 0.3",
-        "window=$(xdotool search --onlyvisible --name 'Create or select an AAAAT workspace' 2>/dev/null | tail -n 1 || true)",
-        "if [ -n \"$window\" ]; then",
-        "  xdotool windowactivate --sync \"$window\"",
-        "  eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
-        "  xdotool mousemove --window \"$window\" $((WIDTH - 90)) $((HEIGHT - 35)) click 1",
-        "fi",
+        "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
+        "xdotool mousemove --window \"$window\" $((WIDTH - 70)) $((HEIGHT - 35)) click 1",
       ].join("\n"),
     ],
-    {
-      env: { ...process.env, AAAAT_WORKSPACE_PATH: directory },
-      stdio: "inherit",
-    },
+    { stdio: "inherit" },
   );
 }
 
@@ -217,13 +235,17 @@ test("packaged desktop preserves the bounded workspace boundary", async () => {
     path.join(tmpdir(), "aaaat-packaged-"),
   );
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
+  const linuxHome =
+    process.platform === "linux"
+      ? prepareLinuxChooserHome(ownedWorkspace)
+      : undefined;
 
   expect(existsSync(executablePath)).toBe(true);
 
   let running: RunningApp | undefined;
 
   try {
-    running = await startPackagedApp(isolatedUserData);
+    running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page).toHaveTitle("AAAAT");
     await expect(
       running.page.getByRole("heading", {
@@ -260,7 +282,7 @@ test("packaged desktop preserves the bounded workspace boundary", async () => {
     await running.page
       .getByRole("button", { name: "Create workspace" })
       .click();
-    chooseLinuxDirectory(ownedWorkspace);
+    chooseLinuxDirectory();
 
     await expect(
       running.page.getByRole("heading", { name: "Workspace ready." }),
@@ -286,7 +308,7 @@ test("packaged desktop preserves the bounded workspace boundary", async () => {
     await stopPackagedApp(running);
     running = undefined;
 
-    running = await startPackagedApp(isolatedUserData);
+    running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(
       running.page.getByRole("heading", { name: "Workspace ready." }),
     ).toBeVisible();
@@ -307,5 +329,13 @@ test("packaged desktop preserves the bounded workspace boundary", async () => {
       maxRetries: 5,
       retryDelay: 100,
     });
+    if (linuxHome) {
+      rmSync(linuxHome, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 100,
+      });
+    }
   }
 });
