@@ -119,8 +119,10 @@ export function saveAiConnection(
 ): AiConnectionStatus {
   const input = aiConnectionInputSchema.parse(rawInput);
   const endpoint = validateEndpoint(input);
+  const normalizedEndpoint = endpoint.toString().replace(/\/$/, "");
   const previous = readStoredConnection(rootPath);
-  let encryptedApiKey = previous?.encryptedApiKey;
+  let encryptedApiKey =
+    previous?.endpoint === normalizedEndpoint ? previous.encryptedApiKey : undefined;
 
   if (input.apiKey && input.apiKey.length > 0) {
     if (!secureStorage.isEncryptionAvailable()) {
@@ -134,7 +136,7 @@ export function saveAiConnection(
   const stored = storedConnectionSchema.parse({
     version: 1,
     name: input.name,
-    endpoint: endpoint.toString().replace(/\/$/, ""),
+    endpoint: normalizedEndpoint,
     model: input.model,
     classification: input.classification,
     ...(encryptedApiKey ? { encryptedApiKey } : {}),
@@ -179,13 +181,18 @@ function projectedItem(
     if (value === undefined) return undefined;
     return mode === "token" ? token(value) : value;
   };
+  const title = project(item.title) ?? "";
+  const subtitle = project(item.subtitle);
+  const description = project(item.description);
+  const startDate = project(item.startDate);
+  const endDate = project(item.endDate);
   return {
     kind: item.kind,
-    title: project(item.title) ?? "",
-    ...(project(item.subtitle) ? { subtitle: project(item.subtitle) } : {}),
-    ...(project(item.description) ? { description: project(item.description) } : {}),
-    ...(project(item.startDate) ? { startDate: project(item.startDate) } : {}),
-    ...(project(item.endDate) ? { endDate: project(item.endDate) } : {}),
+    title,
+    ...(subtitle !== undefined ? { subtitle } : {}),
+    ...(description !== undefined ? { description } : {}),
+    ...(startDate !== undefined ? { startDate } : {}),
+    ...(endDate !== undefined ? { endDate } : {}),
   };
 }
 
