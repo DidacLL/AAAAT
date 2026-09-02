@@ -20,7 +20,7 @@ Before weighing ordinary review priorities, verify that the change preserves app
 - portable, user-owned generated LaTeX/output where document behavior is involved;
 - provider-neutral domain behavior and bounded external capabilities where AI/integration behavior is involved.
 
-These are gates, not preferences to trade against simplicity, maintainability, convenience, or schedule. A violated gate is a blocking finding unless an accepted higher-authority decision explicitly changes the constraint.
+These are gates, not preferences to trade against simplicity, maintainability, convenience, or schedule. A violated gate is a blocking finding unless the governing constraint itself is changed through a Class D owner decision and corresponding authoritative update.
 
 ## Priorities after gates pass
 
