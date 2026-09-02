@@ -9,7 +9,7 @@ M3 requires optional provider-neutral AI without giving the sandboxed renderer a
 For the first demonstrated provider boundary:
 
 - non-secret connection settings live in the user-owned workspace as `ai-connection.json`;
-- an optional API credential is stored in that file only as Electron `safeStorage` ciphertext when secure OS storage is available; AAAAT does not persist a plaintext fallback;
+- an optional API credential is stored in that file only as Electron `safeStorage` ciphertext when secure OS storage is available; AAAAT does not persist a plaintext fallback, and Linux `basic_text` is treated as unavailable rather than secure storage;
 - changing the configured endpoint does not carry an existing credential to the new endpoint unless the user supplies a replacement;
 - privileged main code exposes only fixed connection, fit-preview, and fit-assessment IPC intentions;
 - one operation-oriented provider interface is implemented by one generic OpenAI-compatible HTTP adapter; there is no provider registry or plugin layer;
