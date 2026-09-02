@@ -1,10 +1,15 @@
 import {
+  candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
   candidatureInputSchema,
   candidatureListSchema,
   candidatureRecordSchema,
   candidatureUpdateSchema,
   channels,
+  conceptInputSchema,
+  conceptListSchema,
+  conceptRecordSchema,
+  conceptUpdateSchema,
   documentExportResultSchema,
   documentInputSchema,
   documentItemRuleInputSchema,
@@ -111,6 +116,29 @@ export function createDesktopApi(invoke: Invoke): DesktopApi {
         await invoke(
           channels.candidatureSetDocuments,
           candidatureDocumentSelectionSchema.parse(selection),
+        ),
+      ),
+    listConcepts: async () =>
+      conceptListSchema.parse(await invoke(channels.candidatureListConcepts)),
+    createConcept: async (
+      input: Parameters<DesktopApi["candidatures"]["createConcept"]>[0],
+    ) =>
+      conceptRecordSchema.parse(
+        await invoke(channels.candidatureCreateConcept, conceptInputSchema.parse(input)),
+      ),
+    updateConcept: async (
+      update: Parameters<DesktopApi["candidatures"]["updateConcept"]>[0],
+    ) =>
+      conceptRecordSchema.parse(
+        await invoke(channels.candidatureUpdateConcept, conceptUpdateSchema.parse(update)),
+      ),
+    setConcepts: async (
+      selection: Parameters<DesktopApi["candidatures"]["setConcepts"]>[0],
+    ) =>
+      candidatureRecordSchema.parse(
+        await invoke(
+          channels.candidatureSetConcepts,
+          candidatureConceptSelectionSchema.parse(selection),
         ),
       ),
   });
