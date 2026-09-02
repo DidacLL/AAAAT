@@ -233,6 +233,26 @@ describe("manual profile workspace", () => {
     expect(screen.getByLabelText("Focus")).toHaveValue("Unsaved platform metadata");
   });
 
+  it("preserves a new variant draft through canonical item mutations", async () => {
+    current.mockResolvedValueOnce(focusedProfile);
+    addItem.mockResolvedValue({ items: [itemA, itemB, itemC], variants: [variant] });
+    const user = userEvent.setup();
+    render(<ProfileWorkspace />);
+
+    await screen.findByDisplayValue("Platform focus");
+    await user.click(screen.getByRole("button", { name: "New" }));
+    await user.type(screen.getByLabelText("Name"), "New focus");
+    await user.type(screen.getByLabelText("Focus"), "Unsaved new variant");
+
+    await user.selectOptions(screen.getByLabelText("Type"), "skill");
+    await user.type(screen.getByLabelText("Title"), "React");
+    await user.click(screen.getByRole("button", { name: "Add item" }));
+
+    expect(screen.getByLabelText("Name")).toHaveValue("New focus");
+    expect(screen.getByLabelText("Focus")).toHaveValue("Unsaved new variant");
+    expect(screen.getByRole("button", { name: "Create variant" })).toBeInTheDocument();
+  });
+
   it("cancels dirty variant selection and removal until discard is confirmed", async () => {
     const twoVariants: ProfileSnapshot = {
       items: [itemA, itemB],
