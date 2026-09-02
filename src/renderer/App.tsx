@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
+import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import logo from "./assets/aaaat-logo-light.png";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
-type ProductView = "candidatures" | "profile" | "documents";
+type ProductView = "candidatures" | "profile" | "documents" | "settings";
 
 export function App() {
   const [foundationReady, setFoundationReady] = useState(true);
@@ -123,14 +124,23 @@ export function App() {
             >
               Documents
             </button>
+            <button
+              type="button"
+              className={productView === "settings" ? "active-product-tab" : ""}
+              onClick={() => setProductView("settings")}
+            >
+              Settings
+            </button>
           </nav>
 
           {productView === "candidatures" ? (
             <CandidaturesWorkspace key={`candidatures-${workspace.rootPath}`} />
           ) : productView === "profile" ? (
             <ProfileWorkspace key={`profile-${workspace.rootPath}`} />
-          ) : (
+          ) : productView === "documents" ? (
             <DocumentsWorkspace key={`documents-${workspace.rootPath}`} />
+          ) : (
+            <AiSettingsWorkspace key={`settings-${workspace.rootPath}`} />
           )}
         </main>
       ) : (
