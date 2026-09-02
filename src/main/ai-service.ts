@@ -41,6 +41,7 @@ type StoredConnection = z.infer<typeof storedConnectionSchema>;
 
 export interface SecureStorageAdapter {
   isEncryptionAvailable(): boolean;
+  getSelectedStorageBackend?(): string;
   encryptString(value: string): Buffer;
   decryptString(value: Buffer): string;
 }
@@ -90,6 +91,16 @@ function validateEndpoint(input: AiConnectionInput): URL {
   return endpoint;
 }
 
+function secureStorageAvailable(secureStorage: SecureStorageAdapter): boolean {
+  if (!secureStorage.isEncryptionAvailable()) {
+    return false;
+  }
+  return !(
+    process.platform === "linux" &&
+    secureStorage.getSelectedStorageBackend?.() === "basic_text"
+  );
+}
+
 function statusFor(
   stored: StoredConnection,
   secureStorage: SecureStorageAdapter,
@@ -100,7 +111,7 @@ function statusFor(
     model: stored.model,
     classification: stored.classification,
     hasCredential: Boolean(stored.encryptedApiKey),
-    secureStorageAvailable: secureStorage.isEncryptionAvailable(),
+    secureStorageAvailable: secureStorageAvailable(secureStorage),
   });
 }
 
@@ -125,7 +136,7 @@ export function saveAiConnection(
     previous?.endpoint === normalizedEndpoint ? previous.encryptedApiKey : undefined;
 
   if (input.apiKey && input.apiKey.length > 0) {
-    if (!secureStorage.isEncryptionAvailable()) {
+    if (!secureStorageAvailable(secureStorage)) {
       throw new AiServiceError(
         "Secure credential storage is unavailable on this system, so AAAAT did not save the API key.",
       );
@@ -152,7 +163,7 @@ function credentialFor(
   if (!stored.encryptedApiKey) {
     return null;
   }
-  if (!secureStorage.isEncryptionAvailable()) {
+  if (!secureStorageAvailable(secureStorage)) {
     throw new AiServiceError(
       "The stored AI credential cannot be decrypted because secure credential storage is unavailable.",
     );
