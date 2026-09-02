@@ -16,6 +16,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { WorkspaceInfo } from "../shared/contracts";
 import workspaceMigrationSql from "./migrations/001_workspace.sql?raw";
 import profileMigrationSql from "./migrations/002_profile.sql?raw";
+import documentMigrationSql from "./migrations/003_documents.sql?raw";
 
 interface MigrationRow {
   readonly version: number;
@@ -56,6 +57,7 @@ function migration(
 const migrations = Object.freeze([
   migration(1, "workspace", workspaceMigrationSql),
   migration(2, "profile", profileMigrationSql),
+  migration(3, "documents", documentMigrationSql),
 ]);
 
 class WorkspaceError extends Error {
