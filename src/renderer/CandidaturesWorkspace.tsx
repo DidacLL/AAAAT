@@ -70,6 +70,10 @@ function aliasesFromText(value: string): string[] {
     .filter((alias) => alias.length > 0);
 }
 
+function sameIds(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id) => right.includes(id));
+}
+
 export function CandidaturesWorkspace() {
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -87,12 +91,21 @@ export function CandidaturesWorkspace() {
   const [aliasesText, setAliasesText] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const selectRecord = (record: CandidatureRecord) => {
+  const hydrateRecord = (record: CandidatureRecord) => {
     setSelectedId(record.id);
     setDraft(editableRecord(record));
     setSelectedDocumentIds(record.documentIds);
     setSelectedConceptIds(record.conceptIds);
     setSelectedConceptId(record.conceptIds[0] ?? null);
+  };
+
+  const storeRecord = (record: CandidatureRecord) => {
+    setRecords((current) => {
+      const present = current.some((candidate) => candidate.id === record.id);
+      return present
+        ? current.map((candidate) => (candidate.id === record.id ? record : candidate))
+        : [record, ...current];
+    });
   };
 
   useEffect(() => {
@@ -108,13 +121,7 @@ export function CandidaturesWorkspace() {
         setDocuments(nextDocuments);
         setConcepts(nextConcepts);
         const first = nextRecords.find((record) => !record.archived) ?? nextRecords[0];
-        if (first) {
-          setSelectedId(first.id);
-          setDraft(editableRecord(first));
-          setSelectedDocumentIds(first.documentIds);
-          setSelectedConceptIds(first.conceptIds);
-          setSelectedConceptId(first.conceptIds[0] ?? null);
-        }
+        if (first) hydrateRecord(first);
       })
       .catch(() => {
         if (active) setError("AAAAT could not load candidatures.");
@@ -125,6 +132,18 @@ export function CandidaturesWorkspace() {
   }, []);
 
   const selected = records.find((record) => record.id === selectedId) ?? null;
+  const draftDirty =
+    selected && draft
+      ? JSON.stringify(editableRecord(selected)) !== JSON.stringify(draft)
+      : false;
+  const documentSelectionDirty = selected
+    ? !sameIds(selected.documentIds, selectedDocumentIds)
+    : false;
+  const conceptSelectionDirty = selected
+    ? !sameIds(selected.conceptIds, selectedConceptIds)
+    : false;
+  const hasUnsavedCandidatureState =
+    draftDirty || documentSelectionDirty || conceptSelectionDirty;
   const visibleRecords = filterCandidatures(
     records,
     concepts,
@@ -133,20 +152,23 @@ export function CandidaturesWorkspace() {
     archiveFilter,
   );
 
-  const replaceRecord = (record: CandidatureRecord) => {
-    setRecords((current) => {
-      const present = current.some((candidate) => candidate.id === record.id);
-      return present
-        ? current.map((candidate) => (candidate.id === record.id ? record : candidate))
-        : [record, ...current];
-    });
-    selectRecord(record);
+  const confirmDiscard = () =>
+    !hasUnsavedCandidatureState ||
+    window.confirm("Discard unsaved candidature edits and association changes?");
+
+  const selectRecord = (record: CandidatureRecord) => {
+    if (record.id === selectedId) return;
+    if (!confirmDiscard()) return;
+    hydrateRecord(record);
   };
 
   const create = async () => {
+    if (!confirmDiscard()) return;
     setError(null);
     try {
-      replaceRecord(await window.aaaat.candidatures.create(emptyCandidature));
+      const created = await window.aaaat.candidatures.create(emptyCandidature);
+      storeRecord(created);
+      hydrateRecord(created);
     } catch {
       setError("AAAAT could not create this candidature.");
     }
@@ -156,18 +178,25 @@ export function CandidaturesWorkspace() {
     if (!draft) return;
     setError(null);
     try {
-      replaceRecord(await window.aaaat.candidatures.update(draft));
+      const saved = await window.aaaat.candidatures.update(draft);
+      storeRecord(saved);
+      hydrateRecord(saved);
     } catch {
       setError("AAAAT could not save this candidature.");
     }
   };
 
   const setArchived = async (archived: boolean) => {
-    if (!draft) return;
+    if (!selected || !draft) return;
     setError(null);
     try {
-      replaceRecord(
-        await window.aaaat.candidatures.update({ ...draft, archived }),
+      const saved = await window.aaaat.candidatures.update({
+        ...editableRecord(selected),
+        archived,
+      });
+      storeRecord(saved);
+      setDraft((current) =>
+        current?.id === saved.id ? { ...current, archived: saved.archived } : current,
       );
     } catch {
       setError("AAAAT could not change the archive state.");
@@ -175,30 +204,33 @@ export function CandidaturesWorkspace() {
   };
 
   const saveDocuments = async () => {
-    if (!draft) return;
+    if (!selected) return;
     setError(null);
     try {
-      replaceRecord(
-        await window.aaaat.candidatures.setDocuments({
-          candidatureId: draft.id,
-          documentIds: selectedDocumentIds,
-        }),
-      );
+      const saved = await window.aaaat.candidatures.setDocuments({
+        candidatureId: selected.id,
+        documentIds: selectedDocumentIds,
+      });
+      storeRecord(saved);
+      setSelectedDocumentIds(saved.documentIds);
     } catch {
       setError("AAAAT could not save the document associations.");
     }
   };
 
   const saveConceptAssociations = async () => {
-    if (!draft) return;
+    if (!selected) return;
     setError(null);
     try {
-      replaceRecord(
-        await window.aaaat.candidatures.setConcepts({
-          candidatureId: draft.id,
-          conceptIds: selectedConceptIds,
-        }),
-      );
+      const saved = await window.aaaat.candidatures.setConcepts({
+        candidatureId: selected.id,
+        conceptIds: selectedConceptIds,
+      });
+      storeRecord(saved);
+      setSelectedConceptIds(saved.conceptIds);
+      if (selectedConceptId && !saved.conceptIds.includes(selectedConceptId)) {
+        setSelectedConceptId(saved.conceptIds[0] ?? null);
+      }
     } catch {
       setError("AAAAT could not save the concept associations.");
     }
