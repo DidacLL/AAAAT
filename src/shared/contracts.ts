@@ -24,6 +24,10 @@ export const channels = Object.freeze({
   documentRender: "aaaat:document-render",
   documentRegenerate: "aaaat:document-regenerate",
   documentExport: "aaaat:document-export",
+  candidatureList: "aaaat:candidature-list",
+  candidatureCreate: "aaaat:candidature-create",
+  candidatureUpdate: "aaaat:candidature-update",
+  candidatureSetDocuments: "aaaat:candidature-set-documents",
 } as const);
 
 export const systemInfoSchema = z
@@ -253,6 +257,64 @@ export const documentExportResultSchema = z
   .nullable();
 export type DocumentExportResult = z.infer<typeof documentExportResultSchema>;
 
+export const candidatureStatusSchema = z.enum([
+  "saved",
+  "applied",
+  "interview",
+  "offer",
+  "closed",
+]);
+export type CandidatureStatus = z.infer<typeof candidatureStatusSchema>;
+
+export const candidatureInputSchema = z
+  .object({
+    company: z.string().max(200),
+    role: z.string().max(200),
+    location: z.string().max(200),
+    workMode: z.string().max(80),
+    salaryText: z.string().max(300),
+    source: z.string().max(200),
+    sourceUrl: z.string().max(2048),
+    sourceText: z.string().max(50000),
+    status: candidatureStatusSchema,
+    applicationDate: z.string().max(40),
+    nextAction: z.string().max(1000),
+    nextActionDate: z.string().max(40),
+    notes: z.string().max(20000),
+  })
+  .strict();
+export type CandidatureInput = z.infer<typeof candidatureInputSchema>;
+
+export const candidatureUpdateSchema = candidatureInputSchema
+  .extend({
+    id: z.string().uuid(),
+    archived: z.boolean(),
+  })
+  .strict();
+export type CandidatureUpdate = z.infer<typeof candidatureUpdateSchema>;
+
+export const candidatureRecordSchema = candidatureInputSchema
+  .extend({
+    id: z.string().uuid(),
+    archived: z.boolean(),
+    documentIds: z.array(z.string().uuid()),
+  })
+  .strict();
+export type CandidatureRecord = z.infer<typeof candidatureRecordSchema>;
+
+export const candidatureListSchema = z.array(candidatureRecordSchema);
+
+export const candidatureDocumentSelectionSchema = z
+  .object({
+    candidatureId: z.string().uuid(),
+    documentIds: z.array(z.string().uuid()).max(50),
+  })
+  .strict()
+  .refine((value) => new Set(value.documentIds).size === value.documentIds.length, {
+    message: "Each document can be associated only once.",
+  });
+export type CandidatureDocumentSelection = z.infer<typeof candidatureDocumentSelectionSchema>;
+
 export interface DesktopApi {
   readonly system: { readonly info: () => Promise<SystemInfo> };
   readonly workspace: {
@@ -282,5 +344,11 @@ export interface DesktopApi {
     readonly render: (documentId: string) => Promise<DocumentRecord>;
     readonly regenerate: (documentId: string) => Promise<DocumentRecord>;
     readonly exportProject: (documentId: string) => Promise<DocumentExportResult>;
+  };
+  readonly candidatures: {
+    readonly list: () => Promise<CandidatureRecord[]>;
+    readonly create: (input: CandidatureInput) => Promise<CandidatureRecord>;
+    readonly update: (update: CandidatureUpdate) => Promise<CandidatureRecord>;
+    readonly setDocuments: (selection: CandidatureDocumentSelection) => Promise<CandidatureRecord>;
   };
 }
