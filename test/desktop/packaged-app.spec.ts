@@ -1,18 +1,22 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import {
   chromium,
   expect,
   test,
+  type Browser,
   type Page,
 } from "@playwright/test";
 
@@ -123,23 +127,35 @@ async function stopProcess(child: ChildProcess): Promise<void> {
   ]);
 }
 
-test("packaged desktop starts and initializes through the bounded bridge", async () => {
-  const executablePath = packagedExecutable();
-  const isolatedUserData = mkdtempSync(
-    path.join(tmpdir(), "aaaat-packaged-"),
-  );
+interface RunningApp {
+  readonly child: ChildProcess;
+  readonly browser: Browser;
+  readonly page: Page;
+}
+
+async function startPackagedApp(
+  userData: string,
+  linuxHome?: string,
+): Promise<RunningApp> {
   const port = await reservePort();
   const endpoint = "http://127.0.0.1:" + port;
-
-  expect(existsSync(executablePath)).toBe(true);
-
   const child = spawn(
-    executablePath,
-    [
-      "--user-data-dir=" + isolatedUserData,
-      "--remote-debugging-port=" + port,
-    ],
+    packagedExecutable(),
+    ["--user-data-dir=" + userData, "--remote-debugging-port=" + port],
     {
+      env:
+        process.platform === "linux"
+          ? {
+              ...process.env,
+              GTK_USE_PORTAL: "0",
+              ...(linuxHome
+                ? {
+                    HOME: linuxHome,
+                    XDG_CONFIG_HOME: path.join(linuxHome, ".config"),
+                  }
+                : {}),
+            }
+          : process.env,
       stdio: ["ignore", "ignore", "pipe"],
       windowsHide: true,
     },
@@ -150,30 +166,94 @@ test("packaged desktop starts and initializes through the bounded bridge", async
     processError += chunk.toString();
   });
 
-  let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
-  let page: Page | undefined;
+  await waitForDebugger(
+    endpoint,
+    () => child.exitCode,
+    () => processError,
+  );
+
+  const browser = await chromium.connectOverCDP(endpoint);
+  const context = browser.contexts()[0];
+  const page = context?.pages()[0];
+
+  if (!page) {
+    await browser.close();
+    await stopProcess(child);
+    throw new Error("Packaged application opened no renderer page");
+  }
+
+  return { child, browser, page };
+}
+
+async function stopPackagedApp(app: RunningApp): Promise<void> {
+  await app.page.close().catch(() => undefined);
+  await app.browser.close().catch(() => undefined);
+  await stopProcess(app.child);
+}
+
+function prepareLinuxChooserHome(workspacePath: string): string {
+  const homePath = mkdtempSync(path.join(tmpdir(), "aaaat-home-"));
+  const configPath = path.join(homePath, ".config");
+  mkdirSync(configPath, { recursive: true });
+  const escapedWorkspacePath = workspacePath
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"');
+  writeFileSync(
+    path.join(configPath, "user-dirs.dirs"),
+    `XDG_DOWNLOAD_DIR="${escapedWorkspacePath}"\n`,
+    "utf8",
+  );
+  return homePath;
+}
+
+function chooseLinuxDirectory(): void {
+  execFileSync(
+    "bash",
+    [
+      "-lc",
+      [
+        "set -eu",
+        "window=''",
+        "for attempt in $(seq 1 100); do",
+        "  window=$(xdotool search --onlyvisible --name 'Create or select an AAAAT workspace' 2>/dev/null | tail -n 1 || true)",
+        "  if [ -n \"$window\" ]; then break; fi",
+        "  sleep 0.1",
+        "done",
+        "test -n \"$window\"",
+        "xdotool windowactivate --sync \"$window\"",
+        "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
+        "xdotool mousemove --window \"$window\" $((WIDTH - 70)) $((HEIGHT - 35)) click 1",
+      ].join("\n"),
+    ],
+    { stdio: "inherit" },
+  );
+}
+
+test("packaged desktop preserves the bounded workspace boundary", async () => {
+  const executablePath = packagedExecutable();
+  const isolatedUserData = mkdtempSync(
+    path.join(tmpdir(), "aaaat-packaged-"),
+  );
+  const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
+  const linuxHome =
+    process.platform === "linux"
+      ? prepareLinuxChooserHome(ownedWorkspace)
+      : undefined;
+
+  expect(existsSync(executablePath)).toBe(true);
+
+  let running: RunningApp | undefined;
 
   try {
-    await waitForDebugger(
-      endpoint,
-      () => child.exitCode,
-      () => processError,
-    );
-
-    browser = await chromium.connectOverCDP(endpoint);
-    const context = browser.contexts()[0];
-    page = context?.pages()[0];
-
-    if (!page) {
-      throw new Error("Packaged application opened no renderer page");
-    }
-
-    await expect(page).toHaveTitle("AAAAT");
+    running = await startPackagedApp(isolatedUserData, linuxHome);
+    await expect(running.page).toHaveTitle("AAAAT");
     await expect(
-      page.getByRole("heading", { name: "No workspace selected." }),
+      running.page.getByRole("heading", {
+        name: "Choose where AAAAT should keep your career workspace.",
+      }),
     ).toBeVisible();
 
-    const boundary = await page.evaluate(() => ({
+    const boundary = await running.page.evaluate(() => ({
       processType: typeof Reflect.get(window, "process"),
       requireType: typeof Reflect.get(window, "require"),
       root: Object.keys(window.aaaat),
@@ -186,34 +266,76 @@ test("packaged desktop starts and initializes through the bounded bridge", async
       requireType: "undefined",
       root: ["system", "workspace"],
       system: ["info"],
-      workspace: ["initialize"],
+      workspace: ["current", "choose"],
     });
 
-    const csp = await page
+    const csp = await running.page
       .locator('meta[http-equiv="Content-Security-Policy"]')
       .getAttribute("content");
     expect(csp).toContain("connect-src 'self'");
     expect(csp).not.toContain("ws://localhost:");
 
-    await page
-      .getByRole("button", { name: "Create local workspace" })
+    if (process.platform !== "linux") {
+      return;
+    }
+
+    await running.page
+      .getByRole("button", { name: "Create workspace" })
       .click();
+    chooseLinuxDirectory();
 
     await expect(
-      page.getByRole("heading", { name: "Local workspace ready." }),
+      running.page.getByRole("heading", { name: "Workspace ready." }),
     ).toBeVisible();
+    await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
+
+    const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
+    expect(existsSync(databasePath)).toBe(true);
+
+    const database = new DatabaseSync(databasePath, { readOnly: true });
+    try {
+      expect(
+        database
+          .prepare(
+            "SELECT value FROM workspace_metadata WHERE key = 'workspace.initialized_at'",
+          )
+          .get(),
+      ).toMatchObject({ value: expect.any(String) });
+    } finally {
+      database.close();
+    }
+
+    await stopPackagedApp(running);
+    running = undefined;
+
+    running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(
-      page.getByRole("button", { name: "Workspace ready" }),
-    ).toBeDisabled();
+      running.page.getByRole("heading", { name: "Workspace ready." }),
+    ).toBeVisible();
+    await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
   } finally {
-    await page?.close().catch(() => undefined);
-    await browser?.close().catch(() => undefined);
-    await stopProcess(child);
+    if (running) {
+      await stopPackagedApp(running);
+    }
     rmSync(isolatedUserData, {
       recursive: true,
       force: true,
       maxRetries: 5,
       retryDelay: 100,
     });
+    rmSync(ownedWorkspace, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    });
+    if (linuxHome) {
+      rmSync(linuxHome, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 100,
+      });
+    }
   }
 });

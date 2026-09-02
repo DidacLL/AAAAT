@@ -1,13 +1,19 @@
 import { useEffect, useState } from "react";
 
 import logo from "./assets/aaaat-logo-light.png";
+import type {
+  WorkspaceChoice,
+  WorkspaceInfo,
+} from "../shared/contracts";
 
-type WorkspacePhase = "idle" | "creating" | "ready" | "error";
+type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
 
 export function App() {
   const [foundationReady, setFoundationReady] = useState(true);
   const [workspacePhase, setWorkspacePhase] =
-    useState<WorkspacePhase>("idle");
+    useState<WorkspacePhase>("loading");
+  const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -25,24 +31,56 @@ export function App() {
         }
       });
 
+    void window.aaaat.workspace
+      .current()
+      .then((currentWorkspace) => {
+        if (!active) {
+          return;
+        }
+
+        setWorkspace(currentWorkspace);
+        setWorkspacePhase(currentWorkspace ? "ready" : "idle");
+      })
+      .catch(() => {
+        if (active) {
+          setWorkspacePhase("idle");
+          setWorkspaceError(
+            "The previous workspace is no longer available. Choose another workspace.",
+          );
+        }
+      });
+
     return () => {
       active = false;
     };
   }, []);
 
-  const initializeWorkspace = async () => {
-    setWorkspacePhase("creating");
+  const chooseWorkspace = async (choice: WorkspaceChoice) => {
+    setWorkspacePhase("choosing");
+    setWorkspaceError(null);
 
     try {
-      await window.aaaat.workspace.initialize();
+      const selectedWorkspace = await window.aaaat.workspace.choose(choice);
+      if (!selectedWorkspace) {
+        setWorkspacePhase(workspace ? "ready" : "idle");
+        return;
+      }
+
+      setWorkspace(selectedWorkspace);
       setWorkspacePhase("ready");
     } catch {
-      setWorkspacePhase("error");
+      setWorkspacePhase(workspace ? "ready" : "idle");
+      setWorkspaceError(
+        choice === "create"
+          ? "That folder cannot be used as an AAAAT workspace. Choose an empty folder or an existing AAAAT workspace."
+          : "That folder is not a compatible AAAAT workspace. Choose another folder.",
+      );
     }
   };
 
-  const workspaceReady = workspacePhase === "ready";
-  const creating = workspacePhase === "creating";
+  const ready = workspacePhase === "ready" && workspace !== null;
+  const choosing = workspacePhase === "choosing";
+  const loading = workspacePhase === "loading";
 
   return (
     <div className="app-shell">
@@ -61,27 +99,52 @@ export function App() {
         <span className="accent-line" aria-hidden="true" />
 
         <h1>
-          {workspaceReady
-            ? "Local workspace ready."
-            : "No workspace selected."}
+          {loading
+            ? "Opening your workspace..."
+            : ready
+              ? "Workspace ready."
+              : "Choose where AAAAT should keep your career workspace."}
         </h1>
 
-        <button
-          className="primary-action"
-          type="button"
-          disabled={creating || workspaceReady}
-          onClick={() => void initializeWorkspace()}
-        >
-          {creating
-            ? "Creating local workspace..."
-            : workspaceReady
-              ? "Workspace ready"
-              : "Create local workspace"}
-        </button>
+        {ready ? (
+          <>
+            <p className="workspace-path">
+              <span>Workspace</span>
+              <code>{workspace.rootPath}</code>
+            </p>
+            <button
+              className="primary-action"
+              type="button"
+              disabled={choosing}
+              onClick={() => void chooseWorkspace("create")}
+            >
+              {choosing ? "Choosing workspace..." : "Choose another workspace"}
+            </button>
+          </>
+        ) : loading ? null : (
+          <div className="workspace-actions">
+            <button
+              className="primary-action"
+              type="button"
+              disabled={choosing}
+              onClick={() => void chooseWorkspace("create")}
+            >
+              {choosing ? "Choosing workspace..." : "Create workspace"}
+            </button>
+            <button
+              className="secondary-action"
+              type="button"
+              disabled={choosing}
+              onClick={() => void chooseWorkspace("open")}
+            >
+              Open existing workspace
+            </button>
+          </div>
+        )}
 
-        {workspacePhase === "error" ? (
+        {workspaceError ? (
           <p className="error-message" role="alert">
-            The local workspace could not be created. Please try again.
+            {workspaceError}
           </p>
         ) : null}
       </main>

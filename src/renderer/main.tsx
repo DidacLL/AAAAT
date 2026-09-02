@@ -15,10 +15,9 @@ function createPreviewApi(): DesktopApi {
       }),
     }),
     workspace: Object.freeze({
-      initialize: async () => ({
-        state: "ready" as const,
-        schemaVersion: 1,
-        initializedAt: new Date().toISOString(),
+      current: async () => null,
+      choose: async () => ({
+        rootPath: "/Users/example/AAAAT Workspace",
       }),
     }),
   });

@@ -56,9 +56,22 @@ jobs:
           sudo chown root:root "$sandbox_path"
           sudo chmod 4755 "$sandbox_path"
           stat -c '%U %a %n' "$sandbox_path"
+      - name: Install native dialog smoke helper (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes openbox xdotool
       - name: Packaged runtime smoke
         if: runner.os != 'Linux'
         run: npm run test:desktop
       - name: Packaged runtime smoke (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum npm run test:desktop
+        shell: bash
+        run: |
+          xvfb-run --auto-servernum bash -lc '
+            openbox >/tmp/aaaat-openbox.log 2>&1 &
+            wm_pid=$!
+            trap "kill $wm_pid 2>/dev/null || true" EXIT
+            npm run test:desktop
+          '

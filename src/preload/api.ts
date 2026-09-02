@@ -1,11 +1,12 @@
 import {
   channels,
+  optionalWorkspaceInfoSchema,
   systemInfoSchema,
-  workspaceStatusSchema,
+  workspaceChoiceSchema,
   type DesktopApi,
 } from "../shared/contracts";
 
-type Invoke = (channel: string) => Promise<unknown>;
+type Invoke = (channel: string, ...args: readonly unknown[]) => Promise<unknown>;
 
 export function createDesktopApi(invoke: Invoke): DesktopApi {
   const system = Object.freeze({
@@ -14,9 +15,13 @@ export function createDesktopApi(invoke: Invoke): DesktopApi {
   });
 
   const workspace = Object.freeze({
-    initialize: async () =>
-      workspaceStatusSchema.parse(
-        await invoke(channels.workspaceInitialize),
+    current: async () =>
+      optionalWorkspaceInfoSchema.parse(
+        await invoke(channels.workspaceCurrent),
+      ),
+    choose: async (choice: "create" | "open") =>
+      optionalWorkspaceInfoSchema.parse(
+        await invoke(channels.workspaceChoose, workspaceChoiceSchema.parse(choice)),
       ),
   });
 
