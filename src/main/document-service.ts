@@ -103,7 +103,10 @@ function projectPaths(rootPath: string, documentId: string) {
 function parseBody(value: string): string[] {
   try {
     const parsed = JSON.parse(value) as unknown;
-    if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === "string")) {
+    if (
+      !Array.isArray(parsed) ||
+      !parsed.every((item) => typeof item === "string")
+    ) {
       throw new Error("invalid body");
     }
     return parsed;
@@ -123,14 +126,21 @@ function parsePatch(value: string | null): ProfileItemContentPatch | null {
   }
 }
 
-function readRuleRows(database: DatabaseSync, documentId?: string): RuleRow[] {
+function readRuleRows(
+  database: DatabaseSync,
+  documentId?: string,
+): RuleRow[] {
   const sql = `SELECT document_id AS documentId, item_id AS itemId,
                       excluded, content_patch_json AS contentPatchJson,
                       order_rank AS orderRank
                  FROM document_item_rules`;
   return (documentId
-    ? database.prepare(sql + " WHERE document_id = ? ORDER BY item_id").all(documentId)
-    : database.prepare(sql + " ORDER BY document_id, item_id").all()) as unknown as RuleRow[];
+    ? database
+        .prepare(sql + " WHERE document_id = ? ORDER BY item_id")
+        .all(documentId)
+    : database
+        .prepare(sql + " ORDER BY document_id, item_id")
+        .all()) as unknown as RuleRow[];
 }
 
 function toRule(row: RuleRow): DocumentItemRule {
@@ -154,7 +164,10 @@ function selectDocumentRows(database: DatabaseSync): DocumentRow[] {
     .all() as unknown as DocumentRow[];
 }
 
-function requireDocumentRow(database: DatabaseSync, documentId: string): DocumentRow {
+function requireDocumentRow(
+  database: DatabaseSync,
+  documentId: string,
+): DocumentRow {
   const row = database
     .prepare(
       `SELECT id, kind, title, variant_id AS variantId, language, engine,
@@ -169,7 +182,11 @@ function requireDocumentRow(database: DatabaseSync, documentId: string): Documen
   return row;
 }
 
-function toDocument(rootPath: string, row: DocumentRow, rules: readonly RuleRow[]): DocumentRecord {
+function toDocument(
+  rootPath: string,
+  row: DocumentRow,
+  rules: readonly RuleRow[],
+): DocumentRecord {
   const paths = projectPaths(rootPath, row.id);
   return documentRecordSchema.parse({
     id: row.id,
@@ -190,17 +207,34 @@ function toDocument(rootPath: string, row: DocumentRow, rules: readonly RuleRow[
   });
 }
 
-function readDocument(database: DatabaseSync, rootPath: string, documentId: string): DocumentRecord {
-  return toDocument(rootPath, requireDocumentRow(database, documentId), readRuleRows(database, documentId));
+function readDocument(
+  database: DatabaseSync,
+  rootPath: string,
+  documentId: string,
+): DocumentRecord {
+  return toDocument(
+    rootPath,
+    requireDocumentRow(database, documentId),
+    readRuleRows(database, documentId),
+  );
 }
 
-function recordActivity(database: DatabaseSync, documentId: string, action: string): void {
+function recordActivity(
+  database: DatabaseSync,
+  documentId: string,
+  action: string,
+): void {
   database
-    .prepare("INSERT INTO document_activity(occurred_at, document_id, action) VALUES (?, ?, ?)")
+    .prepare(
+      "INSERT INTO document_activity(occurred_at, document_id, action) VALUES (?, ?, ?)",
+    )
     .run(new Date().toISOString(), documentId, action);
 }
 
-function applyPatch(item: ProfileItem, patch: ProfileItemContentPatch | null): ProfileItem {
+function applyPatch(
+  item: ProfileItem,
+  patch: ProfileItemContentPatch | null,
+): ProfileItem {
   return patch ? { ...item, ...patch } : item;
 }
 
@@ -224,34 +258,53 @@ function normalizedPatch(
 }
 
 function defaultCoverParagraphs(items: readonly ProfileItem[]): string[] {
-  const paragraphs = items
-    .filter((item) => item.kind === "summary" || item.kind === "experience" || item.kind === "project")
-    .map((item) => item.description?.trim() || `${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`)
+  return items
+    .filter(
+      (item) =>
+        item.kind === "summary" ||
+        item.kind === "experience" ||
+        item.kind === "project",
+    )
+    .map(
+      (item) =>
+        item.description?.trim() ||
+        `${item.title}${item.subtitle ? ` — ${item.subtitle}` : ""}`,
+    )
     .filter((value) => value.length > 0)
     .slice(0, 4);
-  return paragraphs;
 }
 
 export function listDocuments(rootPath: string): DocumentRecord[] {
   return withWorkspaceDatabase(rootPath, (database) => {
     const rows = selectDocumentRows(database);
     const rules = readRuleRows(database);
-    return documentListSchema.parse(rows.map((row) => toDocument(rootPath, row, rules)));
+    return documentListSchema.parse(
+      rows.map((row) => toDocument(rootPath, row, rules)),
+    );
   });
 }
 
-export function getDocument(rootPath: string, documentId: string): DocumentRecord {
-  return withWorkspaceDatabase(rootPath, (database) => readDocument(database, rootPath, documentId));
+export function getDocument(
+  rootPath: string,
+  documentId: string,
+): DocumentRecord {
+  return withWorkspaceDatabase(rootPath, (database) =>
+    readDocument(database, rootPath, documentId),
+  );
 }
 
-export function createDocument(rootPath: string, rawInput: DocumentInput): DocumentRecord {
+export function createDocument(
+  rootPath: string,
+  rawInput: DocumentInput,
+): DocumentRecord {
   const input = documentInputSchema.parse(rawInput);
   const resolved = resolveProfileVariant(rootPath, input.variantId);
   const id = randomUUID();
   const now = new Date().toISOString();
-  const body = input.kind === "cover_letter" && input.bodyParagraphs.length === 0
-    ? defaultCoverParagraphs(resolved.items)
-    : input.bodyParagraphs;
+  const body =
+    input.kind === "cover_letter" && input.bodyParagraphs.length === 0
+      ? defaultCoverParagraphs(resolved.items)
+      : input.bodyParagraphs;
 
   withWorkspaceDatabase(rootPath, (database) => {
     transact(database, () => {
@@ -286,12 +339,18 @@ export function createDocument(rootPath: string, rawInput: DocumentInput): Docum
     withWorkspaceDatabase(rootPath, (database) => {
       database.prepare("DELETE FROM documents WHERE id = ?").run(id);
     });
-    rmSync(projectPaths(rootPath, id).projectPath, { recursive: true, force: true });
+    rmSync(projectPaths(rootPath, id).projectPath, {
+      recursive: true,
+      force: true,
+    });
     throw error;
   }
 }
 
-export function updateDocument(rootPath: string, rawUpdate: DocumentUpdate): DocumentRecord {
+export function updateDocument(
+  rootPath: string,
+  rawUpdate: DocumentUpdate,
+): DocumentRecord {
   const update = documentUpdateSchema.parse(rawUpdate);
   return withWorkspaceDatabase(rootPath, (database) => {
     requireDocumentRow(database, update.id);
@@ -320,7 +379,10 @@ export function updateDocument(rootPath: string, rawUpdate: DocumentUpdate): Doc
   });
 }
 
-export function removeDocument(rootPath: string, documentId: string): DocumentRecord[] {
+export function removeDocument(
+  rootPath: string,
+  documentId: string,
+): DocumentRecord[] {
   withWorkspaceDatabase(rootPath, (database) => {
     requireDocumentRow(database, documentId);
     transact(database, () => {
@@ -328,7 +390,10 @@ export function removeDocument(rootPath: string, documentId: string): DocumentRe
       database.prepare("DELETE FROM documents WHERE id = ?").run(documentId);
     });
   });
-  rmSync(projectPaths(rootPath, documentId).projectPath, { recursive: true, force: true });
+  rmSync(projectPaths(rootPath, documentId).projectPath, {
+    recursive: true,
+    force: true,
+  });
   return listDocuments(rootPath);
 }
 
@@ -341,17 +406,23 @@ export function configureDocumentItem(
   const resolved = resolveProfileVariant(rootPath, document.variantId);
   const base = resolved.items.find((item) => item.id === rule.itemId);
   if (!base) {
-    throw new DocumentServiceError("The selected variant does not contain that profile item.");
+    throw new DocumentServiceError(
+      "The selected variant does not contain that profile item.",
+    );
   }
   const patch = normalizedPatch(base, rule.contentPatch);
 
   return withWorkspaceDatabase(rootPath, (database) => {
-    const existing = readRuleRows(database, rule.documentId).find((item) => item.itemId === rule.itemId);
+    const existing = readRuleRows(database, rule.documentId).find(
+      (item) => item.itemId === rule.itemId,
+    );
     const orderRank = existing?.orderRank ?? null;
     transact(database, () => {
       if (rule.included && patch === null && orderRank === null) {
         database
-          .prepare("DELETE FROM document_item_rules WHERE document_id = ? AND item_id = ?")
+          .prepare(
+            "DELETE FROM document_item_rules WHERE document_id = ? AND item_id = ?",
+          )
           .run(rule.documentId, rule.itemId);
       } else {
         database
@@ -363,7 +434,13 @@ export function configureDocumentItem(
                content_patch_json = excluded.content_patch_json,
                order_rank = excluded.order_rank`,
           )
-          .run(rule.documentId, rule.itemId, rule.included ? 0 : 1, patch ? JSON.stringify(patch) : null, orderRank);
+          .run(
+            rule.documentId,
+            rule.itemId,
+            rule.included ? 0 : 1,
+            patch ? JSON.stringify(patch) : null,
+            orderRank,
+          );
       }
       recordActivity(database, rule.documentId, "document.item.configure");
     });
@@ -371,20 +448,32 @@ export function configureDocumentItem(
   });
 }
 
-export function reorderDocument(rootPath: string, rawReorder: DocumentReorder): DocumentRecord {
+export function reorderDocument(
+  rootPath: string,
+  rawReorder: DocumentReorder,
+): DocumentRecord {
   const reorder = documentReorderSchema.parse(rawReorder);
   const document = getDocument(rootPath, reorder.documentId);
-  const baseIds = resolveProfileVariant(rootPath, document.variantId).items.map((item) => item.id);
+  const baseIds = resolveProfileVariant(rootPath, document.variantId).items.map(
+    (item) => item.id,
+  );
   if (
     reorder.itemIds.length !== baseIds.length ||
     new Set(reorder.itemIds).size !== baseIds.length ||
     baseIds.some((id) => !reorder.itemIds.includes(id))
   ) {
-    throw new DocumentServiceError("Document ordering must contain every selected profile item exactly once.");
+    throw new DocumentServiceError(
+      "Document ordering must contain every selected profile item exactly once.",
+    );
   }
 
   return withWorkspaceDatabase(rootPath, (database) => {
-    const existing = new Map(readRuleRows(database, reorder.documentId).map((rule) => [rule.itemId, rule]));
+    const existing = new Map(
+      readRuleRows(database, reorder.documentId).map((rule) => [
+        rule.itemId,
+        rule,
+      ]),
+    );
     transact(database, () => {
       reorder.itemIds.forEach((itemId, rank) => {
         const row = existing.get(itemId);
@@ -392,9 +481,15 @@ export function reorderDocument(rootPath: string, rawReorder: DocumentReorder): 
         const orderRank = rank === baseRank ? null : rank;
         const excluded = row?.excluded ?? 0;
         const contentPatchJson = row?.contentPatchJson ?? null;
-        if (excluded === 0 && contentPatchJson === null && orderRank === null) {
+        if (
+          excluded === 0 &&
+          contentPatchJson === null &&
+          orderRank === null
+        ) {
           database
-            .prepare("DELETE FROM document_item_rules WHERE document_id = ? AND item_id = ?")
+            .prepare(
+              "DELETE FROM document_item_rules WHERE document_id = ? AND item_id = ?",
+            )
             .run(reorder.documentId, itemId);
         } else {
           database
@@ -403,7 +498,13 @@ export function reorderDocument(rootPath: string, rawReorder: DocumentReorder): 
                VALUES (?, ?, ?, ?, ?)
                ON CONFLICT(document_id, item_id) DO UPDATE SET order_rank = excluded.order_rank`,
             )
-            .run(reorder.documentId, itemId, excluded, contentPatchJson, orderRank);
+            .run(
+              reorder.documentId,
+              itemId,
+              excluded,
+              contentPatchJson,
+              orderRank,
+            );
         }
       });
       recordActivity(database, reorder.documentId, "document.reorder");
@@ -412,44 +513,64 @@ export function reorderDocument(rootPath: string, rawReorder: DocumentReorder): 
   });
 }
 
-export function resolveDocument(rootPath: string, documentId: string): ResolvedDocument {
+export function resolveDocument(
+  rootPath: string,
+  documentId: string,
+): ResolvedDocument {
   const document = getDocument(rootPath, documentId);
   const base = resolveProfileVariant(rootPath, document.variantId).items;
   const rules = new Map(document.rules.map((rule) => [rule.itemId, rule]));
   const baseRank = new Map(base.map((item, index) => [item.id, index]));
   const items = base
     .filter((item) => !rules.get(item.id)?.excluded)
-    .map((item) => applyPatch(item, rules.get(item.id)?.contentPatch ?? null))
+    .map((item) =>
+      applyPatch(item, rules.get(item.id)?.contentPatch ?? null),
+    )
     .sort((left, right) => {
-      const leftRank = rules.get(left.id)?.orderRank ?? baseRank.get(left.id) ?? 0;
-      const rightRank = rules.get(right.id)?.orderRank ?? baseRank.get(right.id) ?? 0;
+      const leftRank =
+        rules.get(left.id)?.orderRank ?? baseRank.get(left.id) ?? 0;
+      const rightRank =
+        rules.get(right.id)?.orderRank ?? baseRank.get(right.id) ?? 0;
       return leftRank - rightRank;
     });
   return resolvedDocumentSchema.parse({ document, items });
 }
 
+const latexEscapes: Readonly<Record<string, string>> = Object.freeze({
+  "\\": "\\textbackslash{}",
+  "{": "\\{",
+  "}": "\\}",
+  "$": "\\$",
+  "&": "\\&",
+  "#": "\\#",
+  "%": "\\%",
+  "_": "\\_",
+  "^": "\\textasciicircum{}",
+  "~": "\\textasciitilde{}",
+});
+
 function escapeLatex(value: string): string {
-  const escaped = value
-    .replaceAll("\\", "\\textbackslash{}")
-    .replaceAll("{", "\\{")
-    .replaceAll("}", "\\}")
-    .replaceAll("$", "\\$")
-    .replaceAll("&", "\\&")
-    .replaceAll("#", "\\#")
-    .replaceAll("%", "\\%")
-    .replaceAll("_", "\\_")
-    .replaceAll("^", "\\textasciicircum{}")
-    .replaceAll("~", "\\textasciitilde{}");
-  return escaped.replace(/\r?\n/g, " \\\\ ");
+  return value
+    .replace(/[\\{}$&#%_^~]/g, (character) => latexEscapes[character] ?? character)
+    .replace(/\r?\n/g, " \\\\ ");
 }
 
 function cvContent(resolved: ResolvedDocument): string {
-  const lines = [`\\AAAATDocumentTitle{${escapeLatex(resolved.document.title)}}`];
+  const lines = [
+    `\\AAAATDocumentTitle{${escapeLatex(resolved.document.title)}}`,
+  ];
   if (resolved.document.language) {
-    lines.push(`\\AAAATMeta{Language: ${escapeLatex(resolved.document.language)}}`);
+    lines.push(
+      `\\AAAATMeta{Language: ${escapeLatex(resolved.document.language)}}`,
+    );
   }
   for (const item of resolved.items) {
-    const details = [item.subtitle, item.startDate && item.endDate ? `${item.startDate} -- ${item.endDate}` : item.startDate ?? item.endDate]
+    const details = [
+      item.subtitle,
+      item.startDate && item.endDate
+        ? `${item.startDate} -- ${item.endDate}`
+        : (item.startDate ?? item.endDate),
+    ]
       .filter((value): value is string => Boolean(value))
       .join(" | ");
     lines.push(
@@ -468,9 +589,10 @@ function coverLetterContent(resolved: ResolvedDocument): string {
   if (document.subject) {
     lines.push(`\\AAAATMeta{Subject: ${escapeLatex(document.subject)}}`);
   }
-  const paragraphs = document.bodyParagraphs.length > 0
-    ? document.bodyParagraphs
-    : defaultCoverParagraphs(resolved.items);
+  const paragraphs =
+    document.bodyParagraphs.length > 0
+      ? document.bodyParagraphs
+      : defaultCoverParagraphs(resolved.items);
   for (const paragraph of paragraphs) {
     lines.push(`\\AAAATParagraph{${escapeLatex(paragraph)}}`);
   }
@@ -497,22 +619,42 @@ function writeManagedProject(rootPath: string, documentId: string): string {
   const resolved = resolveDocument(rootPath, documentId);
   const paths = projectPaths(rootPath, documentId);
   mkdirSync(paths.projectPath, { recursive: true });
-  writeFileSync(paths.sourcePath, resolved.document.kind === "cv" ? cvTemplate : coverLetterTemplate, "utf8");
-  writeFileSync(paths.contentPath, resolved.document.kind === "cv" ? cvContent(resolved) : coverLetterContent(resolved), "utf8");
+  writeFileSync(
+    paths.sourcePath,
+    resolved.document.kind === "cv" ? cvTemplate : coverLetterTemplate,
+    "utf8",
+  );
+  writeFileSync(
+    paths.contentPath,
+    resolved.document.kind === "cv"
+      ? cvContent(resolved)
+      : coverLetterContent(resolved),
+    "utf8",
+  );
   writeFileSync(paths.stylePath, aaatStyle, "utf8");
   const hash = sourceHash(paths);
   if (!hash) {
-    throw new DocumentServiceError("AAAAT could not create the managed document source.");
+    throw new DocumentServiceError(
+      "AAAAT could not create the managed document source.",
+    );
   }
   return hash;
 }
 
-function setSourceState(rootPath: string, documentId: string, mode: "managed" | "manual", hash: string | null, action: string): DocumentRecord {
+function setSourceState(
+  rootPath: string,
+  documentId: string,
+  mode: "managed" | "manual",
+  hash: string | null,
+  action: string,
+): DocumentRecord {
   return withWorkspaceDatabase(rootPath, (database) => {
     requireDocumentRow(database, documentId);
     transact(database, () => {
       database
-        .prepare("UPDATE documents SET mode = ?, source_hash = ?, updated_at = ? WHERE id = ?")
+        .prepare(
+          "UPDATE documents SET mode = ?, source_hash = ?, updated_at = ? WHERE id = ?",
+        )
         .run(mode, hash, new Date().toISOString(), documentId);
       recordActivity(database, documentId, action);
     });
@@ -520,19 +662,36 @@ function setSourceState(rootPath: string, documentId: string, mode: "managed" | 
   });
 }
 
-function prepareProject(rootPath: string, documentId: string): DocumentRecord {
+function prepareProject(
+  rootPath: string,
+  documentId: string,
+): DocumentRecord {
   const document = getDocument(rootPath, documentId);
-  const row = withWorkspaceDatabase(rootPath, (database) => requireDocumentRow(database, documentId));
+  const row = withWorkspaceDatabase(rootPath, (database) =>
+    requireDocumentRow(database, documentId),
+  );
   const paths = projectPaths(rootPath, documentId);
   if (document.mode === "managed" && row.sourceHash) {
     const current = sourceHash(paths);
     if (current !== row.sourceHash) {
-      return setSourceState(rootPath, documentId, "manual", row.sourceHash, "document.source.manual");
+      return setSourceState(
+        rootPath,
+        documentId,
+        "manual",
+        row.sourceHash,
+        "document.source.manual",
+      );
     }
   }
   if (document.mode === "managed") {
     const hash = writeManagedProject(rootPath, documentId);
-    return setSourceState(rootPath, documentId, "managed", hash, "document.source.sync");
+    return setSourceState(
+      rootPath,
+      documentId,
+      "managed",
+      hash,
+      "document.source.sync",
+    );
   }
   if (!existsSync(paths.sourcePath)) {
     throw new DocumentServiceError("The manual document source is missing.");
@@ -540,44 +699,74 @@ function prepareProject(rootPath: string, documentId: string): DocumentRecord {
   return document;
 }
 
-export function regenerateDocument(rootPath: string, documentId: string): DocumentRecord {
+export function regenerateDocument(
+  rootPath: string,
+  documentId: string,
+): DocumentRecord {
   getDocument(rootPath, documentId);
   const hash = writeManagedProject(rootPath, documentId);
-  return setSourceState(rootPath, documentId, "managed", hash, "document.source.regenerate");
+  return setSourceState(
+    rootPath,
+    documentId,
+    "managed",
+    hash,
+    "document.source.regenerate",
+  );
 }
 
-export function renderDocument(rootPath: string, documentId: string): DocumentRecord {
+export function renderDocument(
+  rootPath: string,
+  documentId: string,
+): DocumentRecord {
   const document = prepareProject(rootPath, documentId);
   const paths = projectPaths(rootPath, documentId);
   mkdirSync(path.dirname(paths.artifactPath), { recursive: true });
-  const engineFlag = document.engine === "pdflatex" ? "-pdf" : `-${document.engine}`;
+  const engineFlag =
+    document.engine === "pdflatex" ? "-pdf" : `-${document.engine}`;
   const result = spawnSync(
     "latexmk",
-    [engineFlag, "-interaction=nonstopmode", "-halt-on-error", "-outdir=build", "main.tex"],
+    [
+      engineFlag,
+      "-interaction=nonstopmode",
+      "-halt-on-error",
+      "-outdir=build",
+      "main.tex",
+    ],
     { cwd: paths.projectPath, encoding: "utf8", windowsHide: true },
   );
   if (result.error) {
-    throw new DocumentServiceError(`TeX rendering is unavailable. Install latexmk and ${document.engine}.`);
+    throw new DocumentServiceError(
+      `TeX rendering is unavailable. Install latexmk and ${document.engine}.`,
+    );
   }
   if (result.status !== 0 || !existsSync(paths.artifactPath)) {
-    throw new DocumentServiceError(`TeX rendering failed. Check that latexmk and ${document.engine} are installed and compatible.`);
+    throw new DocumentServiceError(
+      `TeX rendering failed. Check that latexmk and ${document.engine} are installed and compatible.`,
+    );
   }
   withWorkspaceDatabase(rootPath, (database) => {
-    transact(database, () => recordActivity(database, documentId, "document.render"));
+    transact(database, () =>
+      recordActivity(database, documentId, "document.render"),
+    );
   });
   return getDocument(rootPath, documentId);
 }
 
 function safeProjectName(document: DocumentRecord): string {
-  const slug = document.title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 48) || "document";
+  const slug =
+    document.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 48) || "document";
   return `${slug}-${document.id.slice(0, 8)}`;
 }
 
-export function exportDocumentProject(rootPath: string, documentId: string, targetParent: string): string {
+export function exportDocumentProject(
+  rootPath: string,
+  documentId: string,
+  targetParent: string,
+): string {
   const document = prepareProject(rootPath, documentId);
   try {
     if (!statSync(targetParent).isDirectory()) {
@@ -585,15 +774,24 @@ export function exportDocumentProject(rootPath: string, documentId: string, targ
     }
     accessSync(targetParent, constants.R_OK | constants.W_OK);
   } catch {
-    throw new DocumentServiceError("The selected export folder is not writable.");
+    throw new DocumentServiceError(
+      "The selected export folder is not writable.",
+    );
   }
   const destination = path.join(targetParent, safeProjectName(document));
   if (existsSync(destination)) {
-    throw new DocumentServiceError("A document export with that name already exists in the selected folder.");
+    throw new DocumentServiceError(
+      "A document export with that name already exists in the selected folder.",
+    );
   }
-  cpSync(document.projectPath, destination, { recursive: true, errorOnExist: true });
+  cpSync(document.projectPath, destination, {
+    recursive: true,
+    errorOnExist: true,
+  });
   withWorkspaceDatabase(rootPath, (database) => {
-    transact(database, () => recordActivity(database, documentId, "document.export"));
+    transact(database, () =>
+      recordActivity(database, documentId, "document.export"),
+    );
   });
   return destination;
 }
