@@ -1,58 +1,33 @@
 # Contributing
 
-AAAAT is a local-first desktop application with a deliberately narrow external-AI
-boundary. Contributions must preserve that product and authority model.
+AAAAT v2 is developed through bounded GitHub Issues and short-lived branches.
 
-## Setup
+Before working, follow [`AGENTS.md`](AGENTS.md), the canonical [`docs/SPEC.md`](docs/SPEC.md), the current Mission, and relevant ADRs. The Issue defines the acceptance boundary; do not expand it with future-Mission scaffolding.
 
-Use Python 3.11, 3.12, or 3.13.
+## Toolchain
 
-```text
-python -m pip install -e .[desktop]
-```
+M0 uses Node 24 and npm with exact dependency pins in `package.json` and `package-lock.json`.
 
-Install the `release` extra only when working on native packaging.
-
-## Checks
-
-Run before opening a pull request:
+Install and verify with:
 
 ```text
-python -B -m compileall -q aaaat tests tools scripts
-python -B tools/validate_mcp.py
-python -B -m unittest discover -s tests
+npm ci
+npm run verify
 ```
 
-Release changes also require:
-
-```text
-python tools/build_release.py
-python tools/verify_release.py
-```
+Run Issue-specific runtime, visual, database, or packaging checks in addition to the fast path when the claim requires them.
 
 ## Contribution rules
 
-- Keep the wx desktop fully usable without an AI.
-- Keep private data outside the repository and fixtures.
-- Use fictional examples.
-- Preserve provider and host neutrality.
-- Do not add broad agent CRUD, provider SDKs, connector management, telemetry,
-  plugin frameworks, workflow engines, or heavy dependencies.
-- Keep widgets behind desktop services rather than direct SQL writes.
-- Prefer one canonical implementation; remove internal duplicates rather than
-  preserving aliases without a released compatibility contract.
-- Add tests for durable behavior, not exact wording, branch history, or private
-  helper structure.
-- Update the relevant human documentation when product or technical behavior changes.
+- Keep manual operation independent from AI.
+- Keep the Electron renderer sandboxed and unprivileged.
+- Route durable mutations through application services.
+- Keep generated LaTeX portable and user-owned.
+- Keep private and personal data outside source, fixtures, screenshots, Issues, and PRs.
+- Use fictional examples only when a behavior test genuinely needs domain data.
+- Do not add speculative providers, registries, plugins, workflows, services, or compatibility layers.
+- Test durable behavior and boundaries, not incidental wording or file layout.
 
 ## Pull requests
 
-Use a focused branch and coherent commits. Describe:
-
-- the problem and resulting behavior;
-- affected product or authority boundaries;
-- validation performed;
-- any deliberate limitation.
-
-Do not include private workspace data, generated databases, personal application
-material, build output, or local release archives.
+Use short-lived `agentic/<short-description>` branches unless the active execution surface requires another convention. Describe the result, executable verification, actual limitations, and any Class C ADR. Obtain independent review and resolve blocking findings before integration. When work changes surfaces, use the compact contract in [`docs/engineering/EXECUTION.md`](docs/engineering/EXECUTION.md); do not commit task-specific handoff files.
