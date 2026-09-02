@@ -129,7 +129,23 @@ describe("manual document service", () => {
       subject: "Platform role",
     });
 
-    expect(document.bodyParagraphs.length).toBeGreaterThan(0);
+    expect(document.bodyParagraphs).toEqual([]);
+    const summary = resolveDocument(root, document.id).items.find(
+      (item) => item.kind === "summary",
+    );
+    if (!summary) throw new Error("Expected summary item");
+    configureDocumentItem(root, {
+      documentId: document.id,
+      itemId: summary.id,
+      included: true,
+      contentPatch: { description: "Focused derived cover-letter paragraph." },
+    });
+    document = regenerateDocument(root, document.id);
+    expect(document.bodyParagraphs).toEqual([]);
+    expect(readFileSync(path.join(document.projectPath, "content.tex"), "utf8")).toContain(
+      "Focused derived cover-letter paragraph.",
+    );
+
     document = updateDocument(root, {
       id: document.id,
       title: document.title,
