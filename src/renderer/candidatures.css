@@ -1,0 +1,145 @@
+.candidatures-workspace {
+  display: grid;
+  min-height: 0;
+  gap: 16px;
+}
+
+.candidature-toolbar,
+.candidature-editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.candidature-toolbar h2,
+.candidature-editor-heading h3,
+.candidature-documents h3 {
+  margin: 0;
+}
+
+.candidature-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 2.2fr);
+  min-height: 0;
+  gap: 16px;
+}
+
+.candidature-list,
+.candidature-editor {
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fffdf9;
+}
+
+.candidature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow: auto;
+}
+
+.candidature-list > button {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.candidature-list > button span {
+  color: var(--muted-ink);
+  font-size: 0.86rem;
+}
+
+.candidature-list > button.selected-candidature {
+  border-color: var(--focus);
+  box-shadow: inset 3px 0 0 var(--focus);
+}
+
+.candidature-editor {
+  overflow: auto;
+  padding: 18px;
+}
+
+.candidature-form {
+  display: grid;
+  gap: 18px;
+}
+
+.candidature-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.candidature-fields label,
+.document-association-list label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted-ink);
+  font-size: 0.9rem;
+}
+
+.candidature-fields input,
+.candidature-fields select,
+.candidature-fields textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  color: var(--ink);
+}
+
+.candidature-fields textarea {
+  resize: vertical;
+}
+
+.candidature-fields .wide-field {
+  grid-column: 1 / -1;
+}
+
+.candidature-documents {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.candidature-documents p {
+  margin: 4px 0 0;
+  color: var(--muted-ink);
+}
+
+.document-association-list {
+  display: grid;
+  gap: 8px;
+}
+
+.document-association-list label {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.candidature-empty-detail {
+  padding: 32px;
+  color: var(--muted-ink);
+}
+
+@media (max-width: 820px) {
+  .candidature-layout,
+  .candidature-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .candidature-fields .wide-field {
+    grid-column: auto;
+  }
+}
