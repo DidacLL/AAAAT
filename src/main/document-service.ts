@@ -684,7 +684,7 @@ function writeManagedProject(rootPath: string, documentId: string): string {
     rmSync(stagePaths.projectPath, { recursive: true, force: true });
     rmSync(backupPaths.projectPath, { recursive: true, force: true });
     return hash;
-  } catch (error) {
+  } catch {
     let recoveryFailed = false;
     for (const targetFile of [...installed].reverse()) {
       try {
