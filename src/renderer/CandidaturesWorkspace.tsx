@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
   CandidatureInput,
@@ -29,6 +29,26 @@ function recordLabel(record: CandidatureRecord): string {
   return `${company} — ${role}`;
 }
 
+function editableRecord(record: CandidatureRecord): CandidatureUpdate {
+  return {
+    id: record.id,
+    company: record.company,
+    role: record.role,
+    location: record.location,
+    workMode: record.workMode,
+    salaryText: record.salaryText,
+    source: record.source,
+    sourceUrl: record.sourceUrl,
+    sourceText: record.sourceText,
+    status: record.status,
+    applicationDate: record.applicationDate,
+    nextAction: record.nextAction,
+    nextActionDate: record.nextActionDate,
+    notes: record.notes,
+    archived: record.archived,
+  };
+}
+
 export function CandidaturesWorkspace() {
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -36,6 +56,12 @@ export function CandidaturesWorkspace() {
   const [draft, setDraft] = useState<CandidatureUpdate | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const selectRecord = (record: CandidatureRecord) => {
+    setSelectedId(record.id);
+    setDraft(editableRecord(record));
+    setSelectedDocumentIds(record.documentIds);
+  };
 
   useEffect(() => {
     let active = true;
@@ -48,7 +74,11 @@ export function CandidaturesWorkspace() {
         setRecords(nextRecords);
         setDocuments(nextDocuments);
         const first = nextRecords[0];
-        if (first) setSelectedId(first.id);
+        if (first) {
+          setSelectedId(first.id);
+          setDraft(editableRecord(first));
+          setSelectedDocumentIds(first.documentIds);
+        }
       })
       .catch(() => {
         if (active) setError("AAAAT could not load candidatures.");
@@ -58,36 +88,7 @@ export function CandidaturesWorkspace() {
     };
   }, []);
 
-  const selected = useMemo(
-    () => records.find((record) => record.id === selectedId) ?? null,
-    [records, selectedId],
-  );
-
-  useEffect(() => {
-    if (!selected) {
-      setDraft(null);
-      setSelectedDocumentIds([]);
-      return;
-    }
-    setDraft({
-      id: selected.id,
-      company: selected.company,
-      role: selected.role,
-      location: selected.location,
-      workMode: selected.workMode,
-      salaryText: selected.salaryText,
-      source: selected.source,
-      sourceUrl: selected.sourceUrl,
-      sourceText: selected.sourceText,
-      status: selected.status,
-      applicationDate: selected.applicationDate,
-      nextAction: selected.nextAction,
-      nextActionDate: selected.nextActionDate,
-      notes: selected.notes,
-      archived: selected.archived,
-    });
-    setSelectedDocumentIds(selected.documentIds);
-  }, [selected]);
+  const selected = records.find((record) => record.id === selectedId) ?? null;
 
   const replaceRecord = (record: CandidatureRecord) => {
     setRecords((current) => {
@@ -96,7 +97,7 @@ export function CandidaturesWorkspace() {
         ? current.map((candidate) => (candidate.id === record.id ? record : candidate))
         : [record, ...current];
     });
-    setSelectedId(record.id);
+    selectRecord(record);
   };
 
   const create = async () => {
@@ -131,12 +132,12 @@ export function CandidaturesWorkspace() {
   };
 
   const saveDocuments = async () => {
-    if (!selected) return;
+    if (!draft) return;
     setError(null);
     try {
       replaceRecord(
         await window.aaaat.candidatures.setDocuments({
-          candidatureId: selected.id,
+          candidatureId: draft.id,
           documentIds: selectedDocumentIds,
         }),
       );
@@ -177,7 +178,7 @@ export function CandidaturesWorkspace() {
                 type="button"
                 key={record.id}
                 className={record.id === selectedId ? "selected-candidature" : ""}
-                onClick={() => setSelectedId(record.id)}
+                onClick={() => selectRecord(record)}
               >
                 <strong>{recordLabel(record)}</strong>
                 <span>{record.status}{record.archived ? " · archived" : ""}</span>
