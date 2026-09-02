@@ -45,7 +45,7 @@ const workspaceMigration = Object.freeze({
   sha256: createHash("sha256").update(workspaceMigrationSql).digest("hex"),
 });
 
-export class WorkspaceError extends Error {
+class WorkspaceError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "WorkspaceError";
@@ -138,6 +138,10 @@ function databasePathFor(rootPath: string): string {
   return path.join(rootPath, workspaceDatabaseName);
 }
 
+function workspaceInfo(rootPath: string): WorkspaceInfo {
+  return workspaceInfoSchema.parse({ rootPath });
+}
+
 function verifyExistingWorkspace(rootPath: string): void {
   const databasePath = databasePathFor(rootPath);
   if (!existsSync(databasePath) || !statSync(databasePath).isFile()) {
@@ -199,35 +203,6 @@ function migrateDatabase(databasePath: string): void {
   }
 }
 
-function readWorkspaceInfo(rootPath: string): WorkspaceInfo {
-  const database = new DatabaseSync(databasePathFor(rootPath), {
-    readOnly: true,
-  });
-
-  try {
-    const initialized = database
-      .prepare(
-        "SELECT value AS initializedAt FROM workspace_metadata WHERE key = ?",
-      )
-      .get("workspace.initialized_at") as InitializedRow | undefined;
-    const version = database
-      .prepare("SELECT MAX(version) AS schemaVersion FROM schema_migrations")
-      .get() as unknown as VersionRow;
-
-    if (!initialized || version.schemaVersion === null) {
-      throw new WorkspaceError("Workspace initialization could not be verified.");
-    }
-
-    return workspaceInfoSchema.parse({
-      rootPath,
-      schemaVersion: version.schemaVersion,
-      initializedAt: initialized.initializedAt,
-    });
-  } finally {
-    database.close();
-  }
-}
-
 function cleanFailedNewDatabase(databasePath: string): void {
   for (const suffix of ["", "-wal", "-shm"]) {
     rmSync(databasePath + suffix, { force: true });
@@ -239,7 +214,7 @@ function initializeNewWorkspace(rootPath: string): WorkspaceInfo {
 
   try {
     migrateDatabase(databasePath);
-    return readWorkspaceInfo(rootPath);
+    return workspaceInfo(rootPath);
   } catch (error) {
     cleanFailedNewDatabase(databasePath);
     if (error instanceof WorkspaceError) {
@@ -273,7 +248,7 @@ export function openWorkspace(rootPath: string): WorkspaceInfo {
 
   try {
     migrateDatabase(databasePathFor(canonicalPath));
-    return readWorkspaceInfo(canonicalPath);
+    return workspaceInfo(canonicalPath);
   } catch (error) {
     if (error instanceof WorkspaceError) {
       throw error;
