@@ -152,6 +152,10 @@ export function ProfileWorkspace() {
     [selectedVariant, snapshot],
   );
 
+  const variantDirty = selectedVariant
+    ? JSON.stringify(variantState) !== JSON.stringify(variantForm(selectedVariant))
+    : false;
+
   const refreshResolved = async (variantId: string | null) => {
     if (!variantId) {
       setResolved(null);
@@ -169,6 +173,7 @@ export function ProfileWorkspace() {
   const acceptSnapshot = async (
     next: ProfileSnapshot,
     preferredVariantId: string | null = selectedVariantId,
+    preserveVariantDraft = false,
   ) => {
     setSnapshot(next);
     const nextSelected = next.variants.some(
@@ -176,16 +181,19 @@ export function ProfileWorkspace() {
     )
       ? preferredVariantId
       : (next.variants[0]?.id ?? null);
+    const keepDraft = preserveVariantDraft && nextSelected === selectedVariantId;
     setSelectedVariantId(nextSelected);
-    if (nextSelected) {
-      const variant = next.variants.find(
-        (candidate) => candidate.id === nextSelected,
-      );
-      if (variant) {
-        setVariantState(variantForm(variant));
+    if (!keepDraft) {
+      if (nextSelected) {
+        const variant = next.variants.find(
+          (candidate) => candidate.id === nextSelected,
+        );
+        if (variant) {
+          setVariantState(variantForm(variant));
+        }
+      } else {
+        setVariantState(emptyVariant);
       }
-    } else {
-      setVariantState(emptyVariant);
     }
     await refreshResolved(nextSelected);
   };
@@ -231,7 +239,7 @@ export function ProfileWorkspace() {
         : await window.aaaat.profile.addItem(itemInput(itemState));
       setEditingItemId(null);
       setItemState(emptyItem);
-      await acceptSnapshot(next);
+      await acceptSnapshot(next, selectedVariantId, true);
     } catch {
       setError("Check the profile item fields and try again.");
     }
@@ -240,7 +248,11 @@ export function ProfileWorkspace() {
   const removeItem = async (itemId: string) => {
     setError(null);
     try {
-      await acceptSnapshot(await window.aaaat.profile.removeItem(itemId));
+      await acceptSnapshot(
+        await window.aaaat.profile.removeItem(itemId),
+        selectedVariantId,
+        true,
+      );
       if (editingItemId === itemId) {
         setEditingItemId(null);
         setItemState(emptyItem);
@@ -291,6 +303,13 @@ export function ProfileWorkspace() {
       return;
     }
 
+    const confirmed = window.confirm(
+      variantDirty
+        ? "Remove this variant and discard its unsaved metadata edits?"
+        : "Remove this profile variant?",
+    );
+    if (!confirmed) return;
+
     setError(null);
     try {
       await acceptSnapshot(
@@ -303,10 +322,23 @@ export function ProfileWorkspace() {
   };
 
   const selectVariant = async (variant: ProfileVariant) => {
+    if (variant.id === selectedVariantId) return;
+    if (variantDirty && !window.confirm("Discard unsaved profile variant metadata edits?")) {
+      return;
+    }
     setSelectedVariantId(variant.id);
     setVariantState(variantForm(variant));
     setError(null);
     await refreshResolved(variant.id);
+  };
+
+  const startNewVariant = () => {
+    if (variantDirty && !window.confirm("Discard unsaved profile variant metadata edits?")) {
+      return;
+    }
+    setSelectedVariantId(null);
+    setResolved(null);
+    setVariantState(emptyVariant);
   };
 
   const applyVariantItem = async (
@@ -355,6 +387,7 @@ export function ProfileWorkspace() {
               : (patch as ProfileItemContentPatch),
         }),
         selectedVariantId,
+        true,
       );
     } catch {
       setError("AAAAT could not apply that variant rule.");
@@ -389,6 +422,7 @@ export function ProfileWorkspace() {
           itemIds: ids,
         }),
         selectedVariantId,
+        true,
       );
     } catch {
       setError("AAAAT could not reorder that profile variant.");
@@ -566,14 +600,7 @@ export function ProfileWorkspace() {
                   {variant.name}
                 </button>
               ))}
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedVariantId(null);
-                  setResolved(null);
-                  setVariantState(emptyVariant);
-                }}
-              >
+              <button type="button" onClick={startNewVariant}>
                 New
               </button>
             </div>
