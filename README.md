@@ -6,7 +6,7 @@ AAAAT v2 is a clean restart. The Python/wxPython v1 implementation remains avail
 
 ## Current mission
 
-M0 — Foundation proves the secure Electron + React + TypeScript + SQLite desktop boundary, automated verification, and native packaging. Product domains begin only after that proof is complete.
+M0 - Foundation proves the secure Electron + React + TypeScript + SQLite desktop boundary, automated verification, and native packaging. Product domains begin only after that proof is complete.
 
 Authoritative material:
 
@@ -15,8 +15,20 @@ Authoritative material:
 - [`.agentic/CURRENT_MISSION.md`](.agentic/CURRENT_MISSION.md)
 - [`AGENTS.md`](AGENTS.md)
 
-Once the M0 package is established, the normal verification command is:
+## M0 development
+
+Use Node 24 and the committed npm lockfile:
 
 ```text
+npm ci
 npm run verify
+npm start
 ```
+
+The fast `verify` path runs strict TypeScript, lint, and behavior tests. Native package evidence is separate because it launches an OS-specific Electron executable:
+
+```text
+npm run verify:package
+```
+
+The packaged smoke uses an isolated temporary profile, checks the renderer privilege boundary and fixed preload allowlist, and initializes a real file-backed SQLite workspace.

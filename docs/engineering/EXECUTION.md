@@ -64,6 +64,21 @@ The recipient must inspect the named Issue and branch rather than infer state fr
 - **Avoid:** duplicating Issues or milestones in `.agentic/STATE.json` or another local task database.
 - **Retire when:** the active execution surface exposes all required GitHub operations.
 
+## Mapped-drive Playwright command shim
+
+- **Evidence date:** 2026-09-02.
+- **Symptom:** an npm script that invokes the Playwright command shim may fail before discovery with a Windows filename or volume-label error on the mapped workspace, while the same CLI and config succeed with absolute paths.
+- **Safe workaround:** invoke the project Playwright CLI with the active Node executable and absolute CLI/config paths. Keep the portable npm script unchanged for ordinary shells and GitHub Actions.
+- **Avoid:** weakening packaged Electron fuses to make Playwright's Node-inspector launcher work; the packaged smoke attaches to a temporary Chromium debugging endpoint instead.
+- **Retire when:** package scripts reliably inherit the mapped workspace as their process directory.
+
+## npm version identity
+
+- **Evidence date:** 2026-09-02.
+- **Observed:** the exact npm executable reports npm 11.12.1, while inherited user-agent metadata makes npm engine diagnostics and Forge display npm 8.13.1.
+- **Safe workaround:** trust the invoked executable plus the lockfile, use `npm ci`, and let CI provision Node/npm independently. Do not relax the repository engine range to match stale metadata.
+- **Retire when:** the host no longer injects stale npm user-agent metadata.
+
 ## PowerShell npm wrapper
 
 - **Applies when:** the `npm.ps1` wrapper touches inaccessible user-scoped paths or script policy blocks it.
