@@ -1,0 +1,19 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesExplPackage{aaaat}{2026-09-02}{0.1.0}{AAAAT portable document styles}
+\ExplSyntaxOn
+\NewDocumentCommand{\AAAATDocumentTitle}{m}
+  {\par\begin{center}{\LARGE\bfseries #1}\end{center}\par}
+\NewDocumentCommand{\AAAATMeta}{m}
+  {\par\noindent{\small #1}\par}
+\NewDocumentCommand{\AAAATEntry}{mmmm}
+  {
+    \par\medskip\noindent
+    {\small\textsc{#1}}\par
+    {\bfseries #2}
+    \tl_if_blank:nF {#3} {\\ #3}
+    \tl_if_blank:nF {#4} {\par #4}
+    \par
+  }
+\NewDocumentCommand{\AAAATParagraph}{m}
+  {\par\noindent #1\par}
+\ExplSyntaxOff

@@ -11,7 +11,7 @@ import { expect, it } from "vitest";
 import workspaceMigrationSql from "../src/main/migrations/001_workspace.sql?raw";
 import { openWorkspace } from "../src/main/workspace";
 
-it("upgrades an existing workspace-root database from migration 1 to the profile schema", () => {
+it("upgrades an existing workspace-root database through profile and document schemas", () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-profile-migration-"));
   const databasePath = path.join(root, "workspace.sqlite");
   const hash = createHash("sha256").update(workspaceMigrationSql).digest("hex");
@@ -36,24 +36,22 @@ it("upgrades an existing workspace-root database from migration 1 to the profile
 
   try {
     expect(openWorkspace(root)).toEqual({ rootPath: root });
-
     const upgraded = new DatabaseSync(databasePath, { readOnly: true });
     try {
       expect(
-        upgraded
-          .prepare("SELECT version, name FROM schema_migrations ORDER BY version")
-          .all(),
+        upgraded.prepare("SELECT version, name FROM schema_migrations ORDER BY version").all(),
       ).toEqual([
         { version: 1, name: "workspace" },
         { version: 2, name: "profile" },
+        { version: 3, name: "documents" },
       ]);
       expect(
         upgraded
           .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'profile_items'",
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('profile_items', 'documents') ORDER BY name",
           )
-          .get(),
-      ).toEqual({ name: "profile_items" });
+          .all(),
+      ).toEqual([{ name: "documents" }, { name: "profile_items" }]);
     } finally {
       upgraded.close();
     }

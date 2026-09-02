@@ -6,6 +6,9 @@ import { App } from "./App";
 import "./styles.css";
 
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
+const previewUnavailable = async (): Promise<never> => {
+  throw new Error("Create preview data in the desktop app for this operation.");
+};
 
 function createPreviewApi(): DesktopApi {
   return Object.freeze({
@@ -18,9 +21,7 @@ function createPreviewApi(): DesktopApi {
     }),
     workspace: Object.freeze({
       current: async () => null,
-      choose: async () => ({
-        rootPath: "/Users/example/AAAAT Workspace",
-      }),
+      choose: async () => ({ rootPath: "/Users/example/AAAAT Workspace" }),
     }),
     profile: Object.freeze({
       current: async () => emptyProfile,
@@ -32,9 +33,19 @@ function createPreviewApi(): DesktopApi {
       removeVariant: async () => emptyProfile,
       configureVariantItem: async () => emptyProfile,
       reorderVariant: async () => emptyProfile,
-      resolveVariant: async () => {
-        throw new Error("Create a preview variant before resolving it.");
-      },
+      resolveVariant: previewUnavailable,
+    }),
+    documents: Object.freeze({
+      list: async () => [],
+      create: previewUnavailable,
+      update: previewUnavailable,
+      remove: async () => [],
+      configureItem: previewUnavailable,
+      reorder: previewUnavailable,
+      resolve: previewUnavailable,
+      render: previewUnavailable,
+      regenerate: previewUnavailable,
+      exportProject: async () => null,
     }),
   });
 }
@@ -48,7 +59,6 @@ if (import.meta.env.DEV && !("aaaat" in window)) {
 }
 
 const root = document.getElementById("root");
-
 if (!root) {
   throw new Error("AAAAT renderer root is missing");
 }

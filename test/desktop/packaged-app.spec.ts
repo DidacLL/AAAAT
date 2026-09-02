@@ -21,37 +21,16 @@ import {
 } from "@playwright/test";
 
 function packagedExecutable(): string {
-  const packageRoot = path.resolve(
-    "out",
-    "AAAAT-" + process.platform + "-" + process.arch,
-  );
-
+  const packageRoot = path.resolve("out", "AAAAT-" + process.platform + "-" + process.arch);
   if (process.platform === "darwin") {
-    const bundle = readdirSync(packageRoot).find((entry) =>
-      entry.endsWith(".app"),
-    );
-    if (!bundle) {
-      throw new Error("Packaged macOS application bundle is missing");
-    }
-
-    const executableDirectory = path.join(
-      packageRoot,
-      bundle,
-      "Contents",
-      "MacOS",
-    );
+    const bundle = readdirSync(packageRoot).find((entry) => entry.endsWith(".app"));
+    if (!bundle) throw new Error("Packaged macOS application bundle is missing");
+    const executableDirectory = path.join(packageRoot, bundle, "Contents", "MacOS");
     const executable = readdirSync(executableDirectory)[0];
-    if (!executable) {
-      throw new Error("Packaged macOS executable is missing");
-    }
-
+    if (!executable) throw new Error("Packaged macOS executable is missing");
     return path.join(executableDirectory, executable);
   }
-
-  return path.join(
-    packageRoot,
-    process.platform === "win32" ? "aaaat.exe" : "aaaat",
-  );
+  return path.join(packageRoot, process.platform === "win32" ? "aaaat.exe" : "aaaat");
 }
 
 async function reservePort(): Promise<number> {
@@ -65,14 +44,7 @@ async function reservePort(): Promise<number> {
         reject(new Error("Could not reserve a smoke-test port"));
         return;
       }
-
-      server.close((error) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(address.port);
-        }
-      });
+      server.close((error) => (error ? reject(error) : resolve(address.port)));
     });
   });
 }
@@ -84,47 +56,27 @@ async function waitForDebugger(
 ): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (processExit() !== null) {
-      throw new Error(
-        "Packaged application exited before startup: " + processError(),
-      );
+      throw new Error("Packaged application exited before startup: " + processError());
     }
-
     try {
       const response = await fetch(endpoint + "/json/version");
-      if (response.ok) {
-        return;
-      }
+      if (response.ok) return;
     } catch {
       // The packaged process is still starting.
     }
-
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-
   const error = processError().trim();
   throw new Error(
-    "Packaged application did not expose its test endpoint" +
-      (error ? ":\n" + error : ""),
+    "Packaged application did not expose its test endpoint" + (error ? ":\n" + error : ""),
   );
 }
 
 async function stopProcess(child: ChildProcess): Promise<void> {
-  if (child.exitCode !== null) {
-    return;
-  }
-
-  const exited = new Promise<void>((resolve) => {
-    child.once("exit", () => resolve());
-  });
-
+  if (child.exitCode !== null) return;
+  const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
   child.kill();
-
-  await Promise.race([
-    exited,
-    new Promise<void>((resolve) => {
-      setTimeout(resolve, 5_000);
-    }),
-  ]);
+  await Promise.race([exited, new Promise<void>((resolve) => setTimeout(resolve, 5_000))]);
 }
 
 interface RunningApp {
@@ -133,10 +85,7 @@ interface RunningApp {
   readonly page: Page;
 }
 
-async function startPackagedApp(
-  userData: string,
-  linuxHome?: string,
-): Promise<RunningApp> {
+async function startPackagedApp(userData: string, linuxHome?: string): Promise<RunningApp> {
   const port = await reservePort();
   const endpoint = "http://127.0.0.1:" + port;
   const child = spawn(
@@ -149,10 +98,7 @@ async function startPackagedApp(
               ...process.env,
               GTK_USE_PORTAL: "0",
               ...(linuxHome
-                ? {
-                    HOME: linuxHome,
-                    XDG_CONFIG_HOME: path.join(linuxHome, ".config"),
-                  }
+                ? { HOME: linuxHome, XDG_CONFIG_HOME: path.join(linuxHome, ".config") }
                 : {}),
             }
           : process.env,
@@ -160,28 +106,19 @@ async function startPackagedApp(
       windowsHide: true,
     },
   );
-
   let processError = "";
   child.stderr?.on("data", (chunk: Buffer) => {
     processError += chunk.toString();
   });
-
-  await waitForDebugger(
-    endpoint,
-    () => child.exitCode,
-    () => processError,
-  );
-
+  await waitForDebugger(endpoint, () => child.exitCode, () => processError);
   const browser = await chromium.connectOverCDP(endpoint);
   const context = browser.contexts()[0];
   const page = context?.pages()[0];
-
   if (!page) {
     await browser.close();
     await stopProcess(child);
     throw new Error("Packaged application opened no renderer page");
   }
-
   return { child, browser, page };
 }
 
@@ -195,9 +132,7 @@ function prepareLinuxChooserHome(workspacePath: string): string {
   const homePath = mkdtempSync(path.join(tmpdir(), "aaaat-home-"));
   const configPath = path.join(homePath, ".config");
   mkdirSync(configPath, { recursive: true });
-  const escapedWorkspacePath = workspacePath
-    .replaceAll("\\", "\\\\")
-    .replaceAll('"', '\\"');
+  const escapedWorkspacePath = workspacePath.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
   writeFileSync(
     path.join(configPath, "user-dirs.dirs"),
     `XDG_DOWNLOAD_DIR="${escapedWorkspacePath}"\n`,
@@ -229,19 +164,12 @@ function chooseLinuxDirectory(): void {
   );
 }
 
-test("packaged desktop preserves the bounded workspace boundary", async () => {
+test("packaged desktop preserves bounded workspace, profile, and document boundaries", async () => {
   const executablePath = packagedExecutable();
-  const isolatedUserData = mkdtempSync(
-    path.join(tmpdir(), "aaaat-packaged-"),
-  );
+  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
-  const linuxHome =
-    process.platform === "linux"
-      ? prepareLinuxChooserHome(ownedWorkspace)
-      : undefined;
-
+  const linuxHome = process.platform === "linux" ? prepareLinuxChooserHome(ownedWorkspace) : undefined;
   expect(existsSync(executablePath)).toBe(true);
-
   let running: RunningApp | undefined;
 
   try {
@@ -260,12 +188,13 @@ test("packaged desktop preserves the bounded workspace boundary", async () => {
       system: Object.keys(window.aaaat.system),
       workspace: Object.keys(window.aaaat.workspace),
       profile: Object.keys(window.aaaat.profile),
+      documents: Object.keys(window.aaaat.documents),
     }));
 
     expect(boundary).toEqual({
       processType: "undefined",
       requireType: "undefined",
-      root: ["system", "workspace", "profile"],
+      root: ["system", "workspace", "profile", "documents"],
       system: ["info"],
       workspace: ["current", "choose"],
       profile: [
@@ -280,6 +209,18 @@ test("packaged desktop preserves the bounded workspace boundary", async () => {
         "reorderVariant",
         "resolveVariant",
       ],
+      documents: [
+        "list",
+        "create",
+        "update",
+        "remove",
+        "configureItem",
+        "reorder",
+        "resolve",
+        "render",
+        "regenerate",
+        "exportProject",
+      ],
     });
 
     const csp = await running.page
@@ -288,72 +229,40 @@ test("packaged desktop preserves the bounded workspace boundary", async () => {
     expect(csp).toContain("connect-src 'self'");
     expect(csp).not.toContain("ws://localhost:");
 
-    if (process.platform !== "linux") {
-      return;
-    }
+    if (process.platform !== "linux") return;
 
-    await running.page
-      .getByRole("button", { name: "Create workspace" })
-      .click();
+    await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-
-    await expect(
-      running.page.getByRole("heading", { name: "Workspace ready." }),
-    ).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Documents" })).toBeVisible();
 
     const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
     expect(existsSync(databasePath)).toBe(true);
-
     const database = new DatabaseSync(databasePath, { readOnly: true });
     try {
       expect(
         database
-          .prepare(
-            "SELECT value FROM workspace_metadata WHERE key = 'workspace.initialized_at'",
-          )
+          .prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.initialized_at'")
           .get(),
       ).toMatchObject({ value: expect.any(String) });
-      expect(
-        database
-          .prepare("SELECT name FROM schema_migrations WHERE version = 2")
-          .get(),
-      ).toEqual({ name: "profile" });
+      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 2").get()).toEqual({ name: "profile" });
+      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 3").get()).toEqual({ name: "documents" });
     } finally {
       database.close();
     }
 
     await stopPackagedApp(running);
     running = undefined;
-
     running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(
-      running.page.getByRole("heading", { name: "Workspace ready." }),
-    ).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
   } finally {
-    if (running) {
-      await stopPackagedApp(running);
-    }
-    rmSync(isolatedUserData, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    });
-    rmSync(ownedWorkspace, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    });
+    if (running) await stopPackagedApp(running);
+    rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(ownedWorkspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     if (linuxHome) {
-      rmSync(linuxHome, {
-        recursive: true,
-        force: true,
-        maxRetries: 5,
-        retryDelay: 100,
-      });
+      rmSync(linuxHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   }
 });
