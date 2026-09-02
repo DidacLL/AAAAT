@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/renderer/App";
 import type {
@@ -41,6 +41,10 @@ describe("AAAAT workspace state", () => {
       configurable: true,
       value: desktopApi,
     });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("creates a user-owned workspace through the bounded desktop API", async () => {
