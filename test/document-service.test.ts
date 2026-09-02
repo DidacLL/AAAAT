@@ -13,7 +13,35 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    renameSync(
+      source: Parameters<typeof actual.renameSync>[0],
+      destination: Parameters<typeof actual.renameSync>[1],
+    ) {
+      if (process.env.AAAAT_TEST_RENAME_FAILURE === "managed-rollback") {
+        const sourceText = String(source);
+        if (
+          sourceText.includes(".stage-") &&
+          /[\\/]content\.tex$/.test(sourceText)
+        ) {
+          throw new Error("forced managed install failure");
+        }
+        if (
+          sourceText.includes(".backup-") &&
+          /[\\/]main\.tex$/.test(sourceText)
+        ) {
+          throw new Error("forced managed restore failure");
+        }
+      }
+      return actual.renameSync(source, destination);
+    },
+  };
+});
 
 import {
   configureDocumentItem,
@@ -61,6 +89,7 @@ function installSlowLatexmk(): void {
 
 afterEach(() => {
   process.env.PATH = originalPath;
+  delete process.env.AAAAT_TEST_RENAME_FAILURE;
   for (const root of roots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
   }
@@ -290,6 +319,36 @@ describe("manual document service", () => {
     for (const file of files) {
       expect(readFileSync(path.join(document.projectPath, file), "utf8")).toBe(before.get(file));
     }
+  });
+
+  it("preserves an unrestored managed backup when rollback itself fails", () => {
+    const root = workspace();
+    const { variant } = seeded(root);
+    const document = createDocument(root, {
+      kind: "cv",
+      title: "Rollback-safe CV",
+      variantId: variant.id,
+      engine: "pdflatex",
+      bodyParagraphs: [],
+    });
+    const beforeMain = readFileSync(document.sourcePath, "utf8");
+
+    process.env.AAAAT_TEST_RENAME_FAILURE = "managed-rollback";
+    expect(() => regenerateDocument(root, document.id)).toThrow(
+      "could not replace managed source or fully restore",
+    );
+
+    const parent = path.dirname(document.projectPath);
+    const backup = readdirSync(parent).find((entry) =>
+      entry.startsWith(`${document.id}.backup-`),
+    );
+    expect(backup).toBeDefined();
+    if (!backup) throw new Error("Expected preserved managed backup");
+
+    expect(existsSync(document.sourcePath)).toBe(false);
+    expect(readFileSync(path.join(parent, backup, "main.tex"), "utf8")).toBe(
+      beforeMain,
+    );
   });
 
   it("rejects conflicting document ordering before authoritative state changes", () => {
