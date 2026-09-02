@@ -70,7 +70,8 @@ describe("latex runner", () => {
     );
   });
 
-  it("keeps a missing latexmk error actionable", async () => {
+  const missingCommandIt = process.platform === "win32" ? it.skip : it;
+  missingCommandIt("keeps a missing latexmk error actionable", async () => {
     const project = mkdtempSync(path.join(tmpdir(), "aaaat-missing-latex-"));
     roots.push(project);
     process.env.PATH = project;
