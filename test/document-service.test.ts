@@ -1,6 +1,14 @@
 // @vitest-environment node
 
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  appendFileSync,
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -12,6 +20,7 @@ import {
   exportDocumentProject,
   getDocument,
   regenerateDocument,
+  removeDocument,
   reorderDocument,
   resolveDocument,
   updateDocument,
@@ -21,7 +30,7 @@ import {
   createProfileVariant,
   getProfile,
 } from "../src/main/profile-service";
-import { createOrOpenWorkspace } from "../src/main/workspace";
+import { createOrOpenWorkspace, withWorkspaceDatabase } from "../src/main/workspace";
 
 const roots: string[] = [];
 function workspace(): string {
@@ -171,6 +180,67 @@ describe("manual document service", () => {
     const managed = regenerateDocument(root, document.id);
     expect(managed.mode).toBe("managed");
     expect(readFileSync(managed.sourcePath, "utf8")).not.toContain("% direct user edit");
+  });
+
+  it("restores a staged project when document deletion fails", () => {
+    const root = workspace();
+    const { variant } = seeded(root);
+    const document = createDocument(root, {
+      kind: "cv",
+      title: "Deletion-safe CV",
+      variantId: variant.id,
+      engine: "pdflatex",
+      bodyParagraphs: [],
+    });
+
+    withWorkspaceDatabase(root, (database) => {
+      database.exec(`
+        CREATE TRIGGER reject_document_delete
+        BEFORE DELETE ON documents
+        BEGIN
+          SELECT RAISE(ABORT, 'blocked deletion');
+        END;
+      `);
+    });
+
+    expect(() => removeDocument(root, document.id)).toThrow();
+    expect(getDocument(root, document.id).id).toBe(document.id);
+    expect(existsSync(document.sourcePath)).toBe(true);
+    expect(
+      readdirSync(path.dirname(document.projectPath)).some((entry) =>
+        entry.startsWith(`.aaaat-delete-${document.id}-`),
+      ),
+    ).toBe(false);
+  });
+
+  const permissionIt = process.platform === "win32" ? it.skip : it;
+  permissionIt("keeps the previous managed source when replacement cannot commit", () => {
+    const root = workspace();
+    const { variant } = seeded(root);
+    const document = createDocument(root, {
+      kind: "cv",
+      title: "Replacement-safe CV",
+      variantId: variant.id,
+      engine: "pdflatex",
+      bodyParagraphs: [],
+    });
+    const files = ["main.tex", "content.tex", "aaaat.sty"];
+    const before = new Map(
+      files.map((file) => [file, readFileSync(path.join(document.projectPath, file), "utf8")]),
+    );
+
+    chmodSync(document.projectPath, 0o500);
+    try {
+      expect(() => regenerateDocument(root, document.id)).toThrow(
+        "could not safely replace",
+      );
+    } finally {
+      chmodSync(document.projectPath, 0o700);
+    }
+
+    for (const file of files) {
+      expect(readFileSync(path.join(document.projectPath, file), "utf8")).toBe(before.get(file));
+    }
   });
 
   it("rejects conflicting document ordering before authoritative state changes", () => {
