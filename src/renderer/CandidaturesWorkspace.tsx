@@ -180,7 +180,7 @@ export function CandidaturesWorkspace() {
     try {
       const saved = await window.aaaat.candidatures.update(draft);
       storeRecord(saved);
-      hydrateRecord(saved);
+      setDraft(editableRecord(saved));
     } catch {
       setError("AAAAT could not save this candidature.");
     }
