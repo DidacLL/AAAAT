@@ -222,7 +222,16 @@ test("packaged desktop preserves bounded workspace, profile, document, and candi
         "regenerate",
         "exportProject",
       ],
-      candidatures: ["list", "create", "update", "setDocuments"],
+      candidatures: [
+        "list",
+        "create",
+        "update",
+        "setDocuments",
+        "listConcepts",
+        "createConcept",
+        "updateConcept",
+        "setConcepts",
+      ],
     });
 
     const csp = await running.page
@@ -252,6 +261,7 @@ test("packaged desktop preserves bounded workspace, profile, document, and candi
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 2").get()).toEqual({ name: "profile" });
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 3").get()).toEqual({ name: "documents" });
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 4").get()).toEqual({ name: "candidatures" });
+      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 5").get()).toEqual({ name: "concepts" });
     } finally {
       database.close();
     }
