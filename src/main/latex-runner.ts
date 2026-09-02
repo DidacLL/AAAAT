@@ -9,8 +9,6 @@ export class LatexRunnerError extends Error {
   }
 }
 
-const activeProjects = new Set<string>();
-
 async function terminateProcessTree(child: ChildProcess): Promise<void> {
   if (!child.pid || child.exitCode !== null) return;
 
@@ -48,53 +46,44 @@ export async function runLatexmk(
   engine: DocumentEngine,
   timeoutMs = 30_000,
 ): Promise<void> {
-  if (activeProjects.has(projectPath)) {
-    throw new LatexRunnerError("This document is already rendering.");
-  }
-  activeProjects.add(projectPath);
-
-  try {
-    const engineFlag = engine === "pdflatex" ? "-pdf" : `-${engine}`;
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(
-        "latexmk",
-        [
-          engineFlag,
-          "-interaction=nonstopmode",
-          "-halt-on-error",
-          "-outdir=build",
-          "main.tex",
-        ],
-        {
-          cwd: projectPath,
-          stdio: "ignore",
-          windowsHide: true,
-          detached: process.platform !== "win32",
-        },
-      );
-      let settled = false;
-      const finish = (error?: Error) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        if (error) reject(error);
-        else resolve();
-      };
-      const timer = setTimeout(() => {
-        void terminateProcessTree(child).finally(() => {
-          finish(new LatexRunnerError("TeX rendering timed out."));
-        });
-      }, timeoutMs);
-
-      child.once("error", () => {
-        finish(new LatexRunnerError("TeX rendering could not start."));
+  const engineFlag = engine === "pdflatex" ? "-pdf" : `-${engine}`;
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(
+      "latexmk",
+      [
+        engineFlag,
+        "-interaction=nonstopmode",
+        "-halt-on-error",
+        "-outdir=build",
+        "main.tex",
+      ],
+      {
+        cwd: projectPath,
+        stdio: "ignore",
+        windowsHide: true,
+        detached: process.platform !== "win32",
+      },
+    );
+    let settled = false;
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    };
+    const timer = setTimeout(() => {
+      void terminateProcessTree(child).finally(() => {
+        finish(new LatexRunnerError("TeX rendering timed out."));
       });
-      child.once("exit", (code) => {
-        if (code === 0) finish();
-        else finish(new LatexRunnerError("TeX rendering failed."));
-      });
+    }, timeoutMs);
+
+    child.once("error", () => {
+      finish(new LatexRunnerError("TeX rendering could not start."));
     });
-  } finally {
-    activeProjects.delete(projectPath);
-  }
+    child.once("exit", (code) => {
+      if (code === 0) finish();
+      else finish(new LatexRunnerError("TeX rendering failed."));
+    });
+  });
 }
