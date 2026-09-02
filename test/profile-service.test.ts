@@ -182,7 +182,9 @@ describe("canonical profile and focused variants", () => {
       const itemIds = snapshot.items.map((item) => item.id);
       expect(variant).toBeDefined();
       expect(itemIds).toHaveLength(2);
-      if (!variant || itemIds.length !== 2) {
+      const firstId = itemIds[0];
+      const secondId = itemIds[1];
+      if (!variant || !firstId || !secondId) {
         return;
       }
 
@@ -190,7 +192,7 @@ describe("canonical profile and focused variants", () => {
       expect(() =>
         reorderProfileVariant(root, {
           variantId: variant.id,
-          itemIds: [itemIds[0], itemIds[0]],
+          itemIds: [firstId, firstId],
         }),
       ).toThrow(
         "Variant ordering must contain every canonical profile item exactly once.",
