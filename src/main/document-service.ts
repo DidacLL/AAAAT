@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import {
   accessSync,
   constants,
@@ -7,6 +6,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -37,6 +37,7 @@ import {
 import aaatStyle from "./latex/aaaat.sty?raw";
 import coverLetterTemplate from "./latex/cover-letter.tex?raw";
 import cvTemplate from "./latex/cv.tex?raw";
+import { LatexRunnerError, runLatexmk } from "./latex-runner";
 import { resolveProfileVariant } from "./profile-service";
 import { withWorkspaceDatabase } from "./workspace";
 
@@ -70,6 +71,8 @@ class DocumentServiceError extends Error {
   }
 }
 
+const activeRenders = new Set<string>();
+
 function transact(database: DatabaseSync, action: () => void): void {
   database.exec("BEGIN IMMEDIATE");
   try {
@@ -89,8 +92,7 @@ function nullable(value: string | undefined): string | null {
   return value === undefined ? null : value;
 }
 
-function projectPaths(rootPath: string, documentId: string) {
-  const projectPath = path.join(rootPath, "documents", documentId);
+function pathsForProject(projectPath: string) {
   return {
     projectPath,
     sourcePath: path.join(projectPath, "main.tex"),
@@ -98,6 +100,16 @@ function projectPaths(rootPath: string, documentId: string) {
     stylePath: path.join(projectPath, "aaaat.sty"),
     artifactPath: path.join(projectPath, "build", "main.pdf"),
   };
+}
+
+function projectPaths(rootPath: string, documentId: string) {
+  return pathsForProject(path.join(rootPath, "documents", documentId));
+}
+
+function assertProjectIdle(rootPath: string, documentId: string): void {
+  if (activeRenders.has(projectPaths(rootPath, documentId).projectPath)) {
+    throw new DocumentServiceError("This document is currently rendering.");
+  }
 }
 
 function parseBody(value: string): string[] {
@@ -379,17 +391,41 @@ export function removeDocument(
   rootPath: string,
   documentId: string,
 ): DocumentRecord[] {
-  withWorkspaceDatabase(rootPath, (database) => {
-    requireDocumentRow(database, documentId);
-    transact(database, () => {
-      recordActivity(database, documentId, "document.remove");
-      database.prepare("DELETE FROM documents WHERE id = ?").run(documentId);
+  assertProjectIdle(rootPath, documentId);
+  const paths = projectPaths(rootPath, documentId);
+  const stagedPath = path.join(
+    path.dirname(paths.projectPath),
+    `.aaaat-delete-${documentId}-${randomUUID()}`,
+  );
+  let staged = false;
+
+  if (existsSync(paths.projectPath)) {
+    renameSync(paths.projectPath, stagedPath);
+    staged = true;
+  }
+
+  try {
+    withWorkspaceDatabase(rootPath, (database) => {
+      requireDocumentRow(database, documentId);
+      transact(database, () => {
+        recordActivity(database, documentId, "document.remove");
+        database.prepare("DELETE FROM documents WHERE id = ?").run(documentId);
+      });
     });
-  });
-  rmSync(projectPaths(rootPath, documentId).projectPath, {
-    recursive: true,
-    force: true,
-  });
+  } catch (error) {
+    if (staged && existsSync(stagedPath)) {
+      renameSync(stagedPath, paths.projectPath);
+    }
+    throw error;
+  }
+
+  if (staged) {
+    try {
+      rmSync(stagedPath, { recursive: true, force: true });
+    } catch (error) {
+      console.warn("AAAAT preserved staged source after document removal cleanup failed.", error);
+    }
+  }
   return listDocuments(rootPath);
 }
 
@@ -614,27 +650,84 @@ function sourceHash(paths: ReturnType<typeof projectPaths>): string | null {
 function writeManagedProject(rootPath: string, documentId: string): string {
   const resolved = resolveDocument(rootPath, documentId);
   const paths = projectPaths(rootPath, documentId);
-  mkdirSync(paths.projectPath, { recursive: true });
-  writeFileSync(
-    paths.sourcePath,
-    resolved.document.kind === "cv" ? cvTemplate : coverLetterTemplate,
-    "utf8",
-  );
-  writeFileSync(
-    paths.contentPath,
-    resolved.document.kind === "cv"
-      ? cvContent(resolved)
-      : coverLetterContent(resolved),
-    "utf8",
-  );
-  writeFileSync(paths.stylePath, aaatStyle, "utf8");
-  const hash = sourceHash(paths);
-  if (!hash) {
+  const stagePaths = pathsForProject(`${paths.projectPath}.stage-${randomUUID()}`);
+  const backupPaths = pathsForProject(`${paths.projectPath}.backup-${randomUUID()}`);
+  const replacements = [
+    [stagePaths.sourcePath, paths.sourcePath, backupPaths.sourcePath],
+    [stagePaths.contentPath, paths.contentPath, backupPaths.contentPath],
+    [stagePaths.stylePath, paths.stylePath, backupPaths.stylePath],
+  ] as const;
+  const installed: string[] = [];
+  const backedUp: Array<readonly [string, string]> = [];
+
+  try {
+    mkdirSync(stagePaths.projectPath, { recursive: true });
+    writeFileSync(
+      stagePaths.sourcePath,
+      resolved.document.kind === "cv" ? cvTemplate : coverLetterTemplate,
+      "utf8",
+    );
+    writeFileSync(
+      stagePaths.contentPath,
+      resolved.document.kind === "cv"
+        ? cvContent(resolved)
+        : coverLetterContent(resolved),
+      "utf8",
+    );
+    writeFileSync(stagePaths.stylePath, aaatStyle, "utf8");
+    const hash = sourceHash(stagePaths);
+    if (!hash) {
+      throw new Error("staged source incomplete");
+    }
+
+    mkdirSync(paths.projectPath, { recursive: true });
+    mkdirSync(backupPaths.projectPath, { recursive: true });
+    for (const [stagedFile, targetFile, backupFile] of replacements) {
+      if (existsSync(targetFile)) {
+        renameSync(targetFile, backupFile);
+        backedUp.push([backupFile, targetFile]);
+      }
+      renameSync(stagedFile, targetFile);
+      installed.push(targetFile);
+    }
+
+    for (const directory of [stagePaths.projectPath, backupPaths.projectPath]) {
+      try {
+        rmSync(directory, { recursive: true, force: true });
+      } catch (error) {
+        console.warn("AAAAT preserved staged managed-source files after cleanup failed.", error);
+      }
+    }
+    return hash;
+  } catch {
+    let recoveryFailed = false;
+    for (const targetFile of [...installed].reverse()) {
+      try {
+        rmSync(targetFile, { force: true });
+      } catch {
+        recoveryFailed = true;
+      }
+    }
+    for (const [backupFile, targetFile] of [...backedUp].reverse()) {
+      if (!existsSync(backupFile)) continue;
+      try {
+        renameSync(backupFile, targetFile);
+      } catch {
+        recoveryFailed = true;
+      }
+    }
+    try {
+      rmSync(stagePaths.projectPath, { recursive: true, force: true });
+      rmSync(backupPaths.projectPath, { recursive: true, force: true });
+    } catch {
+      recoveryFailed = true;
+    }
     throw new DocumentServiceError(
-      "AAAAT could not create the managed document source.",
+      recoveryFailed
+        ? "AAAAT could not replace managed source or fully restore the previous files."
+        : "AAAAT could not safely replace the managed document source.",
     );
   }
-  return hash;
 }
 
 function setSourceState(
@@ -699,6 +792,7 @@ export function regenerateDocument(
   rootPath: string,
   documentId: string,
 ): DocumentRecord {
+  assertProjectIdle(rootPath, documentId);
   getDocument(rootPath, documentId);
   const hash = writeManagedProject(rootPath, documentId);
   return setSourceState(
@@ -710,47 +804,44 @@ export function regenerateDocument(
   );
 }
 
-export function renderDocument(
+export async function renderDocument(
   rootPath: string,
   documentId: string,
-): DocumentRecord {
-  const document = prepareProject(rootPath, documentId);
+  timeoutMs = 30_000,
+): Promise<DocumentRecord> {
   const paths = projectPaths(rootPath, documentId);
-  mkdirSync(path.dirname(paths.artifactPath), { recursive: true });
-  const engineFlag =
-    document.engine === "pdflatex" ? "-pdf" : `-${document.engine}`;
-  const result = spawnSync(
-    "latexmk",
-    [
-      engineFlag,
-      "-interaction=nonstopmode",
-      "-halt-on-error",
-      "-outdir=build",
-      "main.tex",
-    ],
-    {
-      cwd: paths.projectPath,
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 30_000,
-    },
-  );
-  if (result.error) {
-    throw new DocumentServiceError(
-      `TeX rendering could not start or timed out. Install latexmk and ${document.engine}.`,
-    );
+  if (activeRenders.has(paths.projectPath)) {
+    throw new DocumentServiceError("This document is already rendering.");
   }
-  if (result.status !== 0 || !existsSync(paths.artifactPath)) {
-    throw new DocumentServiceError(
-      `TeX rendering failed. Check that latexmk and ${document.engine} are installed and compatible.`,
-    );
+  activeRenders.add(paths.projectPath);
+
+  try {
+    const document = prepareProject(rootPath, documentId);
+    mkdirSync(path.dirname(paths.artifactPath), { recursive: true });
+    try {
+      await runLatexmk(paths.projectPath, document.engine, timeoutMs);
+    } catch (error) {
+      if (error instanceof LatexRunnerError) {
+        throw new DocumentServiceError(
+          `${error.message} Check that latexmk and ${document.engine} are installed and compatible.`,
+        );
+      }
+      throw error;
+    }
+    if (!existsSync(paths.artifactPath)) {
+      throw new DocumentServiceError(
+        `TeX rendering failed. Check that latexmk and ${document.engine} are installed and compatible.`,
+      );
+    }
+    withWorkspaceDatabase(rootPath, (database) => {
+      transact(database, () =>
+        recordActivity(database, documentId, "document.render"),
+      );
+    });
+    return getDocument(rootPath, documentId);
+  } finally {
+    activeRenders.delete(paths.projectPath);
   }
-  withWorkspaceDatabase(rootPath, (database) => {
-    transact(database, () =>
-      recordActivity(database, documentId, "document.render"),
-    );
-  });
-  return getDocument(rootPath, documentId);
 }
 
 function safeProjectName(document: DocumentRecord): string {
@@ -768,6 +859,7 @@ export function exportDocumentProject(
   documentId: string,
   targetParent: string,
 ): string {
+  assertProjectIdle(rootPath, documentId);
   const document = prepareProject(rootPath, documentId);
   try {
     if (!statSync(targetParent).isDirectory()) {

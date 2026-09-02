@@ -1,6 +1,15 @@
 // @vitest-environment node
 
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  appendFileSync,
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -12,6 +21,8 @@ import {
   exportDocumentProject,
   getDocument,
   regenerateDocument,
+  removeDocument,
+  renderDocument,
   reorderDocument,
   resolveDocument,
   updateDocument,
@@ -21,9 +32,11 @@ import {
   createProfileVariant,
   getProfile,
 } from "../src/main/profile-service";
-import { createOrOpenWorkspace } from "../src/main/workspace";
+import { createOrOpenWorkspace, withWorkspaceDatabase } from "../src/main/workspace";
 
 const roots: string[] = [];
+const originalPath = process.env.PATH;
+
 function workspace(): string {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-document-"));
   roots.push(root);
@@ -31,7 +44,23 @@ function workspace(): string {
   return root;
 }
 
+function installSlowLatexmk(): void {
+  const root = mkdtempSync(path.join(tmpdir(), "aaaat-document-latex-"));
+  roots.push(root);
+  const script = path.join(root, "fake-latex.js");
+  writeFileSync(
+    script,
+    `const fs = require("node:fs");\nconst path = require("node:path");\nsetTimeout(() => {\n  fs.mkdirSync(path.join(process.cwd(), "build"), { recursive: true });\n  fs.writeFileSync(path.join(process.cwd(), "build", "main.pdf"), "pdf");\n  process.exit(0);\n}, 150);\n`,
+    "utf8",
+  );
+  const executable = path.join(root, "latexmk");
+  writeFileSync(executable, `#!/usr/bin/env node\nrequire(${JSON.stringify(script)});\n`, "utf8");
+  chmodSync(executable, 0o755);
+  process.env.PATH = `${root}${path.delimiter}${originalPath ?? ""}`;
+}
+
 afterEach(() => {
+  process.env.PATH = originalPath;
   for (const root of roots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
   }
@@ -171,6 +200,96 @@ describe("manual document service", () => {
     const managed = regenerateDocument(root, document.id);
     expect(managed.mode).toBe("managed");
     expect(readFileSync(managed.sourcePath, "utf8")).not.toContain("% direct user edit");
+  });
+
+  it("owns the project for the full render operation", async () => {
+    const root = workspace();
+    const exportRoot = mkdtempSync(path.join(tmpdir(), "aaaat-render-export-"));
+    roots.push(exportRoot);
+    installSlowLatexmk();
+    const { variant } = seeded(root);
+    const document = createDocument(root, {
+      kind: "cv",
+      title: "Render-locked CV",
+      variantId: variant.id,
+      engine: "pdflatex",
+      bodyParagraphs: [],
+    });
+
+    const rendering = renderDocument(root, document.id, 1_000);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    await expect(renderDocument(root, document.id, 1_000)).rejects.toThrow(
+      "already rendering",
+    );
+    expect(() => regenerateDocument(root, document.id)).toThrow("currently rendering");
+    expect(() => exportDocumentProject(root, document.id, exportRoot)).toThrow(
+      "currently rendering",
+    );
+    expect(() => removeDocument(root, document.id)).toThrow("currently rendering");
+    await expect(rendering).resolves.toMatchObject({ id: document.id });
+    expect(existsSync(document.artifactPath)).toBe(true);
+  });
+
+  it("restores a staged project when document deletion fails", () => {
+    const root = workspace();
+    const { variant } = seeded(root);
+    const document = createDocument(root, {
+      kind: "cv",
+      title: "Deletion-safe CV",
+      variantId: variant.id,
+      engine: "pdflatex",
+      bodyParagraphs: [],
+    });
+
+    withWorkspaceDatabase(root, (database) => {
+      database.exec(`
+        CREATE TRIGGER reject_document_delete
+        BEFORE DELETE ON documents
+        BEGIN
+          SELECT RAISE(ABORT, 'blocked deletion');
+        END;
+      `);
+    });
+
+    expect(() => removeDocument(root, document.id)).toThrow();
+    expect(getDocument(root, document.id).id).toBe(document.id);
+    expect(existsSync(document.sourcePath)).toBe(true);
+    expect(
+      readdirSync(path.dirname(document.projectPath)).some((entry) =>
+        entry.startsWith(`.aaaat-delete-${document.id}-`),
+      ),
+    ).toBe(false);
+  });
+
+  const permissionIt = process.platform === "win32" ? it.skip : it;
+  permissionIt("keeps the previous managed source when replacement cannot commit", () => {
+    const root = workspace();
+    const { variant } = seeded(root);
+    const document = createDocument(root, {
+      kind: "cv",
+      title: "Replacement-safe CV",
+      variantId: variant.id,
+      engine: "pdflatex",
+      bodyParagraphs: [],
+    });
+    const files = ["main.tex", "content.tex", "aaaat.sty"];
+    const before = new Map(
+      files.map((file) => [file, readFileSync(path.join(document.projectPath, file), "utf8")]),
+    );
+
+    chmodSync(document.projectPath, 0o500);
+    try {
+      expect(() => regenerateDocument(root, document.id)).toThrow(
+        "could not safely replace",
+      );
+    } finally {
+      chmodSync(document.projectPath, 0o700);
+    }
+
+    for (const file of files) {
+      expect(readFileSync(path.join(document.projectPath, file), "utf8")).toBe(before.get(file));
+    }
   });
 
   it("rejects conflicting document ordering before authoritative state changes", () => {

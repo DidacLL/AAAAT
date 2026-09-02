@@ -295,10 +295,10 @@ function registerIpc(mainWindow: BrowserWindow): void {
       resolveDocument(requireWorkspaceRoot(), documentRecordSchema.shape.id.parse(documentId)),
     );
   });
-  ipcMain.handle(channels.documentRender, (event, documentId: unknown) => {
+  ipcMain.handle(channels.documentRender, async (event, documentId: unknown) => {
     assertTrustedSender(event, mainWindow);
     return documentRecordSchema.parse(
-      renderDocument(requireWorkspaceRoot(), documentRecordSchema.shape.id.parse(documentId)),
+      await renderDocument(requireWorkspaceRoot(), documentRecordSchema.shape.id.parse(documentId)),
     );
   });
   ipcMain.handle(channels.documentRegenerate, (event, documentId: unknown) => {
