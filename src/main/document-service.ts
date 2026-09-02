@@ -718,9 +718,15 @@ function writeManagedProject(rootPath: string, documentId: string): string {
     }
     try {
       rmSync(stagePaths.projectPath, { recursive: true, force: true });
-      rmSync(backupPaths.projectPath, { recursive: true, force: true });
     } catch {
       recoveryFailed = true;
+    }
+    if (!recoveryFailed) {
+      try {
+        rmSync(backupPaths.projectPath, { recursive: true, force: true });
+      } catch {
+        recoveryFailed = true;
+      }
     }
     throw new DocumentServiceError(
       recoveryFailed
