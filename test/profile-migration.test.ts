@@ -11,7 +11,7 @@ import { expect, it } from "vitest";
 import workspaceMigrationSql from "../src/main/migrations/001_workspace.sql?raw";
 import { openWorkspace } from "../src/main/workspace";
 
-it("upgrades an existing workspace-root database through profile and document schemas", () => {
+it("upgrades an existing workspace-root database through current product schemas", () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-profile-migration-"));
   const databasePath = path.join(root, "workspace.sqlite");
   const hash = createHash("sha256").update(workspaceMigrationSql).digest("hex");
@@ -44,14 +44,19 @@ it("upgrades an existing workspace-root database through profile and document sc
         { version: 1, name: "workspace" },
         { version: 2, name: "profile" },
         { version: 3, name: "documents" },
+        { version: 4, name: "candidatures" },
       ]);
       expect(
         upgraded
           .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('profile_items', 'documents') ORDER BY name",
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('profile_items', 'documents', 'candidatures') ORDER BY name",
           )
           .all(),
-      ).toEqual([{ name: "documents" }, { name: "profile_items" }]);
+      ).toEqual([
+        { name: "candidatures" },
+        { name: "documents" },
+        { name: "profile_items" },
+      ]);
     } finally {
       upgraded.close();
     }
