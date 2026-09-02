@@ -9,8 +9,27 @@ export class LatexRunnerError extends Error {
   }
 }
 
+function waitForExit(child: ChildProcess, timeoutMs = 2_000): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      child.removeListener("exit", onExit);
+      reject(new LatexRunnerError("TeX rendering timed out and could not be terminated."));
+    }, timeoutMs);
+    child.once("exit", onExit);
+  });
+}
+
 async function terminateProcessTree(child: ChildProcess): Promise<void> {
-  if (!child.pid || child.exitCode !== null) return;
+  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
+  const exited = waitForExit(child);
 
   if (process.platform === "win32") {
     await new Promise<void>((resolve) => {
@@ -31,14 +50,15 @@ async function terminateProcessTree(child: ChildProcess): Promise<void> {
       });
       killer.once("close", done);
     });
-    return;
+  } else {
+    try {
+      process.kill(-child.pid, "SIGKILL");
+    } catch {
+      child.kill("SIGKILL");
+    }
   }
 
-  try {
-    process.kill(-child.pid, "SIGKILL");
-  } catch {
-    child.kill("SIGKILL");
-  }
+  await exited;
 }
 
 export async function runLatexmk(
@@ -65,6 +85,7 @@ export async function runLatexmk(
       },
     );
     let settled = false;
+    let timingOut = false;
     const finish = (error?: Error) => {
       if (settled) return;
       settled = true;
@@ -73,17 +94,30 @@ export async function runLatexmk(
       else resolve();
     };
     const timer = setTimeout(() => {
-      void terminateProcessTree(child).finally(() => {
-        finish(new LatexRunnerError("TeX rendering timed out."));
-      });
+      timingOut = true;
+      void terminateProcessTree(child)
+        .then(() => finish(new LatexRunnerError("TeX rendering timed out.")))
+        .catch((error: unknown) =>
+          finish(
+            error instanceof Error
+              ? error
+              : new LatexRunnerError("TeX rendering timed out and could not be terminated."),
+          ),
+        );
     }, timeoutMs);
 
-    child.once("error", () => {
-      finish(new LatexRunnerError("TeX rendering could not start."));
+    child.once("error", (error) => {
+      if (timingOut) return;
+      finish(
+        new LatexRunnerError(
+          `TeX rendering could not start. Install latexmk and ${engine}. ${error.message}`,
+        ),
+      );
     });
     child.once("exit", (code) => {
+      if (timingOut) return;
       if (code === 0) finish();
-      else finish(new LatexRunnerError("TeX rendering failed."));
+      else finish(new LatexRunnerError(`TeX rendering failed with exit code ${code ?? "unknown"}.`));
     });
   });
 }
