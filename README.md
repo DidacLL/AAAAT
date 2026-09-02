@@ -6,7 +6,9 @@ AAAAT v2 is a clean restart. The Python/wxPython v1 implementation remains avail
 
 ## Current mission
 
-M0 - Foundation proves the secure Electron + React + TypeScript + SQLite desktop boundary, automated verification, and native packaging. Product domains begin only after that proof is complete.
+M1 - Manual VCVGenerator establishes the real user-owned workspace, canonical career data and profile variants, editable manual CV and cover-letter documents, portable LaTeX projects, and local rendering. Candidature tracking, AI assistance, and agent interoperability remain later Missions.
+
+M0 - Foundation is complete. The secure Electron + React + TypeScript + SQLite boundary, verification path, and native packaging evidence remain the development baseline rather than current product scope.
 
 Authoritative material:
 
@@ -15,7 +17,7 @@ Authoritative material:
 - [`.agentic/CURRENT_MISSION.md`](.agentic/CURRENT_MISSION.md)
 - [`AGENTS.md`](AGENTS.md)
 
-## M0 development
+## Development baseline
 
 Use Node 24 and the committed npm lockfile:
 
