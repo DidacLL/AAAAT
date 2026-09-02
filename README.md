@@ -6,7 +6,9 @@ AAAAT v2 is a clean restart. The Python/wxPython v1 implementation remains avail
 
 ## Current mission
 
-M2 - Candidature Workspace is the active Mission. It adds manual opportunity tracking over the proven local workspace: partial candidature records, source material, status and archive organization, search, notes, shared concepts, recruiter-call focus views, and associations to existing CV/cover-letter documents. AI assistance and agent interoperability remain later Missions.
+M3 - AI Assistance is the active Mission. It adds optional direct model-provider assistance over the proven manual workspace through operation-specific minimum context, privacy projection before inference, typed validated results, explicit conflict policy, and normal application-service mutations. AI remains optional and provider-neutral; external-agent interoperability remains M4.
+
+The M2 - Candidature Workspace checkpoint is accepted. Manual incomplete opportunity tracking, source/notes, status and independent archiving, search/filtering, shared concepts, recruiter-call focus views, and associations to existing CV/cover-letter documents are proven baseline capabilities. The post-M2 stabilization corrections for dirty-editor state, TeX/document recovery, migration history, and truthful activity semantics are also complete.
 
 The M1 - Manual VCVGenerator checkpoint is accepted. The user-owned workspace, canonical career data and focused variants, editable manual CV/cover-letter documents, portable LaTeX projects, local rendering, direct-edit preservation, and unrelated-directory compilation evidence are proven product baseline capabilities. A completed Mission checkpoint records the bounded capability accepted for that Mission; it is not by itself a claim that every eventual capability named in the canonical SPEC has already been implemented.
 

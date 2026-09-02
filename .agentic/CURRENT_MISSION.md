@@ -1,34 +1,35 @@
-# M2 — Candidature Workspace
+# M3 — AI Assistance
 
 ## Outcome
 
-AAAAT lets the user manually track job-search opportunities inside the user-owned workspace, retain useful source material and notes, search and organize candidatures by a small lifecycle, attach shared concepts and existing documents, and use focused recruiter-call views without AI.
+AAAAT adds optional AI assistance over the proven manual workspace. The user can configure a model connection and invoke bounded, privacy-projected operations for job extraction, fit assessment, profile-variant recommendation, CV tailoring, and cover-letter drafting without making AI authoritative or required.
 
 ## Required
 
-- candidature records remain useful with partial information
-- store the demonstrated opportunity fields needed for manual tracking: company, role, location, work mode, salary text, source/source URL, status, relevant dates, next action, and notes
-- lifecycle states stay small and understandable; archiving remains independent from lifecycle state
-- durable candidature mutations use explicit application services and the existing workspace SQLite/migration rules
-- narrow validated preload/domain methods; no generic CRUD, SQL, filesystem, shell, or Electron authority
-- manual creation, editing, archiving, search/filtering, and status organization through the desktop UI
-- preserve source material needed to understand where a candidature came from
-- shared technologies/domain concepts/role keywords only to the extent needed by M2, with candidature associations and concise definitions/aliases where demonstrated
-- recruiter-call/focus views are projections over candidature records and shared concepts, not separate domain models
-- associate existing M1 CV/cover-letter documents with candidatures without changing document portability or canonical-profile semantics
-- behavior/domain tests for persistence, lifecycle, search, associations, and renderer privilege boundaries
-- packaged runtime evidence remains focused on critical persisted/security boundaries rather than expanding into a large UI smoke suite
+- preserve complete manual usefulness when no AI provider is configured or available
+- keep the AI domain provider-neutral; product/domain code does not import provider-specific request types or behavior
+- begin with the smallest demonstrated direct-provider boundary, using an OpenAI-compatible HTTP shape where it removes duplication across real local or remote providers
+- each AI operation owns its input/output schema, minimum required context, privacy requirements, capability requirements, instructions, and mutation/conflict policy
+- construct operation-specific context immediately before inference and apply privacy projection before any provider invocation
+- each eligible value may be exposed, omitted, or replaced by a local opaque token; token mappings remain local
+- classify configured connections as local, remote, or unknown and make remote disclosure understandable; unusually broad remote analysis requires proportionate acknowledgement
+- validate every provider result against the operation contract before it can affect authoritative state
+- permitted valid results use the same normal application services as manual UI mutations; invalid output never mutates authoritative data and conflicting proposals never silently overwrite existing authoritative values
+- credentials are not plaintext application records; use Electron secure OS storage where available and explain insecure fallback conditions rather than masking them
+- renderer authority remains narrow: no arbitrary provider networking, credential access, filesystem, database, process, or generic privileged invocation
+- deterministic provider fixtures and focused operation/privacy tests prove the implemented contracts
 
 ## Explicit non-goals
 
-- AI providers, extraction, recommendation, tailoring, drafting, or privacy projection (M3)
-- MCP, external agent commands, host integrations, installer automation, or portable AI exchange (M4)
-- company-research agents, task/workflow engines, background schedulers, or general CRM infrastructure
-- generic repositories, REST/GraphQL APIs, ORM, Redux, event buses, or plugin frameworks
-- cloud synchronization or multi-user collaboration
-- v1 compatibility or migration
-- reopening the M0 Electron/SQLite boundary or M1 workspace/profile/document contracts without concrete evidence
+- AI becoming mandatory for core AAAAT, candidature management, profile editing, or VCVGenerator
+- M4 external control: MCP, host integrations, external agent commands, installer automation, portable AI exchange, backup, or restore
+- agent frameworks, workflow frameworks, provider registries or marketplaces, cloud gateways, background schedulers, generic durable task systems, or event buses
+- generic field-action registries or general approval queues
+- direct renderer networking or credential authority
+- arbitrary AI-generated executable TeX projects as the normal document path
+- redesigning the M0 Electron/SQLite boundary or M1/M2 domain contracts without concrete evidence
+- company-research agents or broad autonomous job-search workflows
 
 ## Completion
 
-A user can create and maintain incomplete candidatures manually, find and organize them quickly by search/status, retain source and notes, associate useful concepts and existing documents, archive independently from status, and open a focused recruiter-call view that surfaces the selected opportunity and its relevant context. Independent review accepts the result without M3/M4 infrastructure or speculative abstractions.
+A user can configure at least one demonstrated direct model connection and use the bounded M3 operations through coherent desktop workflows. Provider input is privacy-projected before inference, output is typed and validated, conflicts cannot silently overwrite authoritative data, permitted mutations follow ordinary application services, and the product remains fully useful when AI is absent. Independent review accepts the result without M4 infrastructure or speculative AI frameworks.
