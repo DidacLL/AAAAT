@@ -32,6 +32,7 @@ async function terminateProcessTree(child: ChildProcess): Promise<void> {
   const exited = waitForExit(child);
 
   if (process.platform === "win32") {
+    let treeKillFailed = false;
     await new Promise<void>((resolve) => {
       const killer = spawn(
         "taskkill",
@@ -45,19 +46,32 @@ async function terminateProcessTree(child: ChildProcess): Promise<void> {
         resolve();
       };
       killer.once("error", () => {
+        treeKillFailed = true;
         child.kill();
         done();
       });
-      killer.once("close", done);
+      killer.once("close", (code) => {
+        if (code !== 0) {
+          treeKillFailed = true;
+          child.kill();
+        }
+        done();
+      });
     });
-  } else {
-    try {
-      process.kill(-child.pid, "SIGKILL");
-    } catch {
-      child.kill("SIGKILL");
+    await exited;
+    if (treeKillFailed) {
+      throw new LatexRunnerError(
+        "TeX rendering timed out and the Windows process tree could not be terminated reliably.",
+      );
     }
+    return;
   }
 
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    child.kill("SIGKILL");
+  }
   await exited;
 }
 
