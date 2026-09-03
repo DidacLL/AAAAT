@@ -68,9 +68,57 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
+      - name: Install Linux package and smoke prerequisites
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes fakeroot openbox xdotool
       - name: Verify TeX runner process behavior
         run: npx vitest run test/latex-runner.test.ts
-      - run: npm run build
+      - name: Build release artifact
+        run: npm run make
+      - name: Inspect Windows release ZIP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path out/make -Recurse -File -Filter *.zip | Select-Object -First 1
+          if (-not $zip) { throw "Windows release ZIP was not created" }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
+          try {
+            $entries = @($archive.Entries | ForEach-Object { $_.FullName })
+            $entries | ForEach-Object { Write-Host $_ }
+            $exe = $entries | Where-Object { $_.EndsWith("aaaat.exe", [System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
+            if (-not $exe) { throw "Windows release ZIP does not contain aaat.exe" }
+          } finally {
+            $archive.Dispose()
+          }
+      - name: Inspect macOS release ZIP
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          zip_path=$(find out/make -type f -name '*.zip' -print -quit)
+          test -n "$zip_path"
+          unzip -l "$zip_path" | grep -q 'AAAAT.app/Contents/MacOS/aaaat'
+      - name: Inspect Linux release package
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          deb_path=$(find out/make -type f -name '*.deb' -print -quit)
+          test -n "$deb_path"
+          dpkg-deb --info "$deb_path"
+          dpkg-deb --contents "$deb_path" | tee /tmp/aaaat-deb-contents.txt
+          grep -Eq '^-rwsr-xr-x root/root .*chrome-sandbox$' /tmp/aaaat-deb-contents.txt
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: AAAAT-${{ matrix.os }}-${{ runner.arch }}
+          path: |
+            out/make/**/*.zip
+            out/make/**/*.deb
+          if-no-files-found: error
+          compression-level: 0
       - name: Install demonstrated VS Code host contract (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -96,12 +144,6 @@ jobs:
           sudo chown root:root "$sandbox_path"
           sudo chmod 4755 "$sandbox_path"
           stat -c '%U %a %n' "$sandbox_path"
-      - name: Install native dialog smoke helper (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes openbox xdotool
       - name: Packaged runtime smoke
         if: runner.os != 'Linux'
         run: npm run test:desktop

@@ -76,6 +76,19 @@ Backup creates a consistent SQLite snapshot with Node's SQLite backup API plus r
 
 Restore treats the backup as untrusted input. Before writing the destination it validates the manifest, relative paths, regular-file/symlink containment, every declared size/hash, SQLite integrity, and migration-history compatibility. Source and destination may not overlap, restore requires an empty destination, and failed activation removes partial state. A successful restored workspace must open through the normal workspace path.
 
+## Release artifacts
+
+The current alpha release build uses the same Electron Forge package already exercised by the native smoke suite:
+
+```text
+npm ci
+npm run make
+```
+
+On Windows and macOS this creates a ZIP containing the packaged application. On Linux it creates a Debian package for Debian/Ubuntu-style systems. Release CI creates and inspects the same artifacts before uploading them as workflow artifacts.
+
+These alpha artifacts are not code-signed or notarized and AAAAT does not yet include an auto-update or publishing service. Platform security warnings for unsigned builds are therefore expected and are not hidden or bypassed by the application.
+
 ## Development baseline
 
 Use Node 24 and the committed npm lockfile:
