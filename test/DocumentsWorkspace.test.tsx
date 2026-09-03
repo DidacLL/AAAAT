@@ -77,6 +77,18 @@ const desktopApi: DesktopApi = {
     reorderVariant: async () => profile,
     resolveVariant: async () => ({ variant, items: [item, itemB] }),
   },
+  careerContext: {
+    current: async () => ({
+      careerDirection: "",
+      objectives: "",
+      constraints: "",
+      targetRoles: "",
+      targetMarketsLocations: "",
+      workPreferences: "",
+      applicationWritingPreferences: "",
+    }),
+    update: async (value) => value,
+  },
   documents: {
     list,
     create,
