@@ -149,12 +149,8 @@ test("packaged executable backs up and restores a workspace without secret or tr
     const manifestText = readFileSync(path.join(backup, "manifest.json"), "utf8");
     expect(manifestText).not.toContain(root);
     expect(manifestText).toContain("ai-connection.json");
-    expect(readFileSync(path.join(backup, "files", "documents", "cv.tex"), "utf8")).toBe(
-      "portable cv",
-    );
-    expect(
-      readFileSync(path.join(backup, "files", "integrations", "vscode-mcp.json"), "utf8"),
-    ).toBe('{"state":"proposed"}\n');
+    expect(readFileSync(path.join(backup, "files", "documents", "cv.tex"), "utf8")).toBe("portable cv");
+    expect(readFileSync(path.join(backup, "files", "integrations", "vscode-mcp.json"), "utf8")).toBe('{"state":"proposed"}\n');
     expect(existsSync(path.join(backup, "files", "ai-connection.json"))).toBe(false);
     expect(existsSync(path.join(backup, "files", ".env"))).toBe(false);
     expect(existsSync(path.join(backup, "workspace.sqlite-wal"))).toBe(false);
@@ -175,26 +171,41 @@ test("packaged executable backs up and restores a workspace without secret or tr
       restored: true,
     });
     expect(readFileSync(path.join(restored, "documents", "cv.tex"), "utf8")).toBe("portable cv");
-    expect(readFileSync(path.join(restored, "integrations", "vscode-mcp.json"), "utf8")).toBe(
-      '{"state":"proposed"}\n',
-    );
+    expect(readFileSync(path.join(restored, "integrations", "vscode-mcp.json"), "utf8")).toBe('{"state":"proposed"}\n');
     expect(existsSync(path.join(restored, "ai-connection.json"))).toBe(false);
 
     const database = new DatabaseSync(path.join(restored, "workspace.sqlite"), { readOnly: true });
     try {
       expect(
         database
-          .prepare("SELECT company, role, notes FROM candidatures WHERE id = ?")
+          .prepare("SELECT company, role, notes, priority FROM candidatures WHERE id = ?")
           .get("packaged-recovery-candidature"),
-      ).toEqual({ company: "Example Co", role: "Platform engineer", notes: "Private notes" });
+      ).toEqual({ company: "Example Co", role: "Platform engineer", notes: "Private notes", priority: "" });
+      expect(
+        database
+          .prepare("SELECT kind, title, source_text AS sourceText FROM candidature_sources WHERE candidature_id = ?")
+          .get("packaged-recovery-candidature"),
+      ).toEqual({ kind: "other", title: "Direct", sourceText: "Private source text" });
+      expect(
+        database
+          .prepare("SELECT pitch, recruiter_preparation AS recruiterPreparation FROM candidature_working_briefs WHERE candidature_id = ?")
+          .get("packaged-recovery-candidature"),
+      ).toEqual({ pitch: "", recruiterPreparation: "" });
       expect(
         database
           .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
           .get("packaged-recovery-candidature"),
       ).toEqual({ action: "candidature.created" });
-      expect(
-        database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get(),
-      ).toEqual({ count: 6 });
+      expect(database.prepare("SELECT version, name FROM schema_migrations ORDER BY version").all()).toEqual([
+        { version: 1, name: "workspace" },
+        { version: 2, name: "profile" },
+        { version: 3, name: "documents" },
+        { version: 4, name: "candidatures" },
+        { version: 5, name: "concepts" },
+        { version: 6, name: "activity" },
+        { version: 7, name: "career-context" },
+        { version: 8, name: "candidature-sources-brief" },
+      ]);
     } finally {
       database.close();
     }
