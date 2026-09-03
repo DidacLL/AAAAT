@@ -13,6 +13,16 @@ M0–M5 remain accepted without reinterpretation of their implementation evidenc
 - M4 proved the first bounded external interoperability and setup capabilities: packaged candidature creation, official MCP stdio, demonstrated VS Code setup, structured setup knowledge, portable proposed host configuration, and safe workspace backup/restore.
 - M5 proved cross-platform alpha hardening and was owner-accepted at PR #121 head `6a4490798399c75a939ccb694e49a21c22ff2802`, including native Windows/macOS/Linux release artifacts and packaged runtime evidence.
 
+### Preserved M5 acceptance evidence
+
+- #111 proves native Windows/macOS ZIP and Linux Debian release artifacts plus artifact inspection and packaged runtime smoke.
+- #113 provides truthful alpha installation, first-run, manual-use, optional-capability, backup/restore, and troubleshooting documentation.
+- #116 corrects the recovery test so its async rejection evidence is actually awaited.
+- #117 makes packaged Electron shutdown deterministic on Windows; the full matrix and a second Windows packaged-smoke run passed on the same exact head.
+- #119 records reproducible dependency-security evidence: zero npm findings in the production dependency graph, current supported Electron runtime verified separately, and remaining build-tool advisories documented without forced dependency churn.
+- PR #121 exact head `6a4490798399c75a939ccb694e49a21c22ff2802` passed Fast verification, LaTeX unrelated-directory portability, and packaged Windows/macOS/Linux checks and was explicitly accepted by the Product Owner with no blocking findings.
+- No M5 change edited accepted migration history, weakened a security/privacy/local-ownership/manual-independence/portable-output gate, or introduced a new product subsystem or architectural framework.
+
 This accepted baseline remains architecture and evidence to build on. M6 does not reopen or replace it.
 
 ## Outcome
