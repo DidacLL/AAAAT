@@ -402,7 +402,9 @@ Build success alone is not proof of runtime, visual, security, database, or port
 
 ## Capability Missions
 
-Missions are capability checkpoints, not waterfall phases. Only the active Mission is decomposed into Issues.
+Missions are capability checkpoints, not waterfall phases. M0–M5 are accepted foundation and capability checkpoints forming the initial AAAAT v2 restart/alpha series. Their acceptance does not mean the AAAAT product-completion roadmap is complete. Only the active Mission is decomposed into Issues.
+
+Accepted restart/foundation checkpoints:
 
 - **M0 — Foundation:** secure Electron/React/TypeScript/SQLite startup, verification, and packaging.
 - **M1 — Manual VCVGenerator:** canonical career data, variants, manual documents, portable LaTeX, and local rendering.
@@ -410,6 +412,17 @@ Missions are capability checkpoints, not waterfall phases. Only the active Missi
 - **M3 — AI Assistance:** direct configured providers, privacy projection, extraction, recommendation, tailoring, and drafting over working manual paths.
 - **M4 — Agentic Interoperability and Setup:** bounded external commands, official MCP, adaptive host integration, installer knowledge, configuration portability, backup, and restore.
 - **M5 — Release Hardening:** platform packaging, reliability, security, recovery, documentation, compatibility evidence, and cleanup without architectural expansion.
+
+Product-completion Missions continue from that accepted architecture:
+
+- **M6 — Opportunity Understanding & Recruiter Readiness — active:** make one candidature genuinely useful manually through reusable career context, multiple source inputs, priority, durable evaluation/strategy/recruiter preparation, and a fast recruiter-ready projection.
+- **M7 — Application Preparation & Material Lifecycle:** complete the manual candidature workflow through interview/assessment preparation, actual application questions/answers, manual research context, and document usage/supersession.
+- **M8 — VCVGenerator & Setup Completion:** complete remaining VCVGenerator, privacy/setup, GUI recovery, and safe configuration-portability product capability.
+- **M9 — Contextual AI Assistance:** move validated optional AI assistance into the authoritative manual workflows and persist operation results through normal product data paths.
+- **M10 — Research & Bounded External Collaboration:** add real research capability and only the bounded external contributions demonstrated by actual workflows.
+- **M11 — Product Completion Acceptance:** integrate and prove the complete packaged manual/no-AI candidature lifecycle, plus bounded assisted paths, without adding speculative architecture.
+
+M7–M11 remain capability-level roadmap direction only until activated. They must not be pre-decomposed into implementation Issues or scaffolding.
 
 ## Prohibited speculative infrastructure
 

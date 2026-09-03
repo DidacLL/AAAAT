@@ -8,7 +8,11 @@ For alpha installation, first-run use, manual workflows, optional AI, backup/res
 
 ## Current mission
 
-M5 - Release Hardening is accepted and complete. M0 through M5 are accepted, the approved AAAAT v2 capability roadmap is complete, and no later Mission is active. The accepted checkpoint is the AAAAT v2 alpha/reviewable release state; it is not by itself a published stable release. Further product scope requires a new owner-defined Mission, while bounded maintenance may proceed under the accepted SPEC and existing hard gates.
+M6 - Opportunity Understanding & Recruiter Readiness is active. M0 through M5 remain accepted foundation and capability checkpoints forming the initial AAAAT v2 restart/alpha series; their acceptance does not mean the complete AAAAT product-completion roadmap is finished. Product-completion work continues from the accepted v2 architecture, with only M6 decomposed into implementation work.
+
+The remaining capability-level roadmap is M7 - Application Preparation & Material Lifecycle, M8 - VCVGenerator & Setup Completion, M9 - Contextual AI Assistance, M10 - Research & Bounded External Collaboration, and M11 - Product Completion Acceptance. Those later Missions are not active and must not be decomposed until activated.
+
+The M5 - Release Hardening checkpoint is accepted. Native release artifacts and packaged runtime evidence on Windows, macOS, and Linux, truthful user/setup/recovery documentation, reliability corrections, dependency-security classification, and preserved security/privacy/local-ownership/manual-independence/portable-output gates form the accepted alpha baseline.
 
 The M4 - Agentic Interoperability and Setup checkpoint is accepted. Bounded external candidature creation, official MCP stdio, demonstrated VS Code setup, structured setup knowledge, portable proposed host configuration, and safe workspace backup/restore are proven while external authority remains narrow and AI remains optional.
 

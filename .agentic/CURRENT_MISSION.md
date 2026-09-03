@@ -1,34 +1,19 @@
-# M5 — Release Hardening
+# M6 — Opportunity Understanding & Recruiter Readiness
 
-**Status: accepted and complete.** M0 through M5 are accepted. The approved AAAAT v2 capability roadmap is complete and no later Mission is active. Further product scope requires a new owner-defined Mission; bounded maintenance may proceed under the accepted SPEC and existing hard gates.
+**Status: active.** M0 through M5 remain accepted foundation and capability checkpoints forming the initial AAAAT v2 restart/alpha series. Their acceptance does not mean AAAAT's product-completion roadmap is complete. Product-completion work continues from the accepted v2 architecture, with M6 as the only active Mission.
 
-## Outcome
+## Accepted baseline
 
-AAAAT's accepted local-first, manual-first product works reliably as a packaged desktop application on supported platforms, with release-critical security, recovery, compatibility, documentation, and cleanup evidence. Hardening fixes demonstrated defects and removes accidental complexity; it does not create new extensibility systems.
+M0–M5 remain accepted without reinterpretation of their implementation evidence:
 
-## Required
+- M0 proved the secure Electron/React/TypeScript/SQLite foundation and native packaging boundary.
+- M1 proved the manual VCVGenerator foundation: user-owned workspace, canonical profile and variants, editable CV/cover-letter documents, portable LaTeX, local rendering, and unrelated-directory compilation.
+- M2 proved the initial manual candidature workspace: incomplete opportunity tracking, source/notes, status and archiving, search/filtering, shared concepts, recruiter-call focus projection, and document associations.
+- M3 proved initial optional direct AI operations with operation-specific context, privacy projection, typed validation, conflict policy, and normal application-service mutation paths.
+- M4 proved the first bounded external interoperability and setup capabilities: packaged candidature creation, official MCP stdio, demonstrated VS Code setup, structured setup knowledge, portable proposed host configuration, and safe workspace backup/restore.
+- M5 proved cross-platform alpha hardening and was owner-accepted at PR #121 head `6a4490798399c75a939ccb694e49a21c22ff2802`, including native Windows/macOS/Linux release artifacts and packaged runtime evidence.
 
-- prove packaged Windows, macOS, and Linux behavior for release-critical existing workflows
-- fix demonstrated reliability defects in startup, workspace use, documents/rendering, optional AI, bounded integrations, backup, and restore
-- preserve Electron renderer isolation, narrow preload/IPC authority, privacy projection, local ownership, manual independence, and portable user-owned LaTeX as hard gates
-- verify clean-install/runtime prerequisites and failure messages are understandable and truthful
-- verify existing workspace/migration compatibility and recovery behavior without editing accepted migration history
-- make release documentation sufficient to install, run, use core manual workflows, configure optional capabilities, back up, restore, and troubleshoot known prerequisites
-- remove dead experiments, obsolete temporary compatibility code, or duplicated release-path logic when evidence shows it is no longer needed
-- prefer deletion and direct fixes over new abstractions
-- keep executable evidence focused on release-critical behavior; do not grow a general test/infrastructure framework
-
-## Explicit non-goals
-
-- new candidature, profile, document, AI, MCP, host, installer, backup, or restore product capabilities
-- generic agent, plugin, workflow, provider, command, repository, service, or compatibility frameworks
-- new background daemons, localhost APIs, cloud services, synchronization, telemetry, or account infrastructure
-- v1 compatibility layers or migration
-- speculative second hosts/providers or future-release scaffolding
-- broad dependency upgrades unrelated to a demonstrated release blocker
-- architecture rewrites disguised as cleanup
-
-## Accepted evidence
+### Preserved M5 acceptance evidence
 
 - #111 proves native Windows/macOS ZIP and Linux Debian release artifacts plus artifact inspection and packaged runtime smoke.
 - #113 provides truthful alpha installation, first-run, manual-use, optional-capability, backup/restore, and troubleshooting documentation.
@@ -36,10 +21,66 @@ AAAAT's accepted local-first, manual-first product works reliably as a packaged 
 - #117 makes packaged Electron shutdown deterministic on Windows; the full matrix and a second Windows packaged-smoke run passed on the same exact head.
 - #119 records reproducible dependency-security evidence: zero npm findings in the production dependency graph, current supported Electron runtime verified separately, and remaining build-tool advisories documented without forced dependency churn.
 - PR #121 exact head `6a4490798399c75a939ccb694e49a21c22ff2802` passed Fast verification, LaTeX unrelated-directory portability, and packaged Windows/macOS/Linux checks and was explicitly accepted by the Product Owner with no blocking findings.
-- No M5 change edits accepted migration history, weakens a security/privacy/local-ownership/manual-independence/portable-output gate, or introduces a new product subsystem or architectural framework.
+- No M5 change edited accepted migration history, weakened a security/privacy/local-ownership/manual-independence/portable-output gate, or introduced a new product subsystem or architectural framework.
+
+This accepted baseline remains architecture and evidence to build on. M6 does not reopen or replace it.
+
+## Outcome
+
+A user with AI completely disabled can retain an incomplete opportunity, maintain the reusable career context needed to judge it, add multiple independently meaningful source inputs, maintain durable evaluation/strategy/recruiter preparation, and use a fast recruiter-ready Focus projection without navigating a large form.
+
+M6 is primarily a manual product and UX Mission. Existing optional AI behavior must remain non-breaking, but M6 introduces no new AI operations.
+
+## Required
+
+- establish the deterministic fictional-data M6 user journey and visual information contract before locking new persistence shape;
+- add a small workspace-level career context adjacent to, but distinct from, the canonical professional profile;
+- support multiple candidature source items while safely preserving existing v2 `source`, `source_url`, and `source_text` data through a new immutable migration;
+- add only the smallest priority representation demonstrated by the candidature list/focus workflow;
+- add one candidature-owned durable working brief for fit/suitability, strengths/evidence, gaps/risks/constraints, current strategy, relevant company/role context, pitch, questions, and recruiter preparation;
+- preserve candidature, profile, variant, concept, document, application-service, renderer sandbox, typed preload/IPC, backup/restore, and migration-history boundaries;
+- recompose the candidature renderer around progressive manual workflows, with Focus answering recruiter-call questions within seconds and missing information hidden or exposed through unobtrusive Add actions;
+- prove close/reopen persistence and upgrade from the exact accepted M0–M5 schema with deterministic fictional data;
+- obtain visual/runtime evidence at representative desktop sizes before M6 acceptance;
+- run final M6 acceptance with AI absent, external agent absent, and network unavailable where practical.
+
+Normal candidature composition should be organized around user intentions such as:
+
+```text
+Focus
+Opportunity
+Sources
+Evaluation & strategy
+Recruiter preparation
+Concepts
+Documents
+Activity
+```
+
+These are renderer projections/composition, not separate domain subsystems.
+
+## Explicit non-goals
+
+- new AI operations or M9 contextual-AI work;
+- web research or M10 external-research work;
+- form-answer, interview/assessment, or material-usage lifecycle work reserved for later Missions;
+- workflow engine, task scheduler, durable AI-job database, event bus, command bus, generic content repository, provider/host registry, plugin loader, REST/GraphQL API, cloud synchronization, browser automation, automatic application submission, v1 compatibility layer, or generic preparation-field registry;
+- recreating v1 `career_plans`, Smart/Detailed architecture, task-driven UI, protocol-driven workflows, giant field sheets, or extensive hidden state;
+- editing accepted migrations `001` through `006` or any other accepted migration;
+- implementation Issues for M7–M11.
+
+## Product-completion roadmap
+
+Only M6 is active and may be decomposed into implementation Issues. Later Missions remain capability-level direction until the Product Owner activates them:
+
+- **M7 — Application Preparation & Material Lifecycle**
+- **M8 — VCVGenerator & Setup Completion**
+- **M9 — Contextual AI Assistance**
+- **M10 — Research & Bounded External Collaboration**
+- **M11 — Product Completion Acceptance**
 
 ## Completion
 
-M5 is complete when the existing AAAAT v2 product has focused cross-platform packaged evidence for its release-critical paths, applicable security/privacy/recovery/portability gates pass, user-facing setup and recovery documentation is truthful, demonstrated release blockers are resolved, and no unjustified architectural expansion remains.
+M6 is ready for Product Owner capability acceptance only when the deterministic manual journey proves that a fictional user can maintain career context, capture an incomplete recruiter opportunity, add a second source, set priority/status/next action, maintain evaluation/evidence/risks/strategy, prepare pitch/questions/recruiter material, understand the opportunity immediately through Focus, close AAAAT, reopen it, and recover the same authoritative state.
 
-The Product Owner accepted M5 at PR #121 head `6a4490798399c75a939ccb694e49a21c22ff2802`. That acceptance closes the approved M0–M5 capability roadmap as the AAAAT v2 alpha/reviewable release checkpoint; it does not by itself publish a release or create a later Mission.
+A green source/unit test suite alone is insufficient. Packaged/manual visual-runtime evidence is required because the owner-review question is whether AAAAT now feels like a useful recruiter-ready candidature workspace rather than a database editor.
