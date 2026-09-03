@@ -42,6 +42,13 @@ const unavailableStorage: SecureStorageAdapter = {
   },
 };
 
+const basicTextStorage: SecureStorageAdapter = {
+  isEncryptionAvailable: () => true,
+  getSelectedStorageBackend: () => "basic_text",
+  encryptString: (value) => Buffer.from(value, "utf8"),
+  decryptString: (value) => value.toString("utf8"),
+};
+
 function seedFitContext(root: string): string {
   addProfileItem(root, { kind: "identity", title: "Didac Example" });
   addProfileItem(root, { kind: "contact", title: "didac@example.test" });
@@ -104,6 +111,25 @@ describe("M3 AI service", () => {
           apiKey: "plain-secret",
         },
         unavailableStorage,
+      ),
+    ).toThrow("Secure credential storage is unavailable");
+    expect(existsSync(path.join(root, "ai-connection.json"))).toBe(false);
+  });
+
+  it("treats Electron's Linux basic_text backend as insecure storage", () => {
+    if (process.platform !== "linux") return;
+    const root = workspace();
+    expect(() =>
+      saveAiConnection(
+        root,
+        {
+          name: "Remote provider",
+          endpoint: "https://models.example.test/v1",
+          model: "model-a",
+          classification: "remote",
+          apiKey: "plain-secret",
+        },
+        basicTextStorage,
       ),
     ).toThrow("Secure credential storage is unavailable");
     expect(existsSync(path.join(root, "ai-connection.json"))).toBe(false);
