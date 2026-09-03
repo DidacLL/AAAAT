@@ -82,6 +82,10 @@ function runSetup(executable: string, workspace: string, project: string, activa
   );
 }
 
+function response(stdout: string): unknown {
+  return JSON.parse(stdout.trim());
+}
+
 function expectedServerEntry(executable: string, workspace: string) {
   return {
     type: "stdio",
@@ -127,7 +131,7 @@ test("packaged setup proposes, validates live MCP, and configures VS Code withou
     const proposed = runSetup(executable, workspace, project, false);
     expect(proposed.error).toBeUndefined();
     expect(proposed.status).toBe(0);
-    expect(proposed.stdout).toBe('{"ok":true,"host":"vscode","state":"proposed"}\n');
+    expect(response(proposed.stdout)).toEqual({ ok: true, host: "vscode", state: "proposed" });
     const manifestText = readFileSync(
       path.join(workspace, "integrations", "vscode-mcp.json"),
       "utf8",
@@ -139,7 +143,7 @@ test("packaged setup proposes, validates live MCP, and configures VS Code withou
     const activated = runSetup(executable, workspace, project, true);
     expect(activated.error).toBeUndefined();
     expect(activated.status).toBe(0);
-    expect(activated.stdout).toBe('{"ok":true,"host":"vscode","state":"configured"}\n');
+    expect(response(activated.stdout)).toEqual({ ok: true, host: "vscode", state: "configured" });
     const config = JSON.parse(
       readFileSync(path.join(project, ".vscode", "mcp.json"), "utf8"),
     ) as { servers: { aaaat: Record<string, unknown> } };
@@ -151,9 +155,11 @@ test("packaged setup proposes, validates live MCP, and configures VS Code withou
     const repeated = runSetup(executable, workspace, project, true);
     expect(repeated.error).toBeUndefined();
     expect(repeated.status).toBe(0);
-    expect(repeated.stdout).toBe(
-      '{"ok":true,"host":"vscode","state":"already-configured"}\n',
-    );
+    expect(response(repeated.stdout)).toEqual({
+      ok: true,
+      host: "vscode",
+      state: "already-configured",
+    });
   } finally {
     rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
