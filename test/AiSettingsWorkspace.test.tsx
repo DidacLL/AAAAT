@@ -16,9 +16,6 @@ describe("AI settings workspace", () => {
       name: "Local model",
       endpoint: "http://localhost:11434/v1",
       model: "fixture-model",
-      classification: "local",
-      hasCredential: false,
-      secureStorageAvailable: true,
     });
     Object.defineProperty(window, "aaaat", {
       configurable: true,
@@ -28,22 +25,21 @@ describe("AI settings workspace", () => {
 
   afterEach(() => cleanup());
 
-  it("configures one typed provider connection without reading a stored secret back", async () => {
+  it("configures one keyless loopback provider connection", async () => {
     const user = userEvent.setup();
     render(<AiSettingsWorkspace />);
 
-    expect(await screen.findByText("No AI connection is configured yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No local AI connection is configured yet.")).toBeInTheDocument();
     await user.type(screen.getByLabelText("Connection name"), "Local model");
-    await user.type(screen.getByLabelText("Provider base URL"), "http://localhost:11434/v1");
     await user.type(screen.getByLabelText("Model"), "fixture-model");
-    await user.click(screen.getByRole("button", { name: "Save connection" }));
+    await user.click(screen.getByRole("button", { name: "Save local connection" }));
 
     expect(saveConnection).toHaveBeenCalledWith({
       name: "Local model",
       endpoint: "http://localhost:11434/v1",
       model: "fixture-model",
-      classification: "local",
     });
-    expect(await screen.findByText(/Credential: not stored/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/API key/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/Local model/)).toBeInTheDocument();
   });
 });
