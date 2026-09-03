@@ -193,8 +193,16 @@ test("packaged executable backs up and restores a workspace without secret or tr
           .get("packaged-recovery-candidature"),
       ).toEqual({ action: "candidature.created" });
       expect(
-        database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get(),
-      ).toEqual({ count: 6 });
+        database.prepare("SELECT version, name FROM schema_migrations ORDER BY version").all(),
+      ).toEqual([
+        { version: 1, name: "workspace" },
+        { version: 2, name: "profile" },
+        { version: 3, name: "documents" },
+        { version: 4, name: "candidatures" },
+        { version: 5, name: "concepts" },
+        { version: 6, name: "activity" },
+        { version: 7, name: "career-context" },
+      ]);
     } finally {
       database.close();
     }
