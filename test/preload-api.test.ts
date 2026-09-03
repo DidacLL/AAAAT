@@ -19,6 +19,9 @@ describe("desktop preload API", () => {
         channel === channels.candidatureList ||
         channel === channels.candidatureListConcepts
       ) return [];
+      if (channel === aiChannels.jobExtract) {
+        return { company: "Example", role: "Engineer", location: "", workMode: "", salaryText: "" };
+      }
       return emptyProfile;
     });
 
@@ -60,7 +63,13 @@ describe("desktop preload API", () => {
       "updateConcept",
       "setConcepts",
     ]);
-    expect(Object.keys(api.ai)).toEqual(["connection", "saveConnection", "previewFit", "assessFit"]);
+    expect(Object.keys(api.ai)).toEqual([
+      "connection",
+      "saveConnection",
+      "previewFit",
+      "assessFit",
+      "extractJob",
+    ]);
 
     await expect(api.system.info()).resolves.toMatchObject({ electronVersion: "44.1.1" });
     await expect(api.workspace.current()).resolves.toBeNull();
@@ -70,6 +79,9 @@ describe("desktop preload API", () => {
     await expect(api.candidatures.list()).resolves.toEqual([]);
     await expect(api.candidatures.listConcepts()).resolves.toEqual([]);
     await expect(api.ai.connection()).resolves.toBeNull();
+    await expect(
+      api.ai.extractJob({ sourceText: "Example job", source: "", sourceUrl: "" }),
+    ).resolves.toMatchObject({ company: "Example", role: "Engineer" });
 
     expect(invoke).toHaveBeenNthCalledWith(1, channels.systemInfo);
     expect(invoke).toHaveBeenNthCalledWith(2, channels.workspaceCurrent);
@@ -79,6 +91,11 @@ describe("desktop preload API", () => {
     expect(invoke).toHaveBeenNthCalledWith(6, channels.candidatureList);
     expect(invoke).toHaveBeenNthCalledWith(7, channels.candidatureListConcepts);
     expect(invoke).toHaveBeenNthCalledWith(8, aiChannels.connectionCurrent);
+    expect(invoke).toHaveBeenNthCalledWith(9, aiChannels.jobExtract, {
+      sourceText: "Example job",
+      source: "",
+      sourceUrl: "",
+    });
   });
 
   it("rejects malformed privileged responses and invalid domain or AI input", async () => {
@@ -128,5 +145,6 @@ describe("desktop preload API", () => {
         contactPrivacy: "omit",
       }),
     ).rejects.toThrow();
+    await expect(api.ai.extractJob({ sourceText: "", source: "", sourceUrl: "" })).rejects.toThrow();
   });
 });
