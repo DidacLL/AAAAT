@@ -118,7 +118,7 @@ async function stopProcess(child: ChildProcess): Promise<void> {
     await waitForProcessExit(child, 5_000);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(terminationError ? `${detail}: ${terminationError}` : detail);
+    throw new Error(terminationError ? `${detail}: ${terminationError}` : detail, { cause: error });
   }
 }
 
