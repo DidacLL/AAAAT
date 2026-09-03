@@ -14,6 +14,8 @@ export const channels = Object.freeze({
   profileConfigureVariantItem: "aaaat:profile-configure-variant-item",
   profileReorderVariant: "aaaat:profile-reorder-variant",
   profileResolveVariant: "aaaat:profile-resolve-variant",
+  careerContextCurrent: "aaaat:career-context-current",
+  careerContextUpdate: "aaaat:career-context-update",
   documentList: "aaaat:document-list",
   documentCreate: "aaaat:document-create",
   documentUpdate: "aaaat:document-update",
@@ -51,6 +53,22 @@ export const workspaceInfoSchema = z
   .strict();
 export const optionalWorkspaceInfoSchema = workspaceInfoSchema.nullable();
 export type WorkspaceInfo = z.infer<typeof workspaceInfoSchema>;
+
+const careerContextText = z.string().max(10000);
+export const careerContextSchema = z
+  .object({
+    careerDirection: careerContextText,
+    objectives: careerContextText,
+    constraints: careerContextText,
+    targetRoles: careerContextText,
+    targetMarketsLocations: careerContextText,
+    workPreferences: careerContextText,
+    applicationWritingPreferences: careerContextText,
+  })
+  .strict();
+export type CareerContext = z.infer<typeof careerContextSchema>;
+export const careerContextUpdateSchema = careerContextSchema;
+export type CareerContextUpdate = z.infer<typeof careerContextUpdateSchema>;
 
 export const profileItemKindSchema = z.enum([
   "identity",
@@ -373,6 +391,10 @@ export interface DesktopApi {
     readonly configureVariantItem: (rule: ProfileVariantItemRuleInput) => Promise<ProfileSnapshot>;
     readonly reorderVariant: (reorder: ProfileVariantReorder) => Promise<ProfileSnapshot>;
     readonly resolveVariant: (variantId: string) => Promise<ResolvedProfile>;
+  };
+  readonly careerContext: {
+    readonly current: () => Promise<CareerContext>;
+    readonly update: (update: CareerContextUpdate) => Promise<CareerContext>;
   };
   readonly documents: {
     readonly list: () => Promise<DocumentRecord[]>;
