@@ -61,6 +61,7 @@ describe("OpenAI-compatible fit provider", () => {
     expect(url).toBe("http://localhost:11434/v1/chat/completions");
     expect(init?.method).toBe("POST");
     expect(init?.headers).toEqual({ "content-type": "application/json" });
+    expect(init?.redirect).toBe("error");
     const body = JSON.parse(String(init?.body)) as {
       model: string;
       messages: Array<{ role: string; content: string }>;
