@@ -21,7 +21,7 @@ import candidatureMigrationSql from "./migrations/004_candidatures.sql?raw";
 import conceptMigrationSql from "./migrations/005_concepts.sql?raw";
 import activityMigrationSql from "./migrations/006_activity.sql?raw";
 
-interface MigrationRow {
+export interface WorkspaceMigrationRow {
   readonly version: number;
   readonly name: string;
   readonly sha256: string;
@@ -96,7 +96,9 @@ function transact(database: DatabaseSync, action: () => void): void {
   }
 }
 
-function validateAppliedMigrations(rows: readonly MigrationRow[]): void {
+export function validateWorkspaceMigrationHistory(
+  rows: readonly WorkspaceMigrationRow[],
+): void {
   if (rows.length === 0 || rows.length > migrations.length) {
     throw new WorkspaceError("The workspace migration history is incompatible.");
   }
@@ -114,23 +116,23 @@ function validateAppliedMigrations(rows: readonly MigrationRow[]): void {
   });
 }
 
-function appliedMigrations(database: DatabaseSync): MigrationRow[] {
+function appliedMigrations(database: DatabaseSync): WorkspaceMigrationRow[] {
   return database
     .prepare(
       "SELECT version, name, sha256 FROM schema_migrations ORDER BY version",
     )
-    .all() as unknown as MigrationRow[];
+    .all() as unknown as WorkspaceMigrationRow[];
 }
 
 function applyMigrations(database: DatabaseSync, now: string): void {
-  validateAppliedMigrations(appliedMigrations(database));
+  validateWorkspaceMigrationHistory(appliedMigrations(database));
 
   for (const current of migrations) {
     const applied = database
       .prepare(
         "SELECT version, name, sha256 FROM schema_migrations WHERE version = ?",
       )
-      .get(current.version) as unknown as MigrationRow | undefined;
+      .get(current.version) as unknown as WorkspaceMigrationRow | undefined;
 
     if (applied) {
       if (
@@ -205,7 +207,7 @@ function verifyExistingWorkspace(rootPath: string): void {
       )
       .get("workspace.initialized_at") as InitializedRow | undefined;
 
-    validateAppliedMigrations(rows);
+    validateWorkspaceMigrationHistory(rows);
     if (!initialized) {
       throw new WorkspaceError(
         "The selected folder is not a compatible AAAAT workspace.",
