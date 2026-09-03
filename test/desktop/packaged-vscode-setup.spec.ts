@@ -100,19 +100,28 @@ function expectedServerEntry(executable: string, workspace: string) {
 function verifyVsCodeAcceptsServer(root: string, server: Record<string, unknown>): void {
   if (process.platform !== "win32") return;
   const vscodeCli = process.env.AAAAT_VSCODE_CLI;
-  if (process.env.GITHUB_ACTIONS === "true") expect(vscodeCli).toBeTruthy();
-  if (!vscodeCli) return;
+  const vscodeCliScript = process.env.AAAAT_VSCODE_CLI_SCRIPT;
+  if (process.env.GITHUB_ACTIONS === "true") {
+    expect(vscodeCli).toBeTruthy();
+    expect(vscodeCliScript).toBeTruthy();
+  }
+  if (!vscodeCli || !vscodeCliScript) return;
 
   const userData = path.join(root, "vscode-user-data");
   const accepted = spawnSync(
     vscodeCli,
     [
+      vscodeCliScript,
       "--user-data-dir",
       userData,
       "--add-mcp",
       JSON.stringify({ name: "aaaat", ...server }),
     ],
-    { encoding: "utf8", timeout: 30_000 },
+    {
+      encoding: "utf8",
+      timeout: 30_000,
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+    },
   );
   expect(accepted.error).toBeUndefined();
   expect(accepted.status).toBe(0);
