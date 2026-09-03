@@ -240,6 +240,8 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
         "assessFit",
         "extractJob",
         "recommendVariant",
+        "tailorCv",
+        "draftCoverLetter",
       ],
     });
 
@@ -257,7 +259,10 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Candidatures" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Documents" })).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "AI assist" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Settings" })).toBeVisible();
+    await running.page.getByRole("button", { name: "AI assist" }).click();
+    await expect(running.page.getByRole("heading", { name: "Document assistance" })).toBeVisible();
     await running.page.getByRole("button", { name: "Settings" }).click();
     await expect(running.page.getByRole("heading", { name: "Local AI" })).toBeVisible();
 
