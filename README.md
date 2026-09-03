@@ -1,12 +1,14 @@
 # AAAAT v2
 
-AAAAT is a private, local-first career workspace for candidature management and portable CV and cover-letter creation. It remains fully useful without AI, may use configured AI through privacy-projected validated operations, and can later expose bounded capabilities to external tools.
+AAAAT is a private, local-first career workspace for candidature management and portable CV and cover-letter creation. It remains fully useful without AI, may use configured AI through privacy-projected validated operations, and can expose bounded capabilities to external tools.
 
 AAAAT v2 is a clean restart. The Python/wxPython v1 implementation remains available through Git history and the `v1-prototype-final` tag; it is research evidence, not a compatibility target.
 
 ## Current mission
 
-M3 - AI Assistance is accepted. It proves optional direct model-provider assistance over the manual workspace through operation-specific minimum context, privacy projection before inference, typed validated results, explicit conflict policy, and normal application-service mutations. AI remains optional and provider-neutral. No later Mission is active; M4 - Agentic Interoperability and Setup requires separate owner activation before decomposition or implementation.
+M4 - Agentic Interoperability and Setup is active. It adds one demonstrated bounded external capability at a time, followed by official MCP, adaptive real-host integration, incremental installer/setup knowledge, configuration portability, and safe backup/restore. External integrations use the same application services as the desktop UI and never receive general database, filesystem, shell, process, network, repository, or generic privileged authority. AI remains optional.
+
+The M3 - AI Assistance checkpoint is accepted. Optional direct model-provider assistance is proven over the manual workspace through operation-specific minimum context, privacy projection before inference, typed validated results, explicit conflict policy, and normal application-service mutations. AI remains optional and provider-neutral.
 
 The M2 - Candidature Workspace checkpoint is accepted. Manual incomplete opportunity tracking, source/notes, status and independent archiving, search/filtering, shared concepts, recruiter-call focus views, and associations to existing CV/cover-letter documents are proven baseline capabilities. The post-M2 stabilization corrections for dirty-editor state, TeX/document recovery, migration history, and truthful activity semantics are also complete.
 

@@ -1,37 +1,40 @@
-# M3 — AI Assistance
+# M4 — Agentic Interoperability and Setup
 
-**Status: accepted and complete.** The M3 completion criteria are satisfied on `main`. No later Mission is active; M4 — Agentic Interoperability and Setup requires a separate owner activation before decomposition or implementation.
+**Status: active.** M0 through M3 are accepted and complete. The owner has activated M4. Only bounded M4 capabilities are decomposed and implemented; M5 remains inactive.
 
 ## Outcome
 
-AAAAT adds optional AI assistance over the proven manual workspace. The user can configure a model connection and invoke bounded, privacy-projected operations for job extraction, fit assessment, profile-variant recommendation, CV tailoring, and cover-letter drafting without making AI authoritative or required.
+AAAAT can expose demonstrated, bounded capabilities to external AI tools and help users configure supported environments without surrendering local ownership, manual independence, renderer isolation, or application-service mutation authority. Setup knowledge, configuration portability, backup, and restore are introduced incrementally only as real product paths require them.
 
 ## Required
 
-- preserve complete manual usefulness when no AI provider is configured or available
-- keep the AI domain provider-neutral; product/domain code does not import provider-specific request types or behavior
-- start with the simplest demonstrated user-accessible connection appropriate to each slice; do not assume developer API keys or paid API access are the default connection experience
-- each AI operation owns its input/output schema, minimum required context, privacy requirements, capability requirements, instructions, and mutation/conflict policy
-- construct operation-specific context immediately before inference and apply privacy projection before any provider invocation
-- each eligible value may be exposed, omitted, or replaced by a local opaque token; token mappings remain local
-- classify configured connections as local, remote, or unknown and make remote disclosure understandable; unusually broad remote analysis requires proportionate acknowledgement
-- validate every provider result against the operation contract before it can affect authoritative state
-- permitted valid results use the same normal application services as manual UI mutations; invalid output never mutates authoritative data and conflicting proposals never silently overwrite existing authoritative values
-- introduce credential storage only when a demonstrated connection requires credentials; required credentials are not plaintext application records, and insecure fallback conditions are explicit
-- renderer authority remains narrow: no arbitrary provider networking, credential access, filesystem, database, process, or generic privileged invocation
-- deterministic provider fixtures and focused operation/privacy tests prove the implemented contracts
+- begin with the smallest demonstrated external capability and add later integration surfaces only against real consumers or hosts
+- external integrations expose bounded AAAAT application capabilities only and call the same application services as the desktop UI
+- never expose general database, filesystem, shell, process, network, repository, generic privileged invocation, or arbitrary entity-mutation authority
+- keep direct inference and external control separate; AI remains optional and provider-neutral
+- use the official TypeScript SDK when MCP is introduced; never hand-roll MCP protocol framing
+- do not create a localhost HTTP service without a concrete consumer and explicit authentication/security design
+- generated host integration material begins disabled/proposed and is validated before activation, including manifest, capability names, transport, permissions, connection, test operation, and privacy disclosure
+- introduce host integrations only against demonstrated real hosts; detect and accept working existing environments before proposing replacement
+- keep installer/setup knowledge incremental and structured; recipes reference known AAAAT actions rather than unrestricted generated shell programs
+- preserve configuration portability without turning configuration into a plugin framework or provider registry
+- backup includes a consistent SQLite backup plus relevant user-owned files and a manifest; secrets are excluded by default
+- restore validates the manifest, schema, integrity, and paths before activation
+- preserve security/privacy, local ownership, manual independence, portable user-owned documents, and narrow renderer/preload authority as hard gates
+- add focused behavioral and security evidence for each implemented external contract or setup/recovery path
 
 ## Explicit non-goals
 
-- AI becoming mandatory for core AAAAT, candidature management, profile editing, or VCVGenerator
-- M4 external control: MCP, host integrations, external agent commands, installer automation, portable AI exchange, backup, or restore
-- agent frameworks, workflow frameworks, provider registries or marketplaces, cloud gateways, background schedulers, generic durable task systems, or event buses
-- generic field-action registries or general approval queues
-- direct renderer networking or credential authority
-- arbitrary AI-generated executable TeX projects as the normal document path
-- redesigning the M0 Electron/SQLite boundary or M1/M2 domain contracts without concrete evidence
-- company-research agents or broad autonomous job-search workflows
+- generic agent frameworks, workflow engines, task databases, command buses, plugin runtimes, plugin marketplaces, provider registries, or cloud gateways
+- general REST or GraphQL APIs, background daemons, broad localhost services, or speculative local microservices
+- general database, filesystem, shell, process, network, repository, or privileged authority for integrations
+- hand-written MCP or JSON-RPC framing
+- speculative adapters or compatibility files for hosts that have not been demonstrated
+- unrestricted generated shell programs or executable installer recipes
+- mandatory AI, mandatory cloud services, or replacing a working user environment without need
+- cloud synchronization
+- M5 release-hardening work
 
 ## Completion
 
-A user can configure at least one demonstrated direct model connection and use the bounded M3 operations through coherent desktop workflows. Provider input is privacy-projected before inference, output is typed and validated, conflicts cannot silently overwrite authoritative data, permitted mutations follow ordinary application services, and the product remains fully useful when AI is absent. Independent review accepts the result without M4 infrastructure or speculative AI frameworks.
+M4 is complete when the bounded external-command path, official MCP integration, demonstrated adaptive host integration, incremental installer/setup knowledge, configuration portability, and safe backup/restore behavior required by the SPEC are implemented with focused executable evidence and accepted independent review, while AAAAT remains local-first, manual-first, provider-neutral, and materially simpler than a general agent or plugin platform.
