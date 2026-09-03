@@ -22,11 +22,15 @@ function packagedExecutable(): string {
 }
 
 function childEnvironment(): Record<string, string> {
-  return Object.fromEntries(
+  const environment = Object.fromEntries(
     Object.entries(process.env).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
     ),
   );
+  if (process.platform === "win32") {
+    environment.ELECTRON_NO_ATTACH_CONSOLE = "1";
+  }
+  return environment;
 }
 
 const migrationFiles = [
