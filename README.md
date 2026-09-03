@@ -33,6 +33,16 @@ AAAAT --external-command candidature.create --workspace <existing-AAAAT-workspac
 
 Write one JSON object matching the desktop candidature-create fields to stdin. Success writes only `{"ok":true,"capability":"candidature.create","created":true}` and exits with status 0. Invalid or unsupported requests return a bounded error object and status 2. The command does not expose listing, updates, entity IDs, paths, database access, shell/process/network authority, or a background service.
 
+## Official MCP stdio
+
+The first MCP surface exposes the same bounded creation capability through the official TypeScript SDK and the packaged executable:
+
+```text
+AAAAT --mcp --workspace <existing-AAAAT-workspace>
+```
+
+A host launches that process over stdio. The server currently advertises only `candidature_create`; its input matches the normal candidature-create fields and its success result contains only a narrow acknowledgement. MCP mode does not expose listing, updates, internal IDs, paths, general database/filesystem/shell/process/network authority, prompts, resources, model sampling, or a network listener.
+
 ## Development baseline
 
 Use Node 24 and the committed npm lockfile:
