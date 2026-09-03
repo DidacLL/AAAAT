@@ -290,7 +290,8 @@ export async function recommendVariant(
   const result = variantRecommendationResultSchema.parse(
     await provider.recommendVariant(statusFor(stored), context),
   );
-  if (!variants.some((variant) => variant.id === result.variantId)) {
+  const currentVariants = getProfile(rootPath).variants;
+  if (!currentVariants.some((variant) => variant.id === result.variantId)) {
     throw new AiServiceError("The model recommended a profile variant that no longer exists.");
   }
   return result;
