@@ -31,7 +31,6 @@ export class AiProviderError extends Error {
 export interface FitModelProvider {
   assessFit(
     connection: AiConnectionStatus,
-    credential: string | null,
     context: FitProjectedContext,
   ): Promise<FitAssessmentResult>;
 }
@@ -64,21 +63,13 @@ export function createOpenAiCompatibleProvider(
   const provider: FitModelProvider = {
     async assessFit(
       connection: AiConnectionStatus,
-      credential: string | null,
       context: FitProjectedContext,
     ): Promise<FitAssessmentResult> {
-      const headers: Record<string, string> = {
-        "content-type": "application/json",
-      };
-      if (credential) {
-        headers.authorization = `Bearer ${credential}`;
-      }
-
       let response: Response;
       try {
         response = await fetchImpl(chatCompletionsUrl(connection.endpoint), {
           method: "POST",
-          headers,
+          headers: { "content-type": "application/json" },
           signal: AbortSignal.timeout(30_000),
           body: JSON.stringify({
             model: connection.model,
@@ -97,11 +88,11 @@ export function createOpenAiCompatibleProvider(
           }),
         });
       } catch {
-        throw new AiProviderError("AAAAT could not reach the configured model provider.");
+        throw new AiProviderError("AAAAT could not reach the configured local model provider.");
       }
 
       if (!response.ok) {
-        throw new AiProviderError("The configured model provider rejected the request.");
+        throw new AiProviderError("The configured local model provider rejected the request.");
       }
 
       let payload: unknown;
