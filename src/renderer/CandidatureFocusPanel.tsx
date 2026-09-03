@@ -4,6 +4,7 @@ import type {
   DocumentRecord,
 } from "../shared/contracts";
 import { CandidatureFitPanel } from "./CandidatureFitPanel";
+import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
 
 interface Props {
   readonly record: CandidatureRecord;
@@ -102,6 +103,7 @@ export function CandidatureFocusPanel({
       </section>
 
       <CandidatureFitPanel key={record.id} record={record} />
+      <VariantRecommendationPanel key={`variant-${record.id}`} record={record} />
     </section>
   );
 }

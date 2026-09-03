@@ -12,6 +12,9 @@ import {
   fitProjectedContextSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
+  variantRecommendationContextSchema,
+  variantRecommendationRequestSchema,
+  variantRecommendationResultSchema,
   type AiConnectionInput,
   type AiConnectionStatus,
   type FitAssessmentPreview,
@@ -21,6 +24,8 @@ import {
   type JobExtractionRequest,
   type JobExtractionResult,
   type PrivacyMode,
+  type VariantRecommendationRequest,
+  type VariantRecommendationResult,
 } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
 import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
@@ -146,13 +151,30 @@ function projectedItem(
   };
 }
 
-function projectFitContext(rootPath: string, request: FitAssessmentRequest): Projection {
+function opportunityContext(candidature: ReturnType<typeof listCandidatures>[number]) {
+  return {
+    company: candidature.company,
+    role: candidature.role,
+    location: candidature.location,
+    workMode: candidature.workMode,
+    salaryText: candidature.salaryText,
+    source: candidature.source,
+    sourceText: candidature.sourceText.slice(0, 12_000),
+  };
+}
+
+function requireCandidature(rootPath: string, candidatureId: string) {
   const candidature = listCandidatures(rootPath).find(
-    (candidate) => candidate.id === request.candidatureId,
+    (candidate) => candidate.id === candidatureId,
   );
   if (!candidature) {
     throw new AiServiceError("The selected candidature no longer exists.");
   }
+  return candidature;
+}
+
+function projectFitContext(rootPath: string, request: FitAssessmentRequest): Projection {
+  const candidature = requireCandidature(rootPath, request.candidatureId);
 
   const tokenMap = new Map<string, string>();
   let tokenCounter = 0;
@@ -176,15 +198,7 @@ function projectFitContext(rootPath: string, request: FitAssessmentRequest): Pro
 
   return {
     context: fitProjectedContextSchema.parse({
-      candidature: {
-        company: candidature.company,
-        role: candidature.role,
-        location: candidature.location,
-        workMode: candidature.workMode,
-        salaryText: candidature.salaryText,
-        source: candidature.source,
-        sourceText: candidature.sourceText.slice(0, 12_000),
-      },
+      candidature: opportunityContext(candidature),
       profileItems,
     }),
     tokenMap,
@@ -247,4 +261,38 @@ export async function extractJob(
   return jobExtractionResultSchema.parse(
     await provider.extractJob(statusFor(stored), request),
   );
+}
+
+export async function recommendVariant(
+  rootPath: string,
+  rawRequest: VariantRecommendationRequest,
+  provider: ModelProvider = createOpenAiCompatibleProvider(),
+): Promise<VariantRecommendationResult> {
+  const request = variantRecommendationRequestSchema.parse(rawRequest);
+  const stored = requireStoredConnection(rootPath);
+  const candidature = requireCandidature(rootPath, request.candidatureId);
+  const variants = getProfile(rootPath).variants;
+  if (variants.length === 0) {
+    throw new AiServiceError("Create a profile variant before requesting a recommendation.");
+  }
+  const context = variantRecommendationContextSchema.parse({
+    candidature: opportunityContext(candidature),
+    variants: variants.map((variant) => ({
+      id: variant.id,
+      name: variant.name,
+      focus: variant.focus,
+      targetTags: variant.targetTags,
+      ...(variant.preferredLanguage
+        ? { preferredLanguage: variant.preferredLanguage }
+        : {}),
+    })),
+  });
+  const result = variantRecommendationResultSchema.parse(
+    await provider.recommendVariant(statusFor(stored), context),
+  );
+  const currentVariants = getProfile(rootPath).variants;
+  if (!currentVariants.some((variant) => variant.id === result.variantId)) {
+    throw new AiServiceError("The model recommended a profile variant that no longer exists.");
+  }
+  return result;
 }

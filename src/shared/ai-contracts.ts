@@ -6,6 +6,7 @@ export const aiChannels = Object.freeze({
   fitPreview: "aaaat:ai-fit-preview",
   fitAssess: "aaaat:ai-fit-assess",
   jobExtract: "aaaat:ai-job-extract",
+  variantRecommend: "aaaat:ai-variant-recommend",
 } as const);
 
 export const aiConnectionInputSchema = z
@@ -109,6 +110,46 @@ export const jobExtractionResultSchema = z
   .strict();
 export type JobExtractionResult = z.infer<typeof jobExtractionResultSchema>;
 
+export const variantRecommendationRequestSchema = z
+  .object({ candidatureId: z.string().uuid() })
+  .strict();
+export type VariantRecommendationRequest = z.infer<
+  typeof variantRecommendationRequestSchema
+>;
+
+export const variantRecommendationContextSchema = z
+  .object({
+    candidature: fitProjectedCandidatureSchema,
+    variants: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            name: z.string(),
+            focus: z.string(),
+            targetTags: z.array(z.string()),
+            preferredLanguage: z.string().optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(100),
+  })
+  .strict();
+export type VariantRecommendationContext = z.infer<
+  typeof variantRecommendationContextSchema
+>;
+
+export const variantRecommendationResultSchema = z
+  .object({
+    variantId: z.string().uuid(),
+    rationale: z.string().trim().min(1).max(1500),
+  })
+  .strict();
+export type VariantRecommendationResult = z.infer<
+  typeof variantRecommendationResultSchema
+>;
+
 export interface AiDesktopApi {
   readonly ai: {
     readonly connection: () => Promise<AiConnectionStatus | null>;
@@ -124,5 +165,8 @@ export interface AiDesktopApi {
     readonly extractJob: (
       request: JobExtractionRequest,
     ) => Promise<JobExtractionResult>;
+    readonly recommendVariant: (
+      request: VariantRecommendationRequest,
+    ) => Promise<VariantRecommendationResult>;
   };
 }

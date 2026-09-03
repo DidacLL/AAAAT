@@ -10,11 +10,16 @@ import {
   assessFit,
   extractJob,
   previewFitAssessment,
+  recommendVariant,
   saveAiConnection,
 } from "../src/main/ai-service";
 import type { ModelProvider } from "../src/main/ai-provider";
 import { createCandidature, listCandidatures } from "../src/main/candidature-service";
-import { addProfileItem } from "../src/main/profile-service";
+import {
+  addProfileItem,
+  createProfileVariant,
+  removeProfileVariant,
+} from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
@@ -62,6 +67,7 @@ function provider(overrides: Partial<ModelProvider>): ModelProvider {
   return {
     assessFit: vi.fn<ModelProvider["assessFit"]>(),
     extractJob: vi.fn<ModelProvider["extractJob"]>(),
+    recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(),
     ...overrides,
   };
 }
@@ -234,5 +240,88 @@ describe("M3 AI service", () => {
       ),
     ).rejects.toThrow();
     expect(listCandidatures(root)).toEqual([]);
+  });
+
+  it("recommends only from existing variant metadata without sending profile content", async () => {
+    const root = configuredWorkspace();
+    const candidatureId = seedFitContext(root);
+    const variants = createProfileVariant(root, {
+      name: "Platform",
+      focus: "Platform engineering",
+      targetTags: ["platform"],
+      preferredLanguage: "en",
+    }).variants;
+    const selected = variants[0];
+    if (!selected) throw new Error("variant fixture missing");
+    const recommend = vi.fn<ModelProvider["recommendVariant"]>(async (_connection, context) => {
+      const serialized = JSON.stringify(context);
+      expect(serialized).not.toContain("Didac Example");
+      expect(serialized).not.toContain("didac@example.test");
+      expect(serialized).toContain("Platform engineering");
+      return { variantId: selected.id, rationale: "Matches the platform focus." };
+    });
+
+    await expect(
+      recommendVariant(root, { candidatureId }, provider({ recommendVariant: recommend })),
+    ).resolves.toEqual({
+      variantId: selected.id,
+      rationale: "Matches the platform focus.",
+    });
+  });
+
+  it("rejects a recommendation for an unknown variant", async () => {
+    const root = configuredWorkspace();
+    const candidatureId = seedFitContext(root);
+    createProfileVariant(root, {
+      name: "Platform",
+      focus: "Platform engineering",
+      targetTags: [],
+      preferredLanguage: "en",
+    });
+    const recommend = vi.fn<ModelProvider["recommendVariant"]>(async () => ({
+      variantId: "00000000-0000-4000-8000-000000000099",
+      rationale: "Invented.",
+    }));
+
+    await expect(
+      recommendVariant(root, { candidatureId }, provider({ recommendVariant: recommend })),
+    ).rejects.toThrow("no longer exists");
+  });
+
+  it("rejects a recommendation that becomes stale while inference is pending", async () => {
+    const root = configuredWorkspace();
+    const candidatureId = seedFitContext(root);
+    const variants = createProfileVariant(root, {
+      name: "Platform",
+      focus: "Platform engineering",
+      targetTags: [],
+      preferredLanguage: "en",
+    }).variants;
+    const selected = variants[0];
+    if (!selected) throw new Error("variant fixture missing");
+
+    let resolveRecommendation:
+      | ((value: { variantId: string; rationale: string }) => void)
+      | undefined;
+    const recommend = vi.fn<ModelProvider["recommendVariant"]>(
+      () =>
+        new Promise((resolve) => {
+          resolveRecommendation = resolve;
+        }),
+    );
+
+    const pending = recommendVariant(
+      root,
+      { candidatureId },
+      provider({ recommendVariant: recommend }),
+    );
+    removeProfileVariant(root, selected.id);
+    if (!resolveRecommendation) throw new Error("provider fixture did not start");
+    resolveRecommendation({
+      variantId: selected.id,
+      rationale: "This was valid when inference started.",
+    });
+
+    await expect(pending).rejects.toThrow("no longer exists");
   });
 });

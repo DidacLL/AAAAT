@@ -8,6 +8,8 @@ import {
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
   optionalAiConnectionStatusSchema,
+  variantRecommendationRequestSchema,
+  variantRecommendationResultSchema,
   type AiDesktopApi,
 } from "../shared/ai-contracts";
 import {
@@ -173,6 +175,15 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
     extractJob: async (request: Parameters<AiDesktopApi["ai"]["extractJob"]>[0]) =>
       jobExtractionResultSchema.parse(
         await invoke(aiChannels.jobExtract, jobExtractionRequestSchema.parse(request)),
+      ),
+    recommendVariant: async (
+      request: Parameters<AiDesktopApi["ai"]["recommendVariant"]>[0],
+    ) =>
+      variantRecommendationResultSchema.parse(
+        await invoke(
+          aiChannels.variantRecommend,
+          variantRecommendationRequestSchema.parse(request),
+        ),
       ),
   });
 

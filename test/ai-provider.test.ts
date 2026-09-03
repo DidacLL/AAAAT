@@ -3,7 +3,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createOpenAiCompatibleProvider } from "../src/main/ai-provider";
-import type { AiConnectionStatus, FitProjectedContext } from "../src/shared/ai-contracts";
+import type {
+  AiConnectionStatus,
+  FitProjectedContext,
+  VariantRecommendationContext,
+} from "../src/shared/ai-contracts";
 
 const connection: AiConnectionStatus = {
   name: "Local fixture",
@@ -96,6 +100,39 @@ describe("OpenAI-compatible provider", () => {
     };
     expect(body.messages[1]?.content).toBe(JSON.stringify(request));
     expect(body.messages[0]?.content).toMatch(/empty string/i);
+  });
+
+  it("sends only candidature and existing variant metadata for recommendation", async () => {
+    const variantContext: VariantRecommendationContext = {
+      candidature: context.candidature,
+      variants: [
+        {
+          id: "00000000-0000-4000-8000-000000000010",
+          name: "Platform",
+          focus: "Platform focus",
+          targetTags: ["platform"],
+          preferredLanguage: "en",
+        },
+      ],
+    };
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      response({
+        variantId: variantContext.variants[0]?.id,
+        rationale: "Matches platform focus.",
+      }),
+    );
+    const provider = createOpenAiCompatibleProvider(fetchImpl);
+
+    await expect(provider.recommendVariant(connection, variantContext)).resolves.toEqual({
+      variantId: variantContext.variants[0]?.id,
+      rationale: "Matches platform focus.",
+    });
+    const [, init] = fetchImpl.mock.calls[0] ?? [];
+    const body = JSON.parse(String(init?.body)) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(body.messages[1]?.content).toBe(JSON.stringify(variantContext));
+    expect(body.messages[0]?.content).toMatch(/existing profile variant/i);
   });
 
   it("rejects malformed fit output instead of returning an untyped proposal", async () => {

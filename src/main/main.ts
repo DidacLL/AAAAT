@@ -19,6 +19,8 @@ import {
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
   optionalAiConnectionStatusSchema,
+  variantRecommendationRequestSchema,
+  variantRecommendationResultSchema,
 } from "../shared/ai-contracts";
 import {
   candidatureConceptSelectionSchema,
@@ -60,6 +62,7 @@ import {
   extractJob,
   getAiConnection,
   previewFitAssessment,
+  recommendVariant,
   saveAiConnection,
 } from "./ai-service";
 import {
@@ -409,6 +412,15 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return jobExtractionResultSchema.parse(
       await extractJob(requireWorkspaceRoot(), jobExtractionRequestSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(aiChannels.variantRecommend, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return variantRecommendationResultSchema.parse(
+      await recommendVariant(
+        requireWorkspaceRoot(),
+        variantRecommendationRequestSchema.parse(input),
+      ),
     );
   });
 }

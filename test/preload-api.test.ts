@@ -22,6 +22,12 @@ describe("desktop preload API", () => {
       if (channel === aiChannels.jobExtract) {
         return { company: "Example", role: "Engineer", location: "", workMode: "", salaryText: "" };
       }
+      if (channel === aiChannels.variantRecommend) {
+        return {
+          variantId: "00000000-0000-4000-8000-000000000010",
+          rationale: "Matches.",
+        };
+      }
       return emptyProfile;
     });
 
@@ -69,6 +75,7 @@ describe("desktop preload API", () => {
       "previewFit",
       "assessFit",
       "extractJob",
+      "recommendVariant",
     ]);
 
     await expect(api.system.info()).resolves.toMatchObject({ electronVersion: "44.1.1" });
@@ -82,6 +89,9 @@ describe("desktop preload API", () => {
     await expect(
       api.ai.extractJob({ sourceText: "Example job", source: "", sourceUrl: "" }),
     ).resolves.toMatchObject({ company: "Example", role: "Engineer" });
+    await expect(
+      api.ai.recommendVariant({ candidatureId: "00000000-0000-4000-8000-000000000001" }),
+    ).resolves.toMatchObject({ rationale: "Matches." });
 
     expect(invoke).toHaveBeenNthCalledWith(1, channels.systemInfo);
     expect(invoke).toHaveBeenNthCalledWith(2, channels.workspaceCurrent);
@@ -95,6 +105,9 @@ describe("desktop preload API", () => {
       sourceText: "Example job",
       source: "",
       sourceUrl: "",
+    });
+    expect(invoke).toHaveBeenNthCalledWith(10, aiChannels.variantRecommend, {
+      candidatureId: "00000000-0000-4000-8000-000000000001",
     });
   });
 
@@ -146,5 +159,6 @@ describe("desktop preload API", () => {
       }),
     ).rejects.toThrow();
     await expect(api.ai.extractJob({ sourceText: "", source: "", sourceUrl: "" })).rejects.toThrow();
+    await expect(api.ai.recommendVariant({ candidatureId: "invalid" })).rejects.toThrow();
   });
 });

@@ -3,11 +3,14 @@ import { z } from "zod";
 import {
   fitAssessmentResultSchema,
   jobExtractionResultSchema,
+  variantRecommendationResultSchema,
   type AiConnectionStatus,
   type FitAssessmentResult,
   type FitProjectedContext,
   type JobExtractionRequest,
   type JobExtractionResult,
+  type VariantRecommendationContext,
+  type VariantRecommendationResult,
 } from "../shared/ai-contracts";
 
 const providerResponseSchema = z
@@ -40,6 +43,10 @@ export interface ModelProvider {
     connection: AiConnectionStatus,
     request: JobExtractionRequest,
   ): Promise<JobExtractionResult>;
+  recommendVariant(
+    connection: AiConnectionStatus,
+    context: VariantRecommendationContext,
+  ): Promise<VariantRecommendationResult>;
 }
 
 function chatCompletionsUrl(baseUrl: string): string {
@@ -141,6 +148,23 @@ export function createOpenAiCompatibleProvider(
         content,
         jobExtractionResultSchema,
         "The configured provider returned an invalid job extraction.",
+      );
+    },
+
+    async recommendVariant(
+      connection: AiConnectionStatus,
+      context: VariantRecommendationContext,
+    ): Promise<VariantRecommendationResult> {
+      const content = await requestContent(
+        fetchImpl,
+        connection,
+        "Choose exactly one existing profile variant from the supplied variants for the supplied candidature. Return JSON only with keys variantId and rationale. Never invent a variant ID or propose creating a new variant.",
+        context,
+      );
+      return parseJson(
+        content,
+        variantRecommendationResultSchema,
+        "The configured provider returned an invalid profile variant recommendation.",
       );
     },
   });
