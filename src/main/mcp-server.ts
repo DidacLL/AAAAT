@@ -1,5 +1,7 @@
+import { createReadStream, createWriteStream } from "node:fs";
+
 import { McpServer } from "@modelcontextprotocol/server";
-import { serveStdio } from "@modelcontextprotocol/server/stdio";
+import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 
 import { candidatureInputSchema } from "../shared/contracts";
 import { createCandidature } from "./candidature-service";
@@ -64,6 +66,9 @@ export function createAaaatMcpServer(workspacePath: string): McpServer {
 
 export function runMcpProcess(argv: readonly string[]): void {
   const workspace = openWorkspace(mcpWorkspaceFromInvocation(argv));
-  serveStdio(() => createServerForWorkspace(workspace.rootPath));
+  const input = createReadStream("", { fd: 0, autoClose: false });
+  const output = createWriteStream("", { fd: 1, autoClose: false });
+  const transport = new StdioServerTransport(input, output);
+  serveStdio(() => createServerForWorkspace(workspace.rootPath), { transport });
   console.error("AAAAT MCP server ready on stdio");
 }
