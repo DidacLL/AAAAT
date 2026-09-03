@@ -7,10 +7,11 @@ import {
 import { isMcpInvocation, runMcpProcess } from "./mcp-server";
 
 if (isMcpInvocation(process.argv)) {
-  void runMcpProcess(process.argv).then(
-    () => app.exit(0),
-    () => app.exit(2),
-  );
+  try {
+    runMcpProcess(process.argv);
+  } catch {
+    app.exit(2);
+  }
 } else if (isExternalCommandInvocation(process.argv)) {
   void runExternalCommandProcess(process.argv, process.stdin, process.stdout).then(
     (exitCode) => app.exit(exitCode),
