@@ -5,8 +5,17 @@ import {
   runExternalCommandProcess,
 } from "./external-command";
 import { isMcpInvocation, runMcpProcess } from "./mcp-server";
+import {
+  isVscodeMcpSetupInvocation,
+  runVscodeMcpSetupProcess,
+} from "./vscode-mcp-setup";
 
-if (isMcpInvocation(process.argv)) {
+if (isVscodeMcpSetupInvocation(process.argv)) {
+  void runVscodeMcpSetupProcess(process.argv, process.execPath, process.stdout).then(
+    (exitCode) => app.exit(exitCode),
+    () => app.exit(2),
+  );
+} else if (isMcpInvocation(process.argv)) {
   try {
     runMcpProcess(process.argv);
   } catch {
