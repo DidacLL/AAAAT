@@ -18,6 +18,7 @@ These durable invariants may change only through an accepted Class D owner decis
 - AI output is a validated, operation-scoped proposal. Invalid or conflicting output never silently overwrites authoritative data.
 - The Electron renderer remains sandboxed, context-isolated, and unprivileged.
 - The AI domain remains provider-neutral.
+- Optional AI connectivity prioritizes practical user accessibility: developer API credentials or paid cloud access are not assumed prerequisites when simpler keyless or broadly accessible paths can satisfy the current need; remote and provider-specific mechanisms remain allowed when justified.
 - External integrations receive only bounded AAAAT capabilities.
 - AAAAT has no v1 compatibility obligation.
 - AAAAT remains understandable and maintainable by one engineer.
