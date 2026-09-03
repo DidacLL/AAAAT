@@ -23,6 +23,8 @@ npm ci
 npm run make
 ```
 
+Command examples later in this guide use `AAAAT` to mean the packaged AAAAT executable. If it is not on your `PATH`, substitute the executable's actual platform path/name.
+
 ## 2. Create or open your local workspace
 
 On first launch AAAAT asks where it should keep the career workspace.
@@ -90,7 +92,7 @@ If no local model is running or the AI connection fails, continue using **Profil
 
 ## 6. Back up a workspace
 
-Backup and restore are currently packaged command operations rather than desktop buttons. Close or stop active work before a planned recovery operation so the user-chosen source/destination folders are unambiguous.
+Backup and restore are currently packaged command operations rather than desktop buttons.
 
 Create a backup into an existing empty directory:
 
