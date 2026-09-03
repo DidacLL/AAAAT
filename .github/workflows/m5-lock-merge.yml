@@ -63,7 +63,9 @@ jobs:
       - name: Reject broad lock churn
         shell: bash
         run: |
-          read additions deletions < <(git diff --numstat origin/main -- package-lock.json)
+          numstat=$(git diff --numstat origin/main -- package-lock.json)
+          additions=$(printf '%s\n' "$numstat" | cut -f1)
+          deletions=$(printf '%s\n' "$numstat" | cut -f2)
           echo "package-lock diff: +${additions} -${deletions}"
           test "${deletions}" -le 20
       - name: Commit bounded lockfile
