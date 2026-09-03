@@ -80,6 +80,7 @@ describe("AAAAT workspace state", () => {
     expect(screen.getByRole("button", { name: "Candidatures" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Profile" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Documents" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
   });
 
   it("keeps the first-run state when folder selection is cancelled", async () => {

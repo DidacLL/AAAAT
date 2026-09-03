@@ -164,7 +164,7 @@ function chooseLinuxDirectory(): void {
   );
 }
 
-test("packaged desktop preserves bounded workspace, profile, document, and candidature boundaries", async () => {
+test("packaged desktop preserves bounded workspace, product, and AI boundaries", async () => {
   const executablePath = packagedExecutable();
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
@@ -190,12 +190,13 @@ test("packaged desktop preserves bounded workspace, profile, document, and candi
       profile: Object.keys(window.aaaat.profile),
       documents: Object.keys(window.aaaat.documents),
       candidatures: Object.keys(window.aaaat.candidatures),
+      ai: Object.keys(window.aaaat.ai),
     }));
 
     expect(boundary).toEqual({
       processType: "undefined",
       requireType: "undefined",
-      root: ["system", "workspace", "profile", "documents", "candidatures"],
+      root: ["system", "workspace", "profile", "documents", "candidatures", "ai"],
       system: ["info"],
       workspace: ["current", "choose"],
       profile: [
@@ -232,6 +233,7 @@ test("packaged desktop preserves bounded workspace, profile, document, and candi
         "updateConcept",
         "setConcepts",
       ],
+      ai: ["connection", "saveConnection", "previewFit", "assessFit"],
     });
 
     const csp = await running.page
@@ -248,6 +250,9 @@ test("packaged desktop preserves bounded workspace, profile, document, and candi
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Candidatures" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Documents" })).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Settings" })).toBeVisible();
+    await running.page.getByRole("button", { name: "Settings" }).click();
+    await expect(running.page.getByRole("heading", { name: "Local AI" })).toBeVisible();
 
     const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
     expect(existsSync(databasePath)).toBe(true);

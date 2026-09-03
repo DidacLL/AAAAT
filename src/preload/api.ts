@@ -1,4 +1,14 @@
 import {
+  aiConnectionInputSchema,
+  aiConnectionStatusSchema,
+  aiChannels,
+  fitAssessmentPreviewSchema,
+  fitAssessmentRequestSchema,
+  fitAssessmentResultSchema,
+  optionalAiConnectionStatusSchema,
+  type AiDesktopApi,
+} from "../shared/ai-contracts";
+import {
   candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
   candidatureInputSchema,
@@ -36,7 +46,7 @@ import {
 
 type Invoke = (channel: string, ...args: readonly unknown[]) => Promise<unknown>;
 
-export function createDesktopApi(invoke: Invoke): DesktopApi {
+export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
   const system = Object.freeze({
     info: async () => systemInfoSchema.parse(await invoke(channels.systemInfo)),
   });
@@ -143,5 +153,22 @@ export function createDesktopApi(invoke: Invoke): DesktopApi {
       ),
   });
 
-  return Object.freeze({ system, workspace, profile, documents, candidatures });
+  const ai = Object.freeze({
+    connection: async () =>
+      optionalAiConnectionStatusSchema.parse(await invoke(aiChannels.connectionCurrent)),
+    saveConnection: async (input: Parameters<AiDesktopApi["ai"]["saveConnection"]>[0]) =>
+      aiConnectionStatusSchema.parse(
+        await invoke(aiChannels.connectionSave, aiConnectionInputSchema.parse(input)),
+      ),
+    previewFit: async (request: Parameters<AiDesktopApi["ai"]["previewFit"]>[0]) =>
+      fitAssessmentPreviewSchema.parse(
+        await invoke(aiChannels.fitPreview, fitAssessmentRequestSchema.parse(request)),
+      ),
+    assessFit: async (request: Parameters<AiDesktopApi["ai"]["assessFit"]>[0]) =>
+      fitAssessmentResultSchema.parse(
+        await invoke(aiChannels.fitAssess, fitAssessmentRequestSchema.parse(request)),
+      ),
+  });
+
+  return Object.freeze({ system, workspace, profile, documents, candidatures, ai });
 }
