@@ -2,10 +2,6 @@ name: Security audit evidence
 
 on:
   pull_request:
-    paths:
-      - package.json
-      - package-lock.json
-      - .github/workflows/security-audit-evidence.yml
 
 permissions:
   contents: read
