@@ -5,7 +5,6 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
-  safeStorage,
   type IpcMainInvokeEvent,
   session,
 } from "electron";
@@ -383,38 +382,24 @@ function registerIpc(mainWindow: BrowserWindow): void {
 
   ipcMain.handle(aiChannels.connectionCurrent, (event) => {
     assertTrustedSender(event, mainWindow);
-    return optionalAiConnectionStatusSchema.parse(
-      getAiConnection(requireWorkspaceRoot(), safeStorage),
-    );
+    return optionalAiConnectionStatusSchema.parse(getAiConnection(requireWorkspaceRoot()));
   });
   ipcMain.handle(aiChannels.connectionSave, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return aiConnectionStatusSchema.parse(
-      saveAiConnection(
-        requireWorkspaceRoot(),
-        aiConnectionInputSchema.parse(input),
-        safeStorage,
-      ),
+      saveAiConnection(requireWorkspaceRoot(), aiConnectionInputSchema.parse(input)),
     );
   });
   ipcMain.handle(aiChannels.fitPreview, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return fitAssessmentPreviewSchema.parse(
-      previewFitAssessment(
-        requireWorkspaceRoot(),
-        fitAssessmentRequestSchema.parse(input),
-        safeStorage,
-      ),
+      previewFitAssessment(requireWorkspaceRoot(), fitAssessmentRequestSchema.parse(input)),
     );
   });
   ipcMain.handle(aiChannels.fitAssess, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return fitAssessmentResultSchema.parse(
-      await assessFit(
-        requireWorkspaceRoot(),
-        fitAssessmentRequestSchema.parse(input),
-        safeStorage,
-      ),
+      await assessFit(requireWorkspaceRoot(), fitAssessmentRequestSchema.parse(input)),
     );
   });
 }
