@@ -10,7 +10,11 @@ import type { ModelProvider } from "../src/main/ai-provider";
 import { draftCoverLetter, saveAiConnection, tailorCv } from "../src/main/ai-service";
 import { createCandidature } from "../src/main/candidature-service";
 import { createDocument } from "../src/main/document-service";
-import { addProfileItem, createProfileVariant } from "../src/main/profile-service";
+import {
+  addProfileItem,
+  createProfileVariant,
+  removeProfileItem,
+} from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
@@ -98,6 +102,7 @@ describe("M3 document AI services", () => {
       expect(serialized).not.toContain("Private Person");
       expect(serialized).not.toContain("private@example.test");
       expect(serialized).not.toContain("Private local note");
+      expect(serialized).not.toContain("https://example.test/job");
       expect(serialized).toContain("TypeScript");
       return {
         recommendations: [{ itemId: skill.id, rationale: "Directly matches the role." }],
@@ -135,12 +140,42 @@ describe("M3 document AI services", () => {
     ).rejects.toThrow("profile item that no longer exists");
   });
 
+  it("rejects a CV item that becomes stale while inference is pending", async () => {
+    const { root, candidature, cv, skill } = fixture();
+    let resolveTailoring:
+      | ((value: { recommendations: Array<{ itemId: string; rationale: string }> }) => void)
+      | undefined;
+    const tailor = vi.fn<ModelProvider["tailorCv"]>(
+      () =>
+        new Promise((resolve) => {
+          resolveTailoring = resolve;
+        }),
+    );
+
+    const pending = tailorCv(
+      root,
+      { candidatureId: candidature.id, documentId: cv.id },
+      provider({ tailorCv: tailor }),
+    );
+    removeProfileItem(root, skill.id);
+    if (!resolveTailoring) throw new Error("provider fixture did not start");
+    resolveTailoring({
+      recommendations: [
+        { itemId: skill.id, rationale: "This was valid when inference started." },
+      ],
+    });
+
+    await expect(pending).rejects.toThrow("profile item that no longer exists");
+  });
+
   it("drafts a cover letter from non-sensitive resolved evidence without mutating", async () => {
     const { root, candidature, cover } = fixture();
     const draft = vi.fn<ModelProvider["draftCoverLetter"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain("Private Person");
       expect(serialized).not.toContain("private@example.test");
+      expect(serialized).not.toContain("Private local note");
+      expect(serialized).not.toContain("https://example.test/job");
       expect(serialized).toContain("Platform Engineer");
       return {
         recipient: "Hiring team",
