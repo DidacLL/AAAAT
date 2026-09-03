@@ -101,7 +101,7 @@ export function CandidatureFocusPanel({
         ) : null}
       </section>
 
-      <CandidatureFitPanel record={record} />
+      <CandidatureFitPanel key={record.id} record={record} />
     </section>
   );
 }
