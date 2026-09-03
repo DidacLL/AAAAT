@@ -252,7 +252,7 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
     await expect(running.page.getByRole("button", { name: "Documents" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Settings" })).toBeVisible();
     await running.page.getByRole("button", { name: "Settings" }).click();
-    await expect(running.page.getByRole("heading", { name: "AI provider" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Local AI" })).toBeVisible();
 
     const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
     expect(existsSync(databasePath)).toBe(true);
