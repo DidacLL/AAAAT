@@ -6,7 +6,7 @@ AAAAT v2 is a clean restart. The Python/wxPython v1 implementation remains avail
 
 ## Current mission
 
-M4 - Agentic Interoperability and Setup is active. It adds one demonstrated bounded external capability at a time, followed by official MCP, adaptive real-host integration, incremental installer/setup knowledge, configuration portability, and safe backup/restore. External integrations use the same application services as the desktop UI and never receive general database, filesystem, shell, process, network, repository, or generic privileged authority. AI remains optional.
+M4 - Agentic Interoperability and Setup is ready for owner review. Its bounded external command, official MCP integration, demonstrated VS Code host setup, structured setup knowledge, configuration portability, and safe backup/restore are implemented with focused executable evidence and accepted independent review. External integrations use the same application services as the desktop UI and never receive general database, filesystem, shell, process, network, repository, or generic privileged authority. AI remains optional, and M5 remains inactive pending owner acceptance of M4.
 
 The M3 - AI Assistance checkpoint is accepted. Optional direct model-provider assistance is proven over the manual workspace through operation-specific minimum context, privacy projection before inference, typed validated results, explicit conflict policy, and normal application-service mutations. AI remains optional and provider-neutral.
 
