@@ -7,36 +7,16 @@ export const aiChannels = Object.freeze({
   fitAssess: "aaaat:ai-fit-assess",
 } as const);
 
-export const aiConnectionClassificationSchema = z.enum([
-  "local",
-  "remote",
-  "unknown",
-]);
-export type AiConnectionClassification = z.infer<
-  typeof aiConnectionClassificationSchema
->;
-
 export const aiConnectionInputSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
     endpoint: z.string().trim().url().max(2048),
     model: z.string().trim().min(1).max(200),
-    classification: aiConnectionClassificationSchema,
-    apiKey: z.string().max(4096).optional(),
   })
   .strict();
 export type AiConnectionInput = z.infer<typeof aiConnectionInputSchema>;
 
-export const aiConnectionStatusSchema = z
-  .object({
-    name: z.string().min(1),
-    endpoint: z.string().url(),
-    model: z.string().min(1),
-    classification: aiConnectionClassificationSchema,
-    hasCredential: z.boolean(),
-    secureStorageAvailable: z.boolean(),
-  })
-  .strict();
+export const aiConnectionStatusSchema = aiConnectionInputSchema;
 export type AiConnectionStatus = z.infer<typeof aiConnectionStatusSchema>;
 export const optionalAiConnectionStatusSchema = aiConnectionStatusSchema.nullable();
 
@@ -93,7 +73,6 @@ export const fitAssessmentPreviewSchema = z
   .object({
     connection: aiConnectionStatusSchema,
     projectedContext: fitProjectedContextSchema,
-    requiresRemoteDisclosure: z.boolean(),
   })
   .strict();
 export type FitAssessmentPreview = z.infer<typeof fitAssessmentPreviewSchema>;
