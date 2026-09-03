@@ -9,7 +9,23 @@ const config: ForgeConfig = {
     executableName: "aaaat",
     name: "AAAAT",
   },
-  makers: [],
+  makers: [
+    {
+      name: "@electron-forge/maker-zip",
+      platforms: ["win32", "darwin"],
+      config: {},
+    },
+    {
+      name: "@electron-forge/maker-deb",
+      platforms: ["linux"],
+      config: {
+        options: {
+          maintainer: "AAAAT contributors",
+          homepage: "https://github.com/DidacLL/AAAAT",
+        },
+      },
+    },
+  ],
   plugins: [
     new VitePlugin({
       build: [
