@@ -16,28 +16,22 @@ export function CandidatureFitPanel({ record }: Props) {
   const [contactPrivacy, setContactPrivacy] = useState<PrivacyMode>("token");
   const [preview, setPreview] = useState<FitAssessmentPreview | null>(null);
   const [result, setResult] = useState<FitAssessmentResult | null>(null);
-  const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setPreview(null);
     setResult(null);
-    setAcknowledged(false);
     setError(null);
   }, [record.id]);
 
   const request = { candidatureId: record.id, identityPrivacy, contactPrivacy } as const;
 
-  const privacyChanged = (
-    field: "identity" | "contact",
-    value: PrivacyMode,
-  ) => {
+  const privacyChanged = (field: "identity" | "contact", value: PrivacyMode) => {
     if (field === "identity") setIdentityPrivacy(value);
     else setContactPrivacy(value);
     setPreview(null);
     setResult(null);
-    setAcknowledged(false);
   };
 
   const buildPreview = async () => {
@@ -45,9 +39,7 @@ export function CandidatureFitPanel({ record }: Props) {
     setError(null);
     setResult(null);
     try {
-      const next = await window.aaaat.ai.previewFit(request);
-      setPreview(next);
-      setAcknowledged(false);
+      setPreview(await window.aaaat.ai.previewFit(request));
     } catch (reason) {
       setPreview(null);
       setError(
@@ -77,15 +69,10 @@ export function CandidatureFitPanel({ record }: Props) {
     }
   };
 
-  const canAssess =
-    preview !== null &&
-    !busy &&
-    (!preview.requiresRemoteDisclosure || acknowledged);
-
   return (
     <section className="focus-concepts" aria-label="AI fit assessment">
       <div>
-        <p className="eyebrow">Optional AI</p>
+        <p className="eyebrow">Optional local AI</p>
         <h4>Fit assessment</h4>
         <p>
           AAAAT builds a read-only context from the saved candidature snapshot and your profile.
@@ -100,9 +87,7 @@ export function CandidatureFitPanel({ record }: Props) {
           <select
             value={identityPrivacy}
             disabled={busy}
-            onChange={(event) =>
-              privacyChanged("identity", event.target.value as PrivacyMode)
-            }
+            onChange={(event) => privacyChanged("identity", event.target.value as PrivacyMode)}
           >
             <option value="token">Replace with local tokens</option>
             <option value="omit">Omit</option>
@@ -114,9 +99,7 @@ export function CandidatureFitPanel({ record }: Props) {
           <select
             value={contactPrivacy}
             disabled={busy}
-            onChange={(event) =>
-              privacyChanged("contact", event.target.value as PrivacyMode)
-            }
+            onChange={(event) => privacyChanged("contact", event.target.value as PrivacyMode)}
           >
             <option value="token">Replace with local tokens</option>
             <option value="omit">Omit</option>
@@ -135,31 +118,12 @@ export function CandidatureFitPanel({ record }: Props) {
         <section className="selected-concept-definition">
           <h4>Projected context</h4>
           <p>
-            Provider: {preview.connection.name} · {preview.connection.classification} ·{" "}
-            {preview.connection.model}
+            Local provider: {preview.connection.name} · {preview.connection.model} ·{" "}
+            <code>{preview.connection.endpoint}</code>
           </p>
-          {preview.requiresRemoteDisclosure ? (
-            <p className="error-message">
-              This exact projected context will leave this computer for a remote or unknown
-              connection.
-            </p>
-          ) : (
-            <p>This connection is classified local and restricted to a loopback endpoint.</p>
-          )}
           <pre>{JSON.stringify(preview.projectedContext, null, 2)}</pre>
-          {preview.requiresRemoteDisclosure ? (
-            <label className="check-field">
-              <input
-                type="checkbox"
-                checked={acknowledged}
-                onChange={(event) => setAcknowledged(event.target.checked)}
-              />
-              I understand that the projected context shown above will be sent to this
-              connection.
-            </label>
-          ) : null}
-          <button type="button" disabled={!canAssess} onClick={() => void assess()}>
-            {busy ? "Assessing…" : "Run fit assessment"}
+          <button type="button" disabled={busy} onClick={() => void assess()}>
+            {busy ? "Assessing…" : "Run local fit assessment"}
           </button>
         </section>
       ) : null}
