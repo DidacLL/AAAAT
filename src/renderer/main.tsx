@@ -47,7 +47,7 @@ function createPreviewApi(): DesktopApi {
     }),
     careerContext: Object.freeze({
       current: async () => emptyCareerContext,
-      update: async (update) => update,
+      update: async (update: CareerContext) => update,
     }),
     documents: Object.freeze({
       list: async () => [],
