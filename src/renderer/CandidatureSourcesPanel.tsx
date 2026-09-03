@@ -21,9 +21,11 @@ function sourceLabel(source: CandidatureSource): string {
 export function CandidatureSourcesPanel({
   candidatureId,
   onSourcesChanged,
+  onDirtyChange,
 }: {
   candidatureId: string;
   onSourcesChanged?: (sources: CandidatureSource[]) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [sources, setSources] = useState<CandidatureSource[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -36,12 +38,20 @@ export function CandidatureSourcesPanel({
     [draft, persistedDraft],
   );
 
-  const startNew = () => {
-    if (dirty && !window.confirm("Discard unsaved source edits?")) return;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
+  const resetEditor = () => {
     const next = emptySource(candidatureId);
     setEditingId(null);
     setDraft(next);
     setPersistedDraft(next);
+  };
+
+  const startNew = () => {
+    if (dirty && !window.confirm("Discard unsaved source edits?")) return;
+    resetEditor();
   };
 
   const edit = (source: CandidatureSource) => {
@@ -77,8 +87,9 @@ export function CandidatureSourcesPanel({
       });
     return () => {
       active = false;
+      onDirtyChange?.(false);
     };
-  }, [candidatureId]);
+  }, [candidatureId, onDirtyChange]);
 
   const store = (next: CandidatureSource[]) => {
     setSources(next);
@@ -105,7 +116,7 @@ export function CandidatureSourcesPanel({
         setDraft(savedDraft);
         setPersistedDraft(savedDraft);
       } else {
-        startNew();
+        resetEditor();
       }
     } catch {
       setError("AAAAT could not save this source.");
@@ -122,10 +133,7 @@ export function CandidatureSourcesPanel({
         sourceId: editingId,
       });
       store(next);
-      const empty = emptySource(candidatureId);
-      setEditingId(null);
-      setDraft(empty);
-      setPersistedDraft(empty);
+      resetEditor();
     } catch {
       setError("AAAAT could not remove this source.");
     }
