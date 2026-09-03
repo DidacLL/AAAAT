@@ -9,8 +9,18 @@ import {
   isVscodeMcpSetupInvocation,
   runVscodeMcpSetupProcess,
 } from "./vscode-mcp-setup";
+import {
+  isWorkspaceBackupInvocation,
+  isWorkspaceRestoreInvocation,
+  runWorkspaceRecoveryProcess,
+} from "./workspace-backup";
 
-if (isVscodeMcpSetupInvocation(process.argv)) {
+if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(process.argv)) {
+  void runWorkspaceRecoveryProcess(process.argv, process.stdout).then(
+    (exitCode) => app.exit(exitCode),
+    () => app.exit(2),
+  );
+} else if (isVscodeMcpSetupInvocation(process.argv)) {
   void runVscodeMcpSetupProcess(process.argv, process.execPath, process.stdout).then(
     (exitCode) => app.exit(exitCode),
     () => app.exit(2),
