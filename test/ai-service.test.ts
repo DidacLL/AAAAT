@@ -6,9 +6,14 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { assessFit, previewFitAssessment, saveAiConnection } from "../src/main/ai-service";
-import type { FitModelProvider } from "../src/main/ai-provider";
-import { createCandidature } from "../src/main/candidature-service";
+import {
+  assessFit,
+  extractJob,
+  previewFitAssessment,
+  saveAiConnection,
+} from "../src/main/ai-service";
+import type { ModelProvider } from "../src/main/ai-provider";
+import { createCandidature, listCandidatures } from "../src/main/candidature-service";
 import { addProfileItem } from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
@@ -18,6 +23,16 @@ function workspace(): string {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-ai-"));
   roots.push(root);
   createOrOpenWorkspace(root);
+  return root;
+}
+
+function configuredWorkspace(): string {
+  const root = workspace();
+  saveAiConnection(root, {
+    name: "Local model",
+    endpoint: "http://localhost:11434/v1",
+    model: "local-model",
+  });
   return root;
 }
 
@@ -41,6 +56,14 @@ function seedFitContext(root: string): string {
     notes: "This note is intentionally not part of the AI context.",
   });
   return candidature.id;
+}
+
+function provider(overrides: Partial<ModelProvider>): ModelProvider {
+  return {
+    assessFit: vi.fn<ModelProvider["assessFit"]>(),
+    extractJob: vi.fn<ModelProvider["extractJob"]>(),
+    ...overrides,
+  };
 }
 
 afterEach(() => {
@@ -97,7 +120,7 @@ describe("M3 AI service", () => {
       })}\n`,
       "utf8",
     );
-    const assess = vi.fn<FitModelProvider["assessFit"]>();
+    const assess = vi.fn<ModelProvider["assessFit"]>();
 
     await expect(
       assessFit(
@@ -107,20 +130,15 @@ describe("M3 AI service", () => {
           identityPrivacy: "token",
           contactPrivacy: "omit",
         },
-        { assessFit: assess },
+        provider({ assessFit: assess }),
       ),
     ).rejects.toThrow("stored AI connection configuration is invalid");
     expect(assess).not.toHaveBeenCalled();
   });
 
   it("projects identity as opaque local tokens and omits contact before inference", () => {
-    const root = workspace();
+    const root = configuredWorkspace();
     const candidatureId = seedFitContext(root);
-    saveAiConnection(root, {
-      name: "Local model",
-      endpoint: "http://localhost:11434/v1",
-      model: "local-model",
-    });
 
     const preview = previewFitAssessment(root, {
       candidatureId,
@@ -135,16 +153,10 @@ describe("M3 AI service", () => {
     expect(serialized).not.toContain("intentionally not part");
   });
 
-  it("passes only projected context to the provider and rehydrates local tokens", async () => {
-    const root = workspace();
+  it("passes only projected context to the fit provider and rehydrates local tokens", async () => {
+    const root = configuredWorkspace();
     const candidatureId = seedFitContext(root);
-    saveAiConnection(root, {
-      name: "Local model",
-      endpoint: "http://localhost:11434/v1",
-      model: "local-model",
-    });
-
-    const assess = vi.fn<FitModelProvider["assessFit"]>(async (_connection, context) => {
+    const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain("Didac Example");
       expect(serialized).not.toContain("didac@example.test");
@@ -157,7 +169,6 @@ describe("M3 AI service", () => {
         focus: ["Platform ownership"],
       };
     });
-    const provider: FitModelProvider = { assessFit: assess };
 
     const result = await assessFit(
       root,
@@ -166,10 +177,62 @@ describe("M3 AI service", () => {
         identityPrivacy: "token",
         contactPrivacy: "omit",
       },
-      provider,
+      provider({ assessFit: assess }),
     );
 
     expect(assess).toHaveBeenCalledOnce();
     expect(result.summary).toBe("Strong evidence for Didac Example.");
+  });
+
+  it("passes only the pasted source payload to job extraction and does not mutate", async () => {
+    const root = configuredWorkspace();
+    const extract = vi.fn<ModelProvider["extractJob"]>(async (_connection, request) => {
+      expect(request).toEqual({
+        source: "Company careers",
+        sourceUrl: "https://example.test/jobs/1",
+        sourceText: "Example Corp seeks a Platform Engineer in Madrid.",
+      });
+      return {
+        company: "Example Corp",
+        role: "Platform Engineer",
+        location: "Madrid",
+        workMode: "",
+        salaryText: "",
+      };
+    });
+
+    await expect(
+      extractJob(
+        root,
+        {
+          source: "Company careers",
+          sourceUrl: "https://example.test/jobs/1",
+          sourceText: "Example Corp seeks a Platform Engineer in Madrid.",
+        },
+        provider({ extractJob: extract }),
+      ),
+    ).resolves.toMatchObject({ company: "Example Corp", role: "Platform Engineer" });
+    expect(listCandidatures(root)).toEqual([]);
+  });
+
+  it("rejects an invalid extraction result without mutating candidature data", async () => {
+    const root = configuredWorkspace();
+    const extract = vi.fn<ModelProvider["extractJob"]>(async () => ({
+      company: "Example Corp",
+      role: "Platform Engineer",
+      location: "Madrid",
+      workMode: "remote",
+      salaryText: "",
+      invented: "not allowed",
+    }) as never);
+
+    await expect(
+      extractJob(
+        root,
+        { sourceText: "Example Corp seeks a Platform Engineer.", source: "", sourceUrl: "" },
+        provider({ extractJob: extract }),
+      ),
+    ).rejects.toThrow();
+    expect(listCandidatures(root)).toEqual([]);
   });
 });
