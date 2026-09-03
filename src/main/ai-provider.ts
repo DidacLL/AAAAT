@@ -61,8 +61,12 @@ function parseProviderResult(content: string): FitAssessmentResult {
 export function createOpenAiCompatibleProvider(
   fetchImpl: typeof fetch = fetch,
 ): FitModelProvider {
-  return Object.freeze({
-    async assessFit(connection, credential, context) {
+  const provider: FitModelProvider = {
+    async assessFit(
+      connection: AiConnectionStatus,
+      credential: string | null,
+      context: FitProjectedContext,
+    ): Promise<FitAssessmentResult> {
       const headers: Record<string, string> = {
         "content-type": "application/json",
       };
@@ -116,5 +120,6 @@ export function createOpenAiCompatibleProvider(
       }
       return parseProviderResult(content);
     },
-  });
+  };
+  return Object.freeze(provider);
 }
