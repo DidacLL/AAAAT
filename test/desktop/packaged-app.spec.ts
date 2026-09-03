@@ -212,12 +212,7 @@ test("packaged external command rejects unsupported authority without opening de
   try {
     const result = spawnSync(
       packagedExecutable(),
-      [
-        "--external-command",
-        "candidature.update",
-        "--workspace",
-        uninitializedWorkspace,
-      ],
+      ["--external-command", "candidature.update", "--workspace", uninitializedWorkspace],
       {
         input: "{}",
         encoding: "utf8",
@@ -299,6 +294,12 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
         "list",
         "create",
         "update",
+        "listSources",
+        "addSource",
+        "updateSource",
+        "removeSource",
+        "currentWorkingBrief",
+        "updateWorkingBrief",
         "setDocuments",
         "listConcepts",
         "createConcept",
@@ -352,6 +353,7 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 4").get()).toEqual({ name: "candidatures" });
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 5").get()).toEqual({ name: "concepts" });
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 7").get()).toEqual({ name: "career-context" });
+      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 8").get()).toEqual({ name: "candidature-sources-brief" });
     } finally {
       database.close();
     }
@@ -395,14 +397,22 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
     try {
       expect(
         commandDatabase
-          .prepare("SELECT company, role, source_text AS sourceText FROM candidatures")
+          .prepare("SELECT company, role, source_text AS sourceText, priority FROM candidatures")
           .all(),
       ).toEqual([
         {
           company: "Packaged Command Corp",
           role: "External command proof",
           sourceText: "private smoke source",
+          priority: "",
         },
+      ]);
+      expect(
+        commandDatabase
+          .prepare("SELECT kind, title, source_text AS sourceText FROM candidature_sources")
+          .all(),
+      ).toEqual([
+        { kind: "other", title: "packaged smoke", sourceText: "private smoke source" },
       ]);
       expect(
         commandDatabase.prepare("SELECT action FROM candidature_activity").all(),
