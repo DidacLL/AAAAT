@@ -164,7 +164,7 @@ describe("workspace backup and restore", () => {
 
     const nestedBackup = path.join(fourth.workspace, "nested-backup");
     mkdirSync(nestedBackup);
-    expect(createWorkspaceBackup(fourth.workspace, nestedBackup)).rejects.toThrow(/must not overlap/);
+    await expect(createWorkspaceBackup(fourth.workspace, nestedBackup)).rejects.toThrow(/must not overlap/);
   });
 
   it("rejects corrupted SQLite even when the manifest hash is rewritten to match", async () => {
