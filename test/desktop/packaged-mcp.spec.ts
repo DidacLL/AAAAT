@@ -21,6 +21,14 @@ function packagedExecutable(): string {
   return path.join(packageRoot, process.platform === "win32" ? "aaaat.exe" : "aaaat");
 }
 
+function childEnvironment(): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+}
+
 const migrationFiles = [
   [1, "workspace", "001_workspace.sql"],
   [2, "profile", "002_profile.sql"],
@@ -83,6 +91,7 @@ test("packaged executable serves only bounded candidature creation over official
   const transport = new StdioClientTransport({
     command: packagedExecutable(),
     args: ["--mcp", "--workspace", root],
+    env: childEnvironment(),
   });
   const client = new Client({ name: "aaaat-packaged-mcp-test", version: "1.0.0" });
 
