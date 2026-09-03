@@ -29,8 +29,7 @@ export function mcpWorkspaceFromInvocation(argv: readonly string[]): string {
   return workspacePath;
 }
 
-export function createAaaatMcpServer(workspacePath: string): McpServer {
-  const workspace = openWorkspace(workspacePath);
+function createServerForWorkspace(rootPath: string): McpServer {
   const server = new McpServer({ name: "aaaat", version: "2.0.0-alpha.0" });
 
   server.registerTool(
@@ -40,7 +39,7 @@ export function createAaaatMcpServer(workspacePath: string): McpServer {
       inputSchema: candidatureInputSchema,
     },
     async (input) => {
-      createCandidature(workspace.rootPath, input);
+      createCandidature(rootPath, input);
       return {
         content: [
           {
@@ -59,8 +58,11 @@ export function createAaaatMcpServer(workspacePath: string): McpServer {
   return server;
 }
 
-export async function runMcpProcess(argv: readonly string[]): Promise<void> {
-  const workspacePath = mcpWorkspaceFromInvocation(argv);
-  openWorkspace(workspacePath);
-  await serveStdio(() => createAaaatMcpServer(workspacePath));
+export function createAaaatMcpServer(workspacePath: string): McpServer {
+  return createServerForWorkspace(openWorkspace(workspacePath).rootPath);
+}
+
+export function runMcpProcess(argv: readonly string[]): void {
+  const workspace = openWorkspace(mcpWorkspaceFromInvocation(argv));
+  serveStdio(() => createServerForWorkspace(workspace.rootPath));
 }
