@@ -69,13 +69,20 @@ describe("official MCP candidature server", () => {
         arguments: candidatureInput,
       });
       expect(result.isError).not.toBe(true);
-      const encodedResult = JSON.stringify(result);
-      expect(encodedResult).toContain('"capability":"candidature.create"');
-      expect(encodedResult).toContain('"created":true');
-      expect(encodedResult).not.toContain(root);
-      expect(encodedResult).not.toContain("MCP Example Corp");
-      expect(encodedResult).not.toContain("Private MCP source material");
-      expect(encodedResult).not.toContain("Private MCP note");
+      const content = result.content[0];
+      expect(content).toMatchObject({ type: "text" });
+      if (!content || content.type !== "text") {
+        throw new Error("MCP candidature result is not text content.");
+      }
+      expect(JSON.parse(content.text)).toEqual({
+        ok: true,
+        capability: "candidature.create",
+        created: true,
+      });
+      expect(content.text).not.toContain(root);
+      expect(content.text).not.toContain("MCP Example Corp");
+      expect(content.text).not.toContain("Private MCP source material");
+      expect(content.text).not.toContain("Private MCP note");
 
       const candidatures = listCandidatures(root);
       expect(candidatures).toHaveLength(1);
