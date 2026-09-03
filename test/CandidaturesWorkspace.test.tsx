@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
 import type {
   CandidatureRecord,
+  CandidatureWorkingBrief,
   ConceptRecord,
   DesktopApi,
   DocumentRecord,
@@ -35,6 +36,7 @@ function candidature(overrides: Partial<CandidatureRecord> = {}): CandidatureRec
     sourceUrl: "",
     sourceText: "Original offer text",
     status: "saved",
+    priority: "",
     applicationDate: "",
     nextAction: "Reply",
     nextActionDate: "",
@@ -43,6 +45,20 @@ function candidature(overrides: Partial<CandidatureRecord> = {}): CandidatureRec
     documentIds: [],
     conceptIds: [],
     ...overrides,
+  };
+}
+
+function workingBrief(candidatureId: string): CandidatureWorkingBrief {
+  return {
+    candidatureId,
+    fitSuitability: "",
+    strengthsEvidence: "",
+    gapsRisksConstraints: "",
+    currentStrategy: "",
+    companyRoleContext: "",
+    pitch: "",
+    questions: "",
+    recruiterPreparation: "",
   };
 }
 
@@ -63,6 +79,12 @@ const document: DocumentRecord = {
 const list = vi.fn<DesktopApi["candidatures"]["list"]>();
 const create = vi.fn<DesktopApi["candidatures"]["create"]>();
 const update = vi.fn<DesktopApi["candidatures"]["update"]>();
+const listSources = vi.fn<DesktopApi["candidatures"]["listSources"]>();
+const addSource = vi.fn<DesktopApi["candidatures"]["addSource"]>();
+const updateSource = vi.fn<DesktopApi["candidatures"]["updateSource"]>();
+const removeSource = vi.fn<DesktopApi["candidatures"]["removeSource"]>();
+const currentWorkingBrief = vi.fn<DesktopApi["candidatures"]["currentWorkingBrief"]>();
+const updateWorkingBrief = vi.fn<DesktopApi["candidatures"]["updateWorkingBrief"]>();
 const setDocuments = vi.fn<DesktopApi["candidatures"]["setDocuments"]>();
 const listConcepts = vi.fn<DesktopApi["candidatures"]["listConcepts"]>();
 const createConcept = vi.fn<DesktopApi["candidatures"]["createConcept"]>();
@@ -115,6 +137,12 @@ const desktopApi: DesktopApi = {
     list,
     create,
     update,
+    listSources,
+    addSource,
+    updateSource,
+    removeSource,
+    currentWorkingBrief,
+    updateWorkingBrief,
     setDocuments,
     listConcepts,
     createConcept,
@@ -129,6 +157,12 @@ describe("manual Candidatures workspace", () => {
       list,
       create,
       update,
+      listSources,
+      addSource,
+      updateSource,
+      removeSource,
+      currentWorkingBrief,
+      updateWorkingBrief,
       setDocuments,
       listConcepts,
       createConcept,
@@ -136,6 +170,9 @@ describe("manual Candidatures workspace", () => {
       setConcepts,
     ]) mock.mockReset();
     list.mockResolvedValue([]);
+    listSources.mockResolvedValue([]);
+    currentWorkingBrief.mockImplementation(async (candidatureId) => workingBrief(candidatureId));
+    updateWorkingBrief.mockImplementation(async (value) => value);
     listConcepts.mockResolvedValue([]);
     create.mockResolvedValue(candidature({
       company: "",
@@ -184,7 +221,7 @@ describe("manual Candidatures workspace", () => {
     expect(await screen.findByLabelText("Source material")).toBeInTheDocument();
   });
 
-  it("edits lifecycle data, archives independently, and associates an existing document", async () => {
+  it("edits lifecycle data, priority, archives independently, and associates an existing document", async () => {
     const existing = candidature();
     list.mockResolvedValueOnce([existing]);
     update.mockImplementation(async (value) => candidature({ ...value }));
@@ -198,15 +235,18 @@ describe("manual Candidatures workspace", () => {
     if (!form) throw new Error("Expected candidature edit form");
     const editor = within(form);
     await user.selectOptions(editor.getByLabelText("Status"), "applied");
+    await user.selectOptions(editor.getByLabelText("Priority"), "high");
     await user.clear(editor.getByLabelText("Notes"));
     await user.type(editor.getByLabelText("Notes"), "Application submitted");
     await user.click(saveButton);
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
       id: existing.id,
       status: "applied",
+      priority: "high",
       notes: "Application submitted",
       archived: false,
     }));
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty("source");
 
     await user.click(screen.getByRole("button", { name: "Archive candidature" }));
     expect(update).toHaveBeenLastCalledWith(expect.objectContaining({
