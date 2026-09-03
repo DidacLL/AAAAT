@@ -5,6 +5,7 @@ import { AiDocumentsWorkspace } from "./AiDocumentsWorkspace";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import logo from "./assets/aaaat-logo-light.png";
 import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
+import { CareerContextPanel } from "./CareerContextPanel";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 
@@ -144,7 +145,10 @@ export function App() {
           {productView === "candidatures" ? (
             <CandidaturesAiWorkspace key={`candidatures-${workspace.rootPath}`} />
           ) : productView === "profile" ? (
-            <ProfileWorkspace key={`profile-${workspace.rootPath}`} />
+            <div key={`profile-${workspace.rootPath}`}>
+              <CareerContextPanel />
+              <ProfileWorkspace />
+            </div>
           ) : productView === "documents" ? (
             <DocumentsWorkspace key={`documents-${workspace.rootPath}`} />
           ) : productView === "ai-documents" ? (
