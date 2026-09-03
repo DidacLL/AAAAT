@@ -119,7 +119,6 @@ describe("desktop preload API", () => {
         name: "Model",
         endpoint: "invalid",
         model: "fixture",
-        classification: "local",
       }),
     ).rejects.toThrow();
     await expect(
