@@ -7,7 +7,7 @@ const externalCommandFlag = "--external-command";
 const workspaceFlag = "--workspace";
 const candidatureCreateCapability = "candidature.create";
 
-export const externalCommandMaxInputBytes = 384 * 1024;
+export const externalCommandMaxInputBytes = 512 * 1024;
 
 type ExternalCommandFailureCode =
   | "invalid-invocation"
@@ -132,8 +132,19 @@ async function readBoundedInput(input: Readable): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-function writeResponse(output: Writable, result: ExternalCommandResult): void {
-  output.write(JSON.stringify(result.response) + "\n");
+async function writeResponse(
+  output: Writable,
+  result: ExternalCommandResult,
+): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    output.write(JSON.stringify(result.response) + "\n", (error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
 }
 
 export async function runExternalCommandProcess(
@@ -143,7 +154,7 @@ export async function runExternalCommandProcess(
 ): Promise<0 | 2> {
   const invalidInvocation = invocationFailure(argv);
   if (invalidInvocation) {
-    writeResponse(output, invalidInvocation);
+    await writeResponse(output, invalidInvocation);
     return invalidInvocation.exitCode;
   }
 
@@ -152,11 +163,11 @@ export async function runExternalCommandProcess(
     rawInput = await readBoundedInput(input);
   } catch (error) {
     const result = failure(error instanceof InputTooLargeError ? "input-too-large" : "command-failed");
-    writeResponse(output, result);
+    await writeResponse(output, result);
     return result.exitCode;
   }
 
   const result = executeExternalCommand(argv, rawInput);
-  writeResponse(output, result);
+  await writeResponse(output, result);
   return result.exitCode;
 }
