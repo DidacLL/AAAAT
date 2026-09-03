@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -77,6 +77,40 @@ describe("M3 AI service", () => {
         model: "model-a",
       }),
     ).toThrow("loopback endpoint");
+  });
+
+  it("revalidates a stored connection before inference", async () => {
+    const root = workspace();
+    const candidatureId = seedFitContext(root);
+    saveAiConnection(root, {
+      name: "Local model",
+      endpoint: "http://localhost:11434/v1",
+      model: "local-model",
+    });
+    writeFileSync(
+      path.join(root, "ai-connection.json"),
+      `${JSON.stringify({
+        version: 1,
+        name: "Edited connection",
+        endpoint: "https://models.example.test/v1",
+        model: "remote-model",
+      })}\n`,
+      "utf8",
+    );
+    const assess = vi.fn<FitModelProvider["assessFit"]>();
+
+    await expect(
+      assessFit(
+        root,
+        {
+          candidatureId,
+          identityPrivacy: "token",
+          contactPrivacy: "omit",
+        },
+        { assessFit: assess },
+      ),
+    ).rejects.toThrow("stored AI connection configuration is invalid");
+    expect(assess).not.toHaveBeenCalled();
   });
 
   it("projects identity as opaque local tokens and omits contact before inference", () => {
