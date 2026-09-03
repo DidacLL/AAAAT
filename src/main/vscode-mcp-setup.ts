@@ -149,11 +149,13 @@ export function proposeVscodeMcpSetup(workspacePath: string, projectPath: string
 }
 
 function inheritedEnvironment(): Record<string, string> {
-  return Object.fromEntries(
+  const environment = Object.fromEntries(
     Object.entries(process.env).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
     ),
   );
+  if (process.platform === "win32") environment.ELECTRON_NO_ATTACH_CONSOLE = "1";
+  return environment;
 }
 
 export async function verifyVscodeMcpConnection(
@@ -182,6 +184,9 @@ function serverEntry(executablePath: string, workspacePath: string) {
     type: "stdio",
     command: executablePath,
     args: ["--mcp", "--workspace", workspacePath],
+    ...(process.platform === "win32"
+      ? { env: { ELECTRON_NO_ATTACH_CONSOLE: "1" } }
+      : {}),
   } as const;
 }
 
