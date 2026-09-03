@@ -70,6 +70,7 @@ export function createOpenAiCompatibleProvider(
         response = await fetchImpl(chatCompletionsUrl(connection.endpoint), {
           method: "POST",
           headers: { "content-type": "application/json" },
+          redirect: "error",
           signal: AbortSignal.timeout(30_000),
           body: JSON.stringify({
             model: connection.model,
