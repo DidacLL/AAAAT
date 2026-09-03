@@ -9,7 +9,7 @@ M3 requires optional provider-neutral AI without giving the sandboxed renderer a
 For the first demonstrated provider boundary:
 
 - connection settings live in the user-owned workspace as `ai-connection.json`;
-- the first supported connection is keyless and local: only loopback HTTP/HTTPS endpoints are accepted;
+- the first supported connection is keyless and local: only loopback HTTP/HTTPS endpoints are accepted, stored settings are revalidated before use, and provider HTTP redirects are not followed;
 - the user configures only a connection name, endpoint, and model;
 - privileged main code exposes only fixed connection, fit-preview, and fit-assessment IPC intentions;
 - one operation-oriented provider interface is implemented by one generic OpenAI-compatible HTTP adapter; there is no provider registry or plugin layer;
