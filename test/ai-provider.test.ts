@@ -6,12 +6,9 @@ import { createOpenAiCompatibleProvider } from "../src/main/ai-provider";
 import type { AiConnectionStatus, FitProjectedContext } from "../src/shared/ai-contracts";
 
 const connection: AiConnectionStatus = {
-  name: "Fixture",
-  endpoint: "https://models.example.test/v1",
+  name: "Local fixture",
+  endpoint: "http://localhost:11434/v1",
   model: "fixture-model",
-  classification: "remote",
-  hasCredential: true,
-  secureStorageAvailable: true,
 };
 
 const context: FitProjectedContext = {
@@ -28,7 +25,7 @@ const context: FitProjectedContext = {
 };
 
 describe("OpenAI-compatible fit provider", () => {
-  it("sends one fixed chat-completions request and validates the typed result", async () => {
+  it("sends one keyless chat-completions request and validates the typed result", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -51,7 +48,7 @@ describe("OpenAI-compatible fit provider", () => {
     );
     const provider = createOpenAiCompatibleProvider(fetchImpl);
 
-    await expect(provider.assessFit(connection, "secret-token", context)).resolves.toEqual({
+    await expect(provider.assessFit(connection, context)).resolves.toEqual({
       fit: "strong",
       summary: "Strong match.",
       strengths: ["TypeScript"],
@@ -61,12 +58,9 @@ describe("OpenAI-compatible fit provider", () => {
 
     expect(fetchImpl).toHaveBeenCalledOnce();
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
-    expect(url).toBe("https://models.example.test/v1/chat/completions");
+    expect(url).toBe("http://localhost:11434/v1/chat/completions");
     expect(init?.method).toBe("POST");
-    expect(init?.headers).toMatchObject({
-      "content-type": "application/json",
-      authorization: "Bearer secret-token",
-    });
+    expect(init?.headers).toEqual({ "content-type": "application/json" });
     const body = JSON.parse(String(init?.body)) as {
       model: string;
       messages: Array<{ role: string; content: string }>;
@@ -85,7 +79,7 @@ describe("OpenAI-compatible fit provider", () => {
       ),
     );
 
-    await expect(provider.assessFit(connection, null, context)).rejects.toThrow(
+    await expect(provider.assessFit(connection, context)).rejects.toThrow(
       "invalid fit assessment",
     );
   });
@@ -93,12 +87,12 @@ describe("OpenAI-compatible fit provider", () => {
   it("does not expose raw provider response details on request failure", async () => {
     const provider = createOpenAiCompatibleProvider(
       vi.fn<typeof fetch>().mockResolvedValue(
-        new Response("credential rejected: internal-provider-detail", { status: 401 }),
+        new Response("internal-provider-detail", { status: 500 }),
       ),
     );
 
-    await expect(provider.assessFit(connection, "secret-token", context)).rejects.toThrow(
-      "configured model provider rejected the request",
+    await expect(provider.assessFit(connection, context)).rejects.toThrow(
+      "configured local model provider rejected the request",
     );
   });
 });
