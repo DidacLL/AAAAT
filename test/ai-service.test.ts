@@ -68,6 +68,8 @@ function provider(overrides: Partial<ModelProvider>): ModelProvider {
     assessFit: vi.fn<ModelProvider["assessFit"]>(),
     extractJob: vi.fn<ModelProvider["extractJob"]>(),
     recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(),
+    tailorCv: vi.fn<ModelProvider["tailorCv"]>(),
+    draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(),
     ...overrides,
   };
 }

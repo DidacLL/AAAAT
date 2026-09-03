@@ -6,6 +6,10 @@ import { z } from "zod";
 import {
   aiConnectionInputSchema,
   aiConnectionStatusSchema,
+  coverLetterDraftSchema,
+  cvTailoringResultSchema,
+  documentAiContextSchema,
+  documentAiRequestSchema,
   fitAssessmentPreviewSchema,
   fitAssessmentRequestSchema,
   fitAssessmentResultSchema,
@@ -17,6 +21,9 @@ import {
   variantRecommendationResultSchema,
   type AiConnectionInput,
   type AiConnectionStatus,
+  type CoverLetterDraft,
+  type CvTailoringResult,
+  type DocumentAiRequest,
   type FitAssessmentPreview,
   type FitAssessmentRequest,
   type FitAssessmentResult,
@@ -30,7 +37,8 @@ import {
 import type { ProfileItem } from "../shared/contracts";
 import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
 import { listCandidatures } from "./candidature-service";
-import { getProfile } from "./profile-service";
+import { listDocuments, resolveDocument } from "./document-service";
+import { getProfile, resolveProfileVariant } from "./profile-service";
 
 const storedConnectionSchema = z
   .object({
@@ -175,7 +183,6 @@ function requireCandidature(rootPath: string, candidatureId: string) {
 
 function projectFitContext(rootPath: string, request: FitAssessmentRequest): Projection {
   const candidature = requireCandidature(rootPath, request.candidatureId);
-
   const tokenMap = new Map<string, string>();
   let tokenCounter = 0;
   const token = (value: string) => {
@@ -295,4 +302,96 @@ export async function recommendVariant(
     throw new AiServiceError("The model recommended a profile variant that no longer exists.");
   }
   return result;
+}
+
+const documentEvidenceKinds = new Set([
+  "summary",
+  "experience",
+  "education",
+  "project",
+  "skill",
+  "certification",
+  "language",
+]);
+
+function requireDocument(rootPath: string, documentId: string) {
+  const document = listDocuments(rootPath).find((candidate) => candidate.id === documentId);
+  if (!document) throw new AiServiceError("The selected document no longer exists.");
+  return document;
+}
+
+function documentContext(
+  candidature: ReturnType<typeof requireCandidature>,
+  items: readonly ProfileItem[],
+) {
+  const evidence = items
+    .filter((item) => documentEvidenceKinds.has(item.kind))
+    .map((item) => ({
+      id: item.id,
+      kind: item.kind,
+      title: item.title,
+      ...(item.subtitle ? { subtitle: item.subtitle } : {}),
+      ...(item.description ? { description: item.description } : {}),
+    }));
+  if (evidence.length === 0) {
+    throw new AiServiceError("Add non-sensitive career evidence before requesting document assistance.");
+  }
+  return documentAiContextSchema.parse({
+    candidature: opportunityContext(candidature),
+    items: evidence,
+  });
+}
+
+function currentDocumentEvidenceIds(rootPath: string, documentId: string): ReadonlySet<string> {
+  const document = requireDocument(rootPath, documentId);
+  if (document.kind !== "cv") {
+    throw new AiServiceError("Choose a CV document for CV tailoring.");
+  }
+  return new Set(
+    resolveProfileVariant(rootPath, document.variantId).items
+      .filter((item) => documentEvidenceKinds.has(item.kind))
+      .map((item) => item.id),
+  );
+}
+
+export async function tailorCv(
+  rootPath: string,
+  rawRequest: DocumentAiRequest,
+  provider: ModelProvider = createOpenAiCompatibleProvider(),
+): Promise<CvTailoringResult> {
+  const request = documentAiRequestSchema.parse(rawRequest);
+  const stored = requireStoredConnection(rootPath);
+  const candidature = requireCandidature(rootPath, request.candidatureId);
+  const document = requireDocument(rootPath, request.documentId);
+  if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
+  const context = documentContext(
+    candidature,
+    resolveProfileVariant(rootPath, document.variantId).items,
+  );
+  const result = cvTailoringResultSchema.parse(
+    await provider.tailorCv(statusFor(stored), context),
+  );
+  const allowed = currentDocumentEvidenceIds(rootPath, request.documentId);
+  if (result.recommendations.some((item) => !allowed.has(item.itemId))) {
+    throw new AiServiceError("The model recommended a profile item that no longer exists.");
+  }
+  return result;
+}
+
+export async function draftCoverLetter(
+  rootPath: string,
+  rawRequest: DocumentAiRequest,
+  provider: ModelProvider = createOpenAiCompatibleProvider(),
+): Promise<CoverLetterDraft> {
+  const request = documentAiRequestSchema.parse(rawRequest);
+  const stored = requireStoredConnection(rootPath);
+  const candidature = requireCandidature(rootPath, request.candidatureId);
+  const document = requireDocument(rootPath, request.documentId);
+  if (document.kind !== "cover_letter") {
+    throw new AiServiceError("Choose a cover-letter document for cover-letter drafting.");
+  }
+  const context = documentContext(candidature, resolveDocument(rootPath, document.id).items);
+  return coverLetterDraftSchema.parse(
+    await provider.draftCoverLetter(statusFor(stored), context),
+  );
 }

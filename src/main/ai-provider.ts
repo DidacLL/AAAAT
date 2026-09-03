@@ -1,10 +1,15 @@
 import { z } from "zod";
 
 import {
+  coverLetterDraftSchema,
+  cvTailoringResultSchema,
   fitAssessmentResultSchema,
   jobExtractionResultSchema,
   variantRecommendationResultSchema,
   type AiConnectionStatus,
+  type CoverLetterDraft,
+  type CvTailoringResult,
+  type DocumentAiContext,
   type FitAssessmentResult,
   type FitProjectedContext,
   type JobExtractionRequest,
@@ -47,6 +52,14 @@ export interface ModelProvider {
     connection: AiConnectionStatus,
     context: VariantRecommendationContext,
   ): Promise<VariantRecommendationResult>;
+  tailorCv(
+    connection: AiConnectionStatus,
+    context: DocumentAiContext,
+  ): Promise<CvTailoringResult>;
+  draftCoverLetter(
+    connection: AiConnectionStatus,
+    context: DocumentAiContext,
+  ): Promise<CoverLetterDraft>;
 }
 
 function chatCompletionsUrl(baseUrl: string): string {
@@ -165,6 +178,40 @@ export function createOpenAiCompatibleProvider(
         content,
         variantRecommendationResultSchema,
         "The configured provider returned an invalid profile variant recommendation.",
+      );
+    },
+
+    async tailorCv(
+      connection: AiConnectionStatus,
+      context: DocumentAiContext,
+    ): Promise<CvTailoringResult> {
+      const content = await requestContent(
+        fetchImpl,
+        connection,
+        "Recommend the strongest existing career items for this candidature. Return JSON only with key recommendations, an array of objects with itemId and rationale. Use only item IDs supplied in context. Do not rewrite or invent career facts.",
+        context,
+      );
+      return parseJson(
+        content,
+        cvTailoringResultSchema,
+        "The configured provider returned an invalid CV tailoring proposal.",
+      );
+    },
+
+    async draftCoverLetter(
+      connection: AiConnectionStatus,
+      context: DocumentAiContext,
+    ): Promise<CoverLetterDraft> {
+      const content = await requestContent(
+        fetchImpl,
+        connection,
+        "Draft a concise cover letter using only the supplied opportunity and career evidence. Return JSON only with keys recipient, subject, bodyParagraphs, closing. Do not invent career facts or contact details; use empty strings when recipient or closing is unsupported.",
+        context,
+      );
+      return parseJson(
+        content,
+        coverLetterDraftSchema,
+        "The configured provider returned an invalid cover-letter draft.",
       );
     },
   });

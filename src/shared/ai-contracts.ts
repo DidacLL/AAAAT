@@ -7,6 +7,8 @@ export const aiChannels = Object.freeze({
   fitAssess: "aaaat:ai-fit-assess",
   jobExtract: "aaaat:ai-job-extract",
   variantRecommend: "aaaat:ai-variant-recommend",
+  cvTailor: "aaaat:ai-cv-tailor",
+  coverLetterDraft: "aaaat:ai-cover-letter-draft",
 } as const);
 
 export const aiConnectionInputSchema = z
@@ -45,9 +47,7 @@ export const fitProjectedCandidatureSchema = z
     sourceText: z.string(),
   })
   .strict();
-export type FitProjectedCandidature = z.infer<
-  typeof fitProjectedCandidatureSchema
->;
+export type FitProjectedCandidature = z.infer<typeof fitProjectedCandidatureSchema>;
 
 export const fitProjectedProfileItemSchema = z
   .object({
@@ -59,9 +59,7 @@ export const fitProjectedProfileItemSchema = z
     endDate: z.string().optional(),
   })
   .strict();
-export type FitProjectedProfileItem = z.infer<
-  typeof fitProjectedProfileItemSchema
->;
+export type FitProjectedProfileItem = z.infer<typeof fitProjectedProfileItemSchema>;
 
 export const fitProjectedContextSchema = z
   .object({
@@ -113,9 +111,7 @@ export type JobExtractionResult = z.infer<typeof jobExtractionResultSchema>;
 export const variantRecommendationRequestSchema = z
   .object({ candidatureId: z.string().uuid() })
   .strict();
-export type VariantRecommendationRequest = z.infer<
-  typeof variantRecommendationRequestSchema
->;
+export type VariantRecommendationRequest = z.infer<typeof variantRecommendationRequestSchema>;
 
 export const variantRecommendationContextSchema = z
   .object({
@@ -136,9 +132,7 @@ export const variantRecommendationContextSchema = z
       .max(100),
   })
   .strict();
-export type VariantRecommendationContext = z.infer<
-  typeof variantRecommendationContextSchema
->;
+export type VariantRecommendationContext = z.infer<typeof variantRecommendationContextSchema>;
 
 export const variantRecommendationResultSchema = z
   .object({
@@ -146,27 +140,74 @@ export const variantRecommendationResultSchema = z
     rationale: z.string().trim().min(1).max(1500),
   })
   .strict();
-export type VariantRecommendationResult = z.infer<
-  typeof variantRecommendationResultSchema
->;
+export type VariantRecommendationResult = z.infer<typeof variantRecommendationResultSchema>;
+
+export const documentAiRequestSchema = z
+  .object({ candidatureId: z.string().uuid(), documentId: z.string().uuid() })
+  .strict();
+export type DocumentAiRequest = z.infer<typeof documentAiRequestSchema>;
+
+export const documentEvidenceItemSchema = z
+  .object({
+    id: z.string().uuid(),
+    kind: z.string().min(1),
+    title: z.string(),
+    subtitle: z.string().optional(),
+    description: z.string().optional(),
+  })
+  .strict();
+export type DocumentEvidenceItem = z.infer<typeof documentEvidenceItemSchema>;
+
+export const documentAiContextSchema = z
+  .object({
+    candidature: fitProjectedCandidatureSchema,
+    items: z.array(documentEvidenceItemSchema).min(1).max(200),
+  })
+  .strict();
+export type DocumentAiContext = z.infer<typeof documentAiContextSchema>;
+
+export const cvTailoringResultSchema = z
+  .object({
+    recommendations: z
+      .array(
+        z
+          .object({
+            itemId: z.string().uuid(),
+            rationale: z.string().trim().min(1).max(1000),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(12),
+  })
+  .strict()
+  .refine(
+    (value) => new Set(value.recommendations.map((item) => item.itemId)).size === value.recommendations.length,
+    { message: "Each CV recommendation must reference an item once." },
+  );
+export type CvTailoringResult = z.infer<typeof cvTailoringResultSchema>;
+
+export const coverLetterDraftSchema = z
+  .object({
+    recipient: z.string().trim().max(300),
+    subject: z.string().trim().max(300),
+    bodyParagraphs: z.array(z.string().trim().min(1).max(5000)).min(1).max(20),
+    closing: z.string().trim().max(500),
+  })
+  .strict();
+export type CoverLetterDraft = z.infer<typeof coverLetterDraftSchema>;
 
 export interface AiDesktopApi {
   readonly ai: {
     readonly connection: () => Promise<AiConnectionStatus | null>;
-    readonly saveConnection: (
-      input: AiConnectionInput,
-    ) => Promise<AiConnectionStatus>;
-    readonly previewFit: (
-      request: FitAssessmentRequest,
-    ) => Promise<FitAssessmentPreview>;
-    readonly assessFit: (
-      request: FitAssessmentRequest,
-    ) => Promise<FitAssessmentResult>;
-    readonly extractJob: (
-      request: JobExtractionRequest,
-    ) => Promise<JobExtractionResult>;
+    readonly saveConnection: (input: AiConnectionInput) => Promise<AiConnectionStatus>;
+    readonly previewFit: (request: FitAssessmentRequest) => Promise<FitAssessmentPreview>;
+    readonly assessFit: (request: FitAssessmentRequest) => Promise<FitAssessmentResult>;
+    readonly extractJob: (request: JobExtractionRequest) => Promise<JobExtractionResult>;
     readonly recommendVariant: (
       request: VariantRecommendationRequest,
     ) => Promise<VariantRecommendationResult>;
+    readonly tailorCv: (request: DocumentAiRequest) => Promise<CvTailoringResult>;
+    readonly draftCoverLetter: (request: DocumentAiRequest) => Promise<CoverLetterDraft>;
   };
 }

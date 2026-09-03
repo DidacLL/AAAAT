@@ -13,6 +13,9 @@ import {
   aiConnectionInputSchema,
   aiConnectionStatusSchema,
   aiChannels,
+  coverLetterDraftSchema,
+  cvTailoringResultSchema,
+  documentAiRequestSchema,
   fitAssessmentPreviewSchema,
   fitAssessmentRequestSchema,
   fitAssessmentResultSchema,
@@ -59,11 +62,13 @@ import {
 } from "../shared/contracts";
 import {
   assessFit,
+  draftCoverLetter,
   extractJob,
   getAiConnection,
   previewFitAssessment,
   recommendVariant,
   saveAiConnection,
+  tailorCv,
 } from "./ai-service";
 import {
   createCandidature,
@@ -421,6 +426,18 @@ function registerIpc(mainWindow: BrowserWindow): void {
         requireWorkspaceRoot(),
         variantRecommendationRequestSchema.parse(input),
       ),
+    );
+  });
+  ipcMain.handle(aiChannels.cvTailor, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return cvTailoringResultSchema.parse(
+      await tailorCv(requireWorkspaceRoot(), documentAiRequestSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(aiChannels.coverLetterDraft, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return coverLetterDraftSchema.parse(
+      await draftCoverLetter(requireWorkspaceRoot(), documentAiRequestSchema.parse(input)),
     );
   });
 }

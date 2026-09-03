@@ -5,6 +5,9 @@ import { aiChannels } from "../src/shared/ai-contracts";
 import { channels } from "../src/shared/contracts";
 
 const emptyProfile = { items: [], variants: [] };
+const candidatureId = "00000000-0000-4000-8000-000000000001";
+const documentId = "00000000-0000-4000-8000-000000000002";
+const itemId = "00000000-0000-4000-8000-000000000003";
 
 describe("desktop preload API", () => {
   it("exposes only fixed workspace, product, and AI intentions", async () => {
@@ -23,9 +26,17 @@ describe("desktop preload API", () => {
         return { company: "Example", role: "Engineer", location: "", workMode: "", salaryText: "" };
       }
       if (channel === aiChannels.variantRecommend) {
+        return { variantId: itemId, rationale: "Matches." };
+      }
+      if (channel === aiChannels.cvTailor) {
+        return { recommendations: [{ itemId, rationale: "Relevant." }] };
+      }
+      if (channel === aiChannels.coverLetterDraft) {
         return {
-          variantId: "00000000-0000-4000-8000-000000000010",
-          rationale: "Matches.",
+          recipient: "Hiring team",
+          subject: "Application",
+          bodyParagraphs: ["Paragraph."],
+          closing: "Regards",
         };
       }
       return emptyProfile;
@@ -76,6 +87,8 @@ describe("desktop preload API", () => {
       "assessFit",
       "extractJob",
       "recommendVariant",
+      "tailorCv",
+      "draftCoverLetter",
     ]);
 
     await expect(api.system.info()).resolves.toMatchObject({ electronVersion: "44.1.1" });
@@ -89,9 +102,15 @@ describe("desktop preload API", () => {
     await expect(
       api.ai.extractJob({ sourceText: "Example job", source: "", sourceUrl: "" }),
     ).resolves.toMatchObject({ company: "Example", role: "Engineer" });
-    await expect(
-      api.ai.recommendVariant({ candidatureId: "00000000-0000-4000-8000-000000000001" }),
-    ).resolves.toMatchObject({ rationale: "Matches." });
+    await expect(api.ai.recommendVariant({ candidatureId })).resolves.toMatchObject({
+      rationale: "Matches.",
+    });
+    await expect(api.ai.tailorCv({ candidatureId, documentId })).resolves.toEqual({
+      recommendations: [{ itemId, rationale: "Relevant." }],
+    });
+    await expect(api.ai.draftCoverLetter({ candidatureId, documentId })).resolves.toMatchObject({
+      subject: "Application",
+    });
 
     expect(invoke).toHaveBeenNthCalledWith(1, channels.systemInfo);
     expect(invoke).toHaveBeenNthCalledWith(2, channels.workspaceCurrent);
@@ -106,8 +125,11 @@ describe("desktop preload API", () => {
       source: "",
       sourceUrl: "",
     });
-    expect(invoke).toHaveBeenNthCalledWith(10, aiChannels.variantRecommend, {
-      candidatureId: "00000000-0000-4000-8000-000000000001",
+    expect(invoke).toHaveBeenNthCalledWith(10, aiChannels.variantRecommend, { candidatureId });
+    expect(invoke).toHaveBeenNthCalledWith(11, aiChannels.cvTailor, { candidatureId, documentId });
+    expect(invoke).toHaveBeenNthCalledWith(12, aiChannels.coverLetterDraft, {
+      candidatureId,
+      documentId,
     });
   });
 
@@ -119,7 +141,7 @@ describe("desktop preload API", () => {
       api.documents.create({
         kind: "cv",
         title: "",
-        variantId: "00000000-0000-4000-8000-000000000001",
+        variantId: candidatureId,
         engine: "pdflatex",
         bodyParagraphs: [],
       }),
@@ -145,11 +167,7 @@ describe("desktop preload API", () => {
     ).rejects.toThrow();
     await expect(api.candidatures.createConcept({ name: "", definition: "", aliases: [] })).rejects.toThrow();
     await expect(
-      api.ai.saveConnection({
-        name: "Model",
-        endpoint: "invalid",
-        model: "fixture",
-      }),
+      api.ai.saveConnection({ name: "Model", endpoint: "invalid", model: "fixture" }),
     ).rejects.toThrow();
     await expect(
       api.ai.previewFit({
@@ -160,5 +178,7 @@ describe("desktop preload API", () => {
     ).rejects.toThrow();
     await expect(api.ai.extractJob({ sourceText: "", source: "", sourceUrl: "" })).rejects.toThrow();
     await expect(api.ai.recommendVariant({ candidatureId: "invalid" })).rejects.toThrow();
+    await expect(api.ai.tailorCv({ candidatureId: "invalid", documentId })).rejects.toThrow();
+    await expect(api.ai.draftCoverLetter({ candidatureId, documentId: "invalid" })).rejects.toThrow();
   });
 });
