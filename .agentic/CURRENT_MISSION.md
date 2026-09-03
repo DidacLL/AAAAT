@@ -1,6 +1,6 @@
 # M4 — Agentic Interoperability and Setup
 
-**Status: active.** M0 through M3 are accepted and complete. The owner has activated M4. Only bounded M4 capabilities are decomposed and implemented; M5 remains inactive.
+**Status: ready for owner review.** M0 through M3 are accepted and complete. M4 implementation is complete against this Mission and the canonical SPEC, with focused executable evidence and accepted independent review. M5 remains inactive pending owner acceptance of M4.
 
 ## Outcome
 
