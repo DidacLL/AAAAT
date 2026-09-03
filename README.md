@@ -8,7 +8,7 @@ For alpha installation, first-run use, manual workflows, optional AI, backup/res
 
 ## Current mission
 
-M5 - Release Hardening is ready for owner review. Its implementation now has native release artifacts and packaged runtime evidence, truthful user/setup/recovery documentation, demonstrated reliability corrections, dependency-security classification, and preserved security/privacy/local-ownership/manual-independence/portable-output gates. This review-candidate status does not mark M5 owner-accepted or publish a release.
+M5 - Release Hardening is accepted and complete. M0 through M5 are accepted, the approved AAAAT v2 capability roadmap is complete, and no later Mission is active. The accepted checkpoint is the AAAAT v2 alpha/reviewable release state; it is not by itself a published stable release. Further product scope requires a new owner-defined Mission, while bounded maintenance may proceed under the accepted SPEC and existing hard gates.
 
 The M4 - Agentic Interoperability and Setup checkpoint is accepted. Bounded external candidature creation, official MCP stdio, demonstrated VS Code setup, structured setup knowledge, portable proposed host configuration, and safe workspace backup/restore are proven while external authority remains narrow and AI remains optional.
 
