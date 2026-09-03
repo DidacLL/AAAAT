@@ -1,22 +1,17 @@
 import { useEffect, useState } from "react";
 
-import type {
-  AiConnectionClassification,
-  AiConnectionStatus,
-} from "../shared/ai-contracts";
+import type { AiConnectionStatus } from "../shared/ai-contracts";
 
 interface Draft {
   readonly name: string;
   readonly endpoint: string;
   readonly model: string;
-  readonly classification: AiConnectionClassification;
 }
 
 const emptyDraft: Draft = {
   name: "",
-  endpoint: "",
+  endpoint: "http://localhost:11434/v1",
   model: "",
-  classification: "local",
 };
 
 function editable(status: AiConnectionStatus): Draft {
@@ -24,13 +19,11 @@ function editable(status: AiConnectionStatus): Draft {
     name: status.name,
     endpoint: status.endpoint,
     model: status.model,
-    classification: status.classification,
   };
 }
 
 export function AiSettingsWorkspace() {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [apiKey, setApiKey] = useState("");
   const [status, setStatus] = useState<AiConnectionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -56,18 +49,14 @@ export function AiSettingsWorkspace() {
     setSaving(true);
     setError(null);
     try {
-      const saved = await window.aaaat.ai.saveConnection({
-        ...draft,
-        ...(apiKey ? { apiKey } : {}),
-      });
+      const saved = await window.aaaat.ai.saveConnection(draft);
       setStatus(saved);
       setDraft(editable(saved));
-      setApiKey("");
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
-          : "AAAAT could not save the AI connection.",
+          : "AAAAT could not save the local AI connection.",
       );
     } finally {
       setSaving(false);
@@ -80,14 +69,14 @@ export function AiSettingsWorkspace() {
         <div className="section-heading">
           <div>
             <p className="eyebrow">M3 connection</p>
-            <h2>AI provider</h2>
+            <h2>Local AI</h2>
           </div>
           <span>Optional</span>
         </div>
 
         <p>
-          Configure one OpenAI-compatible model endpoint. Manual AAAAT remains fully usable
-          without this connection.
+          Connect AAAAT to a local OpenAI-compatible model endpoint. This first path is keyless,
+          loopback-only, and keeps manual AAAAT fully usable without AI.
         </p>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
 
@@ -107,30 +96,6 @@ export function AiSettingsWorkspace() {
             />
           </label>
           <label>
-            Classification
-            <select
-              value={draft.classification}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  classification: event.target.value as AiConnectionClassification,
-                })
-              }
-            >
-              <option value="local">Local</option>
-              <option value="remote">Remote</option>
-              <option value="unknown">Unknown</option>
-            </select>
-          </label>
-          <label className="wide-field">
-            Provider base URL
-            <input
-              value={draft.endpoint}
-              onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })}
-              placeholder="http://localhost:11434/v1"
-            />
-          </label>
-          <label>
             Model
             <input
               value={draft.model}
@@ -138,19 +103,17 @@ export function AiSettingsWorkspace() {
               placeholder="model-name"
             />
           </label>
-          <label>
-            API key
+          <label className="wide-field">
+            Local provider base URL
             <input
-              type="password"
-              autoComplete="off"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              placeholder={status?.hasCredential ? "Stored securely — leave blank to keep" : "Optional"}
+              value={draft.endpoint}
+              onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })}
+              placeholder="http://localhost:11434/v1"
             />
           </label>
           <div className="form-actions wide-field">
             <button className="compact-primary" type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save connection"}
+              {saving ? "Saving…" : "Save local connection"}
             </button>
           </div>
         </form>
@@ -159,32 +122,21 @@ export function AiSettingsWorkspace() {
       <div className="profile-column">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Credential boundary</p>
-            <h2>Storage status</h2>
+            <p className="eyebrow">Connection boundary</p>
+            <h2>Local only</h2>
           </div>
         </div>
         {status ? (
-          <>
-            <p>
-              <strong>{status.name}</strong> is configured as {status.classification} using{" "}
-              <code>{status.endpoint}</code>.
-            </p>
-            <p>
-              Credential: {status.hasCredential ? "stored encrypted" : "not stored"}. Secure OS
-              storage is {status.secureStorageAvailable ? "available" : "unavailable"}.
-            </p>
-            {!status.secureStorageAvailable ? (
-              <p className="error-message">
-                AAAAT will not persist a new API key while secure OS storage is unavailable.
-              </p>
-            ) : null}
-          </>
+          <p>
+            <strong>{status.name}</strong> uses <code>{status.endpoint}</code> with model{" "}
+            <code>{status.model}</code>.
+          </p>
         ) : (
-          <p>No AI connection is configured yet.</p>
+          <p>No local AI connection is configured yet.</p>
         )}
         <p>
-          Remote and unknown connections require HTTPS. A connection marked local is restricted
-          to the loopback interface.
+          Only loopback endpoints are accepted in this slice. Remote authentication and API-key
+          setup are intentionally not part of the first user path.
         </p>
       </div>
     </section>
