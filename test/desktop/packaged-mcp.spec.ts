@@ -28,7 +28,6 @@ function childEnvironment(executable: string, workspace: string): Record<string,
     ),
   );
   if (process.platform === "win32") {
-    environment.ELECTRON_NO_ATTACH_CONSOLE = "1";
     environment.AAAAT_MCP_EXE = executable;
     environment.AAAAT_MCP_WORKSPACE = workspace;
   }
@@ -38,13 +37,12 @@ function childEnvironment(executable: string, workspace: string): Record<string,
 function transportParameters(executable: string, workspace: string) {
   if (process.platform === "win32") {
     return {
-      command: "powershell.exe",
+      command: "cmd.exe",
       args: [
-        "-NoLogo",
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        "& $env:AAAAT_MCP_EXE --mcp --workspace $env:AAAAT_MCP_WORKSPACE",
+        "/d",
+        "/s",
+        "/c",
+        '"%AAAAT_MCP_EXE%" --mcp --workspace "%AAAAT_MCP_WORKSPACE%"',
       ],
       env: childEnvironment(executable, workspace),
     };
