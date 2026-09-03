@@ -5,6 +5,7 @@ export const aiChannels = Object.freeze({
   connectionSave: "aaaat:ai-connection-save",
   fitPreview: "aaaat:ai-fit-preview",
   fitAssess: "aaaat:ai-fit-assess",
+  jobExtract: "aaaat:ai-job-extract",
 } as const);
 
 export const aiConnectionInputSchema = z
@@ -88,6 +89,26 @@ export const fitAssessmentResultSchema = z
   .strict();
 export type FitAssessmentResult = z.infer<typeof fitAssessmentResultSchema>;
 
+export const jobExtractionRequestSchema = z
+  .object({
+    sourceText: z.string().trim().min(1).max(50_000),
+    source: z.string().trim().max(200).default(""),
+    sourceUrl: z.string().trim().max(2048).default(""),
+  })
+  .strict();
+export type JobExtractionRequest = z.infer<typeof jobExtractionRequestSchema>;
+
+export const jobExtractionResultSchema = z
+  .object({
+    company: z.string().trim().max(200),
+    role: z.string().trim().max(200),
+    location: z.string().trim().max(200),
+    workMode: z.string().trim().max(80),
+    salaryText: z.string().trim().max(300),
+  })
+  .strict();
+export type JobExtractionResult = z.infer<typeof jobExtractionResultSchema>;
+
 export interface AiDesktopApi {
   readonly ai: {
     readonly connection: () => Promise<AiConnectionStatus | null>;
@@ -100,5 +121,8 @@ export interface AiDesktopApi {
     readonly assessFit: (
       request: FitAssessmentRequest,
     ) => Promise<FitAssessmentResult>;
+    readonly extractJob: (
+      request: JobExtractionRequest,
+    ) => Promise<JobExtractionResult>;
   };
 }
