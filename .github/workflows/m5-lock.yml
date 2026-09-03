@@ -1,0 +1,34 @@
+name: Temporary M5 lock update
+
+on:
+  push:
+    branches:
+      - agentic/m5-release-artifacts
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - name: Regenerate lockfile for pinned Forge makers
+        run: npm install --package-lock-only --ignore-scripts --save-dev-exact @electron-forge/maker-deb@7.11.2 @electron-forge/maker-zip@7.11.2
+      - name: Commit lockfile
+        shell: bash
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Update lockfile for release makers"
+          git push
