@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import type {
   FitAssessmentPreview,
@@ -18,12 +18,6 @@ export function CandidatureFitPanel({ record }: Props) {
   const [result, setResult] = useState<FitAssessmentResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setPreview(null);
-    setResult(null);
-    setError(null);
-  }, [record.id]);
 
   const request = { candidatureId: record.id, identityPrivacy, contactPrivacy } as const;
 
