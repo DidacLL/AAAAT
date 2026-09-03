@@ -24,27 +24,23 @@ const context: FitProjectedContext = {
   profileItems: [{ kind: "skill", title: "TypeScript" }],
 };
 
-describe("OpenAI-compatible fit provider", () => {
-  it("sends one keyless chat-completions request and validates the typed result", async () => {
+function response(content: unknown): Response {
+  return new Response(
+    JSON.stringify({ choices: [{ message: { content: JSON.stringify(content) } }] }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
+}
+
+describe("OpenAI-compatible provider", () => {
+  it("sends one keyless fit request and validates the typed result", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({
-                  fit: "strong",
-                  summary: "Strong match.",
-                  strengths: ["TypeScript"],
-                  gaps: [],
-                  focus: ["Ask about platform ownership"],
-                }),
-              },
-            },
-          ],
-        }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      ),
+      response({
+        fit: "strong",
+        summary: "Strong match.",
+        strengths: ["TypeScript"],
+        gaps: [],
+        focus: ["Ask about platform ownership"],
+      }),
     );
     const provider = createOpenAiCompatibleProvider(fetchImpl);
 
@@ -70,7 +66,39 @@ describe("OpenAI-compatible fit provider", () => {
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
   });
 
-  it("rejects malformed model output instead of returning an untyped proposal", async () => {
+  it("sends only the extraction request and validates source-grounded fields", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      response({
+        company: "Example Corp",
+        role: "Platform Engineer",
+        location: "Madrid",
+        workMode: "hybrid",
+        salaryText: "€70k–€80k",
+      }),
+    );
+    const provider = createOpenAiCompatibleProvider(fetchImpl);
+    const request = {
+      source: "Company careers",
+      sourceUrl: "https://example.test/job/1",
+      sourceText: "Example Corp seeks a hybrid Platform Engineer in Madrid for €70k–€80k.",
+    };
+
+    await expect(provider.extractJob(connection, request)).resolves.toEqual({
+      company: "Example Corp",
+      role: "Platform Engineer",
+      location: "Madrid",
+      workMode: "hybrid",
+      salaryText: "€70k–€80k",
+    });
+    const [, init] = fetchImpl.mock.calls[0] ?? [];
+    const body = JSON.parse(String(init?.body)) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(body.messages[1]?.content).toBe(JSON.stringify(request));
+    expect(body.messages[0]?.content).toMatch(/empty string/i);
+  });
+
+  it("rejects malformed fit output instead of returning an untyped proposal", async () => {
     const provider = createOpenAiCompatibleProvider(
       vi.fn<typeof fetch>().mockResolvedValue(
         new Response(
@@ -83,6 +111,25 @@ describe("OpenAI-compatible fit provider", () => {
     await expect(provider.assessFit(connection, context)).rejects.toThrow(
       "invalid fit assessment",
     );
+  });
+
+  it("rejects extraction output containing unsupported extra fields", async () => {
+    const provider = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockResolvedValue(
+        response({
+          company: "Example Corp",
+          role: "Platform Engineer",
+          location: "",
+          workMode: "",
+          salaryText: "",
+          status: "applied",
+        }),
+      ),
+    );
+
+    await expect(
+      provider.extractJob(connection, { source: "", sourceUrl: "", sourceText: "Example job" }),
+    ).rejects.toThrow("invalid job extraction");
   });
 
   it("does not expose raw provider response details on request failure", async () => {

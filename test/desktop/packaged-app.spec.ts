@@ -233,7 +233,7 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
         "updateConcept",
         "setConcepts",
       ],
-      ai: ["connection", "saveConnection", "previewFit", "assessFit"],
+      ai: ["connection", "saveConnection", "previewFit", "assessFit", "extractJob"],
     });
 
     const csp = await running.page

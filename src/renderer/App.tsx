@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import logo from "./assets/aaaat-logo-light.png";
-import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
+import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 
@@ -134,7 +134,7 @@ export function App() {
           </nav>
 
           {productView === "candidatures" ? (
-            <CandidaturesWorkspace key={`candidatures-${workspace.rootPath}`} />
+            <CandidaturesAiWorkspace key={`candidatures-${workspace.rootPath}`} />
           ) : productView === "profile" ? (
             <ProfileWorkspace key={`profile-${workspace.rootPath}`} />
           ) : productView === "documents" ? (

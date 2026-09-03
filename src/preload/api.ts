@@ -5,6 +5,8 @@ import {
   fitAssessmentPreviewSchema,
   fitAssessmentRequestSchema,
   fitAssessmentResultSchema,
+  jobExtractionRequestSchema,
+  jobExtractionResultSchema,
   optionalAiConnectionStatusSchema,
   type AiDesktopApi,
 } from "../shared/ai-contracts";
@@ -167,6 +169,10 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
     assessFit: async (request: Parameters<AiDesktopApi["ai"]["assessFit"]>[0]) =>
       fitAssessmentResultSchema.parse(
         await invoke(aiChannels.fitAssess, fitAssessmentRequestSchema.parse(request)),
+      ),
+    extractJob: async (request: Parameters<AiDesktopApi["ai"]["extractJob"]>[0]) =>
+      jobExtractionResultSchema.parse(
+        await invoke(aiChannels.jobExtract, jobExtractionRequestSchema.parse(request)),
       ),
   });
 

@@ -10,16 +10,20 @@ import {
   fitAssessmentRequestSchema,
   fitAssessmentResultSchema,
   fitProjectedContextSchema,
+  jobExtractionRequestSchema,
+  jobExtractionResultSchema,
   type AiConnectionInput,
   type AiConnectionStatus,
   type FitAssessmentPreview,
   type FitAssessmentRequest,
   type FitAssessmentResult,
   type FitProjectedProfileItem,
+  type JobExtractionRequest,
+  type JobExtractionResult,
   type PrivacyMode,
 } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
-import { createOpenAiCompatibleProvider, type FitModelProvider } from "./ai-provider";
+import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
 import { listCandidatures } from "./candidature-service";
 import { getProfile } from "./profile-service";
 
@@ -81,6 +85,14 @@ function statusFor(stored: StoredConnection): AiConnectionStatus {
     endpoint: stored.endpoint,
     model: stored.model,
   });
+}
+
+function requireStoredConnection(rootPath: string): StoredConnection {
+  const stored = readStoredConnection(rootPath);
+  if (!stored) {
+    throw new AiServiceError("Configure a local AI connection before using AI assistance.");
+  }
+  return stored;
 }
 
 export function getAiConnection(rootPath: string): AiConnectionStatus | null {
@@ -179,14 +191,6 @@ function projectFitContext(rootPath: string, request: FitAssessmentRequest): Pro
   };
 }
 
-function requireStoredConnection(rootPath: string): StoredConnection {
-  const stored = readStoredConnection(rootPath);
-  if (!stored) {
-    throw new AiServiceError("Configure a local AI connection before using AI assistance.");
-  }
-  return stored;
-}
-
 export function previewFitAssessment(
   rootPath: string,
   rawRequest: FitAssessmentRequest,
@@ -224,12 +228,23 @@ function rehydrateResult(
 export async function assessFit(
   rootPath: string,
   rawRequest: FitAssessmentRequest,
-  provider: FitModelProvider = createOpenAiCompatibleProvider(),
+  provider: ModelProvider = createOpenAiCompatibleProvider(),
 ): Promise<FitAssessmentResult> {
   const request = fitAssessmentRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath);
-  const connection = statusFor(stored);
   const projection = projectFitContext(rootPath, request);
-  const result = await provider.assessFit(connection, projection.context);
+  const result = await provider.assessFit(statusFor(stored), projection.context);
   return rehydrateResult(result, projection.tokenMap);
+}
+
+export async function extractJob(
+  rootPath: string,
+  rawRequest: JobExtractionRequest,
+  provider: ModelProvider = createOpenAiCompatibleProvider(),
+): Promise<JobExtractionResult> {
+  const request = jobExtractionRequestSchema.parse(rawRequest);
+  const stored = requireStoredConnection(rootPath);
+  return jobExtractionResultSchema.parse(
+    await provider.extractJob(statusFor(stored), request),
+  );
 }
