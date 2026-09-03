@@ -65,14 +65,19 @@ describe("bounded external candidature command", () => {
 
       const candidatures = listCandidatures(root);
       expect(candidatures).toHaveLength(1);
-      expect(candidatures[0]).toMatchObject(candidatureInput);
+      const created = candidatures[0];
+      expect(created).toBeDefined();
+      if (!created) {
+        throw new Error("Created candidature fixture is missing.");
+      }
+      expect(created).toMatchObject(candidatureInput);
 
       const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
       try {
         expect(
           database
             .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
-            .all(candidatures[0]?.id),
+            .all(created.id),
         ).toEqual([{ action: "candidature.created" }]);
       } finally {
         database.close();
