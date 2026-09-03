@@ -8,7 +8,7 @@ For alpha installation, first-run use, manual workflows, optional AI, backup/res
 
 ## Current mission
 
-M5 - Release Hardening is active. It stabilizes the existing accepted product through platform packaging, reliability, security, recovery, documentation, compatibility evidence, and cleanup without architectural expansion or new product capability.
+M5 - Release Hardening is ready for owner review. Its implementation now has native release artifacts and packaged runtime evidence, truthful user/setup/recovery documentation, demonstrated reliability corrections, dependency-security classification, and preserved security/privacy/local-ownership/manual-independence/portable-output gates. This review-candidate status does not mark M5 owner-accepted or publish a release.
 
 The M4 - Agentic Interoperability and Setup checkpoint is accepted. Bounded external candidature creation, official MCP stdio, demonstrated VS Code setup, structured setup knowledge, portable proposed host configuration, and safe workspace backup/restore are proven while external authority remains narrow and AI remains optional.
 
