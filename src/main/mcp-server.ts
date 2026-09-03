@@ -65,4 +65,5 @@ export function createAaaatMcpServer(workspacePath: string): McpServer {
 export function runMcpProcess(argv: readonly string[]): void {
   const workspace = openWorkspace(mcpWorkspaceFromInvocation(argv));
   serveStdio(() => createServerForWorkspace(workspace.rootPath));
+  console.error("AAAAT MCP server ready on stdio");
 }
