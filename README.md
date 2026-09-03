@@ -6,7 +6,7 @@ AAAAT v2 is a clean restart. The Python/wxPython v1 implementation remains avail
 
 ## Current mission
 
-M3 - AI Assistance is the active Mission. It adds optional direct model-provider assistance over the proven manual workspace through operation-specific minimum context, privacy projection before inference, typed validated results, explicit conflict policy, and normal application-service mutations. AI remains optional and provider-neutral; external-agent interoperability remains M4.
+M3 - AI Assistance is accepted. It proves optional direct model-provider assistance over the manual workspace through operation-specific minimum context, privacy projection before inference, typed validated results, explicit conflict policy, and normal application-service mutations. AI remains optional and provider-neutral. No later Mission is active; M4 - Agentic Interoperability and Setup requires separate owner activation before decomposition or implementation.
 
 The M2 - Candidature Workspace checkpoint is accepted. Manual incomplete opportunity tracking, source/notes, status and independent archiving, search/filtering, shared concepts, recruiter-call focus views, and associations to existing CV/cover-letter documents are proven baseline capabilities. The post-M2 stabilization corrections for dirty-editor state, TeX/document recovery, migration history, and truthful activity semantics are also complete.
 

@@ -1,5 +1,7 @@
 # M3 — AI Assistance
 
+**Status: accepted and complete.** The M3 completion criteria are satisfied on `main`. No later Mission is active; M4 — Agentic Interoperability and Setup requires a separate owner activation before decomposition or implementation.
+
 ## Outcome
 
 AAAAT adds optional AI assistance over the proven manual workspace. The user can configure a model connection and invoke bounded, privacy-projected operations for job extraction, fit assessment, profile-variant recommendation, CV tailoring, and cover-letter drafting without making AI authoritative or required.
