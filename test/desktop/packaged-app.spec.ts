@@ -1,4 +1,4 @@
-import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -164,6 +164,33 @@ function chooseLinuxDirectory(): void {
   );
 }
 
+test("packaged external command rejects unsupported authority without opening desktop", () => {
+  const uninitializedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-command-smoke-"));
+  try {
+    const result = spawnSync(
+      packagedExecutable(),
+      [
+        "--external-command",
+        "candidature.update",
+        "--workspace",
+        uninitializedWorkspace,
+      ],
+      {
+        input: "{}",
+        encoding: "utf8",
+        timeout: 5_000,
+        windowsHide: true,
+      },
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(2);
+    expect(result.stdout.trim()).toBe('{"ok":false,"error":"unsupported-capability"}');
+    expect(existsSync(path.join(uninitializedWorkspace, "workspace.sqlite"))).toBe(false);
+  } finally {
+    rmSync(uninitializedWorkspace, { recursive: true, force: true });
+  }
+});
+
 test("packaged desktop preserves bounded workspace, product, and AI boundaries", async () => {
   const executablePath = packagedExecutable();
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-"));
@@ -285,6 +312,59 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
 
     await stopPackagedApp(running);
     running = undefined;
+
+    const commandResult = spawnSync(
+      executablePath,
+      ["--external-command", "candidature.create", "--workspace", ownedWorkspace],
+      {
+        input: JSON.stringify({
+          company: "Packaged Command Corp",
+          role: "External command proof",
+          location: "",
+          workMode: "",
+          salaryText: "",
+          source: "packaged smoke",
+          sourceUrl: "",
+          sourceText: "private smoke source",
+          status: "saved",
+          applicationDate: "",
+          nextAction: "Review",
+          nextActionDate: "",
+          notes: "",
+        }),
+        encoding: "utf8",
+        timeout: 5_000,
+        windowsHide: true,
+      },
+    );
+    expect(commandResult.error).toBeUndefined();
+    expect(commandResult.status).toBe(0);
+    expect(commandResult.stdout.trim()).toBe(
+      '{"ok":true,"capability":"candidature.create","created":true}',
+    );
+    expect(commandResult.stdout).not.toContain("Packaged Command Corp");
+    expect(commandResult.stdout).not.toContain(ownedWorkspace);
+
+    const commandDatabase = new DatabaseSync(databasePath, { readOnly: true });
+    try {
+      expect(
+        commandDatabase
+          .prepare("SELECT company, role, source_text AS sourceText FROM candidatures")
+          .all(),
+      ).toEqual([
+        {
+          company: "Packaged Command Corp",
+          role: "External command proof",
+          sourceText: "private smoke source",
+        },
+      ]);
+      expect(
+        commandDatabase.prepare("SELECT action FROM candidature_activity").all(),
+      ).toEqual([{ action: "candidature.created" }]);
+    } finally {
+      commandDatabase.close();
+    }
+
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
