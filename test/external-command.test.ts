@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { Readable, Writable } from "node:stream";
 
 import { describe, expect, it } from "vitest";
 
@@ -11,6 +12,7 @@ import { listCandidatures } from "../src/main/candidature-service";
 import {
   executeExternalCommand,
   externalCommandMaxInputBytes,
+  runExternalCommandProcess,
 } from "../src/main/external-command";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
@@ -99,6 +101,31 @@ describe("bounded external candidature command", () => {
         { ok: false, error: "invalid-invocation" },
       ]);
       expect(cases.every((result) => result.exitCode === 2)).toBe(true);
+      expect(listCandidatures(root)).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("bounds stdin before mutation", async () => {
+    const root = temporaryWorkspace();
+    let output = "";
+    const stdout = new Writable({
+      write(chunk, _encoding, callback) {
+        output += chunk.toString();
+        callback();
+      },
+    });
+
+    try {
+      const exitCode = await runExternalCommandProcess(
+        commandArgs(root),
+        Readable.from(["x".repeat(externalCommandMaxInputBytes + 1)]),
+        stdout,
+      );
+
+      expect(exitCode).toBe(2);
+      expect(output).toBe('{"ok":false,"error":"input-too-large"}\n');
       expect(listCandidatures(root)).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
