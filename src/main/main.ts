@@ -16,6 +16,8 @@ import {
   fitAssessmentPreviewSchema,
   fitAssessmentRequestSchema,
   fitAssessmentResultSchema,
+  jobExtractionRequestSchema,
+  jobExtractionResultSchema,
   optionalAiConnectionStatusSchema,
 } from "../shared/ai-contracts";
 import {
@@ -55,6 +57,7 @@ import {
 } from "../shared/contracts";
 import {
   assessFit,
+  extractJob,
   getAiConnection,
   previewFitAssessment,
   saveAiConnection,
@@ -400,6 +403,12 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return fitAssessmentResultSchema.parse(
       await assessFit(requireWorkspaceRoot(), fitAssessmentRequestSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(aiChannels.jobExtract, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return jobExtractionResultSchema.parse(
+      await extractJob(requireWorkspaceRoot(), jobExtractionRequestSchema.parse(input)),
     );
   });
 }
