@@ -8,14 +8,14 @@ AAAAT adds optional AI assistance over the proven manual workspace. The user can
 
 - preserve complete manual usefulness when no AI provider is configured or available
 - keep the AI domain provider-neutral; product/domain code does not import provider-specific request types or behavior
-- begin with the smallest demonstrated direct-provider boundary, using an OpenAI-compatible HTTP shape where it removes duplication across real local or remote providers
+- start with the simplest demonstrated user-accessible connection appropriate to each slice; do not assume developer API keys or paid API access are the default connection experience
 - each AI operation owns its input/output schema, minimum required context, privacy requirements, capability requirements, instructions, and mutation/conflict policy
 - construct operation-specific context immediately before inference and apply privacy projection before any provider invocation
 - each eligible value may be exposed, omitted, or replaced by a local opaque token; token mappings remain local
 - classify configured connections as local, remote, or unknown and make remote disclosure understandable; unusually broad remote analysis requires proportionate acknowledgement
 - validate every provider result against the operation contract before it can affect authoritative state
 - permitted valid results use the same normal application services as manual UI mutations; invalid output never mutates authoritative data and conflicting proposals never silently overwrite existing authoritative values
-- credentials are not plaintext application records; use Electron secure OS storage where available and explain insecure fallback conditions rather than masking them
+- introduce credential storage only when a demonstrated connection requires credentials; required credentials are not plaintext application records, and insecure fallback conditions are explicit
 - renderer authority remains narrow: no arbitrary provider networking, credential access, filesystem, database, process, or generic privileged invocation
 - deterministic provider fixtures and focused operation/privacy tests prove the implemented contracts
 
