@@ -19,11 +19,8 @@ import {
   type PrivacyMode,
 } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
+import { createOpenAiCompatibleProvider, type FitModelProvider } from "./ai-provider";
 import { listCandidatures } from "./candidature-service";
-import {
-  createOpenAiCompatibleProvider,
-  type FitModelProvider,
-} from "./ai-provider";
 import { getProfile } from "./profile-service";
 
 const storedConnectionSchema = z
@@ -32,19 +29,10 @@ const storedConnectionSchema = z
     name: z.string().min(1),
     endpoint: z.string().url(),
     model: z.string().min(1),
-    classification: z.enum(["local", "remote", "unknown"]),
-    encryptedApiKey: z.string().min(1).optional(),
   })
   .strict();
 
 type StoredConnection = z.infer<typeof storedConnectionSchema>;
-
-export interface SecureStorageAdapter {
-  isEncryptionAvailable(): boolean;
-  getSelectedStorageBackend?(): string;
-  encryptString(value: string): Buffer;
-  decryptString(value: Buffer): string;
-}
 
 export class AiServiceError extends Error {
   constructor(message: string) {
@@ -59,9 +47,7 @@ function connectionPath(rootPath: string): string {
 
 function readStoredConnection(rootPath: string): StoredConnection | null {
   const filePath = connectionPath(rootPath);
-  if (!existsSync(filePath)) {
-    return null;
-  }
+  if (!existsSync(filePath)) return null;
   try {
     return storedConnectionSchema.parse(JSON.parse(readFileSync(filePath, "utf8")));
   } catch {
@@ -76,103 +62,44 @@ function loopbackHost(hostname: string): boolean {
 function validateEndpoint(input: AiConnectionInput): URL {
   const endpoint = new URL(input.endpoint);
   if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
-    throw new AiServiceError("The AI endpoint must be a plain provider base URL.");
+    throw new AiServiceError("The local AI endpoint must be a plain provider base URL.");
   }
   if (endpoint.protocol !== "http:" && endpoint.protocol !== "https:") {
-    throw new AiServiceError("The AI endpoint must use HTTP or HTTPS.");
+    throw new AiServiceError("The local AI endpoint must use HTTP or HTTPS.");
   }
-  if (input.classification === "local") {
-    if (!loopbackHost(endpoint.hostname)) {
-      throw new AiServiceError("A local AI connection must use a loopback endpoint.");
-    }
-  } else if (endpoint.protocol !== "https:") {
-    throw new AiServiceError("Remote or unknown AI connections must use HTTPS.");
+  if (!loopbackHost(endpoint.hostname)) {
+    throw new AiServiceError("The first AI connection must use a loopback endpoint.");
   }
   return endpoint;
 }
 
-function secureStorageAvailable(secureStorage: SecureStorageAdapter): boolean {
-  if (!secureStorage.isEncryptionAvailable()) {
-    return false;
-  }
-  return !(
-    process.platform === "linux" &&
-    secureStorage.getSelectedStorageBackend?.() === "basic_text"
-  );
-}
-
-function statusFor(
-  stored: StoredConnection,
-  secureStorage: SecureStorageAdapter,
-): AiConnectionStatus {
+function statusFor(stored: StoredConnection): AiConnectionStatus {
   return aiConnectionStatusSchema.parse({
     name: stored.name,
     endpoint: stored.endpoint,
     model: stored.model,
-    classification: stored.classification,
-    hasCredential: Boolean(stored.encryptedApiKey),
-    secureStorageAvailable: secureStorageAvailable(secureStorage),
   });
 }
 
-export function getAiConnection(
-  rootPath: string,
-  secureStorage: SecureStorageAdapter,
-): AiConnectionStatus | null {
+export function getAiConnection(rootPath: string): AiConnectionStatus | null {
   const stored = readStoredConnection(rootPath);
-  return stored ? statusFor(stored, secureStorage) : null;
+  return stored ? statusFor(stored) : null;
 }
 
 export function saveAiConnection(
   rootPath: string,
   rawInput: AiConnectionInput,
-  secureStorage: SecureStorageAdapter,
 ): AiConnectionStatus {
   const input = aiConnectionInputSchema.parse(rawInput);
   const endpoint = validateEndpoint(input);
-  const normalizedEndpoint = endpoint.toString().replace(/\/$/, "");
-  const previous = readStoredConnection(rootPath);
-  let encryptedApiKey =
-    previous?.endpoint === normalizedEndpoint ? previous.encryptedApiKey : undefined;
-
-  if (input.apiKey && input.apiKey.length > 0) {
-    if (!secureStorageAvailable(secureStorage)) {
-      throw new AiServiceError(
-        "Secure credential storage is unavailable on this system, so AAAAT did not save the API key.",
-      );
-    }
-    encryptedApiKey = secureStorage.encryptString(input.apiKey).toString("base64");
-  }
-
   const stored = storedConnectionSchema.parse({
     version: 1,
     name: input.name,
-    endpoint: normalizedEndpoint,
+    endpoint: endpoint.toString().replace(/\/$/, ""),
     model: input.model,
-    classification: input.classification,
-    ...(encryptedApiKey ? { encryptedApiKey } : {}),
   });
   writeFileSync(connectionPath(rootPath), `${JSON.stringify(stored, null, 2)}\n`, "utf8");
-  return statusFor(stored, secureStorage);
-}
-
-function credentialFor(
-  stored: StoredConnection,
-  secureStorage: SecureStorageAdapter,
-): string | null {
-  if (!stored.encryptedApiKey) {
-    return null;
-  }
-  if (!secureStorageAvailable(secureStorage)) {
-    throw new AiServiceError(
-      "The stored AI credential cannot be decrypted because secure credential storage is unavailable.",
-    );
-  }
-  try {
-    return secureStorage.decryptString(Buffer.from(stored.encryptedApiKey, "base64"));
-  } catch {
-    throw new AiServiceError("AAAAT could not decrypt the stored AI credential.");
-  }
+  return statusFor(stored);
 }
 
 interface Projection {
@@ -185,9 +112,7 @@ function projectedItem(
   mode: PrivacyMode,
   token: (value: string) => string,
 ): FitProjectedProfileItem | null {
-  if (mode === "omit") {
-    return null;
-  }
+  if (mode === "omit") return null;
   const project = (value: string | undefined) => {
     if (value === undefined) return undefined;
     return mode === "token" ? token(value) : value;
@@ -207,10 +132,7 @@ function projectedItem(
   };
 }
 
-function projectFitContext(
-  rootPath: string,
-  request: FitAssessmentRequest,
-): Projection {
+function projectFitContext(rootPath: string, request: FitAssessmentRequest): Projection {
   const candidature = listCandidatures(rootPath).find(
     (candidate) => candidate.id === request.candidatureId,
   );
@@ -258,7 +180,7 @@ function projectFitContext(
 function requireStoredConnection(rootPath: string): StoredConnection {
   const stored = readStoredConnection(rootPath);
   if (!stored) {
-    throw new AiServiceError("Configure an AI connection before using AI assistance.");
+    throw new AiServiceError("Configure a local AI connection before using AI assistance.");
   }
   return stored;
 }
@@ -266,15 +188,13 @@ function requireStoredConnection(rootPath: string): StoredConnection {
 export function previewFitAssessment(
   rootPath: string,
   rawRequest: FitAssessmentRequest,
-  secureStorage: SecureStorageAdapter,
 ): FitAssessmentPreview {
   const request = fitAssessmentRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath);
   const projection = projectFitContext(rootPath, request);
   return fitAssessmentPreviewSchema.parse({
-    connection: statusFor(stored, secureStorage),
+    connection: statusFor(stored),
     projectedContext: projection.context,
-    requiresRemoteDisclosure: stored.classification !== "local",
   });
 }
 
@@ -302,17 +222,12 @@ function rehydrateResult(
 export async function assessFit(
   rootPath: string,
   rawRequest: FitAssessmentRequest,
-  secureStorage: SecureStorageAdapter,
   provider: FitModelProvider = createOpenAiCompatibleProvider(),
 ): Promise<FitAssessmentResult> {
   const request = fitAssessmentRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath);
-  const connection = statusFor(stored, secureStorage);
+  const connection = statusFor(stored);
   const projection = projectFitContext(rootPath, request);
-  const result = await provider.assessFit(
-    connection,
-    credentialFor(stored, secureStorage),
-    projection.context,
-  );
+  const result = await provider.assessFit(connection, projection.context);
   return rehydrateResult(result, projection.tokenMap);
 }
