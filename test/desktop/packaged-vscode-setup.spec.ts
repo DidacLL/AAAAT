@@ -82,6 +82,38 @@ function runSetup(executable: string, workspace: string, project: string, activa
   );
 }
 
+function expectedServerEntry(executable: string, workspace: string) {
+  return {
+    type: "stdio",
+    command: realpathSync(executable),
+    args: ["--mcp", "--workspace", realpathSync(workspace)],
+    ...(process.platform === "win32"
+      ? { env: { ELECTRON_NO_ATTACH_CONSOLE: "1" } }
+      : {}),
+  };
+}
+
+function verifyVsCodeAcceptsServer(root: string, server: Record<string, unknown>): void {
+  if (process.platform !== "win32") return;
+  const vscodeCli = process.env.AAAAT_VSCODE_CLI;
+  if (process.env.GITHUB_ACTIONS === "true") expect(vscodeCli).toBeTruthy();
+  if (!vscodeCli) return;
+
+  const userData = path.join(root, "vscode-user-data");
+  const accepted = spawnSync(
+    vscodeCli,
+    [
+      "--user-data-dir",
+      userData,
+      "--add-mcp",
+      JSON.stringify({ name: "aaaat", ...server }),
+    ],
+    { encoding: "utf8", timeout: 30_000 },
+  );
+  expect(accepted.error).toBeUndefined();
+  expect(accepted.status).toBe(0);
+}
+
 test("packaged setup proposes, validates live MCP, and configures VS Code without bypassing trust", () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-vscode-"));
   const workspace = path.join(root, "workspace");
@@ -110,16 +142,11 @@ test("packaged setup proposes, validates live MCP, and configures VS Code withou
     expect(activated.stdout).toBe('{"ok":true,"host":"vscode","state":"configured"}\n');
     const config = JSON.parse(
       readFileSync(path.join(project, ".vscode", "mcp.json"), "utf8"),
-    ) as Record<string, unknown>;
-    expect(config).toEqual({
-      servers: {
-        aaaat: {
-          type: "stdio",
-          command: realpathSync(executable),
-          args: ["--mcp", "--workspace", realpathSync(workspace)],
-        },
-      },
-    });
+    ) as { servers: { aaaat: Record<string, unknown> } };
+    const expectedServer = expectedServerEntry(executable, workspace);
+    expect(config).toEqual({ servers: { aaaat: expectedServer } });
+
+    verifyVsCodeAcceptsServer(root, config.servers.aaaat);
 
     const repeated = runSetup(executable, workspace, project, true);
     expect(repeated.error).toBeUndefined();
