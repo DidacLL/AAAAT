@@ -2,6 +2,9 @@ import {
   aiConnectionInputSchema,
   aiConnectionStatusSchema,
   aiChannels,
+  coverLetterDraftSchema,
+  cvTailoringResultSchema,
+  documentAiRequestSchema,
   fitAssessmentPreviewSchema,
   fitAssessmentRequestSchema,
   fitAssessmentResultSchema,
@@ -184,6 +187,16 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
           aiChannels.variantRecommend,
           variantRecommendationRequestSchema.parse(request),
         ),
+      ),
+    tailorCv: async (request: Parameters<AiDesktopApi["ai"]["tailorCv"]>[0]) =>
+      cvTailoringResultSchema.parse(
+        await invoke(aiChannels.cvTailor, documentAiRequestSchema.parse(request)),
+      ),
+    draftCoverLetter: async (
+      request: Parameters<AiDesktopApi["ai"]["draftCoverLetter"]>[0],
+    ) =>
+      coverLetterDraftSchema.parse(
+        await invoke(aiChannels.coverLetterDraft, documentAiRequestSchema.parse(request)),
       ),
   });
 
