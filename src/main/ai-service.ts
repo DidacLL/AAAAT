@@ -45,16 +45,6 @@ function connectionPath(rootPath: string): string {
   return path.join(rootPath, "ai-connection.json");
 }
 
-function readStoredConnection(rootPath: string): StoredConnection | null {
-  const filePath = connectionPath(rootPath);
-  if (!existsSync(filePath)) return null;
-  try {
-    return storedConnectionSchema.parse(JSON.parse(readFileSync(filePath, "utf8")));
-  } catch {
-    throw new AiServiceError("The stored AI connection configuration is invalid.");
-  }
-}
-
 function loopbackHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
 }
@@ -71,6 +61,18 @@ function validateEndpoint(input: AiConnectionInput): URL {
     throw new AiServiceError("The first AI connection must use a loopback endpoint.");
   }
   return endpoint;
+}
+
+function readStoredConnection(rootPath: string): StoredConnection | null {
+  const filePath = connectionPath(rootPath);
+  if (!existsSync(filePath)) return null;
+  try {
+    const stored = storedConnectionSchema.parse(JSON.parse(readFileSync(filePath, "utf8")));
+    validateEndpoint({ name: stored.name, endpoint: stored.endpoint, model: stored.model });
+    return stored;
+  } catch {
+    throw new AiServiceError("The stored AI connection configuration is invalid.");
+  }
 }
 
 function statusFor(stored: StoredConnection): AiConnectionStatus {
