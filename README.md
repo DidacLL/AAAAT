@@ -43,6 +43,24 @@ AAAAT --mcp --workspace <existing-AAAAT-workspace>
 
 A host launches that process over stdio. The server currently advertises only `candidature_create`; its input matches the normal candidature-create fields and its success result contains only a narrow acknowledgement. MCP mode does not expose listing, updates, internal IDs, paths, general database/filesystem/shell/process/network authority, prompts, resources, model sampling, or a network listener.
 
+## VS Code MCP setup
+
+The first demonstrated host path targets VS Code. Setup is two-stage so AAAAT never silently activates generated host integration material.
+
+Propose the portable workspace manifest:
+
+```text
+AAAAT --vscode-mcp-setup --workspace <existing-AAAAT-workspace> --project <VS-Code-project>
+```
+
+Then explicitly activate it:
+
+```text
+AAAAT --vscode-mcp-setup --workspace <existing-AAAAT-workspace> --project <VS-Code-project> --activate
+```
+
+The proposal is stored as `integrations/vscode-mcp.json` inside the AAAAT workspace and contains no machine-local paths or secrets. Activation validates that exact manifest, the selected workspace and executable, and the live MCP tool surface before writing only the `aaaat` server entry in the project's `.vscode/mcp.json`. A matching existing entry is accepted; a conflicting entry is refused. VS Code retains its own MCP trust and enablement controls.
+
 ## Development baseline
 
 Use Node 24 and the committed npm lockfile:
