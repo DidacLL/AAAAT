@@ -23,6 +23,16 @@ Authoritative material:
 - [`.agentic/CURRENT_MISSION.md`](.agentic/CURRENT_MISSION.md)
 - [`AGENTS.md`](AGENTS.md)
 
+## First bounded external command
+
+The first M4 external-control capability creates a new candidature through the packaged AAAAT executable and the normal candidature application service:
+
+```text
+AAAAT --external-command candidature.create --workspace <existing-AAAAT-workspace>
+```
+
+Write one JSON object matching the desktop candidature-create fields to stdin. Success writes only `{"ok":true,"capability":"candidature.create","created":true}` and exits with status 0. Invalid or unsupported requests return a bounded error object and status 2. The command does not expose listing, updates, entity IDs, paths, database access, shell/process/network authority, or a background service.
+
 ## Development baseline
 
 Use Node 24 and the committed npm lockfile:
