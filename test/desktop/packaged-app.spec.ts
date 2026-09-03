@@ -258,6 +258,7 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
       system: Object.keys(window.aaaat.system),
       workspace: Object.keys(window.aaaat.workspace),
       profile: Object.keys(window.aaaat.profile),
+      careerContext: Object.keys(window.aaaat.careerContext),
       documents: Object.keys(window.aaaat.documents),
       candidatures: Object.keys(window.aaaat.candidatures),
       ai: Object.keys(window.aaaat.ai),
@@ -266,7 +267,7 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
     expect(boundary).toEqual({
       processType: "undefined",
       requireType: "undefined",
-      root: ["system", "workspace", "profile", "documents", "candidatures", "ai"],
+      root: ["system", "workspace", "profile", "careerContext", "documents", "candidatures", "ai"],
       system: ["info"],
       workspace: ["current", "choose"],
       profile: [
@@ -281,6 +282,7 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
         "reorderVariant",
         "resolveVariant",
       ],
+      careerContext: ["current", "update"],
       documents: [
         "list",
         "create",
@@ -349,6 +351,7 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 3").get()).toEqual({ name: "documents" });
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 4").get()).toEqual({ name: "candidatures" });
       expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 5").get()).toEqual({ name: "concepts" });
+      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 7").get()).toEqual({ name: "career-context" });
     } finally {
       database.close();
     }
