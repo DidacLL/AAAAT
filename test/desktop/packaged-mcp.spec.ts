@@ -57,13 +57,20 @@ test("packaged executable serves only bounded candidature creation over official
       arguments: candidatureInput,
     });
     expect(result.isError).not.toBe(true);
-    const encodedResult = JSON.stringify(result);
-    expect(encodedResult).toContain('"capability":"candidature.create"');
-    expect(encodedResult).toContain('"created":true');
-    expect(encodedResult).not.toContain(root);
-    expect(encodedResult).not.toContain("Packaged MCP Corp");
-    expect(encodedResult).not.toContain("private packaged MCP source");
-    expect(encodedResult).not.toContain("private packaged MCP note");
+    const content = result.content[0];
+    expect(content).toMatchObject({ type: "text" });
+    if (!content || content.type !== "text") {
+      throw new Error("Packaged MCP candidature result is not text content.");
+    }
+    expect(JSON.parse(content.text)).toEqual({
+      ok: true,
+      capability: "candidature.create",
+      created: true,
+    });
+    expect(content.text).not.toContain(root);
+    expect(content.text).not.toContain("Packaged MCP Corp");
+    expect(content.text).not.toContain("private packaged MCP source");
+    expect(content.text).not.toContain("private packaged MCP note");
 
     const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
     try {
