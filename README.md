@@ -4,6 +4,8 @@ AAAAT is a private, local-first career workspace for candidature management and 
 
 AAAAT v2 is a clean restart. The Python/wxPython v1 implementation remains available through Git history and the `v1-prototype-final` tag; it is research evidence, not a compatibility target.
 
+For alpha installation, first-run use, manual workflows, optional AI, backup/restore, and troubleshooting, see the [AAAAT alpha user guide](docs/USER_GUIDE.md).
+
 ## Current mission
 
 M5 - Release Hardening is active. It stabilizes the existing accepted product through platform packaging, reliability, security, recovery, documentation, compatibility evidence, and cleanup without architectural expansion or new product capability.
