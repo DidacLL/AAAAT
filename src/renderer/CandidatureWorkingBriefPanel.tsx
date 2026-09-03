@@ -18,12 +18,22 @@ function emptyBrief(candidatureId: string): CandidatureWorkingBrief {
   };
 }
 
-export function CandidatureWorkingBriefPanel({ candidatureId }: { candidatureId: string }) {
+export function CandidatureWorkingBriefPanel({
+  candidatureId,
+  onDirtyChange,
+}: {
+  candidatureId: string;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [brief, setBrief] = useState<CandidatureWorkingBrief>(() => emptyBrief(candidatureId));
   const [savedBrief, setSavedBrief] = useState<CandidatureWorkingBrief>(() => emptyBrief(candidatureId));
   const [group, setGroup] = useState<BriefGroup>("evaluation");
   const [error, setError] = useState<string | null>(null);
   const dirty = JSON.stringify(brief) !== JSON.stringify(savedBrief);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     let active = true;
@@ -41,8 +51,9 @@ export function CandidatureWorkingBriefPanel({ candidatureId }: { candidatureId:
       });
     return () => {
       active = false;
+      onDirtyChange?.(false);
     };
-  }, [candidatureId]);
+  }, [candidatureId, onDirtyChange]);
 
   const chooseGroup = (next: BriefGroup) => {
     if (next === group) return;
