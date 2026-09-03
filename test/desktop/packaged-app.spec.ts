@@ -72,11 +72,54 @@ async function waitForDebugger(
   );
 }
 
+function processHasExited(child: ChildProcess): boolean {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+async function waitForProcessExit(child: ChildProcess, timeoutMs: number): Promise<void> {
+  if (processHasExited(child)) return;
+  await new Promise<void>((resolve, reject) => {
+    const onExit = () => {
+      clearTimeout(timeout);
+      resolve();
+    };
+    const timeout = setTimeout(() => {
+      child.off("exit", onExit);
+      reject(new Error(`Packaged application process ${child.pid ?? "unknown"} did not exit`));
+    }, timeoutMs);
+    child.once("exit", onExit);
+  });
+}
+
 async function stopProcess(child: ChildProcess): Promise<void> {
-  if (child.exitCode !== null) return;
-  const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
-  child.kill();
-  await Promise.race([exited, new Promise<void>((resolve) => setTimeout(resolve, 5_000))]);
+  if (processHasExited(child)) return;
+
+  let terminationError = "";
+  if (process.platform === "win32") {
+    if (!child.pid) throw new Error("Packaged Windows application has no process ID");
+    const result = spawnSync(
+      "taskkill.exe",
+      ["/PID", String(child.pid), "/T", "/F"],
+      {
+        encoding: "utf8",
+        timeout: 5_000,
+        windowsHide: true,
+      },
+    );
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      terminationError = (result.stderr || result.stdout || "taskkill failed").trim();
+    }
+  } else if (!child.kill()) {
+    terminationError = "could not signal packaged application process";
+  }
+
+  try {
+    await waitForProcessExit(child, 5_000);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(terminationError ? `${detail}: ${terminationError}` : detail, { cause: error });
+  }
 }
 
 interface RunningApp {
