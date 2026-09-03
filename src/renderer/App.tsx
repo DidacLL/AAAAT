@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
+import { AiDocumentsWorkspace } from "./AiDocumentsWorkspace";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import logo from "./assets/aaaat-logo-light.png";
 import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
@@ -8,7 +9,7 @@ import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
-type ProductView = "candidatures" | "profile" | "documents" | "settings";
+type ProductView = "candidatures" | "profile" | "documents" | "ai-documents" | "settings";
 
 export function App() {
   const [foundationReady, setFoundationReady] = useState(true);
@@ -126,6 +127,13 @@ export function App() {
             </button>
             <button
               type="button"
+              className={productView === "ai-documents" ? "active-product-tab" : ""}
+              onClick={() => setProductView("ai-documents")}
+            >
+              AI assist
+            </button>
+            <button
+              type="button"
               className={productView === "settings" ? "active-product-tab" : ""}
               onClick={() => setProductView("settings")}
             >
@@ -139,6 +147,8 @@ export function App() {
             <ProfileWorkspace key={`profile-${workspace.rootPath}`} />
           ) : productView === "documents" ? (
             <DocumentsWorkspace key={`documents-${workspace.rootPath}`} />
+          ) : productView === "ai-documents" ? (
+            <AiDocumentsWorkspace key={`ai-documents-${workspace.rootPath}`} />
           ) : (
             <AiSettingsWorkspace key={`settings-${workspace.rootPath}`} />
           )}
