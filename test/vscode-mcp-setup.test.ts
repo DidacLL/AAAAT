@@ -28,6 +28,17 @@ function fixture() {
   return { workspace, project, executable };
 }
 
+function expectedServerEntry(executable: string, workspace: string) {
+  return {
+    type: "stdio",
+    command: executable,
+    args: ["--mcp", "--workspace", workspace],
+    ...(process.platform === "win32"
+      ? { env: { ELECTRON_NO_ATTACH_CONSOLE: "1" } }
+      : {}),
+  };
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
@@ -66,11 +77,7 @@ describe("VS Code MCP setup", () => {
     expect(verify).toHaveBeenCalledTimes(1);
     expect(JSON.parse(readFileSync(path.join(project, ".vscode", "mcp.json"), "utf8"))).toEqual({
       servers: {
-        aaaat: {
-          type: "stdio",
-          command: executable,
-          args: ["--mcp", "--workspace", workspace],
-        },
+        aaaat: expectedServerEntry(executable, workspace),
       },
     });
   });
@@ -83,11 +90,7 @@ describe("VS Code MCP setup", () => {
     const configPath = path.join(vscode, "mcp.json");
     const compatible = {
       servers: {
-        aaaat: {
-          type: "stdio",
-          command: executable,
-          args: ["--mcp", "--workspace", workspace],
-        },
+        aaaat: expectedServerEntry(executable, workspace),
       },
     };
     writeFileSync(configPath, JSON.stringify(compatible, null, 2) + "\n", "utf8");
