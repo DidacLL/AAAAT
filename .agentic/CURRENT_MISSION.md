@@ -1,6 +1,6 @@
 # M5 — Release Hardening
 
-**Status: active.** M0 through M4 are accepted and complete. M5 is the final hardening Mission. It stabilizes the existing product for release without adding a new product or architectural layer.
+**Status: review candidate.** M0 through M4 are accepted and complete. M5 implementation is complete and ready for owner review. This status does not mark M5 owner-accepted or publish a release.
 
 ## Outcome
 
@@ -27,6 +27,16 @@ AAAAT's accepted local-first, manual-first product works reliably as a packaged 
 - speculative second hosts/providers or future-release scaffolding
 - broad dependency upgrades unrelated to a demonstrated release blocker
 - architecture rewrites disguised as cleanup
+
+## Review-candidate evidence
+
+- #111 proves native Windows/macOS ZIP and Linux Debian release artifacts plus artifact inspection and packaged runtime smoke.
+- #113 provides truthful alpha installation, first-run, manual-use, optional-capability, backup/restore, and troubleshooting documentation.
+- #116 corrects the recovery test so its async rejection evidence is actually awaited.
+- #117 makes packaged Electron shutdown deterministic on Windows; the full matrix and a second Windows packaged-smoke run passed on the same exact head.
+- #119 records reproducible dependency-security evidence: zero npm findings in the production dependency graph, current supported Electron runtime verified separately, and remaining build-tool advisories documented without forced dependency churn.
+- The protected Verify matrix continues to pass Fast verification, LaTeX unrelated-directory portability, native release artifact checks, and packaged runtime smoke on Windows, macOS, and Linux.
+- No M5 change edits accepted migration history, weakens a security/privacy/local-ownership/manual-independence/portable-output gate, or introduces a new product subsystem or architectural framework.
 
 ## Completion
 
