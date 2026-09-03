@@ -31,7 +31,13 @@ import {
   candidatureInputSchema,
   candidatureListSchema,
   candidatureRecordSchema,
+  candidatureSourceInputSchema,
+  candidatureSourceListSchema,
+  candidatureSourceRemoveSchema,
+  candidatureSourceUpdateSchema,
   candidatureUpdateSchema,
+  candidatureWorkingBriefSchema,
+  candidatureWorkingBriefUpdateSchema,
   careerContextSchema,
   careerContextUpdateSchema,
   channels,
@@ -73,11 +79,17 @@ import {
   tailorCv,
 } from "./ai-service";
 import {
+  addCandidatureSource,
   createCandidature,
+  getCandidatureWorkingBrief,
+  listCandidatureSources,
   listCandidatures,
+  removeCandidatureSource,
   setCandidatureConcepts,
   setCandidatureDocuments,
   updateCandidature,
+  updateCandidatureSource,
+  updateCandidatureWorkingBrief,
 } from "./candidature-service";
 import { getCareerContext, updateCareerContext } from "./career-context-service";
 import { createConcept, listConcepts, updateConcept } from "./concept-service";
@@ -368,6 +380,51 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return candidatureRecordSchema.parse(
       updateCandidature(requireWorkspaceRoot(), candidatureUpdateSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureSourceList, (event, candidatureId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureSourceListSchema.parse(
+      listCandidatureSources(
+        requireWorkspaceRoot(),
+        candidatureRecordSchema.shape.id.parse(candidatureId),
+      ),
+    );
+  });
+  ipcMain.handle(channels.candidatureSourceAdd, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureSourceListSchema.parse(
+      addCandidatureSource(requireWorkspaceRoot(), candidatureSourceInputSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureSourceUpdate, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureSourceListSchema.parse(
+      updateCandidatureSource(requireWorkspaceRoot(), candidatureSourceUpdateSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureSourceRemove, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureSourceListSchema.parse(
+      removeCandidatureSource(requireWorkspaceRoot(), candidatureSourceRemoveSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureWorkingBriefCurrent, (event, candidatureId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureWorkingBriefSchema.parse(
+      getCandidatureWorkingBrief(
+        requireWorkspaceRoot(),
+        candidatureRecordSchema.shape.id.parse(candidatureId),
+      ),
+    );
+  });
+  ipcMain.handle(channels.candidatureWorkingBriefUpdate, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureWorkingBriefSchema.parse(
+      updateCandidatureWorkingBrief(
+        requireWorkspaceRoot(),
+        candidatureWorkingBriefUpdateSchema.parse(input),
+      ),
     );
   });
   ipcMain.handle(channels.candidatureSetDocuments, (event, input: unknown) => {
