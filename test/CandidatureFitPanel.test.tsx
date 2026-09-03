@@ -34,12 +34,9 @@ describe("candidature AI fit panel", () => {
     assessFit.mockReset();
     previewFit.mockResolvedValue({
       connection: {
-        name: "Remote fixture",
-        endpoint: "https://models.example.test/v1",
+        name: "Local fixture",
+        endpoint: "http://localhost:11434/v1",
         model: "fixture-model",
-        classification: "remote",
-        hasCredential: true,
-        secureStorageAvailable: true,
       },
       projectedContext: {
         candidature: {
@@ -56,7 +53,6 @@ describe("candidature AI fit panel", () => {
           { kind: "skill", title: "TypeScript" },
         ],
       },
-      requiresRemoteDisclosure: true,
     });
     assessFit.mockResolvedValue({
       fit: "strong",
@@ -73,7 +69,7 @@ describe("candidature AI fit panel", () => {
 
   afterEach(() => cleanup());
 
-  it("shows the exact projected payload and requires acknowledgement before remote inference", async () => {
+  it("shows the projected local payload before running the read-only assessment", async () => {
     const user = userEvent.setup();
     render(<CandidatureFitPanel record={record} />);
 
@@ -86,17 +82,7 @@ describe("candidature AI fit panel", () => {
       contactPrivacy: "token",
     });
     expect(screen.getByText(/AAAT_PRIVATE_1/)).toBeInTheDocument();
-    expect(screen.getByText(/will leave this computer/i)).toBeInTheDocument();
-
-    const run = screen.getByRole("button", { name: "Run fit assessment" });
-    expect(run).toBeDisabled();
-    await user.click(
-      screen.getByRole("checkbox", {
-        name: /I understand that the projected context shown above/i,
-      }),
-    );
-    expect(run).toBeEnabled();
-    await user.click(run);
+    await user.click(screen.getByRole("button", { name: "Run local fit assessment" }));
 
     expect(assessFit).toHaveBeenCalledWith({
       candidatureId: record.id,
