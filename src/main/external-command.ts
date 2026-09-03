@@ -45,14 +45,7 @@ function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
 }
 
-export function isExternalCommandInvocation(argv: readonly string[]): boolean {
-  return argv.includes(externalCommandFlag);
-}
-
-export function executeExternalCommand(
-  argv: readonly string[],
-  rawInput: string,
-): ExternalCommandResult {
+function invocationFailure(argv: readonly string[]): ExternalCommandResult | null {
   if (
     !exactlyOne(argv, externalCommandFlag) ||
     !exactlyOne(argv, workspaceFlag)
@@ -69,6 +62,29 @@ export function executeExternalCommand(
   }
   if (capability !== candidatureCreateCapability) {
     return failure("unsupported-capability");
+  }
+  return null;
+}
+
+function workspacePathFrom(argv: readonly string[]): string {
+  const workspacePath = argv[argv.indexOf(workspaceFlag) + 1];
+  if (!workspacePath) {
+    throw new Error("External command invocation was not validated.");
+  }
+  return workspacePath;
+}
+
+export function isExternalCommandInvocation(argv: readonly string[]): boolean {
+  return argv.includes(externalCommandFlag);
+}
+
+export function executeExternalCommand(
+  argv: readonly string[],
+  rawInput: string,
+): ExternalCommandResult {
+  const invalidInvocation = invocationFailure(argv);
+  if (invalidInvocation) {
+    return invalidInvocation;
   }
   if (Buffer.byteLength(rawInput, "utf8") > externalCommandMaxInputBytes) {
     return failure("input-too-large");
@@ -87,7 +103,7 @@ export function executeExternalCommand(
   }
 
   try {
-    createCandidature(workspacePath, candidature.data);
+    createCandidature(workspacePathFrom(argv), candidature.data);
   } catch {
     return failure("command-failed");
   }
@@ -125,6 +141,12 @@ export async function runExternalCommandProcess(
   input: Readable,
   output: Writable,
 ): Promise<0 | 2> {
+  const invalidInvocation = invocationFailure(argv);
+  if (invalidInvocation) {
+    writeResponse(output, invalidInvocation);
+    return invalidInvocation.exitCode;
+  }
+
   let rawInput: string;
   try {
     rawInput = await readBoundedInput(input);
