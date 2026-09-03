@@ -21,7 +21,7 @@ function packagedExecutable(): string {
   return path.join(packageRoot, process.platform === "win32" ? "aaaat.exe" : "aaaat");
 }
 
-function childEnvironment(): Record<string, string> {
+function childEnvironment(executable: string, workspace: string): Record<string, string> {
   const environment = Object.fromEntries(
     Object.entries(process.env).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
@@ -29,8 +29,31 @@ function childEnvironment(): Record<string, string> {
   );
   if (process.platform === "win32") {
     environment.ELECTRON_NO_ATTACH_CONSOLE = "1";
+    environment.AAAAT_MCP_EXE = executable;
+    environment.AAAAT_MCP_WORKSPACE = workspace;
   }
   return environment;
+}
+
+function transportParameters(executable: string, workspace: string) {
+  if (process.platform === "win32") {
+    return {
+      command: "powershell.exe",
+      args: [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "& $env:AAAAT_MCP_EXE --mcp --workspace $env:AAAAT_MCP_WORKSPACE",
+      ],
+      env: childEnvironment(executable, workspace),
+    };
+  }
+  return {
+    command: executable,
+    args: ["--mcp", "--workspace", workspace],
+    env: childEnvironment(executable, workspace),
+  };
 }
 
 const migrationFiles = [
@@ -92,11 +115,8 @@ const candidatureInput = {
 test("packaged executable serves only bounded candidature creation over official MCP stdio", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-mcp-"));
   initializeWorkspaceFixture(root);
-  const transport = new StdioClientTransport({
-    command: packagedExecutable(),
-    args: ["--mcp", "--workspace", root],
-    env: childEnvironment(),
-  });
+  const executable = packagedExecutable();
+  const transport = new StdioClientTransport(transportParameters(executable, root));
   const client = new Client({ name: "aaaat-packaged-mcp-test", version: "1.0.0" });
 
   try {
