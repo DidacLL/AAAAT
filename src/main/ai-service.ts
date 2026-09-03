@@ -297,7 +297,8 @@ export async function recommendVariant(
   const result = variantRecommendationResultSchema.parse(
     await provider.recommendVariant(statusFor(stored), context),
   );
-  if (!variants.some((variant) => variant.id === result.variantId)) {
+  const currentVariants = getProfile(rootPath).variants;
+  if (!currentVariants.some((variant) => variant.id === result.variantId)) {
     throw new AiServiceError("The model recommended a profile variant that no longer exists.");
   }
   return result;
@@ -341,6 +342,18 @@ function documentContext(
   });
 }
 
+function currentDocumentEvidenceIds(rootPath: string, documentId: string): ReadonlySet<string> {
+  const document = requireDocument(rootPath, documentId);
+  if (document.kind !== "cv") {
+    throw new AiServiceError("Choose a CV document for CV tailoring.");
+  }
+  return new Set(
+    resolveProfileVariant(rootPath, document.variantId).items
+      .filter((item) => documentEvidenceKinds.has(item.kind))
+      .map((item) => item.id),
+  );
+}
+
 export async function tailorCv(
   rootPath: string,
   rawRequest: DocumentAiRequest,
@@ -358,7 +371,7 @@ export async function tailorCv(
   const result = cvTailoringResultSchema.parse(
     await provider.tailorCv(statusFor(stored), context),
   );
-  const allowed = new Set(context.items.map((item) => item.id));
+  const allowed = currentDocumentEvidenceIds(rootPath, request.documentId);
   if (result.recommendations.some((item) => !allowed.has(item.itemId))) {
     throw new AiServiceError("The model recommended a profile item that no longer exists.");
   }
