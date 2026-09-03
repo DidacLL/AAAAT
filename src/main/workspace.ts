@@ -21,6 +21,7 @@ import candidatureMigrationSql from "./migrations/004_candidatures.sql?raw";
 import conceptMigrationSql from "./migrations/005_concepts.sql?raw";
 import activityMigrationSql from "./migrations/006_activity.sql?raw";
 import careerContextMigrationSql from "./migrations/007_career_context.sql?raw";
+import candidatureSourcesBriefMigrationSql from "./migrations/008_candidature_sources_brief.sql?raw";
 
 export interface WorkspaceMigrationRow {
   readonly version: number;
@@ -66,6 +67,7 @@ const migrations = Object.freeze([
   migration(5, "concepts", conceptMigrationSql),
   migration(6, "activity", activityMigrationSql),
   migration(7, "career-context", careerContextMigrationSql),
+  migration(8, "candidature-sources-brief", candidatureSourcesBriefMigrationSql),
 ]);
 
 class WorkspaceError extends Error {
