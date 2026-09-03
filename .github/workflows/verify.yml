@@ -84,10 +84,16 @@ jobs:
         run: |
           $zip = Get-ChildItem -Path out/make -Recurse -File -Filter *.zip | Select-Object -First 1
           if (-not $zip) { throw "Windows release ZIP was not created" }
-          $extract = Join-Path $env:RUNNER_TEMP "aaaat-release-zip"
-          Expand-Archive -Path $zip.FullName -DestinationPath $extract -Force
-          $exe = Get-ChildItem -Path $extract -Recurse -File -Filter aaat.exe | Select-Object -First 1
-          if (-not $exe) { throw "Windows release ZIP does not contain aaat.exe" }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
+          try {
+            $entries = @($archive.Entries | ForEach-Object { $_.FullName })
+            $entries | ForEach-Object { Write-Host $_ }
+            $exe = $entries | Where-Object { $_.EndsWith("aaaat.exe", [System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
+            if (-not $exe) { throw "Windows release ZIP does not contain aaat.exe" }
+          } finally {
+            $archive.Dispose()
+          }
       - name: Inspect macOS release ZIP
         if: runner.os == 'macOS'
         shell: bash
