@@ -22,7 +22,7 @@ M0–M5 remain accepted technical/capability checkpoints. Their evidence is pres
 - #119 records reproducible dependency-security evidence.
 - PR #121 exact head `6a4490798399c75a939ccb694e49a21c22ff2802` passed Fast verification, LaTeX portability, and packaged Windows/macOS/Linux checks and was explicitly accepted by the Product Owner.
 
-Accepted migrations and technical evidence remain immutable/reachable. Product meaning is governed by `docs/OWNER_INTENT.md` and the reconciled `docs/SPEC.md`, not by historical acceptance wording.
+Git history and technical evidence remain reachable. AAAAT has no real-user v2 data-compatibility baseline yet: development databases, fixtures, and development migration files are not compatibility commitments. Corrective M6 work must not preserve rejected schema merely because an earlier development migration created it. Product meaning is governed by `docs/OWNER_INTENT.md` and the reconciled `docs/SPEC.md`, not by historical acceptance wording.
 
 ## M6 reconciliation state
 
@@ -34,7 +34,7 @@ M6 implementation is not automatically reverted. Its current parts are classifie
 - sparse/incomplete candidature storage and persistence;
 - progressive UI composition as a technique for avoiding one enormous static form;
 - reusable career context kept separate from factual canonical-profile evidence;
-- concepts/documents integration, application-service mutations, sandboxed renderer, typed preload/IPC, backup/reopen behavior, and immutable migration history;
+- concepts/documents integration, application-service mutations, sandboxed renderer, typed preload/IPC, backup/reopen behavior, and the SQLite migration mechanism;
 - Focus as a projection rather than duplicate persisted candidature state.
 
 ### USEFUL BUT OVER-PRIVILEGED
@@ -58,7 +58,7 @@ M6 implementation is not automatically reverted. Its current parts are classifie
 - the sequential packaged M6 acceptance journey that requires manual status/priority/next-action, evaluation/strategy, pitch/questions, and recruiter-preparation entry before Focus is considered useful;
 - language that makes M6 a primarily manual-entry workflow rather than one human-operable path among manual, direct-AI, and bounded external-AI ways to work with the same information.
 
-Contradictory implementation/tests are remediation input for the next properly defined capability Mission. This recovery does not broadly rewrite them and does not edit accepted migrations.
+Contradictory implementation/tests are remediation input for the next properly defined capability Mission. The recovery did not edit development migrations; that is historical fact, not a compatibility requirement for corrective M6 work.
 
 ## Next lifecycle step
 
