@@ -91,6 +91,21 @@ Views decide how missing information is presented. The domain reports what infor
 
 Candidature labels should use useful available or configured information. Company and role are sensible defaults when present, not universal identity requirements.
 
+## Flexible semantic information
+
+AAAAT understands meaningful information without turning that vocabulary into a mandatory checklist or workflow. Useful built-in or user-defined information may include:
+
+- company, role, location, work arrangement, compensation, and dates;
+- description and requirements;
+- company/role research with useful provenance;
+- strengths/evidence, gaps/risks/concerns, questions, and pitch;
+- technical stack, keywords, and shared concepts;
+- notes and reminders;
+- application-form questions and answers;
+- other useful information not anticipated by the initial built-in catalogue.
+
+The product generalizes repeated information behavior while retaining real semantic/domain meaning.
+
 ## Domain and information architecture
 
 AAAAT keeps real domain concepts explicit. Current or intended explicit concepts include:
@@ -108,13 +123,16 @@ Normal user-facing information also has repeated cross-cutting behavior. The arc
 A field-capability model needs to represent, as appropriate:
 
 - semantic key/scope/label/value shape and cardinality;
-- whether a value is editable;
+- whether the value can be inspected, manually created, edited, cleared, or removed;
+- whether suitable AI operations may populate or transform it;
 - whether/how it may be exposed to AI;
 - whether it may participate in Focus;
 - Focus visibility;
 - Focus ordering;
 - relative Focus prominence/space;
 - whether the field is built-in or user/configuration-defined.
+
+These capabilities are independent: AI visibility does not control Focus visibility; Focus visibility does not control storage; AI-produced information remains manually editable.
 
 The exact TypeScript types and persistence representation are implementation decisions.
 
