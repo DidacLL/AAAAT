@@ -15,11 +15,13 @@ Review drift nevertheless treated privacy-token mechanics and possible failures 
 
 AAAAT security is structural.
 
-AAAAT protects the authority it owns through simple explicit product-specific data structures, authoritative local state, narrow application-service mutation paths, typed/domain validation, bounded integration capabilities, and process/renderer privilege boundaries.
+AAAAT protects its own local state through simple explicit product-specific data structures, authoritative local state, narrow application-service mutation paths, typed/domain validation, bounded integration capabilities, and process/renderer privilege boundaries. This is a technical persistence and privilege boundary, not a product claim that an AI result has authority over the user.
+
+An external integration offers only the specific AAAAT-provided operations deliberately implemented for its demonstrated use case. It is not a generic CRUD, entity browsing/listing/search/query, arbitrary entity-ID, or data-scraping surface. Each operation has bounded purpose-specific input and output and reuses normal application services; this does not introduce a generic task queue, workflow engine, or external data API.
 
 AAAAT does not own or secure an external AI model's reasoning, prompt interpretation, provider internals, network, or research behavior. External AI may produce arbitrary or incorrect output; AAAAT treats that output as untrusted operation-scoped input and subjects it to the same bounded domain validation and mutation rules that protect authoritative data.
 
-Privacy projection is separate from the authority boundary. An operation may expose, omit, or locally replace/tokenize information. Authoritative private literals remain local when omitted or replaced. Placeholder syntax, token generation, collision strategy, and restoration implementation are replaceable details unless a concrete correctness defect makes one relevant.
+Privacy projection is separate from this technical boundary. An operation may expose, omit, or locally replace/tokenize information. Authoritative private literals remain local when omitted or replaced. Placeholder syntax, token generation, collision strategy, and restoration implementation are replaceable details unless a concrete correctness defect makes one relevant.
 
 There is no universal `AI -> proposal -> human approval -> mutation` architecture. Each operation defines its own typed output and conflict/mutation policy, then uses normal application services. Proposal-only behavior is appropriate where an operation requires it; valid bounded results may be applied directly where that operation permits it.
 
@@ -29,8 +31,9 @@ AAAAT does not add prompt-injection detection, an AI firewall, adversarial promp
 
 ## Consequences
 
-- Security reviews focus on AAAAT-owned authority, disclosure, validation, mutation, and privilege boundaries.
-- A hostile or confused model cannot gain broad local authority because that authority is not exposed to it.
+- Security reviews focus on AAAAT's local state, disclosure, validation, mutation, and privilege boundaries.
+- A hostile or confused model cannot gain broad local access because that access is not exposed to it.
+- External hosts receive specific AAAAT tasks rather than a general way to inspect, query, scrape, or mutate user data.
 - Privacy controls remain useful product functionality without becoming a second security architecture.
 - AI operations remain simple and product-specific.
 - Tests prove disclosure, validation, mutation, conflict, and restoration behavior rather than incidental tokenizer or prompt mechanics.

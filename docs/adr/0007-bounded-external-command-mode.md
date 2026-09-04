@@ -2,7 +2,7 @@
 
 ## Context
 
-M4 begins external control only through demonstrated bounded capabilities. The first real case is creating a new candidature from an external tool. AAAAT must reuse normal application-service mutation authority without adding a localhost service, daemon, generic command framework, or direct database access.
+M4 begins external control only through demonstrated bounded capabilities. The first real case is creating a new candidature from an external tool. AAAAT must reuse normal application-service behavior without adding a localhost service, daemon, generic command framework, generic CRUD/query surface, or direct database access.
 
 ## Decision
 
@@ -20,7 +20,7 @@ Only `candidature.create` exists in this slice. Additional capabilities are adde
 
 ## Consequences
 
-- External tools get one useful mutation without database, filesystem, shell, process, network, repository, or arbitrary ID-based authority.
+- External tools get one useful task without database, filesystem, shell, process, network, repository, generic CRUD/query access, or arbitrary ID-based access.
 - The existing candidature service remains the sole mutation path and preserves transaction/activity semantics.
 - No listener, background service, second application runtime, provider dependency, or renderer authority is introduced.
 - The packaged executable becomes a small durable machine-facing contract, so native package smoke must prove command invocation and output behavior.
@@ -30,5 +30,5 @@ Only `candidature.create` exists in this slice. Additional capabilities are adde
 - Localhost HTTP/API service: no concrete consumer or authentication design exists, and M4 explicitly forbids speculative network services.
 - Background daemon or second runtime: unnecessary for one request/response operation.
 - Generic command registry or plugin system: premature abstraction for the first case.
-- Direct SQLite or filesystem manipulation: bypasses application-service validation and authority.
-- Returning created entity IDs or paths: unnecessarily widens external mutation and discovery authority.
+- Direct SQLite or filesystem manipulation: bypasses application-service validation and the deliberately small task surface.
+- Returning created entity IDs or paths: unnecessarily widens external mutation and discovery access.

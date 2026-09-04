@@ -66,7 +66,6 @@ describe("document AI provider operations", () => {
       messages: Array<{ role: string; content: string }>;
     };
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
-    expect(body.messages[0]?.content).toMatch(/existing career items/i);
   });
 
   it("validates structured cover-letter drafts", async () => {

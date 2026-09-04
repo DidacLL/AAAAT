@@ -16,6 +16,7 @@ const record: CandidatureRecord = {
   conceptIds: [],
 };
 
+const projectedPrivateValue = "opaque local replacement";
 const previewFit = vi.fn();
 const assessFit = vi.fn();
 
@@ -42,7 +43,7 @@ describe("candidature AI fit panel", () => {
           sources: [],
         },
         profileItems: [
-          { kind: "identity", title: "[AAAT_PRIVATE_11111111-1111-4111-8111-111111111111]" },
+          { kind: "identity", title: projectedPrivateValue },
           { kind: "skill", title: "TypeScript" },
         ],
       },
@@ -74,7 +75,11 @@ describe("candidature AI fit panel", () => {
       identityPrivacy: "token",
       contactPrivacy: "token",
     });
-    expect(screen.getByText(/AAAT_PRIVATE_11111111/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (content, element) => element?.tagName === "PRE" && content.includes(projectedPrivateValue),
+      ),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Run local fit assessment" }));
 
     expect(assessFit).toHaveBeenCalledWith({

@@ -12,6 +12,8 @@ If **yes**, the product meaning must trace to `docs/OWNER_INTENT.md` or to an un
 
 This check does not create another decision class. Once product meaning is established, Class A/B/C/D still describes the architectural significance of the implementation decision.
 
+Within established product meaning, the concrete syntax, generator, collision strategy, and restoration implementation for privacy replacement/tokenization are normally Class A implementation details. Do not elevate them into an architectural security decision merely because an AI operation uses them. The durable implementation boundary is normal local persistence, disclosure projection, typed validation, and operation-specific mutation/conflict policy; it does not make an AI result authoritative over the user. Likewise, using explicitly scoped retained Source material is an operation-level product decision, not a mandate for a generic Source-selection or AI-security framework.
+
 Decision class follows the architectural significance of the decision actually made, not patch size or the mere presence of a particular file type. Builder classification is provisional; Reviewer or Integrator raises it when the final design materially changes an architectural boundary.
 
 ## Class A — Implementation detail

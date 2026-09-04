@@ -361,11 +361,11 @@ A persistence generalization requires demonstrated need; product flexibility alo
 
 ## AI architecture
 
-AI is optional capability, never product authority.
+AI is optional assistance. It does not make product decisions or turn a generated value into something more important than ordinary user-owned information.
 
-AAAAT's security boundary is structural and local: authoritative data structures, narrow application-service mutation paths, typed/domain validation, bounded operation capabilities, and the existing process/renderer privilege boundaries. AAAAT does not own or secure an external model's reasoning, prompt interpretation, provider internals, network, or research behavior.
+AAAAT's technical boundary is structural and local: authoritative data structures, narrow application-service mutation paths, typed/domain validation, bounded operation capabilities, and the existing process/renderer privilege boundaries. It keeps AAAAT's own local state consistent; it is not a product claim that an AI result has authority over the user. AAAAT does not own or secure an external model's reasoning, prompt interpretation, provider internals, network, or research behavior.
 
-Provider/model output is untrusted operation-scoped input. It is accepted, rejected, or applied according to the operation's typed validation and conflict/mutation policy. AAAAT does not rely on model obedience for authority enforcement and does not require a universal human-approval queue.
+Provider/model output is ordinary operation-scoped input. It is accepted, rejected, or applied according to the operation's typed validation and conflict/mutation policy. AAAAT does not rely on model obedience to protect its local state and does not require a universal human-approval queue.
 
 The product remains provider-neutral at the domain/application level. AI contracts are operation-specific rather than a generic task/workflow framework.
 
@@ -419,7 +419,7 @@ Remote disclosure must be understandable. Broad cross-candidature remote analysi
 
 Credentials are not plaintext application records. Where secure OS storage is available, Electron `safeStorage` is the expected primitive; the application must explain insecure fallback conditions instead of pretending all platforms offer identical protection.
 
-AAAAT cannot guarantee application-level privacy from an external agent already granted unrestricted screen/filesystem/shell authority; setup must represent that limitation truthfully.
+AAAAT cannot guarantee application-level privacy from an external agent already granted unrestricted screen/filesystem/shell access; setup must represent that limitation truthfully.
 
 ## Research
 
@@ -443,6 +443,8 @@ External AI is a real entry path into AAAAT, not merely copy/paste.
 
 Demonstrated bounded host mechanisms may include official MCP, one-shot commands, skills/tools/plugins, generated host integration material, or another appropriate integration.
 
+An external integration exposes only the named, product-specific AAAAT operations deliberately provided for that demonstrated use case. It does not expose generic CRUD, entity browsing/listing/search/query, arbitrary entity-ID access, or a scraping surface. Each operation has bounded purpose-specific input and output and converges on the same local application-service behavior as manual use. This does not require a generic task queue, workflow engine, or external data API.
+
 Bounded capabilities may support workflows such as:
 
 - create or enrich a candidature;
@@ -453,7 +455,7 @@ Bounded capabilities may support workflows such as:
 - create document material;
 - request rendering.
 
-External AI does not receive arbitrary database, filesystem, shell, process, network, repository, or generic entity-ID mutation authority merely for convenience.
+External AI does not receive arbitrary database, filesystem, shell, process, network, repository, generic entity-ID write access, or unbounded data-query capability merely for convenience.
 
 Durable changes use the same application services as desktop/manual and direct-AI paths.
 

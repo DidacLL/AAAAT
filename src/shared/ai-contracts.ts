@@ -31,6 +31,11 @@ export const aiConnectionStatusSchema = aiConnectionInputSchema;
 export type AiConnectionStatus = z.infer<typeof aiConnectionStatusSchema>;
 export const optionalAiConnectionStatusSchema = aiConnectionStatusSchema.nullable();
 
+/**
+ * Controls disclosure for one AI operation. It does not change what the
+ * operation may persist or define a token-security protocol; local replacement
+ * mechanics may evolve.
+ */
 export const privacyModeSchema = z.enum(["expose", "omit", "token"]);
 export type PrivacyMode = z.infer<typeof privacyModeSchema>;
 
