@@ -155,7 +155,7 @@ interface Projection<T> {
 }
 
 function tokenFactory(tokenMap: Map<string, string>) {
-  let counter = 0;
+  let counter = tokenMap.size;
   return (value: string): string => {
     counter += 1;
     const placeholder = `[AAAT_PRIVATE_${counter}]`;
