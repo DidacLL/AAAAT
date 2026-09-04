@@ -7,21 +7,11 @@ import type { CandidatureRecord } from "../src/shared/contracts";
 
 const record: CandidatureRecord = {
   id: "00000000-0000-4000-8000-000000000001",
-  company: "Example Corp",
-  role: "Platform Engineer",
-  location: "Remote",
-  workMode: "remote",
-  salaryText: "",
-  source: "Job board",
-  sourceUrl: "",
-  sourceText: "Build TypeScript systems.",
-  status: "saved",
-  priority: "",
-  applicationDate: "",
-  nextAction: "",
-  nextActionDate: "",
-  notes: "",
   archived: false,
+  createdAt: "2026-09-04T10:00:00.000Z",
+  updatedAt: "2026-09-04T10:00:00.000Z",
+  label: "Example Corp — Platform Engineer",
+  values: [],
   documentIds: [],
   conceptIds: [],
 };
@@ -41,13 +31,21 @@ describe("candidature AI fit panel", () => {
       },
       projectedContext: {
         candidature: {
-          company: "Example Corp",
-          role: "Platform Engineer",
-          location: "Remote",
-          workMode: "remote",
-          salaryText: "",
-          source: "Job board",
-          sourceText: "Build TypeScript systems.",
+          label: record.label,
+          information: [
+            {
+              fieldId: "00000000-0000-4000-8000-000000000101",
+              label: "Organisation",
+              value: "Example Corp",
+            },
+          ],
+          sources: [
+            {
+              title: "Job board",
+              url: "",
+              sourceText: "Build TypeScript systems.",
+            },
+          ],
         },
         profileItems: [
           { kind: "identity", title: "[AAAT_PRIVATE_1]" },

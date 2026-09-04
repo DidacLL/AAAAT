@@ -8,15 +8,41 @@ import type { CandidatureRecord } from "../src/shared/contracts";
 const recommendVariant = vi.fn();
 const profileCurrent = vi.fn();
 const record: CandidatureRecord = {
-  id: "00000000-0000-4000-8000-000000000001", company: "Example", role: "Platform Engineer", location: "Remote", workMode: "remote", salaryText: "", source: "", sourceUrl: "", sourceText: "Platform role", status: "saved", priority: "", applicationDate: "", nextAction: "", nextActionDate: "", notes: "", archived: false, documentIds: [], conceptIds: [],
+  id: "00000000-0000-4000-8000-000000000001",
+  archived: false,
+  createdAt: "2026-09-04T10:00:00.000Z",
+  updatedAt: "2026-09-04T10:00:00.000Z",
+  label: "Example — Platform Engineer",
+  values: [],
+  documentIds: [],
+  conceptIds: [],
 };
 
 describe("variant recommendation panel", () => {
   beforeEach(() => {
-    recommendVariant.mockReset(); profileCurrent.mockReset();
-    recommendVariant.mockResolvedValue({ variantId: "00000000-0000-4000-8000-000000000010", rationale: "Matches platform focus." });
-    profileCurrent.mockResolvedValue({ items: [], variants: [{ id: "00000000-0000-4000-8000-000000000010", name: "Platform", focus: "Platform focus", targetTags: [], preferredLanguage: "en", rules: [] }] });
-    Object.defineProperty(window, "aaaat", { configurable: true, value: { ai: { recommendVariant }, profile: { current: profileCurrent } } });
+    recommendVariant.mockReset();
+    profileCurrent.mockReset();
+    recommendVariant.mockResolvedValue({
+      variantId: "00000000-0000-4000-8000-000000000010",
+      rationale: "Matches platform focus.",
+    });
+    profileCurrent.mockResolvedValue({
+      items: [],
+      variants: [
+        {
+          id: "00000000-0000-4000-8000-000000000010",
+          name: "Platform",
+          focus: "Platform focus",
+          targetTags: [],
+          preferredLanguage: "en",
+          rules: [],
+        },
+      ],
+    });
+    Object.defineProperty(window, "aaaat", {
+      configurable: true,
+      value: { ai: { recommendVariant }, profile: { current: profileCurrent } },
+    });
   });
   afterEach(() => cleanup());
 
