@@ -6,30 +6,21 @@ AAAAT v2 is a clean restart. The Python/wxPython v1 implementation remains avail
 
 For alpha installation, first-run use, manual workflows, optional AI, backup/restore, and troubleshooting, see the [AAAAT alpha user guide](docs/USER_GUIDE.md).
 
-## Current mission
+## Current product state
 
-M6 - Opportunity Understanding & Recruiter Readiness is active. M0 through M5 remain accepted foundation and capability checkpoints forming the initial AAAAT v2 restart/alpha series; their acceptance does not mean the complete AAAAT product-completion roadmap is finished. Product-completion work continues from the accepted v2 architecture, with only M6 decomposed into implementation work.
+M6 — Opportunity Understanding & Recruiter Readiness is paused and reconciled against canonical Product Owner authority. Its technically sound implementation remains available as evidence, but its previous product contract is not active product authority.
 
-The remaining capability-level roadmap is M7 - Application Preparation & Material Lifecycle, M8 - VCVGenerator & Setup Completion, M9 - Contextual AI Assistance, M10 - Research & Bounded External Collaboration, and M11 - Product Completion Acceptance. Those later Missions are not active and must not be decomposed until activated.
+M0 through M5 remain accepted capability/technical checkpoints. Their implementation and verification evidence remain valuable where technically applicable, but their historical names, Issues, acceptance wording, and implementation details do not define or complete current product meaning.
 
-The M5 - Release Hardening checkpoint is accepted. Native release artifacts and packaged runtime evidence on Windows, macOS, and Linux, truthful user/setup/recovery documentation, reliability corrections, dependency-security classification, and preserved security/privacy/local-ownership/manual-independence/portable-output gates form the accepted alpha baseline.
+There is no authoritative M7–M11 roadmap. Future product work derives exactly one next Mission from `docs/OWNER_INTENT.md` + `docs/SPEC.md` + actual current implementation/evidence, and that Mission is decomposed only after Product Owner activation.
 
-The M4 - Agentic Interoperability and Setup checkpoint is accepted. Bounded external candidature creation, official MCP stdio, demonstrated VS Code setup, structured setup knowledge, portable proposed host configuration, and safe workspace backup/restore are proven while external authority remains narrow and AI remains optional.
+Product-authority and development references:
 
-The M3 - AI Assistance checkpoint is accepted. Optional direct model-provider assistance is proven over the manual workspace through operation-specific minimum context, privacy projection before inference, typed validated results, explicit conflict policy, and normal application-service mutations. AI remains optional and provider-neutral.
-
-The M2 - Candidature Workspace checkpoint is accepted. Manual incomplete opportunity tracking, source/notes, status and independent archiving, search/filtering, shared concepts, recruiter-call focus views, and associations to existing CV/cover-letter documents are proven baseline capabilities. The post-M2 stabilization corrections for dirty-editor state, TeX/document recovery, migration history, and truthful activity semantics are also complete.
-
-The M1 - Manual VCVGenerator checkpoint is accepted. The user-owned workspace, canonical career data and focused variants, editable manual CV/cover-letter documents, portable LaTeX projects, local rendering, direct-edit preservation, and unrelated-directory compilation evidence are proven product baseline capabilities. A completed Mission checkpoint records the bounded capability accepted for that Mission; it is not by itself a claim that every eventual capability named in the canonical SPEC has already been implemented.
-
-The M0 - Foundation checkpoint is accepted. The secure Electron + React + TypeScript + SQLite boundary, verification path, and native packaging evidence remain the development baseline rather than current product scope.
-
-Authoritative material:
-
-- [`docs/SPEC.md`](docs/SPEC.md)
-- [`.agentic/CONSTITUTION.md`](.agentic/CONSTITUTION.md)
-- [`.agentic/CURRENT_MISSION.md`](.agentic/CURRENT_MISSION.md)
-- [`AGENTS.md`](AGENTS.md)
+- [`docs/OWNER_INTENT.md`](docs/OWNER_INTENT.md) — canonical Product Owner authority
+- [`docs/SPEC.md`](docs/SPEC.md) — derived product/technical specification
+- [`.agentic/CURRENT_MISSION.md`](.agentic/CURRENT_MISSION.md) — current paused/reconciled Mission state
+- [`.agentic/CONSTITUTION.md`](.agentic/CONSTITUTION.md) — durable technical/product invariants subject to higher product authority
+- [`AGENTS.md`](AGENTS.md) — agent execution and authority routing
 
 ## First bounded external command
 

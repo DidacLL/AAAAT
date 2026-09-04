@@ -85,6 +85,10 @@ A candidature may begin with:
 
 Company, role, status, priority, and next action are not validity requirements.
 
+Missing optional information is not product debt. AAAAT does not require record completeness, present sparse candidatures as defective, or use a completeness score/percentage as the governing interaction model.
+
+This does not require empty information to be hidden, prohibit showing empty/addable information, or prohibit an optional user-requested overview. Each view still balances understanding, discoverability, useful populated information, available space, and clutter.
+
 Original source material is first-class and remains retainable independently from structured information extracted or entered from it. Multiple meaningful sources may coexist. Extraction or enrichment never replaces the source.
 
 Views decide how missing information is presented. The domain reports what information exists; no global rule requires every empty field to be either shown or hidden.
@@ -118,21 +122,24 @@ AAAAT keeps real domain concepts explicit. Current or intended explicit concepts
 - document and artifact;
 - AI connection.
 
-Normal user-facing information also has repeated cross-cutting behavior. The architecture should expose a reusable information-field contract where applicable rather than hard-coding independent UI/privacy/AI behavior for every built-in field.
+Every normal user-facing field/value participates in the reusable common user-information capability contract. System/internal values such as IDs, hashes, migration metadata, and similar implementation metadata are excluded.
 
-A field-capability model needs to represent, as appropriate:
+The contract also represents the field's semantic key/scope/label, value shape and cardinality, and whether it is built-in or user/configuration-defined.
 
-- semantic key/scope/label/value shape and cardinality;
-- whether the value can be inspected, manually created, edited, cleared, or removed;
-- whether suitable AI operations may populate or transform it;
-- whether/how it may be exposed to AI;
-- whether it may participate in Focus;
-- Focus visibility;
-- Focus ordering;
-- relative Focus prominence/space;
-- whether the field is built-in or user/configuration-defined.
+The common contract provides the same cross-cutting behavior rather than hard-coding unrelated UI, editing, privacy, or Focus mechanisms for each semantic field. For every normal user-facing field/value:
+
+- the user can inspect and edit it;
+- the user can create/set it when the domain permits the value to be absent;
+- it can be cleared or removed where its domain semantics allow deletion;
+- its AI-context exposure is user-controllable;
+- it is eligible to be shown or hidden in Focus;
+- when shown in Focus, its order and relative prominence/space are configurable.
+
+AI generation or transformation is a separate capability and is offered only when a suitable configured AI capability exists for that operation.
 
 These capabilities are independent: AI visibility does not control Focus visibility; Focus visibility does not control storage; AI-produced information remains manually editable.
+
+Structural domain entities such as candidatures, documents/artifacts, sources, concepts, ToDos, profiles/variants, and AI connections remain explicit domain concepts. This common field/value contract does not convert them into generic fields or generic CRUD entities.
 
 The exact TypeScript types and persistence representation are implementation decisions.
 
@@ -162,11 +169,9 @@ Focus is a core projection for fast identification and retrieval, especially dur
 
 Focus is derived from authoritative candidature information and user presentation configuration; it is not a second candidature model.
 
-For appropriate items, Focus supports at least:
+Every normal user-facing field/value is eligible to participate in Focus. The user can show or hide it and, when shown, configure its order and relative prominence or allocated space.
 
-- shown/hidden;
-- ordering;
-- relative prominence or allocated space.
+Structural domain entities such as documents, sources, concepts, and ToDos may also participate through domain-appropriate Focus presentation without becoming generic fields.
 
 Composition is responsive rather than arbitrary pixel-position dashboard editing.
 
@@ -177,6 +182,8 @@ Focus is not a fixed recruiter script, checklist, preparation sequence, or manda
 ## Full candidature access
 
 AAAAT provides a complete but progressively disclosed way to browse/search candidatures, inspect stored information, add/edit/clear information, manage sources, concepts, ToDos, documents/artifacts, AI privacy, and Focus configuration.
+
+A candidature may retain or associate the actual application material used for that opportunity, including relevant CVs, cover letters, and other submitted or generated artifacts. These associations are useful historical information independent from lifecycle/status tracking and do not require a formal application-state workflow.
 
 The renderer should avoid both a giant static field sheet and over-hiding useful structure.
 
@@ -590,7 +597,7 @@ raw source or very little structured information → candidature remains valid a
 ### Configurable Focus
 
 ```text
-appropriate Focus information → user can control visibility + order + relative prominence.
+normal user-facing field/value → Focus-eligible; if shown → user controls order + relative prominence.
 ```
 
 ### LaTeX independence
