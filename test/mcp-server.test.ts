@@ -106,7 +106,8 @@ describe("official MCP candidature server", () => {
       expect(content.text).not.toContain("Pilot vacancy");
 
       const created = listCandidatures(root)[0];
-      expect(created?.values).toEqual([
+      if (!created) throw new Error("Created candidature fixture is missing.");
+      expect(created.values).toEqual([
         expect.objectContaining({ fieldId: custom.definition.id, value: 1500 }),
       ]);
 
@@ -115,7 +116,7 @@ describe("official MCP candidature server", () => {
         expect(
           database
             .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
-            .all(created?.id),
+            .all(created.id),
         ).toEqual([{ action: "candidature.created" }]);
       } finally {
         database.close();
