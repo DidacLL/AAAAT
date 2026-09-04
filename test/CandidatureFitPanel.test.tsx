@@ -16,6 +16,7 @@ const record: CandidatureRecord = {
   sourceUrl: "",
   sourceText: "Build TypeScript systems.",
   status: "saved",
+  priority: "",
   applicationDate: "",
   nextAction: "",
   nextActionDate: "",
@@ -69,26 +70,16 @@ describe("candidature AI fit panel", () => {
 
   afterEach(() => cleanup());
 
-  it("shows the projected local payload before running the read-only assessment", async () => {
+  it("previews the privacy projection before sending and never applies fit automatically", async () => {
     const user = userEvent.setup();
     render(<CandidatureFitPanel record={record} />);
-
-    expect(screen.getByText(/saved candidature snapshot/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Preview AI context" }));
-
     expect(previewFit).toHaveBeenCalledWith({
       candidatureId: record.id,
       identityPrivacy: "token",
-      contactPrivacy: "token",
+      contactPrivacy: "omit",
     });
-    expect(screen.getByText(/AAAT_PRIVATE_1/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Run local fit assessment" }));
-
-    expect(assessFit).toHaveBeenCalledWith({
-      candidatureId: record.id,
-      identityPrivacy: "token",
-      contactPrivacy: "token",
-    });
-    expect(await screen.findByText("Strong match.")).toBeInTheDocument();
+    expect(await screen.findByText("[AAAT_PRIVATE_1]")).toBeInTheDocument();
+    expect(assessFit).not.toHaveBeenCalled();
   });
 });
