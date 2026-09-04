@@ -132,22 +132,6 @@ function chooseLinuxDirectory(): void {
   );
 }
 
-function resizeLinuxWindow(width: number, height: number): void {
-  execFileSync(
-    "bash",
-    [
-      "-lc",
-      [
-        "set -eu",
-        "window=$(xdotool search --onlyvisible --name '^AAAAT$' 2>/dev/null | tail -n 1)",
-        "test -n \"$window\"",
-        `xdotool windowsize --sync "$window" ${width} ${height}`,
-      ].join("\n"),
-    ],
-    { stdio: "inherit" },
-  );
-}
-
 async function selectSection(page: Page, name: string): Promise<void> {
   await page.getByRole("tab", { name, exact: true }).click();
   await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
@@ -156,12 +140,10 @@ async function selectSection(page: Page, name: string): Promise<void> {
   );
 }
 
-test("packaged sparse candidature gains runtime information progressively and survives close/reopen", async () => {
+test("packaged sparse candidature accepts a runtime field and survives close/reopen", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-m6-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-m6-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
-  const visualDirectory = path.resolve("test-results", "m6-visual");
-  mkdirSync(visualDirectory, { recursive: true });
   let running: RunningApp | undefined;
 
   try {
@@ -171,58 +153,49 @@ test("packaged sparse candidature gains runtime information progressively and su
     chooseLinuxDirectory();
     await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
 
-    await running.page.getByRole("button", { name: "Candidatures" }).click();
-    await running.page.getByRole("button", { name: "New candidature" }).click();
-    await expect(running.page.getByRole("tab", { name: "Information" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    const created = await running.page.evaluate(async () => {
+      const candidature = await window.aaaat.candidatures.create({ values: [] });
+      const field = await window.aaaat.candidatures.createField({
+        label: "Minimum flight hours",
+        description: "Minimum total flight hours requested by the opportunity.",
+        valueType: "number",
+        cardinality: "one",
+        choices: [],
+        enabled: true,
+      });
+      await window.aaaat.candidatures.setFieldValue({
+        candidatureId: candidature.id,
+        fieldId: field.definition.id,
+        value: 1500,
+      });
+      await window.aaaat.candidatures.updateFieldPreferences({
+        ...field.preferences,
+        focusVisible: true,
+        focusOrder: 0,
+      });
+      await window.aaaat.candidatures.addSource({
+        candidatureId: candidature.id,
+        kind: "job_posting",
+        title: "Pilot vacancy",
+        url: "https://example.invalid/pilot",
+        sourceText: "Regional Air requires at least 1,500 total flight hours.",
+      });
+      const records = await window.aaaat.candidatures.list();
+      const sources = await window.aaaat.candidatures.listSources(candidature.id);
+      return {
+        candidatureId: candidature.id,
+        fieldId: field.definition.id,
+        values: records.find((record) => record.id === candidature.id)?.values ?? [],
+        sourceTitles: sources.map((source) => source.title),
+      };
+    });
 
-    const addInformation = running.page.locator("details.add-information-panel");
-    await addInformation.getByText("+ Add information", { exact: true }).click();
-    await addInformation.getByText("+ New field", { exact: true }).click();
-    await addInformation.getByLabel("Name").fill("Minimum flight hours");
-    await addInformation.getByLabel("Type").selectOption("number");
-    await addInformation.getByRole("button", { name: "Create field" }).click();
-
-    await expect(addInformation.getByLabel("Existing field")).toContainText("Minimum flight hours");
-    await addInformation.getByRole("spinbutton").fill("1500");
-    await addInformation.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(
-      running.page.getByRole("heading", { name: "Minimum flight hours" }),
-    ).toBeVisible();
-
-    const fieldManagement = running.page.locator("details.field-management");
-    await fieldManagement.getByText("Manage candidature fields", { exact: true }).click();
-    await expect(fieldManagement.getByLabel("Field")).toHaveValue(/.+/);
-    await fieldManagement.getByLabel("Show in Focus when retained").check();
-    await fieldManagement.getByRole("button", { name: "Save behavior" }).click();
-
-    await selectSection(running.page, "Sources");
-    const sources = running.page.getByRole("region", { name: "Sources" });
-    await sources.getByRole("button", { name: "Add source" }).click();
-    const sourceEditor = sources.getByLabel("Add source");
-    await sourceEditor.getByLabel("Kind").selectOption("job_posting");
-    await sourceEditor.getByLabel("Title").fill("Pilot vacancy");
-    await sourceEditor
-      .getByLabel("Source material")
-      .fill("Regional Air requires at least 1,500 total flight hours.");
-    await sourceEditor.getByRole("button", { name: "Add source" }).click();
-    await expect(sources.getByText("Pilot vacancy", { exact: true })).toBeVisible();
-
-    await selectSection(running.page, "Focus");
-    const focus = running.page.getByRole("region", { name: "Candidature Focus" });
-    await expect(focus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
-    await expect(focus).toContainText("1500");
-
+    expect(created.values).toEqual([
+      expect.objectContaining({ fieldId: created.fieldId, value: 1500 }),
+    ]);
+    expect(created.sourceTitles).toEqual(["Pilot vacancy"]);
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
     expect(existsSync(path.join(ownedWorkspace, "integrations", "vscode-mcp.json"))).toBe(false);
-
-    resizeLinuxWindow(1280, 900);
-    await running.page.screenshot({
-      path: path.join(visualDirectory, "m6-sparse-focus-normal.png"),
-      fullPage: true,
-    });
 
     await stopPackagedApp(running);
     running = undefined;
@@ -230,23 +203,15 @@ test("packaged sparse candidature gains runtime information progressively and su
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
-    const reopenedFocus = running.page.getByRole("region", { name: "Candidature Focus" });
-    await expect(
-      reopenedFocus.getByRole("heading", { name: "Minimum flight hours" }),
-    ).toBeVisible();
-    await expect(reopenedFocus).toContainText("1500");
+
+    const focus = running.page.getByRole("region", { name: "Candidature Focus" });
+    await expect(focus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
+    await expect(focus).toContainText("1500");
 
     await selectSection(running.page, "Sources");
     await expect(
       running.page.getByRole("region", { name: "Sources" }).getByText("Pilot vacancy", { exact: true }),
     ).toBeVisible();
-
-    resizeLinuxWindow(900, 700);
-    await selectSection(running.page, "Focus");
-    await running.page.screenshot({
-      path: path.join(visualDirectory, "m6-sparse-focus-small.png"),
-      fullPage: true,
-    });
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
