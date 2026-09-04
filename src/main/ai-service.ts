@@ -36,7 +36,11 @@ import {
 } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
 import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
-import { listCandidatures } from "./candidature-service";
+import {
+  getCandidatureWorkingBrief,
+  listCandidatures,
+  updateCandidatureWorkingBrief,
+} from "./candidature-service";
 import { listDocuments, resolveDocument } from "./document-service";
 import { getProfile, resolveProfileVariant } from "./profile-service";
 
@@ -242,8 +246,29 @@ function rehydrateResult(
     summary: rehydrate(result.summary, tokenMap),
     strengths: result.strengths.map((value) => rehydrate(value, tokenMap)),
     gaps: result.gaps.map((value) => rehydrate(value, tokenMap)),
-    focus: result.focus.map((value) => rehydrate(value, tokenMap)),
   });
+}
+
+function fillEmptyFitFields(
+  rootPath: string,
+  candidatureId: string,
+  result: FitAssessmentResult,
+): void {
+  const current = getCandidatureWorkingBrief(rootPath, candidatureId);
+  const next = {
+    ...current,
+    fitSuitability: current.fitSuitability || `${result.fit}: ${result.summary}`,
+    strengthsEvidence: current.strengthsEvidence || result.strengths.join("\n"),
+    gapsRisksConstraints: current.gapsRisksConstraints || result.gaps.join("\n"),
+  };
+  if (
+    next.fitSuitability === current.fitSuitability &&
+    next.strengthsEvidence === current.strengthsEvidence &&
+    next.gapsRisksConstraints === current.gapsRisksConstraints
+  ) {
+    return;
+  }
+  updateCandidatureWorkingBrief(rootPath, next);
 }
 
 export async function assessFit(
@@ -254,8 +279,12 @@ export async function assessFit(
   const request = fitAssessmentRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath);
   const projection = projectFitContext(rootPath, request);
-  const result = await provider.assessFit(statusFor(stored), projection.context);
-  return rehydrateResult(result, projection.tokenMap);
+  const result = rehydrateResult(
+    await provider.assessFit(statusFor(stored), projection.context),
+    projection.tokenMap,
+  );
+  fillEmptyFitFields(rootPath, request.candidatureId, result);
+  return result;
 }
 
 export async function extractJob(
