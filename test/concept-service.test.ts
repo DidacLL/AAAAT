@@ -36,8 +36,6 @@ function candidatureInput(role: string) {
     sourceText: "",
     status: "saved" as const,
     applicationDate: "",
-    nextAction: "",
-    nextActionDate: "",
     notes: "",
   };
 }
