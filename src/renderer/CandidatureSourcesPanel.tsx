@@ -93,7 +93,6 @@ export function CandidatureSourcesPanel({
 
   useEffect(() => {
     let active = true;
-    setError(null);
     void window.aaaat.candidatures
       .listSources(candidatureId)
       .then((next) => {
