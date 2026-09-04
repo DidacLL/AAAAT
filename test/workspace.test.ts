@@ -87,7 +87,7 @@ describe("user-owned workspace", () => {
               "SELECT version, name, length(sha256) AS hashLength FROM schema_migrations ORDER BY version DESC LIMIT 1",
             )
             .get(),
-        ).toMatchObject({ version: 7, name: "career-context", hashLength: 64 });
+        ).toMatchObject({ version: 8, name: "candidature-sources-brief", hashLength: 64 });
         database.exec(
           "CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;",
         );
@@ -118,12 +118,35 @@ describe("user-owned workspace", () => {
     }
   });
 
-  it("upgrades the exact accepted v6 migration prefix to v7", () => {
+  it("upgrades the exact accepted v6 prefix through migrations 007 and 008 without losing legacy source data", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
+    const candidatureId = "00000000-0000-4000-8000-000000000801";
 
     try {
       createV6Workspace(directory);
+      const v6 = new DatabaseSync(databasePath);
+      try {
+        v6.prepare(
+          `INSERT INTO candidatures(
+             id, company, role, location, work_mode, salary_text,
+             source, source_url, source_text, status, application_date,
+             next_action, next_action_date, notes, archived, created_at, updated_at
+           ) VALUES (?, ?, ?, '', '', '', ?, ?, ?, 'saved', '', '', '', '', 0, ?, ?)`,
+        ).run(
+          candidatureId,
+          "Example Systems",
+          "Senior Platform Engineer",
+          "Recruiter message",
+          "https://example.invalid/recruiter",
+          "Legacy recruiter source retained exactly",
+          "2026-01-02T00:00:00.000Z",
+          "2026-01-02T00:00:00.000Z",
+        );
+      } finally {
+        v6.close();
+      }
+
       expect(openWorkspace(directory)).toEqual({ rootPath: directory });
 
       const database = new DatabaseSync(databasePath, { readOnly: true });
@@ -140,6 +163,7 @@ describe("user-owned workspace", () => {
           { version: 5, name: "concepts" },
           { version: 6, name: "activity" },
           { version: 7, name: "career-context" },
+          { version: 8, name: "candidature-sources-brief" },
         ]);
         expect(
           database
@@ -151,10 +175,35 @@ describe("user-owned workspace", () => {
         expect(
           database
             .prepare(
-              "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'career_context_activity'",
+              `SELECT id, candidature_id AS candidatureId, kind, title, url, source_text AS sourceText
+                 FROM candidature_sources
+                WHERE candidature_id = ?`,
             )
-            .get(),
-        ).toEqual({ name: "career_context_activity" });
+            .get(candidatureId),
+        ).toEqual({
+          id: candidatureId,
+          candidatureId,
+          kind: "other",
+          title: "Recruiter message",
+          url: "https://example.invalid/recruiter",
+          sourceText: "Legacy recruiter source retained exactly",
+        });
+        expect(
+          database
+            .prepare(
+              `SELECT priority FROM candidatures WHERE id = ?`,
+            )
+            .get(candidatureId),
+        ).toEqual({ priority: "" });
+        expect(
+          database
+            .prepare(
+              `SELECT candidature_id AS candidatureId, pitch, recruiter_preparation AS recruiterPreparation
+                 FROM candidature_working_briefs
+                WHERE candidature_id = ?`,
+            )
+            .get(candidatureId),
+        ).toEqual({ candidatureId, pitch: "", recruiterPreparation: "" });
       } finally {
         database.close();
       }
@@ -300,6 +349,7 @@ describe("user-owned workspace", () => {
           { version: 5 },
           { version: 6 },
           { version: 7 },
+          { version: 8 },
         ]);
       } finally {
         unchanged.close();
@@ -321,7 +371,7 @@ describe("user-owned workspace", () => {
           .prepare(
             "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
           )
-          .run(8, "future", "f".repeat(64), new Date().toISOString());
+          .run(9, "future", "f".repeat(64), new Date().toISOString());
       } finally {
         database.close();
       }

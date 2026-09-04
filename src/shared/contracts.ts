@@ -29,6 +29,12 @@ export const channels = Object.freeze({
   candidatureList: "aaaat:candidature-list",
   candidatureCreate: "aaaat:candidature-create",
   candidatureUpdate: "aaaat:candidature-update",
+  candidatureSourceList: "aaaat:candidature-source-list",
+  candidatureSourceAdd: "aaaat:candidature-source-add",
+  candidatureSourceUpdate: "aaaat:candidature-source-update",
+  candidatureSourceRemove: "aaaat:candidature-source-remove",
+  candidatureWorkingBriefCurrent: "aaaat:candidature-working-brief-current",
+  candidatureWorkingBriefUpdate: "aaaat:candidature-working-brief-update",
   candidatureSetDocuments: "aaaat:candidature-set-documents",
   candidatureListConcepts: "aaaat:candidature-list-concepts",
   candidatureCreateConcept: "aaaat:candidature-create-concept",
@@ -288,6 +294,9 @@ export const candidatureStatusSchema = z.enum([
 ]);
 export type CandidatureStatus = z.infer<typeof candidatureStatusSchema>;
 
+export const candidaturePrioritySchema = z.enum(["", "low", "medium", "high"]);
+export type CandidaturePriority = z.infer<typeof candidaturePrioritySchema>;
+
 export const candidatureInputSchema = z
   .object({
     company: z.string().max(200),
@@ -307,9 +316,20 @@ export const candidatureInputSchema = z
   .strict();
 export type CandidatureInput = z.infer<typeof candidatureInputSchema>;
 
-export const candidatureUpdateSchema = candidatureInputSchema
-  .extend({
+export const candidatureUpdateSchema = z
+  .object({
     id: z.string().uuid(),
+    company: z.string().max(200),
+    role: z.string().max(200),
+    location: z.string().max(200),
+    workMode: z.string().max(80),
+    salaryText: z.string().max(300),
+    status: candidatureStatusSchema,
+    priority: candidaturePrioritySchema,
+    applicationDate: z.string().max(40),
+    nextAction: z.string().max(1000),
+    nextActionDate: z.string().max(40),
+    notes: z.string().max(20000),
     archived: z.boolean(),
   })
   .strict();
@@ -318,6 +338,7 @@ export type CandidatureUpdate = z.infer<typeof candidatureUpdateSchema>;
 export const candidatureRecordSchema = candidatureInputSchema
   .extend({
     id: z.string().uuid(),
+    priority: candidaturePrioritySchema,
     archived: z.boolean(),
     documentIds: z.array(z.string().uuid()),
     conceptIds: z.array(z.string().uuid()),
@@ -326,6 +347,65 @@ export const candidatureRecordSchema = candidatureInputSchema
 export type CandidatureRecord = z.infer<typeof candidatureRecordSchema>;
 
 export const candidatureListSchema = z.array(candidatureRecordSchema);
+
+export const candidatureSourceKindSchema = z.enum([
+  "job_posting",
+  "recruiter_message",
+  "application_form",
+  "conversation",
+  "link",
+  "other",
+]);
+export type CandidatureSourceKind = z.infer<typeof candidatureSourceKindSchema>;
+
+export const candidatureSourceInputSchema = z
+  .object({
+    candidatureId: z.string().uuid(),
+    kind: candidatureSourceKindSchema,
+    title: z.string().max(200),
+    url: z.string().max(2048),
+    sourceText: z.string().max(50000),
+  })
+  .strict();
+export type CandidatureSourceInput = z.infer<typeof candidatureSourceInputSchema>;
+
+export const candidatureSourceUpdateSchema = candidatureSourceInputSchema
+  .extend({ id: z.string().uuid() })
+  .strict();
+export type CandidatureSourceUpdate = z.infer<typeof candidatureSourceUpdateSchema>;
+
+export const candidatureSourceRemoveSchema = z
+  .object({ candidatureId: z.string().uuid(), sourceId: z.string().uuid() })
+  .strict();
+export type CandidatureSourceRemove = z.infer<typeof candidatureSourceRemoveSchema>;
+
+export const candidatureSourceSchema = candidatureSourceInputSchema
+  .extend({
+    id: z.string().uuid(),
+    createdAt: z.string().min(1),
+    updatedAt: z.string().min(1),
+  })
+  .strict();
+export type CandidatureSource = z.infer<typeof candidatureSourceSchema>;
+export const candidatureSourceListSchema = z.array(candidatureSourceSchema);
+
+const workingBriefText = z.string().max(20000);
+export const candidatureWorkingBriefSchema = z
+  .object({
+    candidatureId: z.string().uuid(),
+    fitSuitability: workingBriefText,
+    strengthsEvidence: workingBriefText,
+    gapsRisksConstraints: workingBriefText,
+    currentStrategy: workingBriefText,
+    companyRoleContext: workingBriefText,
+    pitch: workingBriefText,
+    questions: workingBriefText,
+    recruiterPreparation: workingBriefText,
+  })
+  .strict();
+export type CandidatureWorkingBrief = z.infer<typeof candidatureWorkingBriefSchema>;
+export const candidatureWorkingBriefUpdateSchema = candidatureWorkingBriefSchema;
+export type CandidatureWorkingBriefUpdate = z.infer<typeof candidatureWorkingBriefUpdateSchema>;
 
 export const candidatureDocumentSelectionSchema = z
   .object({
@@ -412,6 +492,12 @@ export interface DesktopApi {
     readonly list: () => Promise<CandidatureRecord[]>;
     readonly create: (input: CandidatureInput) => Promise<CandidatureRecord>;
     readonly update: (update: CandidatureUpdate) => Promise<CandidatureRecord>;
+    readonly listSources: (candidatureId: string) => Promise<CandidatureSource[]>;
+    readonly addSource: (input: CandidatureSourceInput) => Promise<CandidatureSource[]>;
+    readonly updateSource: (update: CandidatureSourceUpdate) => Promise<CandidatureSource[]>;
+    readonly removeSource: (remove: CandidatureSourceRemove) => Promise<CandidatureSource[]>;
+    readonly currentWorkingBrief: (candidatureId: string) => Promise<CandidatureWorkingBrief>;
+    readonly updateWorkingBrief: (update: CandidatureWorkingBriefUpdate) => Promise<CandidatureWorkingBrief>;
     readonly setDocuments: (selection: CandidatureDocumentSelection) => Promise<CandidatureRecord>;
     readonly listConcepts: () => Promise<ConceptRecord[]>;
     readonly createConcept: (input: ConceptInput) => Promise<ConceptRecord>;

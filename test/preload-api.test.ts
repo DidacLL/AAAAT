@@ -15,8 +15,20 @@ const emptyCareerContext = {
   applicationWritingPreferences: "",
 };
 const candidatureId = "00000000-0000-4000-8000-000000000001";
+const sourceId = "00000000-0000-4000-8000-000000000004";
 const documentId = "00000000-0000-4000-8000-000000000002";
 const itemId = "00000000-0000-4000-8000-000000000003";
+const emptyBrief = {
+  candidatureId,
+  fitSuitability: "",
+  strengthsEvidence: "",
+  gapsRisksConstraints: "",
+  currentStrategy: "",
+  companyRoleContext: "",
+  pitch: "",
+  questions: "",
+  recruiterPreparation: "",
+};
 
 describe("desktop preload API", () => {
   it("exposes only fixed workspace, product, and AI intentions", async () => {
@@ -28,9 +40,13 @@ describe("desktop preload API", () => {
       if (channel === channels.workspaceChoose) return { rootPath: "/tmp/aaaat-workspace" };
       if (channel === channels.careerContextCurrent) return emptyCareerContext;
       if (channel === channels.careerContextUpdate) return input;
+      if (channel === channels.candidatureWorkingBriefCurrent || channel === channels.candidatureWorkingBriefUpdate) {
+        return input === candidatureId ? emptyBrief : input;
+      }
       if (
         channel === channels.documentList ||
         channel === channels.candidatureList ||
+        channel === channels.candidatureSourceList ||
         channel === channels.candidatureListConcepts
       ) return [];
       if (channel === aiChannels.jobExtract) {
@@ -94,6 +110,12 @@ describe("desktop preload API", () => {
       "list",
       "create",
       "update",
+      "listSources",
+      "addSource",
+      "updateSource",
+      "removeSource",
+      "currentWorkingBrief",
+      "updateWorkingBrief",
       "setDocuments",
       "listConcepts",
       "createConcept",
@@ -121,20 +143,18 @@ describe("desktop preload API", () => {
     ).resolves.toMatchObject({ constraints: "No relocation" });
     await expect(api.documents.list()).resolves.toEqual([]);
     await expect(api.candidatures.list()).resolves.toEqual([]);
+    await expect(api.candidatures.listSources(candidatureId)).resolves.toEqual([]);
+    await expect(api.candidatures.currentWorkingBrief(candidatureId)).resolves.toEqual(emptyBrief);
     await expect(api.candidatures.listConcepts()).resolves.toEqual([]);
     await expect(api.ai.connection()).resolves.toBeNull();
     await expect(
       api.ai.extractJob({ sourceText: "Example job", source: "", sourceUrl: "" }),
     ).resolves.toMatchObject({ company: "Example", role: "Engineer" });
-    await expect(api.ai.recommendVariant({ candidatureId })).resolves.toMatchObject({
-      rationale: "Matches.",
-    });
+    await expect(api.ai.recommendVariant({ candidatureId })).resolves.toMatchObject({ rationale: "Matches." });
     await expect(api.ai.tailorCv({ candidatureId, documentId })).resolves.toEqual({
       recommendations: [{ itemId, rationale: "Relevant." }],
     });
-    await expect(api.ai.draftCoverLetter({ candidatureId, documentId })).resolves.toMatchObject({
-      subject: "Application",
-    });
+    await expect(api.ai.draftCoverLetter({ candidatureId, documentId })).resolves.toMatchObject({ subject: "Application" });
 
     expect(invoke).toHaveBeenNthCalledWith(1, channels.systemInfo);
     expect(invoke).toHaveBeenNthCalledWith(2, channels.workspaceCurrent);
@@ -147,19 +167,10 @@ describe("desktop preload API", () => {
     });
     expect(invoke).toHaveBeenNthCalledWith(7, channels.documentList);
     expect(invoke).toHaveBeenNthCalledWith(8, channels.candidatureList);
-    expect(invoke).toHaveBeenNthCalledWith(9, channels.candidatureListConcepts);
-    expect(invoke).toHaveBeenNthCalledWith(10, aiChannels.connectionCurrent);
-    expect(invoke).toHaveBeenNthCalledWith(11, aiChannels.jobExtract, {
-      sourceText: "Example job",
-      source: "",
-      sourceUrl: "",
-    });
-    expect(invoke).toHaveBeenNthCalledWith(12, aiChannels.variantRecommend, { candidatureId });
-    expect(invoke).toHaveBeenNthCalledWith(13, aiChannels.cvTailor, { candidatureId, documentId });
-    expect(invoke).toHaveBeenNthCalledWith(14, aiChannels.coverLetterDraft, {
-      candidatureId,
-      documentId,
-    });
+    expect(invoke).toHaveBeenNthCalledWith(9, channels.candidatureSourceList, candidatureId);
+    expect(invoke).toHaveBeenNthCalledWith(10, channels.candidatureWorkingBriefCurrent, candidatureId);
+    expect(invoke).toHaveBeenNthCalledWith(11, channels.candidatureListConcepts);
+    expect(invoke).toHaveBeenNthCalledWith(12, aiChannels.connectionCurrent);
   });
 
   it("rejects malformed privileged responses and invalid domain or AI input", async () => {
@@ -184,16 +195,26 @@ describe("desktop preload API", () => {
         location: "",
         workMode: "",
         salaryText: "",
-        source: "",
-        sourceUrl: "",
-        sourceText: "",
         status: "saved",
+        priority: "",
         applicationDate: "",
         nextAction: "",
         nextActionDate: "",
         notes: "",
         archived: false,
       }),
+    ).rejects.toThrow();
+    await expect(
+      api.candidatures.addSource({
+        candidatureId,
+        kind: "other",
+        title: "",
+        url: "",
+        sourceText: "",
+      }),
+    ).rejects.toThrow();
+    await expect(
+      api.candidatures.removeSource({ candidatureId, sourceId: "invalid" }),
     ).rejects.toThrow();
     await expect(api.candidatures.createConcept({ name: "", definition: "", aliases: [] })).rejects.toThrow();
     await expect(
@@ -210,5 +231,6 @@ describe("desktop preload API", () => {
     await expect(api.ai.recommendVariant({ candidatureId: "invalid" })).rejects.toThrow();
     await expect(api.ai.tailorCv({ candidatureId: "invalid", documentId })).rejects.toThrow();
     await expect(api.ai.draftCoverLetter({ candidatureId, documentId: "invalid" })).rejects.toThrow();
+    expect(sourceId).toMatch(/[0-9a-f-]{36}/);
   });
 });

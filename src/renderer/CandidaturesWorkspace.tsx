@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type {
   CandidatureInput,
   CandidatureRecord,
+  CandidatureSource,
   CandidatureUpdate,
   ConceptInput,
   ConceptRecord,
   DocumentRecord,
 } from "../shared/contracts";
 import { CandidatureFocusPanel } from "./CandidatureFocusPanel";
+import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
+import { CandidatureWorkingBriefPanel } from "./CandidatureWorkingBriefPanel";
 import {
   filterCandidatures,
   type ArchiveFilter,
@@ -51,10 +54,8 @@ function editableRecord(record: CandidatureRecord): CandidatureUpdate {
     location: record.location,
     workMode: record.workMode,
     salaryText: record.salaryText,
-    source: record.source,
-    sourceUrl: record.sourceUrl,
-    sourceText: record.sourceText,
     status: record.status,
+    priority: record.priority,
     applicationDate: record.applicationDate,
     nextAction: record.nextAction,
     nextActionDate: record.nextActionDate,
@@ -89,6 +90,8 @@ export function CandidaturesWorkspace() {
   const [editingConceptId, setEditingConceptId] = useState<string | null>(null);
   const [conceptDraft, setConceptDraft] = useState<ConceptInput>(emptyConcept);
   const [aliasesText, setAliasesText] = useState("");
+  const [sourceDirty, setSourceDirty] = useState(false);
+  const [briefDirty, setBriefDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const hydrateRecord = (record: CandidatureRecord) => {
@@ -97,6 +100,8 @@ export function CandidaturesWorkspace() {
     setSelectedDocumentIds(record.documentIds);
     setSelectedConceptIds(record.conceptIds);
     setSelectedConceptId(record.conceptIds[0] ?? null);
+    setSourceDirty(false);
+    setBriefDirty(false);
   };
 
   const storeRecord = (record: CandidatureRecord) => {
@@ -143,7 +148,7 @@ export function CandidaturesWorkspace() {
     ? !sameIds(selected.conceptIds, selectedConceptIds)
     : false;
   const hasUnsavedCandidatureState =
-    draftDirty || documentSelectionDirty || conceptSelectionDirty;
+    draftDirty || documentSelectionDirty || conceptSelectionDirty || sourceDirty || briefDirty;
   const visibleRecords = filterCandidatures(
     records,
     concepts,
@@ -154,7 +159,7 @@ export function CandidaturesWorkspace() {
 
   const confirmDiscard = () =>
     !hasUnsavedCandidatureState ||
-    window.confirm("Discard unsaved candidature edits and association changes?");
+    window.confirm("Discard unsaved candidature, source, brief, or association edits?");
 
   const selectRecord = (record: CandidatureRecord) => {
     if (record.id === selectedId) return;
@@ -297,6 +302,28 @@ export function CandidaturesWorkspace() {
     if (checked) setSelectedConceptId(conceptId);
   };
 
+  const handleSourcesChanged = useCallback(
+    (sources: CandidatureSource[]) => {
+      if (!selectedId) return;
+      const first = sources[0];
+      setRecords((current) =>
+        current.map((record) =>
+          record.id === selectedId
+            ? {
+                ...record,
+                source: first?.title ?? "",
+                sourceUrl: first?.url ?? "",
+                sourceText: first?.sourceText ?? "",
+              }
+            : record,
+        ),
+      );
+    },
+    [selectedId],
+  );
+  const handleSourceDirty = useCallback((dirty: boolean) => setSourceDirty(dirty), []);
+  const handleBriefDirty = useCallback((dirty: boolean) => setBriefDirty(dirty), []);
+
   return (
     <section className="candidatures-workspace" aria-label="Candidatures">
       <div className="candidature-toolbar">
@@ -357,7 +384,11 @@ export function CandidaturesWorkspace() {
                 onClick={() => selectRecord(record)}
               >
                 <strong>{recordLabel(record)}</strong>
-                <span>{record.status}{record.archived ? " · archived" : ""}</span>
+                <span>
+                  {record.status}
+                  {record.priority ? ` · ${record.priority} priority` : ""}
+                  {record.archived ? " · archived" : ""}
+                </span>
               </button>
             ))
           )}
@@ -410,17 +441,33 @@ export function CandidaturesWorkspace() {
                       <option value="closed">Closed</option>
                     </select>
                   </label>
+                  <label>Priority
+                    <select value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value as CandidatureUpdate["priority"] })}>
+                      <option value="">Not set</option>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </label>
                   <label>Application date<input value={draft.applicationDate} onChange={(event) => setDraft({ ...draft, applicationDate: event.target.value })} placeholder="YYYY-MM-DD" /></label>
                   <label>Next action date<input value={draft.nextActionDate} onChange={(event) => setDraft({ ...draft, nextActionDate: event.target.value })} placeholder="YYYY-MM-DD" /></label>
                   <label className="wide-field">Next action<input value={draft.nextAction} onChange={(event) => setDraft({ ...draft, nextAction: event.target.value })} /></label>
-                  <label>Source<input value={draft.source} onChange={(event) => setDraft({ ...draft, source: event.target.value })} /></label>
-                  <label>Source URL<input value={draft.sourceUrl} onChange={(event) => setDraft({ ...draft, sourceUrl: event.target.value })} /></label>
-                  <label className="wide-field">Source material<textarea rows={7} value={draft.sourceText} onChange={(event) => setDraft({ ...draft, sourceText: event.target.value })} /></label>
                   <label className="wide-field">Notes<textarea rows={6} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label>
                 </div>
 
                 <button type="submit" className="primary-action">Save candidature</button>
               </form>
+
+              <CandidatureSourcesPanel
+                candidatureId={selected.id}
+                onSourcesChanged={handleSourcesChanged}
+                onDirtyChange={handleSourceDirty}
+              />
+
+              <CandidatureWorkingBriefPanel
+                candidatureId={selected.id}
+                onDirtyChange={handleBriefDirty}
+              />
 
               <section className="candidature-documents" aria-label="Associated documents">
                 <div>

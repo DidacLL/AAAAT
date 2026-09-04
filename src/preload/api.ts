@@ -21,7 +21,13 @@ import {
   candidatureInputSchema,
   candidatureListSchema,
   candidatureRecordSchema,
+  candidatureSourceInputSchema,
+  candidatureSourceListSchema,
+  candidatureSourceRemoveSchema,
+  candidatureSourceUpdateSchema,
   candidatureUpdateSchema,
+  candidatureWorkingBriefSchema,
+  candidatureWorkingBriefUpdateSchema,
   careerContextSchema,
   careerContextUpdateSchema,
   channels,
@@ -137,6 +143,38 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       candidatureRecordSchema.parse(
         await invoke(channels.candidatureUpdate, candidatureUpdateSchema.parse(update)),
       ),
+    listSources: async (candidatureId: string) =>
+      candidatureSourceListSchema.parse(
+        await invoke(channels.candidatureSourceList, candidatureRecordSchema.shape.id.parse(candidatureId)),
+      ),
+    addSource: async (input: Parameters<DesktopApi["candidatures"]["addSource"]>[0]) =>
+      candidatureSourceListSchema.parse(
+        await invoke(channels.candidatureSourceAdd, candidatureSourceInputSchema.parse(input)),
+      ),
+    updateSource: async (update: Parameters<DesktopApi["candidatures"]["updateSource"]>[0]) =>
+      candidatureSourceListSchema.parse(
+        await invoke(channels.candidatureSourceUpdate, candidatureSourceUpdateSchema.parse(update)),
+      ),
+    removeSource: async (remove: Parameters<DesktopApi["candidatures"]["removeSource"]>[0]) =>
+      candidatureSourceListSchema.parse(
+        await invoke(channels.candidatureSourceRemove, candidatureSourceRemoveSchema.parse(remove)),
+      ),
+    currentWorkingBrief: async (candidatureId: string) =>
+      candidatureWorkingBriefSchema.parse(
+        await invoke(
+          channels.candidatureWorkingBriefCurrent,
+          candidatureRecordSchema.shape.id.parse(candidatureId),
+        ),
+      ),
+    updateWorkingBrief: async (
+      update: Parameters<DesktopApi["candidatures"]["updateWorkingBrief"]>[0],
+    ) =>
+      candidatureWorkingBriefSchema.parse(
+        await invoke(
+          channels.candidatureWorkingBriefUpdate,
+          candidatureWorkingBriefUpdateSchema.parse(update),
+        ),
+      ),
     setDocuments: async (
       selection: Parameters<DesktopApi["candidatures"]["setDocuments"]>[0],
     ) =>
@@ -196,8 +234,7 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       variantRecommendationResultSchema.parse(
         await invoke(
           aiChannels.variantRecommend,
-          variantRecommendationRequestSchema.parse(request),
-        ),
+          variantRecommendationRequestSchema.parse(request)),
       ),
     tailorCv: async (request: Parameters<AiDesktopApi["ai"]["tailorCv"]>[0]) =>
       cvTailoringResultSchema.parse(
