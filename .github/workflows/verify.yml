@@ -157,3 +157,11 @@ jobs:
             trap "kill $wm_pid 2>/dev/null || true" EXIT
             npm run test:desktop
           '
+      - name: Upload M6 visual acceptance evidence
+        if: runner.os == 'Linux' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: M6-visual-acceptance
+          path: test-results/m6-visual/*.png
+          if-no-files-found: error
+          compression-level: 0
