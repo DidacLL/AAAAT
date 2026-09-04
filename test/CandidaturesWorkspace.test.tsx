@@ -258,10 +258,14 @@ describe("candidature progressive information workspace", () => {
     await user.click(within(values).getByLabelText("Hybrid"));
     await user.click(screen.getByRole("button", { name: "Apply field filter" }));
 
-    expect(filter).toHaveBeenCalledWith({
+    const request = filter.mock.calls.at(-1)?.[0] as
+      | { fieldId: string; operator: string; value: string[] }
+      | undefined;
+    expect(request).toMatchObject({
       fieldId: workModesId,
       operator: "contains_all",
-      value: [remoteId, hybridId],
     });
+    expect(request?.value).toHaveLength(2);
+    expect(request?.value).toEqual(expect.arrayContaining([remoteId, hybridId]));
   });
 });

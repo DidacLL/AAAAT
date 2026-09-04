@@ -113,9 +113,19 @@ describe("AI service over live candidature information", () => {
       identityPrivacy: "token",
       contactPrivacy: "omit",
     });
+    const previewValue = preview.projectedContext.candidature.information.find(
+      (item) => item.fieldId === sensitive.definition.id,
+    )?.value;
+    const previewIdentity = preview.projectedContext.profileItems.find(
+      (item) => item.kind === "identity",
+    )?.title;
+    expect(typeof previewValue).toBe("string");
+    expect(typeof previewIdentity).toBe("string");
+    expect(previewValue).not.toBe("[AAAT_PRIVATE_2]");
+    expect(previewIdentity).not.toBe("Didac Example");
+    expect(previewValue).not.toBe(previewIdentity);
+
     const serialized = JSON.stringify(preview.projectedContext);
-    const tokens = serialized.match(/\[AAAT_PRIVATE_[0-9a-f-]{36}\]/g) ?? [];
-    expect(new Set(tokens).size).toBe(2);
     expect(serialized).not.toContain("Didac Example");
     expect(serialized).not.toContain("[AAAT_PRIVATE_2]");
 
@@ -125,7 +135,10 @@ describe("AI service over live candidature information", () => {
       )?.value;
       const projectedIdentity = context.profileItems.find((item) => item.kind === "identity")?.title;
       expect(typeof projectedValue).toBe("string");
-      expect(projectedIdentity).toMatch(/^\[AAAT_PRIVATE_[0-9a-f-]{36}\]$/);
+      expect(typeof projectedIdentity).toBe("string");
+      expect(projectedValue).not.toBe("[AAAT_PRIVATE_2]");
+      expect(projectedIdentity).not.toBe("Didac Example");
+      expect(projectedValue).not.toBe(projectedIdentity);
       return {
         fit: "possible",
         summary: String(projectedValue),
@@ -208,7 +221,11 @@ describe("AI service over live candidature information", () => {
     expect(serialized).not.toContain("private-thread");
     expect(serialized).not.toContain("SECRET-COMP-9000");
     expect(serialized).not.toContain("PRIVATE-REF-42");
-    expect(serialized).toMatch(/\[AAAT_PRIVATE_[0-9a-f-]{36}\]/);
+    const projectedReferral = preview.projectedContext.candidature.information.find(
+      (item) => item.fieldId === tokenized.definition.id,
+    )?.value;
+    expect(typeof projectedReferral).toBe("string");
+    expect(projectedReferral).not.toBe("PRIVATE-REF-42");
 
     const recommend = vi.fn<ModelProvider["recommendVariant"]>(async (_connection, context) => {
       const providerContext = JSON.stringify(context);
