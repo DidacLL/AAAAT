@@ -137,7 +137,7 @@ export function createOpenAiCompatibleProvider(
       const content = await requestContent(
         fetchImpl,
         connection,
-        "Assess job fit using only the supplied context. Return JSON only with keys fit, summary, strengths, gaps, focus. fit must be weak, possible, or strong. Do not invent facts that are absent from the context.",
+        "Assess job fit using only the supplied context. Return JSON only with keys fit, summary, strengths, gaps. fit must be weak, possible, or strong. Describe evidence and gaps without prescribing what the user should do next. Do not invent facts that are absent from the context.",
         context,
       );
       return parseJson(
@@ -154,7 +154,7 @@ export function createOpenAiCompatibleProvider(
       const content = await requestContent(
         fetchImpl,
         connection,
-        "Extract only facts supported by the supplied job source. Return JSON only with keys company, role, location, workMode, salaryText. Use an empty string when a value is not supported. Do not infer lifecycle status, dates, next actions, or personal career data.",
+        "Extract only facts supported by the supplied job source. Return JSON only with keys company, role, location, workMode, salaryText. Use an empty string when a value is not supported. Do not infer lifecycle status, dates, actions, or personal career data.",
         request,
       );
       return parseJson(
