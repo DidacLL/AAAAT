@@ -16,6 +16,7 @@ const record: CandidatureRecord = {
   sourceUrl: "",
   sourceText: "Build TypeScript systems.",
   status: "saved",
+  priority: "",
   applicationDate: "",
   nextAction: "",
   nextActionDate: "",
