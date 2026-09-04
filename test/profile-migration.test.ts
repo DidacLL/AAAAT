@@ -11,7 +11,7 @@ import { expect, it } from "vitest";
 import workspaceMigrationSql from "../src/main/migrations/001_workspace.sql?raw";
 import { openWorkspace } from "../src/main/workspace";
 
-it("upgrades an existing workspace-root database through current product schemas", () => {
+it("upgrades an existing workspace root to the current product capabilities", () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-profile-migration-"));
   const databasePath = path.join(root, "workspace.sqlite");
   const hash = createHash("sha256").update(workspaceMigrationSql).digest("hex");
@@ -48,23 +48,35 @@ it("upgrades an existing workspace-root database through current product schemas
         { version: 5, name: "concepts" },
         { version: 6, name: "activity" },
         { version: 7, name: "career-context" },
-        { version: 8, name: "candidature-sources-brief" },
+        { version: 8, name: "candidature-information" },
       ]);
-      expect(
-        upgraded
-          .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('profile_items', 'documents', 'candidatures', 'concepts', 'career_context', 'candidature_sources', 'candidature_working_briefs') ORDER BY name",
-          )
-          .all(),
-      ).toEqual([
-        { name: "candidature_sources" },
-        { name: "candidature_working_briefs" },
-        { name: "candidatures" },
-        { name: "career_context" },
-        { name: "concepts" },
-        { name: "documents" },
-        { name: "profile_items" },
-      ]);
+
+      const tableNames = new Set(
+        (
+          upgraded
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+            .all() as Array<{ name: string }>
+        ).map((row) => row.name),
+      );
+      for (const required of [
+        "profile_items",
+        "documents",
+        "candidatures",
+        "concepts",
+        "career_context",
+        "candidature_sources",
+        "candidature_fields",
+        "candidature_field_preferences",
+        "candidature_field_values",
+      ]) {
+        expect(tableNames.has(required), `${required} capability table should exist`).toBe(true);
+      }
+      expect(upgraded.prepare("SELECT COUNT(*) AS count FROM candidature_fields").get()).toMatchObject({
+        count: expect.any(Number),
+      });
+      expect(upgraded.prepare("SELECT COUNT(*) AS count FROM candidature_field_values").get()).toEqual({
+        count: 0,
+      });
     } finally {
       upgraded.close();
     }
