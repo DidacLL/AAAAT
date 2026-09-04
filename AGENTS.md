@@ -26,6 +26,8 @@ AAAAT has not yet established a real-user v2 data-compatibility baseline. Develo
 
 Build only what current authority requires. Do not introduce speculative future infrastructure. AAAAT remains fully human-operable without AI; manual, AAAAT-assisted AI, and bounded external-AI paths work with the same user-owned information. Generated LaTeX remains portable. Durable mutations use application services. The Electron renderer remains sandboxed and unprivileged.
 
+AAAAT security is structural: protect authoritative local state with simple explicit domain/data structures, narrow application-service mutation paths, typed validation, bounded capabilities, and the existing process/renderer privilege boundaries. AAAAT does not own or secure an external AI model's reasoning, prompt interpretation, provider internals, network, or research behavior. Treat AI/provider output as untrusted operation-scoped input and validate it through normal domain contracts; do not invent AI-firewall, prompt-injection, token-security, generic policy, or mandatory approval machinery where bounded authority already prevents dangerous access. Privacy projection controls disclosure to an operation; it is not the authority boundary.
+
 Before completion:
 
 - run the impact-appropriate verification selected by `.github/workflows/verify.yml`;
