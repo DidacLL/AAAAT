@@ -22,6 +22,8 @@ Inside established product meaning, technical architecture is:
 
 Accepted ADRs remain authoritative for technical architecture only where they do not conflict with higher product authority. Historical v1 material and superseded Issues/PRs are research evidence only.
 
+AAAAT has not yet established a real-user v2 data-compatibility baseline. Development databases, fixtures, and already-merged development migrations are not user compatibility commitments. Do not preserve rejected or obsolete schema merely because earlier development code created it. Git history preserves engineering evidence. Until the Product Owner explicitly establishes a real-use/release data baseline, correct the development schema directly when current product meaning requires it; do not add compatibility machinery for nonexistent users.
+
 Build only what current authority requires. Do not introduce speculative future infrastructure. AAAAT remains fully human-operable without AI; manual, AAAAT-assisted AI, and bounded external-AI paths work with the same user-owned information. Generated LaTeX remains portable. Durable mutations use application services. The Electron renderer remains sandboxed and unprivileged.
 
 Before completion:
