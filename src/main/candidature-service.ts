@@ -39,8 +39,6 @@ interface CandidatureRow {
   readonly status: string;
   readonly priority: string;
   readonly applicationDate: string;
-  readonly nextAction: string;
-  readonly nextActionDate: string;
   readonly notes: string;
   readonly archived: number;
 }
@@ -170,8 +168,6 @@ function toRecord(database: DatabaseSync, row: CandidatureRow): CandidatureRecor
     status: row.status,
     priority: row.priority,
     applicationDate: row.applicationDate,
-    nextAction: row.nextAction,
-    nextActionDate: row.nextActionDate,
     notes: row.notes,
     archived: row.archived === 1,
     documentIds: readDocumentIds(database, row.id),
@@ -181,7 +177,6 @@ function toRecord(database: DatabaseSync, row: CandidatureRow): CandidatureRecor
 
 const candidatureColumns = `id, company, role, location, work_mode AS workMode,
   salary_text AS salaryText, status, priority, application_date AS applicationDate,
-  next_action AS nextAction, next_action_date AS nextActionDate,
   notes, archived`;
 
 function readCandidature(database: DatabaseSync, candidatureId: string): CandidatureRecord {
@@ -288,8 +283,8 @@ export function createCandidature(
           `INSERT INTO candidatures(
              id, company, role, location, work_mode, salary_text,
              source, source_url, source_text, status, priority, application_date,
-             next_action, next_action_date, notes, archived, created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, 0, ?, ?)`,
+             notes, archived, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, 0, ?, ?)`,
         )
         .run(
           id,
@@ -303,8 +298,6 @@ export function createCandidature(
           candidature.sourceText,
           candidature.status,
           candidature.applicationDate,
-          candidature.nextAction,
-          candidature.nextActionDate,
           candidature.notes,
           now,
           now,
@@ -353,7 +346,7 @@ export function updateCandidature(
           `UPDATE candidatures
               SET company = ?, role = ?, location = ?, work_mode = ?,
                   salary_text = ?, status = ?, priority = ?, application_date = ?,
-                  next_action = ?, next_action_date = ?, notes = ?, archived = ?, updated_at = ?
+                  notes = ?, archived = ?, updated_at = ?
             WHERE id = ?`,
         )
         .run(
@@ -365,8 +358,6 @@ export function updateCandidature(
           update.status,
           update.priority,
           update.applicationDate,
-          update.nextAction,
-          update.nextActionDate,
           update.notes,
           update.archived ? 1 : 0,
           now,
