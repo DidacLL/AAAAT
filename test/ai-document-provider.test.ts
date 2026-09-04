@@ -13,17 +13,25 @@ const connection: AiConnectionStatus = {
 
 const context: DocumentAiContext = {
   candidature: {
-    company: "Example Corp",
-    role: "Platform Engineer",
-    location: "Madrid",
-    workMode: "hybrid",
-    salaryText: "",
-    source: "Careers",
-    sourceText: "Build reliable TypeScript services.",
+    label: "Pilot opportunity",
+    information: [
+      {
+        fieldId: "00000000-0000-4000-8000-000000000701",
+        label: "Minimum flight hours",
+        value: 1500,
+      },
+    ],
+    sources: [
+      {
+        title: "Vacancy",
+        url: "https://example.invalid/pilot",
+        sourceText: "Minimum 1,500 total hours.",
+      },
+    ],
   },
   items: [
     {
-      id: "00000000-0000-4000-8000-000000000010",
+      id: "00000000-0000-4000-8000-000000000710",
       kind: "skill",
       title: "TypeScript",
     },
@@ -38,21 +46,20 @@ function response(content: unknown): Response {
 }
 
 describe("document AI provider operations", () => {
-  it("validates CV recommendations against the strict proposal shape", async () => {
+  it("sends the projected candidature and existing evidence and validates CV recommendations", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       response({
         recommendations: [
-          {
-            itemId: context.items[0]?.id,
-            rationale: "Direct role match.",
-          },
+          { itemId: context.items[0]?.id, rationale: "Direct evidence match." },
         ],
       }),
     );
     const provider = createOpenAiCompatibleProvider(fetchImpl);
 
-    await expect(provider.tailorCv(connection, context)).resolves.toMatchObject({
-      recommendations: [{ rationale: "Direct role match." }],
+    await expect(provider.tailorCv(connection, context)).resolves.toEqual({
+      recommendations: [
+        { itemId: context.items[0]?.id, rationale: "Direct evidence match." },
+      ],
     });
     const [, init] = fetchImpl.mock.calls[0] ?? [];
     const body = JSON.parse(String(init?.body)) as {
@@ -82,7 +89,7 @@ describe("document AI provider operations", () => {
     });
   });
 
-  it("rejects unsupported cover-letter fields", async () => {
+  it("rejects provider output outside the structured cover-letter contract", async () => {
     const provider = createOpenAiCompatibleProvider(
       vi.fn<typeof fetch>().mockResolvedValue(
         response({
@@ -90,7 +97,7 @@ describe("document AI provider operations", () => {
           subject: "Application",
           bodyParagraphs: ["First paragraph."],
           closing: "Regards",
-          inventedCareerFact: "not allowed",
+          unsupported: "extra",
         }),
       ),
     );

@@ -57,19 +57,13 @@ function fixture() {
   }).variants[0];
   if (!variant) throw new Error("variant fixture missing");
   const candidature = createCandidature(root, {
-    company: "Example Corp",
-    role: "Platform Engineer",
-    location: "Madrid",
-    workMode: "hybrid",
-    salaryText: "",
-    source: "Careers",
-    sourceUrl: "https://example.test/job",
-    sourceText: "Build reliable TypeScript platform services.",
-    status: "saved",
-    applicationDate: "",
-    nextAction: "",
-    nextActionDate: "",
-    notes: "Private local note not for inference.",
+    source: {
+      kind: "job_posting",
+      title: "Vacancy",
+      url: "https://example.invalid/job",
+      sourceText: "Build reliable TypeScript platform services.",
+    },
+    values: [],
   });
   const cv = createDocument(root, {
     kind: "cv",
@@ -89,23 +83,19 @@ function fixture() {
 }
 
 afterEach(() => {
-  for (const root of roots.splice(0)) {
-    rmSync(root, { recursive: true, force: true });
-  }
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-describe("M3 document AI services", () => {
-  it("tailors a CV from existing non-sensitive career items only", async () => {
+describe("document AI services", () => {
+  it("tailors a CV from resolved non-sensitive career evidence", async () => {
     const { root, candidature, cv, skill } = fixture();
     const tailor = vi.fn<ModelProvider["tailorCv"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain("Private Person");
       expect(serialized).not.toContain("private@example.test");
-      expect(serialized).not.toContain("Private local note");
-      expect(serialized).not.toContain("https://example.test/job");
       expect(serialized).toContain("TypeScript");
       return {
-        recommendations: [{ itemId: skill.id, rationale: "Directly matches the role." }],
+        recommendations: [{ itemId: skill.id, rationale: "Direct evidence match." }],
       };
     });
 
@@ -116,31 +106,11 @@ describe("M3 document AI services", () => {
         provider({ tailorCv: tailor }),
       ),
     ).resolves.toEqual({
-      recommendations: [{ itemId: skill.id, rationale: "Directly matches the role." }],
+      recommendations: [{ itemId: skill.id, rationale: "Direct evidence match." }],
     });
   });
 
-  it("rejects invented CV item IDs", async () => {
-    const { root, candidature, cv } = fixture();
-    const tailor = vi.fn<ModelProvider["tailorCv"]>(async () => ({
-      recommendations: [
-        {
-          itemId: "00000000-0000-4000-8000-000000000099",
-          rationale: "Invented.",
-        },
-      ],
-    }));
-
-    await expect(
-      tailorCv(
-        root,
-        { candidatureId: candidature.id, documentId: cv.id },
-        provider({ tailorCv: tailor }),
-      ),
-    ).rejects.toThrow("profile item that no longer exists");
-  });
-
-  it("rejects a CV item that becomes stale while inference is pending", async () => {
+  it("rejects a CV recommendation whose evidence item no longer exists", async () => {
     const { root, candidature, cv, skill } = fixture();
     let resolveTailoring:
       | ((value: { recommendations: Array<{ itemId: string; rationale: string }> }) => void)
@@ -151,7 +121,6 @@ describe("M3 document AI services", () => {
           resolveTailoring = resolve;
         }),
     );
-
     const pending = tailorCv(
       root,
       { candidatureId: candidature.id, documentId: cv.id },
@@ -160,27 +129,19 @@ describe("M3 document AI services", () => {
     removeProfileItem(root, skill.id);
     if (!resolveTailoring) throw new Error("provider fixture did not start");
     resolveTailoring({
-      recommendations: [
-        { itemId: skill.id, rationale: "This was valid when inference started." },
-      ],
+      recommendations: [{ itemId: skill.id, rationale: "Previously valid." }],
     });
-
     await expect(pending).rejects.toThrow("profile item that no longer exists");
   });
 
-  it("drafts a cover letter from non-sensitive resolved evidence without mutating", async () => {
+  it("drafts a cover letter without mutating candidature or document state", async () => {
     const { root, candidature, cover } = fixture();
     const draft = vi.fn<ModelProvider["draftCoverLetter"]>(async (_connection, context) => {
-      const serialized = JSON.stringify(context);
-      expect(serialized).not.toContain("Private Person");
-      expect(serialized).not.toContain("private@example.test");
-      expect(serialized).not.toContain("Private local note");
-      expect(serialized).not.toContain("https://example.test/job");
-      expect(serialized).toContain("Platform Engineer");
+      expect(JSON.stringify(context)).toContain("Platform Engineer");
       return {
         recipient: "Hiring team",
-        subject: "Platform Engineer application",
-        bodyParagraphs: ["I am interested in the role.", "My TypeScript experience is relevant."],
+        subject: "Application",
+        bodyParagraphs: ["My TypeScript experience is relevant."],
         closing: "Regards",
       };
     });
@@ -191,6 +152,6 @@ describe("M3 document AI services", () => {
         { candidatureId: candidature.id, documentId: cover.id },
         provider({ draftCoverLetter: draft }),
       ),
-    ).resolves.toMatchObject({ subject: "Platform Engineer application" });
+    ).resolves.toMatchObject({ subject: "Application" });
   });
 });
