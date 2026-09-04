@@ -38,7 +38,6 @@ export function CandidatureWorkingBriefPanel({
 
   useEffect(() => {
     let active = true;
-    setError(null);
     void window.aaaat.candidatures
       .currentWorkingBrief(candidatureId)
       .then((next) => {

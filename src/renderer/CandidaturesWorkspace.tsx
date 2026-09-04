@@ -166,7 +166,20 @@ export function CandidaturesWorkspace() {
         setDocuments(nextDocuments);
         setConcepts(nextConcepts);
         const first = nextRecords.find((record) => !record.archived) ?? nextRecords[0];
-        if (first) hydrateRecord(first);
+        if (first) {
+          setSelectedId(first.id);
+          setSection("focus");
+          setDraft(editableRecord(first));
+          setSelectedDocumentIds(first.documentIds);
+          setSelectedConceptIds(first.conceptIds);
+          setSelectedConceptId(first.conceptIds[0] ?? null);
+          setSourceDirty(false);
+          setBriefDirty(false);
+          setConceptEditorOpen(false);
+          setEditingConceptId(null);
+          setConceptDraft(emptyConcept);
+          setAliasesText("");
+        }
       })
       .catch(() => {
         if (active) setError("AAAAT could not load candidatures.");
