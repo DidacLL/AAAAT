@@ -4,7 +4,7 @@ import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import { AiDocumentsWorkspace } from "./AiDocumentsWorkspace";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import logo from "./assets/aaaat-logo-light.png";
-import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
+import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import { CareerContextPanel } from "./CareerContextPanel";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
@@ -143,7 +143,7 @@ export function App() {
           </nav>
 
           {productView === "candidatures" ? (
-            <CandidaturesAiWorkspace key={`candidatures-${workspace.rootPath}`} />
+            <CandidaturesWorkspace key={`candidatures-${workspace.rootPath}`} />
           ) : productView === "profile" ? (
             <div key={`profile-${workspace.rootPath}`}>
               <CareerContextPanel />
@@ -183,7 +183,7 @@ export function App() {
 
       <footer className="app-footer">
         <p>
-          Local-first <span aria-hidden="true">{"\u00b7"}</span> Manual-first{" "}
+          Local-first <span aria-hidden="true">{"\u00b7"}</span> Manual-capable{" "}
           <span aria-hidden="true">{"\u00b7"}</span> AI optional
         </p>
         <p>{foundationReady ? "Desktop foundation ready" : "Desktop foundation unavailable"}</p>
