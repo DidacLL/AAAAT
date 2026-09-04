@@ -83,7 +83,6 @@ export const fitAssessmentResultSchema = z
     summary: z.string().trim().min(1).max(2000),
     strengths: z.array(z.string().trim().min(1).max(1000)).max(8),
     gaps: z.array(z.string().trim().min(1).max(1000)).max(8),
-    focus: z.array(z.string().trim().min(1).max(1000)).max(8),
   })
   .strict();
 export type FitAssessmentResult = z.infer<typeof fitAssessmentResultSchema>;
