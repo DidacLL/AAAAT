@@ -172,8 +172,11 @@ export async function verifyVscodeMcpConnection(
     await client.connect(transport);
     const tools = await client.listTools();
     const availableToolNames = new Set(tools.tools.map((tool) => tool.name));
-    if (vscodeMcpSetupRecipe.toolNames.some((toolName) => !availableToolNames.has(toolName))) {
-      throw new Error("The MCP capability surface is missing a required integration tool.");
+    if (
+      availableToolNames.size !== vscodeMcpSetupRecipe.toolNames.length ||
+      vscodeMcpSetupRecipe.toolNames.some((toolName) => !availableToolNames.has(toolName))
+    ) {
+      throw new Error("The MCP capability surface does not match the disclosed integration authority.");
     }
   } finally {
     await client.close().catch(() => undefined);
