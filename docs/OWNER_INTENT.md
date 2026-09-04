@@ -131,6 +131,8 @@ AAAAT may offer AI extraction or enrichment when suitable configured capability 
 
 Extraction never replaces the source and never removes manual control.
 
+Sources remain explicit retained AAAAT domain objects. They are not default provider context: an AI operation may use only the Source material it explicitly scopes, when that operation's product purpose genuinely requires it and its privacy/context rules permit disclosure. This does not reserve Sources for one discovery feature or prohibit them from every other AI operation.
+
 ## 6. AAAAT information is flexible but meaningful
 
 AAAAT should understand useful semantic information such as:
@@ -337,7 +339,7 @@ A valid AAAAT use is:
 
 Another valid use is opening AAAAT only to work on a CV.
 
-## 16. AI is optional capability, not product authority
+## 16. AI is optional assistance, not a product decision-maker
 
 AI is valuable where it reduces effort or solves uncertain information-processing problems.
 
@@ -362,13 +364,25 @@ It is AI-dependent and therefore must not be the default foundation or be presen
 
 If no suitable configured AI capability exists, AAAAT should not pretend that operation is available.
 
-AI output is not authoritative merely because a model produced it.
+AI output is not more important or true merely because a model produced it.
 
 Useful retained results become ordinary editable AAAAT information.
 
-AAAAT's security boundary is the authority it owns: authoritative local data, explicit product-specific structures, normal application-service mutations, validation, bounded capabilities, and renderer/process privilege boundaries. AAAAT does not own or secure an external model's reasoning, prompt interpretation, provider internals, network, or research behavior.
+AAAAT has no product notion that an AI result, a field value, or a workflow has authority over the user. A generated value is ordinary user-owned information: the user may keep it, edit it, replace it by asking again, clear it, or leave the field blank. Internally, AAAAT keeps local data consistent through explicit product structures, normal application-service mutations, validation, bounded integrations, and renderer/process privilege boundaries. AAAAT does not own or secure an external model's reasoning, prompt interpretation, provider internals, network, or research behavior.
 
-AI/provider output is untrusted input to a bounded operation. It must satisfy that operation's normal validation and conflict/mutation rules before affecting authoritative data. There is no universal requirement that every valid AI result pass through a human-approval queue.
+AAAAT therefore does not make prompt-injection detection, an AI firewall, adversarial prompt sanitization, generic model-security middleware, or a generic AI policy engine part of this product boundary. Provider/model behavior is not relied on to protect AAAAT's local data or decide what AAAAT stores.
+
+AI/provider output is ordinary input to a bounded operation. Before AAAAT stores it, it follows that operation's normal value-shape and conflict rules; this prevents accidental corruption, not a special AI governance process. There is no universal requirement that every valid AI result pass through a human-approval queue.
+
+Privacy projection is a separate product capability. An operation may expose a value, omit it, or locally replace/tokenize it when consistent reference is useful without disclosing the authoritative literal. The authoritative literal remains local, and AAAAT restores it locally only where that operation requires restoration or final rendering. This validated v1 convenience/privacy use case does not give AI a special role in deciding what AAAAT stores and does not turn token syntax, generation, collision handling, or restoration mechanics into architectural security requirements.
+
+The operation model is:
+
+```text
+bounded operation → validated result → operation-specific mutation/conflict policy → normal application service
+```
+
+Some operations are proposal-only, including cases where an existing authoritative value must not be replaced without explicit acceptance. Others may apply a valid bounded result directly when their defined policy permits it. Neither case creates a universal workflow or approval queue.
 
 ## 17. AI-native configuration without hard-coded clutter
 
@@ -473,6 +487,8 @@ External AI applications may use bounded AAAAT capabilities through demonstrated
 
 Copy/paste may exist as a fallback, not the desired normal experience.
 
+AAAAT offers an external host only the specific product tasks it deliberately provides for that integration. An external process does not receive a general CRUD endpoint, record-listing/search/query surface, generic entity-ID interface, or a way to scrape AAAAT data at will. Each provided task has the smallest useful input and output for its purpose and uses AAAAT's normal local application-service behavior. This is a fixed, product-specific operation surface, not a generic task queue or external data API.
+
 Bounded capabilities may support real workflows such as:
 
 - create/enrich a candidature;
@@ -483,7 +499,7 @@ Bounded capabilities may support real workflows such as:
 - create document material;
 - request rendering.
 
-External AI must not receive arbitrary database, filesystem, shell, process or repository authority merely for convenience.
+External AI must not receive arbitrary database, filesystem, shell, process, repository access, or unbounded data-query capability merely for convenience.
 
 Durable changes ultimately use the same AAAAT application services as manual UI changes.
 

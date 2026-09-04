@@ -15,14 +15,14 @@ These durable invariants may change only through an accepted Class D owner decis
 - Named profile variants contain focus, visibility, ordering, and override rules rather than cloned identities.
 - Document overrides do not mutate the canonical profile or a profile variant.
 - Every durable mutation uses an AAAAT application service, regardless of whether input came from a person, direct AI, or bounded external AI.
-- AAAAT security is structural: authoritative local data, explicit product-specific data structures, narrow application-service mutations, typed validation, bounded capabilities, and process/renderer privilege boundaries are the authority boundary.
-- AAAAT does not own or secure an external AI model's reasoning, prompt interpretation, provider internals, network, or research behavior. External AI receives bounded operation-specific context/capabilities rather than broad local authority.
-- AI context is privacy-projected before inference. Privacy projection controls disclosure; it is separate from domain authority and may expose, omit, or locally replace/tokenize information.
+- AAAAT keeps its own local state consistent through authoritative local data, explicit product-specific data structures, narrow application-service mutations, typed validation, bounded capabilities, and process/renderer privilege boundaries. This is a technical persistence/privilege boundary, not a product claim that an AI result has authority over the user.
+- AAAAT does not own or secure an external AI model's reasoning, prompt interpretation, provider internals, network, or research behavior. External AI receives bounded operation-specific context/capabilities rather than unrestricted local access.
+- AI context is privacy-projected before inference. Privacy projection controls disclosure; it is separate from ordinary local persistence rules and may expose, omit, or locally replace/tokenize information.
 - AI output is validated and operation-scoped. Invalid or conflicting output never silently overwrites authoritative data; retained AI-produced values remain ordinary editable AAAAT information. No universal human-approval queue is implied.
 - The Electron renderer remains sandboxed, context-isolated, and unprivileged.
 - The AI domain remains provider-neutral.
 - Optional AI connectivity prioritizes practical user accessibility: developer API credentials or paid cloud access are not assumed prerequisites when simpler keyless or broadly accessible paths can satisfy the current need; remote and provider-specific mechanisms remain allowed when justified.
-- External integrations receive only bounded AAAAT capabilities.
+- External integrations receive only named, product-specific AAAAT operations. They do not receive generic CRUD, entity browsing/listing/search/query, arbitrary entity-ID access, or a scraping surface.
 - AAAAT has no v1 compatibility obligation.
 - AAAAT remains understandable and maintainable by one engineer.
 

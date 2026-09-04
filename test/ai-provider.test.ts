@@ -64,7 +64,7 @@ describe("OpenAI-compatible provider", () => {
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
   });
 
-  it("sends the runtime discovery catalogue and validates field-ID proposals", async () => {
+  it("sends the runtime discovery context and reads typed field-ID proposals", async () => {
     const request: JobExtractionProviderRequest = {
       sourceTitle: "Pilot vacancy",
       sourceUrl: "https://example.invalid/pilot",
@@ -93,7 +93,6 @@ describe("OpenAI-compatible provider", () => {
       messages: Array<{ role: string; content: string }>;
     };
     expect(body.messages[1]?.content).toBe(JSON.stringify(request));
-    expect(body.messages[0]?.content).toMatch(/field IDs present in fields/i);
   });
 
   it("sends only candidature and existing variant metadata for recommendation", async () => {

@@ -319,6 +319,7 @@ export const candidatureFieldCardinalitySchema = z.enum(["one", "many"]);
 export type CandidatureFieldCardinality = z.infer<typeof candidatureFieldCardinalitySchema>;
 export const focusProminenceSchema = z.enum(["compact", "normal", "wide"]);
 export type FocusProminence = z.infer<typeof focusProminenceSchema>;
+/** Provider-context disclosure preference, separate from ordinary persistence rules. */
 export const aiContextModeSchema = z.enum(["expose", "omit", "token"]);
 export type AiContextMode = z.infer<typeof aiContextModeSchema>;
 

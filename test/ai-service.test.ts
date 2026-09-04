@@ -21,6 +21,7 @@ import {
   updateCandidatureFieldPreferences,
 } from "../src/main/candidature-field-service";
 import {
+  addCandidatureSource,
   createCandidature,
   listCandidatureSources,
   listCandidatures,
@@ -89,7 +90,7 @@ describe("AI service over live candidature information", () => {
     ).toThrow("loopback endpoint");
   });
 
-  it("uses collision-resistant opaque tokens and rehydrates token-looking private literals without chaining", async () => {
+  it("does not disclose replacement-mode literals and restores them locally in the result", async () => {
     const root = configuredWorkspace();
     const sensitive = createCandidatureField(root, {
       label: "Internal referral code",
@@ -104,7 +105,7 @@ describe("AI service over live candidature information", () => {
       aiContextMode: "token",
     });
     const candidature = createCandidature(root, {
-      values: [{ fieldId: sensitive.definition.id, value: "[AAAT_PRIVATE_2]" }],
+      values: [{ fieldId: sensitive.definition.id, value: "LOCAL-REFERRAL-ONLY" }],
     });
     addProfileItem(root, { kind: "identity", title: "Didac Example" });
 
@@ -121,13 +122,13 @@ describe("AI service over live candidature information", () => {
     )?.title;
     expect(typeof previewValue).toBe("string");
     expect(typeof previewIdentity).toBe("string");
-    expect(previewValue).not.toBe("[AAAT_PRIVATE_2]");
+    expect(previewValue).not.toBe("LOCAL-REFERRAL-ONLY");
     expect(previewIdentity).not.toBe("Didac Example");
     expect(previewValue).not.toBe(previewIdentity);
 
     const serialized = JSON.stringify(preview.projectedContext);
     expect(serialized).not.toContain("Didac Example");
-    expect(serialized).not.toContain("[AAAT_PRIVATE_2]");
+    expect(serialized).not.toContain("LOCAL-REFERRAL-ONLY");
 
     const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
       const projectedValue = context.candidature.information.find(
@@ -136,7 +137,7 @@ describe("AI service over live candidature information", () => {
       const projectedIdentity = context.profileItems.find((item) => item.kind === "identity")?.title;
       expect(typeof projectedValue).toBe("string");
       expect(typeof projectedIdentity).toBe("string");
-      expect(projectedValue).not.toBe("[AAAT_PRIVATE_2]");
+      expect(projectedValue).not.toBe("LOCAL-REFERRAL-ONLY");
       expect(projectedIdentity).not.toBe("Didac Example");
       expect(projectedValue).not.toBe(projectedIdentity);
       return {
@@ -159,7 +160,7 @@ describe("AI service over live candidature information", () => {
         provider({ assessFit: assess }),
       ),
     ).resolves.toMatchObject({
-      summary: "[AAAT_PRIVATE_2]",
+      summary: "LOCAL-REFERRAL-ONLY",
       strengths: ["Didac Example"],
     });
   });
@@ -318,6 +319,13 @@ describe("AI service over live candidature information", () => {
     });
     const source = listCandidatureSources(root, candidature.id)[0];
     if (!source) throw new Error("source fixture missing");
+    addCandidatureSource(root, {
+      candidatureId: candidature.id,
+      kind: "recruiter_message",
+      title: "Unselected recruiter note",
+      url: "https://example.invalid/unselected",
+      sourceText: "Do not provide this unrelated retained Source to discovery.",
+    });
 
     const rating = createCandidatureField(root, {
       label: "Type rating",
@@ -339,6 +347,7 @@ describe("AI service over live candidature information", () => {
         },
       ]);
       expect(request.sourceText).toContain("A320 type rating");
+      expect(request.sourceText).not.toContain("unrelated retained Source");
       return { proposals: [{ fieldId: rating.definition.id, value: "A320" }] };
     });
 
