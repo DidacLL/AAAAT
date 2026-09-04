@@ -309,8 +309,6 @@ export const candidatureInputSchema = z
     sourceText: z.string().max(50000),
     status: candidatureStatusSchema,
     applicationDate: z.string().max(40),
-    nextAction: z.string().max(1000),
-    nextActionDate: z.string().max(40),
     notes: z.string().max(20000),
   })
   .strict();
@@ -327,8 +325,6 @@ export const candidatureUpdateSchema = z
     status: candidatureStatusSchema,
     priority: candidaturePrioritySchema,
     applicationDate: z.string().max(40),
-    nextAction: z.string().max(1000),
-    nextActionDate: z.string().max(40),
     notes: z.string().max(20000),
     archived: z.boolean(),
   })
