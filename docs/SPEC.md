@@ -124,7 +124,9 @@ AAAAT keeps real domain concepts explicit. Current or intended explicit concepts
 
 Every normal user-facing field/value participates in the reusable common user-information capability contract. System/internal values such as IDs, hashes, migration metadata, and similar implementation metadata are excluded.
 
-The common contract represents enough semantic information for the field/value and provides the same cross-cutting behavior rather than hard-coding unrelated UI/privacy/Focus mechanisms for each semantic field. For every normal user-facing field/value:
+The contract also represents the field's semantic key/scope/label, value shape and cardinality, and whether it is built-in or user/configuration-defined.
+
+The common contract provides the same cross-cutting behavior rather than hard-coding unrelated UI, editing, privacy, or Focus mechanisms for each semantic field. For every normal user-facing field/value:
 
 - the user can inspect and edit it;
 - the user can create/set it when the domain permits the value to be absent;
