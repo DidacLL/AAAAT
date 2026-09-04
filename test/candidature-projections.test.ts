@@ -22,6 +22,7 @@ function record(overrides: Partial<CandidatureRecord> = {}): CandidatureRecord {
     sourceUrl: "",
     sourceText: "Platform role",
     status: "saved",
+    priority: "",
     applicationDate: "",
     nextAction: "Reply",
     nextActionDate: "",
