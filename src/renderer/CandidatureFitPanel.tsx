@@ -9,9 +9,10 @@ import type { CandidatureRecord } from "../shared/contracts";
 
 interface Props {
   readonly record: CandidatureRecord;
+  readonly onApplied?: () => void;
 }
 
-export function CandidatureFitPanel({ record }: Props) {
+export function CandidatureFitPanel({ record, onApplied }: Props) {
   const [identityPrivacy, setIdentityPrivacy] = useState<PrivacyMode>("token");
   const [contactPrivacy, setContactPrivacy] = useState<PrivacyMode>("token");
   const [preview, setPreview] = useState<FitAssessmentPreview | null>(null);
@@ -51,6 +52,7 @@ export function CandidatureFitPanel({ record }: Props) {
     setError(null);
     try {
       setResult(await window.aaaat.ai.assessFit(request));
+      onApplied?.();
     } catch (reason) {
       setResult(null);
       setError(
@@ -69,9 +71,9 @@ export function CandidatureFitPanel({ record }: Props) {
         <p className="eyebrow">Optional local AI</p>
         <h4>Fit assessment</h4>
         <p>
-          AAAAT builds a read-only context from the saved candidature snapshot and your profile.
-          Unsaved candidature edits are not included. The operation does not mutate candidature,
-          profile, or document data.
+          AAAAT builds context from the saved candidature and profile. A valid result fills empty
+          evaluation fields through the same working brief used by manual editing; existing text is
+          preserved and remains editable.
         </p>
       </div>
 
@@ -130,8 +132,7 @@ export function CandidatureFitPanel({ record }: Props) {
           <ul>{result.strengths.map((item) => <li key={item}>{item}</li>)}</ul>
           <h4>Gaps or risks</h4>
           <ul>{result.gaps.map((item) => <li key={item}>{item}</li>)}</ul>
-          <h4>Suggested focus</h4>
-          <ul>{result.focus.map((item) => <li key={item}>{item}</li>)}</ul>
+          <p>Empty Evaluation &amp; strategy fields were filled from this result.</p>
         </article>
       ) : null}
     </section>
