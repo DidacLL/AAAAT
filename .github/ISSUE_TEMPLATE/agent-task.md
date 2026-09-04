@@ -14,9 +14,17 @@ What must work when this Issue is complete?
 
 M#
 
-# User-visible / architectural outcome
+# Owner intent
 
--
+Relevant `docs/OWNER_INTENT.md` section(s), or `no product semantics changed`.
+
+# User-visible capability
+
+What becomes possible for the user?
+
+# Not implied
+
+Important product/workflow assumptions this Issue does not establish.
 
 # In scope
 
@@ -44,4 +52,4 @@ Exact branch, commit, completed checks, remaining actions, and recovery constrai
 
 # Decision class
 
-A / B / C
+A / B / C, after the Product Meaning check in `.agentic/DECISION_POLICY.md`.
