@@ -24,8 +24,6 @@ function record(overrides: Partial<CandidatureRecord> = {}): CandidatureRecord {
     status: "saved",
     priority: "",
     applicationDate: "",
-    nextAction: "Reply",
-    nextActionDate: "",
     notes: "Discuss runtime ownership",
     archived: false,
     documentIds: [],
