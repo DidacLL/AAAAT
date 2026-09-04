@@ -209,7 +209,7 @@ test("packaged M6 manual journey is recruiter-ready and survives close/reopen", 
     await opportunity.getByLabel("Work mode").fill("Remote or hybrid");
     await opportunity.getByLabel("Status").selectOption("saved");
     await opportunity.getByLabel("Priority").selectOption("high");
-    await opportunity.getByLabel("Next action").fill("Prepare for recruiter call");
+    await opportunity.getByLabel("Next action", { exact: true }).fill("Prepare for recruiter call");
     await opportunity.getByLabel("Next action date").fill("2026-09-11");
     await opportunity.getByLabel("Notes").fill("Clarify platform ownership and team scope.");
     await opportunity.getByRole("button", { name: "Save opportunity" }).click();
