@@ -1,10 +1,12 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
 import type {
+  CareerContext,
   CandidatureRecord,
+  CandidatureSource,
   CandidatureWorkingBrief,
   ConceptRecord,
   DesktopApi,
@@ -13,6 +15,15 @@ import type {
 } from "../src/shared/contracts";
 
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
+const emptyCareerContext: CareerContext = {
+  careerDirection: "",
+  objectives: "",
+  constraints: "",
+  targetRoles: "",
+  targetMarketsLocations: "",
+  workPreferences: "",
+  applicationWritingPreferences: "",
+};
 const unavailable = async (): Promise<never> => {
   throw new Error("Unavailable in candidature test");
 };
@@ -48,7 +59,10 @@ function candidature(overrides: Partial<CandidatureRecord> = {}): CandidatureRec
   };
 }
 
-function workingBrief(candidatureId: string): CandidatureWorkingBrief {
+function workingBrief(
+  candidatureId: string,
+  overrides: Partial<CandidatureWorkingBrief> = {},
+): CandidatureWorkingBrief {
   return {
     candidatureId,
     fitSuitability: "",
@@ -59,6 +73,7 @@ function workingBrief(candidatureId: string): CandidatureWorkingBrief {
     pitch: "",
     questions: "",
     recruiterPreparation: "",
+    ...overrides,
   };
 }
 
@@ -76,6 +91,24 @@ const document: DocumentRecord = {
   artifactPath: "/tmp/doc/build/main.pdf",
 };
 
+const recruiterSource: CandidatureSource = {
+  id: "00000000-0000-4000-8000-000000000220",
+  candidatureId: "00000000-0000-4000-8000-000000000201",
+  kind: "recruiter_message",
+  title: "Recruiter message",
+  url: "",
+  sourceText: "Would you consider our backend role?",
+  createdAt: "2026-09-04T00:00:00.000Z",
+  updatedAt: "2026-09-04T00:00:00.000Z",
+};
+const jobSource: CandidatureSource = {
+  ...recruiterSource,
+  id: "00000000-0000-4000-8000-000000000221",
+  kind: "job_posting",
+  title: "Job description",
+  sourceText: "Senior platform role with distributed systems ownership.",
+};
+
 const list = vi.fn<DesktopApi["candidatures"]["list"]>();
 const create = vi.fn<DesktopApi["candidatures"]["create"]>();
 const update = vi.fn<DesktopApi["candidatures"]["update"]>();
@@ -90,6 +123,7 @@ const listConcepts = vi.fn<DesktopApi["candidatures"]["listConcepts"]>();
 const createConcept = vi.fn<DesktopApi["candidatures"]["createConcept"]>();
 const updateConcept = vi.fn<DesktopApi["candidatures"]["updateConcept"]>();
 const setConcepts = vi.fn<DesktopApi["candidatures"]["setConcepts"]>();
+const careerCurrent = vi.fn<DesktopApi["careerContext"]["current"]>();
 
 const desktopApi: DesktopApi = {
   system: { info: async () => ({ appVersion: "2", electronVersion: "44", nodeVersion: "24" }) },
@@ -110,15 +144,7 @@ const desktopApi: DesktopApi = {
     resolveVariant: unavailable,
   },
   careerContext: {
-    current: async () => ({
-      careerDirection: "",
-      objectives: "",
-      constraints: "",
-      targetRoles: "",
-      targetMarketsLocations: "",
-      workPreferences: "",
-      applicationWritingPreferences: "",
-    }),
+    current: careerCurrent,
     update: async (value) => value,
   },
   documents: {
@@ -151,7 +177,7 @@ const desktopApi: DesktopApi = {
   },
 };
 
-describe("manual Candidatures workspace", () => {
+describe("M6 candidature workspace", () => {
   beforeEach(() => {
     for (const mock of [
       list,
@@ -168,12 +194,14 @@ describe("manual Candidatures workspace", () => {
       createConcept,
       updateConcept,
       setConcepts,
+      careerCurrent,
     ]) mock.mockReset();
     list.mockResolvedValue([]);
     listSources.mockResolvedValue([]);
     currentWorkingBrief.mockImplementation(async (candidatureId) => workingBrief(candidatureId));
     updateWorkingBrief.mockImplementation(async (value) => value);
     listConcepts.mockResolvedValue([]);
+    careerCurrent.mockResolvedValue(emptyCareerContext);
     create.mockResolvedValue(candidature({
       company: "",
       role: "",
@@ -197,7 +225,7 @@ describe("manual Candidatures workspace", () => {
     vi.restoreAllMocks();
   });
 
-  it("creates a partial candidature without requiring invented details", async () => {
+  it("creates an incomplete opportunity and opens compact Focus by default", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
     await screen.findByRole("heading", { name: "Candidatures" });
@@ -218,27 +246,86 @@ describe("manual Candidatures workspace", () => {
       nextActionDate: "",
       notes: "",
     });
-    expect(await screen.findByLabelText("Source material")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("region", { name: "Recruiter call focus" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add next action" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add pitch" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add evidence" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Company")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Sources" }));
+    expect(screen.queryByLabelText("Source material")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add source" }));
+    expect(screen.getByLabelText("Source material")).toBeInTheDocument();
   });
 
-  it("edits lifecycle data, priority, archives independently, and associates an existing document", async () => {
+  it("answers the recruiter-readiness questions in Focus when information exists", async () => {
+    const existing = candidature({
+      company: "Example Systems",
+      role: "Senior Platform Engineer",
+      status: "interview",
+      priority: "high",
+      nextAction: "Recruiter call Friday",
+      nextActionDate: "2026-09-11",
+      notes: "Ask about platform ownership boundaries.",
+      documentIds: [document.id],
+      conceptIds: [concept.id],
+    });
+    list.mockResolvedValueOnce([existing]);
+    listConcepts.mockResolvedValueOnce([concept]);
+    currentWorkingBrief.mockResolvedValue(
+      workingBrief(existing.id, {
+        fitSuitability: "Strong fit for platform scope.",
+        strengthsEvidence: "Led a multi-region service migration.",
+        gapsRisksConstraints: "Clarify on-call load.",
+        currentStrategy: "Lead with reliability and platform leverage.",
+        companyRoleContext: "Team owns the internal platform.",
+        pitch: "I build platform systems that let product teams move safely.",
+        questions: "How is platform impact measured?",
+        recruiterPreparation: "Keep compensation discussion high level.",
+      }),
+    );
+    careerCurrent.mockResolvedValue({
+      ...emptyCareerContext,
+      careerDirection: "Move toward staff-level platform work.",
+      constraints: "No relocation.",
+      targetMarketsLocations: "Spain / EU remote or hybrid.",
+    });
+
+    render(<CandidaturesWorkspace />);
+    const focus = await screen.findByRole("region", { name: "Recruiter call focus" });
+    await waitFor(() => expect(focus).toHaveTextContent("I build platform systems"));
+    expect(focus).toHaveTextContent("interview · high priority");
+    expect(focus).toHaveTextContent("Recruiter call Friday");
+    expect(focus).toHaveTextContent("Led a multi-region service migration");
+    expect(focus).toHaveTextContent("Clarify on-call load");
+    expect(focus).toHaveTextContent("No relocation");
+    expect(focus).toHaveTextContent("How is platform impact measured");
+    expect(focus).toHaveTextContent("Lead with reliability");
+    expect(focus).toHaveTextContent("Team owns the internal platform");
+    expect(focus).toHaveTextContent("TypeScript");
+    expect(focus).toHaveTextContent("Backend CV");
+    expect(focus).toHaveTextContent("Ask about platform ownership boundaries");
+    expect(focus).not.toHaveTextContent("No concepts associated");
+    expect(focus).not.toHaveTextContent("No CV or cover-letter");
+  });
+
+  it("edits only bounded Opportunity facts and never sends source mutation through update", async () => {
     const existing = candidature();
     list.mockResolvedValueOnce([existing]);
     update.mockImplementation(async (value) => candidature({ ...value }));
-    setDocuments.mockImplementation(async ({ documentIds }) => candidature({ ...existing, documentIds }));
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    expect(await screen.findByDisplayValue("Acme")).toBeInTheDocument();
-    const saveButton = screen.getByRole("button", { name: "Save candidature" });
-    const form = saveButton.closest("form");
-    if (!form) throw new Error("Expected candidature edit form");
-    const editor = within(form);
-    await user.selectOptions(editor.getByLabelText("Status"), "applied");
-    await user.selectOptions(editor.getByLabelText("Priority"), "high");
-    await user.clear(editor.getByLabelText("Notes"));
-    await user.type(editor.getByLabelText("Notes"), "Application submitted");
-    await user.click(saveButton);
+    await screen.findByRole("region", { name: "Recruiter call focus" });
+    await user.click(screen.getByRole("tab", { name: "Opportunity" }));
+    const opportunity = screen.getByRole("form", { name: "Opportunity" });
+    await user.selectOptions(within(opportunity).getByLabelText("Status"), "applied");
+    await user.selectOptions(within(opportunity).getByLabelText("Priority"), "high");
+    await user.clear(within(opportunity).getByLabelText("Notes"));
+    await user.type(within(opportunity).getByLabelText("Notes"), "Application submitted");
+    await user.click(within(opportunity).getByRole("button", { name: "Save opportunity" }));
+
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
       id: existing.id,
       status: "applied",
@@ -247,167 +334,131 @@ describe("manual Candidatures workspace", () => {
       archived: false,
     }));
     expect(update.mock.calls[0]?.[0]).not.toHaveProperty("source");
-
-    await user.click(screen.getByRole("button", { name: "Archive candidature" }));
-    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({
-      id: existing.id,
-      status: "applied",
-      archived: true,
-    }));
-
-    await user.click(screen.getByLabelText(/Backend CV/));
-    await user.click(screen.getByRole("button", { name: "Save document associations" }));
-    expect(setDocuments).toHaveBeenCalledWith({
-      candidatureId: existing.id,
-      documentIds: [document.id],
-    });
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty("sourceText");
   });
 
-  it("keeps dirty candidature notes while saving document and concept associations", async () => {
+  it("does not silently discard a dirty section when navigating", async () => {
     const existing = candidature();
     list.mockResolvedValueOnce([existing]);
-    listConcepts.mockResolvedValueOnce([concept]);
-    setDocuments.mockImplementation(async ({ documentIds }) =>
-      candidature({ ...existing, documentIds }),
-    );
-    setConcepts.mockImplementation(async ({ conceptIds }) =>
-      candidature({ ...existing, conceptIds }),
-    );
-    const user = userEvent.setup();
-    render(<CandidaturesWorkspace />);
-
-    const notes = await screen.findByLabelText("Notes");
-    await user.clear(notes);
-    await user.type(notes, "Unsaved local notes");
-
-    await user.click(screen.getByLabelText(/Backend CV/));
-    await user.click(screen.getByRole("button", { name: "Save document associations" }));
-    expect(screen.getByLabelText("Notes")).toHaveValue("Unsaved local notes");
-
-    await user.click(screen.getByLabelText("TypeScript"));
-    await user.click(screen.getByRole("button", { name: "Save concept associations" }));
-    expect(screen.getByLabelText("Notes")).toHaveValue("Unsaved local notes");
-  });
-
-  it("keeps dirty association selections while saving the candidature draft", async () => {
-    const existing = candidature();
-    list.mockResolvedValueOnce([existing]);
-    listConcepts.mockResolvedValueOnce([concept]);
-    update.mockImplementation(async (value) => candidature({ ...value }));
-    const user = userEvent.setup();
-    render(<CandidaturesWorkspace />);
-
-    await screen.findByDisplayValue("Acme");
-    const documentToggle = screen.getByLabelText(/Backend CV/);
-    const conceptToggle = screen.getByLabelText("TypeScript");
-    await user.click(documentToggle);
-    await user.click(conceptToggle);
-    await user.clear(screen.getByLabelText("Notes"));
-    await user.type(screen.getByLabelText("Notes"), "Saved main draft");
-    await user.click(screen.getByRole("button", { name: "Save candidature" }));
-
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({ notes: "Saved main draft" }));
-    expect(documentToggle).toBeChecked();
-    expect(conceptToggle).toBeChecked();
-    expect(setDocuments).not.toHaveBeenCalled();
-    expect(setConcepts).not.toHaveBeenCalled();
-  });
-
-  it("archives from persisted candidature data without committing unrelated dirty fields", async () => {
-    const existing = candidature();
-    list.mockResolvedValueOnce([existing]);
-    const user = userEvent.setup();
-    render(<CandidaturesWorkspace />);
-
-    const company = await screen.findByLabelText("Company");
-    const role = screen.getByLabelText("Role");
-    await user.clear(company);
-    await user.type(company, "Unsaved Co");
-    await user.clear(role);
-    await user.type(role, "Unsaved role");
-    await user.click(screen.getByRole("button", { name: "Archive candidature" }));
-
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      id: existing.id,
-      company: "Acme",
-      role: "Backend engineer",
-      archived: true,
-    }));
-    expect(screen.getByLabelText("Company")).toHaveValue("Unsaved Co");
-    expect(screen.getByLabelText("Role")).toHaveValue("Unsaved role");
-    expect(screen.getByRole("button", { name: "Restore from archive" })).toBeInTheDocument();
-  });
-
-  it("cancels or discards dirty candidature state explicitly when selection changes", async () => {
-    const first = candidature();
-    const second = candidature({
-      id: "00000000-0000-4000-8000-000000000209",
-      company: "Other Co",
-      role: "Data engineer",
-    });
-    list.mockResolvedValueOnce([first, second]);
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    const notes = await screen.findByLabelText("Notes");
-    await user.clear(notes);
-    await user.type(notes, "Unsaved selection draft");
-    await user.click(screen.getByRole("button", { name: /Other Co — Data engineer/ }));
+    await screen.findByRole("region", { name: "Recruiter call focus" });
+    await user.click(screen.getByRole("tab", { name: "Opportunity" }));
+    const company = screen.getByLabelText("Company");
+    await user.clear(company);
+    await user.type(company, "Unsaved Co");
+    await user.click(screen.getByRole("tab", { name: "Sources" }));
 
-    expect(confirm).toHaveBeenCalled();
-    expect(screen.getByLabelText("Company")).toHaveValue("Acme");
-    expect(screen.getByLabelText("Notes")).toHaveValue("Unsaved selection draft");
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved changes in this section?");
+    expect(screen.getByRole("tab", { name: "Opportunity" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Company")).toHaveValue("Unsaved Co");
 
     confirm.mockReturnValue(true);
-    await user.click(screen.getByRole("button", { name: /Other Co — Data engineer/ }));
-    expect(screen.getByLabelText("Company")).toHaveValue("Other Co");
+    await user.click(screen.getByRole("tab", { name: "Sources" }));
+    expect(screen.getByRole("tab", { name: "Sources" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("searches concept aliases and keeps recruiter-call context together", async () => {
-    const matching = candidature({ documentIds: [document.id], conceptIds: [concept.id] });
+  it("shows source cards first and opens one focused source editor on demand", async () => {
+    const existing = candidature();
+    list.mockResolvedValueOnce([existing]);
+    listSources.mockResolvedValueOnce([recruiterSource]);
+    addSource.mockResolvedValue([recruiterSource, jobSource]);
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    await screen.findByRole("region", { name: "Recruiter call focus" });
+    await user.click(screen.getByRole("tab", { name: "Sources" }));
+    expect(await screen.findByText("Recruiter message")).toBeInTheDocument();
+    expect(screen.getByText(/Would you consider our backend role/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Source material")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add source" }));
+    await user.selectOptions(screen.getByLabelText("Kind"), "job_posting");
+    await user.type(screen.getByLabelText("Title"), "Job description");
+    await user.type(screen.getByLabelText("Source material"), jobSource.sourceText);
+    await user.click(screen.getByRole("button", { name: "Add source" }));
+
+    expect(addSource).toHaveBeenCalledWith(expect.objectContaining({
+      candidatureId: existing.id,
+      kind: "job_posting",
+      title: "Job description",
+      sourceText: jobSource.sourceText,
+    }));
+    expect(await screen.findByText("Job description")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Source material")).not.toBeInTheDocument();
+  });
+
+  it("keeps evaluation and recruiter preparation as separate manual intentions", async () => {
+    const existing = candidature();
+    list.mockResolvedValueOnce([existing]);
+    let persisted = workingBrief(existing.id);
+    currentWorkingBrief.mockImplementation(async () => persisted);
+    updateWorkingBrief.mockImplementation(async (value) => {
+      persisted = value;
+      return persisted;
+    });
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    await screen.findByRole("region", { name: "Recruiter call focus" });
+    await user.click(screen.getByRole("tab", { name: "Evaluation & strategy" }));
+    expect(screen.getByLabelText("Fit / suitability")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Pitch")).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Strengths / evidence"), "Distributed systems ownership");
+    await user.click(screen.getByRole("button", { name: "Save evaluation & strategy" }));
+    expect(updateWorkingBrief).toHaveBeenCalledWith(expect.objectContaining({
+      strengthsEvidence: "Distributed systems ownership",
+    }));
+
+    await user.click(screen.getByRole("tab", { name: "Recruiter preparation" }));
+    expect(await screen.findByLabelText("Pitch")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Fit / suitability")).not.toBeInTheDocument();
+  });
+
+  it("keeps concepts and documents integrated without putting their editors in Focus", async () => {
+    const existing = candidature();
+    list.mockResolvedValueOnce([existing]);
+    listConcepts.mockResolvedValueOnce([concept]);
+    setConcepts.mockImplementation(async ({ conceptIds }) => candidature({ ...existing, conceptIds }));
+    setDocuments.mockImplementation(async ({ documentIds }) => candidature({ ...existing, documentIds }));
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    await screen.findByRole("region", { name: "Recruiter call focus" });
+    expect(screen.queryByLabelText("Definition")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Concepts" }));
+    const conceptsRegion = screen.getByRole("region", { name: "Concepts" });
+    await user.click(within(conceptsRegion).getByLabelText(/TypeScript/));
+    await user.click(within(conceptsRegion).getByRole("button", { name: "Save concept associations" }));
+    expect(setConcepts).toHaveBeenCalledWith({ candidatureId: existing.id, conceptIds: [concept.id] });
+
+    await user.click(screen.getByRole("tab", { name: "Documents" }));
+    const documentsRegion = screen.getByRole("region", { name: "Documents" });
+    await user.click(within(documentsRegion).getByLabelText(/Backend CV/));
+    await user.click(within(documentsRegion).getByRole("button", { name: "Save document associations" }));
+    expect(setDocuments).toHaveBeenCalledWith({ candidatureId: existing.id, documentIds: [document.id] });
+  });
+
+  it("keeps list search useful for concepts and shows next action without becoming a dossier", async () => {
+    const matching = candidature({ conceptIds: [concept.id], nextAction: "Reply Friday" });
     const other = candidature({
       id: "00000000-0000-4000-8000-000000000205",
       company: "Other Co",
       role: "Data analyst",
+      nextAction: "",
     });
     list.mockResolvedValueOnce([matching, other]);
     listConcepts.mockResolvedValueOnce([concept]);
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    const focus = await screen.findByRole("region", { name: "Recruiter call focus" });
-    expect(within(focus).getByRole("heading", { name: /Acme — Backend engineer/ })).toBeInTheDocument();
-    expect(focus).toHaveTextContent("Backend CV");
-    expect(focus).toHaveTextContent(concept.definition);
-
+    const matchingButton = await screen.findByRole("button", { name: /Acme — Backend engineer/ });
+    expect(matchingButton).toHaveTextContent("Next: Reply Friday");
     await user.type(screen.getByLabelText("Search"), "TS");
     expect(screen.getByRole("button", { name: /Acme — Backend engineer/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Other Co — Data analyst/ })).not.toBeInTheDocument();
-  });
-
-  it("creates a shared concept and associates it through fixed candidature intentions", async () => {
-    const existing = candidature();
-    list.mockResolvedValueOnce([existing]);
-    const user = userEvent.setup();
-    render(<CandidaturesWorkspace />);
-
-    await screen.findByDisplayValue("Acme");
-    await user.type(screen.getByLabelText("Name"), "TypeScript");
-    await user.type(screen.getByLabelText("Aliases"), "TS");
-    await user.type(screen.getByLabelText("Definition"), concept.definition);
-    await user.click(screen.getByRole("button", { name: "Create concept" }));
-    expect(createConcept).toHaveBeenCalledWith({
-      name: "TypeScript",
-      aliases: ["TS"],
-      definition: concept.definition,
-    });
-
-    await user.click(screen.getByLabelText("TypeScript"));
-    await user.click(screen.getByRole("button", { name: "Save concept associations" }));
-    expect(setConcepts).toHaveBeenCalledWith({
-      candidatureId: existing.id,
-      conceptIds: [concept.id],
-    });
   });
 });

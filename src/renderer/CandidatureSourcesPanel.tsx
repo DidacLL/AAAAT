@@ -18,6 +18,16 @@ function sourceLabel(source: CandidatureSource): string {
   return source.title.trim() || source.kind.replaceAll("_", " ");
 }
 
+function kindLabel(kind: CandidatureSourceKind): string {
+  return kind.replaceAll("_", " ");
+}
+
+function sourcePreview(source: CandidatureSource): string {
+  const normalized = source.sourceText.trim().replaceAll(/\s+/g, " ");
+  if (!normalized) return "";
+  return normalized.length > 220 ? `${normalized.slice(0, 217)}…` : normalized;
+}
+
 export function CandidatureSourcesPanel({
   candidatureId,
   onSourcesChanged,
@@ -28,14 +38,15 @@ export function CandidatureSourcesPanel({
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [sources, setSources] = useState<CandidatureSource[]>([]);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CandidatureSourceInput>(() => emptySource(candidatureId));
   const [persistedDraft, setPersistedDraft] = useState<CandidatureSourceInput>(() => emptySource(candidatureId));
   const [error, setError] = useState<string | null>(null);
 
   const dirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(persistedDraft),
-    [draft, persistedDraft],
+    () => editorOpen && JSON.stringify(draft) !== JSON.stringify(persistedDraft),
+    [draft, editorOpen, persistedDraft],
   );
 
   useEffect(() => {
@@ -44,6 +55,7 @@ export function CandidatureSourcesPanel({
 
   const resetEditor = () => {
     const next = emptySource(candidatureId);
+    setEditorOpen(false);
     setEditingId(null);
     setDraft(next);
     setPersistedDraft(next);
@@ -51,11 +63,15 @@ export function CandidatureSourcesPanel({
 
   const startNew = () => {
     if (dirty && !window.confirm("Discard unsaved source edits?")) return;
-    resetEditor();
+    const next = emptySource(candidatureId);
+    setEditorOpen(true);
+    setEditingId(null);
+    setDraft(next);
+    setPersistedDraft(next);
   };
 
   const edit = (source: CandidatureSource) => {
-    if (source.id === editingId) return;
+    if (editorOpen && source.id === editingId) return;
     if (dirty && !window.confirm("Discard unsaved source edits?")) return;
     const next: CandidatureSourceInput = {
       candidatureId,
@@ -64,9 +80,15 @@ export function CandidatureSourcesPanel({
       url: source.url,
       sourceText: source.sourceText,
     };
+    setEditorOpen(true);
     setEditingId(source.id);
     setDraft(next);
     setPersistedDraft(next);
+  };
+
+  const cancel = () => {
+    if (dirty && !window.confirm("Discard unsaved source edits?")) return;
+    resetEditor();
   };
 
   useEffect(() => {
@@ -77,6 +99,7 @@ export function CandidatureSourcesPanel({
         if (!active) return;
         setSources(next);
         const empty = emptySource(candidatureId);
+        setEditorOpen(false);
         setEditingId(null);
         setDraft(empty);
         setPersistedDraft(empty);
@@ -102,21 +125,7 @@ export function CandidatureSourcesPanel({
         ? await window.aaaat.candidatures.updateSource({ id: editingId, ...draft })
         : await window.aaaat.candidatures.addSource(draft);
       store(next);
-      const saved = editingId ? next.find((source) => source.id === editingId) : next.at(-1);
-      if (saved) {
-        const savedDraft: CandidatureSourceInput = {
-          candidatureId,
-          kind: saved.kind,
-          title: saved.title,
-          url: saved.url,
-          sourceText: saved.sourceText,
-        };
-        setEditingId(saved.id);
-        setDraft(savedDraft);
-        setPersistedDraft(savedDraft);
-      } else {
-        resetEditor();
-      }
+      resetEditor();
     } catch {
       setError("AAAAT could not save this source.");
     }
@@ -139,80 +148,98 @@ export function CandidatureSourcesPanel({
   };
 
   return (
-    <section className="candidature-sources" aria-label="Sources">
+    <section className="candidature-sources section-surface" aria-label="Sources">
       <div className="candidature-editor-heading">
         <div>
           <p className="eyebrow">Supplied context</p>
           <h3>Sources</h3>
+          <p>Add only the material you actually have.</p>
         </div>
-        <button type="button" className="compact-secondary" onClick={startNew}>
-          Add source
-        </button>
+        {!editorOpen ? (
+          <button type="button" className="compact-secondary" onClick={startNew}>
+            Add source
+          </button>
+        ) : null}
       </div>
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
       {sources.length === 0 ? (
-        <p>No source material yet. The opportunity can remain incomplete.</p>
+        <p className="compact-empty">No source material yet. The opportunity can remain incomplete.</p>
       ) : (
-        <div className="source-chip-list" aria-label="Source list">
-          {sources.map((source) => (
-            <button
-              type="button"
-              key={source.id}
-              className={source.id === editingId ? "selected-source" : "compact-secondary"}
-              onClick={() => edit(source)}
-            >
-              {sourceLabel(source)}
-            </button>
-          ))}
+        <div className="source-card-list" aria-label="Source list">
+          {sources.map((source) => {
+            const preview = sourcePreview(source);
+            return (
+              <article className="source-card" key={source.id}>
+                <div className="source-card-heading">
+                  <div>
+                    <strong>{sourceLabel(source)}</strong>
+                    <span>{kindLabel(source.kind)}</span>
+                  </div>
+                  <button type="button" className="compact-secondary" onClick={() => edit(source)}>
+                    Edit source
+                  </button>
+                </div>
+                {source.url ? <p className="source-reference">{source.url}</p> : null}
+                {preview ? <p>{preview}</p> : null}
+              </article>
+            );
+          })}
         </div>
       )}
 
-      <div className="candidature-fields source-editor">
-        <label>
-          Kind
-          <select
-            value={draft.kind}
-            onChange={(event) =>
-              setDraft({ ...draft, kind: event.target.value as CandidatureSourceKind })
-            }
-          >
-            <option value="recruiter_message">Recruiter message</option>
-            <option value="job_posting">Job posting</option>
-            <option value="application_form">Application form</option>
-            <option value="conversation">Conversation</option>
-            <option value="link">Link</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label>
-          Title
-          <input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
-        </label>
-        <label className="wide-field">
-          URL
-          <input value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} />
-        </label>
-        <label className="wide-field">
-          Source material
-          <textarea
-            rows={7}
-            value={draft.sourceText}
-            onChange={(event) => setDraft({ ...draft, sourceText: event.target.value })}
-          />
-        </label>
-      </div>
-      <div className="button-row">
-        <button type="button" className="primary-action" disabled={!dirty} onClick={() => void save()}>
-          {editingId ? "Save source" : "Add source"}
-        </button>
-        {editingId ? (
-          <button type="button" className="compact-secondary" onClick={() => void remove()}>
-            Remove source
-          </button>
-        ) : null}
-      </div>
+      {editorOpen ? (
+        <div className="source-editor-panel" aria-label={editingId ? "Edit source" : "Add source"}>
+          <div className="candidature-fields source-editor">
+            <label>
+              Kind
+              <select
+                value={draft.kind}
+                onChange={(event) =>
+                  setDraft({ ...draft, kind: event.target.value as CandidatureSourceKind })
+                }
+              >
+                <option value="recruiter_message">Recruiter message</option>
+                <option value="job_posting">Job posting</option>
+                <option value="application_form">Application form</option>
+                <option value="conversation">Conversation</option>
+                <option value="link">Link</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>
+              Title
+              <input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+            </label>
+            <label className="wide-field">
+              URL or reference
+              <input value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} />
+            </label>
+            <label className="wide-field">
+              Source material
+              <textarea
+                rows={7}
+                value={draft.sourceText}
+                onChange={(event) => setDraft({ ...draft, sourceText: event.target.value })}
+              />
+            </label>
+          </div>
+          <div className="button-row">
+            <button type="button" className="primary-action" disabled={!dirty} onClick={() => void save()}>
+              {editingId ? "Save source" : "Add source"}
+            </button>
+            <button type="button" className="compact-secondary" onClick={cancel}>
+              Cancel
+            </button>
+            {editingId ? (
+              <button type="button" className="compact-secondary danger-action" onClick={() => void remove()}>
+                Remove source
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

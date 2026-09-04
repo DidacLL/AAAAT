@@ -19,8 +19,11 @@ export function CandidaturesAiWorkspace() {
 
   return (
     <>
-      <JobExtractionPanel onCreate={createFromProposal} />
       <CandidaturesWorkspace key={revision} />
+      <details className="optional-ai-extraction">
+        <summary>Optional AI job extraction</summary>
+        <JobExtractionPanel onCreate={createFromProposal} />
+      </details>
     </>
   );
 }
