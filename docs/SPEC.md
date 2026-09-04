@@ -2,137 +2,263 @@
 
 ## Status and authority
 
-This is the canonical product and architecture specification for AAAAT v2.
+This specification derives product architecture from `docs/OWNER_INTENT.md`.
 
-Accepted Architecture Decision Records may refine this specification. The current Mission narrows what may be built now; it does not weaken this specification. GitHub Issues define bounded implementation work. If historical AAAAT v1 code, documentation, tests, schemas, or protocols disagree with this document, the v1 material is research evidence only.
+For product meaning, authority is:
+
+```text
+current direct Product Owner instruction
+→ docs/OWNER_INTENT.md
+→ docs/SPEC.md
+→ CURRENT_MISSION / GitHub Issue
+→ tests
+→ implementation
+```
+
+Within already-established product meaning, accepted ADRs refine technical architecture. An ADR, Mission, Issue, test, migration, or existing implementation does not make its own product assumptions authoritative merely because it was accepted or merged.
+
+Historical AAAAT v1 material is product-research evidence only. It does not define v2 implementation contracts.
 
 ## Product definition
 
-AAAAT is a private, local-first career workspace for:
+AAAAT is a private, local career/application information workspace and application-artifact generator whose purpose is convenience.
 
-- maintaining reusable professional knowledge;
-- creating and managing CVs and cover letters;
-- tracking candidatures and source material;
-- preparing for recruiter calls, interviews, and assessments;
-- using optional AI assistance through controlled, privacy-projected operations;
-- exposing bounded capabilities to external AI tools when a reliable integration exists.
+It helps users capture information with little effort, structure it when useful, edit it, retrieve it quickly, reuse it across candidatures and documents, and generate application material while retaining local control.
 
-AAAAT is complete and useful without AI. It is not an LLM wrapper, agent framework, workflow engine, cloud service, or generic plugin platform.
+AAAAT is useful with sparse or detailed records. It is not defined by disciplined application tracking, a fixed job-search sequence, or continuous maintenance.
 
-VCVGenerator is a core product capability, not an optional extension. AAAAT must produce ordinary, user-owned LaTeX projects that remain useful without AAAAT.
+VCVGenerator is independently core. AAAAT must remain useful when the user opens it only to create, edit, tailor, or render documents, without a candidature and without AI.
+
+AAAAT is fully human-operable without AI. This is a capability guarantee, not a preferred input path.
 
 ## Clean-restart rule
 
-AAAAT v2 preserves the problem, product knowledge, useful workflows, privacy principles, and visual lessons learned from AAAAT v1 and AgenticCareerBoost. It does not preserve their implementation contracts.
+AAAAT v2 preserves validated product lessons from AAAAT v1 and AgenticCareerBoost while rejecting their implementation contracts.
 
 There is no requirement to retain or migrate:
 
-- the Python or wxPython implementation;
-- Smart View and Detailed View as technical architectures;
+- Python or wxPython implementation;
 - the v1 SQLite schema;
-- the v1 task/capability state machine;
-- handwritten MCP or JSON-RPC code;
-- watched-folder AI exchange;
-- tagged-chat envelopes;
-- the external-host-first inference model;
-- the v1 zero-runtime-dependency rule.
+- Smart/Detailed or `userView` widget architecture;
+- v1 task/capability queues or workflow state machines;
+- handwritten MCP/JSON-RPC;
+- watched-folder or tagged-chat protocols;
+- browser/FastAPI architecture;
+- external-host-first inference;
+- mandatory lifecycle logic.
 
-The v1 implementation remains available through Git history and recovery tags.
+Useful v1 lessons such as raw-first capture, sparse candidatures, configurable Focus, common information controls, concepts, lightweight ToDos, and local ownership may be reimplemented deliberately through the v2 architecture.
 
-## Interaction directions
+## Ways information enters AAAAT
 
-### Human to AAAAT
+Manual entry, raw/pasted/imported material, AAAAT-assisted AI, and bounded external AI are alternative producers of the same user-owned information.
 
-Every essential product capability must be available through a coherent graphical interface. Ordinary users must not need JSON, shell commands, protocol knowledge, repository access, or intermediate exchange files.
+They may be mixed in any order. A retained value does not become a separate data class because AI or a person produced it.
 
-Incomplete data is normal. The UI uses progressive disclosure and focused workflows rather than presenting a wall of empty fields.
+All durable mutations ultimately use the same normal application-service rules.
 
-### AAAAT to AI
+A user must never be blocked from editing information merely because an AI operation can produce it. AI-created information remains editable. A manually entered value may later be used by AI. Valid AI results may populate ordinary authoritative data when the operation policy allows it, but invalid or conflicting output never silently overwrites authoritative edits.
 
-When a user requests AI assistance from AAAAT, AAAAT owns the experience:
+No universal approval queue or mandatory AI proposal workflow is required.
 
-1. select the configured connection;
-2. construct the minimum operation-specific context;
-3. apply the user's privacy projection;
-4. invoke the provider or runtime;
-5. validate the response against the operation contract;
-6. apply a permitted valid result through the normal application service;
-7. explain failures without exposing raw provider or protocol details.
+## Human interaction surface
 
-An unreliable integration must not appear as an ordinary one-click action.
+Human-operable product capabilities are available through a coherent graphical desktop interface. Ordinary users must not need JSON, shell commands, protocol knowledge, repository access, or intermediate exchange files for normal use.
 
-### AI to AAAAT
+Technical command/MCP/integration surfaces exist for bounded external tooling and setup; they are not a substitute for normal human product access.
 
-External AI applications may invoke explicitly supported AAAAT capabilities through a suitable bounded integration. An integration may use MCP, commands, a portable import capsule, or another demonstrated host mechanism. Copy/paste is a last-resort compatibility path, not the normal experience.
+Incomplete information is normal. The UI uses progressive disclosure and focused retrieval rather than forcing a wall of empty fields.
 
-External integrations call the same application services as the desktop UI. They never receive general database, filesystem, shell, process, network, or repository authority from AAAAT.
+## Sparse and raw-first use
 
-## Architectural objectives
+A candidature is a sparse container for one opportunity and its useful information, sources, concepts, ToDos, documents, and artifacts. It is not fundamentally a process state machine.
 
-AAAAT v2 is one local desktop application with four cooperating product capabilities:
+A candidature may begin with:
+
+- a complete or partial job advertisement;
+- only a URL;
+- a recruiter message;
+- one manually entered value;
+- an application form or conversation-derived note;
+- an external-AI contribution;
+- a fully structured manual record.
+
+Company, role, status, priority, and next action are not validity requirements.
+
+Original source material is first-class and remains retainable independently from structured information extracted or entered from it. Multiple meaningful sources may coexist. Extraction or enrichment never replaces the source.
+
+Views decide how missing information is presented. The domain reports what information exists; no global rule requires every empty field to be either shown or hidden.
+
+Candidature labels should use useful available or configured information. Company and role are sensible defaults when present, not universal identity requirements.
+
+## Flexible semantic information
+
+AAAAT understands meaningful information without turning that vocabulary into a mandatory checklist or workflow. Useful built-in or user-defined information may include:
+
+- company, role, location, work arrangement, compensation, and dates;
+- description and requirements;
+- company/role research with useful provenance;
+- strengths/evidence, gaps/risks/concerns, questions, and pitch;
+- technical stack, keywords, and shared concepts;
+- notes and reminders;
+- application-form questions and answers;
+- other useful information not anticipated by the initial built-in catalogue.
+
+The product generalizes repeated information behavior while retaining real semantic/domain meaning.
+
+## Domain and information architecture
+
+AAAAT keeps real domain concepts explicit. Current or intended explicit concepts include:
+
+- candidature;
+- source;
+- concept/keyword;
+- ToDo;
+- canonical professional profile and profile variant;
+- document and artifact;
+- AI connection.
+
+Normal user-facing information also has repeated cross-cutting behavior. The architecture should expose a reusable information-field contract where applicable rather than hard-coding independent UI/privacy/AI behavior for every built-in field.
+
+A field-capability model needs to represent, as appropriate:
+
+- semantic key/scope/label/value shape and cardinality;
+- whether the value can be inspected, manually created, edited, cleared, or removed;
+- whether suitable AI operations may populate or transform it;
+- whether/how it may be exposed to AI;
+- whether it may participate in Focus;
+- Focus visibility;
+- Focus ordering;
+- relative Focus prominence/space;
+- whether the field is built-in or user/configuration-defined.
+
+These capabilities are independent: AI visibility does not control Focus visibility; Focus visibility does not control storage; AI-produced information remains manually editable.
+
+The exact TypeScript types and persistence representation are implementation decisions.
+
+This requirement does **not** imply rewriting the database as generic EAV storage. Existing explicit v2 fields may initially adapt to the common capability contract. Generic/custom persistence is introduced only where flexible user-defined information actually requires it, and wider persistence unification needs demonstrated duplication plus normal Class C review.
+
+Generalize repeated real behavior while preserving domain meaning. Do not create a generic content, workflow, plugin, or arbitrary CRUD framework.
+
+## ToDos
+
+A ToDo is an explicit lightweight domain entity containing user text/body, a done/not-done state, and an optional candidature relation.
+
+By default it implies no scheduling, recurrence, predicted next action, AI task, workflow step, or workflow engine.
+
+Additional optional ToDo behavior requires separate product trace and demonstrated need.
+
+## Status, lifecycle, priority, and next action
+
+Status, lifecycle labels, priority, and next action may exist as optional information when useful. They are not defining AAAAT concepts and must not drive core architecture or acceptance.
+
+AAAAT remains useful when the user never maintains them. A default or existing field does not establish universal importance.
+
+Archiving may remain independent from any optional lifecycle representation.
+
+## Focus
+
+Focus is a core projection for fast identification and retrieval, especially during unexpected recruiter or interview calls.
+
+Focus is derived from authoritative candidature information and user presentation configuration; it is not a second candidature model.
+
+For appropriate items, Focus supports at least:
+
+- shown/hidden;
+- ordering;
+- relative prominence or allocated space.
+
+Composition is responsive rather than arbitrary pixel-position dashboard editing.
+
+No field is inherently Focus-required. Facts, concepts, notes, questions, research, reminders, compensation, links, documents, ToDos, pitch, or user-defined information may participate when useful. Shipped defaults are starting presentation choices, not product hierarchy.
+
+Focus is not a fixed recruiter script, checklist, preparation sequence, or mandatory next-action area.
+
+## Full candidature access
+
+AAAAT provides a complete but progressively disclosed way to browse/search candidatures, inspect stored information, add/edit/clear information, manage sources, concepts, ToDos, documents/artifacts, AI privacy, and Focus configuration.
+
+The renderer should avoid both a giant static field sheet and over-hiding useful structure.
+
+A specific screen decomposition is not a product invariant.
+
+## Shared concepts and keywords
+
+Concepts are reusable bounded knowledge associated with one or more candidatures. A concept may contain a canonical term, aliases/admitted forms, a definition, and user notes.
+
+Concepts participate naturally in search, retrieval, and Focus. Information learned in one candidature may improve a shared concept used elsewhere.
+
+This is not a generic knowledge-management platform.
+
+## Canonical professional information
+
+One canonical professional profile owns authoritative professional evidence. Profile items are independently identifiable and typed, such as identity, contact, summary, experience, education, project, skill, certification, language, link, and justified custom data.
+
+Named profile variants represent differences in focus, visibility, ordering, language, and content rather than cloned identities. Variants store only differences from canonical information.
+
+Document-specific differences may further specialize a variant without mutating either canonical profile or the selected variant.
+
+Reusable professional information may also include user-stated objectives, preferences, constraints, targets, markets/locations, writing preferences, or other useful context. Current v2 career-context storage is one implementation boundary for some of this information; its present fixed catalogue is not the complete future product vocabulary.
+
+## VCVGenerator
+
+VCVGenerator is a primary AAAAT capability and supports:
+
+- CV creation and editing;
+- cover-letter creation and editing;
+- combined CV + cover-letter output;
+- reusable professional information;
+- profile variants;
+- document-specific differences and overrides;
+- editable content before rendering;
+- multilingual document content;
+- local rendering;
+- portable user-owned LaTeX;
+- clear access to source and generated artifacts.
+
+VCVGenerator remains usable without AI and without a candidature.
+
+### Document production
+
+The normal managed-document path is:
 
 ```text
-Candidature management
-Profile and career knowledge
-VCVGenerator
-AI interoperability
+canonical professional data
+→ named profile variant
+→ document-specific rules
+→ editable document model
+→ portable LaTeX project
+→ standard TeX engine
+→ local artifact
 ```
 
-They share one application core and one local workspace.
+AI may assist with content selection, transformation, tailoring, or drafting, but managed document rendering remains deterministic and user-editable. AI does not generate arbitrary executable TeX projects by default.
 
-The normal mutation path is:
+Managed documents detect direct source edits before regeneration. Users may preserve manual TeX edits through explicit manual mode; AAAAT never silently overwrites them.
 
-```text
-human or bounded external integration
-                ↓
-        validated command
-                ↓
-       application service
-                ↓
-      validated domain change
-                ↓
-      SQLite + local artifacts
-```
+### LaTeX portability
 
-AI assistance adds a controlled proposal path:
+Generated LaTeX belongs to the user. A generated project must:
 
-```text
-user intention
-      ↓
-operation contract
-      ↓
-minimum required context
-      ↓
-privacy projection
-      ↓
-configured model provider
-      ↓
-typed validated proposal
-      ↓
-normal application command
-```
+- include required non-standard project sources within its own directory;
+- avoid absolute paths into AAAAT, the developer repository, temporary directories, or the workspace;
+- compile from its source directory with ordinary compatible tools;
+- remain editable and compilable after AAAAT is removed;
+- be portable to another directory, Git repository, TeX IDE, removable device, or Overleaf-style import.
 
-Document production follows:
+Document programming uses standard LaTeX plus `expl3`. Lua is not the document implementation language.
 
-```text
-canonical career data
-      ↓
-named profile variant
-      ↓
-document-specific rules
-      ↓
-editable document model
-      ↓
-portable LaTeX project
-      ↓
-standard TeX engine
-      ↓
-local PDF
-```
+pdfLaTeX is the compatibility baseline. LuaLaTeX and XeLaTeX are supported capability extensions. Ordinary Latin-script built-in templates should support all three engines. A template may declare a narrower set only when a real capability such as OpenType fonts or complex-script shaping requires it.
+
+Engine-specific logic begins inside the common package and is split only when substantial real code justifies separate files.
+
+The current template architecture uses a small set of data/resource templates plus the reusable `aaaat.sty` package. It does not require a template marketplace, executable JavaScript plugins, or a custom document class without demonstrated need.
+
+`latexmk` is a convenience, not a proprietary compiler.
 
 ## Technology baseline
 
-The approved baseline is:
+The accepted v2 baseline remains:
 
 | Concern | Decision |
 | --- | --- |
@@ -143,19 +269,17 @@ The approved baseline is:
 | Packaging | Electron Forge |
 | Package manager | npm |
 | Runtime schemas | Zod |
-| Database | SQLite through Electron's embedded `node:sqlite` runtime when proven |
-| Unit and integration tests | Vitest and React Testing Library |
-| Limited desktop smoke tests | Playwright Electron support where useful |
+| Database | SQLite through Electron's embedded `node:sqlite` boundary |
+| Unit/integration tests | Vitest + React Testing Library |
+| Desktop smoke | Playwright Electron support where useful |
 | Styling | ordinary CSS with explicit design tokens |
-| LaTeX programming | standard LaTeX plus `expl3` |
+| LaTeX | standard LaTeX + `expl3` |
 | Baseline TeX engine | pdfLaTeX |
-| Capability extensions | LuaLaTeX and XeLaTeX |
-| LaTeX build helper | `latexmk` |
-| Future MCP implementation | official TypeScript SDK, never handwritten protocol framing |
+| Alternate engines | LuaLaTeX + XeLaTeX where supported |
+| Build helper | `latexmk` |
+| MCP | official TypeScript SDK, never handwritten protocol framing |
 
-Direct dependency versions are pinned exactly in `package.json` and `package-lock.json`. Dependency upgrades are isolated, verified changes. A dependency is acceptable when it removes more maintained complexity than it introduces.
-
-The Electron Forge Vite integration and `node:sqlite` boundary are M0 proof obligations. A failure may justify a bounded Class C build-integration or database-adapter decision. It does not silently authorize replacing the approved product architecture.
+Direct dependency versions remain pinned in `package.json` / `package-lock.json`; upgrades are isolated and verified. Dependencies are justified when they remove more maintained complexity than they introduce.
 
 ## Desktop privilege boundary
 
@@ -166,7 +290,7 @@ React renderer — unprivileged
         ↓ narrow typed preload
 Electron main — privileged adapters and application services
         ↓
-SQLite, files, TeX, providers, integrations, installer services
+SQLite, files, TeX, AI connections, integrations, setup services
 ```
 
 Every application window maintains:
@@ -178,38 +302,30 @@ nodeIntegration = false
 webviewTag = false
 ```
 
-The renderer has no direct authority over:
+The renderer has no direct authority over SQLite, filesystem access, process execution, credentials, Electron main APIs, or arbitrary privileged networking.
 
-- SQLite;
-- the filesystem;
-- process execution;
-- credentials;
-- Electron main APIs;
-- arbitrary privileged networking.
+The main process restricts navigation, new windows, permissions, and remote content. Production content uses a restrictive CSP. Privileged IPC validates sender, input, and output.
 
-The main process restricts navigation, new windows, permissions, and remote content. Production content uses a restrictive Content Security Policy. Privileged IPC validates the sender and validates inputs and outputs at runtime.
-
-The preload exposes fixed domain methods. It never exposes `ipcRenderer`, generic `invoke`, generic events, arbitrary fetch, SQL, paths, shell, process, or filesystem primitives.
+The preload exposes fixed bounded domain intentions, not `ipcRenderer`, generic invoke/events, arbitrary fetch, SQL, filesystem, path, shell, or process primitives.
 
 ## Application services and durable mutations
 
-All durable mutations pass through explicit application services:
+Durable product mutations pass through explicit application services:
 
 ```text
 validate input
 → load current state
-→ enforce rules
-→ start transaction
+→ enforce domain/conflict rules
+→ transaction or safe staged operation
 → mutate
-→ record meaningful provenance/activity
+→ record meaningful activity/provenance when required
 → commit
-→ notify affected views
 → return validated result
 ```
 
-React components, AI providers, integration adapters, installer recipes, and the LaTeX renderer do not write application tables directly.
+React components, model providers, integration adapters, setup recipes, and the LaTeX renderer do not write application tables directly.
 
-Valid bounded AI results may apply directly when the operation policy permits it. AAAAT must not introduce a universal mandatory approval queue. Invalid output never mutates authoritative data. A proposed value that conflicts with an existing authoritative value never silently overwrites it.
+Manual UI, direct AI, imports, and bounded external AI converge on these same rules. There is no AI-owned copy of normal product data.
 
 ## SQLite and migrations
 
@@ -226,266 +342,285 @@ PRAGMA synchronous = NORMAL;
 
 Tables use `STRICT` where practical.
 
-Schema evolution uses immutable numbered SQL migrations:
+Schema evolution uses immutable numbered SQL migrations. Applied migrations record version, name, cryptographic hash, and application time. A merged migration is never edited; a correction uses a later migration. Hash mismatch fails closed.
 
-```text
-migrations/001_name.sql
-migrations/002_name.sql
-```
-
-Applied migrations record their version, name, cryptographic hash, and application time. A merged migration is never edited; a change creates a new migration. A hash mismatch fails closed. There is no v1 database migration requirement.
+There is no v1 database migration obligation.
 
 `node:sqlite` remains behind a small main-process adapter because its API stability and Electron packaging behavior are executable compatibility concerns. Synchronous access is acceptable for bounded local operations until measured evidence demonstrates the need for another process boundary.
 
-## Canonical professional profile
-
-One canonical professional profile owns authoritative career data. Profile items are independently identifiable and typed, such as identity, contact, summary, experience, education, project, skill, certification, language, link, and justified custom data.
-
-Named profile variants represent focus and visibility rules, not another person. A variant may contain:
-
-- a stable ID and human name;
-- target tags and preferred language;
-- item include/exclude rules;
-- item content overrides;
-- ordering rules;
-- document defaults and metadata overrides.
-
-Variants store only differences from canonical data.
-
-A document may specialize a profile variant further. Document-specific rules do not mutate the canonical profile or the selected variant.
-
-## Candidature workspace
-
-A candidature represents one job-search opportunity and remains useful with partial data. It may own source material, company, role, location, work mode, salary text, notes, status, dates, next action, concepts, analysis, documents, and artifacts.
-
-Lifecycle states remain small and understandable. Archiving is independent from lifecycle state.
-
-Technologies, domain concepts, role keywords, aliases, and definitions may be shared entities. Recruiter-call and focus views are projections over existing records, not separate domain models.
-
-## VCVGenerator
-
-VCVGenerator supports:
-
-- CVs;
-- cover letters;
-- combined CV and cover-letter output;
-- multilingual content;
-- editable structured document content;
-- shared reusable LaTeX logic and template preambles;
-- profile-variant and document-specific selection and overrides;
-- visible source and artifact locations;
-- local rendering;
-- portable independent export.
-
-### Portability
-
-Generated LaTeX belongs to the user. A generated project must:
-
-- contain every non-standard source it needs inside its own project directory;
-- avoid absolute paths into AAAAT, the developer repository, temp directories, or the workspace;
-- compile from its source directory with ordinary compatible tools;
-- remain editable and compilable after AAAAT is removed;
-- be suitable for another directory, Git repository, TeX IDE, removable device, or Overleaf-style import.
-
-`latexmk` is a convenience, not a proprietary compiler.
-
-### LaTeX language and engines
-
-AAAAT document code uses standard LaTeX and `expl3`. Lua is not the document implementation language.
-
-The compatibility baseline is pdfLaTeX. LuaLaTeX and XeLaTeX are supported capability extensions. Ordinary Latin-script built-in templates should support all three engines. A template may declare a narrower set only when a real capability such as OpenType fonts or complex-script shaping requires it.
-
-Engine-specific logic begins inside the common package and is split only when substantial real code justifies separate files.
-
-### Templates and document model
-
-The first implementation uses a small set of data/resource templates and a reusable `aaaat.sty` package. It does not begin with a template marketplace, executable JavaScript plugins, or a custom document class without demonstrated need.
-
-AI normally proposes structured CV or cover-letter content. AAAAT validates and renders that document model deterministically. AI does not generate an arbitrary executable TeX project by default.
-
-Managed documents detect direct source edits before regeneration. A user may preserve manual TeX changes by moving the document into an explicit manual mode; AAAAT never silently overwrites those edits.
+A persistence generalization requires demonstrated need; product flexibility alone does not authorize an EAV rewrite.
 
 ## AI architecture
 
-The core product is provider-neutral: domain code does not import provider request types or provider-specific behavior.
+AI is optional capability, never product authority.
 
-An application-facing model provider contract remains deliberately small and operation-oriented. Initial direct support is expected to reuse a generic OpenAI-compatible HTTP adapter for demonstrated local and remote systems, with convenience detection or defaults for systems such as Ollama and LM Studio.
+The product remains provider-neutral at the domain/application level. AI contracts are operation-specific rather than a generic task/workflow framework.
 
-AAAAT does not initially adopt an agent framework, workflow framework, provider marketplace, or cloud gateway. Provider-specific dependencies require evidence that they remove more complexity than they add.
+Useful operation families may include:
 
-AI operations are bounded user intentions such as extracting a job, assessing fit, recommending an existing profile variant, tailoring a CV, or drafting a cover letter. Each operation owns:
+- source extraction/enrichment;
+- selected-field assistance or transformation;
+- summarization;
+- concept explanation/extraction;
+- comparison;
+- user-requested opinion or suggestions;
+- genuine external research when a configured route can perform it;
+- drafting/transformation;
+- CV tailoring;
+- cover-letter drafting;
+- selected cross-candidature retrieval/analysis.
 
-- input and output schemas;
-- required context;
-- privacy requirements;
-- capability requirements;
-- instructions;
-- mutation/conflict policy.
+Each operation defines the minimum context, privacy requirements, capability requirements, typed output, and mutation/conflict policy it needs. Operations are capabilities, not stages in a required workflow.
 
-There is no generic field-action registry or durable general task system.
+If the selected/configured environment cannot reliably perform an operation, AAAAT does not pretend that operation is available.
+
+No agent framework, workflow framework, durable general AI-task system, generic field-action registry, provider marketplace, or cloud gateway is implied.
+
+## AI connections
+
+AAAAT supports a small explicit collection of named AI connections. Multiple connections may coexist and may provide different capabilities.
+
+The user may choose a connection for an operation; explicit local configuration may provide useful defaults. No provider is assumed to support every operation.
+
+The existing single loopback OpenAI-compatible connection is accepted first-slice implementation evidence, not a product limit on future connections.
+
+Provider-specific integration may be added when demonstrated, but this does not justify a provider marketplace or plugin platform.
 
 ## Privacy projection
 
-AI receives an intentionally constructed operation-specific projection immediately before inference.
+Privacy projection occurs before information is sent to AI.
 
-Each eligible value may be:
+Normal user-facing information can independently control AI exposure and Focus presentation. Hiding data from AI does not hide it from Focus; hiding it from Focus does not delete it.
+
+Depending on field and operation, a value may be:
 
 - exposed;
 - omitted;
-- replaced by a local opaque token.
+- tokenized/replaced when appropriate.
 
-Token mappings remain local. After validation, permitted tokens may be rehydrated into an editable local draft. The authoritative profile and candidature data are never changed merely to construct an AI-safe view.
+Token mappings remain local. Real authoritative values remain local and may be restored at the final local step, including document rendering.
 
-Connections are classified as local, remote, or unknown. The UI makes remote disclosure understandable and requires proportionate acknowledgement for unusually broad remote analysis. A system already granted unrestricted screen, shell, or filesystem access is outside AAAAT's application-level privacy boundary.
+Remote disclosure must be understandable. Broad cross-candidature remote analysis can expose highly profilable career/application information and therefore requires proportionate privacy disclosure before sending.
 
 Credentials are not plaintext application records. Where secure OS storage is available, Electron `safeStorage` is the expected primitive; the application must explain insecure fallback conditions instead of pretending all platforms offer identical protection.
 
-## External integrations
+AAAAT cannot guarantee application-level privacy from an external agent already granted unrestricted screen/filesystem/shell authority; setup must represent that limitation truthfully.
 
-AAAAT separates direct inference from external control:
+## Research
 
-```text
-AAAAT to AI → ModelProvider
-AI to AAAAT → bounded application capabilities
-```
+Current external research is distinct from ordinary model recall.
 
-Initial external mechanisms are introduced only when tested against real hosts. MCP uses the official SDK. A bounded command surface and portable import capsule may coexist. A localhost HTTP service is not created without a concrete consumer and an explicit authentication/security design.
+An operation labelled as research requires a genuinely research-capable route: user-supplied research, a configured connection with research capability, or a bounded external AI able to research.
 
-Generated host-side integration material begins disabled and proposed. Activation validates its manifest, capability names, transport, permissions, connection, test operation, and privacy disclosure. AAAAT does not create a generic executable plugin runtime to host it.
+Retained research becomes editable AAAAT information and preserves useful source/provenance information when available.
+
+## Cross-candidature retrieval and analysis
+
+Search/filter/retrieval across the local candidature corpus is a product capability.
+
+Selected multi-candidature summarization, comparison, or filtering may use AI when explicitly requested and when an appropriate configured capability exists. Such operations must use bounded selected context and privacy rules rather than exposing the whole workspace by default.
+
+AAAAT need not choose the user's life decision to provide useful comparison.
+
+## External AI and integrations
+
+External AI is a real entry path into AAAAT, not merely copy/paste.
+
+Demonstrated bounded host mechanisms may include official MCP, one-shot commands, skills/tools/plugins, generated host integration material, or another appropriate integration.
+
+Bounded capabilities may support workflows such as:
+
+- create or enrich a candidature;
+- read explicitly scoped candidature information;
+- obtain privacy-projected professional information;
+- find relevant existing documents/material;
+- contribute information or concepts;
+- create document material;
+- request rendering.
+
+External AI does not receive arbitrary database, filesystem, shell, process, network, repository, or generic entity-ID mutation authority merely for convenience.
+
+Durable changes use the same application services as desktop/manual and direct-AI paths.
+
+MCP uses the official SDK. A localhost service is not created without a concrete consumer and explicit authentication/security design. Host-specific integration material is validated and does not become a generic executable plugin runtime.
 
 ## Installation and configuration
 
-Installation and configuration are product infrastructure, implemented incrementally after earlier Missions prove the product paths they configure.
+Installation and configuration are product infrastructure.
 
-The setup UI and future `installer.ai` harness consume one structured source of installation knowledge. Recipes reference known AAAAT actions; they do not contain unrestricted generated shell programs.
+One structured configuration/capability model should drive, where practical:
 
-Setup detects and validates existing environments before recommending replacement. A working TeX distribution, preferred editor, or local model runtime is accepted. AI remains optional; failure to configure AI does not make local setup unsuccessful.
+- graphical setup;
+- `installer.ai`;
+- `configuration.ai`;
+- AI-assisted setup;
+- provider/host-specific generated integration artifacts.
 
-## Workspace, artifacts, backup, and activity
+The structured model represents explicit local configuration such as:
 
-The workspace remains understandable outside the database and owns its SQLite file, document projects, artifacts, templates/configuration, integrations, and exports.
+- workspace configuration;
+- LaTeX detection/guidance and VCVGenerator validation;
+- one or more configured AI connections;
+- validated available operations/capabilities;
+- research capability;
+- external host integration mechanisms;
+- relevant user preferences/defaults;
+- generated host artifacts;
+- configuration import/export;
+- backup/recovery.
 
-Backup includes a consistent SQLite backup plus relevant user-owned files and a manifest. Secrets are excluded by default. Restore validates the manifest, schema, integrity, and paths before activation.
+Known working environments are detected and reused rather than replaced.
 
-AAAAT records meaningful changes for provenance and supported undo. This is not event sourcing; SQLite remains authoritative current state. Undo executes another normal application command.
+Configuration may propose useful field sets, Focus defaults, operation defaults, or host artifacts based on actual environment/preferences. Proposals become explicit editable local configuration; they do not silently mutate authoritative career/application data or hard-code all users into one catalogue.
 
-## Renderer and user experience
+A normal user should not need to understand JSON, MCP, ports, shell commands, or provider internals for ordinary setup/use.
 
-Initial top-level product areas are Candidatures, VCVGenerator/Documents, Profile, and Settings. They are introduced only when their Mission begins.
+The product remains coherent when no AI is configured.
 
-Renderer state is kept close to its owner:
+## Workspace, artifacts, backup, and recovery
+
+The user-selected local workspace is authoritative and owns its SQLite database, document projects, artifacts, templates/configuration, integrations, and exports as appropriate.
+
+Backup uses a consistent SQLite backup plus relevant user-owned files and a manifest. Secrets are excluded by default. Restore validates manifest, schema, integrity, and paths before activation.
+
+Configuration portability/import/export is a product requirement alongside data backup/recovery.
+
+Generated LaTeX projects remain usable outside AAAAT and no mandatory cloud service is required.
+
+AAAAT records meaningful activity/provenance where required. This is not event sourcing; SQLite remains authoritative current state.
+
+## Renderer and UX
+
+Renderer state stays close to its owner:
 
 - application/domain state is queried through the typed desktop API;
-- local UI state uses React component state/hooks;
-- small shared app state may use React context when demonstrated.
+- local UI state uses React state/hooks;
+- small shared UI state may use React context when demonstrated.
 
-AAAAT does not initially use Redux or maintain a duplicate renderer copy of the complete database.
+AAAAT does not maintain a duplicate renderer copy of the complete database or add Redux without demonstrated need.
 
-The UI normalizes incomplete information, uses progressive disclosure, and hides provider/protocol details from ordinary workflows. It preserves the useful visual identity and product lessons of v1 without porting its widget hierarchy.
+The UI uses progressive disclosure, responsive composition, and reusable information presentation. It must support sparse records without making them look erroneous and detailed records without becoming a giant static form.
+
+Provider/protocol internals stay out of ordinary workflows unless the user is explicitly configuring them.
 
 ## Testing and executable evidence
 
-Tests protect user behavior, domain invariants, security boundaries, data integrity, external contracts, and portable artifacts. They do not freeze incidental source layout, exact documentation wording, branch names, PR numbers, or temporary labels.
+Tests protect user behavior, domain invariants, security boundaries, data integrity, external contracts, and portable artifacts. They do not create product authority.
 
-Required evidence grows with implemented capability and includes:
+In particular, a deterministic fixture or acceptance sequence proves that one path works; it must not silently establish that path as the required user workflow when Owner Intent allows alternatives.
+
+Evidence grows with capability and includes as applicable:
 
 - domain/application-service tests outside Electron UI where practical;
 - real SQLite migration tests;
 - renderer tests through user-observable behavior;
-- runtime Electron security and preload allowlist checks;
-- deterministic provider fixture tests when AI begins;
-- LaTeX compilation and unrelated-directory portability tests when VCVGenerator begins;
+- Electron security and preload allowlist checks;
+- deterministic provider fixture tests when AI is involved;
+- LaTeX compilation and unrelated-directory portability tests when VCVGenerator is involved;
 - a deliberately small packaged-desktop smoke suite for critical boundaries;
 - native Windows, macOS, and Linux packaging evidence.
 
-Build success alone is not proof of runtime, visual, security, database, or portability claims.
+Build success alone is not proof of runtime, visual, security, database, privacy, or portability claims.
 
-## Capability Missions
+## Capability checkpoint state
 
-Missions are capability checkpoints, not waterfall phases. M0–M5 are accepted foundation and capability checkpoints forming the initial AAAAT v2 restart/alpha series. Their acceptance does not mean the AAAAT product-completion roadmap is complete. Only the active Mission is decomposed into Issues.
-
-Accepted restart/foundation checkpoints:
+M0–M5 remain accepted technical/capability checkpoints and their implementation evidence remains valid where technically applicable. Their historical names or Issues do not complete, prohibit, or redefine Owner Intent.
 
 - **M0 — Foundation:** secure Electron/React/TypeScript/SQLite startup, verification, and packaging.
-- **M1 — Manual VCVGenerator:** canonical career data, variants, manual documents, portable LaTeX, and local rendering.
-- **M2 — Candidature Workspace:** manual candidature tracking, source, search, status, notes, concepts, focus views, and document associations.
-- **M3 — AI Assistance:** direct configured providers, privacy projection, extraction, recommendation, tailoring, and drafting over working manual paths.
-- **M4 — Agentic Interoperability and Setup:** bounded external commands, official MCP, adaptive host integration, installer knowledge, configuration portability, backup, and restore.
-- **M5 — Release Hardening:** platform packaging, reliability, security, recovery, documentation, compatibility evidence, and cleanup without architectural expansion.
+- **M1 — VCVGenerator foundation:** canonical professional data, variants, editable documents, portable LaTeX, and local rendering.
+- **M2 — Candidature workspace foundation:** sparse candidature storage, source/search/status/archive representation, concepts, initial Focus projection, and document associations.
+- **M3 — AI assistance foundation:** initial direct configured provider, privacy projection, extraction/analysis/tailoring/drafting operation contracts.
+- **M4 — External interoperability/setup foundation:** bounded command/MCP integration, demonstrated host setup, structured setup knowledge, backup/restore.
+- **M5 — Release hardening:** cross-platform packaging, reliability, security, recovery, documentation, and compatibility evidence.
 
-Product-completion Missions continue from that accepted architecture:
+**M6 product acceptance is paused.** Its technically sound implementation remains in place, but its previous product contract included drifted assumptions. `.agentic/CURRENT_MISSION.md` records the current reconciliation classification.
 
-- **M6 — Opportunity Understanding & Recruiter Readiness — active:** make one candidature genuinely useful manually through reusable career context, multiple source inputs, priority, durable evaluation/strategy/recruiter preparation, and a fast recruiter-ready projection.
-- **M7 — Application Preparation & Material Lifecycle:** complete the manual candidature workflow through interview/assessment preparation, actual application questions/answers, manual research context, and document usage/supersession.
-- **M8 — VCVGenerator & Setup Completion:** complete remaining VCVGenerator, privacy/setup, GUI recovery, and safe configuration-portability product capability.
-- **M9 — Contextual AI Assistance:** move validated optional AI assistance into the authoritative manual workflows and persist operation results through normal product data paths.
-- **M10 — Research & Bounded External Collaboration:** add real research capability and only the bounded external contributions demonstrated by actual workflows.
-- **M11 — Product Completion Acceptance:** integrate and prove the complete packaged manual/no-AI candidature lifecycle, plus bounded assisted paths, without adding speculative architecture.
-
-M7–M11 remain capability-level roadmap direction only until activated. They must not be pre-decomposed into implementation Issues or scaffolding.
+No speculative M7–M11 sequence is authoritative. After product-authority recovery, exactly one next Mission is derived from Owner Intent + this SPEC + actual current implementation/evidence, then decomposed only after Product Owner activation.
 
 ## Prohibited speculative infrastructure
 
 Do not create unused:
 
-- provider registries;
-- plugin loaders or marketplaces;
+- provider/plugin marketplaces;
+- generic plugin loaders;
 - event buses;
-- workflow schedulers;
-- generic repositories;
-- background services or daemons;
-- agent/task databases;
-- general REST or GraphQL APIs;
+- workflow schedulers/engines;
+- generic repositories or arbitrary CRUD surfaces;
+- background services/daemons;
+- general AI-task databases;
+- general REST/GraphQL APIs;
 - cloud synchronization;
-- compatibility layers for v1;
-- future-Mission domain scaffolding.
+- v1 compatibility layers;
+- future-Mission scaffolding;
+- requirements/traceability databases;
+- generic EAV persistence merely for architectural purity.
 
-Default abstraction heuristic:
+Reusable information capabilities required by Owner Intent are not prohibited merely because they are shared. The design must distinguish legitimate repeated product behavior from an unrelated generic framework.
+
+Default abstraction heuristic remains:
 
 ```text
-first real case → implement directly
-second similar case → tolerate small duplication or extract an obvious helper
-third real case → evaluate a generalized abstraction
+first demonstrated case → implement directly
+repeated real behavior → extract the smallest reusable capability that the cases actually share
+wider framework/generalization → require demonstrated need and normal decision review
 ```
 
 Security/process boundaries and real interchangeable providers may justify earlier interfaces. Hypothetical future flexibility does not.
 
 ## Non-negotiable acceptance invariants
 
-### Manual independence
+### Human operability
 
 ```text
-No AI installed → core manual AAAAT and VCVGenerator workflows still work.
+No AI configured → AAAAT remains usable for its human-operable capabilities, including VCVGenerator.
+```
+
+### Producer convergence
+
+```text
+manual input / direct AI / bounded external AI → same user-owned information → same application-service rules.
+```
+
+### Sparse/raw validity
+
+```text
+raw source or very little structured information → candidature remains valid and retrievable.
+```
+
+### Configurable Focus
+
+```text
+appropriate Focus information → user can control visibility + order + relative prominence.
 ```
 
 ### LaTeX independence
 
 ```text
-Export source → copy elsewhere → compile in a compatible TeX environment → AAAAT is not required.
+export source → copy elsewhere → compile in a compatible TeX environment → AAAAT is not required.
 ```
 
 ### Data ownership
 
 ```text
-No cloud account → the local workspace remains authoritative.
+no cloud account → local workspace remains authoritative.
 ```
 
 ### AI isolation
 
 ```text
-Malformed or conflicting AI result → authoritative data is not corrupted or silently overwritten.
+invalid/conflicting AI result → authoritative data is not corrupted or silently overwritten.
 ```
 
 ### Privacy projection
 
 ```text
-Hidden field → the real value is removed or tokenized before provider invocation.
+information excluded/tokenized for AI → real value is removed or replaced before invocation; Focus visibility is independent.
 ```
 
-### Single mutation path
+### Single mutation authority
 
 ```text
-UI, external integration, and import → the same application-service rules.
+UI / direct AI / external integration / import → normal application-service rules.
 ```
 
 ### Renderer isolation
@@ -494,20 +629,20 @@ UI, external integration, and import → the same application-service rules.
 React renderer → no unrestricted filesystem, database, process, credential, or Electron authority.
 ```
 
-### No v1 inheritance
+### No v1 implementation inheritance
 
 ```text
-An old code/test/schema contract creates an awkward design → discard the old contract.
+validated v1 product lesson may return; awkward v1 technical contract does not.
 ```
 
 ### Portable document engineering
 
 ```text
-Default VCVGenerator template → pdfLaTeX baseline → supported alternate engines verified.
+default VCVGenerator template → pdfLaTeX baseline → supported alternate engines verified where applicable.
 ```
 
 ### Maintainability
 
 ```text
-If the current Mission can succeed without a new subsystem, framework, abstraction, extension mechanism, or runtime service → do not add it.
+current demonstrated need does not require a new subsystem/framework → do not add one.
 ```

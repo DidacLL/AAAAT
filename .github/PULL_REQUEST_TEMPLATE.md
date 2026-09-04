@@ -2,9 +2,19 @@
 
 Closes #
 
+## Product trace
+
+`docs/OWNER_INTENT.md` section(s), or `no product semantics changed`.
+
 ## Result
 
 What now works?
+
+## Drift
+
+- additive:
+- subtractive:
+- prescriptive/restrictive:
 
 ## Verification
 
@@ -16,7 +26,8 @@ What now works?
 
 ## Architecture
 
-- [ ] no constitutional change
+- [ ] Product Meaning check passed
+- [ ] no constitutional change unless explicitly authorized
 - [ ] no speculative subsystem
 - [ ] no duplicate mutation path
 - [ ] no unnecessary dependency

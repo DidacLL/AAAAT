@@ -21,7 +21,6 @@ jobs:
       latex: ${{ steps.classify.outputs.latex }}
       linux_package: ${{ steps.classify.outputs.linux_package }}
       full_package: ${{ steps.classify.outputs.full_package }}
-      package_os: ${{ steps.classify.outputs.package_os }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -109,17 +108,10 @@ jobs:
             fi
           fi
 
-          if $full_package; then
-            package_os='["ubuntu-latest","windows-latest","macos-latest"]'
-          else
-            package_os='["ubuntu-latest"]'
-          fi
-
           echo "fast=$fast" >> "$GITHUB_OUTPUT"
           echo "latex=$latex" >> "$GITHUB_OUTPUT"
           echo "linux_package=$linux_package" >> "$GITHUB_OUTPUT"
           echo "full_package=$full_package" >> "$GITHUB_OUTPUT"
-          echo "package_os=$package_os" >> "$GITHUB_OUTPUT"
 
           {
             echo "### CI impact"
@@ -176,22 +168,26 @@ jobs:
   package:
     name: Package and smoke (${{ matrix.os }})
     needs: impact
-    if: needs.impact.outputs.linux_package == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(needs.impact.outputs.package_os) }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
+      - name: Protected check context
+        run: echo "Package evidence required on this runner only when selected by CI impact."
       - uses: actions/checkout@v7
+        if: needs.impact.outputs.full_package == 'true' || (needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux')
       - uses: actions/setup-node@v7
+        if: needs.impact.outputs.full_package == 'true' || (needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux')
         with:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
+        if: needs.impact.outputs.full_package == 'true' || (needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux')
       - name: Install Linux runtime prerequisites
-        if: runner.os == 'Linux'
+        if: needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux'
         shell: bash
         run: |
           sudo apt-get update
@@ -201,7 +197,7 @@ jobs:
             sudo apt-get install --yes openbox xdotool
           fi
       - name: Build packaged app
-        if: needs.impact.outputs.full_package != 'true'
+        if: needs.impact.outputs.linux_package == 'true' && needs.impact.outputs.full_package != 'true' && runner.os == 'Linux'
         run: npm run package
       - name: Build release artifact
         if: needs.impact.outputs.full_package == 'true'
@@ -266,7 +262,7 @@ jobs:
           "AAAAT_VSCODE_CLI=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "AAAAT_VSCODE_CLI_SCRIPT=$cli" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Configure packaged Chromium sandbox (Linux)
-        if: runner.os == 'Linux'
+        if: needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux'
         shell: bash
         run: |
           sandbox_path="out/AAAAT-linux-$(node -p 'process.arch')/chrome-sandbox"
@@ -274,10 +270,10 @@ jobs:
           sudo chmod 4755 "$sandbox_path"
           stat -c '%U %a %n' "$sandbox_path"
       - name: Packaged runtime smoke
-        if: runner.os != 'Linux'
+        if: needs.impact.outputs.full_package == 'true' && runner.os != 'Linux'
         run: npm run test:desktop
       - name: Packaged runtime smoke (Linux)
-        if: runner.os == 'Linux'
+        if: needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux'
         shell: bash
         run: |
           xvfb-run --auto-servernum bash -lc '
