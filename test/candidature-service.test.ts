@@ -187,8 +187,11 @@ describe("candidature information service", () => {
       if (!first) return;
 
       updateCandidatureSource(root, {
-        ...first,
+        id: first.id,
+        candidatureId: first.candidatureId,
+        kind: first.kind,
         title: "Recruiter follow-up",
+        url: first.url,
         sourceText: "The role includes a simulator assessment.",
       });
       expect(listCandidatureSources(root, candidature.id)[0]).toMatchObject({
