@@ -50,8 +50,6 @@ const emptyCandidature: CandidatureInput = {
   sourceText: "",
   status: "saved",
   applicationDate: "",
-  nextAction: "",
-  nextActionDate: "",
   notes: "",
 };
 
@@ -78,8 +76,6 @@ function editableRecord(record: CandidatureRecord): CandidatureUpdate {
     status: record.status,
     priority: record.priority,
     applicationDate: record.applicationDate,
-    nextAction: record.nextAction,
-    nextActionDate: record.nextActionDate,
     notes: record.notes,
     archived: record.archived,
   };
@@ -104,6 +100,22 @@ function conceptInput(concept: ConceptRecord): ConceptInput {
   };
 }
 
+function extractionText(sources: readonly CandidatureSource[]): string {
+  return sources
+    .map((source) =>
+      [
+        source.title ? `Source: ${source.title}` : "",
+        source.url ? `URL: ${source.url}` : "",
+        source.sourceText,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, 50_000);
+}
+
 export function CandidaturesWorkspace() {
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -123,6 +135,9 @@ export function CandidaturesWorkspace() {
   const [aliasesText, setAliasesText] = useState("");
   const [sourceDirty, setSourceDirty] = useState(false);
   const [briefDirty, setBriefDirty] = useState(false);
+  const [briefRevision, setBriefRevision] = useState(0);
+  const [aiAvailable, setAiAvailable] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const resetConceptEditor = () => {
@@ -183,6 +198,14 @@ export function CandidaturesWorkspace() {
       })
       .catch(() => {
         if (active) setError("AAAAT could not load candidatures.");
+      });
+    void window.aaaat.ai
+      .connection()
+      .then((connection) => {
+        if (active) setAiAvailable(connection !== null);
+      })
+      .catch(() => {
+        if (active) setAiAvailable(false);
       });
     return () => {
       active = false;
@@ -279,6 +302,46 @@ export function CandidaturesWorkspace() {
       setDraft(editableRecord(saved));
     } catch {
       setError("AAAAT could not save this candidature.");
+    }
+  };
+
+  const extractFromSources = async () => {
+    if (!selected || !draft) return;
+    setExtracting(true);
+    setError(null);
+    try {
+      const sources = await window.aaaat.candidatures.listSources(selected.id);
+      const sourceText = extractionText(sources);
+      if (!sourceText.trim()) {
+        setError("Add source material before extracting opportunity facts.");
+        return;
+      }
+      const first = sources[0];
+      const extracted = await window.aaaat.ai.extractJob({
+        sourceText,
+        source: first?.title ?? "",
+        sourceUrl: first?.url ?? "",
+      });
+      setDraft((current) =>
+        current
+          ? {
+              ...current,
+              company: extracted.company || current.company,
+              role: extracted.role || current.role,
+              location: extracted.location || current.location,
+              workMode: extracted.workMode || current.workMode,
+              salaryText: extracted.salaryText || current.salaryText,
+            }
+          : current,
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "AAAAT could not extract opportunity facts from the saved sources.",
+      );
+    } finally {
+      setExtracting(false);
     }
   };
 
@@ -487,7 +550,6 @@ export function CandidaturesWorkspace() {
                   {record.priority ? ` · ${record.priority} priority` : ""}
                   {record.archived ? " · archived" : ""}
                 </span>
-                {record.nextAction ? <small>Next: {record.nextAction}</small> : null}
               </button>
             ))
           )}
@@ -514,6 +576,7 @@ export function CandidaturesWorkspace() {
               <div className="candidature-section-panel" role="tabpanel" aria-label={sectionLabels.find((item) => item.key === section)?.label}>
                 {section === "focus" ? (
                   <CandidatureFocusPanel
+                    key={`focus-${selected.id}-${briefRevision}`}
                     record={selected}
                     concepts={concepts}
                     documents={documents}
@@ -536,15 +599,27 @@ export function CandidaturesWorkspace() {
                       <div>
                         <p className="eyebrow">Opportunity</p>
                         <h3>{recordLabel(selected)}</h3>
-                        <p>Keep unknown facts empty until you actually learn them.</p>
+                        <p>Edit whatever you know. Leave the rest empty, or use saved sources to fill supported facts when AI is available.</p>
                       </div>
-                      <button
-                        type="button"
-                        className="compact-secondary"
-                        onClick={() => void setArchived(!draft.archived)}
-                      >
-                        {draft.archived ? "Restore from archive" : "Archive candidature"}
-                      </button>
+                      <div className="button-row">
+                        {aiAvailable ? (
+                          <button
+                            type="button"
+                            className="compact-secondary"
+                            disabled={extracting}
+                            onClick={() => void extractFromSources()}
+                          >
+                            {extracting ? "Extracting…" : "Fill known facts from sources"}
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="compact-secondary"
+                          onClick={() => void setArchived(!draft.archived)}
+                        >
+                          {draft.archived ? "Restore from archive" : "Archive candidature"}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="candidature-fields">
@@ -571,8 +646,6 @@ export function CandidaturesWorkspace() {
                         </select>
                       </label>
                       <label>Application date<input value={draft.applicationDate} onChange={(event) => setDraft({ ...draft, applicationDate: event.target.value })} placeholder="YYYY-MM-DD" /></label>
-                      <label>Next action date<input value={draft.nextActionDate} onChange={(event) => setDraft({ ...draft, nextActionDate: event.target.value })} placeholder="YYYY-MM-DD" /></label>
-                      <label className="wide-field">Next action<input value={draft.nextAction} onChange={(event) => setDraft({ ...draft, nextAction: event.target.value })} /></label>
                       <label className="wide-field">Notes<textarea rows={5} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label>
                     </div>
 
@@ -693,7 +766,11 @@ export function CandidaturesWorkspace() {
               <details className="optional-ai-assistance">
                 <summary>Optional AI assistance</summary>
                 <div className="optional-ai-content">
-                  <CandidatureFitPanel key={`fit-${selected.id}`} record={selected} />
+                  <CandidatureFitPanel
+                    key={`fit-${selected.id}`}
+                    record={selected}
+                    onApplied={() => setBriefRevision((current) => current + 1)}
+                  />
                   <VariantRecommendationPanel key={`variant-${selected.id}`} record={selected} />
                 </div>
               </details>
