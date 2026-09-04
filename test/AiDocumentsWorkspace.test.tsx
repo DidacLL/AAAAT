@@ -12,20 +12,11 @@ const skillId = "00000000-0000-4000-8000-000000000030";
 
 const candidature = {
   id: candidatureId,
-  company: "Example Corp",
-  role: "Platform Engineer",
-  location: "Madrid",
-  workMode: "hybrid",
-  salaryText: "",
-  source: "Careers",
-  sourceUrl: "",
-  sourceText: "Build TypeScript services.",
-  status: "saved" as const,
-  applicationDate: "",
-  nextAction: "",
-  nextActionDate: "",
-  notes: "",
   archived: false,
+  createdAt: "2026-09-04T00:00:00.000Z",
+  updatedAt: "2026-09-04T00:00:00.000Z",
+  label: "Platform opportunity",
+  values: [],
   documentIds: [cvId, coverId],
   conceptIds: [],
 };
@@ -71,13 +62,7 @@ const draftCoverLetter = vi.fn();
 
 describe("AI document assistance workspace", () => {
   beforeEach(() => {
-    listCandidatures.mockReset();
-    listDocuments.mockReset();
-    updateDocument.mockReset();
-    profileCurrent.mockReset();
-    tailorCv.mockReset();
-    draftCoverLetter.mockReset();
-
+    vi.clearAllMocks();
     listCandidatures.mockResolvedValue([candidature]);
     listDocuments.mockResolvedValue([cv, cover]);
     profileCurrent.mockResolvedValue({
@@ -92,11 +77,11 @@ describe("AI document assistance workspace", () => {
       variants: [],
     });
     tailorCv.mockResolvedValue({
-      recommendations: [{ itemId: skillId, rationale: "Directly matches the role." }],
+      recommendations: [{ itemId: skillId, rationale: "Directly matches the opportunity." }],
     });
     draftCoverLetter.mockResolvedValue({
       recipient: "Hiring team",
-      subject: "Platform Engineer application",
+      subject: "Application",
       bodyParagraphs: ["First paragraph.", "Second paragraph."],
       closing: "Regards",
     });
@@ -128,7 +113,7 @@ describe("AI document assistance workspace", () => {
 
     expect(tailorCv).toHaveBeenCalledWith({ candidatureId, documentId: cvId });
     expect(await screen.findByText("TypeScript")).toBeInTheDocument();
-    expect(screen.getByText("Directly matches the role.")).toBeInTheDocument();
+    expect(screen.getByText("Directly matches the opportunity.")).toBeInTheDocument();
     expect(updateDocument).not.toHaveBeenCalled();
   });
 
