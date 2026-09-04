@@ -8,7 +8,7 @@ import type { CandidatureRecord } from "../src/shared/contracts";
 const recommendVariant = vi.fn();
 const profileCurrent = vi.fn();
 const record: CandidatureRecord = {
-  id: "00000000-0000-4000-8000-000000000001", company: "Example", role: "Platform Engineer", location: "Remote", workMode: "remote", salaryText: "", source: "", sourceUrl: "", sourceText: "Platform role", status: "saved", applicationDate: "", nextAction: "", nextActionDate: "", notes: "", archived: false, documentIds: [], conceptIds: [],
+  id: "00000000-0000-4000-8000-000000000001", company: "Example", role: "Platform Engineer", location: "Remote", workMode: "remote", salaryText: "", source: "", sourceUrl: "", sourceText: "Platform role", status: "saved", priority: "", applicationDate: "", nextAction: "", nextActionDate: "", notes: "", archived: false, documentIds: [], conceptIds: [],
 };
 
 describe("variant recommendation panel", () => {
