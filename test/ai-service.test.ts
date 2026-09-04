@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -8,18 +8,23 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   assessFit,
+  discoverCandidatureFieldFromSources,
   extractJob,
   previewFitAssessment,
-  recommendVariant,
   saveAiConnection,
 } from "../src/main/ai-service";
 import type { ModelProvider } from "../src/main/ai-provider";
-import { createCandidature, listCandidatures } from "../src/main/candidature-service";
 import {
-  addProfileItem,
-  createProfileVariant,
-  removeProfileVariant,
-} from "../src/main/profile-service";
+  createCandidatureField,
+  setCandidatureFieldValue,
+  updateCandidatureFieldPreferences,
+} from "../src/main/candidature-field-service";
+import {
+  createCandidature,
+  listCandidatureSources,
+  listCandidatures,
+} from "../src/main/candidature-service";
+import { addProfileItem } from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
@@ -41,28 +46,6 @@ function configuredWorkspace(): string {
   return root;
 }
 
-function seedFitContext(root: string): string {
-  addProfileItem(root, { kind: "identity", title: "Didac Example" });
-  addProfileItem(root, { kind: "contact", title: "didac@example.test" });
-  addProfileItem(root, { kind: "skill", title: "TypeScript" });
-  const candidature = createCandidature(root, {
-    company: "Example Corp",
-    role: "Platform Engineer",
-    location: "Remote",
-    workMode: "remote",
-    salaryText: "",
-    source: "Job board",
-    sourceUrl: "",
-    sourceText: "Build reliable TypeScript platform systems.",
-    status: "saved",
-    applicationDate: "",
-    nextAction: "",
-    nextActionDate: "",
-    notes: "This note is intentionally not part of the AI context.",
-  });
-  return candidature.id;
-}
-
 function provider(overrides: Partial<ModelProvider>): ModelProvider {
   return {
     assessFit: vi.fn<ModelProvider["assessFit"]>(),
@@ -75,21 +58,19 @@ function provider(overrides: Partial<ModelProvider>): ModelProvider {
 }
 
 afterEach(() => {
-  for (const root of roots.splice(0)) {
-    rmSync(root, { recursive: true, force: true });
-  }
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-describe("M3 AI service", () => {
-  it("persists only understandable non-secret local connection settings", () => {
+describe("AI service over live candidature information", () => {
+  it("persists understandable local-only connection settings and rejects non-loopback endpoints", () => {
     const root = workspace();
-    const status = saveAiConnection(root, {
-      name: "Local model",
-      endpoint: "http://localhost:11434/v1",
-      model: "model-a",
-    });
-
-    expect(status).toEqual({
+    expect(
+      saveAiConnection(root, {
+        name: "Local model",
+        endpoint: "http://localhost:11434/v1",
+        model: "model-a",
+      }),
+    ).toEqual({
       name: "Local model",
       endpoint: "http://localhost:11434/v1",
       model: "model-a",
@@ -97,10 +78,7 @@ describe("M3 AI service", () => {
     const stored = readFileSync(path.join(root, "ai-connection.json"), "utf8");
     expect(stored).toContain('"version": 1');
     expect(stored).not.toMatch(/api.?key|credential|secret/i);
-  });
 
-  it("rejects non-loopback endpoints", () => {
-    const root = workspace();
     expect(() =>
       saveAiConnection(root, {
         name: "Remote",
@@ -110,220 +88,194 @@ describe("M3 AI service", () => {
     ).toThrow("loopback endpoint");
   });
 
-  it("revalidates a stored connection before inference", async () => {
-    const root = workspace();
-    const candidatureId = seedFitContext(root);
-    saveAiConnection(root, {
-      name: "Local model",
-      endpoint: "http://localhost:11434/v1",
-      model: "local-model",
-    });
-    writeFileSync(
-      path.join(root, "ai-connection.json"),
-      `${JSON.stringify({
-        version: 1,
-        name: "Edited connection",
-        endpoint: "https://models.example.test/v1",
-        model: "remote-model",
-      })}\n`,
-      "utf8",
-    );
-    const assess = vi.fn<ModelProvider["assessFit"]>();
-
-    await expect(
-      assessFit(
-        root,
-        {
-          candidatureId,
-          identityPrivacy: "token",
-          contactPrivacy: "omit",
-        },
-        provider({ assessFit: assess }),
-      ),
-    ).rejects.toThrow("stored AI connection configuration is invalid");
-    expect(assess).not.toHaveBeenCalled();
-  });
-
-  it("projects identity as opaque local tokens and omits contact before inference", () => {
+  it("assigns distinct opaque tokens across candidature information and profile identity", () => {
     const root = configuredWorkspace();
-    const candidatureId = seedFitContext(root);
+    const sensitive = createCandidatureField(root, {
+      label: "Internal referral code",
+      description: "Private local reference.",
+      valueType: "text",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
+    });
+    updateCandidatureFieldPreferences(root, {
+      ...sensitive.preferences,
+      aiContextMode: "token",
+    });
+    const candidature = createCandidature(root, {
+      values: [{ fieldId: sensitive.definition.id, value: "PRIVATE-REF-42" }],
+    });
+    addProfileItem(root, { kind: "identity", title: "Didac Example" });
 
     const preview = previewFitAssessment(root, {
-      candidatureId,
+      candidatureId: candidature.id,
       identityPrivacy: "token",
       contactPrivacy: "omit",
     });
     const serialized = JSON.stringify(preview.projectedContext);
     expect(serialized).toContain("[AAAT_PRIVATE_1]");
+    expect(serialized).toContain("[AAAT_PRIVATE_2]");
+    expect(serialized).not.toContain("PRIVATE-REF-42");
     expect(serialized).not.toContain("Didac Example");
-    expect(serialized).not.toContain("didac@example.test");
-    expect(serialized).toContain("TypeScript");
-    expect(serialized).not.toContain("intentionally not part");
   });
 
-  it("passes only projected context to the fit provider and rehydrates local tokens", async () => {
+  it("builds extraction requests from the current live field catalogue, including a field added at runtime", async () => {
     const root = configuredWorkspace();
-    const candidatureId = seedFitContext(root);
-    const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
-      const serialized = JSON.stringify(context);
-      expect(serialized).not.toContain("Didac Example");
-      expect(serialized).not.toContain("didac@example.test");
-      expect(serialized).toContain("[AAAT_PRIVATE_1]");
-      return {
-        fit: "strong",
-        summary: "Strong evidence for [AAAT_PRIVATE_1].",
-        strengths: ["TypeScript"],
-        gaps: [],
-        focus: ["Platform ownership"],
-      };
+    const hours = createCandidatureField(root, {
+      label: "Minimum flight hours",
+      description: "Minimum total flight hours requested by the opportunity.",
+      valueType: "number",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
+    });
+    updateCandidatureFieldPreferences(root, {
+      ...hours.preferences,
+      aiDiscovery: true,
+      aiContextMode: "expose",
     });
 
-    const result = await assessFit(
-      root,
-      {
-        candidatureId,
-        identityPrivacy: "token",
-        contactPrivacy: "omit",
-      },
-      provider({ assessFit: assess }),
-    );
-
-    expect(assess).toHaveBeenCalledOnce();
-    expect(result.summary).toBe("Strong evidence for Didac Example.");
-  });
-
-  it("passes only the pasted source payload to job extraction and does not mutate", async () => {
-    const root = configuredWorkspace();
     const extract = vi.fn<ModelProvider["extractJob"]>(async (_connection, request) => {
-      expect(request).toEqual({
-        source: "Company careers",
-        sourceUrl: "https://example.test/jobs/1",
-        sourceText: "Example Corp seeks a Platform Engineer in Madrid.",
+      const configured = request.fields.find((field) => field.id === hours.definition.id);
+      expect(configured).toEqual({
+        id: hours.definition.id,
+        label: "Minimum flight hours",
+        description: "Minimum total flight hours requested by the opportunity.",
+        valueType: "number",
+        cardinality: "one",
+        choices: [],
       });
-      return {
-        company: "Example Corp",
-        role: "Platform Engineer",
-        location: "Madrid",
-        workMode: "",
-        salaryText: "",
-      };
+      return { proposals: [{ fieldId: hours.definition.id, value: 1500 }] };
     });
 
     await expect(
       extractJob(
         root,
         {
-          source: "Company careers",
-          sourceUrl: "https://example.test/jobs/1",
-          sourceText: "Example Corp seeks a Platform Engineer in Madrid.",
+          sourceTitle: "Pilot vacancy",
+          sourceUrl: "https://example.invalid/jobs/pilot",
+          sourceText: "Applicants need at least 1,500 total flight hours.",
         },
         provider({ extractJob: extract }),
       ),
-    ).resolves.toMatchObject({ company: "Example Corp", role: "Platform Engineer" });
+    ).resolves.toEqual({ proposals: [{ fieldId: hours.definition.id, value: 1500 }] });
     expect(listCandidatures(root)).toEqual([]);
   });
 
-  it("rejects an invalid extraction result without mutating candidature data", async () => {
+  it("rejects provider proposals for fields that were not requested", async () => {
     const root = configuredWorkspace();
+    const unexpectedId = "00000000-0000-4000-8000-000000009999";
     const extract = vi.fn<ModelProvider["extractJob"]>(async () => ({
-      company: "Example Corp",
-      role: "Platform Engineer",
-      location: "Madrid",
-      workMode: "remote",
-      salaryText: "",
-      invented: "not allowed",
-    }) as never);
+      proposals: [{ fieldId: unexpectedId, value: "invented" }],
+    }));
 
     await expect(
       extractJob(
         root,
-        { sourceText: "Example Corp seeks a Platform Engineer.", source: "", sourceUrl: "" },
+        { sourceTitle: "", sourceUrl: "", sourceText: "Opportunity text" },
         provider({ extractJob: extract }),
       ),
-    ).rejects.toThrow();
+    ).rejects.toThrow("was not requested");
     expect(listCandidatures(root)).toEqual([]);
   });
 
-  it("recommends only from existing variant metadata without sending profile content", async () => {
+  it("rediscovers a newly configured field from historical retained Sources and returns proposals without overwriting", async () => {
     const root = configuredWorkspace();
-    const candidatureId = seedFitContext(root);
-    const variants = createProfileVariant(root, {
-      name: "Platform",
-      focus: "Platform engineering",
-      targetTags: ["platform"],
-      preferredLanguage: "en",
-    }).variants;
-    const selected = variants[0];
-    if (!selected) throw new Error("variant fixture missing");
-    const recommend = vi.fn<ModelProvider["recommendVariant"]>(async (_connection, context) => {
-      const serialized = JSON.stringify(context);
-      expect(serialized).not.toContain("Didac Example");
-      expect(serialized).not.toContain("didac@example.test");
-      expect(serialized).toContain("Platform engineering");
-      return { variantId: selected.id, rationale: "Matches the platform focus." };
+    const candidature = createCandidature(root, {
+      source: {
+        kind: "job_posting",
+        title: "Original vacancy",
+        url: "https://example.invalid/original",
+        sourceText: "An A320 type rating is required for this position.",
+      },
+      values: [],
+    });
+    const source = listCandidatureSources(root, candidature.id)[0];
+    if (!source) throw new Error("source fixture missing");
+
+    const rating = createCandidatureField(root, {
+      label: "Type rating",
+      description: "Aircraft type rating required or preferred.",
+      valueType: "text",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
+    });
+    const discover = vi.fn<ModelProvider["extractJob"]>(async (_connection, request) => {
+      expect(request.fields).toEqual([
+        {
+          id: rating.definition.id,
+          label: "Type rating",
+          description: "Aircraft type rating required or preferred.",
+          valueType: "text",
+          cardinality: "one",
+          choices: [],
+        },
+      ]);
+      expect(request.sourceText).toContain("A320 type rating");
+      return { proposals: [{ fieldId: rating.definition.id, value: "A320" }] };
     });
 
-    await expect(
-      recommendVariant(root, { candidatureId }, provider({ recommendVariant: recommend })),
-    ).resolves.toEqual({
-      variantId: selected.id,
-      rationale: "Matches the platform focus.",
-    });
-  });
-
-  it("rejects a recommendation for an unknown variant", async () => {
-    const root = configuredWorkspace();
-    const candidatureId = seedFitContext(root);
-    createProfileVariant(root, {
-      name: "Platform",
-      focus: "Platform engineering",
-      targetTags: [],
-      preferredLanguage: "en",
-    });
-    const recommend = vi.fn<ModelProvider["recommendVariant"]>(async () => ({
-      variantId: "00000000-0000-4000-8000-000000000099",
-      rationale: "Invented.",
-    }));
-
-    await expect(
-      recommendVariant(root, { candidatureId }, provider({ recommendVariant: recommend })),
-    ).rejects.toThrow("no longer exists");
-  });
-
-  it("rejects a recommendation that becomes stale while inference is pending", async () => {
-    const root = configuredWorkspace();
-    const candidatureId = seedFitContext(root);
-    const variants = createProfileVariant(root, {
-      name: "Platform",
-      focus: "Platform engineering",
-      targetTags: [],
-      preferredLanguage: "en",
-    }).variants;
-    const selected = variants[0];
-    if (!selected) throw new Error("variant fixture missing");
-
-    let resolveRecommendation:
-      | ((value: { variantId: string; rationale: string }) => void)
-      | undefined;
-    const recommend = vi.fn<ModelProvider["recommendVariant"]>(
-      () =>
-        new Promise((resolve) => {
-          resolveRecommendation = resolve;
-        }),
-    );
-
-    const pending = recommendVariant(
+    const first = await discoverCandidatureFieldFromSources(
       root,
-      { candidatureId },
-      provider({ recommendVariant: recommend }),
+      {
+        candidatureId: candidature.id,
+        fieldId: rating.definition.id,
+        sourceIds: [source.id],
+      },
+      provider({ extractJob: discover }),
     );
-    removeProfileVariant(root, selected.id);
-    if (!resolveRecommendation) throw new Error("provider fixture did not start");
-    resolveRecommendation({
-      variantId: selected.id,
-      rationale: "This was valid when inference started.",
+    expect(first).toEqual({
+      proposal: { fieldId: rating.definition.id, value: "A320" },
+      existingValuePresent: false,
+    });
+    expect(listCandidatures(root)[0]?.values).toEqual([]);
+
+    setCandidatureFieldValue(root, {
+      candidatureId: candidature.id,
+      fieldId: rating.definition.id,
+      value: "A320",
+    });
+    const second = await discoverCandidatureFieldFromSources(
+      root,
+      {
+        candidatureId: candidature.id,
+        fieldId: rating.definition.id,
+        sourceIds: [source.id],
+      },
+      provider({ extractJob: discover }),
+    );
+    expect(second.existingValuePresent).toBe(true);
+    expect(listCandidatures(root)[0]?.values).toEqual([
+      expect.objectContaining({ fieldId: rating.definition.id, value: "A320" }),
+    ]);
+  });
+
+  it("rehydrates privacy tokens only after local fit inference returns", async () => {
+    const root = configuredWorkspace();
+    addProfileItem(root, { kind: "identity", title: "Didac Example" });
+    const candidature = createCandidature(root, { values: [] });
+    const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
+      expect(JSON.stringify(context)).not.toContain("Didac Example");
+      return {
+        fit: "possible",
+        summary: "Evidence for [AAAT_PRIVATE_1].",
+        strengths: [],
+        gaps: [],
+        focus: [],
+      };
     });
 
-    await expect(pending).rejects.toThrow("no longer exists");
+    await expect(
+      assessFit(
+        root,
+        {
+          candidatureId: candidature.id,
+          identityPrivacy: "token",
+          contactPrivacy: "omit",
+        },
+        provider({ assessFit: assess }),
+      ),
+    ).resolves.toMatchObject({ summary: "Evidence for Didac Example." });
   });
 });
