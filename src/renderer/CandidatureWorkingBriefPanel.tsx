@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { CandidatureWorkingBrief } from "../shared/contracts";
 
-type BriefGroup = "evaluation" | "recruiter";
+export type BriefSection = "evaluation" | "recruiter";
 
 function emptyBrief(candidatureId: string): CandidatureWorkingBrief {
   return {
@@ -20,14 +20,15 @@ function emptyBrief(candidatureId: string): CandidatureWorkingBrief {
 
 export function CandidatureWorkingBriefPanel({
   candidatureId,
+  section,
   onDirtyChange,
 }: {
   candidatureId: string;
+  section: BriefSection;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [brief, setBrief] = useState<CandidatureWorkingBrief>(() => emptyBrief(candidatureId));
   const [savedBrief, setSavedBrief] = useState<CandidatureWorkingBrief>(() => emptyBrief(candidatureId));
-  const [group, setGroup] = useState<BriefGroup>("evaluation");
   const [error, setError] = useState<string | null>(null);
   const dirty = JSON.stringify(brief) !== JSON.stringify(savedBrief);
 
@@ -44,7 +45,6 @@ export function CandidatureWorkingBriefPanel({
         if (!active) return;
         setBrief(next);
         setSavedBrief(next);
-        setGroup("evaluation");
       })
       .catch(() => {
         if (active) setError("AAAAT could not load the working brief.");
@@ -53,14 +53,7 @@ export function CandidatureWorkingBriefPanel({
       active = false;
       onDirtyChange?.(false);
     };
-  }, [candidatureId, onDirtyChange]);
-
-  const chooseGroup = (next: BriefGroup) => {
-    if (next === group) return;
-    if (dirty && !window.confirm("Discard unsaved working-brief edits?")) return;
-    setBrief(savedBrief);
-    setGroup(next);
-  };
+  }, [candidatureId, onDirtyChange, section]);
 
   const save = async () => {
     setError(null);
@@ -74,33 +67,24 @@ export function CandidatureWorkingBriefPanel({
   };
 
   return (
-    <section className="candidature-working-brief" aria-label="Working brief">
+    <section
+      className="candidature-working-brief section-surface"
+      aria-label={section === "evaluation" ? "Evaluation and strategy" : "Recruiter preparation"}
+    >
       <div>
         <p className="eyebrow">Current understanding</p>
-        <h3>Working brief</h3>
-        <p>Keep only what is useful now; every field may remain empty.</p>
-      </div>
-      <div className="section-switcher" aria-label="Working brief section">
-        <button
-          type="button"
-          className={group === "evaluation" ? "selected-section" : "compact-secondary"}
-          onClick={() => chooseGroup("evaluation")}
-        >
-          Evaluation &amp; strategy
-        </button>
-        <button
-          type="button"
-          className={group === "recruiter" ? "selected-section" : "compact-secondary"}
-          onClick={() => chooseGroup("recruiter")}
-        >
-          Recruiter preparation
-        </button>
+        <h3>{section === "evaluation" ? "Evaluation & strategy" : "Recruiter preparation"}</h3>
+        <p>
+          {section === "evaluation"
+            ? "Capture only the fit, evidence, risks, strategy, and context useful now."
+            : "Prepare the short pitch, questions, and reminders for a recruiter conversation."}
+        </p>
       </div>
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
       <div className="candidature-fields working-brief-fields">
-        {group === "evaluation" ? (
+        {section === "evaluation" ? (
           <>
             <label className="wide-field">
               Fit / suitability
@@ -130,18 +114,18 @@ export function CandidatureWorkingBriefPanel({
               <textarea rows={4} value={brief.pitch} onChange={(event) => setBrief({ ...brief, pitch: event.target.value })} />
             </label>
             <label className="wide-field">
-              Questions
+              Questions to ask
               <textarea rows={4} value={brief.questions} onChange={(event) => setBrief({ ...brief, questions: event.target.value })} />
             </label>
             <label className="wide-field">
-              Recruiter preparation
+              Recruiter-call preparation
               <textarea rows={5} value={brief.recruiterPreparation} onChange={(event) => setBrief({ ...brief, recruiterPreparation: event.target.value })} />
             </label>
           </>
         )}
       </div>
       <button type="button" className="primary-action" disabled={!dirty} onClick={() => void save()}>
-        Save working brief
+        Save {section === "evaluation" ? "evaluation & strategy" : "recruiter preparation"}
       </button>
     </section>
   );
