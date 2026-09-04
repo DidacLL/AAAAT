@@ -75,7 +75,11 @@ describe("candidature AI fit panel", () => {
       identityPrivacy: "token",
       contactPrivacy: "token",
     });
-    expect(screen.getByText(projectedPrivateValue)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (content, element) => element?.tagName === "PRE" && content.includes(projectedPrivateValue),
+      ),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Run local fit assessment" }));
 
     expect(assessFit).toHaveBeenCalledWith({
