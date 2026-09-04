@@ -473,6 +473,9 @@ export function validateCandidatureFieldValueInDatabase(
   rawValue: CandidatureRuntimeValue,
 ): CandidatureRuntimeValue | null {
   const field = toDefinition(fieldRow(database, fieldId));
+  if (!field.enabled) {
+    throw new CandidatureFieldServiceError("Retired candidature fields cannot accept new values.");
+  }
   const value = candidatureRuntimeValueSchema.parse(rawValue);
   if (field.cardinality === "one") {
     if (Array.isArray(value)) {
@@ -599,8 +602,9 @@ export function setCandidatureFieldValue(
   const input = candidatureFieldValueSetSchema.parse(rawInput);
   withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
-      setCandidatureFieldValueInDatabase(database, input, new Date().toISOString());
-      recordValueActivity(database, input.candidatureId, "candidature.field-value-set", new Date().toISOString());
+      const now = new Date().toISOString();
+      setCandidatureFieldValueInDatabase(database, input, now);
+      recordValueActivity(database, input.candidatureId, "candidature.field-value-set", now);
     }),
   );
 }
@@ -789,7 +793,7 @@ function comparisonSql(
   const scalar = filterScalar(field, requireFilterValue(filter));
   const itemExpression = many ? "item.value" : "json_extract(v.value_json, '$')";
   let predicate: string;
-  let parameter: string | number = typeof scalar === "boolean" ? (scalar ? 1 : 0) : scalar;
+  const parameter: string | number = typeof scalar === "boolean" ? (scalar ? 1 : 0) : scalar;
   switch (filter.operator) {
     case "contains":
       if (typeof scalar !== "string") {
