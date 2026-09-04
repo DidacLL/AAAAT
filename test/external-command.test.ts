@@ -64,7 +64,8 @@ describe("bounded external candidature command", () => {
       expect(encodedResponse).not.toContain("Private source material");
 
       const created = listCandidatures(root)[0];
-      expect(created?.values).toEqual([
+      if (!created) throw new Error("Created candidature fixture is missing.");
+      expect(created.values).toEqual([
         expect.objectContaining({ fieldId: field.definition.id, value: 1500 }),
       ]);
 
@@ -73,7 +74,7 @@ describe("bounded external candidature command", () => {
         expect(
           database
             .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
-            .all(created?.id),
+            .all(created.id),
         ).toEqual([{ action: "candidature.created" }]);
       } finally {
         database.close();
