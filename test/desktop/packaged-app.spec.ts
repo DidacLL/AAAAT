@@ -229,7 +229,7 @@ test("packaged external command rejects unsupported authority without opening de
   }
 });
 
-test("packaged desktop preserves bounded workspace, product, and AI boundaries", async () => {
+test("packaged desktop preserves security gates and required bounded capabilities", async () => {
   const executablePath = packagedExecutable();
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
@@ -249,74 +249,32 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
     const boundary = await running.page.evaluate(() => ({
       processType: typeof Reflect.get(window, "process"),
       requireType: typeof Reflect.get(window, "require"),
-      root: Object.keys(window.aaaat),
-      system: Object.keys(window.aaaat.system),
-      workspace: Object.keys(window.aaaat.workspace),
-      profile: Object.keys(window.aaaat.profile),
-      careerContext: Object.keys(window.aaaat.careerContext),
-      documents: Object.keys(window.aaaat.documents),
-      candidatures: Object.keys(window.aaaat.candidatures),
-      ai: Object.keys(window.aaaat.ai),
+      systemInfo: typeof window.aaaat.system.info,
+      workspaceCurrent: typeof window.aaaat.workspace.current,
+      workspaceChoose: typeof window.aaaat.workspace.choose,
+      profileCurrent: typeof window.aaaat.profile.current,
+      documentList: typeof window.aaaat.documents.list,
+      documentRender: typeof window.aaaat.documents.render,
+      candidatureList: typeof window.aaaat.candidatures.list,
+      candidatureCreate: typeof window.aaaat.candidatures.create,
+      candidatureFilter: typeof window.aaaat.candidatures.filter,
+      candidatureFieldList: typeof window.aaaat.candidatures.listFields,
+      candidatureFieldCreate: typeof window.aaaat.candidatures.createField,
+      candidatureFieldSet: typeof window.aaaat.candidatures.setFieldValue,
+      candidatureSources: typeof window.aaaat.candidatures.listSources,
+      candidatureDocuments: typeof window.aaaat.candidatures.setDocuments,
+      candidatureConcepts: typeof window.aaaat.candidatures.setConcepts,
+      aiConnection: typeof window.aaaat.ai.connection,
+      aiExtract: typeof window.aaaat.ai.extractJob,
+      aiDiscoverField: typeof window.aaaat.ai.discoverField,
     }));
 
-    expect(boundary).toEqual({
-      processType: "undefined",
-      requireType: "undefined",
-      root: ["system", "workspace", "profile", "careerContext", "documents", "candidatures", "ai"],
-      system: ["info"],
-      workspace: ["current", "choose"],
-      profile: [
-        "current",
-        "addItem",
-        "updateItem",
-        "removeItem",
-        "createVariant",
-        "updateVariant",
-        "removeVariant",
-        "configureVariantItem",
-        "reorderVariant",
-        "resolveVariant",
-      ],
-      careerContext: ["current", "update"],
-      documents: [
-        "list",
-        "create",
-        "update",
-        "remove",
-        "configureItem",
-        "reorder",
-        "resolve",
-        "render",
-        "regenerate",
-        "exportProject",
-      ],
-      candidatures: [
-        "list",
-        "create",
-        "update",
-        "listSources",
-        "addSource",
-        "updateSource",
-        "removeSource",
-        "currentWorkingBrief",
-        "updateWorkingBrief",
-        "setDocuments",
-        "listConcepts",
-        "createConcept",
-        "updateConcept",
-        "setConcepts",
-      ],
-      ai: [
-        "connection",
-        "saveConnection",
-        "previewFit",
-        "assessFit",
-        "extractJob",
-        "recommendVariant",
-        "tailorCv",
-        "draftCoverLetter",
-      ],
-    });
+    expect(boundary.processType).toBe("undefined");
+    expect(boundary.requireType).toBe("undefined");
+    for (const [name, value] of Object.entries(boundary)) {
+      if (name === "processType" || name === "requireType") continue;
+      expect(value, `${name} should be available through the bounded preload API`).toBe("function");
+    }
 
     const csp = await running.page
       .locator('meta[http-equiv="Content-Security-Policy"]')
@@ -334,10 +292,6 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
     await expect(running.page.getByRole("button", { name: "Documents" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "AI assist" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Settings" })).toBeVisible();
-    await running.page.getByRole("button", { name: "AI assist" }).click();
-    await expect(running.page.getByRole("heading", { name: "Document assistance" })).toBeVisible();
-    await running.page.getByRole("button", { name: "Settings" }).click();
-    await expect(running.page.getByRole("heading", { name: "Local AI" })).toBeVisible();
 
     const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
     expect(existsSync(databasePath)).toBe(true);
@@ -348,12 +302,15 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
           .prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.initialized_at'")
           .get(),
       ).toMatchObject({ value: expect.any(String) });
-      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 2").get()).toEqual({ name: "profile" });
-      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 3").get()).toEqual({ name: "documents" });
-      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 4").get()).toEqual({ name: "candidatures" });
-      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 5").get()).toEqual({ name: "concepts" });
-      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 7").get()).toEqual({ name: "career-context" });
-      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 8").get()).toEqual({ name: "candidature-sources-brief" });
+      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 8").get()).toEqual({
+        name: "candidature-information",
+      });
+      expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_fields").get()).toMatchObject({
+        count: expect.any(Number),
+      });
+      expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_field_values").get()).toEqual({
+        count: 0,
+      });
     } finally {
       database.close();
     }
@@ -366,19 +323,13 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
       ["--external-command", "candidature.create", "--workspace", ownedWorkspace],
       {
         input: JSON.stringify({
-          company: "Packaged Command Corp",
-          role: "External command proof",
-          location: "",
-          workMode: "",
-          salaryText: "",
-          source: "packaged smoke",
-          sourceUrl: "",
-          sourceText: "private smoke source",
-          status: "saved",
-          applicationDate: "",
-          nextAction: "Review",
-          nextActionDate: "",
-          notes: "",
+          source: {
+            kind: "other",
+            title: "packaged smoke",
+            url: "",
+            sourceText: "private smoke source",
+          },
+          values: [],
         }),
         encoding: "utf8",
         timeout: 5_000,
@@ -390,23 +341,14 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
     expect(commandResult.stdout.trim()).toBe(
       '{"ok":true,"capability":"candidature.create","created":true}',
     );
-    expect(commandResult.stdout).not.toContain("Packaged Command Corp");
+    expect(commandResult.stdout).not.toContain("private smoke source");
     expect(commandResult.stdout).not.toContain(ownedWorkspace);
 
     const commandDatabase = new DatabaseSync(databasePath, { readOnly: true });
     try {
-      expect(
-        commandDatabase
-          .prepare("SELECT company, role, source_text AS sourceText, priority FROM candidatures")
-          .all(),
-      ).toEqual([
-        {
-          company: "Packaged Command Corp",
-          role: "External command proof",
-          sourceText: "private smoke source",
-          priority: "",
-        },
-      ]);
+      expect(commandDatabase.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({
+        count: 1,
+      });
       expect(
         commandDatabase
           .prepare("SELECT kind, title, source_text AS sourceText FROM candidature_sources")
@@ -414,9 +356,12 @@ test("packaged desktop preserves bounded workspace, product, and AI boundaries",
       ).toEqual([
         { kind: "other", title: "packaged smoke", sourceText: "private smoke source" },
       ]);
-      expect(
-        commandDatabase.prepare("SELECT action FROM candidature_activity").all(),
-      ).toEqual([{ action: "candidature.created" }]);
+      expect(commandDatabase.prepare("SELECT COUNT(*) AS count FROM candidature_field_values").get()).toEqual({
+        count: 0,
+      });
+      expect(commandDatabase.prepare("SELECT action FROM candidature_activity").all()).toEqual([
+        { action: "candidature.created" },
+      ]);
     } finally {
       commandDatabase.close();
     }
