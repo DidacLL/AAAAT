@@ -165,9 +165,49 @@ jobs:
         shell: bash
         run: AAAAT_LATEX_TEST=1 npx vitest run test/latex-portability.test.ts
 
-  package:
+  package_linux:
+    name: Package and smoke (ubuntu-latest)
+    needs: impact
+    if: needs.impact.outputs.linux_package == 'true' && needs.impact.outputs.full_package != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Protected check context
+        run: echo "Linux package evidence selected by CI impact."
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - run: npm ci
+      - name: Install Linux runtime prerequisites
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes openbox xdotool
+      - name: Build packaged app
+        run: npm run package
+      - name: Configure packaged Chromium sandbox
+        shell: bash
+        run: |
+          sandbox_path="out/AAAAT-linux-$(node -p 'process.arch')/chrome-sandbox"
+          sudo chown root:root "$sandbox_path"
+          sudo chmod 4755 "$sandbox_path"
+          stat -c '%U %a %n' "$sandbox_path"
+      - name: Packaged runtime smoke
+        shell: bash
+        run: |
+          xvfb-run --auto-servernum bash -lc '
+            openbox >/tmp/aaaat-openbox.log 2>&1 &
+            wm_pid=$!
+            trap "kill $wm_pid 2>/dev/null || true" EXIT
+            npm run test:desktop
+          '
+
+  package_full:
     name: Package and smoke (${{ matrix.os }})
     needs: impact
+    if: needs.impact.outputs.full_package == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -176,34 +216,23 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Protected check context
-        run: echo "Package evidence required on this runner only when selected by CI impact."
+        run: echo "Cross-platform package evidence selected by CI impact."
       - uses: actions/checkout@v7
-        if: needs.impact.outputs.full_package == 'true' || (needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux')
       - uses: actions/setup-node@v7
-        if: needs.impact.outputs.full_package == 'true' || (needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux')
         with:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
-        if: needs.impact.outputs.full_package == 'true' || (needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux')
       - name: Install Linux runtime prerequisites
-        if: needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux'
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           sudo apt-get update
-          if [[ "${{ needs.impact.outputs.full_package }}" == "true" ]]; then
-            sudo apt-get install --yes fakeroot openbox xdotool
-          else
-            sudo apt-get install --yes openbox xdotool
-          fi
-      - name: Build packaged app
-        if: needs.impact.outputs.linux_package == 'true' && needs.impact.outputs.full_package != 'true' && runner.os == 'Linux'
-        run: npm run package
+          sudo apt-get install --yes fakeroot openbox xdotool
       - name: Build release artifact
-        if: needs.impact.outputs.full_package == 'true'
         run: npm run make
       - name: Inspect Windows release ZIP
-        if: needs.impact.outputs.full_package == 'true' && runner.os == 'Windows'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $zip = Get-ChildItem -Path out/make -Recurse -File -Filter *.zip | Select-Object -First 1
@@ -219,14 +248,14 @@ jobs:
             $archive.Dispose()
           }
       - name: Inspect macOS release ZIP
-        if: needs.impact.outputs.full_package == 'true' && runner.os == 'macOS'
+        if: runner.os == 'macOS'
         shell: bash
         run: |
           zip_path=$(find out/make -type f -name '*.zip' -print -quit)
           test -n "$zip_path"
           unzip -l "$zip_path" | grep -q 'AAAAT.app/Contents/MacOS/aaaat'
       - name: Inspect Linux release package
-        if: needs.impact.outputs.full_package == 'true' && runner.os == 'Linux'
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           deb_path=$(find out/make -type f -name '*.deb' -print -quit)
@@ -235,7 +264,6 @@ jobs:
           dpkg-deb --contents "$deb_path" | tee /tmp/aaaat-deb-contents.txt
           grep -Eq '^-rwsr-xr-x root/root .*chrome-sandbox$' /tmp/aaaat-deb-contents.txt
       - name: Upload release artifact
-        if: needs.impact.outputs.full_package == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: AAAAT-${{ matrix.os }}-${{ runner.arch }}
@@ -245,7 +273,7 @@ jobs:
           if-no-files-found: error
           compression-level: 0
       - name: Install demonstrated VS Code host contract (Windows)
-        if: needs.impact.outputs.full_package == 'true' && runner.os == 'Windows'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $archive = Join-Path $env:RUNNER_TEMP "vscode-1.134.0.zip"
@@ -262,7 +290,7 @@ jobs:
           "AAAAT_VSCODE_CLI=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "AAAAT_VSCODE_CLI_SCRIPT=$cli" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Configure packaged Chromium sandbox (Linux)
-        if: needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux'
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           sandbox_path="out/AAAAT-linux-$(node -p 'process.arch')/chrome-sandbox"
@@ -270,10 +298,10 @@ jobs:
           sudo chmod 4755 "$sandbox_path"
           stat -c '%U %a %n' "$sandbox_path"
       - name: Packaged runtime smoke
-        if: needs.impact.outputs.full_package == 'true' && runner.os != 'Linux'
+        if: runner.os != 'Linux'
         run: npm run test:desktop
       - name: Packaged runtime smoke (Linux)
-        if: needs.impact.outputs.linux_package == 'true' && runner.os == 'Linux'
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           xvfb-run --auto-servernum bash -lc '
