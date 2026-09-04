@@ -37,7 +37,6 @@ export function CandidatureFocusPanel({
 
   useEffect(() => {
     let active = true;
-    setContextError(false);
     void Promise.all([
       window.aaaat.candidatures.currentWorkingBrief(record.id),
       window.aaaat.careerContext.current(),
