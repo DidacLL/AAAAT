@@ -31,8 +31,8 @@ const manifestSchema = z
     host: z.literal("vscode"),
     state: z.literal("proposed"),
     transport: z.literal("stdio"),
-    capabilityNames: z.array(z.string()).length(1),
-    toolNames: z.array(z.string()).length(1),
+    capabilityNames: z.array(z.string()).min(1).max(8),
+    toolNames: z.array(z.string()).min(1).max(8),
     permissionScope: z.string().min(1),
     privacyDisclosure: z.string().min(1),
     recipeId: z.literal("vscode.mcp"),
@@ -171,8 +171,9 @@ export async function verifyVscodeMcpConnection(
   try {
     await client.connect(transport);
     const tools = await client.listTools();
-    if (!sameJson(tools.tools.map((tool) => tool.name), vscodeMcpSetupRecipe.toolNames)) {
-      throw new Error("The MCP capability surface does not match the proposed integration.");
+    const availableToolNames = new Set(tools.tools.map((tool) => tool.name));
+    if (vscodeMcpSetupRecipe.toolNames.some((toolName) => !availableToolNames.has(toolName))) {
+      throw new Error("The MCP capability surface is missing a required integration tool.");
     }
   } finally {
     await client.close().catch(() => undefined);
