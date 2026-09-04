@@ -246,6 +246,7 @@ Managed documents detect direct source edits before regeneration. Users may pres
 ### LaTeX portability
 
 Generated LaTeX belongs to the user. A generated project must:
+
 - include required non-standard project sources within its own directory;
 - avoid absolute paths into AAAAT, the developer repository, temporary directories, or the workspace;
 - compile from its source directory with ordinary compatible tools;
