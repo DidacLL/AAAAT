@@ -152,8 +152,9 @@ describe("candidature progressive information workspace", () => {
     render(<CandidaturesWorkspace />);
 
     const focus = await screen.findByRole("region", { name: "Candidature Focus" });
-    expect(within(focus).getByRole("heading", { name: "Organisation" })).toBeInTheDocument();
-    expect(within(focus).getByText("Regional Air")).toBeInTheDocument();
+    const organisationHeading = within(focus).getByRole("heading", { name: "Organisation" });
+    expect(organisationHeading).toBeInTheDocument();
+    expect(organisationHeading.parentElement).toHaveTextContent("Regional Air");
     expect(within(focus).queryByRole("heading", { name: "Minimum flight hours" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Information" }));
