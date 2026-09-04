@@ -88,7 +88,11 @@ A candidature may contain almost nothing or a great deal.
 
 The user may save a raw source now and complete other information much later or never.
 
-The UI must handle this intelligently.
+Missing optional information is not product debt. AAAAT must not require completeness, present a sparse candidature as defective, or make a completeness score/percentage the governing interaction model.
+
+This does not mean empty information must always be hidden, that an empty/addable field must never be shown, or that an optional user-requested overview of the user's data is prohibited.
+
+The UI must handle sparse information intelligently.
 
 There is intentionally no global rule that empty fields are always shown or always hidden.
 
@@ -156,19 +160,18 @@ AAAAT should generalize repeated data behavior while preserving real domain mean
 
 ## 7. Common capabilities of normal user-facing fields
 
-Normal user-facing fields should share the same cross-cutting capabilities wherever applicable.
+Every normal user-facing AAAAT field/value participates in the common user-information capability model. System/internal values such as IDs, hashes and migration metadata are excluded.
 
-A retained value can normally be:
+For every normal user-facing field/value:
 
-- inspected;
-- manually created;
-- edited;
-- cleared or removed where appropriate;
-- populated or transformed by AI when a suitable operation exists;
-- included in or excluded from AI context;
-- shown or hidden in Focus;
-- ordered in Focus;
-- assigned different prominence or space in Focus.
+- the user can manually inspect and edit it;
+- the user can manually create/set it when the domain permits the value to be absent;
+- it can be cleared or removed where its domain semantics allow deletion;
+- its exposure to AI context is user-controllable;
+- it is eligible to be shown or hidden in Focus;
+- when shown in Focus, its order and relative prominence/space are configurable.
+
+AI generation or transformation of a field is a separate capability. That operation is offered only when a suitable configured AI capability exists for it.
 
 These capabilities are independent.
 
@@ -181,7 +184,9 @@ For example:
 
 AAAAT may provide defaults. Defaults do not establish universal importance.
 
-Internal implementation values such as IDs, hashes and migration metadata are not normal user-facing fields and do not need these controls.
+Do not use field type as an excuse to build unrelated privacy, Focus, or editing mechanisms for each semantic field.
+
+This common field/value requirement does not convert structural domain entities such as documents, sources, concepts, or ToDos into generic fields. Those remain explicit domain concepts with their own appropriate behavior.
 
 ## 8. Identifying a candidature
 
@@ -205,11 +210,9 @@ Its job is to:
 
 Focus may contain any suitable stored information, including facts, concepts, notes, questions, research, reminders, pitch, compensation, links, documents, ToDos, or other user-defined data.
 
-For appropriate Focus items, the user must be able to control at least:
+Every normal user-facing field/value is eligible to be shown or hidden in Focus. When shown, the user can configure its order and relative prominence or allocated space.
 
-- shown/hidden;
-- order;
-- relative prominence or allocated space.
+Structural domain entities such as documents, sources, concepts, and ToDos may also participate in Focus through domain-appropriate presentation; that does not convert them into generic fields.
 
 AAAAT may ship sensible defaults.
 
@@ -237,6 +240,8 @@ The user must be able to:
 - manage related documents and artifacts;
 - control AI privacy;
 - configure Focus.
+
+A candidature can retain or associate the actual application material used for that opportunity, including the relevant CV, cover letter, or other submitted/generated artifacts. This historical information is valuable independently from lifecycle/status tracking and must not require the user to maintain a formal application-state workflow.
 
 This experience must avoid one enormous static form.
 
@@ -530,6 +535,8 @@ Validated product lessons worth preserving include:
 - lightweight ToDos;
 - retention of application material;
 - local ownership/privacy principles.
+
+A welcome/home dashboard is not a core AAAAT requirement. It may be designed later if useful, but historical v1 dashboard ideas do not establish required product structure.
 
 Do not resurrect merely because v1 had them:
 
