@@ -25,7 +25,6 @@ function searchableText(
     record.source,
     record.sourceUrl,
     record.sourceText,
-    record.nextAction,
     record.notes,
     associatedConceptText,
   ]
