@@ -246,7 +246,6 @@ Managed documents detect direct source edits before regeneration. Users may pres
 ### LaTeX portability
 
 Generated LaTeX belongs to the user. A generated project must:
-
 - include required non-standard project sources within its own directory;
 - avoid absolute paths into AAAAT, the developer repository, temporary directories, or the workspace;
 - compile from its source directory with ordinary compatible tools;
@@ -349,9 +348,11 @@ PRAGMA synchronous = NORMAL;
 
 Tables use `STRICT` where practical.
 
-Schema evolution uses immutable numbered SQL migrations. Applied migrations record version, name, cryptographic hash, and application time. A merged migration is never edited; a correction uses a later migration. Hash mismatch fails closed.
+AAAAT currently has no real-user v2 data-compatibility baseline. During this pre-use development phase, development databases, fixtures, and already-merged migration files are not compatibility commitments. If current product meaning makes a development-era schema wrong, correct or consolidate that schema directly rather than preserving obsolete columns, compatibility projections, or migration chains for nonexistent users. Git history preserves the engineering evidence.
 
-There is no v1 database migration obligation.
+Once the Product Owner explicitly establishes a real-use/release data baseline, schema evolution from that baseline uses immutable numbered SQL migrations. Applied migrations record version, name, cryptographic hash, and application time; released/applied baseline migrations are never edited, later corrections use new migrations, and hash mismatch fails closed.
+
+There is no v1 database migration obligation and no pre-use v2 migration-compatibility obligation.
 
 `node:sqlite` remains behind a small main-process adapter because its API stability and Electron packaging behavior are executable compatibility concerns. Synchronous access is acceptable for bounded local operations until measured evidence demonstrates the need for another process boundary.
 
