@@ -2,9 +2,6 @@ name: Verify
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -36,8 +33,6 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PUSH_BEFORE_SHA: ${{ github.event.before }}
-          CURRENT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
@@ -56,15 +51,10 @@ jobs:
             docs_only=false
             files="(manual dispatch: full verification)"
           else
-            if [[ "$EVENT_NAME" == "pull_request" ]]; then
-              base="$PR_BASE_SHA"
-              head="$PR_HEAD_SHA"
-            else
-              base="$PUSH_BEFORE_SHA"
-              head="$CURRENT_SHA"
-            fi
+            base="$PR_BASE_SHA"
+            head="$PR_HEAD_SHA"
 
-            if [[ -z "${base:-}" || "$base" =~ ^0+$ ]]; then
+            if [[ -z "${base:-}" || -z "${head:-}" ]]; then
               fast=true
               latex=true
               linux_package=true
