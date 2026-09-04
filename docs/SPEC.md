@@ -61,6 +61,14 @@ A user must never be blocked from editing information merely because an AI opera
 
 No universal approval queue or mandatory AI proposal workflow is required.
 
+## Human interaction surface
+
+Human-operable product capabilities are available through a coherent graphical desktop interface. Ordinary users must not need JSON, shell commands, protocol knowledge, repository access, or intermediate exchange files for normal use.
+
+Technical command/MCP/integration surfaces exist for bounded external tooling and setup; they are not a substitute for normal human product access.
+
+Incomplete information is normal. The UI uses progressive disclosure and focused retrieval rather than forcing a wall of empty fields.
+
 ## Sparse and raw-first use
 
 A candidature is a sparse container for one opportunity and its useful information, sources, concepts, ToDos, documents, and artifacts. It is not fundamentally a process state machine.
@@ -220,7 +228,15 @@ Generated LaTeX belongs to the user. A generated project must:
 - remain editable and compilable after AAAAT is removed;
 - be portable to another directory, Git repository, TeX IDE, removable device, or Overleaf-style import.
 
-Document programming uses standard LaTeX plus `expl3`. pdfLaTeX is the compatibility baseline; LuaLaTeX and XeLaTeX are capability extensions. `latexmk` is a convenience, not a proprietary compiler.
+Document programming uses standard LaTeX plus `expl3`. Lua is not the document implementation language.
+
+pdfLaTeX is the compatibility baseline. LuaLaTeX and XeLaTeX are supported capability extensions. Ordinary Latin-script built-in templates should support all three engines. A template may declare a narrower set only when a real capability such as OpenType fonts or complex-script shaping requires it.
+
+Engine-specific logic begins inside the common package and is split only when substantial real code justifies separate files.
+
+The current template architecture uses a small set of data/resource templates plus the reusable `aaaat.sty` package. It does not require a template marketplace, executable JavaScript plugins, or a custom document class without demonstrated need.
+
+`latexmk` is a convenience, not a proprietary compiler.
 
 ## Technology baseline
 
@@ -297,13 +313,24 @@ Manual UI, direct AI, imports, and bounded external AI converge on these same ru
 
 SQLite is the authoritative workspace database. SQL remains explicit and auditable; no ORM is required.
 
-Startup configures at least foreign keys, WAL, bounded busy timeout, and appropriate synchronous mode. Tables use `STRICT` where practical.
+Database startup configures at least:
 
-Schema evolution uses immutable numbered SQL migrations. Applied migrations record version, name, hash, and application time. A merged migration is never edited; a correction uses a later migration. Hash mismatch fails closed.
+```sql
+PRAGMA foreign_keys = ON;
+PRAGMA journal_mode = WAL;
+PRAGMA busy_timeout = 5000;
+PRAGMA synchronous = NORMAL;
+```
+
+Tables use `STRICT` where practical.
+
+Schema evolution uses immutable numbered SQL migrations. Applied migrations record version, name, cryptographic hash, and application time. A merged migration is never edited; a correction uses a later migration. Hash mismatch fails closed.
 
 There is no v1 database migration obligation.
 
-`node:sqlite` remains behind a small main-process boundary. A persistence generalization requires demonstrated need; product flexibility alone does not authorize an EAV rewrite.
+`node:sqlite` remains behind a small main-process adapter because its API stability and Electron packaging behavior are executable compatibility concerns. Synchronous access is acceptable for bounded local operations until measured evidence demonstrates the need for another process boundary.
+
+A persistence generalization requires demonstrated need; product flexibility alone does not authorize an EAV rewrite.
 
 ## AI architecture
 
@@ -357,7 +384,7 @@ Token mappings remain local. Real authoritative values remain local and may be r
 
 Remote disclosure must be understandable. Broad cross-candidature remote analysis can expose highly profilable career/application information and therefore requires proportionate privacy disclosure before sending.
 
-Credentials are not ordinary plaintext application records. Secure OS storage is preferred where applicable, and insecure fallback conditions must be represented honestly.
+Credentials are not plaintext application records. Where secure OS storage is available, Electron `safeStorage` is the expected primitive; the application must explain insecure fallback conditions instead of pretending all platforms offer identical protection.
 
 AAAAT cannot guarantee application-level privacy from an external agent already granted unrestricted screen/filesystem/shell authority; setup must represent that limitation truthfully.
 
@@ -466,14 +493,14 @@ In particular, a deterministic fixture or acceptance sequence proves that one pa
 
 Evidence grows with capability and includes as applicable:
 
-- domain/application-service tests outside Electron UI;
+- domain/application-service tests outside Electron UI where practical;
 - real SQLite migration tests;
 - renderer tests through user-observable behavior;
-- Electron security/preload checks;
-- deterministic provider fixtures;
-- LaTeX compilation and unrelated-directory portability;
-- deliberately small packaged-desktop smoke tests;
-- native Windows/macOS/Linux packaging.
+- Electron security and preload allowlist checks;
+- deterministic provider fixture tests when AI is involved;
+- LaTeX compilation and unrelated-directory portability tests when VCVGenerator is involved;
+- a deliberately small packaged-desktop smoke suite for critical boundaries;
+- native Windows, macOS, and Linux packaging evidence.
 
 Build success alone is not proof of runtime, visual, security, database, privacy, or portability claims.
 
@@ -519,6 +546,8 @@ first demonstrated case → implement directly
 repeated real behavior → extract the smallest reusable capability that the cases actually share
 wider framework/generalization → require demonstrated need and normal decision review
 ```
+
+Security/process boundaries and real interchangeable providers may justify earlier interfaces. Hypothetical future flexibility does not.
 
 ## Non-negotiable acceptance invariants
 
@@ -586,6 +615,12 @@ React renderer → no unrestricted filesystem, database, process, credential, or
 
 ```text
 validated v1 product lesson may return; awkward v1 technical contract does not.
+```
+
+### Portable document engineering
+
+```text
+default VCVGenerator template → pdfLaTeX baseline → supported alternate engines verified where applicable.
 ```
 
 ### Maintainability
