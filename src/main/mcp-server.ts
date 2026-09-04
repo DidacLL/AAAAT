@@ -2,14 +2,17 @@ import { createReadStream, createWriteStream } from "node:fs";
 
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import { z } from "zod";
 
 import { candidatureInputSchema } from "../shared/contracts";
+import { listCandidatureFields } from "./candidature-field-service";
 import { createCandidature } from "./candidature-service";
 import { openWorkspace } from "./workspace";
 
 const mcpFlag = "--mcp";
 const workspaceFlag = "--workspace";
 export const candidatureCreateToolName = "candidature_create";
+export const candidatureFieldsListToolName = "candidature_fields_list";
 
 function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
@@ -33,6 +36,34 @@ export function mcpWorkspaceFromInvocation(argv: readonly string[]): string {
 
 function createServerForWorkspace(rootPath: string): McpServer {
   const server = new McpServer({ name: "aaaat", version: "2.0.0-alpha.0" });
+
+  server.registerTool(
+    candidatureFieldsListToolName,
+    {
+      description: "List enabled candidature information fields for bounded external input.",
+      inputSchema: z.object({}).strict(),
+    },
+    async () => {
+      const fields = listCandidatureFields(rootPath)
+        .filter((field) => field.definition.enabled)
+        .map((field) => ({
+          id: field.definition.id,
+          label: field.definition.label,
+          description: field.definition.description,
+          valueType: field.definition.valueType,
+          cardinality: field.definition.cardinality,
+          choices: field.definition.choices,
+        }));
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ fields }),
+          },
+        ],
+      };
+    },
+  );
 
   server.registerTool(
     candidatureCreateToolName,

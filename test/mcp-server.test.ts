@@ -8,29 +8,15 @@ import { DatabaseSync } from "node:sqlite";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { describe, expect, it } from "vitest";
 
+import { createCandidatureField } from "../src/main/candidature-field-service";
 import { listCandidatures } from "../src/main/candidature-service";
 import {
   candidatureCreateToolName,
+  candidatureFieldsListToolName,
   createAaaatMcpServer,
   mcpWorkspaceFromInvocation,
 } from "../src/main/mcp-server";
 import { createOrOpenWorkspace } from "../src/main/workspace";
-
-const candidatureInput = {
-  company: "MCP Example Corp",
-  role: "Protocol engineer",
-  location: "Madrid",
-  workMode: "Hybrid",
-  salaryText: "",
-  source: "MCP fixture",
-  sourceUrl: "https://example.invalid/mcp",
-  sourceText: "Private MCP source material",
-  status: "saved" as const,
-  applicationDate: "",
-  nextAction: "Review MCP opportunity",
-  nextActionDate: "",
-  notes: "Private MCP note",
-};
 
 function temporaryWorkspace(): string {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-mcp-"));
@@ -57,20 +43,57 @@ async function connectedClient(root: string): Promise<{
 }
 
 describe("official MCP candidature server", () => {
-  it("advertises only the bounded create tool and commits through normal activity", async () => {
+  it("publishes the live bounded field catalogue and creates through the ordinary sparse mutation path", async () => {
     const root = temporaryWorkspace();
+    const custom = createCandidatureField(root, {
+      label: "Minimum flight hours",
+      description: "Minimum total flight hours requested.",
+      valueType: "number",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
+    });
     const connection = await connectedClient(root);
     try {
       const tools = await connection.client.listTools();
-      expect(tools.tools.map((tool) => tool.name)).toEqual([candidatureCreateToolName]);
+      expect(tools.tools.map((tool) => tool.name)).toEqual(
+        expect.arrayContaining([candidatureFieldsListToolName, candidatureCreateToolName]),
+      );
+
+      const catalogue = await connection.client.callTool({
+        name: candidatureFieldsListToolName,
+        arguments: {},
+      });
+      expect(catalogue.isError).not.toBe(true);
+      const catalogueContent = catalogue.content[0];
+      if (!catalogueContent || catalogueContent.type !== "text") {
+        throw new Error("MCP catalogue result is not text content.");
+      }
+      const parsedCatalogue = JSON.parse(catalogueContent.text) as {
+        fields: Array<{ id: string; label: string; valueType: string }>;
+      };
+      expect(parsedCatalogue.fields).toContainEqual(
+        expect.objectContaining({
+          id: custom.definition.id,
+          label: "Minimum flight hours",
+          valueType: "number",
+        }),
+      );
 
       const result = await connection.client.callTool({
         name: candidatureCreateToolName,
-        arguments: candidatureInput,
+        arguments: {
+          source: {
+            kind: "job_posting",
+            title: "Pilot vacancy",
+            url: "https://example.invalid/pilot",
+            sourceText: "Minimum 1,500 total hours.",
+          },
+          values: [{ fieldId: custom.definition.id, value: 1500 }],
+        },
       });
       expect(result.isError).not.toBe(true);
       const content = result.content[0];
-      expect(content).toMatchObject({ type: "text" });
       if (!content || content.type !== "text") {
         throw new Error("MCP candidature result is not text content.");
       }
@@ -80,23 +103,19 @@ describe("official MCP candidature server", () => {
         created: true,
       });
       expect(content.text).not.toContain(root);
-      expect(content.text).not.toContain("MCP Example Corp");
-      expect(content.text).not.toContain("Private MCP source material");
-      expect(content.text).not.toContain("Private MCP note");
+      expect(content.text).not.toContain("Pilot vacancy");
 
-      const candidatures = listCandidatures(root);
-      expect(candidatures).toHaveLength(1);
-      const created = candidatures[0];
-      expect(created).toBeDefined();
-      if (!created) throw new Error("Created MCP candidature fixture is missing.");
-      expect(created).toMatchObject(candidatureInput);
+      const created = listCandidatures(root)[0];
+      expect(created?.values).toEqual([
+        expect.objectContaining({ fieldId: custom.definition.id, value: 1500 }),
+      ]);
 
       const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
       try {
         expect(
           database
             .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
-            .all(created.id),
+            .all(created?.id),
         ).toEqual([{ action: "candidature.created" }]);
       } finally {
         database.close();
@@ -107,13 +126,13 @@ describe("official MCP candidature server", () => {
     }
   });
 
-  it("rejects schema-invalid calls before mutation", async () => {
+  it("rejects schema-invalid creation before mutation", async () => {
     const root = temporaryWorkspace();
     const connection = await connectedClient(root);
     try {
       const result = await connection.client.callTool({
         name: candidatureCreateToolName,
-        arguments: { company: "Incomplete" },
+        arguments: { values: [{ fieldId: "not-a-uuid", value: 1 }] },
       });
       expect(result.isError).toBe(true);
       expect(listCandidatures(root)).toEqual([]);
