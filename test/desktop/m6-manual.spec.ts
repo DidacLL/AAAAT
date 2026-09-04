@@ -1,15 +1,14 @@
 import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { chromium, expect, test, type Browser, type Page } from "@playwright/test";
 
-test.skip(process.platform !== "linux", "M6 manual visual acceptance runs once on the Linux packaged app");
+test.skip(process.platform !== "linux", "The packaged sparse-candidature journey runs once on Linux");
 
 function packagedExecutable(): string {
-  const packageRoot = path.resolve("out", `AAAAT-${process.platform}-${process.arch}`);
-  return path.join(packageRoot, "aaaat");
+  return path.resolve("out", `AAAAT-${process.platform}-${process.arch}`, "aaaat");
 }
 
 async function reservePort(): Promise<number> {
@@ -151,15 +150,13 @@ function resizeLinuxWindow(width: number, height: number): void {
 
 async function selectSection(page: Page, name: string): Promise<void> {
   await page.getByRole("tab", { name, exact: true }).click();
-  await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
 }
 
-async function fillTextarea(page: Page, label: RegExp | string, value: string): Promise<void> {
-  const field = page.getByLabel(label, { exact: typeof label === "string" });
-  await field.fill(value);
-}
-
-test("packaged M6 manual journey is recruiter-ready and survives close/reopen", async () => {
+test("packaged sparse candidature gains runtime information progressively and survives close/reopen", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-m6-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-m6-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
@@ -174,122 +171,82 @@ test("packaged M6 manual journey is recruiter-ready and survives close/reopen", 
     chooseLinuxDirectory();
     await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
 
-    // Current reusable career context is manual, workspace-owned, and independent from Profile evidence.
-    await running.page.getByRole("button", { name: "Profile" }).click();
-    await expect(running.page.getByRole("heading", { name: "Current career context" })).toBeVisible();
-    await running.page.getByRole("button", { name: "Add career context" }).click();
-    await fillTextarea(running.page, /^Career direction/, "Move toward staff-level platform work.");
-    await fillTextarea(running.page, /^Constraints/, "No relocation.");
-    await fillTextarea(running.page, /^Target roles/, "Staff or senior platform engineering roles.");
-    await fillTextarea(running.page, /^Target markets \/ locations/, "Spain / EU remote or hybrid.");
-    await running.page.getByRole("button", { name: "Save career context" }).click();
-    await expect(running.page.getByText("Move toward staff-level platform work.")).toBeVisible();
-
-    // Capture an incomplete opportunity first, then enrich only what becomes known.
     await running.page.getByRole("button", { name: "Candidatures" }).click();
     await running.page.getByRole("button", { name: "New candidature" }).click();
-    await expect(running.page.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
-    await expect(running.page.getByRole("button", { name: "Add pitch" })).toBeVisible();
+    await expect(running.page.getByRole("tab", { name: "Information" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    const addInformation = running.page.locator("details.add-information-panel");
+    await addInformation.getByText("+ Add information", { exact: true }).click();
+    await addInformation.getByText("+ New field", { exact: true }).click();
+    await addInformation.getByLabel("Name").fill("Minimum flight hours");
+    await addInformation.getByLabel("Type").selectOption("number");
+    await addInformation.getByRole("button", { name: "Create field" }).click();
+
+    await expect(addInformation.getByLabel("Existing field")).toContainText("Minimum flight hours");
+    await addInformation.getByRole("spinbutton").fill("1500");
+    await addInformation.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      running.page.getByRole("heading", { name: "Minimum flight hours" }),
+    ).toBeVisible();
+
+    const fieldManagement = running.page.locator("details.field-management");
+    await fieldManagement.getByText("Manage candidature fields", { exact: true }).click();
+    await expect(fieldManagement.getByLabel("Field")).toHaveValue(/.+/);
+    await fieldManagement.getByLabel("Show in Focus when retained").check();
+    await fieldManagement.getByRole("button", { name: "Save behavior" }).click();
 
     await selectSection(running.page, "Sources");
-    await running.page.getByRole("button", { name: "Add source" }).click();
-    await running.page.getByLabel("Kind").selectOption("recruiter_message");
-    await running.page.getByLabel("Title").fill("Recruiter message");
-    await running.page
+    const sources = running.page.getByRole("region", { name: "Sources" });
+    await sources.getByRole("button", { name: "Add source" }).click();
+    const sourceEditor = sources.getByLabel("Add source");
+    await sourceEditor.getByLabel("Kind").selectOption("job_posting");
+    await sourceEditor.getByLabel("Title").fill("Pilot vacancy");
+    await sourceEditor
       .getByLabel("Source material")
-      .fill("Example Systems is looking for a Senior Platform Engineer. Interested in a recruiter call?");
-    await running.page.getByRole("button", { name: "Add source" }).click();
-    await expect(running.page.getByText("Recruiter message", { exact: true })).toBeVisible();
-
-    await selectSection(running.page, "Opportunity");
-    const opportunity = running.page.getByRole("form", { name: "Opportunity" });
-    await opportunity.getByLabel("Company").fill("Example Systems");
-    await opportunity.getByLabel("Role").fill("Senior Platform Engineer");
-    await opportunity.getByLabel("Location").fill("Spain / EU");
-    await opportunity.getByLabel("Work mode").fill("Remote or hybrid");
-    await opportunity.getByLabel("Status").selectOption("saved");
-    await opportunity.getByLabel("Priority").selectOption("high");
-    await opportunity.getByLabel("Next action", { exact: true }).fill("Prepare for recruiter call");
-    await opportunity.getByLabel("Next action date").fill("2026-09-11");
-    await opportunity.getByLabel("Notes").fill("Clarify platform ownership and team scope.");
-    await opportunity.getByRole("button", { name: "Save opportunity" }).click();
-
-    await selectSection(running.page, "Sources");
-    await running.page.getByRole("button", { name: "Add source" }).click();
-    await running.page.getByLabel("Kind").selectOption("job_posting");
-    await running.page.getByLabel("Title").fill("Job description");
-    await running.page
-      .getByLabel("Source material")
-      .fill("Own internal platform reliability, distributed systems, developer experience, and cross-team technical direction.");
-    await running.page.getByRole("button", { name: "Add source" }).click();
-    await expect(running.page.getByText("Job description", { exact: true })).toBeVisible();
-
-    await selectSection(running.page, "Evaluation & strategy");
-    await running.page.getByLabel("Fit / suitability").fill("Strong fit for platform scope and backend systems ownership.");
-    await running.page.getByLabel("Strengths / evidence").fill("Led multi-region backend migrations and improved platform reliability.");
-    await running.page.getByLabel("Gaps / risks / constraints").fill("Confirm on-call expectations and remote boundaries.");
-    await running.page.getByLabel("Current strategy").fill("Lead with reliability, platform leverage, and cross-team technical leadership.");
-    await running.page.getByLabel("Company / role context").fill("The role owns an internal platform used by multiple product teams.");
-    await running.page.getByRole("button", { name: "Save evaluation & strategy" }).click();
-
-    await selectSection(running.page, "Recruiter preparation");
-    await running.page
-      .getByLabel("Pitch")
-      .fill("I build reliable platform systems that let product teams move faster without trading away safety.");
-    await running.page.getByLabel("Questions to ask").fill("How is platform impact measured, and how broad is the ownership scope?");
-    await running.page
-      .getByLabel("Recruiter-call preparation")
-      .fill("Keep compensation discussion high-level; confirm remote expectations and reporting line.");
-    await running.page.getByRole("button", { name: "Save recruiter preparation" }).click();
+      .fill("Regional Air requires at least 1,500 total flight hours.");
+    await sourceEditor.getByRole("button", { name: "Add source" }).click();
+    await expect(sources.getByText("Pilot vacancy", { exact: true })).toBeVisible();
 
     await selectSection(running.page, "Focus");
-    const focus = running.page.getByRole("region", { name: "Recruiter call focus" });
-    await expect(focus.getByRole("heading", { name: /Example Systems — Senior Platform Engineer/ })).toBeVisible();
-    await expect(focus).toContainText("saved · high priority");
-    await expect(focus).toContainText("Prepare for recruiter call");
-    await expect(focus).toContainText("I build reliable platform systems");
-    await expect(focus).toContainText("Led multi-region backend migrations");
-    await expect(focus).toContainText("Confirm on-call expectations");
-    await expect(focus).toContainText("No relocation");
-    await expect(focus).toContainText("How is platform impact measured");
-    await expect(focus).toContainText("Lead with reliability");
-    await expect(focus).toContainText("internal platform used by multiple product teams");
-    await expect(focus).toContainText("Clarify platform ownership and team scope");
+    const focus = running.page.getByRole("region", { name: "Candidature Focus" });
+    await expect(focus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
+    await expect(focus).toContainText("1500");
 
-    // The core path never needs an AI connection or external-agent state.
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
     expect(existsSync(path.join(ownedWorkspace, "integrations", "vscode-mcp.json"))).toBe(false);
 
     resizeLinuxWindow(1280, 900);
     await running.page.screenshot({
-      path: path.join(visualDirectory, "m6-focus-normal.png"),
+      path: path.join(visualDirectory, "m6-sparse-focus-normal.png"),
       fullPage: true,
     });
 
     await stopPackagedApp(running);
     running = undefined;
 
-    // Reopen the same user-owned workspace and verify the authoritative state is still understandable.
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
-    const reopenedFocus = running.page.getByRole("region", { name: "Recruiter call focus" });
-    await expect(reopenedFocus.getByRole("heading", { name: /Example Systems — Senior Platform Engineer/ })).toBeVisible();
-    await expect(reopenedFocus).toContainText("I build reliable platform systems");
-    await expect(reopenedFocus).toContainText("No relocation");
-    await expect(reopenedFocus).toContainText("Spain / EU remote or hybrid");
-    await expect(reopenedFocus).toContainText("Prepare for recruiter call");
+    const reopenedFocus = running.page.getByRole("region", { name: "Candidature Focus" });
+    await expect(
+      reopenedFocus.getByRole("heading", { name: "Minimum flight hours" }),
+    ).toBeVisible();
+    await expect(reopenedFocus).toContainText("1500");
+
+    await selectSection(running.page, "Sources");
+    await expect(
+      running.page.getByRole("region", { name: "Sources" }).getByText("Pilot vacancy", { exact: true }),
+    ).toBeVisible();
 
     resizeLinuxWindow(900, 700);
+    await selectSection(running.page, "Focus");
     await running.page.screenshot({
-      path: path.join(visualDirectory, "m6-focus-small.png"),
+      path: path.join(visualDirectory, "m6-sparse-focus-small.png"),
       fullPage: true,
     });
-
-    expect(readdirSync(visualDirectory).sort()).toEqual([
-      "m6-focus-normal.png",
-      "m6-focus-small.png",
-    ]);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
