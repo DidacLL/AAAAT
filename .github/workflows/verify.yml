@@ -2,9 +2,6 @@ name: Verify
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -15,8 +12,134 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  impact:
+    name: CI impact
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      fast: ${{ steps.classify.outputs.fast }}
+      latex: ${{ steps.classify.outputs.latex }}
+      linux_package: ${{ steps.classify.outputs.linux_package }}
+      full_package: ${{ steps.classify.outputs.full_package }}
+      package_os: ${{ steps.classify.outputs.package_os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: classify
+        name: Classify changed paths
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          fast=false
+          latex=false
+          linux_package=false
+          full_package=false
+          docs_only=true
+          files=""
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            fast=true
+            latex=true
+            linux_package=true
+            full_package=true
+            docs_only=false
+            files="(manual dispatch: full verification)"
+          else
+            base="$PR_BASE_SHA"
+            head="$PR_HEAD_SHA"
+
+            if [[ -z "${base:-}" || -z "${head:-}" ]]; then
+              fast=true
+              latex=true
+              linux_package=true
+              full_package=true
+              docs_only=false
+              files="(unbounded diff: fail-safe full verification)"
+            else
+              git diff --check "$base" "$head"
+              files="$(git diff --name-only "$base" "$head")"
+
+              while IFS= read -r file; do
+                [[ -z "$file" ]] && continue
+
+                case "$file" in
+                  *.md|docs/*|.agentic/*|.agents/*|LICENSE)
+                    continue
+                    ;;
+                esac
+
+                docs_only=false
+                fast=true
+
+                case "$file" in
+                  .github/workflows/*|package.json|package-lock.json)
+                    latex=true
+                    linux_package=true
+                    full_package=true
+                    ;;
+                  forge.config.ts|forge.env.d.ts|vite.main.config.mts|vite.preload.config.mts|vite.renderer.config.mts|playwright.config.ts)
+                    linux_package=true
+                    full_package=true
+                    ;;
+                  src/preload/*|src/main/entry.ts|src/main/main.ts|src/main/latex-runner.ts|src/main/*workspace*.ts|src/main/*backup*.ts|src/main/*vscode*.ts|src/main/*mcp*.ts|src/main/external-command.ts)
+                    linux_package=true
+                    full_package=true
+                    ;;
+                  src/main/*|src/renderer/*|src/shared/*|migrations/*|index.html|test/desktop/m6-manual.spec.ts)
+                    linux_package=true
+                    ;;
+                  test/desktop/*)
+                    linux_package=true
+                    full_package=true
+                    ;;
+                esac
+
+                case "$file" in
+                  src/main/latex/*|src/main/latex-runner.ts|src/main/document-service.ts|test/latex-portability.test.ts)
+                    latex=true
+                    ;;
+                esac
+              done <<< "$files"
+            fi
+          fi
+
+          if $full_package; then
+            package_os='["ubuntu-latest","windows-latest","macos-latest"]'
+          else
+            package_os='["ubuntu-latest"]'
+          fi
+
+          echo "fast=$fast" >> "$GITHUB_OUTPUT"
+          echo "latex=$latex" >> "$GITHUB_OUTPUT"
+          echo "linux_package=$linux_package" >> "$GITHUB_OUTPUT"
+          echo "full_package=$full_package" >> "$GITHUB_OUTPUT"
+          echo "package_os=$package_os" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### CI impact"
+            echo
+            echo "- docs only: $docs_only"
+            echo "- fast verification: $fast"
+            echo "- LaTeX portability: $latex"
+            echo "- Linux package/smoke: $linux_package"
+            echo "- full cross-platform package/smoke: $full_package"
+            echo
+            echo "Changed paths:"
+            echo '```text'
+            printf '%s\n' "$files"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   fast:
     name: Fast verification
+    needs: impact
+    if: needs.impact.outputs.fast == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -30,7 +153,8 @@ jobs:
 
   latex:
     name: LaTeX portability
-    needs: fast
+    needs: impact
+    if: needs.impact.outputs.latex == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -51,16 +175,14 @@ jobs:
 
   package:
     name: Package and smoke (${{ matrix.os }})
-    needs: fast
+    needs: impact
+    if: needs.impact.outputs.linux_package == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
+        os: ${{ fromJSON(needs.impact.outputs.package_os) }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -68,18 +190,24 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
-      - name: Install Linux package and smoke prerequisites
+      - name: Install Linux runtime prerequisites
         if: runner.os == 'Linux'
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install --yes fakeroot openbox xdotool
-      - name: Verify TeX runner process behavior
-        run: npx vitest run test/latex-runner.test.ts
+          if [[ "${{ needs.impact.outputs.full_package }}" == "true" ]]; then
+            sudo apt-get install --yes fakeroot openbox xdotool
+          else
+            sudo apt-get install --yes openbox xdotool
+          fi
+      - name: Build packaged app
+        if: needs.impact.outputs.full_package != 'true'
+        run: npm run package
       - name: Build release artifact
+        if: needs.impact.outputs.full_package == 'true'
         run: npm run make
       - name: Inspect Windows release ZIP
-        if: runner.os == 'Windows'
+        if: needs.impact.outputs.full_package == 'true' && runner.os == 'Windows'
         shell: pwsh
         run: |
           $zip = Get-ChildItem -Path out/make -Recurse -File -Filter *.zip | Select-Object -First 1
@@ -95,14 +223,14 @@ jobs:
             $archive.Dispose()
           }
       - name: Inspect macOS release ZIP
-        if: runner.os == 'macOS'
+        if: needs.impact.outputs.full_package == 'true' && runner.os == 'macOS'
         shell: bash
         run: |
           zip_path=$(find out/make -type f -name '*.zip' -print -quit)
           test -n "$zip_path"
           unzip -l "$zip_path" | grep -q 'AAAAT.app/Contents/MacOS/aaaat'
       - name: Inspect Linux release package
-        if: runner.os == 'Linux'
+        if: needs.impact.outputs.full_package == 'true' && runner.os == 'Linux'
         shell: bash
         run: |
           deb_path=$(find out/make -type f -name '*.deb' -print -quit)
@@ -111,6 +239,7 @@ jobs:
           dpkg-deb --contents "$deb_path" | tee /tmp/aaaat-deb-contents.txt
           grep -Eq '^-rwsr-xr-x root/root .*chrome-sandbox$' /tmp/aaaat-deb-contents.txt
       - name: Upload release artifact
+        if: needs.impact.outputs.full_package == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: AAAAT-${{ matrix.os }}-${{ runner.arch }}
@@ -120,7 +249,7 @@ jobs:
           if-no-files-found: error
           compression-level: 0
       - name: Install demonstrated VS Code host contract (Windows)
-        if: runner.os == 'Windows'
+        if: needs.impact.outputs.full_package == 'true' && runner.os == 'Windows'
         shell: pwsh
         run: |
           $archive = Join-Path $env:RUNNER_TEMP "vscode-1.134.0.zip"
@@ -157,11 +286,3 @@ jobs:
             trap "kill $wm_pid 2>/dev/null || true" EXIT
             npm run test:desktop
           '
-      - name: Upload M6 visual acceptance evidence
-        if: runner.os == 'Linux' && always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: M6-visual-acceptance
-          path: test-results/m6-visual/*.png
-          if-no-files-found: error
-          compression-level: 0

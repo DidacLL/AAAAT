@@ -20,7 +20,8 @@ Use the cheapest adequate execution surface, but use available local, browser, v
 
 Before completion:
 
-- run `npm run verify` and Issue-specific checks;
+- run the impact-appropriate verification selected by `.github/workflows/verify.yml`; runtime/source changes include `npm run verify`, while documentation/governance-only changes do not require unrelated product, TeX, or package execution;
+- run Issue-specific checks;
 - obtain independent review;
 - invoke the Simplifier for material new complexity;
 - resolve Class A/B/C decisions autonomously;
