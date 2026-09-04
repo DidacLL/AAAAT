@@ -59,9 +59,9 @@ function fixture() {
   const candidature = createCandidature(root, {
     source: {
       kind: "job_posting",
-      title: "Vacancy",
-      url: "https://example.invalid/job",
-      sourceText: "Build reliable TypeScript platform services.",
+      title: "Private vacancy source",
+      url: "https://example.invalid/private-job-source",
+      sourceText: "SOURCE-ONLY-SECRET: build reliable TypeScript platform services.",
     },
     values: [],
   });
@@ -87,12 +87,17 @@ afterEach(() => {
 });
 
 describe("document AI services", () => {
-  it("tailors a CV from resolved non-sensitive career evidence", async () => {
+  it("tailors a CV from resolved non-sensitive career evidence without implicit Source disclosure", async () => {
     const { root, candidature, cv, skill } = fixture();
     const tailor = vi.fn<ModelProvider["tailorCv"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain("Private Person");
       expect(serialized).not.toContain("private@example.test");
+      expect(serialized).not.toContain("Private vacancy source");
+      expect(serialized).not.toContain("private-job-source");
+      expect(serialized).not.toContain("SOURCE-ONLY-SECRET");
+      expect(context.candidature.sources).toEqual([]);
+      expect(context.candidature.label).toBe("Candidature");
       expect(serialized).toContain("TypeScript");
       return {
         recommendations: [{ itemId: skill.id, rationale: "Direct evidence match." }],
@@ -134,10 +139,16 @@ describe("document AI services", () => {
     await expect(pending).rejects.toThrow("profile item that no longer exists");
   });
 
-  it("drafts a cover letter without mutating candidature or document state", async () => {
+  it("drafts a cover letter without implicit Source disclosure or state mutation", async () => {
     const { root, candidature, cover } = fixture();
     const draft = vi.fn<ModelProvider["draftCoverLetter"]>(async (_connection, context) => {
-      expect(JSON.stringify(context)).toContain("Platform Engineer");
+      const serialized = JSON.stringify(context);
+      expect(context.candidature.sources).toEqual([]);
+      expect(context.candidature.label).toBe("Candidature");
+      expect(serialized).not.toContain("Private vacancy source");
+      expect(serialized).not.toContain("private-job-source");
+      expect(serialized).not.toContain("SOURCE-ONLY-SECRET");
+      expect(serialized).toContain("Platform Engineer");
       return {
         recipient: "Hiring team",
         subject: "Application",

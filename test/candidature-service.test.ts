@@ -171,6 +171,73 @@ describe("candidature information service", () => {
     }
   });
 
+  it("filters many-choice fields with set semantics for any and all", () => {
+    const root = temporaryWorkspace();
+    try {
+      const remoteId = "00000000-0000-4000-8000-000000000701";
+      const hybridId = "00000000-0000-4000-8000-000000000702";
+      const onsiteId = "00000000-0000-4000-8000-000000000703";
+      const modes = createCandidatureField(root, {
+        label: "Work modes",
+        description: "Supported work modes.",
+        valueType: "choice",
+        cardinality: "many",
+        choices: [
+          { id: remoteId, label: "Remote" },
+          { id: hybridId, label: "Hybrid" },
+          { id: onsiteId, label: "On-site" },
+        ],
+        enabled: true,
+      });
+      const first = createCandidature(root, { values: [] });
+      const second = createCandidature(root, { values: [] });
+      const third = createCandidature(root, { values: [] });
+      setCandidatureFieldValue(root, {
+        candidatureId: first.id,
+        fieldId: modes.definition.id,
+        value: [remoteId, hybridId],
+      });
+      setCandidatureFieldValue(root, {
+        candidatureId: second.id,
+        fieldId: modes.definition.id,
+        value: [remoteId],
+      });
+      setCandidatureFieldValue(root, {
+        candidatureId: third.id,
+        fieldId: modes.definition.id,
+        value: [onsiteId],
+      });
+
+      expect(
+        new Set(
+          filterCandidatures(root, {
+            fieldId: modes.definition.id,
+            operator: "contains_any",
+            value: [hybridId, onsiteId],
+          }),
+        ),
+      ).toEqual(new Set([first.id, third.id]));
+      expect(
+        filterCandidatures(root, {
+          fieldId: modes.definition.id,
+          operator: "contains_all",
+          value: [remoteId, hybridId],
+        }),
+      ).toEqual([first.id]);
+      expect(
+        new Set(
+          filterCandidatures(root, {
+            fieldId: modes.definition.id,
+            operator: "contains_all",
+            value: [remoteId, remoteId],
+          }),
+        ),
+      ).toEqual(new Set([first.id, second.id]));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("uses explicit Sources as retained evidence with independent lifecycle", () => {
     const root = temporaryWorkspace();
     try {

@@ -131,6 +131,7 @@ export function CandidaturesWorkspace() {
   const [filterFieldId, setFilterFieldId] = useState("");
   const [filterOperator, setFilterOperator] = useState<CandidatureFilterOperator>("is_set");
   const [filterValue, setFilterValue] = useState("");
+  const [filterChoiceValues, setFilterChoiceValues] = useState<string[]>([]);
   const [fieldMatches, setFieldMatches] = useState<ReadonlySet<string> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -400,7 +401,7 @@ export function CandidaturesWorkspace() {
           field.definition.valueType === "choice" &&
           (filterOperator === "contains_any" || filterOperator === "contains_all")
         ) {
-          value = [filterValue];
+          value = filterChoiceValues;
         } else value = filterValue;
       }
       const ids = await window.aaaat.candidatures.filter({
@@ -418,6 +419,7 @@ export function CandidaturesWorkspace() {
     setFilterFieldId("");
     setFilterOperator("is_set");
     setFilterValue("");
+    setFilterChoiceValues([]);
     setFieldMatches(null);
   };
 
@@ -537,6 +539,7 @@ export function CandidaturesWorkspace() {
               const nextField = fields.find((field) => field.definition.id === id);
               setFilterOperator(operatorsFor(nextField)[0] ?? "is_set");
               setFilterValue("");
+              setFilterChoiceValues([]);
             }}
           >
             <option value="">No field filter</option>
@@ -552,7 +555,11 @@ export function CandidaturesWorkspace() {
             Operator
             <select
               value={filterOperator}
-              onChange={(event) => setFilterOperator(event.target.value as CandidatureFilterOperator)}
+              onChange={(event) => {
+                setFilterOperator(event.target.value as CandidatureFilterOperator);
+                setFilterValue("");
+                setFilterChoiceValues([]);
+              }}
             >
               {availableOperators.map((operator) => (
                 <option key={operator} value={operator}>{operatorLabel(operator)}</option>
@@ -561,34 +568,57 @@ export function CandidaturesWorkspace() {
           </label>
         ) : null}
         {currentFilterField && filterOperator !== "is_set" && filterOperator !== "is_not_set" ? (
-          <label>
-            Value
-            {currentFilterField.definition.valueType === "choice" ? (
-              <select value={filterValue} onChange={(event) => setFilterValue(event.target.value)}>
-                <option value="">Choose…</option>
-                {currentFilterField.definition.choices.map((choice) => (
-                  <option key={choice.id} value={choice.id}>{choice.label}</option>
-                ))}
-              </select>
-            ) : currentFilterField.definition.valueType === "boolean" ? (
-              <select value={filterValue} onChange={(event) => setFilterValue(event.target.value)}>
-                <option value="true">Yes</option>
-                <option value="false">No</option>
-              </select>
-            ) : (
-              <input
-                type={
-                  currentFilterField.definition.valueType === "number"
-                    ? "number"
-                    : currentFilterField.definition.valueType === "date"
-                      ? "date"
-                      : "text"
-                }
-                value={filterValue}
-                onChange={(event) => setFilterValue(event.target.value)}
-              />
-            )}
-          </label>
+          currentFilterField.definition.valueType === "choice" &&
+          (filterOperator === "contains_any" || filterOperator === "contains_all") ? (
+            <fieldset className="choice-filter-values">
+              <legend>Values</legend>
+              {currentFilterField.definition.choices.map((choice) => (
+                <label key={choice.id}>
+                  <input
+                    type="checkbox"
+                    checked={filterChoiceValues.includes(choice.id)}
+                    onChange={(event) =>
+                      setFilterChoiceValues((current) =>
+                        event.target.checked
+                          ? [...current.filter((id) => id !== choice.id), choice.id]
+                          : current.filter((id) => id !== choice.id),
+                      )
+                    }
+                  />
+                  {choice.label}
+                </label>
+              ))}
+            </fieldset>
+          ) : (
+            <label>
+              Value
+              {currentFilterField.definition.valueType === "choice" ? (
+                <select value={filterValue} onChange={(event) => setFilterValue(event.target.value)}>
+                  <option value="">Choose…</option>
+                  {currentFilterField.definition.choices.map((choice) => (
+                    <option key={choice.id} value={choice.id}>{choice.label}</option>
+                  ))}
+                </select>
+              ) : currentFilterField.definition.valueType === "boolean" ? (
+                <select value={filterValue} onChange={(event) => setFilterValue(event.target.value)}>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              ) : (
+                <input
+                  type={
+                    currentFilterField.definition.valueType === "number"
+                      ? "number"
+                      : currentFilterField.definition.valueType === "date"
+                        ? "date"
+                        : "text"
+                  }
+                  value={filterValue}
+                  onChange={(event) => setFilterValue(event.target.value)}
+                />
+              )}
+            </label>
+          )
         ) : null}
         <div className="button-row">
           <button type="button" onClick={() => void applyFieldFilter()}>Apply field filter</button>

@@ -12,6 +12,9 @@ import type {
 const candidatureId = "00000000-0000-4000-8000-000000000501";
 const organisationId = "00000000-0000-4000-8000-000000000502";
 const hoursId = "00000000-0000-4000-8000-000000000503";
+const workModesId = "00000000-0000-4000-8000-000000000504";
+const remoteId = "00000000-0000-4000-8000-000000000505";
+const hybridId = "00000000-0000-4000-8000-000000000506";
 
 function field(
   id: string,
@@ -46,6 +49,32 @@ function field(
 
 const organisation = field(organisationId, "Organisation", "text", true);
 const hours = field(hoursId, "Minimum flight hours", "number", false);
+const workModes: CandidatureFieldConfiguration = {
+  definition: {
+    id: workModesId,
+    systemKey: null,
+    label: "Work modes",
+    description: "Allowed work modes",
+    valueType: "choice",
+    cardinality: "many",
+    choices: [
+      { id: remoteId, label: "Remote" },
+      { id: hybridId, label: "Hybrid" },
+    ],
+    enabled: true,
+    createdAt: "2026-09-04T00:00:00.000Z",
+    updatedAt: "2026-09-04T00:00:00.000Z",
+  },
+  preferences: {
+    fieldId: workModesId,
+    focusVisible: false,
+    focusOrder: null,
+    focusProminence: "normal",
+    identityOrder: null,
+    aiDiscovery: false,
+    aiContextMode: "omit",
+  },
+};
 
 function record(values: CandidatureRecord["values"]): CandidatureRecord {
   return {
@@ -76,11 +105,11 @@ const filter = vi.fn();
 
 function installApi(initial: CandidatureRecord) {
   list.mockResolvedValue([initial]);
-  listFields.mockResolvedValue([organisation, hours]);
+  listFields.mockResolvedValue([organisation, hours, workModes]);
   createField.mockImplementation(async (input) => ({
-    ...field("00000000-0000-4000-8000-000000000504", input.label, input.valueType, false),
+    ...field("00000000-0000-4000-8000-000000000507", input.label, input.valueType, false),
     definition: {
-      ...field("00000000-0000-4000-8000-000000000504", input.label, input.valueType, false).definition,
+      ...field("00000000-0000-4000-8000-000000000507", input.label, input.valueType, false).definition,
       description: input.description,
       cardinality: input.cardinality,
       choices: input.choices,
@@ -214,6 +243,25 @@ describe("candidature progressive information workspace", () => {
       fieldId: hoursId,
       operator: "greater_than_or_equal",
       value: 1200,
+    });
+  });
+
+  it("lets many-choice filters submit multiple selected choice IDs", async () => {
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+    await screen.findByRole("region", { name: "Candidature Focus" });
+
+    await user.selectOptions(screen.getByLabelText("Field"), workModesId);
+    await user.selectOptions(screen.getByLabelText("Operator"), "contains_all");
+    const values = screen.getByRole("group", { name: "Values" });
+    await user.click(within(values).getByLabelText("Remote"));
+    await user.click(within(values).getByLabelText("Hybrid"));
+    await user.click(screen.getByRole("button", { name: "Apply field filter" }));
+
+    expect(filter).toHaveBeenCalledWith({
+      fieldId: workModesId,
+      operator: "contains_all",
+      value: [remoteId, hybridId],
     });
   });
 });

@@ -142,8 +142,9 @@ export function AiDocumentsWorkspace() {
         </div>
         <p>
           Choose a saved candidature and an existing document. AI receives only retained candidature
-          fields allowed by their AI-context preferences, retained Sources, and non-sensitive career
-          evidence. Identity and contact profile items keep their existing privacy controls.
+          fields allowed by their AI-context preferences and non-sensitive career evidence. Retained
+          Sources are not sent by document assistance; use explicit field discovery when a Source
+          should be analyzed. Identity and contact profile items keep their existing privacy controls.
         </p>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
         {notice ? <p className="document-notice" role="status">{notice}</p> : null}

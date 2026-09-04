@@ -32,13 +32,15 @@ The application service enforces 64 enabled fields and 32 AI-discovery fields. T
 
 `candidature_sources` remains an explicit first-class relation. The old root source columns and `candidature_working_briefs` do not survive the corrected development schema.
 
-Filtering accepts only a registered field ID and a whitelisted operator derived from its type. SQL is application-owned and parameterized; callers cannot provide table/column names or SQL fragments.
+Filtering accepts only a registered field ID and a whitelisted operator derived from its type. SQL is application-owned and parameterized; callers cannot provide table/column names or SQL fragments. Many-choice `contains_any` and `contains_all` operate on sets of stable choice IDs; duplicate filter IDs do not change semantics.
 
 Focus is a projection over retained field values selected by field preferences plus explicit structural components such as Concepts and Documents. It does not persist another candidature-shaped value model and has no built-in recruiter-call hierarchy.
 
 AI Source discovery is generated from the currently enabled fields whose `ai_discovery` preference is true. Requests include stable field ID, current label/description/type/cardinality/choices. Provider proposals are rejected unless the field was requested and the value validates against the current definition. Accepted proposals use the ordinary field-value mutation path. Ordinary Source analysis cannot create field definitions.
 
-Historical rediscovery is a bounded proposal operation over explicitly retained Sources for one candidature and one registered field. It never writes or silently replaces an existing authoritative value.
+Historical rediscovery is a bounded proposal operation over explicitly retained Sources for one candidature and one registered field. It never writes or silently replaces an existing authoritative value. Retained Sources are not implicitly included in fit, variant-recommendation, CV-tailoring or cover-letter AI contexts; those operations receive only candidature information that has passed field-level AI context preferences. A Source reaches AI only through an explicit Source-analysis/discovery operation selected by the user.
+
+Privacy tokens are local opaque placeholders generated to avoid collisions with raw or exposed operation context, and result rehydration is a one-pass substitution so restored private text cannot be interpreted as another token.
 
 ## Consequences
 

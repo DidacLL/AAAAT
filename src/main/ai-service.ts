@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -154,12 +155,29 @@ interface Projection<T> {
   readonly tokenMap: ReadonlyMap<string, string>;
 }
 
-function tokenFactory(tokenMap: Map<string, string>) {
-  let counter = tokenMap.size;
+function runtimeStrings(value: CandidatureRuntimeValue): string[] {
+  return Array.isArray(value) ? value.map(String) : [String(value)];
+}
+
+function profileItemStrings(items: readonly ProfileItem[]): string[] {
+  return items.flatMap((item) => [
+    item.title,
+    item.subtitle ?? "",
+    item.description ?? "",
+    item.startDate ?? "",
+    item.endDate ?? "",
+  ]);
+}
+
+function tokenFactory(tokenMap: Map<string, string>, forbidden: readonly string[] = []) {
+  const blocked = [...forbidden, ...tokenMap.keys(), ...tokenMap.values()];
   return (value: string): string => {
-    counter += 1;
-    const placeholder = `[AAAT_PRIVATE_${counter}]`;
+    let placeholder: string;
+    do {
+      placeholder = `[AAAT_PRIVATE_${randomUUID()}]`;
+    } while (tokenMap.has(placeholder) || blocked.some((text) => text.includes(placeholder)));
     tokenMap.set(placeholder, value);
+    blocked.push(value, placeholder);
     return placeholder;
   };
 }
@@ -211,13 +229,23 @@ function aiDiscoveryField(field: CandidatureFieldConfiguration) {
 function projectCandidature(
   rootPath: string,
   candidatureId: string,
+  additionalForbidden: readonly string[] = [],
 ): Projection<FitProjectedCandidature> {
   const candidature = getCandidature(rootPath, candidatureId);
+  const fieldConfigurations = listCandidatureFields(rootPath);
   const fields = new Map(
-    listCandidatureFields(rootPath).map((field) => [field.definition.id, field]),
+    fieldConfigurations.map((field) => [field.definition.id, field]),
   );
+  const retainedSources = listCandidatureSources(rootPath, candidatureId).slice(0, 20);
+  const privacyCorpus = [
+    candidature.label,
+    ...candidature.values.flatMap((retained) => runtimeStrings(retained.value)),
+    ...fieldConfigurations.map((field) => field.definition.label),
+    ...retainedSources.flatMap((source) => [source.title, source.url, source.sourceText]),
+    ...additionalForbidden,
+  ];
   const tokenMap = new Map<string, string>();
-  const token = tokenFactory(tokenMap);
+  const token = tokenFactory(tokenMap, privacyCorpus);
   const information = candidature.values.flatMap((retained) => {
     const field = fields.get(retained.fieldId);
     if (!field || field.preferences.aiContextMode === "omit") return [];
@@ -232,18 +260,11 @@ function projectCandidature(
       },
     ];
   });
-  const sources = listCandidatureSources(rootPath, candidatureId)
-    .slice(0, 20)
-    .map((source) => ({
-      title: source.title,
-      url: source.url,
-      sourceText: source.sourceText.slice(0, 12000),
-    }));
   return {
     context: fitProjectedCandidatureSchema.parse({
-      label: candidature.label,
+      label: "Candidature",
       information,
-      sources,
+      sources: [],
     }),
     tokenMap,
   };
@@ -258,10 +279,16 @@ function requireCandidature(rootPath: string, candidatureId: string) {
 }
 
 function projectFitContext(rootPath: string, request: FitAssessmentRequest): Projection<z.infer<typeof fitProjectedContextSchema>> {
-  const candidatureProjection = projectCandidature(rootPath, request.candidatureId);
+  const profile = getProfile(rootPath).items;
+  const profileCorpus = profileItemStrings(profile);
+  const candidatureProjection = projectCandidature(
+    rootPath,
+    request.candidatureId,
+    profileCorpus,
+  );
   const tokenMap = new Map(candidatureProjection.tokenMap);
-  const token = tokenFactory(tokenMap);
-  const profileItems = getProfile(rootPath).items.flatMap((item) => {
+  const token = tokenFactory(tokenMap, [JSON.stringify(candidatureProjection.context), ...profileCorpus]);
+  const profileItems = profile.flatMap((item) => {
     const mode =
       item.kind === "identity"
         ? request.identityPrivacy
@@ -294,9 +321,16 @@ export function previewFitAssessment(
 }
 
 function rehydrate(value: string, tokenMap: ReadonlyMap<string, string>): string {
-  let result = value;
-  for (const [token, original] of tokenMap) result = result.split(token).join(original);
-  return result;
+  if (tokenMap.size === 0) return value;
+  const tokenPattern = (token: string) => token.replaceAll("[", "\\[").replaceAll("]", "\\]");
+  const pattern = new RegExp(
+    [...tokenMap.keys()]
+      .sort((left, right) => right.length - left.length)
+      .map(tokenPattern)
+      .join("|"),
+    "g",
+  );
+  return value.replace(pattern, (token) => tokenMap.get(token) ?? token);
 }
 
 function rehydrateFitResult(
@@ -431,7 +465,13 @@ export async function recommendVariant(
   if (variants.length === 0) {
     throw new AiServiceError("Create a profile variant before requesting a recommendation.");
   }
-  const projection = projectCandidature(rootPath, request.candidatureId);
+  const variantCorpus = variants.flatMap((variant) => [
+    variant.name,
+    variant.focus,
+    ...variant.targetTags,
+    variant.preferredLanguage ?? "",
+  ]);
+  const projection = projectCandidature(rootPath, request.candidatureId, variantCorpus);
   const context = variantRecommendationContextSchema.parse({
     candidature: projection.context,
     variants: variants.map((variant) => ({
@@ -509,11 +549,13 @@ export async function tailorCv(
   requireCandidature(rootPath, request.candidatureId);
   const document = requireDocument(rootPath, request.documentId);
   if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
-  const projection = projectCandidature(rootPath, request.candidatureId);
-  const context = documentContext(
-    projection.context,
-    resolveProfileVariant(rootPath, document.variantId).items,
+  const items = resolveProfileVariant(rootPath, document.variantId).items;
+  const projection = projectCandidature(
+    rootPath,
+    request.candidatureId,
+    profileItemStrings(items),
   );
+  const context = documentContext(projection.context, items);
   const result = cvTailoringResultSchema.parse(
     await provider.tailorCv(statusFor(stored), context),
   );
@@ -541,11 +583,13 @@ export async function draftCoverLetter(
   if (document.kind !== "cover_letter") {
     throw new AiServiceError("Choose a cover-letter document for cover-letter drafting.");
   }
-  const projection = projectCandidature(rootPath, request.candidatureId);
-  const context = documentContext(
-    projection.context,
-    resolveDocument(rootPath, document.id).items,
+  const items = resolveDocument(rootPath, document.id).items;
+  const projection = projectCandidature(
+    rootPath,
+    request.candidatureId,
+    profileItemStrings(items),
   );
+  const context = documentContext(projection.context, items);
   const result = coverLetterDraftSchema.parse(
     await provider.draftCoverLetter(statusFor(stored), context),
   );

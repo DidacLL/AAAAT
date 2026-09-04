@@ -31,7 +31,7 @@ describe("candidature AI fit panel", () => {
       },
       projectedContext: {
         candidature: {
-          label: record.label,
+          label: "Candidature",
           information: [
             {
               fieldId: "00000000-0000-4000-8000-000000000101",
@@ -39,16 +39,10 @@ describe("candidature AI fit panel", () => {
               value: "Example Corp",
             },
           ],
-          sources: [
-            {
-              title: "Job board",
-              url: "",
-              sourceText: "Build TypeScript systems.",
-            },
-          ],
+          sources: [],
         },
         profileItems: [
-          { kind: "identity", title: "[AAAT_PRIVATE_1]" },
+          { kind: "identity", title: "[AAAT_PRIVATE_11111111-1111-4111-8111-111111111111]" },
           { kind: "skill", title: "TypeScript" },
         ],
       },
@@ -80,7 +74,7 @@ describe("candidature AI fit panel", () => {
       identityPrivacy: "token",
       contactPrivacy: "token",
     });
-    expect(screen.getByText(/AAAT_PRIVATE_1/)).toBeInTheDocument();
+    expect(screen.getByText(/AAAT_PRIVATE_11111111/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Run local fit assessment" }));
 
     expect(assessFit).toHaveBeenCalledWith({

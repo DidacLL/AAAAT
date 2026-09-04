@@ -759,16 +759,20 @@ function comparisonSql(
     if (!Array.isArray(raw) || raw.length === 0) {
       throw new CandidatureFieldServiceError("Choose at least one choice for this filter.");
     }
-    const values = raw.map((item) => {
-      if (typeof item !== "string") {
-        throw new CandidatureFieldServiceError("Choice filters use choice IDs.");
-      }
-      const validated = validateScalar(field, item);
-      if (typeof validated !== "string") {
-        throw new CandidatureFieldServiceError("Choice filters use choice IDs.");
-      }
-      return validated;
-    });
+    const values = [
+      ...new Set(
+        raw.map((item) => {
+          if (typeof item !== "string") {
+            throw new CandidatureFieldServiceError("Choice filters use choice IDs.");
+          }
+          const validated = validateScalar(field, item);
+          if (typeof validated !== "string") {
+            throw new CandidatureFieldServiceError("Choice filters use choice IDs.");
+          }
+          return validated;
+        }),
+      ),
+    ];
     const placeholders = values.map(() => "?").join(", ");
     if (filter.operator === "contains_any") {
       return {

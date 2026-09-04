@@ -11,6 +11,7 @@ import {
   discoverCandidatureFieldFromSources,
   extractJob,
   previewFitAssessment,
+  recommendVariant,
   saveAiConnection,
 } from "../src/main/ai-service";
 import type { ModelProvider } from "../src/main/ai-provider";
@@ -24,7 +25,7 @@ import {
   listCandidatureSources,
   listCandidatures,
 } from "../src/main/candidature-service";
-import { addProfileItem } from "../src/main/profile-service";
+import { addProfileItem, createProfileVariant } from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
@@ -88,7 +89,7 @@ describe("AI service over live candidature information", () => {
     ).toThrow("loopback endpoint");
   });
 
-  it("assigns distinct opaque tokens across candidature information and profile identity", () => {
+  it("uses collision-resistant opaque tokens and rehydrates token-looking private literals without chaining", async () => {
     const root = configuredWorkspace();
     const sensitive = createCandidatureField(root, {
       label: "Internal referral code",
@@ -103,7 +104,7 @@ describe("AI service over live candidature information", () => {
       aiContextMode: "token",
     });
     const candidature = createCandidature(root, {
-      values: [{ fieldId: sensitive.definition.id, value: "PRIVATE-REF-42" }],
+      values: [{ fieldId: sensitive.definition.id, value: "[AAAT_PRIVATE_2]" }],
     });
     addProfileItem(root, { kind: "identity", title: "Didac Example" });
 
@@ -113,10 +114,118 @@ describe("AI service over live candidature information", () => {
       contactPrivacy: "omit",
     });
     const serialized = JSON.stringify(preview.projectedContext);
-    expect(serialized).toContain("[AAAT_PRIVATE_1]");
-    expect(serialized).toContain("[AAAT_PRIVATE_2]");
-    expect(serialized).not.toContain("PRIVATE-REF-42");
+    const tokens = serialized.match(/\[AAAT_PRIVATE_[0-9a-f-]{36}\]/g) ?? [];
+    expect(new Set(tokens).size).toBe(2);
     expect(serialized).not.toContain("Didac Example");
+    expect(serialized).not.toContain("[AAAT_PRIVATE_2]");
+
+    const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
+      const projectedValue = context.candidature.information.find(
+        (item) => item.fieldId === sensitive.definition.id,
+      )?.value;
+      const projectedIdentity = context.profileItems.find((item) => item.kind === "identity")?.title;
+      expect(typeof projectedValue).toBe("string");
+      expect(projectedIdentity).toMatch(/^\[AAAT_PRIVATE_[0-9a-f-]{36}\]$/);
+      return {
+        fit: "possible",
+        summary: String(projectedValue),
+        strengths: [projectedIdentity ?? ""],
+        gaps: [],
+        focus: [],
+      };
+    });
+
+    await expect(
+      assessFit(
+        root,
+        {
+          candidatureId: candidature.id,
+          identityPrivacy: "token",
+          contactPrivacy: "omit",
+        },
+        provider({ assessFit: assess }),
+      ),
+    ).resolves.toMatchObject({
+      summary: "[AAAT_PRIVATE_2]",
+      strengths: ["Didac Example"],
+    });
+  });
+
+  it("keeps retained Sources out of ordinary AI projection and lets field privacy control disclosure", async () => {
+    const root = configuredWorkspace();
+    const omitted = createCandidatureField(root, {
+      label: "Private compensation note",
+      description: "Never send this field in ordinary AI context.",
+      valueType: "text",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
+    });
+    const tokenized = createCandidatureField(root, {
+      label: "Referral code",
+      description: "Tokenize this field in ordinary AI context.",
+      valueType: "text",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
+    });
+    updateCandidatureFieldPreferences(root, {
+      ...omitted.preferences,
+      aiContextMode: "omit",
+    });
+    updateCandidatureFieldPreferences(root, {
+      ...tokenized.preferences,
+      aiContextMode: "token",
+    });
+    const candidature = createCandidature(root, {
+      source: {
+        kind: "recruiter_message",
+        title: "PRIVATE RECRUITER THREAD",
+        url: "https://example.invalid/private-thread",
+        sourceText: "SECRET-COMP-9000 and PRIVATE-REF-42 appear in retained evidence.",
+      },
+      values: [
+        { fieldId: omitted.definition.id, value: "SECRET-COMP-9000" },
+        { fieldId: tokenized.definition.id, value: "PRIVATE-REF-42" },
+      ],
+    });
+    const variant = createProfileVariant(root, {
+      name: "General",
+      focus: "General applications",
+      targetTags: [],
+    }).variants[0];
+    if (!variant) throw new Error("variant fixture missing");
+
+    const preview = previewFitAssessment(root, {
+      candidatureId: candidature.id,
+      identityPrivacy: "omit",
+      contactPrivacy: "omit",
+    });
+    expect(preview.projectedContext.candidature.sources).toEqual([]);
+    expect(preview.projectedContext.candidature.label).toBe("Candidature");
+    const serialized = JSON.stringify(preview.projectedContext);
+    expect(serialized).not.toContain("PRIVATE RECRUITER THREAD");
+    expect(serialized).not.toContain("private-thread");
+    expect(serialized).not.toContain("SECRET-COMP-9000");
+    expect(serialized).not.toContain("PRIVATE-REF-42");
+    expect(serialized).toMatch(/\[AAAT_PRIVATE_[0-9a-f-]{36}\]/);
+
+    const recommend = vi.fn<ModelProvider["recommendVariant"]>(async (_connection, context) => {
+      const providerContext = JSON.stringify(context);
+      expect(context.candidature.sources).toEqual([]);
+      expect(context.candidature.label).toBe("Candidature");
+      expect(providerContext).not.toContain("PRIVATE RECRUITER THREAD");
+      expect(providerContext).not.toContain("SECRET-COMP-9000");
+      expect(providerContext).not.toContain("PRIVATE-REF-42");
+      return { variantId: variant.id, rationale: "General match." };
+    });
+    await expect(
+      recommendVariant(
+        root,
+        { candidatureId: candidature.id },
+        provider({ recommendVariant: recommend }),
+      ),
+    ).resolves.toEqual({ variantId: variant.id, rationale: "General match." });
   });
 
   it("builds extraction requests from the current live field catalogue, including a field added at runtime", async () => {
@@ -249,33 +358,5 @@ describe("AI service over live candidature information", () => {
     expect(listCandidatures(root)[0]?.values).toEqual([
       expect.objectContaining({ fieldId: rating.definition.id, value: "A320" }),
     ]);
-  });
-
-  it("rehydrates privacy tokens only after local fit inference returns", async () => {
-    const root = configuredWorkspace();
-    addProfileItem(root, { kind: "identity", title: "Didac Example" });
-    const candidature = createCandidature(root, { values: [] });
-    const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
-      expect(JSON.stringify(context)).not.toContain("Didac Example");
-      return {
-        fit: "possible",
-        summary: "Evidence for [AAAT_PRIVATE_1].",
-        strengths: [],
-        gaps: [],
-        focus: [],
-      };
-    });
-
-    await expect(
-      assessFit(
-        root,
-        {
-          candidatureId: candidature.id,
-          identityPrivacy: "token",
-          contactPrivacy: "omit",
-        },
-        provider({ assessFit: assess }),
-      ),
-    ).resolves.toMatchObject({ summary: "Evidence for Didac Example." });
   });
 });
