@@ -12,7 +12,7 @@ import {
   type DocumentAiContext,
   type FitAssessmentResult,
   type FitProjectedContext,
-  type JobExtractionRequest,
+  type JobExtractionProviderRequest,
   type JobExtractionResult,
   type VariantRecommendationContext,
   type VariantRecommendationResult,
@@ -40,22 +40,16 @@ export class AiProviderError extends Error {
 }
 
 export interface ModelProvider {
-  assessFit(
-    connection: AiConnectionStatus,
-    context: FitProjectedContext,
-  ): Promise<FitAssessmentResult>;
+  assessFit(connection: AiConnectionStatus, context: FitProjectedContext): Promise<FitAssessmentResult>;
   extractJob(
     connection: AiConnectionStatus,
-    request: JobExtractionRequest,
+    request: JobExtractionProviderRequest,
   ): Promise<JobExtractionResult>;
   recommendVariant(
     connection: AiConnectionStatus,
     context: VariantRecommendationContext,
   ): Promise<VariantRecommendationResult>;
-  tailorCv(
-    connection: AiConnectionStatus,
-    context: DocumentAiContext,
-  ): Promise<CvTailoringResult>;
+  tailorCv(connection: AiConnectionStatus, context: DocumentAiContext): Promise<CvTailoringResult>;
   draftCoverLetter(
     connection: AiConnectionStatus,
     context: DocumentAiContext,
@@ -82,7 +76,7 @@ async function requestContent(
       method: "POST",
       headers: { "content-type": "application/json" },
       redirect: "error",
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(30000),
       body: JSON.stringify({
         model: connection.model,
         temperature: 0,
@@ -95,7 +89,6 @@ async function requestContent(
   } catch {
     throw new AiProviderError("AAAAT could not reach the configured local model provider.");
   }
-
   if (!response.ok) {
     throw new AiProviderError("The configured local model provider rejected the request.");
   }
@@ -117,7 +110,7 @@ async function requestContent(
 function parseJson<T>(content: string, schema: z.ZodType<T>, message: string): T {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(content) as unknown;
   } catch {
     throw new AiProviderError(message);
   }
@@ -137,7 +130,7 @@ export function createOpenAiCompatibleProvider(
       const content = await requestContent(
         fetchImpl,
         connection,
-        "Assess job fit using only the supplied context. Return JSON only with keys fit, summary, strengths, gaps, focus. fit must be weak, possible, or strong. Do not invent facts that are absent from the context.",
+        "Assess opportunity fit using only the supplied context. Return JSON only with keys fit, summary, strengths, gaps, focus. fit must be weak, possible, or strong. Missing candidature information is normal; do not invent facts.",
         context,
       );
       return parseJson(
@@ -149,18 +142,18 @@ export function createOpenAiCompatibleProvider(
 
     async extractJob(
       connection: AiConnectionStatus,
-      request: JobExtractionRequest,
+      request: JobExtractionProviderRequest,
     ): Promise<JobExtractionResult> {
       const content = await requestContent(
         fetchImpl,
         connection,
-        "Extract only facts supported by the supplied job source. Return JSON only with keys company, role, location, workMode, salaryText. Use an empty string when a value is not supported. Do not infer lifecycle status, dates, next actions, or personal career data.",
+        "Discover only facts supported by the supplied Source for the explicitly requested fields. Return JSON only as {\"proposals\":[{\"fieldId\":\"...\",\"value\":...}]}. Use only field IDs present in fields, obey each field type, cardinality and choice IDs, omit unsupported values, and never propose or create new field definitions.",
         request,
       );
       return parseJson(
         content,
         jobExtractionResultSchema,
-        "The configured provider returned an invalid job extraction.",
+        "The configured provider returned invalid candidature field discovery.",
       );
     },
 

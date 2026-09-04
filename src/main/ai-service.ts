@@ -13,7 +13,11 @@ import {
   fitAssessmentPreviewSchema,
   fitAssessmentRequestSchema,
   fitAssessmentResultSchema,
+  fitProjectedCandidatureSchema,
   fitProjectedContextSchema,
+  historicalFieldDiscoveryRequestSchema,
+  historicalFieldDiscoveryResultSchema,
+  jobExtractionProviderRequestSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
   variantRecommendationContextSchema,
@@ -27,18 +31,34 @@ import {
   type FitAssessmentPreview,
   type FitAssessmentRequest,
   type FitAssessmentResult,
+  type FitProjectedCandidature,
   type FitProjectedProfileItem,
+  type HistoricalFieldDiscoveryRequest,
+  type HistoricalFieldDiscoveryResult,
+  type JobExtractionProviderRequest,
   type JobExtractionRequest,
   type JobExtractionResult,
   type PrivacyMode,
   type VariantRecommendationRequest,
   type VariantRecommendationResult,
 } from "../shared/ai-contracts";
-import type { ProfileItem } from "../shared/contracts";
+import type {
+  CandidatureFieldConfiguration,
+  CandidatureRuntimeValue,
+  ProfileItem,
+} from "../shared/contracts";
 import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
-import { listCandidatures } from "./candidature-service";
+import {
+  listCandidatureFields,
+  validateCandidatureFieldValueInDatabase,
+} from "./candidature-field-service";
+import {
+  getCandidature,
+  listCandidatureSources,
+} from "./candidature-service";
 import { listDocuments, resolveDocument } from "./document-service";
 import { getProfile, resolveProfileVariant } from "./profile-service";
+import { withWorkspaceDatabase } from "./workspace";
 
 const storedConnectionSchema = z
   .object({
@@ -129,9 +149,19 @@ export function saveAiConnection(
   return statusFor(stored);
 }
 
-interface Projection {
-  readonly context: z.infer<typeof fitProjectedContextSchema>;
+interface Projection<T> {
+  readonly context: T;
   readonly tokenMap: ReadonlyMap<string, string>;
+}
+
+function tokenFactory(tokenMap: Map<string, string>) {
+  let counter = 0;
+  return (value: string): string => {
+    counter += 1;
+    const placeholder = `[AAAT_PRIVATE_${counter}]`;
+    tokenMap.set(placeholder, value);
+    return placeholder;
+  };
 }
 
 function projectedItem(
@@ -159,39 +189,78 @@ function projectedItem(
   };
 }
 
-function opportunityContext(candidature: ReturnType<typeof listCandidatures>[number]) {
+function tokenRuntimeValue(
+  value: CandidatureRuntimeValue,
+  token: (value: string) => string,
+): CandidatureRuntimeValue {
+  if (Array.isArray(value)) return value.map((item) => token(String(item)));
+  return token(String(value));
+}
+
+function aiDiscoveryField(field: CandidatureFieldConfiguration) {
   return {
-    company: candidature.company,
-    role: candidature.role,
-    location: candidature.location,
-    workMode: candidature.workMode,
-    salaryText: candidature.salaryText,
-    source: candidature.source,
-    sourceText: candidature.sourceText.slice(0, 12_000),
+    id: field.definition.id,
+    label: field.definition.label,
+    description: field.definition.description,
+    valueType: field.definition.valueType,
+    cardinality: field.definition.cardinality,
+    choices: field.definition.choices,
+  };
+}
+
+function projectCandidature(
+  rootPath: string,
+  candidatureId: string,
+): Projection<FitProjectedCandidature> {
+  const candidature = getCandidature(rootPath, candidatureId);
+  const fields = new Map(
+    listCandidatureFields(rootPath).map((field) => [field.definition.id, field]),
+  );
+  const tokenMap = new Map<string, string>();
+  const token = tokenFactory(tokenMap);
+  const information = candidature.values.flatMap((retained) => {
+    const field = fields.get(retained.fieldId);
+    if (!field || field.preferences.aiContextMode === "omit") return [];
+    return [
+      {
+        fieldId: field.definition.id,
+        label: field.definition.label,
+        value:
+          field.preferences.aiContextMode === "token"
+            ? tokenRuntimeValue(retained.value, token)
+            : retained.value,
+      },
+    ];
+  });
+  const sources = listCandidatureSources(rootPath, candidatureId)
+    .slice(0, 20)
+    .map((source) => ({
+      title: source.title,
+      url: source.url,
+      sourceText: source.sourceText.slice(0, 12000),
+    }));
+  return {
+    context: fitProjectedCandidatureSchema.parse({
+      label: candidature.label,
+      information,
+      sources,
+    }),
+    tokenMap,
   };
 }
 
 function requireCandidature(rootPath: string, candidatureId: string) {
-  const candidature = listCandidatures(rootPath).find(
-    (candidate) => candidate.id === candidatureId,
-  );
-  if (!candidature) {
+  try {
+    return getCandidature(rootPath, candidatureId);
+  } catch {
     throw new AiServiceError("The selected candidature no longer exists.");
   }
-  return candidature;
 }
 
-function projectFitContext(rootPath: string, request: FitAssessmentRequest): Projection {
-  const candidature = requireCandidature(rootPath, request.candidatureId);
-  const tokenMap = new Map<string, string>();
-  let tokenCounter = 0;
-  const token = (value: string) => {
-    tokenCounter += 1;
-    const placeholder = `[AAAT_PRIVATE_${tokenCounter}]`;
-    tokenMap.set(placeholder, value);
-    return placeholder;
-  };
-
+function projectFitContext(rootPath: string, request: FitAssessmentRequest): Projection<z.infer<typeof fitProjectedContextSchema>> {
+  const candidatureProjection = projectCandidature(rootPath, request.candidatureId);
+  const tokenMap = new Map(candidatureProjection.tokenMap);
+  const token = tokenFactory(tokenMap);
   const profileItems = getProfile(rootPath).items.flatMap((item) => {
     const mode =
       item.kind === "identity"
@@ -202,10 +271,9 @@ function projectFitContext(rootPath: string, request: FitAssessmentRequest): Pro
     const projected = projectedItem(item, mode, token);
     return projected ? [projected] : [];
   });
-
   return {
     context: fitProjectedContextSchema.parse({
-      candidature: opportunityContext(candidature),
+      candidature: candidatureProjection.context,
       profileItems,
     }),
     tokenMap,
@@ -227,13 +295,11 @@ export function previewFitAssessment(
 
 function rehydrate(value: string, tokenMap: ReadonlyMap<string, string>): string {
   let result = value;
-  for (const [token, original] of tokenMap) {
-    result = result.split(token).join(original);
-  }
+  for (const [token, original] of tokenMap) result = result.split(token).join(original);
   return result;
 }
 
-function rehydrateResult(
+function rehydrateFitResult(
   result: FitAssessmentResult,
   tokenMap: ReadonlyMap<string, string>,
 ): FitAssessmentResult {
@@ -255,7 +321,31 @@ export async function assessFit(
   const stored = requireStoredConnection(rootPath);
   const projection = projectFitContext(rootPath, request);
   const result = await provider.assessFit(statusFor(stored), projection.context);
-  return rehydrateResult(result, projection.tokenMap);
+  return rehydrateFitResult(result, projection.tokenMap);
+}
+
+function discoveryFields(rootPath: string): CandidatureFieldConfiguration[] {
+  return listCandidatureFields(rootPath).filter(
+    (field) => field.definition.enabled && field.preferences.aiDiscovery,
+  );
+}
+
+function validateDiscoveryResult(
+  rootPath: string,
+  request: JobExtractionProviderRequest,
+  result: JobExtractionResult,
+): JobExtractionResult {
+  const requested = new Set(request.fields.map((field) => field.id));
+  const proposals = result.proposals.flatMap((proposal) => {
+    if (!requested.has(proposal.fieldId)) {
+      throw new AiServiceError("The model proposed a candidature field that was not requested.");
+    }
+    const normalized = withWorkspaceDatabase(rootPath, (database) =>
+      validateCandidatureFieldValueInDatabase(database, proposal.fieldId, proposal.value),
+    );
+    return normalized === null ? [] : [{ fieldId: proposal.fieldId, value: normalized }];
+  });
+  return jobExtractionResultSchema.parse({ proposals });
 }
 
 export async function extractJob(
@@ -265,9 +355,68 @@ export async function extractJob(
 ): Promise<JobExtractionResult> {
   const request = jobExtractionRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath);
-  return jobExtractionResultSchema.parse(
-    await provider.extractJob(statusFor(stored), request),
+  const fields = discoveryFields(rootPath);
+  if (fields.length === 0) {
+    throw new AiServiceError("Enable AI discovery for at least one candidature field first.");
+  }
+  const providerRequest = jobExtractionProviderRequestSchema.parse({
+    ...request,
+    fields: fields.map(aiDiscoveryField),
+  });
+  const result = jobExtractionResultSchema.parse(
+    await provider.extractJob(statusFor(stored), providerRequest),
   );
+  return validateDiscoveryResult(rootPath, providerRequest, result);
+}
+
+export async function discoverCandidatureFieldFromSources(
+  rootPath: string,
+  rawRequest: HistoricalFieldDiscoveryRequest,
+  provider: ModelProvider = createOpenAiCompatibleProvider(),
+): Promise<HistoricalFieldDiscoveryResult> {
+  const request = historicalFieldDiscoveryRequestSchema.parse(rawRequest);
+  const stored = requireStoredConnection(rootPath);
+  const candidature = requireCandidature(rootPath, request.candidatureId);
+  const field = listCandidatureFields(rootPath).find(
+    (candidate) => candidate.definition.id === request.fieldId,
+  );
+  if (!field || !field.definition.enabled) {
+    throw new AiServiceError("Choose an enabled candidature field for discovery.");
+  }
+  const sourceMap = new Map(
+    listCandidatureSources(rootPath, request.candidatureId).map((source) => [source.id, source]),
+  );
+  const selected = request.sourceIds.map((sourceId) => {
+    const source = sourceMap.get(sourceId);
+    if (!source) {
+      throw new AiServiceError("A selected Source no longer belongs to this candidature.");
+    }
+    return source;
+  });
+  const sourceText = selected
+    .map(
+      (source) =>
+        `Source: ${source.title}\nURL: ${source.url}\n${source.sourceText}`,
+    )
+    .join("\n\n---\n\n")
+    .slice(0, 50000)
+    .trim();
+  if (!sourceText) throw new AiServiceError("The selected Sources contain no text to analyze.");
+
+  const providerRequest = jobExtractionProviderRequestSchema.parse({
+    sourceText,
+    sourceTitle: "Retained AAAAT Sources",
+    sourceUrl: "",
+    fields: [aiDiscoveryField(field)],
+  });
+  const rawResult = jobExtractionResultSchema.parse(
+    await provider.extractJob(statusFor(stored), providerRequest),
+  );
+  const result = validateDiscoveryResult(rootPath, providerRequest, rawResult);
+  return historicalFieldDiscoveryResultSchema.parse({
+    proposal: result.proposals[0] ?? null,
+    existingValuePresent: candidature.values.some((value) => value.fieldId === request.fieldId),
+  });
 }
 
 export async function recommendVariant(
@@ -277,31 +426,32 @@ export async function recommendVariant(
 ): Promise<VariantRecommendationResult> {
   const request = variantRecommendationRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath);
-  const candidature = requireCandidature(rootPath, request.candidatureId);
+  requireCandidature(rootPath, request.candidatureId);
   const variants = getProfile(rootPath).variants;
   if (variants.length === 0) {
     throw new AiServiceError("Create a profile variant before requesting a recommendation.");
   }
+  const projection = projectCandidature(rootPath, request.candidatureId);
   const context = variantRecommendationContextSchema.parse({
-    candidature: opportunityContext(candidature),
+    candidature: projection.context,
     variants: variants.map((variant) => ({
       id: variant.id,
       name: variant.name,
       focus: variant.focus,
       targetTags: variant.targetTags,
-      ...(variant.preferredLanguage
-        ? { preferredLanguage: variant.preferredLanguage }
-        : {}),
+      ...(variant.preferredLanguage ? { preferredLanguage: variant.preferredLanguage } : {}),
     })),
   });
   const result = variantRecommendationResultSchema.parse(
     await provider.recommendVariant(statusFor(stored), context),
   );
-  const currentVariants = getProfile(rootPath).variants;
-  if (!currentVariants.some((variant) => variant.id === result.variantId)) {
+  if (!getProfile(rootPath).variants.some((variant) => variant.id === result.variantId)) {
     throw new AiServiceError("The model recommended a profile variant that no longer exists.");
   }
-  return result;
+  return variantRecommendationResultSchema.parse({
+    ...result,
+    rationale: rehydrate(result.rationale, projection.tokenMap),
+  });
 }
 
 const documentEvidenceKinds = new Set([
@@ -321,7 +471,7 @@ function requireDocument(rootPath: string, documentId: string) {
 }
 
 function documentContext(
-  candidature: ReturnType<typeof requireCandidature>,
+  candidature: FitProjectedCandidature,
   items: readonly ProfileItem[],
 ) {
   const evidence = items
@@ -336,17 +486,12 @@ function documentContext(
   if (evidence.length === 0) {
     throw new AiServiceError("Add non-sensitive career evidence before requesting document assistance.");
   }
-  return documentAiContextSchema.parse({
-    candidature: opportunityContext(candidature),
-    items: evidence,
-  });
+  return documentAiContextSchema.parse({ candidature, items: evidence });
 }
 
 function currentDocumentEvidenceIds(rootPath: string, documentId: string): ReadonlySet<string> {
   const document = requireDocument(rootPath, documentId);
-  if (document.kind !== "cv") {
-    throw new AiServiceError("Choose a CV document for CV tailoring.");
-  }
+  if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
   return new Set(
     resolveProfileVariant(rootPath, document.variantId).items
       .filter((item) => documentEvidenceKinds.has(item.kind))
@@ -361,11 +506,12 @@ export async function tailorCv(
 ): Promise<CvTailoringResult> {
   const request = documentAiRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath);
-  const candidature = requireCandidature(rootPath, request.candidatureId);
+  requireCandidature(rootPath, request.candidatureId);
   const document = requireDocument(rootPath, request.documentId);
   if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
+  const projection = projectCandidature(rootPath, request.candidatureId);
   const context = documentContext(
-    candidature,
+    projection.context,
     resolveProfileVariant(rootPath, document.variantId).items,
   );
   const result = cvTailoringResultSchema.parse(
@@ -375,7 +521,12 @@ export async function tailorCv(
   if (result.recommendations.some((item) => !allowed.has(item.itemId))) {
     throw new AiServiceError("The model recommended a profile item that no longer exists.");
   }
-  return result;
+  return cvTailoringResultSchema.parse({
+    recommendations: result.recommendations.map((item) => ({
+      ...item,
+      rationale: rehydrate(item.rationale, projection.tokenMap),
+    })),
+  });
 }
 
 export async function draftCoverLetter(
@@ -385,13 +536,25 @@ export async function draftCoverLetter(
 ): Promise<CoverLetterDraft> {
   const request = documentAiRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath);
-  const candidature = requireCandidature(rootPath, request.candidatureId);
+  requireCandidature(rootPath, request.candidatureId);
   const document = requireDocument(rootPath, request.documentId);
   if (document.kind !== "cover_letter") {
     throw new AiServiceError("Choose a cover-letter document for cover-letter drafting.");
   }
-  const context = documentContext(candidature, resolveDocument(rootPath, document.id).items);
-  return coverLetterDraftSchema.parse(
+  const projection = projectCandidature(rootPath, request.candidatureId);
+  const context = documentContext(
+    projection.context,
+    resolveDocument(rootPath, document.id).items,
+  );
+  const result = coverLetterDraftSchema.parse(
     await provider.draftCoverLetter(statusFor(stored), context),
   );
+  return coverLetterDraftSchema.parse({
+    recipient: rehydrate(result.recipient, projection.tokenMap),
+    subject: rehydrate(result.subject, projection.tokenMap),
+    bodyParagraphs: result.bodyParagraphs.map((paragraph) =>
+      rehydrate(paragraph, projection.tokenMap),
+    ),
+    closing: rehydrate(result.closing, projection.tokenMap),
+  });
 }

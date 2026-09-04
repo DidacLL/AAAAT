@@ -3,10 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { CoverLetterDraft, CvTailoringResult } from "../shared/ai-contracts";
 import type { CandidatureRecord, DocumentRecord, ProfileItem } from "../shared/contracts";
 
-function candidatureLabel(record: CandidatureRecord): string {
-  return `${record.company || "Unknown company"} — ${record.role || "Unspecified role"}`;
-}
-
 export function AiDocumentsWorkspace() {
   const [candidatures, setCandidatures] = useState<CandidatureRecord[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -28,10 +24,11 @@ export function AiDocumentsWorkspace() {
     ])
       .then(([nextCandidatures, nextDocuments, profile]) => {
         if (!active) return;
-        setCandidatures(nextCandidatures.filter((item) => !item.archived));
+        const activeCandidatures = nextCandidatures.filter((item) => !item.archived);
+        setCandidatures(activeCandidatures);
         setDocuments(nextDocuments);
         setProfileItems(profile.items);
-        setCandidatureId(nextCandidatures.find((item) => !item.archived)?.id ?? "");
+        setCandidatureId(activeCandidatures[0]?.id ?? "");
         setDocumentId(nextDocuments[0]?.id ?? "");
       })
       .catch(() => {
@@ -140,15 +137,13 @@ export function AiDocumentsWorkspace() {
     <section className="profile-workspace" aria-label="AI document assistance">
       <div className="profile-column">
         <div className="section-heading">
-          <div>
-            <p className="eyebrow">Optional AI</p>
-            <h2>Document assistance</h2>
-          </div>
+          <div><p className="eyebrow">Optional AI</p><h2>Document assistance</h2></div>
           <span>Proposal-first</span>
         </div>
         <p>
-          Choose a saved candidature and an existing document. AI receives only saved opportunity
-          context and non-sensitive career evidence. Identity and contact items are omitted.
+          Choose a saved candidature and an existing document. AI receives only retained candidature
+          fields allowed by their AI-context preferences, retained Sources, and non-sensitive career
+          evidence. Identity and contact profile items keep their existing privacy controls.
         </p>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
         {notice ? <p className="document-notice" role="status">{notice}</p> : null}
@@ -165,7 +160,7 @@ export function AiDocumentsWorkspace() {
               }}
             >
               {candidatures.map((record) => (
-                <option key={record.id} value={record.id}>{candidatureLabel(record)}</option>
+                <option key={record.id} value={record.id}>{record.label}</option>
               ))}
             </select>
           </label>
@@ -189,7 +184,7 @@ export function AiDocumentsWorkspace() {
             <h3>CV tailoring proposal</h3>
             <p>
               Recommendations reference existing profile items only. Nothing is changed
-              automatically; use the normal Documents controls to accept or reject the suggestions.
+              automatically; use the normal Documents controls to accept or reject suggestions.
             </p>
             <button type="button" disabled={busy} onClick={() => void tailorCv()}>
               {busy ? "Generating…" : "Recommend CV evidence"}
@@ -216,8 +211,7 @@ export function AiDocumentsWorkspace() {
             <h3>Cover-letter draft</h3>
             <p>
               Generate a structured draft, edit it here, then explicitly apply it. Applying updates
-              structured fields through the existing document service and does not silently replace
-              manual TeX source.
+              structured fields through the document service and does not replace manual TeX source.
             </p>
             <button type="button" disabled={busy} onClick={() => void draftCoverLetter()}>
               {busy ? "Drafting…" : "Draft cover letter"}
@@ -226,40 +220,29 @@ export function AiDocumentsWorkspace() {
               <div className="document-fields">
                 <label>
                   Recipient
-                  <input
-                    value={coverDraft.recipient}
-                    onChange={(event) => setCoverDraft({ ...coverDraft, recipient: event.target.value })}
-                  />
+                  <input value={coverDraft.recipient} onChange={(event) => setCoverDraft({ ...coverDraft, recipient: event.target.value })} />
                 </label>
                 <label className="wide-field">
                   Subject
-                  <input
-                    value={coverDraft.subject}
-                    onChange={(event) => setCoverDraft({ ...coverDraft, subject: event.target.value })}
-                  />
+                  <input value={coverDraft.subject} onChange={(event) => setCoverDraft({ ...coverDraft, subject: event.target.value })} />
                 </label>
                 <label className="wide-field">
                   Body paragraphs
                   <textarea
                     rows={10}
                     value={coverDraft.bodyParagraphs.join("\n\n")}
-                    onChange={(event) =>
-                      setCoverDraft({
-                        ...coverDraft,
-                        bodyParagraphs: event.target.value
-                          .split(/\n\s*\n/)
-                          .map((part) => part.trim())
-                          .filter(Boolean),
-                      })
-                    }
+                    onChange={(event) => setCoverDraft({
+                      ...coverDraft,
+                      bodyParagraphs: event.target.value
+                        .split(/\n\s*\n/)
+                        .map((part) => part.trim())
+                        .filter(Boolean),
+                    })}
                   />
                 </label>
                 <label className="wide-field">
                   Closing
-                  <input
-                    value={coverDraft.closing}
-                    onChange={(event) => setCoverDraft({ ...coverDraft, closing: event.target.value })}
-                  />
+                  <input value={coverDraft.closing} onChange={(event) => setCoverDraft({ ...coverDraft, closing: event.target.value })} />
                 </label>
                 <button
                   className="compact-primary"

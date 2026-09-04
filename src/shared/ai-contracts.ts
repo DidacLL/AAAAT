@@ -1,11 +1,19 @@
 import { z } from "zod";
 
+import {
+  candidatureChoiceDefinitionSchema,
+  candidatureFieldCardinalitySchema,
+  candidatureFieldValueTypeSchema,
+  candidatureRuntimeValueSchema,
+} from "./contracts";
+
 export const aiChannels = Object.freeze({
   connectionCurrent: "aaaat:ai-connection-current",
   connectionSave: "aaaat:ai-connection-save",
   fitPreview: "aaaat:ai-fit-preview",
   fitAssess: "aaaat:ai-fit-assess",
   jobExtract: "aaaat:ai-job-extract",
+  fieldDiscover: "aaaat:ai-field-discover",
   variantRecommend: "aaaat:ai-variant-recommend",
   cvTailor: "aaaat:ai-cv-tailor",
   coverLetterDraft: "aaaat:ai-cover-letter-draft",
@@ -19,7 +27,6 @@ export const aiConnectionInputSchema = z
   })
   .strict();
 export type AiConnectionInput = z.infer<typeof aiConnectionInputSchema>;
-
 export const aiConnectionStatusSchema = aiConnectionInputSchema;
 export type AiConnectionStatus = z.infer<typeof aiConnectionStatusSchema>;
 export const optionalAiConnectionStatusSchema = aiConnectionStatusSchema.nullable();
@@ -36,15 +43,27 @@ export const fitAssessmentRequestSchema = z
   .strict();
 export type FitAssessmentRequest = z.infer<typeof fitAssessmentRequestSchema>;
 
+export const projectedCandidatureInformationSchema = z
+  .object({
+    fieldId: z.string().uuid(),
+    label: z.string().min(1),
+    value: candidatureRuntimeValueSchema,
+  })
+  .strict();
+
+export const projectedCandidatureSourceSchema = z
+  .object({
+    title: z.string(),
+    url: z.string(),
+    sourceText: z.string().max(12000),
+  })
+  .strict();
+
 export const fitProjectedCandidatureSchema = z
   .object({
-    company: z.string(),
-    role: z.string(),
-    location: z.string(),
-    workMode: z.string(),
-    salaryText: z.string(),
-    source: z.string(),
-    sourceText: z.string(),
+    label: z.string().min(1),
+    information: z.array(projectedCandidatureInformationSchema).max(64),
+    sources: z.array(projectedCandidatureSourceSchema).max(20),
   })
   .strict();
 export type FitProjectedCandidature = z.infer<typeof fitProjectedCandidatureSchema>;
@@ -70,10 +89,7 @@ export const fitProjectedContextSchema = z
 export type FitProjectedContext = z.infer<typeof fitProjectedContextSchema>;
 
 export const fitAssessmentPreviewSchema = z
-  .object({
-    connection: aiConnectionStatusSchema,
-    projectedContext: fitProjectedContextSchema,
-  })
+  .object({ connection: aiConnectionStatusSchema, projectedContext: fitProjectedContextSchema })
   .strict();
 export type FitAssessmentPreview = z.infer<typeof fitAssessmentPreviewSchema>;
 
@@ -88,25 +104,65 @@ export const fitAssessmentResultSchema = z
   .strict();
 export type FitAssessmentResult = z.infer<typeof fitAssessmentResultSchema>;
 
+export const aiDiscoveryFieldSchema = z
+  .object({
+    id: z.string().uuid(),
+    label: z.string().trim().min(1).max(120),
+    description: z.string().max(2000),
+    valueType: candidatureFieldValueTypeSchema,
+    cardinality: candidatureFieldCardinalitySchema,
+    choices: z.array(candidatureChoiceDefinitionSchema).max(64),
+  })
+  .strict();
+export type AiDiscoveryField = z.infer<typeof aiDiscoveryFieldSchema>;
+
 export const jobExtractionRequestSchema = z
   .object({
-    sourceText: z.string().trim().min(1).max(50_000),
-    source: z.string().trim().max(200).default(""),
+    sourceText: z.string().trim().min(1).max(50000),
+    sourceTitle: z.string().trim().max(200).default(""),
     sourceUrl: z.string().trim().max(2048).default(""),
   })
   .strict();
 export type JobExtractionRequest = z.infer<typeof jobExtractionRequestSchema>;
 
+export const jobExtractionProviderRequestSchema = jobExtractionRequestSchema
+  .extend({ fields: z.array(aiDiscoveryFieldSchema).min(1).max(32) })
+  .strict();
+export type JobExtractionProviderRequest = z.infer<typeof jobExtractionProviderRequestSchema>;
+
+export const jobExtractionProposalSchema = z
+  .object({ fieldId: z.string().uuid(), value: candidatureRuntimeValueSchema })
+  .strict();
+export type JobExtractionProposal = z.infer<typeof jobExtractionProposalSchema>;
+
 export const jobExtractionResultSchema = z
+  .object({ proposals: z.array(jobExtractionProposalSchema).max(32) })
+  .strict()
+  .refine(
+    (result) => new Set(result.proposals.map((proposal) => proposal.fieldId)).size === result.proposals.length,
+    { message: "Each discovery field may be proposed only once." },
+  );
+export type JobExtractionResult = z.infer<typeof jobExtractionResultSchema>;
+
+export const historicalFieldDiscoveryRequestSchema = z
   .object({
-    company: z.string().trim().max(200),
-    role: z.string().trim().max(200),
-    location: z.string().trim().max(200),
-    workMode: z.string().trim().max(80),
-    salaryText: z.string().trim().max(300),
+    candidatureId: z.string().uuid(),
+    fieldId: z.string().uuid(),
+    sourceIds: z.array(z.string().uuid()).min(1).max(20),
+  })
+  .strict()
+  .refine((value) => new Set(value.sourceIds).size === value.sourceIds.length, {
+    message: "Each source may be selected only once.",
+  });
+export type HistoricalFieldDiscoveryRequest = z.infer<typeof historicalFieldDiscoveryRequestSchema>;
+
+export const historicalFieldDiscoveryResultSchema = z
+  .object({
+    proposal: jobExtractionProposalSchema.nullable(),
+    existingValuePresent: z.boolean(),
   })
   .strict();
-export type JobExtractionResult = z.infer<typeof jobExtractionResultSchema>;
+export type HistoricalFieldDiscoveryResult = z.infer<typeof historicalFieldDiscoveryResultSchema>;
 
 export const variantRecommendationRequestSchema = z
   .object({ candidatureId: z.string().uuid() })
@@ -182,7 +238,8 @@ export const cvTailoringResultSchema = z
   })
   .strict()
   .refine(
-    (value) => new Set(value.recommendations.map((item) => item.itemId)).size === value.recommendations.length,
+    (value) =>
+      new Set(value.recommendations.map((item) => item.itemId)).size === value.recommendations.length,
     { message: "Each CV recommendation must reference an item once." },
   );
 export type CvTailoringResult = z.infer<typeof cvTailoringResultSchema>;
@@ -204,6 +261,9 @@ export interface AiDesktopApi {
     readonly previewFit: (request: FitAssessmentRequest) => Promise<FitAssessmentPreview>;
     readonly assessFit: (request: FitAssessmentRequest) => Promise<FitAssessmentResult>;
     readonly extractJob: (request: JobExtractionRequest) => Promise<JobExtractionResult>;
+    readonly discoverField: (
+      request: HistoricalFieldDiscoveryRequest,
+    ) => Promise<HistoricalFieldDiscoveryResult>;
     readonly recommendVariant: (
       request: VariantRecommendationRequest,
     ) => Promise<VariantRecommendationResult>;

@@ -19,6 +19,8 @@ import {
   fitAssessmentPreviewSchema,
   fitAssessmentRequestSchema,
   fitAssessmentResultSchema,
+  historicalFieldDiscoveryRequestSchema,
+  historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
   optionalAiConnectionStatusSchema,
@@ -28,6 +30,15 @@ import {
 import {
   candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
+  candidatureFieldCreateSchema,
+  candidatureFieldDefinitionSchema,
+  candidatureFieldFilterSchema,
+  candidatureFieldListSchema,
+  candidatureFieldPreferencesUpdateSchema,
+  candidatureFieldUpdateSchema,
+  candidatureFieldValueClearSchema,
+  candidatureFieldValueSetSchema,
+  candidatureFilterResultSchema,
   candidatureInputSchema,
   candidatureListSchema,
   candidatureRecordSchema,
@@ -36,8 +47,6 @@ import {
   candidatureSourceRemoveSchema,
   candidatureSourceUpdateSchema,
   candidatureUpdateSchema,
-  candidatureWorkingBriefSchema,
-  candidatureWorkingBriefUpdateSchema,
   careerContextSchema,
   careerContextUpdateSchema,
   channels,
@@ -70,6 +79,7 @@ import {
 } from "../shared/contracts";
 import {
   assessFit,
+  discoverCandidatureFieldFromSources,
   draftCoverLetter,
   extractJob,
   getAiConnection,
@@ -79,9 +89,19 @@ import {
   tailorCv,
 } from "./ai-service";
 import {
+  clearCandidatureFieldValue,
+  createCandidatureField,
+  deleteUnusedCandidatureField,
+  filterCandidatures,
+  listCandidatureFields,
+  setCandidatureFieldValue,
+  updateCandidatureField,
+  updateCandidatureFieldPreferences,
+} from "./candidature-field-service";
+import {
   addCandidatureSource,
   createCandidature,
-  getCandidatureWorkingBrief,
+  getCandidature,
   listCandidatureSources,
   listCandidatures,
   removeCandidatureSource,
@@ -89,7 +109,6 @@ import {
   setCandidatureDocuments,
   updateCandidature,
   updateCandidatureSource,
-  updateCandidatureWorkingBrief,
 } from "./candidature-service";
 import { getCareerContext, updateCareerContext } from "./career-context-service";
 import { createConcept, listConcepts, updateConcept } from "./concept-service";
@@ -130,10 +149,7 @@ app.enableSandbox();
 let currentWorkspace: WorkspaceInfo | null = null;
 
 function assertTrustedSender(event: IpcMainInvokeEvent, mainWindow: BrowserWindow): void {
-  if (
-    event.sender !== mainWindow.webContents ||
-    event.senderFrame !== mainWindow.webContents.mainFrame
-  ) {
+  if (event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) {
     throw new Error("Untrusted IPC sender");
   }
 }
@@ -143,22 +159,16 @@ function workspaceSettingsPath(): string {
 }
 
 function currentOrRememberedWorkspace(): WorkspaceInfo | null {
-  if (currentWorkspace) {
-    return currentWorkspace;
-  }
+  if (currentWorkspace) return currentWorkspace;
   const rememberedPath = readLastWorkspacePath(workspaceSettingsPath());
-  if (!rememberedPath) {
-    return null;
-  }
+  if (!rememberedPath) return null;
   currentWorkspace = openWorkspace(rememberedPath);
   return currentWorkspace;
 }
 
 function requireWorkspaceRoot(): string {
   const workspace = currentOrRememberedWorkspace();
-  if (!workspace) {
-    throw new Error("Choose an AAAAT workspace first.");
-  }
+  if (!workspace) throw new Error("Choose an AAAAT workspace first.");
   return workspace.rootPath;
 }
 
@@ -169,24 +179,16 @@ async function chooseWorkspace(
   const validatedChoice = workspaceChoiceSchema.parse(choice);
   const creating = validatedChoice === "create";
   const selection = await dialog.showOpenDialog(mainWindow, {
-    title: creating
-      ? "Create or select an AAAAT workspace"
-      : "Open an AAAAT workspace",
+    title: creating ? "Create or select an AAAAT workspace" : "Open an AAAAT workspace",
     buttonLabel: creating ? "Use this folder" : "Open workspace",
     properties: creating
       ? ["openDirectory", "createDirectory", "promptToCreate"]
       : ["openDirectory"],
   });
-  if (selection.canceled) {
-    return null;
-  }
+  if (selection.canceled) return null;
   const selectedPath = selection.filePaths[0];
-  if (!selectedPath) {
-    return null;
-  }
-  const workspace = creating
-    ? createOrOpenWorkspace(selectedPath)
-    : openWorkspace(selectedPath);
+  if (!selectedPath) return null;
+  const workspace = creating ? createOrOpenWorkspace(selectedPath) : openWorkspace(selectedPath);
   rememberWorkspacePath(workspaceSettingsPath(), workspace.rootPath);
   currentWorkspace = workspace;
   return workspace;
@@ -198,9 +200,7 @@ async function exportDocument(mainWindow: BrowserWindow, documentId: string) {
     buttonLabel: "Export here",
     properties: ["openDirectory", "createDirectory"],
   });
-  if (selection.canceled || !selection.filePaths[0]) {
-    return null;
-  }
+  if (selection.canceled || !selection.filePaths[0]) return null;
   return {
     exportedPath: exportDocumentProject(
       requireWorkspaceRoot(),
@@ -228,7 +228,6 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return optionalWorkspaceInfoSchema.parse(currentOrRememberedWorkspace());
   });
-
   ipcMain.handle(channels.workspaceChoose, async (event, choice: unknown) => {
     assertTrustedSender(event, mainWindow);
     return optionalWorkspaceInfoSchema.parse(await chooseWorkspace(mainWindow, choice));
@@ -382,6 +381,58 @@ function registerIpc(mainWindow: BrowserWindow): void {
       updateCandidature(requireWorkspaceRoot(), candidatureUpdateSchema.parse(input)),
     );
   });
+  ipcMain.handle(channels.candidatureFilter, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureFilterResultSchema.parse(
+      filterCandidatures(requireWorkspaceRoot(), candidatureFieldFilterSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureFieldList, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureFieldListSchema.parse(listCandidatureFields(requireWorkspaceRoot()));
+  });
+  ipcMain.handle(channels.candidatureFieldCreate, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureFieldListSchema.element.parse(
+      createCandidatureField(requireWorkspaceRoot(), candidatureFieldCreateSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureFieldUpdate, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureFieldListSchema.element.parse(
+      updateCandidatureField(requireWorkspaceRoot(), candidatureFieldUpdateSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.candidatureFieldDelete, (event, fieldId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureFieldListSchema.parse(
+      deleteUnusedCandidatureField(
+        requireWorkspaceRoot(),
+        candidatureFieldDefinitionSchema.shape.id.parse(fieldId),
+      ),
+    );
+  });
+  ipcMain.handle(channels.candidatureFieldPreferencesUpdate, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureFieldListSchema.element.parse(
+      updateCandidatureFieldPreferences(
+        requireWorkspaceRoot(),
+        candidatureFieldPreferencesUpdateSchema.parse(input),
+      ),
+    );
+  });
+  ipcMain.handle(channels.candidatureFieldValueSet, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const value = candidatureFieldValueSetSchema.parse(input);
+    setCandidatureFieldValue(requireWorkspaceRoot(), value);
+    return candidatureRecordSchema.parse(getCandidature(requireWorkspaceRoot(), value.candidatureId));
+  });
+  ipcMain.handle(channels.candidatureFieldValueClear, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const value = candidatureFieldValueClearSchema.parse(input);
+    clearCandidatureFieldValue(requireWorkspaceRoot(), value.candidatureId, value.fieldId);
+    return candidatureRecordSchema.parse(getCandidature(requireWorkspaceRoot(), value.candidatureId));
+  });
   ipcMain.handle(channels.candidatureSourceList, (event, candidatureId: unknown) => {
     assertTrustedSender(event, mainWindow);
     return candidatureSourceListSchema.parse(
@@ -407,24 +458,6 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return candidatureSourceListSchema.parse(
       removeCandidatureSource(requireWorkspaceRoot(), candidatureSourceRemoveSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(channels.candidatureWorkingBriefCurrent, (event, candidatureId: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return candidatureWorkingBriefSchema.parse(
-      getCandidatureWorkingBrief(
-        requireWorkspaceRoot(),
-        candidatureRecordSchema.shape.id.parse(candidatureId),
-      ),
-    );
-  });
-  ipcMain.handle(channels.candidatureWorkingBriefUpdate, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return candidatureWorkingBriefSchema.parse(
-      updateCandidatureWorkingBrief(
-        requireWorkspaceRoot(),
-        candidatureWorkingBriefUpdateSchema.parse(input),
-      ),
     );
   });
   ipcMain.handle(channels.candidatureSetDocuments, (event, input: unknown) => {
@@ -490,6 +523,15 @@ function registerIpc(mainWindow: BrowserWindow): void {
       await extractJob(requireWorkspaceRoot(), jobExtractionRequestSchema.parse(input)),
     );
   });
+  ipcMain.handle(aiChannels.fieldDiscover, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return historicalFieldDiscoveryResultSchema.parse(
+      await discoverCandidatureFieldFromSources(
+        requireWorkspaceRoot(),
+        historicalFieldDiscoveryRequestSchema.parse(input),
+      ),
+    );
+  });
   ipcMain.handle(aiChannels.variantRecommend, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return variantRecommendationResultSchema.parse(
@@ -525,9 +567,7 @@ function protectWindow(mainWindow: BrowserWindow): void {
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.on("will-attach-webview", (event) => event.preventDefault());
   mainWindow.webContents.on("will-navigate", (event, targetUrl) => {
-    if (targetUrl !== mainWindow.webContents.getURL()) {
-      event.preventDefault();
-    }
+    if (targetUrl !== mainWindow.webContents.getURL()) event.preventDefault();
   });
 }
 
@@ -553,14 +593,10 @@ void app.whenReady().then(() => {
   lockDownSession();
   createWindow();
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });
