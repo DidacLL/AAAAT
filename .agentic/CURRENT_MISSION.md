@@ -1,86 +1,75 @@
 # M6 — Opportunity Understanding & Recruiter Readiness
 
-**Status: active.** M0 through M5 remain accepted foundation and capability checkpoints forming the initial AAAAT v2 restart/alpha series. Their acceptance does not mean AAAAT's product-completion roadmap is complete. Product-completion work continues from the accepted v2 architecture, with M6 as the only active Mission.
+**Status: paused pending product-authority reconciliation.** No product Mission is currently authorized for feature development. Do not start a successor Mission until Product Owner authority, the corrected SPEC, and the actual implementation are used to define it.
 
 ## Accepted baseline
 
-M0–M5 remain accepted without reinterpretation of their implementation evidence:
+M0–M5 remain accepted technical/capability checkpoints. Their evidence is preserved; their historical names and Issue wording do not prove every product assumption attached to them was correct or complete.
 
 - M0 proved the secure Electron/React/TypeScript/SQLite foundation and native packaging boundary.
-- M1 proved the manual VCVGenerator foundation: user-owned workspace, canonical profile and variants, editable CV/cover-letter documents, portable LaTeX, local rendering, and unrelated-directory compilation.
-- M2 proved the initial manual candidature workspace: incomplete opportunity tracking, source/notes, status and archiving, search/filtering, shared concepts, recruiter-call focus projection, and document associations.
-- M3 proved initial optional direct AI operations with operation-specific context, privacy projection, typed validation, conflict policy, and normal application-service mutation paths.
-- M4 proved the first bounded external interoperability and setup capabilities: packaged candidature creation, official MCP stdio, demonstrated VS Code setup, structured setup knowledge, portable proposed host configuration, and safe workspace backup/restore.
+- M1 proved the VCVGenerator foundation: user-owned workspace, canonical profile and variants, editable CV/cover-letter documents, portable LaTeX, local rendering, and unrelated-directory compilation.
+- M2 proved an initial candidature workspace: sparse records, source/notes, search/filtering, concepts, a Focus projection, document associations, and the then-selected status/archive representation.
+- M3 proved initial optional direct-AI infrastructure: operation-specific context, privacy projection, typed validation, conflict policy, and normal application-service boundaries.
+- M4 proved initial bounded external interoperability and setup infrastructure: packaged candidature creation, official MCP stdio, demonstrated VS Code setup, structured setup knowledge, proposed portable host configuration, and safe workspace backup/restore.
 - M5 proved cross-platform alpha hardening and was owner-accepted at PR #121 head `6a4490798399c75a939ccb694e49a21c22ff2802`, including native Windows/macOS/Linux release artifacts and packaged runtime evidence.
 
 ### Preserved M5 acceptance evidence
 
 - #111 proves native Windows/macOS ZIP and Linux Debian release artifacts plus artifact inspection and packaged runtime smoke.
-- #113 provides truthful alpha installation, first-run, manual-use, optional-capability, backup/restore, and troubleshooting documentation.
-- #116 corrects the recovery test so its async rejection evidence is actually awaited.
+- #113 provides installation, first-run, optional-capability, backup/restore, and troubleshooting documentation for the accepted alpha.
+- #116 corrects the recovery test so its async rejection evidence is awaited.
 - #117 makes packaged Electron shutdown deterministic on Windows; the full matrix and a second Windows packaged-smoke run passed on the same exact head.
-- #119 records reproducible dependency-security evidence: zero npm findings in the production dependency graph, current supported Electron runtime verified separately, and remaining build-tool advisories documented without forced dependency churn.
-- PR #121 exact head `6a4490798399c75a939ccb694e49a21c22ff2802` passed Fast verification, LaTeX unrelated-directory portability, and packaged Windows/macOS/Linux checks and was explicitly accepted by the Product Owner with no blocking findings.
-- No M5 change edited accepted migration history, weakened a security/privacy/local-ownership/manual-independence/portable-output gate, or introduced a new product subsystem or architectural framework.
+- #119 records reproducible dependency-security evidence.
+- PR #121 exact head `6a4490798399c75a939ccb694e49a21c22ff2802` passed Fast verification, LaTeX portability, and packaged Windows/macOS/Linux checks and was explicitly accepted by the Product Owner.
 
-This accepted baseline remains architecture and evidence to build on. M6 does not reopen or replace it.
+Accepted migrations and technical evidence remain immutable/reachable. Product meaning is governed by `docs/OWNER_INTENT.md` and the reconciled `docs/SPEC.md`, not by historical acceptance wording.
 
-## Outcome
+## M6 reconciliation state
 
-A user with AI completely disabled can retain an incomplete opportunity, maintain the reusable career context needed to judge it, add multiple independently meaningful source inputs, maintain durable evaluation/strategy/recruiter preparation, and use a fast recruiter-ready Focus projection without navigating a large form.
+M6 implementation is not automatically reverted. Its current parts are classified against Owner Intent before further dependency is built on them.
 
-M6 is primarily a manual product and UX Mission. Existing optional AI behavior must remain non-breaking, but M6 introduces no new AI operations.
+### ALIGNED
 
-## Required
+- multiple independently meaningful candidature sources and preservation of raw source material;
+- sparse/incomplete candidature storage and persistence;
+- progressive UI composition as a technique for avoiding one enormous static form;
+- reusable career context kept separate from factual canonical-profile evidence;
+- concepts/documents integration, application-service mutations, sandboxed renderer, typed preload/IPC, backup/reopen behavior, and immutable migration history;
+- Focus as a projection rather than duplicate persisted candidature state.
 
-- establish the deterministic fictional-data M6 user journey and visual information contract before locking new persistence shape;
-- add a small workspace-level career context adjacent to, but distinct from, the canonical professional profile;
-- support multiple candidature source items while safely preserving existing v2 `source`, `source_url`, and `source_text` data through a new immutable migration;
-- add only the smallest priority representation demonstrated by the candidature list/focus workflow;
-- add one candidature-owned durable working brief for fit/suitability, strengths/evidence, gaps/risks/constraints, current strategy, relevant company/role context, pitch, questions, and recruiter preparation;
-- preserve candidature, profile, variant, concept, document, application-service, renderer sandbox, typed preload/IPC, backup/restore, and migration-history boundaries;
-- recompose the candidature renderer around progressive manual workflows, with Focus answering recruiter-call questions within seconds and missing information hidden or exposed through unobtrusive Add actions;
-- prove close/reopen persistence and upgrade from the exact accepted M0–M5 schema with deterministic fictional data;
-- obtain visual/runtime evidence at representative desktop sizes before M6 acceptance;
-- run final M6 acceptance with AI absent, external agent absent, and network unavailable where practical.
+### USEFUL BUT OVER-PRIVILEGED
 
-Normal candidature composition should be organized around user intentions such as:
+- the current working-brief values (fit, evidence, risks, strategy, context, pitch, questions, recruiter preparation) are legitimate information, but M6 treated their fixed grouping as a preferred preparation model;
+- priority and status/lifecycle are allowed optional information, but current M6 requirements gave them excessive importance in list/Focus/acceptance;
+- recruiter-preparation information is useful, but a dedicated preparation stage is not the canonical user workflow;
+- the seven current career-context values are useful reusable information, but their current fixed catalogue does not define all future professional/context information.
+
+### UNVALIDATED
+
+- the current closed working-brief/source-kind catalogue as a long-term product information model;
+- the current fixed Focus defaults as universal presentation importance;
+- candidature identification rules that privilege company/role fallbacks without user/configuration alternatives;
+- any assumption that the current single AI connection or existing setup surface completes the intended configuration model.
+
+### CONTRADICTORY
+
+- treating `next action` as a privileged Focus/list requirement or required maintenance loop;
+- a fixed Focus hierarchy with no user control over visibility, order, and relative prominence;
+- the sequential packaged M6 acceptance journey that requires manual status/priority/next-action, evaluation/strategy, pitch/questions, and recruiter-preparation entry before Focus is considered useful;
+- language that makes M6 a primarily manual-entry workflow rather than one human-operable path among manual, direct-AI, and bounded external-AI ways to work with the same information.
+
+Contradictory implementation/tests are remediation input for the next properly defined capability Mission. This recovery does not broadly rewrite them and does not edit accepted migrations.
+
+## Next lifecycle step
+
+After the product-authority recovery merges, derive exactly one next Mission from:
 
 ```text
-Focus
-Opportunity
-Sources
-Evaluation & strategy
-Recruiter preparation
-Concepts
-Documents
-Activity
+docs/OWNER_INTENT.md
++
+docs/SPEC.md
++
+actual current implementation and evidence
 ```
 
-These are renderer projections/composition, not separate domain subsystems.
-
-## Explicit non-goals
-
-- new AI operations or M9 contextual-AI work;
-- web research or M10 external-research work;
-- form-answer, interview/assessment, or material-usage lifecycle work reserved for later Missions;
-- workflow engine, task scheduler, durable AI-job database, event bus, command bus, generic content repository, provider/host registry, plugin loader, REST/GraphQL API, cloud synchronization, browser automation, automatic application submission, v1 compatibility layer, or generic preparation-field registry;
-- recreating v1 `career_plans`, Smart/Detailed architecture, task-driven UI, protocol-driven workflows, giant field sheets, or extensive hidden state;
-- editing accepted migrations `001` through `006` or any other accepted migration;
-- implementation Issues for M7–M11.
-
-## Product-completion roadmap
-
-Only M6 is active and may be decomposed into implementation Issues. Later Missions remain capability-level direction until the Product Owner activates them:
-
-- **M7 — Application Preparation & Material Lifecycle**
-- **M8 — VCVGenerator & Setup Completion**
-- **M9 — Contextual AI Assistance**
-- **M10 — Research & Bounded External Collaboration**
-- **M11 — Product Completion Acceptance**
-
-## Completion
-
-M6 is ready for Product Owner capability acceptance only when the deterministic manual journey proves that a fictional user can maintain career context, capture an incomplete recruiter opportunity, add a second source, set priority/status/next action, maintain evaluation/evidence/risks/strategy, prepare pitch/questions/recruiter material, understand the opportunity immediately through Focus, close AAAAT, reopen it, and recover the same authoritative state.
-
-A green source/unit test suite alone is insufficient. Packaged/manual visual-runtime evidence is required because the owner-review question is whether AAAAT now feels like a useful recruiter-ready candidature workspace rather than a database editor.
+Only that Mission may then be decomposed. No speculative successor-Mission sequence is authoritative.
