@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 import type {
   CareerContext,
   CandidatureRecord,
+  CandidatureSource,
   CandidatureWorkingBrief,
   ConceptRecord,
   DocumentRecord,
 } from "../shared/contracts";
 
-export type FocusDestination = "opportunity" | "evaluation" | "recruiter";
+export type FocusDestination = "evaluation" | "recruiter";
 
 interface Props {
   readonly record: CandidatureRecord;
@@ -23,6 +24,10 @@ function nonEmpty(...values: readonly (string | undefined)[]): string[] {
   return values.map((value) => value?.trim() ?? "").filter((value) => value.length > 0);
 }
 
+function sourceLabel(source: CandidatureSource): string {
+  return source.title.trim() || source.kind.replaceAll("_", " ");
+}
+
 export function CandidatureFocusPanel({
   record,
   concepts,
@@ -33,6 +38,7 @@ export function CandidatureFocusPanel({
 }: Props) {
   const [brief, setBrief] = useState<CandidatureWorkingBrief | null>(null);
   const [careerContext, setCareerContext] = useState<CareerContext | null>(null);
+  const [sources, setSources] = useState<CandidatureSource[]>([]);
   const [contextError, setContextError] = useState(false);
 
   useEffect(() => {
@@ -40,11 +46,13 @@ export function CandidatureFocusPanel({
     void Promise.all([
       window.aaaat.candidatures.currentWorkingBrief(record.id),
       window.aaaat.careerContext.current(),
+      window.aaaat.candidatures.listSources(record.id),
     ])
-      .then(([nextBrief, nextCareerContext]) => {
+      .then(([nextBrief, nextCareerContext, nextSources]) => {
         if (!active) return;
         setBrief(nextBrief);
         setCareerContext(nextCareerContext);
+        setSources(nextSources);
       })
       .catch(() => {
         if (active) setContextError(true);
@@ -90,17 +98,18 @@ export function CandidatureFocusPanel({
         <span className="focus-status">{processFacts.join(" · ")}</span>
       </div>
 
-      {record.nextAction ? (
-        <section className="focus-next-action" aria-label="Next action">
-          <span>Next</span>
-          <strong>{record.nextAction}</strong>
-          {record.nextActionDate ? <time>{record.nextActionDate}</time> : null}
+      {sources.length > 0 ? (
+        <section className="focus-priority-block" aria-label="Sources">
+          <h4>Sources</h4>
+          {sources.map((source) => (
+            <article key={source.id} className="selected-concept-definition">
+              <strong>{sourceLabel(source)}</strong>
+              {source.sourceText ? <p>{source.sourceText.slice(0, 500)}</p> : null}
+              {source.url ? <small>{source.url}</small> : null}
+            </article>
+          ))}
         </section>
-      ) : (
-        <button type="button" className="focus-add-action" onClick={() => onNavigate("opportunity")}>
-          Add next action
-        </button>
-      )}
+      ) : null}
 
       {brief?.pitch ? (
         <section className="focus-priority-block focus-pitch">
@@ -211,7 +220,7 @@ export function CandidatureFocusPanel({
       ) : null}
 
       {contextError ? (
-        <p className="compact-warning">Some reusable context could not be loaded. Opportunity data remains available.</p>
+        <p className="compact-warning">Some reusable context could not be loaded. Saved opportunity data remains available.</p>
       ) : null}
     </section>
   );
