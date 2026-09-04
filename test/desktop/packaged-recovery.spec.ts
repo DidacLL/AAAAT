@@ -37,7 +37,7 @@ const migrationFiles = [
   [6, "activity", "006_activity.sql"],
 ] as const;
 
-function initializeWorkspaceFixture(root: string): void {
+function initializePreInformationWorkspace(root: string): void {
   const database = new DatabaseSync(path.join(root, "workspace.sqlite"));
   const now = "2026-09-03T00:00:00.000Z";
   try {
@@ -65,30 +65,9 @@ function initializeWorkspaceFixture(root: string): void {
       .run("workspace.initialized_at", now);
     database
       .prepare(
-        `INSERT INTO candidatures(
-           id, company, role, location, work_mode, salary_text,
-           source, source_url, source_text, status, application_date,
-           next_action, next_action_date, notes, archived, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+        "INSERT INTO candidatures(id, archived, created_at, updated_at) VALUES (?, 0, ?, ?)",
       )
-      .run(
-        "packaged-recovery-candidature",
-        "Example Co",
-        "Platform engineer",
-        "Madrid",
-        "Hybrid",
-        "",
-        "Direct",
-        "",
-        "Private source text",
-        "saved",
-        "",
-        "Review",
-        "",
-        "Private notes",
-        now,
-        now,
-      );
+      .run("packaged-recovery-candidature", now, now);
     database
       .prepare("INSERT INTO candidature_activity(occurred_at, candidature_id, action) VALUES (?, ?, ?)")
       .run(now, "packaged-recovery-candidature", "candidature.created");
@@ -109,7 +88,7 @@ function response(stdout: string): unknown {
   return JSON.parse(stdout.trim());
 }
 
-test("packaged executable backs up and restores a workspace without secret or transient state", () => {
+test("packaged recovery upgrades a sparse workspace and preserves user-owned data without secret or transient state", () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-recovery-"));
   const workspace = path.join(root, "workspace");
   const backup = path.join(root, "backup");
@@ -117,7 +96,7 @@ test("packaged executable backs up and restores a workspace without secret or tr
   mkdirSync(workspace);
   mkdirSync(backup);
   mkdirSync(restored);
-  initializeWorkspaceFixture(workspace);
+  initializePreInformationWorkspace(workspace);
   mkdirSync(path.join(workspace, "documents"));
   mkdirSync(path.join(workspace, "integrations"));
   writeFileSync(path.join(workspace, "documents", "cv.tex"), "portable cv", "utf8");
@@ -149,8 +128,12 @@ test("packaged executable backs up and restores a workspace without secret or tr
     const manifestText = readFileSync(path.join(backup, "manifest.json"), "utf8");
     expect(manifestText).not.toContain(root);
     expect(manifestText).toContain("ai-connection.json");
-    expect(readFileSync(path.join(backup, "files", "documents", "cv.tex"), "utf8")).toBe("portable cv");
-    expect(readFileSync(path.join(backup, "files", "integrations", "vscode-mcp.json"), "utf8")).toBe('{"state":"proposed"}\n');
+    expect(readFileSync(path.join(backup, "files", "documents", "cv.tex"), "utf8")).toBe(
+      "portable cv",
+    );
+    expect(
+      readFileSync(path.join(backup, "files", "integrations", "vscode-mcp.json"), "utf8"),
+    ).toBe('{"state":"proposed"}\n');
     expect(existsSync(path.join(backup, "files", "ai-connection.json"))).toBe(false);
     expect(existsSync(path.join(backup, "files", ".env"))).toBe(false);
     expect(existsSync(path.join(backup, "workspace.sqlite-wal"))).toBe(false);
@@ -171,26 +154,26 @@ test("packaged executable backs up and restores a workspace without secret or tr
       restored: true,
     });
     expect(readFileSync(path.join(restored, "documents", "cv.tex"), "utf8")).toBe("portable cv");
-    expect(readFileSync(path.join(restored, "integrations", "vscode-mcp.json"), "utf8")).toBe('{"state":"proposed"}\n');
+    expect(
+      readFileSync(path.join(restored, "integrations", "vscode-mcp.json"), "utf8"),
+    ).toBe('{"state":"proposed"}\n');
     expect(existsSync(path.join(restored, "ai-connection.json"))).toBe(false);
 
     const database = new DatabaseSync(path.join(restored, "workspace.sqlite"), { readOnly: true });
     try {
       expect(
         database
-          .prepare("SELECT company, role, notes, priority FROM candidatures WHERE id = ?")
+          .prepare("SELECT id, archived FROM candidatures WHERE id = ?")
           .get("packaged-recovery-candidature"),
-      ).toEqual({ company: "Example Co", role: "Platform engineer", notes: "Private notes", priority: "" });
+      ).toEqual({ id: "packaged-recovery-candidature", archived: 0 });
       expect(
         database
-          .prepare("SELECT kind, title, source_text AS sourceText FROM candidature_sources WHERE candidature_id = ?")
+          .prepare("SELECT COUNT(*) AS count FROM candidature_field_values WHERE candidature_id = ?")
           .get("packaged-recovery-candidature"),
-      ).toEqual({ kind: "other", title: "Direct", sourceText: "Private source text" });
-      expect(
-        database
-          .prepare("SELECT pitch, recruiter_preparation AS recruiterPreparation FROM candidature_working_briefs WHERE candidature_id = ?")
-          .get("packaged-recovery-candidature"),
-      ).toEqual({ pitch: "", recruiterPreparation: "" });
+      ).toEqual({ count: 0 });
+      expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_fields").get()).toMatchObject({
+        count: expect.any(Number),
+      });
       expect(
         database
           .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
@@ -204,7 +187,7 @@ test("packaged executable backs up and restores a workspace without secret or tr
         { version: 5, name: "concepts" },
         { version: 6, name: "activity" },
         { version: 7, name: "career-context" },
-        { version: 8, name: "candidature-sources-brief" },
+        { version: 8, name: "candidature-information" },
       ]);
     } finally {
       database.close();
