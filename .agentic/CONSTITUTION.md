@@ -15,8 +15,10 @@ These durable invariants may change only through an accepted Class D owner decis
 - Named profile variants contain focus, visibility, ordering, and override rules rather than cloned identities.
 - Document overrides do not mutate the canonical profile or a profile variant.
 - Every durable mutation uses an AAAAT application service, regardless of whether input came from a person, direct AI, or bounded external AI.
-- AI context is privacy-projected before inference.
-- AI output is validated and operation-scoped. Invalid or conflicting output never silently overwrites authoritative data; retained AI-produced values remain ordinary editable AAAAT information.
+- AAAAT security is structural: authoritative local data, explicit product-specific data structures, narrow application-service mutations, typed validation, bounded capabilities, and process/renderer privilege boundaries are the authority boundary.
+- AAAAT does not own or secure an external AI model's reasoning, prompt interpretation, provider internals, network, or research behavior. External AI receives bounded operation-specific context/capabilities rather than broad local authority.
+- AI context is privacy-projected before inference. Privacy projection controls disclosure; it is separate from domain authority and may expose, omit, or locally replace/tokenize information.
+- AI output is validated and operation-scoped. Invalid or conflicting output never silently overwrites authoritative data; retained AI-produced values remain ordinary editable AAAAT information. No universal human-approval queue is implied.
 - The Electron renderer remains sandboxed, context-isolated, and unprivileged.
 - The AI domain remains provider-neutral.
 - Optional AI connectivity prioritizes practical user accessibility: developer API credentials or paid cloud access are not assumed prerequisites when simpler keyless or broadly accessible paths can satisfy the current need; remote and provider-specific mechanisms remain allowed when justified.
@@ -26,7 +28,7 @@ These durable invariants may change only through an accepted Class D owner decis
 
 ## Architectural prohibitions
 
-AAAAT does not become a general agent framework, workflow engine, generic plugin platform, mandatory cloud service, local microservice system, or provider marketplace.
+AAAAT does not become a general agent framework, workflow engine, generic plugin platform, mandatory cloud service, local microservice system, provider marketplace, generic AI policy/security engine, or prompt-injection/security middleware layer.
 
 These prohibitions do not forbid a bounded product capability merely because that capability is optional or non-core.
 

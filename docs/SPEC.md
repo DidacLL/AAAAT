@@ -363,6 +363,10 @@ A persistence generalization requires demonstrated need; product flexibility alo
 
 AI is optional capability, never product authority.
 
+AAAAT's security boundary is structural and local: authoritative data structures, narrow application-service mutation paths, typed/domain validation, bounded operation capabilities, and the existing process/renderer privilege boundaries. AAAAT does not own or secure an external model's reasoning, prompt interpretation, provider internals, network, or research behavior.
+
+Provider/model output is untrusted operation-scoped input. It is accepted, rejected, or applied according to the operation's typed validation and conflict/mutation policy. AAAAT does not rely on model obedience for authority enforcement and does not require a universal human-approval queue.
+
 The product remains provider-neutral at the domain/application level. AI contracts are operation-specific rather than a generic task/workflow framework.
 
 Useful operation families may include:
@@ -383,7 +387,7 @@ Each operation defines the minimum context, privacy requirements, capability req
 
 If the selected/configured environment cannot reliably perform an operation, AAAAT does not pretend that operation is available.
 
-No agent framework, workflow framework, durable general AI-task system, generic field-action registry, provider marketplace, or cloud gateway is implied.
+No agent framework, workflow framework, durable general AI-task system, generic field-action registry, provider marketplace, cloud gateway, AI firewall, prompt-injection subsystem, or generic model-security/policy layer is implied.
 
 ## AI connections
 
@@ -408,6 +412,8 @@ Depending on field and operation, a value may be:
 - tokenized/replaced when appropriate.
 
 Token mappings remain local. Real authoritative values remain local and may be restored at the final local step, including document rendering.
+
+Privacy projection controls disclosure; it is not the domain-security boundary. Token/placeholder syntax, generation, collision strategy, namespace shape, and restoration algorithm remain replaceable implementation details unless a concrete correctness issue makes one relevant. Tests assert non-disclosure and correct local restoration where required rather than one tokenizer mechanism.
 
 Remote disclosure must be understandable. Broad cross-candidature remote analysis can expose highly profilable career/application information and therefore requires proportionate privacy disclosure before sending.
 
@@ -450,6 +456,8 @@ Bounded capabilities may support workflows such as:
 External AI does not receive arbitrary database, filesystem, shell, process, network, repository, or generic entity-ID mutation authority merely for convenience.
 
 Durable changes use the same application services as desktop/manual and direct-AI paths.
+
+Retained Sources are not implicit default context. A bounded operation may receive explicitly scoped Source material when its product purpose requires it and its privacy/context rules permit it. Source use is operation-specific, not globally forbidden.
 
 MCP uses the official SDK. A localhost service is not created without a concrete consumer and explicit authentication/security design. Host-specific integration material is validated and does not become a generic executable plugin runtime.
 
@@ -518,6 +526,8 @@ Tests protect user behavior, domain invariants, security boundaries, data integr
 
 In particular, a deterministic fixture or acceptance sequence proves that one path works; it must not silently establish that path as the required user workflow when Owner Intent allows alternatives.
 
+AI/privacy tests prove operation context, non-disclosure, validation, bounded mutation, operation-specific conflict behavior, and local restoration where required. They do not freeze incidental token syntax/numbering/identity, exact prompt wording, one collision-corpus strategy, one rehydration algorithm, or a universal approval workflow unless a concrete product correctness invariant requires it.
+
 Evidence grows with capability and includes as applicable:
 
 - domain/application-service tests outside Electron UI where practical;
@@ -562,7 +572,8 @@ Do not create unused:
 - v1 compatibility layers;
 - future-Mission scaffolding;
 - requirements/traceability databases;
-- generic EAV persistence merely for architectural purity.
+- generic EAV persistence merely for architectural purity;
+- AI firewalls, prompt-injection middleware, or generic model-security/policy layers without a separate demonstrated AAAAT-owned need.
 
 Reusable information capabilities required by Owner Intent are not prohibited merely because they are shared. The design must distinguish legitimate repeated product behavior from an unrelated generic framework.
 
@@ -612,6 +623,12 @@ export source → copy elsewhere → compile in a compatible TeX environment →
 
 ```text
 no cloud account → local workspace remains authoritative.
+```
+
+### Structural security
+
+```text
+external AI/model → bounded context + bounded capabilities; authoritative mutations → normal application services.
 ```
 
 ### AI isolation

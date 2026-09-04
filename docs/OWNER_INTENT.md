@@ -366,6 +366,10 @@ AI output is not authoritative merely because a model produced it.
 
 Useful retained results become ordinary editable AAAAT information.
 
+AAAAT's security boundary is the authority it owns: authoritative local data, explicit product-specific structures, normal application-service mutations, validation, bounded capabilities, and renderer/process privilege boundaries. AAAAT does not own or secure an external model's reasoning, prompt interpretation, provider internals, network, or research behavior.
+
+AI/provider output is untrusted input to a bounded operation. It must satisfy that operation's normal validation and conflict/mutation rules before affecting authoritative data. There is no universal requirement that every valid AI result pass through a human-approval queue.
+
 ## 17. AI-native configuration without hard-coded clutter
 
 AAAAT's core should not hard-code every provider-specific capability, suggested field, recommended layout or AI-dependent convenience into the application.
@@ -483,6 +487,10 @@ External AI must not receive arbitrary database, filesystem, shell, process or r
 
 Durable changes ultimately use the same AAAAT application services as manual UI changes.
 
+Sources remain explicit retained domain objects. They must not be implicitly dumped into unrelated AI operations, but they may be supplied when an operation deliberately requires and scopes them and the operation's privacy/context rules permit it.
+
+AAAAT controls the data and capabilities exposed to an external AI; it does not attempt to secure or govern that external system's internal reasoning.
+
 ## 23. Privacy
 
 AAAAT's local workspace is authoritative.
@@ -498,6 +506,8 @@ Depending on field and operation, information may be:
 - tokenized/replaced where appropriate.
 
 Authoritative real data remains local and may be restored at the final local step, including document rendering.
+
+Tokenization/replacement is a privacy and convenience capability, not the domain-security boundary. Its concrete placeholder syntax, generation strategy, and restoration mechanism may evolve as long as the operation preserves the configured disclosure and local-restoration behavior.
 
 AI visibility and Focus visibility are independent.
 
