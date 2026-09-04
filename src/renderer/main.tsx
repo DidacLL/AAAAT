@@ -1,12 +1,21 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import type { DesktopApi, ProfileSnapshot } from "../shared/contracts";
+import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
 import { App } from "./App";
 import "./styles.css";
 import "./candidatures.css";
 
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
+const emptyCareerContext: CareerContext = {
+  careerDirection: "",
+  objectives: "",
+  constraints: "",
+  targetRoles: "",
+  targetMarketsLocations: "",
+  workPreferences: "",
+  applicationWritingPreferences: "",
+};
 const previewUnavailable = async (): Promise<never> => {
   throw new Error("Create preview data in the desktop app for this operation.");
 };
@@ -35,6 +44,10 @@ function createPreviewApi(): DesktopApi {
       configureVariantItem: async () => emptyProfile,
       reorderVariant: async () => emptyProfile,
       resolveVariant: previewUnavailable,
+    }),
+    careerContext: Object.freeze({
+      current: async () => emptyCareerContext,
+      update: async (update: CareerContext) => update,
     }),
     documents: Object.freeze({
       list: async () => [],

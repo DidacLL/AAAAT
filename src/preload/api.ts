@@ -22,6 +22,8 @@ import {
   candidatureListSchema,
   candidatureRecordSchema,
   candidatureUpdateSchema,
+  careerContextSchema,
+  careerContextUpdateSchema,
   channels,
   conceptInputSchema,
   conceptListSchema,
@@ -88,6 +90,15 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       profileSnapshotSchema.parse(await invoke(channels.profileReorderVariant, profileVariantReorderSchema.parse(reorder))),
     resolveVariant: async (variantId: string) =>
       resolvedProfileSchema.parse(await invoke(channels.profileResolveVariant, profileVariantSchema.shape.id.parse(variantId))),
+  });
+
+  const careerContext = Object.freeze({
+    current: async () =>
+      careerContextSchema.parse(await invoke(channels.careerContextCurrent)),
+    update: async (update: Parameters<DesktopApi["careerContext"]["update"]>[0]) =>
+      careerContextSchema.parse(
+        await invoke(channels.careerContextUpdate, careerContextUpdateSchema.parse(update)),
+      ),
   });
 
   const documents = Object.freeze({
@@ -200,5 +211,5 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       ),
   });
 
-  return Object.freeze({ system, workspace, profile, documents, candidatures, ai });
+  return Object.freeze({ system, workspace, profile, careerContext, documents, candidatures, ai });
 }

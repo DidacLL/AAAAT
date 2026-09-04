@@ -5,18 +5,29 @@ import { aiChannels } from "../src/shared/ai-contracts";
 import { channels } from "../src/shared/contracts";
 
 const emptyProfile = { items: [], variants: [] };
+const emptyCareerContext = {
+  careerDirection: "",
+  objectives: "",
+  constraints: "",
+  targetRoles: "",
+  targetMarketsLocations: "",
+  workPreferences: "",
+  applicationWritingPreferences: "",
+};
 const candidatureId = "00000000-0000-4000-8000-000000000001";
 const documentId = "00000000-0000-4000-8000-000000000002";
 const itemId = "00000000-0000-4000-8000-000000000003";
 
 describe("desktop preload API", () => {
   it("exposes only fixed workspace, product, and AI intentions", async () => {
-    const invoke = vi.fn(async (channel: string) => {
+    const invoke = vi.fn(async (channel: string, input?: unknown) => {
       if (channel === channels.systemInfo) {
         return { appVersion: "2.0.0", electronVersion: "44.1.1", nodeVersion: "24.19.0" };
       }
       if (channel === channels.workspaceCurrent || channel === aiChannels.connectionCurrent) return null;
       if (channel === channels.workspaceChoose) return { rootPath: "/tmp/aaaat-workspace" };
+      if (channel === channels.careerContextCurrent) return emptyCareerContext;
+      if (channel === channels.careerContextUpdate) return input;
       if (
         channel === channels.documentList ||
         channel === channels.candidatureList ||
@@ -43,7 +54,15 @@ describe("desktop preload API", () => {
     });
 
     const api = createDesktopApi(invoke);
-    expect(Object.keys(api)).toEqual(["system", "workspace", "profile", "documents", "candidatures", "ai"]);
+    expect(Object.keys(api)).toEqual([
+      "system",
+      "workspace",
+      "profile",
+      "careerContext",
+      "documents",
+      "candidatures",
+      "ai",
+    ]);
     expect(Object.keys(api.system)).toEqual(["info"]);
     expect(Object.keys(api.workspace)).toEqual(["current", "choose"]);
     expect(Object.keys(api.profile)).toEqual([
@@ -58,6 +77,7 @@ describe("desktop preload API", () => {
       "reorderVariant",
       "resolveVariant",
     ]);
+    expect(Object.keys(api.careerContext)).toEqual(["current", "update"]);
     expect(Object.keys(api.documents)).toEqual([
       "list",
       "create",
@@ -95,6 +115,10 @@ describe("desktop preload API", () => {
     await expect(api.workspace.current()).resolves.toBeNull();
     await expect(api.workspace.choose("create")).resolves.toEqual({ rootPath: "/tmp/aaaat-workspace" });
     await expect(api.profile.addItem({ kind: "skill", title: "TypeScript" })).resolves.toEqual(emptyProfile);
+    await expect(api.careerContext.current()).resolves.toEqual(emptyCareerContext);
+    await expect(
+      api.careerContext.update({ ...emptyCareerContext, constraints: "No relocation" }),
+    ).resolves.toMatchObject({ constraints: "No relocation" });
     await expect(api.documents.list()).resolves.toEqual([]);
     await expect(api.candidatures.list()).resolves.toEqual([]);
     await expect(api.candidatures.listConcepts()).resolves.toEqual([]);
@@ -116,18 +140,23 @@ describe("desktop preload API", () => {
     expect(invoke).toHaveBeenNthCalledWith(2, channels.workspaceCurrent);
     expect(invoke).toHaveBeenNthCalledWith(3, channels.workspaceChoose, "create");
     expect(invoke).toHaveBeenNthCalledWith(4, channels.profileAddItem, { kind: "skill", title: "TypeScript" });
-    expect(invoke).toHaveBeenNthCalledWith(5, channels.documentList);
-    expect(invoke).toHaveBeenNthCalledWith(6, channels.candidatureList);
-    expect(invoke).toHaveBeenNthCalledWith(7, channels.candidatureListConcepts);
-    expect(invoke).toHaveBeenNthCalledWith(8, aiChannels.connectionCurrent);
-    expect(invoke).toHaveBeenNthCalledWith(9, aiChannels.jobExtract, {
+    expect(invoke).toHaveBeenNthCalledWith(5, channels.careerContextCurrent);
+    expect(invoke).toHaveBeenNthCalledWith(6, channels.careerContextUpdate, {
+      ...emptyCareerContext,
+      constraints: "No relocation",
+    });
+    expect(invoke).toHaveBeenNthCalledWith(7, channels.documentList);
+    expect(invoke).toHaveBeenNthCalledWith(8, channels.candidatureList);
+    expect(invoke).toHaveBeenNthCalledWith(9, channels.candidatureListConcepts);
+    expect(invoke).toHaveBeenNthCalledWith(10, aiChannels.connectionCurrent);
+    expect(invoke).toHaveBeenNthCalledWith(11, aiChannels.jobExtract, {
       sourceText: "Example job",
       source: "",
       sourceUrl: "",
     });
-    expect(invoke).toHaveBeenNthCalledWith(10, aiChannels.variantRecommend, { candidatureId });
-    expect(invoke).toHaveBeenNthCalledWith(11, aiChannels.cvTailor, { candidatureId, documentId });
-    expect(invoke).toHaveBeenNthCalledWith(12, aiChannels.coverLetterDraft, {
+    expect(invoke).toHaveBeenNthCalledWith(12, aiChannels.variantRecommend, { candidatureId });
+    expect(invoke).toHaveBeenNthCalledWith(13, aiChannels.cvTailor, { candidatureId, documentId });
+    expect(invoke).toHaveBeenNthCalledWith(14, aiChannels.coverLetterDraft, {
       candidatureId,
       documentId,
     });
@@ -136,6 +165,7 @@ describe("desktop preload API", () => {
   it("rejects malformed privileged responses and invalid domain or AI input", async () => {
     const api = createDesktopApi(async () => ({ schemaVersion: 1 }));
     await expect(api.workspace.current()).rejects.toThrow();
+    await expect(api.careerContext.current()).rejects.toThrow();
     await expect(api.profile.addItem({ kind: "skill", title: "" })).rejects.toThrow();
     await expect(
       api.documents.create({

@@ -3,10 +3,19 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/renderer/App";
-import type { DesktopApi, ProfileSnapshot, WorkspaceInfo } from "../src/shared/contracts";
+import type { CareerContext, DesktopApi, ProfileSnapshot, WorkspaceInfo } from "../src/shared/contracts";
 
 const readyWorkspace: WorkspaceInfo = { rootPath: "/tmp/aaaat-workspace" };
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
+const emptyCareerContext: CareerContext = {
+  careerDirection: "",
+  objectives: "",
+  constraints: "",
+  targetRoles: "",
+  targetMarketsLocations: "",
+  workPreferences: "",
+  applicationWritingPreferences: "",
+};
 const current = vi.fn<DesktopApi["workspace"]["current"]>();
 const choose = vi.fn<DesktopApi["workspace"]["choose"]>();
 const unavailable = async (): Promise<never> => {
@@ -29,6 +38,10 @@ const desktopApi: DesktopApi = {
     configureVariantItem: async () => emptyProfile,
     reorderVariant: async () => emptyProfile,
     resolveVariant: unavailable,
+  },
+  careerContext: {
+    current: async () => emptyCareerContext,
+    update: async (update) => update,
   },
   documents: {
     list: async () => [],

@@ -24,12 +24,13 @@ import profileMigrationSql from "../src/main/migrations/002_profile.sql?raw";
 import documentMigrationSql from "../src/main/migrations/003_documents.sql?raw";
 import candidatureMigrationSql from "../src/main/migrations/004_candidatures.sql?raw";
 import conceptMigrationSql from "../src/main/migrations/005_concepts.sql?raw";
+import activityMigrationSql from "../src/main/migrations/006_activity.sql?raw";
 
 function temporaryDirectory(): string {
   return mkdtempSync(path.join(tmpdir(), "aaaat-workspace-"));
 }
 
-function createV5Workspace(directory: string): void {
+function createV6Workspace(directory: string): void {
   const database = new DatabaseSync(path.join(directory, "workspace.sqlite"));
   const now = "2026-01-01T00:00:00.000Z";
   const migrations = [
@@ -38,6 +39,7 @@ function createV5Workspace(directory: string): void {
     [3, "documents", documentMigrationSql],
     [4, "candidatures", candidatureMigrationSql],
     [5, "concepts", conceptMigrationSql],
+    [6, "activity", activityMigrationSql],
   ] as const;
 
   try {
@@ -85,7 +87,7 @@ describe("user-owned workspace", () => {
               "SELECT version, name, length(sha256) AS hashLength FROM schema_migrations ORDER BY version DESC LIMIT 1",
             )
             .get(),
-        ).toMatchObject({ version: 6, name: "activity", hashLength: 64 });
+        ).toMatchObject({ version: 7, name: "career-context", hashLength: 64 });
         database.exec(
           "CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;",
         );
@@ -116,12 +118,12 @@ describe("user-owned workspace", () => {
     }
   });
 
-  it("upgrades an exact v5 migration prefix to v6", () => {
+  it("upgrades the exact accepted v6 migration prefix to v7", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
 
     try {
-      createV5Workspace(directory);
+      createV6Workspace(directory);
       expect(openWorkspace(directory)).toEqual({ rootPath: directory });
 
       const database = new DatabaseSync(databasePath, { readOnly: true });
@@ -137,15 +139,22 @@ describe("user-owned workspace", () => {
           { version: 4, name: "candidatures" },
           { version: 5, name: "concepts" },
           { version: 6, name: "activity" },
+          { version: 7, name: "career-context" },
         ]);
         expect(
           database
             .prepare(
-              "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'concept_activity'",
+              "SELECT career_direction AS careerDirection, constraints_text AS constraints FROM career_context WHERE id = 1",
             )
             .get(),
-        ).toEqual({ name: "concept_activity" });
-        expect(database.prepare("PRAGMA foreign_key_list(document_activity)").all()).toEqual([]);
+        ).toEqual({ careerDirection: "", constraints: "" });
+        expect(
+          database
+            .prepare(
+              "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'career_context_activity'",
+            )
+            .get(),
+        ).toEqual({ name: "career_context_activity" });
       } finally {
         database.close();
       }
@@ -290,6 +299,7 @@ describe("user-owned workspace", () => {
           { version: 4 },
           { version: 5 },
           { version: 6 },
+          { version: 7 },
         ]);
       } finally {
         unchanged.close();
@@ -311,7 +321,7 @@ describe("user-owned workspace", () => {
           .prepare(
             "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
           )
-          .run(7, "future", "f".repeat(64), new Date().toISOString());
+          .run(8, "future", "f".repeat(64), new Date().toISOString());
       } finally {
         database.close();
       }

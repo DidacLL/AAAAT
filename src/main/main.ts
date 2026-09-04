@@ -32,6 +32,8 @@ import {
   candidatureListSchema,
   candidatureRecordSchema,
   candidatureUpdateSchema,
+  careerContextSchema,
+  careerContextUpdateSchema,
   channels,
   conceptInputSchema,
   conceptListSchema,
@@ -77,6 +79,7 @@ import {
   setCandidatureDocuments,
   updateCandidature,
 } from "./candidature-service";
+import { getCareerContext, updateCareerContext } from "./career-context-service";
 import { createConcept, listConcepts, updateConcept } from "./concept-service";
 import {
   configureDocumentItem,
@@ -278,6 +281,17 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return resolvedProfileSchema.parse(
       resolveProfileVariant(requireWorkspaceRoot(), profileVariantSchema.shape.id.parse(variantId)),
+    );
+  });
+
+  ipcMain.handle(channels.careerContextCurrent, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return careerContextSchema.parse(getCareerContext(requireWorkspaceRoot()));
+  });
+  ipcMain.handle(channels.careerContextUpdate, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return careerContextSchema.parse(
+      updateCareerContext(requireWorkspaceRoot(), careerContextUpdateSchema.parse(input)),
     );
   });
 
