@@ -8,6 +8,8 @@ import {
   fitAssessmentPreviewSchema,
   fitAssessmentRequestSchema,
   fitAssessmentResultSchema,
+  historicalFieldDiscoveryRequestSchema,
+  historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
   optionalAiConnectionStatusSchema,
@@ -18,6 +20,15 @@ import {
 import {
   candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
+  candidatureFieldCreateSchema,
+  candidatureFieldDefinitionSchema,
+  candidatureFieldFilterSchema,
+  candidatureFieldListSchema,
+  candidatureFieldPreferencesUpdateSchema,
+  candidatureFieldUpdateSchema,
+  candidatureFieldValueClearSchema,
+  candidatureFieldValueSetSchema,
+  candidatureFilterResultSchema,
   candidatureInputSchema,
   candidatureListSchema,
   candidatureRecordSchema,
@@ -26,8 +37,6 @@ import {
   candidatureSourceRemoveSchema,
   candidatureSourceUpdateSchema,
   candidatureUpdateSchema,
-  candidatureWorkingBriefSchema,
-  candidatureWorkingBriefUpdateSchema,
   careerContextSchema,
   careerContextUpdateSchema,
   channels,
@@ -77,30 +86,59 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
   const profile = Object.freeze({
     current: async () => profileSnapshotSchema.parse(await invoke(channels.profileCurrent)),
     addItem: async (item: Parameters<DesktopApi["profile"]["addItem"]>[0]) =>
-      profileSnapshotSchema.parse(await invoke(channels.profileAddItem, profileItemInputSchema.parse(item))),
-    updateItem: async (update: Parameters<DesktopApi["profile"]["updateItem"]>[0]) =>
-      profileSnapshotSchema.parse(await invoke(channels.profileUpdateItem, profileItemUpdateSchema.parse(update))),
-    removeItem: async (itemId: string) =>
-      profileSnapshotSchema.parse(await invoke(channels.profileRemoveItem, profileItemSchema.shape.id.parse(itemId))),
-    createVariant: async (variant: Parameters<DesktopApi["profile"]["createVariant"]>[0]) =>
-      profileSnapshotSchema.parse(await invoke(channels.profileCreateVariant, profileVariantInputSchema.parse(variant))),
-    updateVariant: async (variant: Parameters<DesktopApi["profile"]["updateVariant"]>[0]) =>
-      profileSnapshotSchema.parse(await invoke(channels.profileUpdateVariant, profileVariantUpdateSchema.parse(variant))),
-    removeVariant: async (variantId: string) =>
-      profileSnapshotSchema.parse(await invoke(channels.profileRemoveVariant, profileVariantSchema.shape.id.parse(variantId))),
-    configureVariantItem: async (rule: Parameters<DesktopApi["profile"]["configureVariantItem"]>[0]) =>
       profileSnapshotSchema.parse(
-        await invoke(channels.profileConfigureVariantItem, profileVariantItemRuleInputSchema.parse(rule)),
+        await invoke(channels.profileAddItem, profileItemInputSchema.parse(item)),
+      ),
+    updateItem: async (update: Parameters<DesktopApi["profile"]["updateItem"]>[0]) =>
+      profileSnapshotSchema.parse(
+        await invoke(channels.profileUpdateItem, profileItemUpdateSchema.parse(update)),
+      ),
+    removeItem: async (itemId: string) =>
+      profileSnapshotSchema.parse(
+        await invoke(channels.profileRemoveItem, profileItemSchema.shape.id.parse(itemId)),
+      ),
+    createVariant: async (variant: Parameters<DesktopApi["profile"]["createVariant"]>[0]) =>
+      profileSnapshotSchema.parse(
+        await invoke(channels.profileCreateVariant, profileVariantInputSchema.parse(variant)),
+      ),
+    updateVariant: async (variant: Parameters<DesktopApi["profile"]["updateVariant"]>[0]) =>
+      profileSnapshotSchema.parse(
+        await invoke(channels.profileUpdateVariant, profileVariantUpdateSchema.parse(variant)),
+      ),
+    removeVariant: async (variantId: string) =>
+      profileSnapshotSchema.parse(
+        await invoke(
+          channels.profileRemoveVariant,
+          profileVariantSchema.shape.id.parse(variantId),
+        ),
+      ),
+    configureVariantItem: async (
+      rule: Parameters<DesktopApi["profile"]["configureVariantItem"]>[0],
+    ) =>
+      profileSnapshotSchema.parse(
+        await invoke(
+          channels.profileConfigureVariantItem,
+          profileVariantItemRuleInputSchema.parse(rule),
+        ),
       ),
     reorderVariant: async (reorder: Parameters<DesktopApi["profile"]["reorderVariant"]>[0]) =>
-      profileSnapshotSchema.parse(await invoke(channels.profileReorderVariant, profileVariantReorderSchema.parse(reorder))),
+      profileSnapshotSchema.parse(
+        await invoke(
+          channels.profileReorderVariant,
+          profileVariantReorderSchema.parse(reorder),
+        ),
+      ),
     resolveVariant: async (variantId: string) =>
-      resolvedProfileSchema.parse(await invoke(channels.profileResolveVariant, profileVariantSchema.shape.id.parse(variantId))),
+      resolvedProfileSchema.parse(
+        await invoke(
+          channels.profileResolveVariant,
+          profileVariantSchema.shape.id.parse(variantId),
+        ),
+      ),
   });
 
   const careerContext = Object.freeze({
-    current: async () =>
-      careerContextSchema.parse(await invoke(channels.careerContextCurrent)),
+    current: async () => careerContextSchema.parse(await invoke(channels.careerContextCurrent)),
     update: async (update: Parameters<DesktopApi["careerContext"]["update"]>[0]) =>
       careerContextSchema.parse(
         await invoke(channels.careerContextUpdate, careerContextUpdateSchema.parse(update)),
@@ -110,26 +148,58 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
   const documents = Object.freeze({
     list: async () => documentListSchema.parse(await invoke(channels.documentList)),
     create: async (input: Parameters<DesktopApi["documents"]["create"]>[0]) =>
-      documentRecordSchema.parse(await invoke(channels.documentCreate, documentInputSchema.parse(input))),
+      documentRecordSchema.parse(
+        await invoke(channels.documentCreate, documentInputSchema.parse(input)),
+      ),
     update: async (update: Parameters<DesktopApi["documents"]["update"]>[0]) =>
-      documentRecordSchema.parse(await invoke(channels.documentUpdate, documentUpdateSchema.parse(update))),
+      documentRecordSchema.parse(
+        await invoke(channels.documentUpdate, documentUpdateSchema.parse(update)),
+      ),
     remove: async (documentId: string) =>
-      documentListSchema.parse(await invoke(channels.documentRemove, documentRecordSchema.shape.id.parse(documentId))),
+      documentListSchema.parse(
+        await invoke(
+          channels.documentRemove,
+          documentRecordSchema.shape.id.parse(documentId),
+        ),
+      ),
     configureItem: async (rule: Parameters<DesktopApi["documents"]["configureItem"]>[0]) =>
       documentRecordSchema.parse(
-        await invoke(channels.documentConfigureItem, documentItemRuleInputSchema.parse(rule)),
+        await invoke(
+          channels.documentConfigureItem,
+          documentItemRuleInputSchema.parse(rule),
+        ),
       ),
     reorder: async (reorder: Parameters<DesktopApi["documents"]["reorder"]>[0]) =>
-      documentRecordSchema.parse(await invoke(channels.documentReorder, documentReorderSchema.parse(reorder))),
+      documentRecordSchema.parse(
+        await invoke(channels.documentReorder, documentReorderSchema.parse(reorder)),
+      ),
     resolve: async (documentId: string) =>
-      resolvedDocumentSchema.parse(await invoke(channels.documentResolve, documentRecordSchema.shape.id.parse(documentId))),
+      resolvedDocumentSchema.parse(
+        await invoke(
+          channels.documentResolve,
+          documentRecordSchema.shape.id.parse(documentId),
+        ),
+      ),
     render: async (documentId: string) =>
-      documentRecordSchema.parse(await invoke(channels.documentRender, documentRecordSchema.shape.id.parse(documentId))),
+      documentRecordSchema.parse(
+        await invoke(
+          channels.documentRender,
+          documentRecordSchema.shape.id.parse(documentId),
+        ),
+      ),
     regenerate: async (documentId: string) =>
-      documentRecordSchema.parse(await invoke(channels.documentRegenerate, documentRecordSchema.shape.id.parse(documentId))),
+      documentRecordSchema.parse(
+        await invoke(
+          channels.documentRegenerate,
+          documentRecordSchema.shape.id.parse(documentId),
+        ),
+      ),
     exportProject: async (documentId: string) =>
       documentExportResultSchema.parse(
-        await invoke(channels.documentExport, documentRecordSchema.shape.id.parse(documentId)),
+        await invoke(
+          channels.documentExport,
+          documentRecordSchema.shape.id.parse(documentId),
+        ),
       ),
   });
 
@@ -143,36 +213,94 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       candidatureRecordSchema.parse(
         await invoke(channels.candidatureUpdate, candidatureUpdateSchema.parse(update)),
       ),
+    filter: async (filter: Parameters<DesktopApi["candidatures"]["filter"]>[0]) =>
+      candidatureFilterResultSchema.parse(
+        await invoke(channels.candidatureFilter, candidatureFieldFilterSchema.parse(filter)),
+      ),
+    listFields: async () =>
+      candidatureFieldListSchema.parse(await invoke(channels.candidatureFieldList)),
+    createField: async (
+      input: Parameters<DesktopApi["candidatures"]["createField"]>[0],
+    ) =>
+      candidatureFieldListSchema.element.parse(
+        await invoke(
+          channels.candidatureFieldCreate,
+          candidatureFieldCreateSchema.parse(input),
+        ),
+      ),
+    updateField: async (
+      input: Parameters<DesktopApi["candidatures"]["updateField"]>[0],
+    ) =>
+      candidatureFieldListSchema.element.parse(
+        await invoke(
+          channels.candidatureFieldUpdate,
+          candidatureFieldUpdateSchema.parse(input),
+        ),
+      ),
+    deleteField: async (fieldId: string) =>
+      candidatureFieldListSchema.parse(
+        await invoke(
+          channels.candidatureFieldDelete,
+          candidatureFieldDefinitionSchema.shape.id.parse(fieldId),
+        ),
+      ),
+    updateFieldPreferences: async (
+      input: Parameters<DesktopApi["candidatures"]["updateFieldPreferences"]>[0],
+    ) =>
+      candidatureFieldListSchema.element.parse(
+        await invoke(
+          channels.candidatureFieldPreferencesUpdate,
+          candidatureFieldPreferencesUpdateSchema.parse(input),
+        ),
+      ),
+    setFieldValue: async (
+      input: Parameters<DesktopApi["candidatures"]["setFieldValue"]>[0],
+    ) =>
+      candidatureRecordSchema.parse(
+        await invoke(
+          channels.candidatureFieldValueSet,
+          candidatureFieldValueSetSchema.parse(input),
+        ),
+      ),
+    clearFieldValue: async (
+      input: Parameters<DesktopApi["candidatures"]["clearFieldValue"]>[0],
+    ) =>
+      candidatureRecordSchema.parse(
+        await invoke(
+          channels.candidatureFieldValueClear,
+          candidatureFieldValueClearSchema.parse(input),
+        ),
+      ),
     listSources: async (candidatureId: string) =>
       candidatureSourceListSchema.parse(
-        await invoke(channels.candidatureSourceList, candidatureRecordSchema.shape.id.parse(candidatureId)),
-      ),
-    addSource: async (input: Parameters<DesktopApi["candidatures"]["addSource"]>[0]) =>
-      candidatureSourceListSchema.parse(
-        await invoke(channels.candidatureSourceAdd, candidatureSourceInputSchema.parse(input)),
-      ),
-    updateSource: async (update: Parameters<DesktopApi["candidatures"]["updateSource"]>[0]) =>
-      candidatureSourceListSchema.parse(
-        await invoke(channels.candidatureSourceUpdate, candidatureSourceUpdateSchema.parse(update)),
-      ),
-    removeSource: async (remove: Parameters<DesktopApi["candidatures"]["removeSource"]>[0]) =>
-      candidatureSourceListSchema.parse(
-        await invoke(channels.candidatureSourceRemove, candidatureSourceRemoveSchema.parse(remove)),
-      ),
-    currentWorkingBrief: async (candidatureId: string) =>
-      candidatureWorkingBriefSchema.parse(
         await invoke(
-          channels.candidatureWorkingBriefCurrent,
+          channels.candidatureSourceList,
           candidatureRecordSchema.shape.id.parse(candidatureId),
         ),
       ),
-    updateWorkingBrief: async (
-      update: Parameters<DesktopApi["candidatures"]["updateWorkingBrief"]>[0],
-    ) =>
-      candidatureWorkingBriefSchema.parse(
+    addSource: async (input: Parameters<DesktopApi["candidatures"]["addSource"]>[0]) =>
+      candidatureSourceListSchema.parse(
         await invoke(
-          channels.candidatureWorkingBriefUpdate,
-          candidatureWorkingBriefUpdateSchema.parse(update),
+          channels.candidatureSourceAdd,
+          candidatureSourceInputSchema.parse(input),
+        ),
+      ),
+    updateSource: async (
+      update: Parameters<DesktopApi["candidatures"]["updateSource"]>[0],
+    ) =>
+      candidatureSourceListSchema.parse(
+        await invoke(
+          channels.candidatureSourceUpdate,
+          candidatureSourceUpdateSchema.parse(update),
+        ),
+      ),
+    removeSource: async (
+      remove: Parameters<DesktopApi["candidatures"]["removeSource"]>[0],
+    ) =>
+      candidatureSourceListSchema.parse(
+        await invoke(
+          channels.candidatureSourceRemove,
+          candidatureSourceRemoveSchema.parse(remove),
         ),
       ),
     setDocuments: async (
@@ -184,8 +312,7 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
           candidatureDocumentSelectionSchema.parse(selection),
         ),
       ),
-    listConcepts: async () =>
-      conceptListSchema.parse(await invoke(channels.candidatureListConcepts)),
+    listConcepts: async () => conceptListSchema.parse(await invoke(channels.candidatureListConcepts)),
     createConcept: async (
       input: Parameters<DesktopApi["candidatures"]["createConcept"]>[0],
     ) =>
@@ -228,13 +355,23 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       jobExtractionResultSchema.parse(
         await invoke(aiChannels.jobExtract, jobExtractionRequestSchema.parse(request)),
       ),
+    discoverField: async (
+      request: Parameters<AiDesktopApi["ai"]["discoverField"]>[0],
+    ) =>
+      historicalFieldDiscoveryResultSchema.parse(
+        await invoke(
+          aiChannels.fieldDiscover,
+          historicalFieldDiscoveryRequestSchema.parse(request),
+        ),
+      ),
     recommendVariant: async (
       request: Parameters<AiDesktopApi["ai"]["recommendVariant"]>[0],
     ) =>
       variantRecommendationResultSchema.parse(
         await invoke(
           aiChannels.variantRecommend,
-          variantRecommendationRequestSchema.parse(request)),
+          variantRecommendationRequestSchema.parse(request),
+        ),
       ),
     tailorCv: async (request: Parameters<AiDesktopApi["ai"]["tailorCv"]>[0]) =>
       cvTailoringResultSchema.parse(

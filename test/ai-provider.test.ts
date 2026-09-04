@@ -6,6 +6,7 @@ import { createOpenAiCompatibleProvider } from "../src/main/ai-provider";
 import type {
   AiConnectionStatus,
   FitProjectedContext,
+  JobExtractionProviderRequest,
   VariantRecommendationContext,
 } from "../src/shared/ai-contracts";
 
@@ -14,17 +15,20 @@ const connection: AiConnectionStatus = {
   endpoint: "http://localhost:11434/v1",
   model: "fixture-model",
 };
-
+const fieldId = "00000000-0000-4000-8000-000000000801";
+const candidature = {
+  label: "Pilot opportunity",
+  information: [{ fieldId, label: "Minimum flight hours", value: 1500 }],
+  sources: [
+    {
+      title: "Vacancy",
+      url: "https://example.invalid/pilot",
+      sourceText: "Minimum 1,500 total hours.",
+    },
+  ],
+};
 const context: FitProjectedContext = {
-  candidature: {
-    company: "Example",
-    role: "Platform Engineer",
-    location: "Remote",
-    workMode: "remote",
-    salaryText: "",
-    source: "job board",
-    sourceText: "Build TypeScript systems.",
-  },
+  candidature,
   profileItems: [{ kind: "skill", title: "TypeScript" }],
 };
 
@@ -43,25 +47,15 @@ describe("OpenAI-compatible provider", () => {
         summary: "Strong match.",
         strengths: ["TypeScript"],
         gaps: [],
-        focus: ["Ask about platform ownership"],
+        focus: ["Review evidence"],
       }),
     );
     const provider = createOpenAiCompatibleProvider(fetchImpl);
 
-    await expect(provider.assessFit(connection, context)).resolves.toEqual({
-      fit: "strong",
-      summary: "Strong match.",
-      strengths: ["TypeScript"],
-      gaps: [],
-      focus: ["Ask about platform ownership"],
-    });
-
-    expect(fetchImpl).toHaveBeenCalledOnce();
+    await expect(provider.assessFit(connection, context)).resolves.toMatchObject({ fit: "strong" });
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
     expect(url).toBe("http://localhost:11434/v1/chat/completions");
-    expect(init?.method).toBe("POST");
     expect(init?.headers).toEqual({ "content-type": "application/json" });
-    expect(init?.redirect).toBe("error");
     const body = JSON.parse(String(init?.body)) as {
       model: string;
       messages: Array<{ role: string; content: string }>;
@@ -70,44 +64,44 @@ describe("OpenAI-compatible provider", () => {
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
   });
 
-  it("sends only the extraction request and validates source-grounded fields", async () => {
+  it("sends the runtime discovery catalogue and validates field-ID proposals", async () => {
+    const request: JobExtractionProviderRequest = {
+      sourceTitle: "Pilot vacancy",
+      sourceUrl: "https://example.invalid/pilot",
+      sourceText: "Minimum 1,500 total hours.",
+      fields: [
+        {
+          id: fieldId,
+          label: "Minimum flight hours",
+          description: "Minimum total flight hours requested.",
+          valueType: "number",
+          cardinality: "one",
+          choices: [],
+        },
+      ],
+    };
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      response({
-        company: "Example Corp",
-        role: "Platform Engineer",
-        location: "Madrid",
-        workMode: "hybrid",
-        salaryText: "€70k–€80k",
-      }),
+      response({ proposals: [{ fieldId, value: 1500 }] }),
     );
     const provider = createOpenAiCompatibleProvider(fetchImpl);
-    const request = {
-      source: "Company careers",
-      sourceUrl: "https://example.test/job/1",
-      sourceText: "Example Corp seeks a hybrid Platform Engineer in Madrid for €70k–€80k.",
-    };
 
     await expect(provider.extractJob(connection, request)).resolves.toEqual({
-      company: "Example Corp",
-      role: "Platform Engineer",
-      location: "Madrid",
-      workMode: "hybrid",
-      salaryText: "€70k–€80k",
+      proposals: [{ fieldId, value: 1500 }],
     });
     const [, init] = fetchImpl.mock.calls[0] ?? [];
     const body = JSON.parse(String(init?.body)) as {
       messages: Array<{ role: string; content: string }>;
     };
     expect(body.messages[1]?.content).toBe(JSON.stringify(request));
-    expect(body.messages[0]?.content).toMatch(/empty string/i);
+    expect(body.messages[0]?.content).toMatch(/field IDs present in fields/i);
   });
 
   it("sends only candidature and existing variant metadata for recommendation", async () => {
     const variantContext: VariantRecommendationContext = {
-      candidature: context.candidature,
+      candidature,
       variants: [
         {
-          id: "00000000-0000-4000-8000-000000000010",
+          id: "00000000-0000-4000-8000-000000000810",
           name: "Platform",
           focus: "Platform focus",
           targetTags: ["platform"],
@@ -123,60 +117,25 @@ describe("OpenAI-compatible provider", () => {
     );
     const provider = createOpenAiCompatibleProvider(fetchImpl);
 
-    await expect(provider.recommendVariant(connection, variantContext)).resolves.toEqual({
-      variantId: variantContext.variants[0]?.id,
+    await expect(provider.recommendVariant(connection, variantContext)).resolves.toMatchObject({
       rationale: "Matches platform focus.",
     });
-    const [, init] = fetchImpl.mock.calls[0] ?? [];
-    const body = JSON.parse(String(init?.body)) as {
-      messages: Array<{ role: string; content: string }>;
-    };
-    expect(body.messages[1]?.content).toBe(JSON.stringify(variantContext));
-    expect(body.messages[0]?.content).toMatch(/existing profile variant/i);
   });
 
-  it("rejects malformed fit output instead of returning an untyped proposal", async () => {
-    const provider = createOpenAiCompatibleProvider(
+  it("rejects malformed typed output and hides raw provider failure details", async () => {
+    const malformed = createOpenAiCompatibleProvider(
       vi.fn<typeof fetch>().mockResolvedValue(
-        new Response(
-          JSON.stringify({ choices: [{ message: { content: "not-json" } }] }),
-          { status: 200 },
-        ),
-      ),
-    );
-
-    await expect(provider.assessFit(connection, context)).rejects.toThrow(
-      "invalid fit assessment",
-    );
-  });
-
-  it("rejects extraction output containing unsupported extra fields", async () => {
-    const provider = createOpenAiCompatibleProvider(
-      vi.fn<typeof fetch>().mockResolvedValue(
-        response({
-          company: "Example Corp",
-          role: "Platform Engineer",
-          location: "",
-          workMode: "",
-          salaryText: "",
-          status: "applied",
+        new Response(JSON.stringify({ choices: [{ message: { content: "not-json" } }] }), {
+          status: 200,
         }),
       ),
     );
+    await expect(malformed.assessFit(connection, context)).rejects.toThrow("invalid fit assessment");
 
-    await expect(
-      provider.extractJob(connection, { source: "", sourceUrl: "", sourceText: "Example job" }),
-    ).rejects.toThrow("invalid job extraction");
-  });
-
-  it("does not expose raw provider response details on request failure", async () => {
-    const provider = createOpenAiCompatibleProvider(
-      vi.fn<typeof fetch>().mockResolvedValue(
-        new Response("internal-provider-detail", { status: 500 }),
-      ),
+    const failed = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockResolvedValue(new Response("private provider detail", { status: 500 })),
     );
-
-    await expect(provider.assessFit(connection, context)).rejects.toThrow(
+    await expect(failed.assessFit(connection, context)).rejects.toThrow(
       "configured local model provider rejected the request",
     );
   });

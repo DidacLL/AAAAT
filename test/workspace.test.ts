@@ -52,17 +52,10 @@ function createV6Workspace(directory: string): void {
         .prepare(
           "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
         )
-        .run(
-          version,
-          name,
-          createHash("sha256").update(sql).digest("hex"),
-          now,
-        );
+        .run(version, name, createHash("sha256").update(sql).digest("hex"), now);
     }
     database
-      .prepare(
-        "INSERT INTO workspace_metadata(key, value) VALUES (?, ?)",
-      )
+      .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
       .run("workspace.initialized_at", now);
   } finally {
     database.close();
@@ -70,7 +63,7 @@ function createV6Workspace(directory: string): void {
 }
 
 describe("user-owned workspace", () => {
-  it("initializes an empty directory and reopens it without damaging data", () => {
+  it("initializes an empty directory and reopens it without damaging user data", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
 
@@ -87,10 +80,8 @@ describe("user-owned workspace", () => {
               "SELECT version, name, length(sha256) AS hashLength FROM schema_migrations ORDER BY version DESC LIMIT 1",
             )
             .get(),
-        ).toMatchObject({ version: 8, name: "candidature-sources-brief", hashLength: 64 });
-        database.exec(
-          "CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;",
-        );
+        ).toMatchObject({ version: 8, name: "candidature-information", hashLength: 64 });
+        database.exec("CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;");
         database
           .prepare("INSERT INTO persistence_probe(value) VALUES (?)")
           .run("survives-reopen");
@@ -98,18 +89,12 @@ describe("user-owned workspace", () => {
         database.close();
       }
 
-      const reopened = openWorkspace(directory);
-      expect(reopened).toEqual(first);
-
-      const reopenedDatabase = new DatabaseSync(databasePath, {
-        readOnly: true,
-      });
+      expect(openWorkspace(directory)).toEqual(first);
+      const reopenedDatabase = new DatabaseSync(databasePath, { readOnly: true });
       try {
-        expect(
-          reopenedDatabase
-            .prepare("SELECT value FROM persistence_probe")
-            .get(),
-        ).toMatchObject({ value: "survives-reopen" });
+        expect(reopenedDatabase.prepare("SELECT value FROM persistence_probe").get()).toEqual({
+          value: "survives-reopen",
+        });
       } finally {
         reopenedDatabase.close();
       }
@@ -118,7 +103,7 @@ describe("user-owned workspace", () => {
     }
   });
 
-  it("upgrades the exact accepted v6 prefix through migrations 007 and 008 without losing legacy source data", () => {
+  it("upgrades the accepted pre-information prefix while preserving sparse candidature identity", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
     const candidatureId = "00000000-0000-4000-8000-000000000801";
@@ -128,18 +113,9 @@ describe("user-owned workspace", () => {
       const v6 = new DatabaseSync(databasePath);
       try {
         v6.prepare(
-          `INSERT INTO candidatures(
-             id, company, role, location, work_mode, salary_text,
-             source, source_url, source_text, status, application_date,
-             next_action, next_action_date, notes, archived, created_at, updated_at
-           ) VALUES (?, ?, ?, '', '', '', ?, ?, ?, 'saved', '', '', '', '', 0, ?, ?)`,
+          "INSERT INTO candidatures(id, archived, created_at, updated_at) VALUES (?, 0, ?, ?)",
         ).run(
           candidatureId,
-          "Example Systems",
-          "Senior Platform Engineer",
-          "Recruiter message",
-          "https://example.invalid/recruiter",
-          "Legacy recruiter source retained exactly",
           "2026-01-02T00:00:00.000Z",
           "2026-01-02T00:00:00.000Z",
         );
@@ -148,13 +124,10 @@ describe("user-owned workspace", () => {
       }
 
       expect(openWorkspace(directory)).toEqual({ rootPath: directory });
-
       const database = new DatabaseSync(databasePath, { readOnly: true });
       try {
         expect(
-          database
-            .prepare("SELECT version, name FROM schema_migrations ORDER BY version")
-            .all(),
+          database.prepare("SELECT version, name FROM schema_migrations ORDER BY version").all(),
         ).toEqual([
           { version: 1, name: "workspace" },
           { version: 2, name: "profile" },
@@ -163,8 +136,21 @@ describe("user-owned workspace", () => {
           { version: 5, name: "concepts" },
           { version: 6, name: "activity" },
           { version: 7, name: "career-context" },
-          { version: 8, name: "candidature-sources-brief" },
+          { version: 8, name: "candidature-information" },
         ]);
+        expect(
+          database
+            .prepare("SELECT id, archived FROM candidatures WHERE id = ?")
+            .get(candidatureId),
+        ).toEqual({ id: candidatureId, archived: 0 });
+        expect(
+          database
+            .prepare("SELECT COUNT(*) AS count FROM candidature_field_values WHERE candidature_id = ?")
+            .get(candidatureId),
+        ).toEqual({ count: 0 });
+        expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_fields").get()).toMatchObject({
+          count: expect.any(Number),
+        });
         expect(
           database
             .prepare(
@@ -172,38 +158,6 @@ describe("user-owned workspace", () => {
             )
             .get(),
         ).toEqual({ careerDirection: "", constraints: "" });
-        expect(
-          database
-            .prepare(
-              `SELECT id, candidature_id AS candidatureId, kind, title, url, source_text AS sourceText
-                 FROM candidature_sources
-                WHERE candidature_id = ?`,
-            )
-            .get(candidatureId),
-        ).toEqual({
-          id: candidatureId,
-          candidatureId,
-          kind: "other",
-          title: "Recruiter message",
-          url: "https://example.invalid/recruiter",
-          sourceText: "Legacy recruiter source retained exactly",
-        });
-        expect(
-          database
-            .prepare(
-              `SELECT priority FROM candidatures WHERE id = ?`,
-            )
-            .get(candidatureId),
-        ).toEqual({ priority: "" });
-        expect(
-          database
-            .prepare(
-              `SELECT candidature_id AS candidatureId, pitch, recruiter_preparation AS recruiterPreparation
-                 FROM candidature_working_briefs
-                WHERE candidature_id = ?`,
-            )
-            .get(candidatureId),
-        ).toEqual({ candidatureId, pitch: "", recruiterPreparation: "" });
       } finally {
         database.close();
       }
@@ -215,10 +169,8 @@ describe("user-owned workspace", () => {
   it("rejects a non-workspace folder without creating database files", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
-
     try {
       writeFileSync(path.join(directory, "keep.txt"), "user data\n", "utf8");
-
       expect(() => createOrOpenWorkspace(directory)).toThrow(
         "Choose an empty folder or an existing AAAAT workspace.",
       );
@@ -231,7 +183,6 @@ describe("user-owned workspace", () => {
   it("rejects an unrelated SQLite database without modifying it", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
-
     try {
       const database = new DatabaseSync(databasePath);
       try {
@@ -239,19 +190,14 @@ describe("user-owned workspace", () => {
       } finally {
         database.close();
       }
-
       expect(() => openWorkspace(directory)).toThrow(
         "The selected folder is not a compatible AAAAT workspace.",
       );
-
       const unchanged = new DatabaseSync(databasePath, { readOnly: true });
       try {
-        const tables = unchanged
-          .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
-          )
-          .all();
-        expect(tables).toEqual([{ name: "foreign_data" }]);
+        expect(
+          unchanged.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all(),
+        ).toEqual([{ name: "foreign_data" }]);
       } finally {
         unchanged.close();
       }
@@ -264,30 +210,22 @@ describe("user-owned workspace", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
     const badHash = "0".repeat(64);
-
     try {
       createOrOpenWorkspace(directory);
-
       const database = new DatabaseSync(databasePath);
       try {
-        database
-          .prepare("UPDATE schema_migrations SET sha256 = ? WHERE version = 1")
-          .run(badHash);
+        database.prepare("UPDATE schema_migrations SET sha256 = ? WHERE version = 1").run(badHash);
       } finally {
         database.close();
       }
-
       expect(() => openWorkspace(directory)).toThrow(
         "The selected folder is not a compatible AAAAT workspace.",
       );
-
       const unchanged = new DatabaseSync(databasePath, { readOnly: true });
       try {
-        expect(
-          unchanged
-            .prepare("SELECT sha256 FROM schema_migrations WHERE version = 1")
-            .get(),
-        ).toEqual({ sha256: badHash });
+        expect(unchanged.prepare("SELECT sha256 FROM schema_migrations WHERE version = 1").get()).toEqual({
+          sha256: badHash,
+        });
       } finally {
         unchanged.close();
       }
@@ -299,18 +237,14 @@ describe("user-owned workspace", () => {
   it("fails closed when a migration name is incompatible", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
-
     try {
       createOrOpenWorkspace(directory);
       const database = new DatabaseSync(databasePath);
       try {
-        database
-          .prepare("UPDATE schema_migrations SET name = ? WHERE version = 2")
-          .run("not-profile");
+        database.prepare("UPDATE schema_migrations SET name = ? WHERE version = 2").run("not-profile");
       } finally {
         database.close();
       }
-
       expect(() => openWorkspace(directory)).toThrow(
         "The selected folder is not a compatible AAAAT workspace.",
       );
@@ -322,7 +256,6 @@ describe("user-owned workspace", () => {
   it("fails closed when migration history contains a gap", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
-
     try {
       createOrOpenWorkspace(directory);
       const database = new DatabaseSync(databasePath);
@@ -331,18 +264,12 @@ describe("user-owned workspace", () => {
       } finally {
         database.close();
       }
-
       expect(() => openWorkspace(directory)).toThrow(
         "The selected folder is not a compatible AAAAT workspace.",
       );
-
       const unchanged = new DatabaseSync(databasePath, { readOnly: true });
       try {
-        expect(
-          unchanged
-            .prepare("SELECT version FROM schema_migrations ORDER BY version")
-            .all(),
-        ).toEqual([
+        expect(unchanged.prepare("SELECT version FROM schema_migrations ORDER BY version").all()).toEqual([
           { version: 1 },
           { version: 3 },
           { version: 4 },
@@ -362,7 +289,6 @@ describe("user-owned workspace", () => {
   it("fails closed when migration history contains a future version", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
-
     try {
       createOrOpenWorkspace(directory);
       const database = new DatabaseSync(databasePath);
@@ -375,7 +301,6 @@ describe("user-owned workspace", () => {
       } finally {
         database.close();
       }
-
       expect(() => openWorkspace(directory)).toThrow(
         "The selected folder is not a compatible AAAAT workspace.",
       );
@@ -388,7 +313,6 @@ describe("user-owned workspace", () => {
     const directory = temporaryDirectory();
     const settingsPath = path.join(directory, "workspace-settings.json");
     const workspacePath = path.join(directory, "owned-workspace");
-
     try {
       expect(readLastWorkspacePath(settingsPath)).toBeNull();
       rememberWorkspacePath(settingsPath, workspacePath);
@@ -401,7 +325,6 @@ describe("user-owned workspace", () => {
   it("rejects a remembered workspace path that no longer exists", () => {
     const directory = temporaryDirectory();
     const missingPath = path.join(directory, "missing-workspace");
-
     try {
       expect(() => openWorkspace(missingPath)).toThrow(
         "The selected workspace folder no longer exists.",

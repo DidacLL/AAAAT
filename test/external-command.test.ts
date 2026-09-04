@@ -8,6 +8,7 @@ import { Readable, Writable } from "node:stream";
 
 import { describe, expect, it } from "vitest";
 
+import { createCandidatureField } from "../src/main/candidature-field-service";
 import { listCandidatures } from "../src/main/candidature-service";
 import {
   executeExternalCommand,
@@ -15,22 +16,6 @@ import {
   runExternalCommandProcess,
 } from "../src/main/external-command";
 import { createOrOpenWorkspace } from "../src/main/workspace";
-
-const candidatureInput = {
-  company: "Example Corp",
-  role: "Platform engineer",
-  location: "Madrid",
-  workMode: "Hybrid",
-  salaryText: "",
-  source: "Recruiter message",
-  sourceUrl: "https://example.invalid/job",
-  sourceText: "Private source material",
-  status: "saved" as const,
-  applicationDate: "",
-  nextAction: "Review opportunity",
-  nextActionDate: "",
-  notes: "Private note",
-};
 
 function commandArgs(root: string, capability = "candidature.create"): string[] {
   return ["aaaat", "--external-command", capability, "--workspace", root];
@@ -43,10 +28,27 @@ function temporaryWorkspace(): string {
 }
 
 describe("bounded external candidature command", () => {
-  it("creates through the normal candidature mutation and returns no private authority", () => {
+  it("creates sparse runtime information through the normal candidature mutation and returns no private authority", () => {
     const root = temporaryWorkspace();
     try {
-      const result = executeExternalCommand(commandArgs(root), JSON.stringify(candidatureInput));
+      const field = createCandidatureField(root, {
+        label: "Minimum flight hours",
+        description: "Minimum total flight hours requested.",
+        valueType: "number",
+        cardinality: "one",
+        choices: [],
+        enabled: true,
+      });
+      const input = {
+        source: {
+          kind: "job_posting" as const,
+          title: "Pilot vacancy",
+          url: "https://example.invalid/job",
+          sourceText: "Private source material",
+        },
+        values: [{ fieldId: field.definition.id, value: 1500 }],
+      };
+      const result = executeExternalCommand(commandArgs(root), JSON.stringify(input));
 
       expect(result).toEqual({
         exitCode: 0,
@@ -58,19 +60,14 @@ describe("bounded external candidature command", () => {
       });
       const encodedResponse = JSON.stringify(result.response);
       expect(encodedResponse).not.toContain(root);
-      expect(encodedResponse).not.toContain("Example Corp");
-      expect(encodedResponse).not.toContain("Platform engineer");
+      expect(encodedResponse).not.toContain("Pilot vacancy");
       expect(encodedResponse).not.toContain("Private source material");
-      expect(encodedResponse).not.toContain("Private note");
 
-      const candidatures = listCandidatures(root);
-      expect(candidatures).toHaveLength(1);
-      const created = candidatures[0];
-      expect(created).toBeDefined();
-      if (!created) {
-        throw new Error("Created candidature fixture is missing.");
-      }
-      expect(created).toMatchObject(candidatureInput);
+      const created = listCandidatures(root)[0];
+      if (!created) throw new Error("Created candidature fixture is missing.");
+      expect(created.values).toEqual([
+        expect.objectContaining({ fieldId: field.definition.id, value: 1500 }),
+      ]);
 
       const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
       try {
@@ -90,12 +87,16 @@ describe("bounded external candidature command", () => {
   it("rejects malformed, invalid, oversized, and unsupported input without mutation", () => {
     const root = temporaryWorkspace();
     try {
+      const valid = JSON.stringify({ values: [] });
       const cases = [
         executeExternalCommand(commandArgs(root), "{"),
-        executeExternalCommand(commandArgs(root), JSON.stringify({ company: "Only one field" })),
+        executeExternalCommand(
+          commandArgs(root),
+          JSON.stringify({ values: [{ fieldId: "not-a-uuid", value: 1 }] }),
+        ),
         executeExternalCommand(commandArgs(root), "x".repeat(externalCommandMaxInputBytes + 1)),
-        executeExternalCommand(commandArgs(root, "candidature.update"), JSON.stringify(candidatureInput)),
-        executeExternalCommand(["aaaat", "--external-command", "candidature.create"], JSON.stringify(candidatureInput)),
+        executeExternalCommand(commandArgs(root, "candidature.update"), valid),
+        executeExternalCommand(["aaaat", "--external-command", "candidature.create"], valid),
       ];
 
       expect(cases.map((result) => result.response)).toEqual([
@@ -140,7 +141,7 @@ describe("bounded external candidature command", () => {
   it("does not initialize a missing workspace as a side effect", () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-command-uninitialized-"));
     try {
-      const result = executeExternalCommand(commandArgs(root), JSON.stringify(candidatureInput));
+      const result = executeExternalCommand(commandArgs(root), JSON.stringify({ values: [] }));
       expect(result).toEqual({
         exitCode: 2,
         response: { ok: false, error: "command-failed" },

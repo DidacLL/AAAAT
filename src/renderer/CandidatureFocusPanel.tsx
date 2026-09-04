@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
-
 import type {
-  CareerContext,
+  CandidatureFieldConfiguration,
   CandidatureRecord,
-  CandidatureWorkingBrief,
+  CandidatureRuntimeValue,
   ConceptRecord,
   DocumentRecord,
 } from "../shared/contracts";
 
-export type FocusDestination = "opportunity" | "evaluation" | "recruiter";
+export type FocusDestination = "information";
 
 interface Props {
   readonly record: CandidatureRecord;
+  readonly fields: readonly CandidatureFieldConfiguration[];
   readonly concepts: readonly ConceptRecord[];
   readonly documents: readonly DocumentRecord[];
   readonly selectedConceptId: string | null;
@@ -19,40 +18,40 @@ interface Props {
   readonly onNavigate: (destination: FocusDestination) => void;
 }
 
-function nonEmpty(...values: readonly (string | undefined)[]): string[] {
-  return values.map((value) => value?.trim() ?? "").filter((value) => value.length > 0);
+function displayValue(
+  field: CandidatureFieldConfiguration,
+  value: CandidatureRuntimeValue,
+): string {
+  const displayOne = (item: string | number | boolean): string => {
+    if (field.definition.valueType === "choice" && typeof item === "string") {
+      return field.definition.choices.find((choice) => choice.id === item)?.label ?? item;
+    }
+    if (typeof item === "boolean") return item ? "Yes" : "No";
+    return String(item);
+  };
+  return Array.isArray(value) ? value.map(displayOne).join(", ") : displayOne(value);
 }
 
 export function CandidatureFocusPanel({
   record,
+  fields,
   concepts,
   documents,
   selectedConceptId,
   onSelectConcept,
   onNavigate,
 }: Props) {
-  const [brief, setBrief] = useState<CandidatureWorkingBrief | null>(null);
-  const [careerContext, setCareerContext] = useState<CareerContext | null>(null);
-  const [contextError, setContextError] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    void Promise.all([
-      window.aaaat.candidatures.currentWorkingBrief(record.id),
-      window.aaaat.careerContext.current(),
-    ])
-      .then(([nextBrief, nextCareerContext]) => {
-        if (!active) return;
-        setBrief(nextBrief);
-        setCareerContext(nextCareerContext);
-      })
-      .catch(() => {
-        if (active) setContextError(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, [record.id]);
+  const values = new Map(record.values.map((value) => [value.fieldId, value.value]));
+  const focusFields = fields
+    .filter(
+      (field) =>
+        field.preferences.focusVisible && values.has(field.definition.id),
+    )
+    .sort((left, right) => {
+      const leftOrder = left.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = right.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder || left.definition.label.localeCompare(right.definition.label);
+    });
 
   const associatedConcepts = concepts.filter((concept) =>
     record.conceptIds.includes(concept.id),
@@ -65,112 +64,47 @@ export function CandidatureFocusPanel({
     associatedConcepts[0] ??
     null;
 
-  const risks = nonEmpty(brief?.gapsRisksConstraints, careerContext?.constraints);
-  const context = nonEmpty(
-    brief?.companyRoleContext,
-    brief?.currentStrategy,
-    careerContext?.careerDirection,
-    careerContext?.targetRoles,
-    careerContext?.targetMarketsLocations,
-  );
-  const processFacts = [
-    record.status,
-    record.priority ? `${record.priority} priority` : "",
-    record.location,
-    record.workMode,
-  ].filter(Boolean);
-
   return (
-    <section className="focus-panel" aria-label="Recruiter call focus">
+    <section className="focus-panel" aria-label="Candidature Focus">
       <div className="focus-heading">
         <div>
           <p className="eyebrow">Focus</p>
-          <h3>{record.company || "Unknown company"} — {record.role || "Unspecified role"}</h3>
+          <h3>{record.label}</h3>
+          <p>Only retained information you configured for Focus appears here.</p>
         </div>
-        <span className="focus-status">{processFacts.join(" · ")}</span>
+        <button
+          type="button"
+          className="compact-secondary"
+          onClick={() => onNavigate("information")}
+        >
+          Configure Focus
+        </button>
       </div>
 
-      {record.nextAction ? (
-        <section className="focus-next-action" aria-label="Next action">
-          <span>Next</span>
-          <strong>{record.nextAction}</strong>
-          {record.nextActionDate ? <time>{record.nextActionDate}</time> : null}
-        </section>
-      ) : (
-        <button type="button" className="focus-add-action" onClick={() => onNavigate("opportunity")}>
-          Add next action
-        </button>
-      )}
-
-      {brief?.pitch ? (
-        <section className="focus-priority-block focus-pitch">
-          <h4>Pitch</h4>
-          <p>{brief.pitch}</p>
-        </section>
-      ) : (
-        <button type="button" className="focus-add-action" onClick={() => onNavigate("recruiter")}>
-          Add pitch
-        </button>
-      )}
-
-      <div className="focus-grid">
-        {brief?.strengthsEvidence ? (
-          <section className="focus-block">
-            <h4>Evidence to mention</h4>
-            <p>{brief.strengthsEvidence}</p>
-          </section>
-        ) : (
-          <button type="button" className="focus-add-card" onClick={() => onNavigate("evaluation")}>
-            Add evidence
+      {focusFields.length === 0 ? (
+        <div className="compact-empty">
+          <p>No retained candidature information is currently shown in Focus.</p>
+          <button type="button" onClick={() => onNavigate("information")}>
+            Choose Focus information
           </button>
-        )}
-
-        {risks.length > 0 ? (
-          <section className="focus-block">
-            <h4>Risks &amp; constraints</h4>
-            {risks.map((value) => <p key={value}>{value}</p>)}
-          </section>
-        ) : null}
-
-        {brief?.questions ? (
-          <section className="focus-block">
-            <h4>Questions to ask</h4>
-            <p>{brief.questions}</p>
-          </section>
-        ) : (
-          <button type="button" className="focus-add-card" onClick={() => onNavigate("recruiter")}>
-            Add questions
-          </button>
-        )}
-
-        {context.length > 0 ? (
-          <section className="focus-block">
-            <h4>Context &amp; strategy</h4>
-            {context.map((value) => <p key={value}>{value}</p>)}
-          </section>
-        ) : null}
-
-        {brief?.fitSuitability ? (
-          <section className="focus-block">
-            <h4>Fit</h4>
-            <p>{brief.fitSuitability}</p>
-          </section>
-        ) : null}
-
-        {brief?.recruiterPreparation ? (
-          <section className="focus-block">
-            <h4>Recruiter reminders</h4>
-            <p>{brief.recruiterPreparation}</p>
-          </section>
-        ) : null}
-
-        {record.notes ? (
-          <section className="focus-block">
-            <h4>Notes</h4>
-            <p>{record.notes}</p>
-          </section>
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        <div className="focus-grid">
+          {focusFields.map((field) => {
+            const value = values.get(field.definition.id);
+            if (value === undefined) return null;
+            return (
+              <section
+                key={field.definition.id}
+                className={`focus-block focus-${field.preferences.focusProminence}`}
+              >
+                <h4>{field.definition.label}</h4>
+                <p>{displayValue(field, value)}</p>
+              </section>
+            );
+          })}
+        </div>
+      )}
 
       {associatedConcepts.length > 0 ? (
         <section className="focus-concepts">
@@ -180,7 +114,11 @@ export function CandidatureFocusPanel({
               <button
                 type="button"
                 key={concept.id}
-                className={concept.id === selectedConcept?.id ? "concept-chip selected-concept-chip" : "concept-chip"}
+                className={
+                  concept.id === selectedConcept?.id
+                    ? "concept-chip selected-concept-chip"
+                    : "concept-chip"
+                }
                 onClick={() => onSelectConcept(concept.id)}
               >
                 {concept.name}
@@ -204,14 +142,12 @@ export function CandidatureFocusPanel({
           <h4>Application material</h4>
           <ul>
             {associatedDocuments.map((document) => (
-              <li key={document.id}>{document.title} · {document.kind === "cv" ? "CV" : "cover letter"}</li>
+              <li key={document.id}>
+                {document.title} · {document.kind === "cv" ? "CV" : "cover letter"}
+              </li>
             ))}
           </ul>
         </section>
-      ) : null}
-
-      {contextError ? (
-        <p className="compact-warning">Some reusable context could not be loaded. Opportunity data remains available.</p>
       ) : null}
     </section>
   );

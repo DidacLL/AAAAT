@@ -7,21 +7,11 @@ import type { CandidatureRecord } from "../src/shared/contracts";
 
 const record: CandidatureRecord = {
   id: "00000000-0000-4000-8000-000000000001",
-  company: "Example Corp",
-  role: "Platform Engineer",
-  location: "Remote",
-  workMode: "remote",
-  salaryText: "",
-  source: "Job board",
-  sourceUrl: "",
-  sourceText: "Build TypeScript systems.",
-  status: "saved",
-  priority: "",
-  applicationDate: "",
-  nextAction: "",
-  nextActionDate: "",
-  notes: "",
   archived: false,
+  createdAt: "2026-09-04T10:00:00.000Z",
+  updatedAt: "2026-09-04T10:00:00.000Z",
+  label: "Example Corp — Platform Engineer",
+  values: [],
   documentIds: [],
   conceptIds: [],
 };
@@ -41,16 +31,18 @@ describe("candidature AI fit panel", () => {
       },
       projectedContext: {
         candidature: {
-          company: "Example Corp",
-          role: "Platform Engineer",
-          location: "Remote",
-          workMode: "remote",
-          salaryText: "",
-          source: "Job board",
-          sourceText: "Build TypeScript systems.",
+          label: "Candidature",
+          information: [
+            {
+              fieldId: "00000000-0000-4000-8000-000000000101",
+              label: "Organisation",
+              value: "Example Corp",
+            },
+          ],
+          sources: [],
         },
         profileItems: [
-          { kind: "identity", title: "[AAAT_PRIVATE_1]" },
+          { kind: "identity", title: "[AAAT_PRIVATE_11111111-1111-4111-8111-111111111111]" },
           { kind: "skill", title: "TypeScript" },
         ],
       },
@@ -82,7 +74,7 @@ describe("candidature AI fit panel", () => {
       identityPrivacy: "token",
       contactPrivacy: "token",
     });
-    expect(screen.getByText(/AAAT_PRIVATE_1/)).toBeInTheDocument();
+    expect(screen.getByText(/AAAT_PRIVATE_11111111/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Run local fit assessment" }));
 
     expect(assessFit).toHaveBeenCalledWith({

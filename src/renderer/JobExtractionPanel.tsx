@@ -1,47 +1,75 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
   JobExtractionRequest,
   JobExtractionResult,
 } from "../shared/ai-contracts";
-import type { CandidatureInput } from "../shared/contracts";
+import type {
+  CandidatureFieldConfiguration,
+  CandidatureInput,
+  CandidatureRuntimeValue,
+} from "../shared/contracts";
 
 interface Props {
   readonly onCreate: (input: CandidatureInput) => Promise<boolean>;
 }
 
 const emptyRequest: JobExtractionRequest = {
-  source: "",
+  sourceTitle: "",
   sourceUrl: "",
   sourceText: "",
 };
+
+function displayValue(
+  field: CandidatureFieldConfiguration | undefined,
+  value: CandidatureRuntimeValue,
+): string {
+  const displayOne = (item: string | number | boolean): string => {
+    if (field?.definition.valueType === "choice" && typeof item === "string") {
+      return field.definition.choices.find((choice) => choice.id === item)?.label ?? item;
+    }
+    if (typeof item === "boolean") return item ? "Yes" : "No";
+    return String(item);
+  };
+  return Array.isArray(value) ? value.map(displayOne).join(", ") : displayOne(value);
+}
 
 function candidatureInput(
   request: JobExtractionRequest,
   proposal: JobExtractionResult,
 ): CandidatureInput {
   return {
-    company: proposal.company,
-    role: proposal.role,
-    location: proposal.location,
-    workMode: proposal.workMode,
-    salaryText: proposal.salaryText,
-    source: request.source,
-    sourceUrl: request.sourceUrl,
-    sourceText: request.sourceText,
-    status: "saved",
-    applicationDate: "",
-    nextAction: "",
-    nextActionDate: "",
-    notes: "",
+    source: {
+      kind: "job_posting",
+      title: request.sourceTitle,
+      url: request.sourceUrl,
+      sourceText: request.sourceText,
+    },
+    values: proposal.proposals,
   };
 }
 
 export function JobExtractionPanel({ onCreate }: Props) {
   const [request, setRequest] = useState<JobExtractionRequest>(emptyRequest);
   const [proposal, setProposal] = useState<JobExtractionResult | null>(null);
+  const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void window.aaaat.candidatures
+      .listFields()
+      .then((next) => {
+        if (active) setFields(next);
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not load the current candidature field catalogue.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const sourceChanged = (next: JobExtractionRequest) => {
     setRequest(next);
@@ -55,11 +83,7 @@ export function JobExtractionPanel({ onCreate }: Props) {
       setProposal(await window.aaaat.ai.extractJob(request));
     } catch (reason) {
       setProposal(null);
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "AAAAT could not extract this job source.",
-      );
+      setError(reason instanceof Error ? reason.message : "AAAAT could not analyze this Source.");
     } finally {
       setBusy(false);
     }
@@ -75,32 +99,32 @@ export function JobExtractionPanel({ onCreate }: Props) {
         setRequest(emptyRequest);
         setProposal(null);
       }
-    } catch {
-      setError("AAAAT could not create the extracted candidature.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not create this candidature.");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section className="selected-concept-definition" aria-label="Job extraction">
+    <section className="selected-concept-definition" aria-label="Candidature Source discovery">
       <div>
         <p className="eyebrow">Optional local AI</p>
-        <h3>Extract a pasted job</h3>
+        <h3>Discover registered information from a Source</h3>
         <p>
-          Paste source material you already have. AAAAT sends only this source to the configured
-          local model and creates nothing until you approve the proposal.
+          AAAAT asks only for fields currently enabled for AI discovery. The model cannot add field
+          definitions, and nothing is retained until you accept the proposal.
         </p>
       </div>
 
       <div className="candidature-fields">
         <label>
-          Source
+          Source title
           <input
-            value={request.source}
+            value={request.sourceTitle}
             disabled={busy}
-            onChange={(event) => sourceChanged({ ...request, source: event.target.value })}
-            placeholder="Job board or company site"
+            onChange={(event) => sourceChanged({ ...request, sourceTitle: event.target.value })}
+            placeholder="Company site or offer title"
           />
         </label>
         <label>
@@ -113,7 +137,7 @@ export function JobExtractionPanel({ onCreate }: Props) {
           />
         </label>
         <label className="wide-field">
-          Job source text
+          Source text
           <textarea
             rows={8}
             value={request.sourceText}
@@ -128,24 +152,32 @@ export function JobExtractionPanel({ onCreate }: Props) {
         disabled={busy || request.sourceText.trim().length === 0}
         onClick={() => void extract()}
       >
-        {busy && !proposal ? "Extracting…" : "Extract job details"}
+        {busy && !proposal ? "Discovering…" : "Discover configured fields"}
       </button>
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
       {proposal ? (
-        <section className="selected-concept-definition" aria-label="Job extraction proposal">
-          <h4>Review extracted details</h4>
-          <dl className="focus-facts">
-            <div><dt>Company</dt><dd>{proposal.company || "Not found"}</dd></div>
-            <div><dt>Role</dt><dd>{proposal.role || "Not found"}</dd></div>
-            <div><dt>Location</dt><dd>{proposal.location || "Not found"}</dd></div>
-            <div><dt>Work mode</dt><dd>{proposal.workMode || "Not found"}</dd></div>
-            <div><dt>Salary</dt><dd>{proposal.salaryText || "Not found"}</dd></div>
-          </dl>
-          <p>Status will start as Saved. Dates, next action, and notes remain empty.</p>
+        <section className="selected-concept-definition" aria-label="Candidature discovery proposal">
+          <h4>Review discovered information</h4>
+          {proposal.proposals.length === 0 ? (
+            <p>No configured discovery field was supported by this Source.</p>
+          ) : (
+            <dl className="focus-facts">
+              {proposal.proposals.map((item) => {
+                const field = fields.find((candidate) => candidate.definition.id === item.fieldId);
+                return (
+                  <div key={item.fieldId}>
+                    <dt>{field?.definition.label ?? item.fieldId}</dt>
+                    <dd>{displayValue(field, item.value)}</dd>
+                  </div>
+                );
+              })}
+            </dl>
+          )}
+          <p>The raw Source is retained independently. No lifecycle or preparation values are created.</p>
           <button type="button" disabled={busy} onClick={() => void create()}>
-            {busy ? "Creating…" : "Create candidature from proposal"}
+            {busy ? "Creating…" : "Create candidature and accept proposal"}
           </button>
         </section>
       ) : null}

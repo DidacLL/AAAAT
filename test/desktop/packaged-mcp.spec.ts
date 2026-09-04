@@ -69,23 +69,7 @@ function initializeWorkspaceFixture(root: string): void {
   }
 }
 
-const candidatureInput = {
-  company: "Packaged MCP Corp",
-  role: "Packaged protocol proof",
-  location: "",
-  workMode: "",
-  salaryText: "",
-  source: "packaged MCP smoke",
-  sourceUrl: "",
-  sourceText: "private packaged MCP source",
-  status: "saved",
-  applicationDate: "",
-  nextAction: "Review",
-  nextActionDate: "",
-  notes: "private packaged MCP note",
-};
-
-test("packaged executable serves only bounded candidature creation over official MCP stdio", async () => {
+test("packaged executable exposes bounded live-field catalogue and sparse candidature creation over MCP stdio", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-mcp-"));
   initializeWorkspaceFixture(root);
   const transport = new StdioClientTransport({
@@ -98,15 +82,44 @@ test("packaged executable serves only bounded candidature creation over official
   try {
     await client.connect(transport);
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toEqual(["candidature_create"]);
+    expect(tools.tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining(["candidature_fields_list", "candidature_create"]),
+    );
+
+    const catalogueResult = await client.callTool({
+      name: "candidature_fields_list",
+      arguments: {},
+    });
+    expect(catalogueResult.isError).not.toBe(true);
+    const catalogueContent = catalogueResult.content[0];
+    if (!catalogueContent || catalogueContent.type !== "text") {
+      throw new Error("Packaged MCP catalogue result is not text content.");
+    }
+    const catalogue = JSON.parse(catalogueContent.text) as {
+      fields: Array<{ id: string; label: string; valueType: string; cardinality: string }>;
+    };
+    expect(catalogue.fields.length).toBeGreaterThan(0);
+    expect(catalogue.fields[0]).toMatchObject({
+      id: expect.any(String),
+      label: expect.any(String),
+      valueType: expect.any(String),
+      cardinality: expect.any(String),
+    });
 
     const result = await client.callTool({
       name: "candidature_create",
-      arguments: candidatureInput,
+      arguments: {
+        source: {
+          kind: "other",
+          title: "packaged MCP smoke",
+          url: "",
+          sourceText: "private packaged MCP source",
+        },
+        values: [],
+      },
     });
     expect(result.isError).not.toBe(true);
     const content = result.content[0];
-    expect(content).toMatchObject({ type: "text" });
     if (!content || content.type !== "text") {
       throw new Error("Packaged MCP candidature result is not text content.");
     }
@@ -116,23 +129,19 @@ test("packaged executable serves only bounded candidature creation over official
       created: true,
     });
     expect(content.text).not.toContain(root);
-    expect(content.text).not.toContain("Packaged MCP Corp");
     expect(content.text).not.toContain("private packaged MCP source");
-    expect(content.text).not.toContain("private packaged MCP note");
 
     const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
     try {
+      expect(database.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 1 });
       expect(
-        database
-          .prepare("SELECT company, role, source_text AS sourceText FROM candidatures")
-          .all(),
+        database.prepare("SELECT title, source_text AS sourceText FROM candidature_sources").all(),
       ).toEqual([
-        {
-          company: "Packaged MCP Corp",
-          role: "Packaged protocol proof",
-          sourceText: "private packaged MCP source",
-        },
+        { title: "packaged MCP smoke", sourceText: "private packaged MCP source" },
       ]);
+      expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_field_values").get()).toEqual({
+        count: 0,
+      });
       expect(database.prepare("SELECT action FROM candidature_activity").all()).toEqual([
         { action: "candidature.created" },
       ]);
