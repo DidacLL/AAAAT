@@ -27,8 +27,6 @@ const candidatureInput = {
   sourceText: "Private source material",
   status: "saved" as const,
   applicationDate: "",
-  nextAction: "Review opportunity",
-  nextActionDate: "",
   notes: "Private note",
 };
 
