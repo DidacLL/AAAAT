@@ -27,8 +27,6 @@ const candidatureInput = {
   sourceText: "Private MCP source material",
   status: "saved" as const,
   applicationDate: "",
-  nextAction: "Review MCP opportunity",
-  nextActionDate: "",
   notes: "Private MCP note",
 };
 
