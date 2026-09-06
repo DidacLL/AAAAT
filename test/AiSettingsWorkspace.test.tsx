@@ -6,6 +6,7 @@ import { AiSettingsWorkspace } from "../src/renderer/AiSettingsWorkspace";
 
 const firstId = "00000000-0000-4000-8000-000000000a11";
 const secondId = "00000000-0000-4000-8000-000000000a12";
+const importedId = "00000000-0000-4000-8000-000000000a13";
 const first = {
   id: firstId,
   name: "Fast local",
@@ -31,6 +32,8 @@ const setDefault = vi.fn();
 const remove = vi.fn();
 const validateOperation = vi.fn();
 const setOperationDefault = vi.fn();
+const exportPortable = vi.fn();
+const importPortable = vi.fn();
 
 function installApi() {
   Object.defineProperty(window, "aaaat", {
@@ -43,6 +46,8 @@ function installApi() {
         remove,
         validateOperation,
         setOperationDefault,
+        exportPortable,
+        importPortable,
       },
     },
   });
@@ -52,6 +57,8 @@ describe("AI settings workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     list.mockResolvedValue([]);
+    exportPortable.mockResolvedValue("cancelled");
+    importPortable.mockResolvedValue({ status: "cancelled", connections: [] });
     installApi();
   });
 
@@ -163,5 +170,61 @@ describe("AI settings workspace", () => {
       endpoint: "http://localhost:11434/v1",
       model: "fast-model-2",
     });
+  });
+
+  it("exports portable setup and requires explicit confirmation before replacing imported connections", async () => {
+    const user = userEvent.setup();
+    list.mockResolvedValue([first]);
+    exportPortable.mockResolvedValue("exported");
+    const imported = {
+      id: importedId,
+      name: "Imported local",
+      endpoint: "http://127.0.0.1:1234/v1",
+      model: "imported-model",
+      isDefault: true,
+      validatedOperations: [],
+      defaultForOperations: [],
+    };
+    importPortable.mockResolvedValue({ status: "imported", connections: [imported] });
+    const confirm = vi.spyOn(window, "confirm");
+
+    render(<AiSettingsWorkspace />);
+    await screen.findByText("Fast local");
+
+    await user.click(screen.getByRole("button", { name: "Export AI setup" }));
+    expect(exportPortable).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Portable AI setup exported without local IDs or validation state.",
+    );
+
+    confirm.mockReturnValueOnce(false);
+    await user.click(screen.getByRole("button", { name: "Import AI setup" }));
+    expect(importPortable).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/replaces all current local AI connections/i));
+
+    confirm.mockReturnValueOnce(true);
+    await user.click(screen.getByRole("button", { name: "Import AI setup" }));
+    expect(importPortable).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Imported local")).toBeInTheDocument();
+    expect(screen.queryByText("Fast local")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate Imported local for Fit assessment" })).toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Validate operations again on this computer",
+    );
+  });
+
+  it("keeps the current setup when the import file dialog is cancelled", async () => {
+    const user = userEvent.setup();
+    list.mockResolvedValue([first]);
+    importPortable.mockResolvedValue({ status: "cancelled", connections: [first] });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<AiSettingsWorkspace />);
+    await screen.findByText("Fast local");
+    await user.click(screen.getByRole("button", { name: "Import AI setup" }));
+
+    expect(importPortable).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Fast local")).toBeInTheDocument();
+    expect(screen.queryByText(/Portable AI setup imported/)).not.toBeInTheDocument();
   });
 });

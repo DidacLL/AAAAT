@@ -38,6 +38,8 @@ export function AiSettingsWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyOperation, setBusyOperation] = useState<string | null>(null);
+  const [portabilityBusy, setPortabilityBusy] = useState<"export" | "import" | null>(null);
+  const [portabilityStatus, setPortabilityStatus] = useState<string | null>(null);
 
   const editing = useMemo(
     () => connections.find((connection) => connection.id === editingId) ?? null,
@@ -86,6 +88,7 @@ export function AiSettingsWorkspace({
   const save = async () => {
     setSaving(true);
     setError(null);
+    setPortabilityStatus(null);
     try {
       const saved = await window.aaaat.aiConnections.save({
         ...(editingId ? { id: editingId } : {}),
@@ -114,6 +117,7 @@ export function AiSettingsWorkspace({
 
   const setDefault = async (connection: NamedAiConnection) => {
     setError(null);
+    setPortabilityStatus(null);
     try {
       setConnections(await window.aaaat.aiConnections.setDefault(connection.id));
     } catch (reason) {
@@ -124,6 +128,7 @@ export function AiSettingsWorkspace({
   const remove = async (connection: NamedAiConnection) => {
     if (!window.confirm(`Remove local AI connection “${connection.name}”?`)) return;
     setError(null);
+    setPortabilityStatus(null);
     try {
       const next = await window.aaaat.aiConnections.remove(connection.id);
       setConnections(next);
@@ -140,6 +145,7 @@ export function AiSettingsWorkspace({
     const busyKey = `validate:${connection.id}:${operation}`;
     setBusyOperation(busyKey);
     setError(null);
+    setPortabilityStatus(null);
     try {
       setConnections(
         await window.aaaat.aiConnections.validateOperation({ connectionId: connection.id, operation }),
@@ -159,6 +165,7 @@ export function AiSettingsWorkspace({
     const busyKey = `default:${connection.id}:${operation}`;
     setBusyOperation(busyKey);
     setError(null);
+    setPortabilityStatus(null);
     try {
       setConnections(
         await window.aaaat.aiConnections.setOperationDefault({ connectionId: connection.id, operation }),
@@ -171,6 +178,51 @@ export function AiSettingsWorkspace({
       );
     } finally {
       setBusyOperation(null);
+    }
+  };
+
+  const exportPortable = async () => {
+    setPortabilityBusy("export");
+    setError(null);
+    setPortabilityStatus(null);
+    try {
+      const result = await window.aaaat.aiConnections.exportPortable();
+      if (result === "exported") {
+        setPortabilityStatus("Portable AI setup exported without local IDs or validation state.");
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not export the portable AI setup.");
+    } finally {
+      setPortabilityBusy(null);
+    }
+  };
+
+  const importPortable = async () => {
+    if (!confirmDiscard()) return;
+    if (
+      !window.confirm(
+        "Import portable AI setup? This replaces all current local AI connections and clears operation validations and operation defaults. You will need to validate operations again on this computer.",
+      )
+    ) {
+      return;
+    }
+    setPortabilityBusy("import");
+    setError(null);
+    setPortabilityStatus(null);
+    try {
+      const result = await window.aaaat.aiConnections.importPortable();
+      if (result.status === "imported") {
+        setConnections(result.connections);
+        setEditingId(null);
+        setDraft(emptyDraft);
+        setPortabilityStatus(
+          "Portable AI setup imported. Validate operations again on this computer before using AI assistance.",
+        );
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not import the portable AI setup.");
+    } finally {
+      setPortabilityBusy(null);
     }
   };
 
@@ -243,6 +295,31 @@ export function AiSettingsWorkspace({
           </div>
           <span>{connections.length}/16</span>
         </div>
+
+        <div className="button-row">
+          <button
+            type="button"
+            className="compact-secondary"
+            disabled={portabilityBusy !== null}
+            onClick={() => void exportPortable()}
+          >
+            {portabilityBusy === "export" ? "Exporting…" : "Export AI setup"}
+          </button>
+          <button
+            type="button"
+            className="compact-secondary"
+            disabled={portabilityBusy !== null}
+            onClick={() => void importPortable()}
+          >
+            {portabilityBusy === "import" ? "Importing…" : "Import AI setup"}
+          </button>
+        </div>
+        <p>
+          Portable AI setup contains connection names, local endpoints, models, and the general
+          default only. It excludes local IDs and capability validation. Import replaces the current
+          connection setup and requires operation validation again on this computer.
+        </p>
+        {portabilityStatus ? <p role="status">{portabilityStatus}</p> : null}
 
         {connections.length === 0 ? (
           <p>No local AI connections are configured yet.</p>

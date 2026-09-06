@@ -4,6 +4,8 @@ import {
   aiConnectionOperationInputSchema,
   namedAiConnectionInputSchema,
   namedAiConnectionListSchema,
+  portableAiSetupExportResultSchema,
+  portableAiSetupImportResultSchema,
   type AiConnectionDesktopApi,
 } from "../shared/ai-connection-contracts";
 
@@ -52,6 +54,14 @@ export function createAiConnectionDesktopApi(invoke: Invoke): AiConnectionDeskto
             aiConnectionManagementChannels.setOperationDefault,
             aiConnectionOperationInputSchema.parse(input),
           ),
+        ),
+      exportPortable: async () =>
+        portableAiSetupExportResultSchema.parse(
+          await invoke(aiConnectionManagementChannels.exportPortable),
+        ),
+      importPortable: async () =>
+        portableAiSetupImportResultSchema.parse(
+          await invoke(aiConnectionManagementChannels.importPortable),
         ),
     }),
   });

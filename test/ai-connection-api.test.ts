@@ -27,8 +27,14 @@ const connections = [
 ];
 
 describe("AI connection management preload API", () => {
-  it("forwards only validated named connection and operation-routing intents", async () => {
-    const invoke = vi.fn(async () => connections);
+  it("forwards only validated named connection, routing and portable setup intents", async () => {
+    const invoke = vi.fn(async (channel: string) => {
+      if (channel === aiConnectionManagementChannels.exportPortable) return "exported";
+      if (channel === aiConnectionManagementChannels.importPortable) {
+        return { status: "imported", connections };
+      }
+      return connections;
+    });
     const api = createAiConnectionDesktopApi(invoke);
 
     await expect(api.aiConnections.list()).resolves.toEqual(connections);
@@ -53,6 +59,11 @@ describe("AI connection management preload API", () => {
         operation: "fit_assessment",
       }),
     ).resolves.toEqual(connections);
+    await expect(api.aiConnections.exportPortable()).resolves.toBe("exported");
+    await expect(api.aiConnections.importPortable()).resolves.toEqual({
+      status: "imported",
+      connections,
+    });
 
     expect(invoke).toHaveBeenCalledWith(aiConnectionManagementChannels.list);
     expect(invoke).toHaveBeenCalledWith(aiConnectionManagementChannels.save, {
@@ -70,6 +81,8 @@ describe("AI connection management preload API", () => {
       connectionId: firstId,
       operation: "fit_assessment",
     });
+    expect(invoke).toHaveBeenCalledWith(aiConnectionManagementChannels.exportPortable);
+    expect(invoke).toHaveBeenCalledWith(aiConnectionManagementChannels.importPortable);
   });
 
   it("rejects malformed renderer input and malformed privileged output", async () => {
@@ -83,5 +96,17 @@ describe("AI connection management preload API", () => {
     ).rejects.toThrow();
     expect(invoke).not.toHaveBeenCalled();
     await expect(api.aiConnections.list()).rejects.toThrow();
+  });
+
+  it("rejects malformed portable setup results from the privileged process", async () => {
+    const invoke = vi.fn(async (channel: string) =>
+      channel === aiConnectionManagementChannels.exportPortable
+        ? "not-a-result"
+        : { status: "imported", connections: [{ ...connections[0], id: "not-a-uuid" }] },
+    );
+    const api = createAiConnectionDesktopApi(invoke);
+
+    await expect(api.aiConnections.exportPortable()).rejects.toThrow();
+    await expect(api.aiConnections.importPortable()).rejects.toThrow();
   });
 });

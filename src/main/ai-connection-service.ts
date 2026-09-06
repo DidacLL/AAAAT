@@ -18,10 +18,12 @@ import {
   aiOperations,
   namedAiConnectionInputSchema,
   namedAiConnectionListSchema,
+  portableAiSetupSchema,
   type AiConnectionOperationInput,
   type AiOperation,
   type NamedAiConnection,
   type NamedAiConnectionInput,
+  type PortableAiSetup,
 } from "../shared/ai-connection-contracts";
 import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
 import { validateAiOperation } from "./ai-operation-validation";
@@ -451,4 +453,52 @@ export function saveDefaultAiConnection(
   }
   saveNamedAiConnection(rootPath, input);
   return requireDefaultAiConnection(rootPath);
+}
+
+export function buildPortableAiSetup(rootPath: string): PortableAiSetup {
+  const configuration = readConfiguration(rootPath);
+  const defaultConnection =
+    configuration.defaultConnectionId === null
+      ? null
+      : configuration.connections.find(
+          (connection) => connection.id === configuration.defaultConnectionId,
+        ) ?? null;
+  return portableAiSetupSchema.parse({
+    format: "aaaat-ai-setup",
+    version: 1,
+    connections: configuration.connections.map(statusFor),
+    defaultConnectionName: defaultConnection?.name ?? null,
+  });
+}
+
+export function replaceAiConnectionsFromPortableSetup(
+  rootPath: string,
+  rawSetup: PortableAiSetup,
+): NamedAiConnection[] {
+  const setup = portableAiSetupSchema.parse(rawSetup);
+  const validatedConnections = setup.connections.map((connection) => ({
+    input: namedAiConnectionInputSchema.parse(connection),
+    endpoint: validatedEndpoint(connection),
+  }));
+  const connections = validatedConnections.map(({ input, endpoint }) =>
+    normalizedStoredConnection({ ...input, endpoint }, randomUUID()),
+  );
+  const defaultConnection =
+    setup.defaultConnectionName === null
+      ? null
+      : connections.find(
+          (connection) =>
+            connection.name.toLocaleLowerCase() === setup.defaultConnectionName?.toLocaleLowerCase(),
+        ) ?? null;
+  if (setup.defaultConnectionName !== null && !defaultConnection) {
+    throw new AiConnectionServiceError("The portable default AI connection does not exist.");
+  }
+  return listFor(
+    writeConfiguration(rootPath, {
+      version: 3,
+      connections,
+      defaultConnectionId: defaultConnection?.id ?? null,
+      operationDefaults: {},
+    }),
+  );
 }

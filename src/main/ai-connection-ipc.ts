@@ -1,6 +1,7 @@
+import { lstatSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { app, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { app, dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
 
 import {
   aiConnectionIdSchema,
@@ -8,16 +9,23 @@ import {
   aiConnectionOperationInputSchema,
   namedAiConnectionInputSchema,
   namedAiConnectionListSchema,
+  portableAiSetupExportResultSchema,
+  portableAiSetupImportResultSchema,
+  portableAiSetupSchema,
 } from "../shared/ai-connection-contracts";
 import {
+  buildPortableAiSetup,
   listAiConnections,
   removeAiConnection,
+  replaceAiConnectionsFromPortableSetup,
   saveNamedAiConnection,
   setAiOperationDefault,
   setDefaultAiConnection,
   validateAiConnectionOperation,
 } from "./ai-connection-service";
 import { readLastWorkspacePath } from "./workspace";
+
+const maxPortableAiSetupBytes = 64 * 1024;
 
 function assertTrustedSender(event: IpcMainInvokeEvent, mainWindow: BrowserWindow): void {
   if (event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) {
@@ -31,6 +39,50 @@ function requireWorkspaceRoot(): string {
   );
   if (!rootPath) throw new Error("Choose an AAAAT workspace first.");
   return rootPath;
+}
+
+function readPortableAiSetupFile(filePath: string) {
+  const stat = lstatSync(filePath);
+  if (!stat.isFile() || stat.size > maxPortableAiSetupBytes) {
+    throw new Error("The selected portable AI setup file is invalid or too large.");
+  }
+  try {
+    return portableAiSetupSchema.parse(JSON.parse(readFileSync(filePath, "utf8")));
+  } catch {
+    throw new Error("The selected portable AI setup file is invalid.");
+  }
+}
+
+async function exportPortableAiSetup(mainWindow: BrowserWindow) {
+  const selection = await dialog.showSaveDialog(mainWindow, {
+    title: "Export portable AI setup",
+    defaultPath: "aaaat-ai-setup.json",
+    filters: [{ name: "AAAAT AI setup", extensions: ["json"] }],
+  });
+  if (selection.canceled || !selection.filePath) return "cancelled" as const;
+  const setup = buildPortableAiSetup(requireWorkspaceRoot());
+  writeFileSync(selection.filePath, `${JSON.stringify(setup, null, 2)}\n`, "utf8");
+  return "exported" as const;
+}
+
+async function importPortableAiSetup(mainWindow: BrowserWindow) {
+  const rootPath = requireWorkspaceRoot();
+  const selection = await dialog.showOpenDialog(mainWindow, {
+    title: "Import portable AI setup",
+    buttonLabel: "Import setup",
+    filters: [{ name: "AAAAT AI setup", extensions: ["json"] }],
+    properties: ["openFile"],
+  });
+  if (selection.canceled || !selection.filePaths[0]) {
+    return { status: "cancelled" as const, connections: listAiConnections(rootPath) };
+  }
+  return {
+    status: "imported" as const,
+    connections: replaceAiConnectionsFromPortableSetup(
+      rootPath,
+      readPortableAiSetupFile(selection.filePaths[0]),
+    ),
+  };
 }
 
 function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
@@ -80,6 +132,16 @@ function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
         aiConnectionOperationInputSchema.parse(input),
       ),
     );
+  });
+
+  ipcMain.handle(aiConnectionManagementChannels.exportPortable, async (event) => {
+    assertTrustedSender(event, mainWindow);
+    return portableAiSetupExportResultSchema.parse(await exportPortableAiSetup(mainWindow));
+  });
+
+  ipcMain.handle(aiConnectionManagementChannels.importPortable, async (event) => {
+    assertTrustedSender(event, mainWindow);
+    return portableAiSetupImportResultSchema.parse(await importPortableAiSetup(mainWindow));
   });
 }
 
