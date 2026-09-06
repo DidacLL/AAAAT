@@ -96,11 +96,13 @@ test("packaged executable exposes bounded live-field catalogue and sparse candid
       throw new Error("Packaged MCP catalogue result is not text content.");
     }
     const catalogue = JSON.parse(catalogueContent.text) as {
-      fields: Array<{ id: string; label: string; valueType: string; cardinality: string }>;
+      operationRef: string;
+      fields: Array<{ fieldRef: string; label: string; valueType: string; cardinality: string }>;
     };
+    expect(catalogue.operationRef).toEqual(expect.any(String));
     expect(catalogue.fields.length).toBeGreaterThan(0);
     expect(catalogue.fields[0]).toMatchObject({
-      id: expect.any(String),
+      fieldRef: expect.any(String),
       label: expect.any(String),
       valueType: expect.any(String),
       cardinality: expect.any(String),
@@ -115,7 +117,6 @@ test("packaged executable exposes bounded live-field catalogue and sparse candid
           url: "",
           sourceText: "private packaged MCP source",
         },
-        values: [],
       },
     });
     expect(result.isError).not.toBe(true);
