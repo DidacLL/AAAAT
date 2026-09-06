@@ -113,7 +113,7 @@ export function createConcept(
           id,
           concept.name,
           concept.definition,
-          concept.notes,
+          concept.notes ?? "",
           JSON.stringify(concept.aliases),
           now,
           now,
@@ -132,7 +132,7 @@ export function updateConcept(
   return withWorkspaceDatabase(rootPath, (database) => {
     const now = new Date().toISOString();
     transact(database, () => {
-      readConcept(database, update.id);
+      const current = readConcept(database, update.id);
       database
         .prepare(
           `UPDATE concepts
@@ -142,7 +142,7 @@ export function updateConcept(
         .run(
           update.name,
           update.definition,
-          update.notes,
+          update.notes ?? current.notes ?? "",
           JSON.stringify(update.aliases),
           now,
           update.id,
