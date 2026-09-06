@@ -399,7 +399,11 @@ export type ProviderCvTailoringResult = z.infer<typeof providerCvTailoringResult
 
 export const externalCandidatureCreateInputSchema = z
   .object({ source: candidatureSourceDraftSchema })
-  .strict();
+  .strict()
+  .refine(
+    ({ source }) => [source.title, source.url, source.sourceText].some((value) => value.trim().length > 0),
+    { path: ["source"], message: "Source must include a non-empty title, URL, or source text." },
+  );
 export type ExternalCandidatureCreateInput = z.infer<typeof externalCandidatureCreateInputSchema>;
 
 export interface AiDesktopApi {
