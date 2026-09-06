@@ -208,4 +208,17 @@ describe("manual Documents workspace", () => {
     });
     expect(await screen.findByText(retainedArtifact.artifactPath)).toBeInTheDocument();
   });
+
+  it("lists retained candidature artifacts without a surviving working document association", async () => {
+    list.mockResolvedValueOnce([]);
+    listCandidatures.mockResolvedValueOnce([{ ...candidature, documentIds: [] }]);
+    listArtifacts.mockResolvedValueOnce([retainedArtifact]);
+    render(<DocumentsWorkspace />);
+
+    expect(await screen.findByText(retainedArtifact.artifactPath)).toBeInTheDocument();
+    expect(screen.getByText(retainedArtifact.sourcePath)).toBeInTheDocument();
+    expect(screen.getByLabelText("Candidature")).toHaveValue(candidature.id);
+    expect(listArtifacts).toHaveBeenCalledWith(candidature.id);
+    expect(screen.queryByRole("button", { name: "Retain application artifact" })).not.toBeInTheDocument();
+  });
 });
