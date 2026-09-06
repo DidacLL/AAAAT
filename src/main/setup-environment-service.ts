@@ -49,7 +49,6 @@ export function probeSetupTexCommand(command: SetupTexCommand): Promise<SetupTex
 
     let settled = false;
     let output = "";
-    let timer: NodeJS.Timeout | undefined;
 
     const append = (chunk: Buffer | string) => {
       if (output.length >= maxProbeOutput) return;
@@ -61,7 +60,7 @@ export function probeSetupTexCommand(command: SetupTexCommand): Promise<SetupTex
     const finish = (available: boolean) => {
       if (settled) return;
       settled = true;
-      if (timer) clearTimeout(timer);
+      clearTimeout(timer);
       resolve(
         setupTexCommandStatusSchema.parse({
           command,
@@ -71,7 +70,7 @@ export function probeSetupTexCommand(command: SetupTexCommand): Promise<SetupTex
       );
     };
 
-    timer = setTimeout(() => {
+    const timer = setTimeout(() => {
       child.kill();
       finish(false);
     }, probeTimeoutMs);
