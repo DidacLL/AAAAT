@@ -6,6 +6,7 @@ import { createCandidatureSearchDesktopApi } from "./candidature-search-api";
 import { createDesktopApi } from "./api";
 import { createCombinedDocumentDesktopApi } from "./combined-document-api";
 import { createFocusDesktopApi } from "./focus-api";
+import { createSetupEnvironmentDesktopApi } from "./setup-environment-api";
 import { createTodoDesktopApi } from "./todo-api";
 
 const invoke = (channel: string, ...args: readonly unknown[]) => ipcRenderer.invoke(channel, ...args);
@@ -20,5 +21,6 @@ contextBridge.exposeInMainWorld(
     ...createCombinedDocumentDesktopApi(invoke),
     ...createTodoDesktopApi(invoke),
     ...createFocusDesktopApi(invoke),
+    ...createSetupEnvironmentDesktopApi(invoke),
   }),
 );

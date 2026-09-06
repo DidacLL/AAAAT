@@ -6,6 +6,7 @@ import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
 import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
 import type { FocusDesktopApi, FocusMaterialPreferences } from "../shared/focus-contracts";
+import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { TodoDesktopApi } from "../shared/todo-contracts";
 import { App } from "./App";
 import "./styles.css";
@@ -30,7 +31,8 @@ function createPreviewApi(): DesktopApi &
   ArtifactDesktopApi &
   CandidatureSearchDesktopApi &
   TodoDesktopApi &
-  FocusDesktopApi {
+  FocusDesktopApi &
+  SetupEnvironmentDesktopApi {
   return Object.freeze({
     system: Object.freeze({
       info: async () => ({
@@ -116,6 +118,9 @@ function createPreviewApi(): DesktopApi &
     focus: Object.freeze({
       current: async () => ({ sources: true, concepts: true, todos: true, documents: true }),
       update: async (preferences: FocusMaterialPreferences) => preferences,
+    }),
+    setupEnvironment: Object.freeze({
+      current: previewUnavailable,
     }),
   });
 }

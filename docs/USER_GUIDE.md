@@ -70,7 +70,9 @@ The manual workflow remains valid if AI is never configured.
 
 AAAAT generates portable LaTeX source itself, but local PDF rendering uses TeX tools installed on your computer.
 
-Install `latexmk` and `pdflatex`. AAAAT documents target the portable pdfLaTeX/pdfTeX baseline.
+In **Settings**, **Local setup status** checks the current workspace and whether `latexmk` and `pdflatex` are already available. This check is read-only: AAAAT reuses working tools and does not install packages, replace a TeX distribution, edit `PATH`, or run an arbitrary command supplied by the renderer.
+
+Install `latexmk` and `pdflatex` if the setup status reports them missing. AAAAT documents target the portable pdfLaTeX/pdfTeX baseline. After installing compatible tools through your normal operating-system or TeX-distribution method, use **Refresh environment** in Settings.
 
 If the tools are missing, AAAAT reports that TeX rendering could not start and identifies `latexmk` and the required engine. The generated source is still user-owned and may be compiled independently with compatible tools after those prerequisites are installed.
 
@@ -89,6 +91,8 @@ Add a connection name, model name, and local provider base URL. The first connec
 Before using a configured connection for an AI operation, validate that operation from **Settings**. Validation sends only synthetic AAAAT data through the existing operation contract; it does not send your candidature, profile, Sources, or documents, and it is not a benchmark of model quality. The first successful validation for an operation becomes that operation's default when no operation default exists. Later validations do not switch it automatically. You can explicitly choose another validated connection for that operation.
 
 Changing a connection's endpoint or model clears its recorded operation validations because the capability boundary changed. A name-only edit keeps them. Removing a connection clears any operation defaults that referenced it. AAAAT never scans other configured connections or falls back to another model automatically.
+
+The same **Local setup status** summarizes how many local AI connections are configured and which of the six current AI operations have a validated route. This is a capability/routing status, not a model-quality score.
 
 Only loopback endpoints are accepted by this current user-facing path. Remote authentication and API-key setup are not part of this alpha path.
 
@@ -152,7 +156,7 @@ Activation validates the workspace, executable, manifest, and live MCP tool surf
 
 **A folder cannot be used as a workspace.** For **Create workspace**, choose an empty folder or an already compatible AAAAT workspace. For **Open existing workspace**, select a compatible AAAAT v2 workspace.
 
-**PDF rendering cannot start.** Install `latexmk` and `pdflatex`, then retry. Your generated LaTeX source remains available even when rendering fails.
+**PDF rendering cannot start.** Check **Settings → Local setup status**. Install `latexmk` and `pdflatex` through a compatible TeX distribution if they are missing, then refresh the environment status and retry. Your generated LaTeX source remains available even when rendering fails.
 
 **AI actions fail or no AI is configured.** AI is optional. Check that the selected local OpenAI-compatible endpoint is running and remains a loopback address, then validate the specific operation in **Settings**. If several validated connections exist, choose the desired operation default explicitly. Manual Profile, Documents, and Candidatures workflows continue to work without AI.
 
@@ -160,4 +164,4 @@ Activation validates the workspace, executable, manifest, and live MCP tool surf
 
 ## Current alpha limitations
 
-The current release path deliberately does not include code signing/notarization, an updater, an automated GitHub Release publisher, a Windows installer, a macOS DMG, or RPM/AppImage/Snap/Flatpak packages. Those absences should not be interpreted as hidden features or automatic setup.
+The current release path deliberately does not include code signing/notarization, an updater, an automated GitHub Release publisher, a Windows installer, a macOS DMG, or RPM/AppImage/Snap/Flatpak packages. The current setup status detects existing capabilities but does not yet install software or generate `installer.ai` / `configurator.ai` guidance. Those absences should not be interpreted as hidden features or automatic setup.

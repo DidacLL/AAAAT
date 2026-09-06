@@ -1,19 +1,19 @@
-# Active Mission — Validated AI operation capabilities
+# Active Mission — Shared setup environment capabilities
 
-**Active:** [Issue #179](https://github.com/DidacLL/AAAAT/issues/179) on `feature/ai-operation-capabilities`, based on integrated named local AI connections `bca548e3d1ff1c25a228e93c5baf9cabc29314f0`.
+**Active:** [Issue #181](https://github.com/DidacLL/AAAAT/issues/181) on `feature/setup-environment-capabilities`, based on integrated validated AI operation routing `fbd43708367c04885eeb7b4e39bbd7993a08ca5c`.
 
 ## Outcome
 
-Route each existing AAAAT AI operation only through a configured connection that has been explicitly validated for that operation. Allow an explicit per-operation default while retaining the existing general default only as a convenience fallback when it is validated for the requested operation.
+Expose one read-only structured setup-environment snapshot for the configured workspace so graphical Settings can honestly show current workspace, local TeX and validated AI-operation readiness. Reuse the existing authoritative AI routing state and detect existing TeX tools rather than introducing another configuration store or installer engine.
 
 ## Boundaries
 
-Keep the existing local/keyless loopback OpenAI-compatible provider, operation prompts, privacy projection, typed result validation and mutation/conflict policies unchanged. Capability validation uses synthetic non-user context and records contract compatibility, not model quality. Do not add remote authentication, provider registries, model catalogues, benchmarking, automatic routing/fallback, research, new AI operations, setup wizards, config import/export redesign, database migrations or dependencies. There is no real-user v2 compatibility baseline, so correct the development connection configuration directly to version 3 rather than adding migration machinery.
+This slice is status/projection only. Probe only the fixed known `latexmk` and `pdflatex` executables with fixed bounded version arguments and no shell interpolation. Do not install or replace software, edit PATH, expose command/filesystem primitives, generate `installer.ai` / `configurator.ai` artifacts, add remote authentication/provider registries/research, implement configuration import/export, redesign backup/host integration/document rendering, migrate the database or add dependencies.
 
-This is Class C because it changes durable AI connection capability configuration and privileged routing semantics shared by all current AI operations. ADR 0018 records the validation/default boundary. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if material new abstraction appears.
+This is Class C because it establishes the shared setup/environment contract across renderer, preload and privileged main-process software detection. ADR 0019 records the read-only snapshot boundary. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if material generic setup abstraction appears.
 
 ## Evidence and continuation
 
-Issue #175 / PR #178 is integrated at `bca548e3d1ff1c25a228e93c5baf9cabc29314f0`. The reviewed duplicate single-connection mutation path was removed before merge. Verify #422 passed Fast verification with 49 test files / 151 active tests, Windows/macOS/Linux packaged release/runtime smoke and the aggregate Verification gate; LaTeX portability was correctly not selected.
+Issue #179 / PR #180 is integrated at `fbd43708367c04885eeb7b4e39bbd7993a08ca5c`. Verify #431 passed typecheck, lint, 49 test files / 153 active tests, selected Linux packaged build/runtime smoke and the aggregate Verification gate; LaTeX and the broader platform matrix were correctly not selected by impact policy.
 
-Next: finish Issue #179, run focused capability/default/routing/API/settings tests plus existing AI privacy/provider tests and impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.
+Next: finish Issue #181, run focused environment service/API/Settings tests plus existing AI connection and LaTeX runner tests and impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.

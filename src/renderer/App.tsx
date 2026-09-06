@@ -8,6 +8,7 @@ import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
 import { CareerContextPanel } from "./CareerContextPanel";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
+import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
 import { TodosWorkspace } from "./TodosWorkspace";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
@@ -205,10 +206,10 @@ export function App() {
               onDirtyChange={setEditorDirty}
             />
           ) : (
-            <AiSettingsWorkspace
-              key={`settings-${workspace.rootPath}`}
-              onDirtyChange={setEditorDirty}
-            />
+            <div key={`settings-${workspace.rootPath}`}>
+              <SetupEnvironmentPanel />
+              <AiSettingsWorkspace onDirtyChange={setEditorDirty} />
+            </div>
           )}
         </main>
       ) : (
