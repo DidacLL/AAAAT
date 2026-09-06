@@ -653,6 +653,13 @@ function sourceHash(paths: ReturnType<typeof projectPaths>): string | null {
   return hash.digest("hex");
 }
 
+function generatedDataHash(generated: string): string {
+  const hash = createHash("sha256");
+  hash.update("data.tex");
+  hash.update(generated);
+  return hash.digest("hex");
+}
+
 function initializeUserOwnedProject(rootPath: string, documentId: string): void {
   const document = getDocument(rootPath, documentId);
   const paths = projectPaths(rootPath, documentId);
@@ -685,6 +692,7 @@ function writeManagedProject(rootPath: string, documentId: string): string {
     resolved.document.kind === "cv"
       ? cvContent(resolved)
       : coverLetterContent(resolved);
+  const hash = generatedDataHash(generated);
   const stagePath = path.join(paths.projectPath, `.data.stage-${randomUUID()}.tex`);
   const backupPath = path.join(paths.projectPath, `.data.backup-${randomUUID()}.tex`);
   let installed = false;
@@ -699,9 +707,6 @@ function writeManagedProject(rootPath: string, documentId: string): string {
     renameSync(stagePath, paths.dataPath);
     installed = true;
     if (backedUp) rmSync(backupPath, { force: true });
-
-    const hash = sourceHash(paths);
-    if (!hash) throw new Error("generated data missing");
     return hash;
   } catch {
     let recoveryFailed = false;
