@@ -289,8 +289,7 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       candidatureSourceListSchema.parse(
         await invoke(
           channels.candidatureSourceUpdate,
-          candidatureSourceUpdateSchema.parse(update),
-        ),
+          candidatureSourceUpdateSchema.parse(update)),
       ),
     removeSource: async (
       remove: Parameters<DesktopApi["candidatures"]["removeSource"]>[0],
@@ -364,7 +363,8 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       variantRecommendationResultSchema.parse(
         await invoke(
           aiChannels.variantRecommend,
-          variantRecommendationRequestSchema.parse(request)),
+          variantRecommendationRequestSchema.parse(request),
+        ),
       ),
     tailorCv: async (request: Parameters<AiDesktopApi["ai"]["tailorCv"]>[0]) =>
       cvTailoringResultSchema.parse(
