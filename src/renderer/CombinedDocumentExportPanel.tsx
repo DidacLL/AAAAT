@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { DocumentRecord } from "../shared/contracts";
 
@@ -24,20 +24,17 @@ export function CombinedDocumentExportPanel({
   const [cvDocumentId, setCvDocumentId] = useState("");
   const [coverLetterDocumentId, setCoverLetterDocumentId] = useState("");
   const [exporting, setExporting] = useState(false);
-
-  useEffect(() => {
-    setCvDocumentId((current) =>
-      cvs.some((document) => document.id === current) ? current : (cvs[0]?.id ?? ""),
-    );
-    setCoverLetterDocumentId((current) =>
-      coverLetters.some((document) => document.id === current)
-        ? current
-        : (coverLetters[0]?.id ?? ""),
-    );
-  }, [coverLetters, cvs]);
+  const selectedCvDocumentId = cvs.some((document) => document.id === cvDocumentId)
+    ? cvDocumentId
+    : (cvs[0]?.id ?? "");
+  const selectedCoverLetterDocumentId = coverLetters.some(
+    (document) => document.id === coverLetterDocumentId,
+  )
+    ? coverLetterDocumentId
+    : (coverLetters[0]?.id ?? "");
 
   const exportPacket = async () => {
-    if (!cvDocumentId || !coverLetterDocumentId) return;
+    if (!selectedCvDocumentId || !selectedCoverLetterDocumentId) return;
     if (disabled) {
       onError("Save structured content before exporting a combined application packet.");
       return;
@@ -47,8 +44,8 @@ export function CombinedDocumentExportPanel({
     onNotice(null);
     try {
       const result = await window.aaaat.combinedDocuments.exportPacket({
-        cvDocumentId,
-        coverLetterDocumentId,
+        cvDocumentId: selectedCvDocumentId,
+        coverLetterDocumentId: selectedCoverLetterDocumentId,
       });
       if (result) onNotice(`Combined application packet exported: ${result.exportedPath}`);
     } catch {
@@ -67,7 +64,10 @@ export function CombinedDocumentExportPanel({
         <>
           <label>
             Combined CV
-            <select value={cvDocumentId} onChange={(event) => setCvDocumentId(event.target.value)}>
+            <select
+              value={selectedCvDocumentId}
+              onChange={(event) => setCvDocumentId(event.target.value)}
+            >
               {cvs.map((document) => (
                 <option key={document.id} value={document.id}>{document.title}</option>
               ))}
@@ -76,7 +76,7 @@ export function CombinedDocumentExportPanel({
           <label>
             Combined cover letter
             <select
-              value={coverLetterDocumentId}
+              value={selectedCoverLetterDocumentId}
               onChange={(event) => setCoverLetterDocumentId(event.target.value)}
             >
               {coverLetters.map((document) => (
