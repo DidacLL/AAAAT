@@ -6,6 +6,8 @@ ChatGPT Classic is the default GitHub route for bounded implementation, document
 
 Use Codex Terra for local shell, Electron/package/runtime work, filesystem/process integration, browser/visual testing, TeX/PDF compilation/inspection, or environment-specific debugging that needs local proof. Return the bounded commit and evidence to the same GitHub work item when practical.
 
+Successful local/Codex evidence is a reusable project asset, not a per-SHA ritual. Do not route work back to Codex merely because a later commit changed documentation or unrelated code. Route again only when the later change intersects the behavior, platform path, fixture contract, environment assumption, or other premise previously proven, or when a concrete review/CI finding creates a new local-evidence need.
+
 Reserve Codex Astra for difficult product interpretation, interacting architectural constraints, masterplan work, and unresolved cross-domain disagreement. Do not use it for routine work merely because it is available.
 
 Bring the owner one concise concrete question only for unresolved product meaning or Class D decisions. Routine implementation, testing, and integration do not need owner approval.
