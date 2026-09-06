@@ -50,8 +50,8 @@ describe("setup environment panel", () => {
 
     expect(await screen.findByRole("heading", { name: "Local setup status" })).toBeInTheDocument();
     expect(await screen.findByText("Ready with the detected local TeX tools.")).toBeInTheDocument();
-    expect(screen.getByText(/latexmk.*available/)).toBeInTheDocument();
-    expect(screen.getByText(/pdflatex.*available/)).toBeInTheDocument();
+    expect(screen.getByText("latexmk").closest("p")).toHaveTextContent("latexmk: available · Latexmk 4.86");
+    expect(screen.getByText("pdflatex").closest("p")).toHaveTextContent("pdflatex: available · pdfTeX");
     expect(screen.getByText("Available via Local model.")).toBeInTheDocument();
     expect(screen.getAllByText("No validated route is configured.").length).toBeGreaterThan(0);
   });
