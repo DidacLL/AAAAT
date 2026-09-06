@@ -16,7 +16,11 @@ const record = {
 
 describe("ToDo preload API", () => {
   it("uses only named ToDo channels with validated inputs", async () => {
-    const invoke = vi.fn(async (channel: string) => (channel === todoChannels.list ? [record] : record));
+    const invoke = vi.fn(async (channel: string) => {
+      if (channel === todoChannels.list) return [record];
+      if (channel === todoChannels.remove) return [];
+      return record;
+    });
     const api = createTodoDesktopApi(invoke);
 
     await expect(api.todos.list()).resolves.toEqual([record]);
