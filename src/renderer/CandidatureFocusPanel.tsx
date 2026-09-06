@@ -67,6 +67,8 @@ export function CandidatureFocusPanel({
     useState<FocusMaterialPreferences>(defaultMaterialPreferences);
   const [sources, setSources] = useState<CandidatureSource[]>([]);
   const [todos, setTodos] = useState<TodoRecord[]>([]);
+  const [focusConcepts, setFocusConcepts] = useState<ConceptRecord[]>([...concepts]);
+  const [notesDraft, setNotesDraft] = useState("");
   const [materialError, setMaterialError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -75,12 +77,14 @@ export function CandidatureFocusPanel({
     void Promise.all([
       window.aaaat.focus.current(),
       window.aaaat.candidatures.listSources(record.id),
+      window.aaaat.candidatures.listConcepts(),
       window.aaaat.todos.list(),
     ])
-      .then(([preferences, nextSources, nextTodos]) => {
+      .then(([preferences, nextSources, nextConcepts, nextTodos]) => {
         if (!active) return;
         setMaterialPreferences(preferences);
         setSources(nextSources);
+        setFocusConcepts(nextConcepts);
         setTodos(nextTodos.filter((todo) => todo.candidatureId === record.id));
       })
       .catch(() => {
@@ -119,7 +123,7 @@ export function CandidatureFocusPanel({
       return leftOrder - rightOrder || left.definition.label.localeCompare(right.definition.label);
     });
 
-  const associatedConcepts = concepts.filter((concept) =>
+  const associatedConcepts = focusConcepts.filter((concept) =>
     record.conceptIds.includes(concept.id),
   );
   const associatedDocuments = documents.filter((document) =>
@@ -129,6 +133,29 @@ export function CandidatureFocusPanel({
     associatedConcepts.find((concept) => concept.id === selectedConceptId) ??
     associatedConcepts[0] ??
     null;
+
+  useEffect(() => {
+    setNotesDraft(selectedConcept?.notes ?? "");
+  }, [selectedConcept?.id, selectedConcept?.notes]);
+
+  const saveConceptNotes = async () => {
+    if (!selectedConcept) return;
+    setMaterialError(null);
+    try {
+      const updated = await window.aaaat.candidatures.updateConcept({
+        id: selectedConcept.id,
+        name: selectedConcept.name,
+        definition: selectedConcept.definition,
+        aliases: selectedConcept.aliases,
+        notes: notesDraft,
+      });
+      setFocusConcepts((current) =>
+        current.map((concept) => (concept.id === updated.id ? updated : concept)),
+      );
+    } catch {
+      setMaterialError("AAAAT could not save these concept notes.");
+    }
+  };
 
   return (
     <section className="focus-panel" aria-label="Candidature Focus">
@@ -238,6 +265,23 @@ export function CandidatureFocusPanel({
               {selectedConcept.aliases.length > 0 ? (
                 <p><strong>Aliases:</strong> {selectedConcept.aliases.join(", ")}</p>
               ) : null}
+              {selectedConcept.notes ? <p><strong>Notes:</strong> {selectedConcept.notes}</p> : null}
+              <label>
+                Concept notes
+                <textarea
+                  rows={3}
+                  value={notesDraft}
+                  onChange={(event) => setNotesDraft(event.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="compact-secondary"
+                disabled={notesDraft === (selectedConcept.notes ?? "")}
+                onClick={() => void saveConceptNotes()}
+              >
+                Save concept notes
+              </button>
             </article>
           ) : null}
         </section>
