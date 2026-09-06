@@ -37,5 +37,9 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     () => app.exit(2),
   );
 } else {
-  void Promise.all([import("./todo-ipc"), import("./focus-ipc")]).then(() => import("./main"));
+  void Promise.all([
+    import("./artifact-ipc"),
+    import("./todo-ipc"),
+    import("./focus-ipc"),
+  ]).then(() => import("./main"));
 }
