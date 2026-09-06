@@ -35,6 +35,9 @@ function installApi() {
     configurable: true,
     value: { setupEnvironment: { current } },
   });
+}
+
+function installClipboard() {
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
     value: { writeText },
@@ -54,6 +57,7 @@ describe("setup environment panel", () => {
   it("shows detected local tools, validated AI routes, and copyable privacy-minimal guidance", async () => {
     current.mockResolvedValue(readySnapshot);
     const user = userEvent.setup();
+    installClipboard();
     render(<SetupEnvironmentPanel />);
 
     expect(await screen.findByRole("heading", { name: "Local setup status" })).toBeInTheDocument();
@@ -116,8 +120,9 @@ describe("setup environment panel", () => {
 
   it("keeps guidance selectable when clipboard copying fails", async () => {
     current.mockResolvedValue(readySnapshot);
-    writeText.mockRejectedValueOnce(new Error("clipboard denied"));
     const user = userEvent.setup();
+    installClipboard();
+    writeText.mockRejectedValueOnce(new Error("clipboard denied"));
     render(<SetupEnvironmentPanel />);
 
     const installer = await screen.findByRole("textbox", { name: "installer.ai guidance" });
