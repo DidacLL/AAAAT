@@ -84,10 +84,10 @@ const listCandidatures = vi.fn<DesktopApi["candidatures"]["list"]>();
 const listArtifacts = vi.fn<ArtifactDesktopApi["artifacts"]["list"]>();
 const captureArtifact = vi.fn<ArtifactDesktopApi["artifacts"]["capture"]>();
 
-function installApi() {
+function installApi(currentProfile: ProfileSnapshot = profile) {
   const api = {
     profile: {
-      current: async () => profile,
+      current: async () => currentProfile,
       resolveVariant: async () => ({ variant, items: [item] }),
     },
     documents: {
@@ -115,7 +115,7 @@ describe("manual Documents workspace", () => {
     listCandidatures.mockResolvedValue([]);
     listArtifacts.mockResolvedValue([]);
     captureArtifact.mockResolvedValue(retainedArtifact);
-    create.mockResolvedValue(record());
+    create.mockResolvedValue(record({ variantId: null }));
     update.mockImplementation(async (value) => record({ ...value }));
     resolve.mockResolvedValue({ document: record(), items: [item] });
     renderDocument.mockResolvedValue(record());
@@ -126,22 +126,51 @@ describe("manual Documents workspace", () => {
 
   afterEach(() => cleanup());
 
-  it("creates a CV from a focused profile variant and exposes portable locations", async () => {
+  it("creates a CV from the canonical profile by default", async () => {
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
     await screen.findByRole("heading", { name: "Documents" });
+    expect(screen.getByLabelText("Profile basis")).toHaveValue("");
     await user.type(screen.getByLabelText("Title"), "Platform CV");
     await user.click(screen.getByRole("button", { name: "Create document" }));
 
     expect(create).toHaveBeenCalledWith({
       kind: "cv",
       title: "Platform CV",
-      variantId: variant.id,
+      variantId: null,
       engine: "pdflatex",
       bodyParagraphs: [],
     });
     expect(await screen.findByText("/tmp/workspace/documents/doc/main.tex")).toBeInTheDocument();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).toBeInTheDocument();
+  });
+
+  it("creates from the canonical profile when no variants exist", async () => {
+    installApi({ items: [item], variants: [] });
+    const user = userEvent.setup();
+    render(<DocumentsWorkspace />);
+    await screen.findByRole("heading", { name: "Documents" });
+    expect(screen.getByLabelText("Profile basis")).toHaveValue("");
+    await user.type(screen.getByLabelText("Title"), "Canonical CV");
+    await user.click(screen.getByRole("button", { name: "Create document" }));
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Canonical CV", variantId: null }),
+    );
+  });
+
+  it("can explicitly create a CV from a named profile variant", async () => {
+    create.mockResolvedValueOnce(record({ variantId: variant.id }));
+    const user = userEvent.setup();
+    render(<DocumentsWorkspace />);
+    await screen.findByRole("heading", { name: "Documents" });
+    await user.type(screen.getByLabelText("Title"), "Focused CV");
+    await user.selectOptions(screen.getByLabelText("Profile basis"), variant.id);
+    await user.click(screen.getByRole("button", { name: "Create document" }));
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Focused CV", variantId: variant.id }),
+    );
   });
 
   it("edits structured cover-letter content through the document service", async () => {

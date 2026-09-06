@@ -55,6 +55,7 @@ import {
 import type {
   CandidatureFieldConfiguration,
   CandidatureRuntimeValue,
+  DocumentRecord,
   ProfileItem,
 } from "../shared/contracts";
 import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
@@ -611,6 +612,12 @@ function requireDocument(rootPath: string, documentId: string) {
   return document;
 }
 
+function documentBaseItems(rootPath: string, document: DocumentRecord): ProfileItem[] {
+  return document.variantId === null
+    ? getProfile(rootPath).items
+    : resolveProfileVariant(rootPath, document.variantId).items;
+}
+
 function documentContext(
   candidature: FitProjectedCandidature,
   items: readonly ProfileItem[],
@@ -663,7 +670,7 @@ function currentDocumentEvidenceIds(rootPath: string, documentId: string): Reado
   const document = requireDocument(rootPath, documentId);
   if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
   return new Set(
-    resolveProfileVariant(rootPath, document.variantId).items
+    documentBaseItems(rootPath, document)
       .filter((item) => documentEvidenceKinds.has(item.kind))
       .map((item) => item.id),
   );
@@ -679,7 +686,7 @@ export async function tailorCv(
   requireCandidature(rootPath, request.candidatureId);
   const document = requireDocument(rootPath, request.documentId);
   if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
-  const items = resolveProfileVariant(rootPath, document.variantId).items;
+  const items = documentBaseItems(rootPath, document);
   const projection = projectCandidature(
     rootPath,
     request.candidatureId,

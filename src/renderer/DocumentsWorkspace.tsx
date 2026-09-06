@@ -97,7 +97,7 @@ export function DocumentsWorkspace({
   const newDocumentDirty =
     newKind !== "cv" ||
     newTitle.length > 0 ||
-    newVariantId !== (profile?.variants[0]?.id ?? "");
+    newVariantId !== "";
 
   useEffect(() => {
     onDirtyChange?.(editorDirty || newDocumentDirty);
@@ -105,11 +105,13 @@ export function DocumentsWorkspace({
   }, [editorDirty, newDocumentDirty, onDirtyChange]);
 
   const refreshResolved = async (document: DocumentRecord) => {
-    const [variant, resolved] = await Promise.all([
-      window.aaaat.profile.resolveVariant(document.variantId),
+    const [basis, resolved] = await Promise.all([
+      document.variantId === null
+        ? window.aaaat.profile.current()
+        : window.aaaat.profile.resolveVariant(document.variantId),
       window.aaaat.documents.resolve(document.id),
     ]);
-    setBaseItems(variant.items);
+    setBaseItems(basis.items);
     setResolvedCount(resolved.items.length);
   };
 
@@ -146,7 +148,7 @@ export function DocumentsWorkspace({
         setProfile(currentProfile);
         setDocuments(currentDocuments);
         setCandidatures(currentCandidatures);
-        setNewVariantId(currentProfile.variants[0]?.id ?? "");
+        setNewVariantId("");
 
         const firstCandidature = currentCandidatures[0] ?? null;
         setArtifactCandidatureId(firstCandidature?.id ?? "");
@@ -172,7 +174,6 @@ export function DocumentsWorkspace({
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
-    if (!newVariantId) return;
     if (editorDirty && !window.confirm("Discard unsaved document edits and create a new document?")) {
       return;
     }
@@ -182,14 +183,14 @@ export function DocumentsWorkspace({
       const created = await window.aaaat.documents.create({
         kind: newKind,
         title: newTitle.trim(),
-        variantId: newVariantId,
+        variantId: newVariantId || null,
         engine: "pdflatex",
         bodyParagraphs: [],
       });
       setNewTitle("");
       await acceptSavedDocument(created);
     } catch {
-      setError("Check the document title and selected profile variant.");
+      setError("Check the document title and profile basis.");
     }
   };
 
@@ -408,16 +409,12 @@ export function DocumentsWorkspace({
           <span>{documents.length}</span>
         </div>
 
-        {profile.variants.length === 0 ? (
-          <p>Create a focused profile variant before creating a document.</p>
-        ) : (
-          <form className="document-create" onSubmit={(event) => void create(event)}>
-            <label>Type<select value={newKind} onChange={(event) => setNewKind(event.target.value as DocumentKind)}><option value="cv">CV</option><option value="cover_letter">Cover letter</option></select></label>
-            <label>Title<input required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} /></label>
-            <label>Profile variant<select value={newVariantId} onChange={(event) => setNewVariantId(event.target.value)}>{profile.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label>
-            <button className="compact-primary" type="submit">Create document</button>
-          </form>
-        )}
+        <form className="document-create" onSubmit={(event) => void create(event)}>
+          <label>Type<select value={newKind} onChange={(event) => setNewKind(event.target.value as DocumentKind)}><option value="cv">CV</option><option value="cover_letter">Cover letter</option></select></label>
+          <label>Title<input required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} /></label>
+          <label>Profile basis<select value={newVariantId} onChange={(event) => setNewVariantId(event.target.value)}><option value="">Canonical profile</option>{profile.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label>
+          <button className="compact-primary" type="submit">Create document</button>
+        </form>
 
         <div className="document-list">
           {documents.map((document) => (
@@ -432,7 +429,7 @@ export function DocumentsWorkspace({
         {error ? <p className="error-message" role="alert">{error}</p> : null}
         {notice ? <p className="document-notice" role="status">{notice}</p> : null}
         {!selected ? (
-          <div className="document-empty"><h2>Create a manual CV or cover letter.</h2><p>Select a focused profile variant, then specialize the document without changing your profile.</p></div>
+          <div className="document-empty"><h2>Create a manual CV or cover letter.</h2><p>Start from your canonical profile, optionally apply a focused variant, then specialize the document without changing your profile.</p></div>
         ) : (
           <>
             <div className="section-heading"><div><p className="eyebrow">{selected.mode === "managed" ? "Managed source" : "Manual TeX mode"}</p><h2>{selected.title}</h2></div><span>{resolvedCount} selected items</span></div>

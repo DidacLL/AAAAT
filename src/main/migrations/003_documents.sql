@@ -2,7 +2,7 @@ CREATE TABLE documents (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL CHECK (kind IN ('cv', 'cover_letter')),
   title TEXT NOT NULL,
-  variant_id TEXT NOT NULL REFERENCES profile_variants(id) ON DELETE RESTRICT,
+  variant_id TEXT REFERENCES profile_variants(id) ON DELETE RESTRICT,
   language TEXT,
   engine TEXT NOT NULL DEFAULT 'pdflatex' CHECK (engine = 'pdflatex'),
   recipient TEXT,

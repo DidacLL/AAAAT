@@ -54,7 +54,7 @@ A practical starting sequence is:
 
 ### Documents
 
-Use **Documents** to create and edit CVs and cover letters from the career profile and selected variant. AAAAT keeps document content editable and produces a normal LaTeX project in the user-owned workspace.
+Use **Documents** to create and edit CVs and cover letters directly from the canonical career profile, optionally applying a named profile variant when different emphasis is useful. AAAAT keeps document content editable and produces a normal LaTeX project in the user-owned workspace.
 
 Generated projects are intended to remain useful outside AAAAT. They contain the non-standard source they need, do not depend on absolute paths back into the AAAAT repository, and can be copied to another directory or used with ordinary compatible TeX tools.
 
