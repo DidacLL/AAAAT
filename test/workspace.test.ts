@@ -80,7 +80,7 @@ describe("user-owned workspace", () => {
               "SELECT version, name, length(sha256) AS hashLength FROM schema_migrations ORDER BY version DESC LIMIT 1",
             )
             .get(),
-        ).toMatchObject({ version: 8, name: "candidature-information", hashLength: 64 });
+        ).toMatchObject({ version: 9, name: "todos", hashLength: 64 });
         database.exec("CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;");
         database
           .prepare("INSERT INTO persistence_probe(value) VALUES (?)")
@@ -137,6 +137,7 @@ describe("user-owned workspace", () => {
           { version: 6, name: "activity" },
           { version: 7, name: "career-context" },
           { version: 8, name: "candidature-information" },
+          { version: 9, name: "todos" },
         ]);
         expect(
           database
@@ -158,6 +159,7 @@ describe("user-owned workspace", () => {
             )
             .get(),
         ).toEqual({ careerDirection: "", constraints: "" });
+        expect(database.prepare("SELECT COUNT(*) AS count FROM todos").get()).toEqual({ count: 0 });
       } finally {
         database.close();
       }
@@ -277,6 +279,7 @@ describe("user-owned workspace", () => {
           { version: 6 },
           { version: 7 },
           { version: 8 },
+          { version: 9 },
         ]);
       } finally {
         unchanged.close();
@@ -297,7 +300,7 @@ describe("user-owned workspace", () => {
           .prepare(
             "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
           )
-          .run(9, "future", "f".repeat(64), new Date().toISOString());
+          .run(10, "future", "f".repeat(64), new Date().toISOString());
       } finally {
         database.close();
       }

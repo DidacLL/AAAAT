@@ -37,5 +37,5 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     () => app.exit(2),
   );
 } else {
-  void import("./main");
+  void import("./todo-ipc").then(() => import("./main"));
 }

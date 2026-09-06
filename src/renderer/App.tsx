@@ -8,9 +8,10 @@ import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
 import { CareerContextPanel } from "./CareerContextPanel";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
+import { TodosWorkspace } from "./TodosWorkspace";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
-type ProductView = "candidatures" | "profile" | "documents" | "ai-documents" | "settings";
+type ProductView = "candidatures" | "todos" | "profile" | "documents" | "ai-documents" | "settings";
 
 function ProfileArea({
   onDirtyChange,
@@ -149,6 +150,13 @@ export function App() {
             </button>
             <button
               type="button"
+              className={productView === "todos" ? "active-product-tab" : ""}
+              onClick={() => selectProductView("todos")}
+            >
+              ToDos
+            </button>
+            <button
+              type="button"
               className={productView === "profile" ? "active-product-tab" : ""}
               onClick={() => selectProductView("profile")}
             >
@@ -182,6 +190,8 @@ export function App() {
               key={`candidatures-${workspace.rootPath}`}
               onDirtyChange={setEditorDirty}
             />
+          ) : productView === "todos" ? (
+            <TodosWorkspace key={`todos-${workspace.rootPath}`} onDirtyChange={setEditorDirty} />
           ) : productView === "profile" ? (
             <ProfileArea key={`profile-${workspace.rootPath}`} onDirtyChange={setEditorDirty} />
           ) : productView === "documents" ? (
