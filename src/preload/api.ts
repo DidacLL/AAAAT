@@ -1,6 +1,4 @@
 import {
-  aiConnectionInputSchema,
-  aiConnectionStatusSchema,
   aiChannels,
   coverLetterDraftSchema,
   cvTailoringResultSchema,
@@ -291,8 +289,7 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       candidatureSourceListSchema.parse(
         await invoke(
           channels.candidatureSourceUpdate,
-          candidatureSourceUpdateSchema.parse(update),
-        ),
+          candidatureSourceUpdateSchema.parse(update)),
       ),
     removeSource: async (
       remove: Parameters<DesktopApi["candidatures"]["removeSource"]>[0],
@@ -339,10 +336,6 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
   const ai = Object.freeze({
     connection: async () =>
       optionalAiConnectionStatusSchema.parse(await invoke(aiChannels.connectionCurrent)),
-    saveConnection: async (input: Parameters<AiDesktopApi["ai"]["saveConnection"]>[0]) =>
-      aiConnectionStatusSchema.parse(
-        await invoke(aiChannels.connectionSave, aiConnectionInputSchema.parse(input)),
-      ),
     previewFit: async (request: Parameters<AiDesktopApi["ai"]["previewFit"]>[0]) =>
       fitAssessmentPreviewSchema.parse(
         await invoke(aiChannels.fitPreview, fitAssessmentRequestSchema.parse(request)),

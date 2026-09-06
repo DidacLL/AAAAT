@@ -10,7 +10,6 @@ import {
 
 export const aiChannels = Object.freeze({
   connectionCurrent: "aaaat:ai-connection-current",
-  connectionSave: "aaaat:ai-connection-save",
   fitPreview: "aaaat:ai-fit-preview",
   fitAssess: "aaaat:ai-fit-assess",
   jobExtract: "aaaat:ai-job-extract",
@@ -409,7 +408,6 @@ export type ExternalCandidatureCreateInput = z.infer<typeof externalCandidatureC
 export interface AiDesktopApi {
   readonly ai: {
     readonly connection: () => Promise<AiConnectionStatus | null>;
-    readonly saveConnection: (input: AiConnectionInput) => Promise<AiConnectionStatus>;
     readonly previewFit: (request: FitAssessmentRequest) => Promise<FitAssessmentPreview>;
     readonly assessFit: (request: FitAssessmentRequest) => Promise<FitAssessmentResult>;
     readonly extractJob: (request: JobExtractionRequest) => Promise<JobExtractionResult>;

@@ -78,7 +78,8 @@ describe("AI service over live candidature information", () => {
       model: "model-a",
     });
     const stored = readFileSync(path.join(root, "ai-connection.json"), "utf8");
-    expect(stored).toContain('"version": 1');
+    expect(stored).toContain('"version": 2');
+    expect(stored).toContain('"connections"');
     expect(stored).not.toMatch(/api.?key|credential|secret/i);
 
     expect(() =>

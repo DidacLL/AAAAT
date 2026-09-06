@@ -10,8 +10,6 @@ import {
 } from "electron";
 
 import {
-  aiConnectionInputSchema,
-  aiConnectionStatusSchema,
   aiChannels,
   coverLetterDraftSchema,
   cvTailoringResultSchema,
@@ -85,7 +83,6 @@ import {
   getAiConnection,
   previewFitAssessment,
   recommendVariant,
-  saveAiConnection,
   tailorCv,
 } from "./ai-service";
 import {
@@ -498,12 +495,6 @@ function registerIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(aiChannels.connectionCurrent, (event) => {
     assertTrustedSender(event, mainWindow);
     return optionalAiConnectionStatusSchema.parse(getAiConnection(requireWorkspaceRoot()));
-  });
-  ipcMain.handle(aiChannels.connectionSave, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return aiConnectionStatusSchema.parse(
-      saveAiConnection(requireWorkspaceRoot(), aiConnectionInputSchema.parse(input)),
-    );
   });
   ipcMain.handle(aiChannels.fitPreview, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);

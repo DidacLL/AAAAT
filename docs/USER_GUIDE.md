@@ -78,17 +78,19 @@ A rendering failure does not make AI necessary and does not change the authorita
 
 ## 5. Optional local AI assistance
 
-AI is optional. In **Settings**, the current implemented connection path is a keyless, loopback-only OpenAI-compatible endpoint. The default example base URL is:
+AI is optional. In **Settings**, AAAAT can keep several named keyless, loopback-only OpenAI-compatible connections. The default example base URL is:
 
 ```text
 http://localhost:11434/v1
 ```
 
-Enter a connection name, model name, and local provider base URL, then use **Save local connection**. Only loopback endpoints are accepted by the current user-facing connection path; remote API-key setup is not part of this alpha path.
+Add a connection name, model name, and local provider base URL. The first connection becomes the default; adding another connection does not switch that choice. Use **Use by default** to select which configured connection existing AI operations should use. Removing the default leaves AI assistance without a selected connection until you explicitly choose another one; AAAAT does not fall back automatically.
 
-After a local connection is configured, **AI assist** and AI-assisted candidature actions can use bounded operations such as job extraction, fit assessment, profile-variant recommendation, and document proposals. AAAAT constructs operation-specific context, applies its privacy projection, validates the response, and uses normal application services for permitted changes.
+Only loopback endpoints are accepted by this current user-facing path. Remote authentication and API-key setup are not part of this alpha path.
 
-If no local model is running or the AI connection fails, continue using **Profile**, **Documents**, and **Candidatures** manually.
+When a default local connection is selected, **AI assist** and AI-assisted candidature actions can use bounded operations such as job extraction, fit assessment, profile-variant recommendation, and document proposals. AAAAT constructs operation-specific context, applies its privacy projection, validates the response, and uses normal application services for permitted changes.
+
+If no local model is running, no default connection is selected, or an AI connection fails, continue using **Profile**, **Documents**, and **Candidatures** manually.
 
 ## 6. Back up a workspace
 
@@ -148,7 +150,7 @@ Activation validates the workspace, executable, manifest, and live MCP tool surf
 
 **PDF rendering cannot start.** Install `latexmk` and `pdflatex`, then retry. Your generated LaTeX source remains available even when rendering fails.
 
-**AI actions fail or no AI is configured.** AI is optional. Check that the configured local OpenAI-compatible endpoint is running and remains a loopback address. Manual Profile, Documents, and Candidatures workflows continue to work without it.
+**AI actions fail or no AI is configured.** AI is optional. Check that the selected default local OpenAI-compatible endpoint is running and remains a loopback address. If connections exist but none is selected as default, choose one in **Settings**. Manual Profile, Documents, and Candidatures workflows continue to work without it.
 
 **Restore rejects a backup.** Do not bypass validation. Use an intact AAAAT backup directory and a separate empty destination. A restore may reject modified manifests/payloads, path traversal, file corruption, incompatible migration history, overlapping directories, symlinks, or special files.
 
