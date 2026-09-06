@@ -16,7 +16,7 @@ import { withWorkspaceDatabase } from "./workspace";
 interface ArtifactRow {
   readonly id: string;
   readonly candidatureId: string;
-  readonly documentId: string | null;
+  readonly documentId: string;
   readonly kind: "cv" | "cover_letter";
   readonly title: string;
   readonly capturedAt: string;
