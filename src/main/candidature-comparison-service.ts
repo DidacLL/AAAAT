@@ -90,7 +90,7 @@ function projectionFor(
     ),
     ...fieldConfigurations.map((field) => field.definition.label),
   ];
-  const token = tokenFactory(tokenMap, privacyCorpus);
+  const tokenMapFactory = tokenFactory(tokenMap, privacyCorpus);
 
   const entries = selected.map((candidature, index) => {
     const providerLabel = `Candidature ${index + 1}`;
@@ -102,7 +102,7 @@ function projectionFor(
       );
       const projected =
         field.preferences.aiContextMode === "token"
-          ? tokenRuntimeValue(retained.value, token)
+          ? tokenRuntimeValue(retained.value, tokenMapFactory)
           : retained.value;
       return [
         {
@@ -163,11 +163,14 @@ export async function compareCandidatures(
 ): Promise<CandidatureComparisonResult> {
   const request = candidatureComparisonRequestSchema.parse(rawRequest);
   const projection = projectionFor(rootPath, request);
+  const compare = provider.compareCandidatures;
+  if (!compare) {
+    throw new CandidatureComparisonError(
+      "The configured provider does not support candidature comparison.",
+    );
+  }
   const providerResult = providerCandidatureComparisonResultSchema.parse(
-    await provider.compareCandidatures(
-      projection.preview.connection,
-      projection.providerContext,
-    ),
+    await compare(projection.preview.connection, projection.providerContext),
   );
   const expectedRefs = new Set(projection.candidatureIdsByRef.keys());
   if (
