@@ -23,20 +23,12 @@ vi.mock("node:fs", async (importOriginal) => {
       source: Parameters<typeof actual.renameSync>[0],
       destination: Parameters<typeof actual.renameSync>[1],
     ) {
-      if (process.env.AAAAT_TEST_RENAME_FAILURE === "managed-rollback") {
-        const sourceText = String(source);
-        if (
-          sourceText.includes(".stage-") &&
-          /[\\/]content\.tex$/.test(sourceText)
-        ) {
-          throw new Error("forced managed install failure");
-        }
-        if (
-          sourceText.includes(".backup-") &&
-          /[\\/]main\.tex$/.test(sourceText)
-        ) {
-          throw new Error("forced managed restore failure");
-        }
+      if (
+        process.env.AAAAT_TEST_RENAME_FAILURE === "managed-install" &&
+        /[\\/]data\.tex$/.test(String(destination)) &&
+        !String(source).includes(".data.backup-")
+      ) {
+        throw new Error("forced generated-data install failure");
       }
       return actual.renameSync(source, destination);
     },
@@ -137,10 +129,9 @@ describe("manual document service", () => {
       engine: "pdflatex",
       bodyParagraphs: [],
     });
-    const base = before.items;
-    const summary = base.find((item) => item.kind === "summary");
-    const experience = base.find((item) => item.kind === "experience");
-    const skill = base.find((item) => item.kind === "skill");
+    const summary = before.items.find((item) => item.kind === "summary");
+    const experience = before.items.find((item) => item.kind === "experience");
+    const skill = before.items.find((item) => item.kind === "skill");
     if (!summary || !experience || !skill) throw new Error("Expected profile items");
 
     configureDocumentItem(root, {
@@ -166,14 +157,15 @@ describe("manual document service", () => {
     expect(getProfile(root)).toEqual(before);
 
     expect(existsSync(document.sourcePath)).toBe(true);
-    expect(existsSync(path.join(document.projectPath, "content.tex"))).toBe(true);
+    expect(existsSync(path.join(document.projectPath, "data.tex"))).toBe(true);
     expect(existsSync(path.join(document.projectPath, "aaaat.sty"))).toBe(true);
-    for (const file of ["main.tex", "content.tex", "aaaat.sty"]) {
+    expect(readFileSync(document.sourcePath, "utf8")).toContain("\\input{data.tex}");
+    for (const file of ["main.tex", "data.tex", "aaaat.sty"]) {
       expect(readFileSync(path.join(document.projectPath, file), "utf8")).not.toContain(root);
     }
   });
 
-  it("keeps cover-letter content structured and preserves direct source edits", () => {
+  it("regenerates feeder data while preserving user-owned blueprint and package edits", () => {
     const root = workspace();
     const exportRoot = mkdtempSync(path.join(tmpdir(), "aaaat-export-"));
     roots.push(exportRoot);
@@ -187,24 +179,11 @@ describe("manual document service", () => {
       recipient: "Hiring team",
       subject: "Platform role",
     });
+    const dataPath = path.join(document.projectPath, "data.tex");
+    const stylePath = path.join(document.projectPath, "aaaat.sty");
 
-    expect(document.bodyParagraphs).toEqual([]);
-    const summary = resolveDocument(root, document.id).items.find(
-      (item) => item.kind === "summary",
-    );
-    if (!summary) throw new Error("Expected summary item");
-    configureDocumentItem(root, {
-      documentId: document.id,
-      itemId: summary.id,
-      included: true,
-      contentPatch: { description: "Focused derived cover-letter paragraph." },
-    });
-    document = regenerateDocument(root, document.id);
-    expect(document.bodyParagraphs).toEqual([]);
-    expect(readFileSync(path.join(document.projectPath, "content.tex"), "utf8")).toContain(
-      "Focused derived cover-letter paragraph.",
-    );
-
+    appendFileSync(document.sourcePath, "\n% user blueprint edit\n", "utf8");
+    appendFileSync(stylePath, "\n% user package edit\n", "utf8");
     document = updateDocument(root, {
       id: document.id,
       title: document.title,
@@ -212,24 +191,36 @@ describe("manual document service", () => {
       engine: "pdflatex",
       recipient: "Hiring manager",
       subject: "Platform Engineer",
-      bodyParagraphs: ["A deliberately edited manual paragraph."],
+      bodyParagraphs: ["A deliberately edited structured paragraph."],
       closing: "Regards",
     });
-    regenerateDocument(root, document.id);
-    expect(readFileSync(path.join(document.projectPath, "content.tex"), "utf8")).toContain(
-      "A deliberately edited manual paragraph.",
+    document = regenerateDocument(root, document.id);
+
+    expect(document.mode).toBe("managed");
+    expect(readFileSync(document.sourcePath, "utf8")).toContain("% user blueprint edit");
+    expect(readFileSync(stylePath, "utf8")).toContain("% user package edit");
+    expect(readFileSync(dataPath, "utf8")).toContain(
+      "A deliberately edited structured paragraph.",
     );
 
-    appendFileSync(document.sourcePath, "\n% direct user edit\n", "utf8");
+    appendFileSync(dataPath, "\n% direct feeder-data edit\n", "utf8");
     const exportedPath = exportDocumentProject(root, document.id, exportRoot);
     expect(getDocument(root, document.id).mode).toBe("manual");
     expect(readFileSync(path.join(exportedPath, "main.tex"), "utf8")).toContain(
-      "% direct user edit",
+      "% user blueprint edit",
+    );
+    expect(readFileSync(path.join(exportedPath, "aaaat.sty"), "utf8")).toContain(
+      "% user package edit",
+    );
+    expect(readFileSync(path.join(exportedPath, "data.tex"), "utf8")).toContain(
+      "% direct feeder-data edit",
     );
 
     const managed = regenerateDocument(root, document.id);
     expect(managed.mode).toBe("managed");
-    expect(readFileSync(managed.sourcePath, "utf8")).not.toContain("% direct user edit");
+    expect(readFileSync(managed.sourcePath, "utf8")).toContain("% user blueprint edit");
+    expect(readFileSync(stylePath, "utf8")).toContain("% user package edit");
+    expect(readFileSync(dataPath, "utf8")).not.toContain("% direct feeder-data edit");
   });
 
   it("owns the project for the full render operation", async () => {
@@ -292,11 +283,11 @@ describe("manual document service", () => {
     ).toBe(false);
   });
 
-  it("removes provisional activity when document creation fails", () => {
+  it("removes provisional activity when initial generated-data installation fails", () => {
     const root = workspace();
     const { variant } = seeded(root);
 
-    process.env.AAAAT_TEST_RENAME_FAILURE = "managed-rollback";
+    process.env.AAAAT_TEST_RENAME_FAILURE = "managed-install";
     expect(() =>
       createDocument(root, {
         kind: "cv",
@@ -305,7 +296,7 @@ describe("manual document service", () => {
         engine: "pdflatex",
         bodyParagraphs: [],
       }),
-    ).toThrow("could not safely replace");
+    ).toThrow("could not safely replace generated document data");
 
     const evidence = withWorkspaceDatabase(root, (database) => ({
       documents: database.prepare("SELECT COUNT(*) AS count FROM documents").get(),
@@ -318,7 +309,7 @@ describe("manual document service", () => {
   });
 
   const permissionIt = process.platform === "win32" ? it.skip : it;
-  permissionIt("keeps the previous managed source when replacement cannot commit", () => {
+  permissionIt("keeps all project sources when generated-data replacement cannot start", () => {
     const root = workspace();
     const { variant } = seeded(root);
     const document = createDocument(root, {
@@ -328,7 +319,7 @@ describe("manual document service", () => {
       engine: "pdflatex",
       bodyParagraphs: [],
     });
-    const files = ["main.tex", "content.tex", "aaaat.sty"];
+    const files = ["main.tex", "data.tex", "aaaat.sty"];
     const before = new Map(
       files.map((file) => [file, readFileSync(path.join(document.projectPath, file), "utf8")]),
     );
@@ -336,7 +327,7 @@ describe("manual document service", () => {
     chmodSync(document.projectPath, 0o500);
     try {
       expect(() => regenerateDocument(root, document.id)).toThrow(
-        "could not safely replace",
+        "could not safely replace generated document data",
       );
     } finally {
       chmodSync(document.projectPath, 0o700);
@@ -347,7 +338,7 @@ describe("manual document service", () => {
     }
   });
 
-  it("preserves an unrestored managed backup when rollback itself fails", () => {
+  it("restores previous generated data when installation fails after backup", () => {
     const root = workspace();
     const { variant } = seeded(root);
     const document = createDocument(root, {
@@ -357,24 +348,14 @@ describe("manual document service", () => {
       engine: "pdflatex",
       bodyParagraphs: [],
     });
-    const beforeMain = readFileSync(document.sourcePath, "utf8");
+    const dataPath = path.join(document.projectPath, "data.tex");
+    const beforeData = readFileSync(dataPath, "utf8");
 
-    process.env.AAAAT_TEST_RENAME_FAILURE = "managed-rollback";
+    process.env.AAAAT_TEST_RENAME_FAILURE = "managed-install";
     expect(() => regenerateDocument(root, document.id)).toThrow(
-      "could not replace managed source or fully restore",
+      "could not safely replace generated document data",
     );
-
-    const parent = path.dirname(document.projectPath);
-    const backup = readdirSync(parent).find((entry) =>
-      entry.startsWith(`${document.id}.backup-`),
-    );
-    expect(backup).toBeDefined();
-    if (!backup) throw new Error("Expected preserved managed backup");
-
-    expect(existsSync(document.sourcePath)).toBe(false);
-    expect(readFileSync(path.join(parent, backup, "main.tex"), "utf8")).toBe(
-      beforeMain,
-    );
+    expect(readFileSync(dataPath, "utf8")).toBe(beforeData);
   });
 
   it("rejects conflicting document ordering before authoritative state changes", () => {

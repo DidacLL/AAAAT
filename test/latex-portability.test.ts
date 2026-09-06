@@ -1,7 +1,13 @@
 // @vitest-environment node
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -18,7 +24,7 @@ import { createOrOpenWorkspace } from "../src/main/workspace";
 const latexIt = process.env.AAAAT_LATEX_TEST === "1" ? it : it.skip;
 
 latexIt(
-  "renders with pdfLaTeX and compiles after unrelated-directory export",
+  "renders user-owned sources with pdfLaTeX and compiles after unrelated-directory export",
   async () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-latex-workspace-"));
     const exportRoot = mkdtempSync(path.join(tmpdir(), "aaaat-latex-export-"));
@@ -46,6 +52,12 @@ latexIt(
         engine: "pdflatex",
         bodyParagraphs: [],
       });
+      appendFileSync(document.sourcePath, "\n% user blueprint portability edit\n", "utf8");
+      appendFileSync(
+        path.join(document.projectPath, "aaaat.sty"),
+        "\n% user package portability edit\n",
+        "utf8",
+      );
 
       const rendered = await renderDocument(root, document.id);
       expect(existsSync(rendered.artifactPath)).toBe(true);
@@ -61,11 +73,17 @@ latexIt(
       const exported = exportDocumentProject(root, document.id, exportRoot);
       rmSync(path.join(exported, "build"), { recursive: true, force: true });
 
-      for (const file of ["main.tex", "content.tex", "aaaat.sty"]) {
+      for (const file of ["main.tex", "data.tex", "aaaat.sty"]) {
         const source = readFileSync(path.join(exported, file), "utf8");
         expect(source).not.toContain(root);
         expect(source).not.toContain(exportRoot);
       }
+      expect(readFileSync(path.join(exported, "main.tex"), "utf8")).toContain(
+        "% user blueprint portability edit",
+      );
+      expect(readFileSync(path.join(exported, "aaaat.sty"), "utf8")).toContain(
+        "% user package portability edit",
+      );
 
       const compiled = spawnSync(
         "latexmk",
