@@ -21,7 +21,7 @@ describe("ToDo preload API", () => {
 
     await expect(api.todos.list()).resolves.toEqual([record]);
     await api.todos.create({ body: "Send portfolio", candidatureId: null });
-    await api.todos.update({ ...record, candidatureId: null });
+    await api.todos.update({ id: record.id, body: record.body, candidatureId: null });
     await api.todos.toggle({ id: record.id, done: true });
     await api.todos.remove(record.id);
 
