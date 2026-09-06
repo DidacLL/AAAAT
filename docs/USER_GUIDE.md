@@ -145,7 +145,12 @@ Because AI connection configuration is intentionally excluded from workspace bac
 
 ## 8. Optional VS Code MCP integration
 
-The current demonstrated external-host integration is VS Code and is optional. It exposes only the bounded candidature-creation capability through AAAAT's official MCP stdio server.
+The current demonstrated external-host integration is VS Code and is optional. It uses AAAAT's official MCP stdio server and currently exposes two bounded named operations:
+
+- `candidature_create` creates one candidature from one retained Source through the ordinary candidature service;
+- `career_context_read` returns only non-empty user-written Career Context values: career direction, objectives, constraints, target roles, target markets/locations, work preferences, and application-writing preferences.
+
+`career_context_read` is read-only. It does not expose workspace paths, local IDs, candidature history or Sources, profile items, documents, concepts, ToDos, artifacts, activity metadata, or a generic browse/search/query surface. The configured external host can receive the Career Context text you chose to store when it invokes this tool, so treat enabling that host as a disclosure/trust decision.
 
 First create the proposed portable integration manifest:
 
