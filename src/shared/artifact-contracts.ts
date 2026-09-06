@@ -17,7 +17,7 @@ export const applicationArtifactRecordSchema = z
   .object({
     id: z.string().uuid(),
     candidatureId: z.string().uuid(),
-    documentId: z.string().uuid().nullable(),
+    documentId: z.string().uuid(),
     kind: z.enum(["cv", "cover_letter"]),
     title: z.string().min(1),
     capturedAt: z.string().min(1),
