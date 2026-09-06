@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
+import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
 import type { FocusDesktopApi, FocusMaterialPreferences } from "../shared/focus-contracts";
 import type { TodoDesktopApi } from "../shared/todo-contracts";
@@ -23,7 +24,11 @@ const previewUnavailable = async (): Promise<never> => {
   throw new Error("Create preview data in the desktop app for this operation.");
 };
 
-function createPreviewApi(): DesktopApi & ArtifactDesktopApi & TodoDesktopApi & FocusDesktopApi {
+function createPreviewApi(): DesktopApi &
+  ArtifactDesktopApi &
+  CandidatureSearchDesktopApi &
+  TodoDesktopApi &
+  FocusDesktopApi {
   return Object.freeze({
     system: Object.freeze({
       info: async () => ({
@@ -86,6 +91,7 @@ function createPreviewApi(): DesktopApi & ArtifactDesktopApi & TodoDesktopApi & 
       updateConcept: previewUnavailable,
       setConcepts: previewUnavailable,
     }),
+    candidatureSearch: Object.freeze({ search: async () => [] }),
     artifacts: Object.freeze({
       list: async () => [],
       capture: previewUnavailable,

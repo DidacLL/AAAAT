@@ -1,5 +1,6 @@
 import type { AiDesktopApi } from "../shared/ai-contracts";
 import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
+import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
 import type { CombinedDocumentDesktopApi } from "../shared/combined-document-contracts";
 import type { DesktopApi } from "../shared/contracts";
 import type { FocusDesktopApi } from "../shared/focus-contracts";
@@ -10,6 +11,7 @@ declare global {
     readonly aaaat: DesktopApi &
       AiDesktopApi &
       ArtifactDesktopApi &
+      CandidatureSearchDesktopApi &
       CombinedDocumentDesktopApi &
       TodoDesktopApi &
       FocusDesktopApi;
