@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import {
+  appendFileSync,
   chmodSync,
   mkdtempSync,
   readFileSync,
@@ -63,7 +64,7 @@ afterEach(() => {
 });
 
 describe("application artifact service", () => {
-  it("retains source, PDF and origin metadata independently from the working document", async () => {
+  it("retains the effective user-owned project, PDF and origin metadata independently", async () => {
     const root = workspace();
     installFakeLatexmk();
     addProfileItem(root, {
@@ -87,6 +88,13 @@ describe("application artifact service", () => {
       engine: "pdflatex",
       bodyParagraphs: [],
     });
+    appendFileSync(document.sourcePath, "\n% submitted blueprint edit\n", "utf8");
+    appendFileSync(
+      path.join(document.projectPath, "aaaat.sty"),
+      "\n% submitted package edit\n",
+      "utf8",
+    );
+
     const candidature = createCandidature(root, { values: [] });
     setCandidatureDocuments(root, {
       candidatureId: candidature.id,
@@ -98,7 +106,13 @@ describe("application artifact service", () => {
       candidatureId: candidature.id,
       documentId: document.id,
     });
-    const retainedContent = readFileSync(path.join(retained.projectPath, "content.tex"), "utf8");
+    const retainedData = readFileSync(path.join(retained.projectPath, "data.tex"), "utf8");
+    expect(readFileSync(path.join(retained.projectPath, "main.tex"), "utf8")).toContain(
+      "% submitted blueprint edit",
+    );
+    expect(readFileSync(path.join(retained.projectPath, "aaaat.sty"), "utf8")).toContain(
+      "% submitted package edit",
+    );
     expect(readFileSync(retained.artifactPath, "utf8")).toBe("pdf-one");
     expect(listApplicationArtifacts(root, candidature.id)).toEqual([retained]);
 
@@ -112,7 +126,7 @@ describe("application artifact service", () => {
     process.env.AAAAT_TEST_PDF = "pdf-two";
     await renderDocument(root, document.id);
 
-    expect(readFileSync(path.join(retained.projectPath, "content.tex"), "utf8")).toBe(retainedContent);
+    expect(readFileSync(path.join(retained.projectPath, "data.tex"), "utf8")).toBe(retainedData);
     expect(readFileSync(retained.artifactPath, "utf8")).toBe("pdf-one");
     expect(readFileSync(document.artifactPath, "utf8")).toBe("pdf-two");
 

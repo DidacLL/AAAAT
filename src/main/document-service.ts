@@ -96,7 +96,7 @@ function pathsForProject(projectPath: string) {
   return {
     projectPath,
     sourcePath: path.join(projectPath, "main.tex"),
-    contentPath: path.join(projectPath, "content.tex"),
+    dataPath: path.join(projectPath, "data.tex"),
     stylePath: path.join(projectPath, "aaaat.sty"),
     artifactPath: path.join(projectPath, "build", "main.pdf"),
   };
@@ -348,6 +348,7 @@ export function createDocument(
   });
 
   try {
+    initializeUserOwnedProject(rootPath, id);
     return regenerateDocument(rootPath, id);
   } catch (error) {
     withWorkspaceDatabase(rootPath, (database) => {
@@ -643,103 +644,97 @@ function coverLetterContent(resolved: ResolvedDocument): string {
 }
 
 function sourceHash(paths: ReturnType<typeof projectPaths>): string | null {
-  const files = [paths.sourcePath, paths.contentPath, paths.stylePath];
-  if (files.some((file) => !existsSync(file))) {
+  if (!existsSync(paths.dataPath)) {
     return null;
   }
   const hash = createHash("sha256");
-  for (const file of files) {
-    hash.update(path.basename(file));
-    hash.update(readFileSync(file));
-  }
+  hash.update("data.tex");
+  hash.update(readFileSync(paths.dataPath));
   return hash.digest("hex");
+}
+
+function initializeUserOwnedProject(rootPath: string, documentId: string): void {
+  const document = getDocument(rootPath, documentId);
+  const paths = projectPaths(rootPath, documentId);
+  mkdirSync(paths.projectPath, { recursive: true });
+  if (!existsSync(paths.sourcePath)) {
+    writeFileSync(
+      paths.sourcePath,
+      document.kind === "cv" ? cvTemplate : coverLetterTemplate,
+      "utf8",
+    );
+  }
+  if (!existsSync(paths.stylePath)) {
+    writeFileSync(paths.stylePath, aaatStyle, "utf8");
+  }
+}
+
+function requireBlueprint(paths: ReturnType<typeof projectPaths>): void {
+  if (!existsSync(paths.sourcePath)) {
+    throw new DocumentServiceError("The user-owned document blueprint is missing.");
+  }
 }
 
 function writeManagedProject(rootPath: string, documentId: string): string {
   const resolved = resolveDocument(rootPath, documentId);
   const paths = projectPaths(rootPath, documentId);
-  const stagePaths = pathsForProject(`${paths.projectPath}.stage-${randomUUID()}`);
-  const backupPaths = pathsForProject(`${paths.projectPath}.backup-${randomUUID()}`);
-  const replacements = [
-    [stagePaths.sourcePath, paths.sourcePath, backupPaths.sourcePath],
-    [stagePaths.contentPath, paths.contentPath, backupPaths.contentPath],
-    [stagePaths.stylePath, paths.stylePath, backupPaths.stylePath],
-  ] as const;
-  const installed: string[] = [];
-  const backedUp: Array<readonly [string, string]> = [];
+  requireBlueprint(paths);
+  mkdirSync(paths.projectPath, { recursive: true });
+
+  const generated =
+    resolved.document.kind === "cv"
+      ? cvContent(resolved)
+      : coverLetterContent(resolved);
+  const stagePath = path.join(paths.projectPath, `.data.stage-${randomUUID()}.tex`);
+  const backupPath = path.join(paths.projectPath, `.data.backup-${randomUUID()}.tex`);
+  let installed = false;
+  let backedUp = false;
 
   try {
-    mkdirSync(stagePaths.projectPath, { recursive: true });
-    writeFileSync(
-      stagePaths.sourcePath,
-      resolved.document.kind === "cv" ? cvTemplate : coverLetterTemplate,
-      "utf8",
-    );
-    writeFileSync(
-      stagePaths.contentPath,
-      resolved.document.kind === "cv"
-        ? cvContent(resolved)
-        : coverLetterContent(resolved),
-      "utf8",
-    );
-    writeFileSync(stagePaths.stylePath, aaatStyle, "utf8");
-    const hash = sourceHash(stagePaths);
-    if (!hash) {
-      throw new Error("staged source incomplete");
+    writeFileSync(stagePath, generated, "utf8");
+    if (existsSync(paths.dataPath)) {
+      renameSync(paths.dataPath, backupPath);
+      backedUp = true;
     }
+    renameSync(stagePath, paths.dataPath);
+    installed = true;
+    if (backedUp) rmSync(backupPath, { force: true });
 
-    mkdirSync(paths.projectPath, { recursive: true });
-    mkdirSync(backupPaths.projectPath, { recursive: true });
-    for (const [stagedFile, targetFile, backupFile] of replacements) {
-      if (existsSync(targetFile)) {
-        renameSync(targetFile, backupFile);
-        backedUp.push([backupFile, targetFile]);
-      }
-      renameSync(stagedFile, targetFile);
-      installed.push(targetFile);
-    }
-
-    for (const directory of [stagePaths.projectPath, backupPaths.projectPath]) {
-      try {
-        rmSync(directory, { recursive: true, force: true });
-      } catch (error) {
-        console.warn("AAAAT preserved staged managed-source files after cleanup failed.", error);
-      }
-    }
+    const hash = sourceHash(paths);
+    if (!hash) throw new Error("generated data missing");
     return hash;
   } catch {
     let recoveryFailed = false;
-    for (const targetFile of [...installed].reverse()) {
+    if (installed) {
       try {
-        rmSync(targetFile, { force: true });
+        rmSync(paths.dataPath, { force: true });
       } catch {
         recoveryFailed = true;
       }
     }
-    for (const [backupFile, targetFile] of [...backedUp].reverse()) {
-      if (!existsSync(backupFile)) continue;
+    if (backedUp && existsSync(backupPath)) {
       try {
-        renameSync(backupFile, targetFile);
+        renameSync(backupPath, paths.dataPath);
       } catch {
         recoveryFailed = true;
       }
     }
     try {
-      rmSync(stagePaths.projectPath, { recursive: true, force: true });
+      rmSync(stagePath, { force: true });
     } catch {
       recoveryFailed = true;
     }
     if (!recoveryFailed) {
       try {
-        rmSync(backupPaths.projectPath, { recursive: true, force: true });
+        rmSync(backupPath, { force: true });
       } catch {
         recoveryFailed = true;
       }
     }
     throw new DocumentServiceError(
       recoveryFailed
-        ? "AAAAT could not replace managed source or fully restore the previous files."
-        : "AAAAT could not safely replace the managed document source.",
+        ? "AAAAT could not replace generated document data or fully restore the previous data."
+        : "AAAAT could not safely replace generated document data.",
     );
   }
 }
@@ -774,6 +769,7 @@ function prepareProject(
     requireDocumentRow(database, documentId),
   );
   const paths = projectPaths(rootPath, documentId);
+  requireBlueprint(paths);
   if (document.mode === "managed" && row.sourceHash) {
     const current = sourceHash(paths);
     if (current !== row.sourceHash) {
@@ -795,9 +791,6 @@ function prepareProject(
       hash,
       "document.source.sync",
     );
-  }
-  if (!existsSync(paths.sourcePath)) {
-    throw new DocumentServiceError("The manual document source is missing.");
   }
   return document;
 }
