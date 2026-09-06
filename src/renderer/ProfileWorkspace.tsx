@@ -169,6 +169,24 @@ export function ProfileWorkspace({
     return () => onDirtyChange?.(false);
   }, [itemDirty, onDirtyChange, variantDirty]);
 
+  const confirmItemDiscard = () =>
+    !itemDirty || window.confirm("Discard unsaved profile item edits?");
+
+  const startItemEdit = (item: ProfileItem) => {
+    if (item.id === editingItemId) return;
+    if (!confirmItemDiscard()) return;
+    setEditingItemId(item.id);
+    setItemState(itemForm(item));
+    setError(null);
+  };
+
+  const cancelItemEdit = () => {
+    if (!confirmItemDiscard()) return;
+    setEditingItemId(null);
+    setItemState(emptyItem);
+    setError(null);
+  };
+
   const refreshResolved = async (variantId: string | null) => {
     if (!variantId) {
       setResolved(null);
@@ -260,6 +278,7 @@ export function ProfileWorkspace({
   };
 
   const removeItem = async (itemId: string) => {
+    if (itemId === editingItemId && !confirmItemDiscard()) return;
     setError(null);
     try {
       await acceptSnapshot(
@@ -551,10 +570,7 @@ export function ProfileWorkspace({
               <button
                 className="compact-secondary"
                 type="button"
-                onClick={() => {
-                  setEditingItemId(null);
-                  setItemState(emptyItem);
-                }}
+                onClick={cancelItemEdit}
               >
                 Cancel edit
               </button>
@@ -572,13 +588,7 @@ export function ProfileWorkspace({
                 {item.description ? <p>{item.description}</p> : null}
               </div>
               <div className="row-actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingItemId(item.id);
-                    setItemState(itemForm(item));
-                  }}
-                >
+                <button type="button" onClick={() => startItemEdit(item)}>
                   Edit
                 </button>
                 <button type="button" onClick={() => void removeItem(item.id)}>
