@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -90,10 +90,13 @@ describe("ToDos workspace", () => {
 
     await screen.findByText("Send portfolio");
     await user.click(screen.getByRole("button", { name: "Edit" }));
-    const editor = screen.getByLabelText("ToDo");
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    const editForm = saveButton.closest("form");
+    if (!editForm) throw new Error("Expected ToDo edit form");
+    const editor = within(editForm).getByLabelText("ToDo");
     await user.clear(editor);
     await user.type(editor, "Send updated portfolio");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(saveButton);
     expect(update).toHaveBeenCalledWith({
       id: existing.id,
       body: "Send updated portfolio",
