@@ -12,6 +12,7 @@ import type {
 
 interface Props {
   readonly onCreate: (input: CandidatureInput) => Promise<boolean>;
+  readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
 const emptyRequest: JobExtractionRequest = {
@@ -49,12 +50,22 @@ function candidatureInput(
   };
 }
 
-export function JobExtractionPanel({ onCreate }: Props) {
+export function JobExtractionPanel({ onCreate, onDirtyChange }: Props) {
   const [request, setRequest] = useState<JobExtractionRequest>(emptyRequest);
   const [proposal, setProposal] = useState<JobExtractionResult | null>(null);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const dirty =
+      request.sourceTitle.length > 0 ||
+      request.sourceUrl.length > 0 ||
+      request.sourceText.length > 0 ||
+      proposal !== null;
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [onDirtyChange, proposal, request]);
 
   useEffect(() => {
     let active = true;

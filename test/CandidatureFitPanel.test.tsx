@@ -11,6 +11,7 @@ const record: CandidatureRecord = {
   createdAt: "2026-09-04T10:00:00.000Z",
   updatedAt: "2026-09-04T10:00:00.000Z",
   label: "Example Corp — Platform Engineer",
+  sourceSearchText: "",
   values: [],
   documentIds: [],
   conceptIds: [],

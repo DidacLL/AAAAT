@@ -83,6 +83,7 @@ function record(values: CandidatureRecord["values"]): CandidatureRecord {
     createdAt: "2026-09-04T00:00:00.000Z",
     updatedAt: "2026-09-04T00:00:00.000Z",
     label: "Regional Air",
+    sourceSearchText: "",
     values,
     documentIds: [],
     conceptIds: [],

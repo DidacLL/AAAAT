@@ -99,8 +99,9 @@ describe("document AI services", () => {
       expect(context.candidature.sources).toEqual([]);
       expect(context.candidature.label).toBe("Candidature");
       expect(serialized).toContain("TypeScript");
+      expect(serialized).not.toContain(skill.id);
       return {
-        recommendations: [{ itemId: skill.id, rationale: "Direct evidence match." }],
+        recommendations: [{ itemRef: context.items.find((item) => item.title === skill.title)?.itemRef ?? "", rationale: "Direct evidence match." }],
       };
     });
 
@@ -118,7 +119,7 @@ describe("document AI services", () => {
   it("rejects a CV recommendation whose evidence item no longer exists", async () => {
     const { root, candidature, cv, skill } = fixture();
     let resolveTailoring:
-      | ((value: { recommendations: Array<{ itemId: string; rationale: string }> }) => void)
+      | ((value: { recommendations: Array<{ itemRef: string; rationale: string }> }) => void)
       | undefined;
     const tailor = vi.fn<ModelProvider["tailorCv"]>(
       () =>
@@ -133,9 +134,7 @@ describe("document AI services", () => {
     );
     removeProfileItem(root, skill.id);
     if (!resolveTailoring) throw new Error("provider fixture did not start");
-    resolveTailoring({
-      recommendations: [{ itemId: skill.id, rationale: "Previously valid." }],
-    });
+    resolveTailoring({ recommendations: [{ itemRef: "aaaat_cv_00000000-0000-4000-8000-000000000001_1", rationale: "Previously valid." }] });
     await expect(pending).rejects.toThrow("profile item that no longer exists");
   });
 

@@ -1,5 +1,7 @@
 # ADR 0008 — Official MCP stdio boundary
 
+> Recovery clarification: [ADR 0015](0015-owner-approved-recovery-boundaries.md) supersedes outbound durable identifiers and any coupling of external/provider wire contracts to internal identifier-bearing contracts. Unrelated decisions below remain in force.
+
 ## Context
 
 M4 requires an official MCP integration after the first bounded external command is proven. The integration must reuse AAAAT application-service behavior without adding handwritten protocol framing, a network listener, broad agent privileges, or a general data API.

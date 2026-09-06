@@ -1,5 +1,7 @@
 # ADR 0007 — First bounded external command mode
 
+> Recovery clarification: [ADR 0015](0015-owner-approved-recovery-boundaries.md) supersedes outbound durable identifiers and any coupling of external/provider wire contracts to internal identifier-bearing contracts. Unrelated decisions below remain in force.
+
 ## Context
 
 M4 begins external control only through demonstrated bounded capabilities. The first real case is creating a new candidature from an external tool. AAAAT must reuse normal application-service behavior without adding a localhost service, daemon, generic command framework, generic CRUD/query surface, or direct database access.

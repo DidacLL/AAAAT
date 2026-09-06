@@ -32,6 +32,7 @@ function searchableText(
     .join(" ");
   return [
     record.label,
+    record.sourceSearchText,
     ...record.values.map((value) => displayValue(fieldMap.get(value.fieldId), value.value)),
     associatedConceptText,
   ]

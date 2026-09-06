@@ -3,7 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import type { CoverLetterDraft, CvTailoringResult } from "../shared/ai-contracts";
 import type { CandidatureRecord, DocumentRecord, ProfileItem } from "../shared/contracts";
 
-export function AiDocumentsWorkspace() {
+export function AiDocumentsWorkspace({
+  onDirtyChange,
+}: {
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [candidatures, setCandidatures] = useState<CandidatureRecord[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [profileItems, setProfileItems] = useState<ProfileItem[]>([]);
@@ -11,9 +15,19 @@ export function AiDocumentsWorkspace() {
   const [documentId, setDocumentId] = useState("");
   const [cvResult, setCvResult] = useState<CvTailoringResult | null>(null);
   const [coverDraft, setCoverDraft] = useState<CoverLetterDraft | null>(null);
+  const [coverDraftBaseline, setCoverDraftBaseline] = useState<CoverLetterDraft | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    onDirtyChange?.(
+      coverDraft !== null &&
+        coverDraftBaseline !== null &&
+        JSON.stringify(coverDraft) !== JSON.stringify(coverDraftBaseline),
+    );
+    return () => onDirtyChange?.(false);
+  }, [coverDraft, coverDraftBaseline, onDirtyChange]);
 
   useEffect(() => {
     let active = true;
@@ -56,6 +70,7 @@ export function AiDocumentsWorkspace() {
     setDocumentId(nextDocumentId);
     setCvResult(null);
     setCoverDraft(null);
+    setCoverDraftBaseline(null);
     setError(null);
     setNotice(null);
   };
@@ -87,12 +102,12 @@ export function AiDocumentsWorkspace() {
     setNotice(null);
     setCoverDraft(null);
     try {
-      setCoverDraft(
-        await window.aaaat.ai.draftCoverLetter({
+      const drafted = await window.aaaat.ai.draftCoverLetter({
           candidatureId: selectedCandidature.id,
           documentId: selectedDocument.id,
-        }),
-      );
+      });
+      setCoverDraft(drafted);
+      setCoverDraftBaseline(drafted);
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "AAAAT could not draft this cover letter.",
@@ -121,6 +136,7 @@ export function AiDocumentsWorkspace() {
       setDocuments((current) =>
         current.map((document) => (document.id === saved.id ? saved : document)),
       );
+      setCoverDraftBaseline(coverDraft);
       setNotice(
         saved.mode === "manual"
           ? "Structured cover-letter fields updated. Existing manual TeX source remains protected."

@@ -12,12 +12,34 @@ import { ProfileWorkspace } from "./ProfileWorkspace";
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
 type ProductView = "candidatures" | "profile" | "documents" | "ai-documents" | "settings";
 
+function ProfileArea({
+  onDirtyChange,
+}: {
+  readonly onDirtyChange: (dirty: boolean) => void;
+}) {
+  const [careerContextDirty, setCareerContextDirty] = useState(false);
+  const [profileDirty, setProfileDirty] = useState(false);
+
+  useEffect(() => {
+    onDirtyChange(careerContextDirty || profileDirty);
+    return () => onDirtyChange(false);
+  }, [careerContextDirty, onDirtyChange, profileDirty]);
+
+  return (
+    <div>
+      <CareerContextPanel onDirtyChange={setCareerContextDirty} />
+      <ProfileWorkspace onDirtyChange={setProfileDirty} />
+    </div>
+  );
+}
+
 export function App() {
   const [foundationReady, setFoundationReady] = useState(true);
   const [workspacePhase, setWorkspacePhase] = useState<WorkspacePhase>("loading");
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [productView, setProductView] = useState<ProductView>("candidatures");
+  const [editorDirty, setEditorDirty] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +74,9 @@ export function App() {
   }, []);
 
   const chooseWorkspace = async (choice: WorkspaceChoice) => {
+    if (workspace && editorDirty && !window.confirm("Discard unsaved edits and switch workspaces?")) {
+      return;
+    }
     setWorkspacePhase("choosing");
     setWorkspaceError(null);
     try {
@@ -60,6 +85,7 @@ export function App() {
         setWorkspacePhase(workspace ? "ready" : "idle");
         return;
       }
+      setEditorDirty(false);
       setWorkspace(selectedWorkspace);
       setWorkspacePhase("ready");
       setProductView("candidatures");
@@ -73,7 +99,16 @@ export function App() {
     }
   };
 
-  const ready = workspacePhase === "ready" && workspace !== null;
+  const selectProductView = (next: ProductView) => {
+    if (next === productView) return;
+    if (editorDirty && !window.confirm("Discard unsaved edits and leave this workspace area?")) {
+      return;
+    }
+    setEditorDirty(false);
+    setProductView(next);
+  };
+
+  const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
   const choosing = workspacePhase === "choosing";
   const loading = workspacePhase === "loading";
 
@@ -108,53 +143,62 @@ export function App() {
             <button
               type="button"
               className={productView === "candidatures" ? "active-product-tab" : ""}
-              onClick={() => setProductView("candidatures")}
+              onClick={() => selectProductView("candidatures")}
             >
               Candidatures
             </button>
             <button
               type="button"
               className={productView === "profile" ? "active-product-tab" : ""}
-              onClick={() => setProductView("profile")}
+              onClick={() => selectProductView("profile")}
             >
               Profile
             </button>
             <button
               type="button"
               className={productView === "documents" ? "active-product-tab" : ""}
-              onClick={() => setProductView("documents")}
+              onClick={() => selectProductView("documents")}
             >
               Documents
             </button>
             <button
               type="button"
               className={productView === "ai-documents" ? "active-product-tab" : ""}
-              onClick={() => setProductView("ai-documents")}
+              onClick={() => selectProductView("ai-documents")}
             >
               AI assist
             </button>
             <button
               type="button"
               className={productView === "settings" ? "active-product-tab" : ""}
-              onClick={() => setProductView("settings")}
+              onClick={() => selectProductView("settings")}
             >
               Settings
             </button>
           </nav>
 
           {productView === "candidatures" ? (
-            <CandidaturesAiWorkspace key={`candidatures-${workspace.rootPath}`} />
+            <CandidaturesAiWorkspace
+              key={`candidatures-${workspace.rootPath}`}
+              onDirtyChange={setEditorDirty}
+            />
           ) : productView === "profile" ? (
-            <div key={`profile-${workspace.rootPath}`}>
-              <CareerContextPanel />
-              <ProfileWorkspace />
-            </div>
+            <ProfileArea key={`profile-${workspace.rootPath}`} onDirtyChange={setEditorDirty} />
           ) : productView === "documents" ? (
-            <DocumentsWorkspace key={`documents-${workspace.rootPath}`} />
+            <DocumentsWorkspace
+              key={`documents-${workspace.rootPath}`}
+              onDirtyChange={setEditorDirty}
+            />
           ) : productView === "ai-documents" ? (
-            <AiDocumentsWorkspace key={`ai-documents-${workspace.rootPath}`} />
+            <AiDocumentsWorkspace
+              key={`ai-documents-${workspace.rootPath}`}
+              onDirtyChange={setEditorDirty}
+            />
           ) : (
-            <AiSettingsWorkspace key={`settings-${workspace.rootPath}`} />
+            <AiSettingsWorkspace
+              key={`settings-${workspace.rootPath}`}
+              onDirtyChange={setEditorDirty}
+            />
           )}
         </main>
       ) : (
@@ -183,7 +227,7 @@ export function App() {
 
       <footer className="app-footer">
         <p>
-          Local-first <span aria-hidden="true">{"\u00b7"}</span> Manual-first{" "}
+          Local-first <span aria-hidden="true">{"\u00b7"}</span> Works without AI{" "}
           <span aria-hidden="true">{"\u00b7"}</span> AI optional
         </p>
         <p>{foundationReady ? "Desktop foundation ready" : "Desktop foundation unavailable"}</p>

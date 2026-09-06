@@ -16,6 +16,7 @@ const candidature = {
   createdAt: "2026-09-04T00:00:00.000Z",
   updatedAt: "2026-09-04T00:00:00.000Z",
   label: "Platform opportunity",
+  sourceSearchText: "",
   values: [],
   documentIds: [cvId, coverId],
   conceptIds: [],

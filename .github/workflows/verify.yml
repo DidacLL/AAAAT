@@ -156,11 +156,11 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
-      - name: Install compatible TeX engines
+      - name: Install pdfLaTeX portability tools
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install --yes latexmk texlive-latex-base texlive-luatex texlive-xetex
+          sudo apt-get install --yes latexmk texlive-latex-base
       - name: Compile and prove unrelated-directory portability
         shell: bash
         run: AAAAT_LATEX_TEST=1 npx vitest run test/latex-portability.test.ts

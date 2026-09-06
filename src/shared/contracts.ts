@@ -195,7 +195,7 @@ export const documentKindSchema = z.enum(["cv", "cover_letter"]);
 export type DocumentKind = z.infer<typeof documentKindSchema>;
 export const documentModeSchema = z.enum(["managed", "manual"]);
 export type DocumentMode = z.infer<typeof documentModeSchema>;
-export const documentEngineSchema = z.enum(["pdflatex", "lualatex", "xelatex"]);
+export const documentEngineSchema = z.literal("pdflatex");
 export type DocumentEngine = z.infer<typeof documentEngineSchema>;
 
 export const documentInputSchema = z
@@ -443,6 +443,8 @@ export const candidatureRecordSchema = z
     createdAt: z.string().min(1),
     updatedAt: z.string().min(1),
     label: z.string().min(1),
+    /** Local renderer search projection of retained Source title, URL, and text. */
+    sourceSearchText: z.string(),
     values: candidatureFieldValueListSchema,
     documentIds: z.array(z.string().uuid()),
     conceptIds: z.array(z.string().uuid()),

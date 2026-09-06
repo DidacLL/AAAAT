@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createOpenAiCompatibleProvider } from "../src/main/ai-provider";
-import type { AiConnectionStatus, DocumentAiContext } from "../src/shared/ai-contracts";
+import type { AiConnectionStatus, ProviderDocumentAiContext } from "../src/shared/ai-contracts";
 
 const connection: AiConnectionStatus = {
   name: "Local fixture",
@@ -11,12 +11,11 @@ const connection: AiConnectionStatus = {
   model: "fixture-model",
 };
 
-const context: DocumentAiContext = {
+const context: ProviderDocumentAiContext = {
   candidature: {
     label: "Pilot opportunity",
     information: [
       {
-        fieldId: "00000000-0000-4000-8000-000000000701",
         label: "Minimum flight hours",
         value: 1500,
       },
@@ -31,7 +30,7 @@ const context: DocumentAiContext = {
   },
   items: [
     {
-      id: "00000000-0000-4000-8000-000000000710",
+      itemRef: "aaaat_document_00000000-0000-4000-8000-000000000710_1",
       kind: "skill",
       title: "TypeScript",
     },
@@ -50,7 +49,7 @@ describe("document AI provider operations", () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       response({
         recommendations: [
-          { itemId: context.items[0]?.id, rationale: "Direct evidence match." },
+          { itemRef: context.items[0]?.itemRef, rationale: "Direct evidence match." },
         ],
       }),
     );
@@ -58,7 +57,7 @@ describe("document AI provider operations", () => {
 
     await expect(provider.tailorCv(connection, context)).resolves.toEqual({
       recommendations: [
-        { itemId: context.items[0]?.id, rationale: "Direct evidence match." },
+        { itemRef: context.items[0]?.itemRef, rationale: "Direct evidence match." },
       ],
     });
     const [, init] = fetchImpl.mock.calls[0] ?? [];

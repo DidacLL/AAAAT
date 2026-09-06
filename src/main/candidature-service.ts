@@ -116,6 +116,12 @@ function readSources(database: DatabaseSync, candidatureId: string): Candidature
   return candidatureSourceListSchema.parse(rows);
 }
 
+function sourceSearchText(database: DatabaseSync, candidatureId: string): string {
+  return readSources(database, candidatureId)
+    .flatMap((source) => [source.title, source.url, source.sourceText])
+    .join(" ");
+}
+
 function toRecord(database: DatabaseSync, row: CandidatureRow): CandidatureRecord {
   return candidatureRecordSchema.parse({
     id: row.id,
@@ -123,6 +129,7 @@ function toRecord(database: DatabaseSync, row: CandidatureRow): CandidatureRecor
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     label: candidatureLabelInDatabase(database, row.id, row.createdAt),
+    sourceSearchText: sourceSearchText(database, row.id),
     values: readCandidatureFieldValuesInDatabase(database, row.id),
     documentIds: readDocumentIds(database, row.id),
     conceptIds: readConceptIds(database, row.id),

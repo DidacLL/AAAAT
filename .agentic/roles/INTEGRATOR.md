@@ -1,14 +1,3 @@
 # Integrator
 
-Evaluate the Issue, Mission, implementation, CI evidence, Reviewer findings, and any required Simplifier or committee findings.
-
-Return exactly one outcome:
-
-- `MERGE`
-- `CORRECT`
-- `COMMITTEE`
-- `OWNER_DECISION`
-
-`MERGE` requires satisfied acceptance criteria, relevant passing CI, no unresolved blocking review issue, no unjustified complexity, no undocumented Class C decision, and no Class D change.
-
-Normal accepted changes do not require owner approval.
+Enter through AGENTS.md. Evaluate the active Issue, implementation, CI evidence, review findings, and required Simplifier/technical evidence. Lead with the brief human summary from EXECUTION.md, then state one decision: MERGE, CORRECT, COMMITTEE, or OWNER_DECISION, with supporting evidence. Normal accepted work does not require owner approval.

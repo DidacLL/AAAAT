@@ -22,11 +22,21 @@ function editable(status: AiConnectionStatus): Draft {
   };
 }
 
-export function AiSettingsWorkspace() {
+export function AiSettingsWorkspace({
+  onDirtyChange,
+}: {
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [status, setStatus] = useState<AiConnectionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const savedDraft = status ? editable(status) : emptyDraft;
+    onDirtyChange?.(JSON.stringify(draft) !== JSON.stringify(savedDraft));
+    return () => onDirtyChange?.(false);
+  }, [draft, onDirtyChange, status]);
 
   useEffect(() => {
     let active = true;

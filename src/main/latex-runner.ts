@@ -1,7 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
 
-import type { DocumentEngine } from "../shared/contracts";
-
 export class LatexRunnerError extends Error {
   constructor(message: string) {
     super(message);
@@ -77,10 +75,9 @@ async function terminateProcessTree(child: ChildProcess): Promise<void> {
 
 export async function runLatexmk(
   projectPath: string,
-  engine: DocumentEngine,
   timeoutMs = 30_000,
 ): Promise<void> {
-  const engineFlag = engine === "pdflatex" ? "-pdf" : `-${engine}`;
+  const engineFlag = "-pdf";
   const latexArgs = [
     engineFlag,
     "-interaction=nonstopmode",
@@ -128,7 +125,7 @@ export async function runLatexmk(
       if (timingOut) return;
       finish(
         new LatexRunnerError(
-          `TeX rendering could not start. Install latexmk and ${engine}. ${error.message}`,
+          `TeX rendering could not start. Install latexmk and pdflatex. ${error.message}`,
         ),
       );
     });

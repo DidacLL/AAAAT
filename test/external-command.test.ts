@@ -8,7 +8,6 @@ import { Readable, Writable } from "node:stream";
 
 import { describe, expect, it } from "vitest";
 
-import { createCandidatureField } from "../src/main/candidature-field-service";
 import { listCandidatures } from "../src/main/candidature-service";
 import {
   executeExternalCommand,
@@ -28,17 +27,9 @@ function temporaryWorkspace(): string {
 }
 
 describe("bounded external candidature command", () => {
-  it("creates sparse runtime information through the normal candidature mutation and returns no private authority", () => {
+  it("creates a source-only candidature through the normal mutation and returns no private authority", () => {
     const root = temporaryWorkspace();
     try {
-      const field = createCandidatureField(root, {
-        label: "Minimum flight hours",
-        description: "Minimum total flight hours requested.",
-        valueType: "number",
-        cardinality: "one",
-        choices: [],
-        enabled: true,
-      });
       const input = {
         source: {
           kind: "job_posting" as const,
@@ -46,7 +37,6 @@ describe("bounded external candidature command", () => {
           url: "https://example.invalid/job",
           sourceText: "Private source material",
         },
-        values: [{ fieldId: field.definition.id, value: 1500 }],
       };
       const result = executeExternalCommand(commandArgs(root), JSON.stringify(input));
 
@@ -65,9 +55,7 @@ describe("bounded external candidature command", () => {
 
       const created = listCandidatures(root)[0];
       if (!created) throw new Error("Created candidature fixture is missing.");
-      expect(created.values).toEqual([
-        expect.objectContaining({ fieldId: field.definition.id, value: 1500 }),
-      ]);
+      expect(created.values).toEqual([]);
 
       const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
       try {
@@ -87,7 +75,7 @@ describe("bounded external candidature command", () => {
   it("rejects malformed, invalid, oversized, and unsupported input without mutation", () => {
     const root = temporaryWorkspace();
     try {
-      const valid = JSON.stringify({ values: [] });
+      const valid = JSON.stringify({ source: { kind: "other", title: "source", url: "", sourceText: "text" } });
       const cases = [
         executeExternalCommand(commandArgs(root), "{"),
         executeExternalCommand(
@@ -141,7 +129,10 @@ describe("bounded external candidature command", () => {
   it("does not initialize a missing workspace as a side effect", () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-command-uninitialized-"));
     try {
-      const result = executeExternalCommand(commandArgs(root), JSON.stringify({ values: [] }));
+      const result = executeExternalCommand(
+        commandArgs(root),
+        JSON.stringify({ source: { kind: "other", title: "source", url: "", sourceText: "text" } }),
+      );
       expect(result).toEqual({
         exitCode: 2,
         response: { ok: false, error: "command-failed" },

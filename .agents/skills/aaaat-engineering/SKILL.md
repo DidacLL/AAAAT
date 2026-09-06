@@ -1,34 +1,14 @@
 ---
 name: aaaat-engineering
-description: Enter and execute bounded AAAAT repository development work under the canonical SPEC, current Mission, GitHub Issue, security boundaries, review policy, and anti-speculation rules. Use for implementation, review, architecture, testing, CI, packaging, or documentation changes in the AAAAT source repository; do not use it as the installed AAAAT product integration skill.
+description: Execute bounded AAAAT repository work under canonical product authority, the active Mission, technical boundaries, and proportional review. Use for AAAAT implementation, review, architecture, testing, CI, packaging, or documentation changes.
 ---
 
 # AAAAT Engineering
 
-Read, in order:
+Start with AGENTS.md and follow its authority and reading sequence. This skill does not duplicate it or override the current Product Owner.
 
-1. `AGENTS.md`
-2. `docs/SPEC.md`
-3. `.agentic/CONSTITUTION.md`
-4. `.agentic/CURRENT_MISSION.md`
-5. `.agentic/ROUTING.md`
-6. `docs/engineering/EXECUTION.md` when execution behavior matters
-7. the current GitHub Issue
-8. relevant accepted ADRs
+Implement the smallest complete scope justified by the active Mission and Issue. The accepted masterplan permits autonomous activation of the next bounded capability once product meaning is established. GitHub Issues, branches, Pull Requests, reviews, and Actions hold dynamic state; do not create STATE.json or a repository task database.
 
-Implement only the smallest complete scope justified by the current Mission and Issue. GitHub Issues, branches, Pull Requests, reviews, Actions, and milestones hold dynamic engineering state; do not create a repository task database or `STATE.json`.
+Before integration, run required verification and Issue checks, obtain independent review, invoke Simplifier for material new complexity, use a minimal technical group only for genuine unresolved Class B/C disagreement, escalate unresolved product meaning and Class D only, and remove speculative infrastructure.
 
-Use the available execution surface according to the evidence required. Use local, browser, visual, runtime, packaging, and multi-agent capabilities when they materially improve evidence; return normal results to GitHub CI and review.
-
-Before integration:
-
-- run `npm run verify` and Issue-specific checks;
-- obtain an independent Reviewer result;
-- invoke the Skeptical Simplifier for material new complexity;
-- use a minimal expert committee only for genuine unresolved Class B/C disagreement;
-- escalate only Class D decisions;
-- remove speculative infrastructure.
-
-> **Subagents are a reasoning resource, not an organizational goal. Do not spawn multiple agents merely to satisfy a process.**
-
-> **A simple change does not require a committee.**
+Delegation follows ROUTING.md: the owner transports exact prompts to Classic. Codex subagents consume the Codex allowance and require an explicit request for Codex subagents; they are not a substitute for Classic. A simple change does not require a committee.

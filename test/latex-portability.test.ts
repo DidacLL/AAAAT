@@ -15,12 +15,10 @@ import {
 } from "../src/main/document-service";
 import { addProfileItem, createProfileVariant } from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
-import type { DocumentEngine } from "../src/shared/contracts";
-
 const latexIt = process.env.AAAAT_LATEX_TEST === "1" ? it : it.skip;
 
 latexIt(
-  "renders with supported built-in engines and compiles after unrelated-directory export",
+  "renders with pdfLaTeX and compiles after unrelated-directory export",
   async () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-latex-workspace-"));
     const exportRoot = mkdtempSync(path.join(tmpdir(), "aaaat-latex-export-"));
@@ -49,21 +47,8 @@ latexIt(
         bodyParagraphs: [],
       });
 
-      for (const engine of [
-        "pdflatex",
-        "lualatex",
-        "xelatex",
-      ] as const satisfies readonly DocumentEngine[]) {
-        document = updateDocument(root, {
-          id: document.id,
-          title: document.title,
-          language: "en",
-          engine,
-          bodyParagraphs: [],
-        });
-        const rendered = await renderDocument(root, document.id);
-        expect(existsSync(rendered.artifactPath)).toBe(true);
-      }
+      const rendered = await renderDocument(root, document.id);
+      expect(existsSync(rendered.artifactPath)).toBe(true);
 
       document = updateDocument(root, {
         id: document.id,

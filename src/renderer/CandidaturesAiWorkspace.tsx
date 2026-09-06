@@ -1,11 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { CandidatureInput } from "../shared/contracts";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import { JobExtractionPanel } from "./JobExtractionPanel";
 
-export function CandidaturesAiWorkspace() {
+export function CandidaturesAiWorkspace({
+  onDirtyChange,
+}: {
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [revision, setRevision] = useState(0);
+  const [candidatureDirty, setCandidatureDirty] = useState(false);
+  const [extractionDirty, setExtractionDirty] = useState(false);
+
+  useEffect(() => {
+    onDirtyChange?.(candidatureDirty || extractionDirty);
+    return () => onDirtyChange?.(false);
+  }, [candidatureDirty, extractionDirty, onDirtyChange]);
 
   const createFromProposal = async (input: CandidatureInput): Promise<boolean> => {
     const proceed = window.confirm(
@@ -19,10 +30,10 @@ export function CandidaturesAiWorkspace() {
 
   return (
     <>
-      <CandidaturesWorkspace key={revision} />
+      <CandidaturesWorkspace key={revision} onDirtyChange={setCandidatureDirty} />
       <details className="optional-ai-extraction">
         <summary>Optional AI job extraction</summary>
-        <JobExtractionPanel onCreate={createFromProposal} />
+        <JobExtractionPanel onCreate={createFromProposal} onDirtyChange={setExtractionDirty} />
       </details>
     </>
   );

@@ -132,8 +132,9 @@ describe("AI service over live candidature information", () => {
 
     const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
       const projectedValue = context.candidature.information.find(
-        (item) => item.fieldId === sensitive.definition.id,
+        (item) => item.label === "Internal referral code",
       )?.value;
+      expect(JSON.stringify(context)).not.toContain(sensitive.definition.id);
       const projectedIdentity = context.profileItems.find((item) => item.kind === "identity")?.title;
       expect(typeof projectedValue).toBe("string");
       expect(typeof projectedIdentity).toBe("string");
@@ -235,7 +236,8 @@ describe("AI service over live candidature information", () => {
       expect(providerContext).not.toContain("PRIVATE RECRUITER THREAD");
       expect(providerContext).not.toContain("SECRET-COMP-9000");
       expect(providerContext).not.toContain("PRIVATE-REF-42");
-      return { variantId: variant.id, rationale: "General match." };
+      expect(providerContext).not.toContain(variant.id);
+      return { variantRef: context.variants[0]?.variantRef ?? "", rationale: "General match." };
     });
     await expect(
       recommendVariant(
@@ -263,16 +265,17 @@ describe("AI service over live candidature information", () => {
     });
 
     const extract = vi.fn<ModelProvider["extractJob"]>(async (_connection, request) => {
-      const configured = request.fields.find((field) => field.id === hours.definition.id);
-      expect(configured).toEqual({
-        id: hours.definition.id,
+      const configured = request.fields.find((field) => field.label === "Minimum flight hours");
+      expect(configured).toMatchObject({
+        fieldRef: expect.any(String),
         label: "Minimum flight hours",
         description: "Minimum total flight hours requested by the opportunity.",
         valueType: "number",
         cardinality: "one",
         choices: [],
       });
-      return { proposals: [{ fieldId: hours.definition.id, value: 1500 }] };
+      expect(JSON.stringify(request)).not.toContain(hours.definition.id);
+      return { proposals: [{ fieldRef: configured?.fieldRef ?? "", value: 1500 }] };
     });
 
     await expect(
@@ -291,9 +294,9 @@ describe("AI service over live candidature information", () => {
 
   it("rejects provider proposals for fields that were not requested", async () => {
     const root = configuredWorkspace();
-    const unexpectedId = "00000000-0000-4000-8000-000000009999";
+    const unexpectedId = "aaaat_discovery_00000000-0000-4000-8000-000000009999_1";
     const extract = vi.fn<ModelProvider["extractJob"]>(async () => ({
-      proposals: [{ fieldId: unexpectedId, value: "invented" }],
+      proposals: [{ fieldRef: unexpectedId, value: "invented" }],
     }));
 
     await expect(
@@ -336,9 +339,9 @@ describe("AI service over live candidature information", () => {
       enabled: true,
     });
     const discover = vi.fn<ModelProvider["extractJob"]>(async (_connection, request) => {
-      expect(request.fields).toEqual([
+      expect(request.fields).toMatchObject([
         {
-          id: rating.definition.id,
+          fieldRef: expect.any(String),
           label: "Type rating",
           description: "Aircraft type rating required or preferred.",
           valueType: "text",
@@ -348,7 +351,8 @@ describe("AI service over live candidature information", () => {
       ]);
       expect(request.sourceText).toContain("A320 type rating");
       expect(request.sourceText).not.toContain("unrelated retained Source");
-      return { proposals: [{ fieldId: rating.definition.id, value: "A320" }] };
+      expect(JSON.stringify(request)).not.toContain(rating.definition.id);
+      return { proposals: [{ fieldRef: request.fields[0]?.fieldRef ?? "", value: "A320" }] };
     });
 
     const first = await discoverCandidatureFieldFromSources(
@@ -384,5 +388,42 @@ describe("AI service over live candidature information", () => {
     expect(listCandidatures(root)[0]?.values).toEqual([
       expect.objectContaining({ fieldId: rating.definition.id, value: "A320" }),
     ]);
+  });
+
+  it("projects choice labels instead of persisted choice and field identifiers", async () => {
+    const root = configuredWorkspace();
+    const choiceId = "00000000-0000-4000-8000-000000000011";
+    const arrangement = createCandidatureField(root, {
+      label: "Work arrangement",
+      description: "",
+      valueType: "choice",
+      cardinality: "one",
+      choices: [{ id: choiceId, label: "Remote" }],
+      enabled: true,
+    });
+    updateCandidatureFieldPreferences(root, {
+      ...arrangement.preferences,
+      aiContextMode: "expose",
+    });
+    const candidature = createCandidature(root, {
+      values: [{ fieldId: arrangement.definition.id, value: choiceId }],
+    });
+    const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
+      const payload = JSON.stringify(context);
+      expect(payload).not.toContain(arrangement.definition.id);
+      expect(payload).not.toContain(choiceId);
+      expect(context.candidature.information).toContainEqual({
+        label: "Work arrangement",
+        value: "Remote",
+      });
+      return { fit: "possible", summary: "Choice projected.", strengths: [], gaps: [], focus: [] };
+    });
+    await expect(
+      assessFit(
+        root,
+        { candidatureId: candidature.id, identityPrivacy: "omit", contactPrivacy: "omit" },
+        provider({ assessFit: assess }),
+      ),
+    ).resolves.toMatchObject({ fit: "possible" });
   });
 });

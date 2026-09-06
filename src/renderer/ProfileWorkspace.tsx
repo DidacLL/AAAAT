@@ -125,7 +125,11 @@ function orderedCanonicalItems(
   });
 }
 
-export function ProfileWorkspace() {
+export function ProfileWorkspace({
+  onDirtyChange,
+}: {
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [snapshot, setSnapshot] = useState<ProfileSnapshot | null>(null);
   const [resolved, setResolved] = useState<ResolvedProfile | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
@@ -155,6 +159,15 @@ export function ProfileWorkspace() {
   const variantDirty = selectedVariant
     ? JSON.stringify(variantState) !== JSON.stringify(variantForm(selectedVariant))
     : false;
+  const editedItem = editingItemId
+    ? snapshot?.items.find((item) => item.id === editingItemId) ?? null
+    : null;
+  const itemDirty = JSON.stringify(itemState) !== JSON.stringify(editedItem ? itemForm(editedItem) : emptyItem);
+
+  useEffect(() => {
+    onDirtyChange?.(variantDirty || itemDirty);
+    return () => onDirtyChange?.(false);
+  }, [itemDirty, onDirtyChange, variantDirty]);
 
   const refreshResolved = async (variantId: string | null) => {
     if (!variantId) {

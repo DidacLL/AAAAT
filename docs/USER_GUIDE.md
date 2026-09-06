@@ -70,7 +70,7 @@ The manual workflow remains valid if AI is never configured.
 
 AAAAT generates portable LaTeX source itself, but local PDF rendering uses TeX tools installed on your computer.
 
-Install `latexmk` and the engine used by the document. The baseline engine is `pdflatex`; `lualatex` and `xelatex` are supported where the document/template uses them.
+Install `latexmk` and `pdflatex`. AAAAT documents target the portable pdfLaTeX/pdfTeX baseline.
 
 If the tools are missing, AAAAT reports that TeX rendering could not start and identifies `latexmk` and the required engine. The generated source is still user-owned and may be compiled independently with compatible tools after those prerequisites are installed.
 
@@ -146,7 +146,7 @@ Activation validates the workspace, executable, manifest, and live MCP tool surf
 
 **A folder cannot be used as a workspace.** For **Create workspace**, choose an empty folder or an already compatible AAAAT workspace. For **Open existing workspace**, select a compatible AAAAT v2 workspace.
 
-**PDF rendering cannot start.** Install `latexmk` and the selected TeX engine (`pdflatex`, `lualatex`, or `xelatex`) and retry. Your generated LaTeX source remains available even when rendering fails.
+**PDF rendering cannot start.** Install `latexmk` and `pdflatex`, then retry. Your generated LaTeX source remains available even when rendering fails.
 
 **AI actions fail or no AI is configured.** AI is optional. Check that the configured local OpenAI-compatible endpoint is running and remains a loopback address. Manual Profile, Documents, and Candidatures workflows continue to work without it.
 
