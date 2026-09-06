@@ -402,43 +402,6 @@ export const externalCandidatureCreateInputSchema = z
   .strict();
 export type ExternalCandidatureCreateInput = z.infer<typeof externalCandidatureCreateInputSchema>;
 
-export const mcpCandidatureFieldSchema = z
-  .object({
-    fieldRef: operationReferenceSchema,
-    label: z.string().trim().min(1).max(120),
-    description: z.string().max(2000),
-    valueType: candidatureFieldValueTypeSchema,
-    cardinality: candidatureFieldCardinalitySchema,
-    choices: z.array(providerDiscoveryChoiceSchema).max(64),
-  })
-  .strict();
-export type McpCandidatureField = z.infer<typeof mcpCandidatureFieldSchema>;
-
-export const mcpCandidatureFieldsListResultSchema = z
-  .object({ operationRef: operationReferenceSchema, fields: z.array(mcpCandidatureFieldSchema).max(64) })
-  .strict();
-export type McpCandidatureFieldsListResult = z.infer<typeof mcpCandidatureFieldsListResultSchema>;
-
-export const mcpCandidatureCreateInputSchema = z
-  .object({
-    operationRef: operationReferenceSchema.optional(),
-    source: candidatureSourceDraftSchema.optional(),
-    values: z
-      .array(
-        z.object({ fieldRef: operationReferenceSchema, value: candidatureRuntimeValueSchema }).strict(),
-      )
-      .max(64)
-      .default([]),
-  })
-  .strict()
-  .refine((input) => new Set(input.values.map((value) => value.fieldRef)).size === input.values.length, {
-    message: "Each field may be set only once.",
-  })
-  .refine((input) => input.values.length === 0 || input.operationRef !== undefined, {
-    message: "Field values require a fresh field-list operation reference.",
-  });
-export type McpCandidatureCreateInput = z.infer<typeof mcpCandidatureCreateInputSchema>;
-
 export interface AiDesktopApi {
   readonly ai: {
     readonly connection: () => Promise<AiConnectionStatus | null>;
