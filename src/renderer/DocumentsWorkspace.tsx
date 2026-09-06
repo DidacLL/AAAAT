@@ -9,6 +9,7 @@ import type {
   ProfileItemContentPatch,
   ProfileSnapshot,
 } from "../shared/contracts";
+import { CombinedDocumentExportPanel } from "./CombinedDocumentExportPanel";
 import "./documents.css";
 
 function optional(value: string): string | undefined {
@@ -484,6 +485,13 @@ export function DocumentsWorkspace({
             </div>
           </>
         )}
+
+        <CombinedDocumentExportPanel
+          documents={documents}
+          disabled={editorDirty}
+          onError={setError}
+          onNotice={setNotice}
+        />
 
         <section className="manual-source-warning" aria-label="Retained application artifacts">
           <h3>Retained application artifacts</h3>

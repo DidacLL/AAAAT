@@ -1,19 +1,19 @@
-# Active Mission — User-owned LaTeX source boundaries
+# Active Mission — Combined CV and cover-letter output
 
-**Active:** [Issue #167](https://github.com/DidacLL/AAAAT/issues/167) on `feature/document-source-ownership`, based on integrated optional document variants `964710ddc056f8f3f7c6ec10c0d6d9c96eaa90a2`.
+**Active:** [Issue #169](https://github.com/DidacLL/AAAAT/issues/169) on `feature/combined-document-packet`, based on integrated user-owned document source boundaries `65d85942d1e625d7df9d14985babe70dba9df592`.
 
 ## Outcome
 
-Complete the accepted VCVGenerator production ownership boundary: the TypeScript feeder owns generated `data.tex`, while the initialized `main.tex` blueprint and `aaaat.sty` package source are user-owned and are not silently replaced by structured document regeneration.
+Deliver the required bounded VCVGenerator combined-output capability without inventing a third working-document model. A user chooses one existing CV and one existing cover letter and exports one portable application packet whose combined PDF presents the cover letter first and CV second while preserving both effective source projects.
 
 ## Boundaries
 
-Reuse the existing document service, managed/manual mode, portable project layout, pdfLaTeX runner, export and retained-artifact capture. Direct blueprint/package edits remain user-owned; direct edits to feeder-owned `data.tex` retain the existing explicit recovery/regeneration behavior. Do not add a generic source/version abstraction, template framework, detailed blueprint redesign, combined CV+letter output, multilingual/font redesign, local search, AI-connection expansion or new dependency.
+Reuse ordinary document rendering so canonical/optional-variant/document-specific semantics and user-owned `main.tex`/`aaaat.sty` plus feeder-owned `data.tex` behavior remain authoritative. The combined packet is an export/production result, not a persistent document kind. Keep pdfLaTeX/pdfTeX and portable source ownership. Do not add an artifact-schema redesign, PDF library/system merge dependency, generic export/filesystem/version framework, typography/template redesign, multilingual/font redesign, AI work or local search.
 
-This is Class C execution of the already accepted ADR 0015 source-ownership decision. A new ADR is unnecessary unless implementation introduces a new durable architectural decision beyond ADR 0015. Obtain one independent Reviewer verdict before integration; invoke Simplifier only if material new complexity appears.
+This is Class C because it adds a bounded renderer→preload→main→TeX production contract. Product meaning is explicit in OWNER_INTENT/SPEC. A new ADR is unnecessary unless implementation introduces a durable architectural decision beyond SPEC/ADR 0015. Obtain one independent Reviewer verdict before integration; invoke Simplifier only if material new complexity appears.
 
 ## Evidence and continuation
 
-Issue #165 / PR #166 is integrated at `964710ddc056f8f3f7c6ec10c0d6d9c96eaa90a2`; Verify #412 passed Fast verification, Linux packaged runtime smoke and LaTeX unrelated-directory portability on the complete candidate.
+Issue #167 / PR #168 is integrated at `65d85942d1e625d7df9d14985babe70dba9df592`; Verify #414 passed Fast verification, Linux packaged runtime smoke, real pdfLaTeX unrelated-directory portability and the aggregate Verification gate on the accepted candidate.
 
-Next: finish Issue #167 end to end, run impact-selected Verify including LaTeX portability, obtain independent review, correct any concrete blocker, and integrate when accepted.
+Next: finish Issue #169 end to end, run focused service/API/UI tests and impact-selected Verify including combined LaTeX portability, obtain independent review, correct any concrete blocker, and integrate when accepted.
