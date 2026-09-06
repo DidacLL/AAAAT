@@ -49,6 +49,7 @@ it("upgrades an existing workspace root to the current product capabilities", ()
         { version: 6, name: "activity" },
         { version: 7, name: "career-context" },
         { version: 8, name: "candidature-information" },
+        { version: 9, name: "todos" },
       ]);
 
       const tableNames = new Set(
@@ -68,6 +69,7 @@ it("upgrades an existing workspace root to the current product capabilities", ()
         "candidature_fields",
         "candidature_field_preferences",
         "candidature_field_values",
+        "todos",
       ]) {
         expect(tableNames.has(required), `${required} capability table should exist`).toBe(true);
       }
