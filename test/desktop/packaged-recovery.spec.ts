@@ -188,6 +188,7 @@ test("packaged recovery upgrades a sparse workspace and preserves user-owned dat
         { version: 6, name: "activity" },
         { version: 7, name: "career-context" },
         { version: 8, name: "candidature-information" },
+        { version: 9, name: "todos" },
       ]);
     } finally {
       database.close();
