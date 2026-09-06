@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -38,6 +38,11 @@ export function CandidatureFieldValueEditor({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const onDirtyChangeRef = useRef(onDirtyChange);
+
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  }, [onDirtyChange]);
 
   useEffect(() => {
     setText(textFor(value));
@@ -63,9 +68,15 @@ export function CandidatureFieldValueEditor({
       );
 
   useEffect(() => {
-    onDirtyChange?.(dirty);
-    return () => onDirtyChange?.(false);
-  }, [dirty, onDirtyChange]);
+    onDirtyChangeRef.current?.(dirty);
+  }, [dirty]);
+
+  useEffect(
+    () => () => {
+      onDirtyChangeRef.current?.(false);
+    },
+    [],
+  );
 
   const parsedValue = (): CandidatureRuntimeValue | null => {
     const definition = field.definition;
