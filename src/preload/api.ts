@@ -1,6 +1,4 @@
 import {
-  aiConnectionInputSchema,
-  aiConnectionStatusSchema,
   aiChannels,
   coverLetterDraftSchema,
   cvTailoringResultSchema,
@@ -125,8 +123,7 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       profileSnapshotSchema.parse(
         await invoke(
           channels.profileReorderVariant,
-          profileVariantReorderSchema.parse(reorder),
-        ),
+          profileVariantReorderSchema.parse(reorder)),
       ),
     resolveVariant: async (variantId: string) =>
       resolvedProfileSchema.parse(
@@ -166,8 +163,7 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       documentRecordSchema.parse(
         await invoke(
           channels.documentConfigureItem,
-          documentItemRuleInputSchema.parse(rule),
-        ),
+          documentItemRuleInputSchema.parse(rule)),
       ),
     reorder: async (reorder: Parameters<DesktopApi["documents"]["reorder"]>[0]) =>
       documentRecordSchema.parse(
@@ -339,10 +335,6 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
   const ai = Object.freeze({
     connection: async () =>
       optionalAiConnectionStatusSchema.parse(await invoke(aiChannels.connectionCurrent)),
-    saveConnection: async (input: Parameters<AiDesktopApi["ai"]["saveConnection"]>[0]) =>
-      aiConnectionStatusSchema.parse(
-        await invoke(aiChannels.connectionSave, aiConnectionInputSchema.parse(input)),
-      ),
     previewFit: async (request: Parameters<AiDesktopApi["ai"]["previewFit"]>[0]) =>
       fitAssessmentPreviewSchema.parse(
         await invoke(aiChannels.fitPreview, fitAssessmentRequestSchema.parse(request)),

@@ -71,7 +71,6 @@ describe("desktop preload API", () => {
         };
       }
       if (channel === channels.candidatureSourceList) return [];
-      if (channel === aiChannels.connectionCurrent) return null;
       if (channel === aiChannels.jobExtract) {
         return { proposals: [{ fieldId, value: 1500 }] };
       }
