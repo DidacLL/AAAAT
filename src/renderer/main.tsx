@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
-import type { FocusDesktopApi } from "../shared/focus-contracts";
+import type { FocusDesktopApi, FocusMaterialPreferences } from "../shared/focus-contracts";
 import type { TodoDesktopApi } from "../shared/todo-contracts";
 import { App } from "./App";
 import "./styles.css";
@@ -94,7 +94,7 @@ function createPreviewApi(): DesktopApi & TodoDesktopApi & FocusDesktopApi {
     }),
     focus: Object.freeze({
       current: async () => ({ sources: true, concepts: true, todos: true, documents: true }),
-      update: async (preferences) => preferences,
+      update: async (preferences: FocusMaterialPreferences) => preferences,
     }),
   });
 }
