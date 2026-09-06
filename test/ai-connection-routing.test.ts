@@ -27,17 +27,17 @@ function workspace(): string {
 
 function provider(): ModelProvider {
   return {
-    assessFit: vi.fn(async (connection) => ({
+    assessFit: vi.fn<ModelProvider["assessFit"]>(async (connection) => ({
       fit: "possible",
       summary: connection.name,
       strengths: [],
       gaps: [],
       focus: [],
     })),
-    extractJob: vi.fn(),
-    recommendVariant: vi.fn(),
-    tailorCv: vi.fn(),
-    draftCoverLetter: vi.fn(),
+    extractJob: vi.fn<ModelProvider["extractJob"]>(),
+    recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(),
+    tailorCv: vi.fn<ModelProvider["tailorCv"]>(),
+    draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(),
   };
 }
 
