@@ -84,13 +84,17 @@ AI is optional. In **Settings**, AAAAT can keep several named keyless, loopback-
 http://localhost:11434/v1
 ```
 
-Add a connection name, model name, and local provider base URL. The first connection becomes the default; adding another connection does not switch that choice. Use **Use by default** to select which configured connection existing AI operations should use. Removing the default leaves AI assistance without a selected connection until you explicitly choose another one; AAAAT does not fall back automatically.
+Add a connection name, model name, and local provider base URL. The first connection becomes the general default; adding another connection does not switch that choice. The general default is only a convenience fallback for operations that have been validated against that exact endpoint/model.
+
+Before using a configured connection for an AI operation, validate that operation from **Settings**. Validation sends only synthetic AAAAT data through the existing operation contract; it does not send your candidature, profile, Sources, or documents, and it is not a benchmark of model quality. The first successful validation for an operation becomes that operation's default when no operation default exists. Later validations do not switch it automatically. You can explicitly choose another validated connection for that operation.
+
+Changing a connection's endpoint or model clears its recorded operation validations because the capability boundary changed. A name-only edit keeps them. Removing a connection clears any operation defaults that referenced it. AAAAT never scans other configured connections or falls back to another model automatically.
 
 Only loopback endpoints are accepted by this current user-facing path. Remote authentication and API-key setup are not part of this alpha path.
 
-When a default local connection is selected, **AI assist** and AI-assisted candidature actions can use bounded operations such as job extraction, fit assessment, profile-variant recommendation, and document proposals. AAAAT constructs operation-specific context, applies its privacy projection, validates the response, and uses normal application services for permitted changes.
+When an operation has a validated route, **AI assist** and AI-assisted candidature actions can use bounded operations such as job extraction, fit assessment, profile-variant recommendation, historical field discovery, CV tailoring, and cover-letter drafting. AAAAT constructs operation-specific context, applies its privacy projection, validates the response, and uses normal application services for permitted changes.
 
-If no local model is running, no default connection is selected, or an AI connection fails, continue using **Profile**, **Documents**, and **Candidatures** manually.
+If no local model is running, no connection has been validated for the requested operation, or an AI connection fails, continue using **Profile**, **Documents**, and **Candidatures** manually.
 
 ## 6. Back up a workspace
 
@@ -150,7 +154,7 @@ Activation validates the workspace, executable, manifest, and live MCP tool surf
 
 **PDF rendering cannot start.** Install `latexmk` and `pdflatex`, then retry. Your generated LaTeX source remains available even when rendering fails.
 
-**AI actions fail or no AI is configured.** AI is optional. Check that the selected default local OpenAI-compatible endpoint is running and remains a loopback address. If connections exist but none is selected as default, choose one in **Settings**. Manual Profile, Documents, and Candidatures workflows continue to work without it.
+**AI actions fail or no AI is configured.** AI is optional. Check that the selected local OpenAI-compatible endpoint is running and remains a loopback address, then validate the specific operation in **Settings**. If several validated connections exist, choose the desired operation default explicitly. Manual Profile, Documents, and Candidatures workflows continue to work without AI.
 
 **Restore rejects a backup.** Do not bypass validation. Use an intact AAAAT backup directory and a separate empty destination. A restore may reject modified manifests/payloads, path traversal, file corruption, incompatible migration history, overlapping directories, symlinks, or special files.
 
