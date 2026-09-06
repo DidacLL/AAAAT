@@ -6,8 +6,12 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  saveNamedAiConnection,
+  validateAiConnectionOperation,
+} from "../src/main/ai-connection-service";
 import type { ModelProvider } from "../src/main/ai-provider";
-import { draftCoverLetter, saveAiConnection, tailorCv } from "../src/main/ai-service";
+import { draftCoverLetter, tailorCv } from "../src/main/ai-service";
 import { createCandidature } from "../src/main/candidature-service";
 import {
   configureDocumentItem,
@@ -72,6 +76,22 @@ function provider(overrides: Partial<ModelProvider>): ModelProvider {
   };
 }
 
+function validationProvider(): ModelProvider {
+  return provider({
+    tailorCv: vi.fn<ModelProvider["tailorCv"]>(async () => ({
+      recommendations: [
+        { itemRef: "aaaat_validation_item", rationale: "Synthetic validation result" },
+      ],
+    })),
+    draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(async () => ({
+      recipient: "",
+      subject: "Validation",
+      bodyParagraphs: ["Synthetic validation result."],
+      closing: "",
+    })),
+  });
+}
+
 afterEach(() => {
   process.env.PATH = originalPath;
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
@@ -115,11 +135,23 @@ describe("optional document profile variants", () => {
   it("uses canonical career evidence for CV and cover-letter AI assistance when no variant exists", async () => {
     const root = workspace();
     seedCanonicalProfile(root);
-    saveAiConnection(root, {
+    const saved = saveNamedAiConnection(root, {
       name: "Local model",
       endpoint: "http://localhost:11434/v1",
       model: "local-model",
     });
+    const connection = saved[0];
+    if (!connection) throw new Error("connection fixture missing");
+    await validateAiConnectionOperation(
+      root,
+      { connectionId: connection.id, operation: "cv_tailoring" },
+      validationProvider(),
+    );
+    await validateAiConnectionOperation(
+      root,
+      { connectionId: connection.id, operation: "cover_letter_draft" },
+      validationProvider(),
+    );
     const candidature = createCandidature(root, { values: [] });
     const cv = createDocument(root, {
       kind: "cv",
