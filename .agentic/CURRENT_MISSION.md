@@ -1,21 +1,21 @@
-# Active Mission — Bounded candidature comparison
+# Active Mission — Bounded external Career Context
 
-**Active:** [Issue #191](https://github.com/DidacLL/AAAAT/issues/191) on `feature/candidature-comparison`, based on integrated graphical workspace recovery `4c1fb2bf18ffc9e08a9737453f3bf47d45381608`.
+**Active:** [Issue #194](https://github.com/DidacLL/AAAAT/issues/194) on `feature/external-career-context`, based on integrated selected candidature comparison `936018e131e48974833415d61ce9d71ef1b12a21`.
 
 ## Outcome
 
-Let the user explicitly select 2–5 existing candidatures, preview the ordinary candidature information that AAAAT would disclose, and request one read-only AI comparison. The result surfaces strengths, concerns, questions and cross-cutting considerations without ranking, scoring, choosing a winner, or mutating local state.
+Expose one read-only named external-assistant operation that returns the existing user-written Career Context needed for career assistance, without exposing candidature history, profile/document content, durable local identifiers, workspace paths, or mutation authority.
 
 ## Boundaries
 
-Reuse the established candidature field disclosure meanings and AI capability/default routing. Retained Sources, candidature history, ToDos, documents, artifacts, profile data and unrelated workspace state are outside the comparison context. Provider payloads use fresh operation-local references rather than durable local identifiers. Results are transient and read-only.
+Reuse the existing official MCP stdio integration and authoritative Career Context service. The wire result contains only non-empty values from the seven existing Career Context meanings: career direction, objectives, constraints, target roles, target markets/locations, work preferences, and application-writing preferences. Empty values are omitted; no content is invented.
 
-Do not add Sources opt-in, research/web access, vector/RAG infrastructure, a ranking or recommendation engine, generic multi-record browsing/query, external-host expansion, persistence, migration, dependencies or unrelated AI work.
+Do not add profile/document browsing, CV suitability descriptors, candidature/source/concept/ToDo/artifact access, arbitrary IDs, search/query surfaces, research/web access, external networking, persistence changes, migrations, dependencies, workflow machinery, or unrelated setup work.
 
-This is Class C because it adds a new privileged/provider AI operation and a seventh member of the deliberately finite operation capability model. The established AI operation/privacy architecture is sufficient; no new ADR is required unless implementation introduces a durable decision beyond it. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if a generic comparison/ranking/retrieval abstraction appears.
+This is Class C because it extends the external integration/privacy surface. The accepted named-operation MCP boundary is sufficient; no new ADR is required unless implementation introduces a new durable mechanism. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if a generic external-data abstraction appears.
 
 ## Evidence and continuation
 
-Issue #187 / PR #190 is integrated at `4c1fb2bf18ffc9e08a9737453f3bf47d45381608`. Verify #438 passed typecheck, lint, 57 test files / 175 active tests, Windows/macOS/Linux packaged-runtime smoke and the aggregate Verification gate; LaTeX portability was correctly not selected.
+Issue #191 / PR #193 is integrated at `936018e131e48974833415d61ce9d71ef1b12a21`. Verify #448 passed typecheck, lint, 60 passed test files / 181 active tests, Windows/macOS/Linux packaged-runtime smoke and the aggregate Verification gate; LaTeX portability was correctly not selected.
 
-Next: finish Issue #191, run focused comparison service/API/UI tests plus existing AI privacy/routing tests and impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.
+Next: finish Issue #194, run focused MCP/Career Context tests plus impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.
