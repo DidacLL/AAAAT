@@ -68,12 +68,11 @@ export function CandidatureFocusPanel({
   const [sources, setSources] = useState<CandidatureSource[]>([]);
   const [todos, setTodos] = useState<TodoRecord[]>([]);
   const [focusConcepts, setFocusConcepts] = useState<ConceptRecord[]>([...concepts]);
-  const [notesDraft, setNotesDraft] = useState("");
+  const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
   const [materialError, setMaterialError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    setMaterialError(null);
     void Promise.all([
       window.aaaat.focus.current(),
       window.aaaat.candidatures.listSources(record.id),
@@ -82,6 +81,7 @@ export function CandidatureFocusPanel({
     ])
       .then(([preferences, nextSources, nextConcepts, nextTodos]) => {
         if (!active) return;
+        setMaterialError(null);
         setMaterialPreferences(preferences);
         setSources(nextSources);
         setFocusConcepts(nextConcepts);
@@ -133,10 +133,9 @@ export function CandidatureFocusPanel({
     associatedConcepts.find((concept) => concept.id === selectedConceptId) ??
     associatedConcepts[0] ??
     null;
-
-  useEffect(() => {
-    setNotesDraft(selectedConcept?.notes ?? "");
-  }, [selectedConcept?.id, selectedConcept?.notes]);
+  const notesDraft = selectedConcept
+    ? (notesDrafts[selectedConcept.id] ?? selectedConcept.notes ?? "")
+    : "";
 
   const saveConceptNotes = async () => {
     if (!selectedConcept) return;
@@ -152,6 +151,7 @@ export function CandidatureFocusPanel({
       setFocusConcepts((current) =>
         current.map((concept) => (concept.id === updated.id ? updated : concept)),
       );
+      setNotesDrafts((current) => ({ ...current, [updated.id]: updated.notes ?? "" }));
     } catch {
       setMaterialError("AAAAT could not save these concept notes.");
     }
@@ -271,7 +271,12 @@ export function CandidatureFocusPanel({
                 <textarea
                   rows={3}
                   value={notesDraft}
-                  onChange={(event) => setNotesDraft(event.target.value)}
+                  onChange={(event) =>
+                    setNotesDrafts((current) => ({
+                      ...current,
+                      [selectedConcept.id]: event.target.value,
+                    }))
+                  }
                 />
               </label>
               <button
