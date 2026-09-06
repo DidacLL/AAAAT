@@ -156,6 +156,11 @@ describe("Candidature Focus structural retrieval", () => {
       aliases: concept.aliases,
       notes: "Use the database failover example instead.",
     });
-    expect(await screen.findByText(/database failover example instead/)).toBeInTheDocument();
+    expect(screen.getByText("Notes:").parentElement).toHaveTextContent(
+      "Use the database failover example instead.",
+    );
+    expect(screen.getByLabelText("Concept notes")).toHaveValue(
+      "Use the database failover example instead.",
+    );
   });
 });
