@@ -8,6 +8,7 @@ import { createCombinedDocumentDesktopApi } from "./combined-document-api";
 import { createFocusDesktopApi } from "./focus-api";
 import { createSetupEnvironmentDesktopApi } from "./setup-environment-api";
 import { createTodoDesktopApi } from "./todo-api";
+import { createWorkspaceRecoveryDesktopApi } from "./workspace-recovery-api";
 
 const invoke = (channel: string, ...args: readonly unknown[]) => ipcRenderer.invoke(channel, ...args);
 
@@ -22,5 +23,6 @@ contextBridge.exposeInMainWorld(
     ...createTodoDesktopApi(invoke),
     ...createFocusDesktopApi(invoke),
     ...createSetupEnvironmentDesktopApi(invoke),
+    ...createWorkspaceRecoveryDesktopApi(invoke),
   }),
 );
