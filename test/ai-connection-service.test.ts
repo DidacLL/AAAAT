@@ -161,6 +161,59 @@ describe("named local AI connections", () => {
     expect(stored).not.toMatch(/api.?key|credential|secret/i);
   });
 
+  it("does not overwrite a connection changed while capability validation is running", async () => {
+    const root = workspace();
+    const saved = saveNamedAiConnection(root, {
+      name: "Local model",
+      endpoint: "http://localhost:11434/v1",
+      model: "model-a",
+    });
+    const connection = saved[0];
+    if (!connection) throw new Error("connection fixture missing");
+
+    let markStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    let releaseValidation: (() => void) | undefined;
+    const validationGate = new Promise<void>((resolve) => {
+      releaseValidation = resolve;
+    });
+    const blockingProvider = provider();
+    blockingProvider.assessFit = vi.fn<ModelProvider["assessFit"]>(async () => {
+      markStarted?.();
+      await validationGate;
+      return {
+        fit: "possible",
+        summary: "Synthetic validation result",
+        strengths: [],
+        gaps: [],
+        focus: [],
+      };
+    });
+
+    const pending = validateAiConnectionOperation(
+      root,
+      { connectionId: connection.id, operation: "fit_assessment" },
+      blockingProvider,
+    );
+    await started;
+    saveNamedAiConnection(root, {
+      id: connection.id,
+      name: connection.name,
+      endpoint: connection.endpoint,
+      model: "model-b",
+    });
+    releaseValidation?.();
+
+    await expect(pending).rejects.toThrow("changed during capability validation");
+    expect(listAiConnections(root)[0]).toMatchObject({
+      model: "model-b",
+      validatedOperations: [],
+      defaultForOperations: [],
+    });
+  });
+
   it("rejects invalid routing, ambiguous names, remote endpoints, and obsolete development config", async () => {
     const root = workspace();
     const saved = saveNamedAiConnection(root, {
