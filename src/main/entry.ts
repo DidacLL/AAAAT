@@ -39,6 +39,7 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
 } else {
   void Promise.all([
     import("./artifact-ipc"),
+    import("./combined-document-ipc"),
     import("./todo-ipc"),
     import("./focus-ipc"),
   ]).then(() => import("./main"));
