@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import type { ApplicationArtifactRecord } from "../shared/artifact-contracts";
 import type {
@@ -62,16 +62,12 @@ export function DocumentsWorkspace({
     () => (selected ? orderedBaseItems(selected, baseItems) : []),
     [baseItems, selected],
   );
-  const associatedCandidatures = useMemo(
-    () =>
-      selected
-        ? candidatures.filter((candidature) => candidature.documentIds.includes(selected.id))
-        : [],
-    [candidatures, selected],
+  const artifactCandidature = useMemo(
+    () => candidatures.find((candidature) => candidature.id === artifactCandidatureId) ?? null,
+    [artifactCandidatureId, candidatures],
   );
-  const selectedArtifacts = useMemo(
-    () => artifacts.filter((artifact) => artifact.documentId === selected?.id),
-    [artifacts, selected],
+  const canCaptureArtifact = Boolean(
+    selected && artifactCandidature?.documentIds.includes(selected.id),
   );
 
   const [title, setTitle] = useState("");
@@ -117,18 +113,6 @@ export function DocumentsWorkspace({
     setResolvedCount(resolved.items.length);
   };
 
-  const loadArtifactContext = useCallback(
-    async (document: DocumentRecord, availableCandidatures: readonly CandidatureRecord[]) => {
-      const candidature = availableCandidatures.find((candidate) =>
-        candidate.documentIds.includes(document.id),
-      );
-      const candidatureId = candidature?.id ?? "";
-      setArtifactCandidatureId(candidatureId);
-      setArtifacts(candidatureId ? await window.aaaat.artifacts.list(candidatureId) : []);
-    },
-    [],
-  );
-
   const storeDocument = (document: DocumentRecord) => {
     setDocuments((current) => {
       const found = current.some((item) => item.id === document.id);
@@ -163,14 +147,19 @@ export function DocumentsWorkspace({
         setDocuments(currentDocuments);
         setCandidatures(currentCandidatures);
         setNewVariantId(currentProfile.variants[0]?.id ?? "");
+
+        const firstCandidature = currentCandidatures[0] ?? null;
+        setArtifactCandidatureId(firstCandidature?.id ?? "");
+        if (firstCandidature) {
+          const retained = await window.aaaat.artifacts.list(firstCandidature.id);
+          if (active) setArtifacts(retained);
+        }
+
         const first = currentDocuments[0] ?? null;
         if (first) {
           setSelectedId(first.id);
           fillEditor(first);
-          await Promise.all([
-            refreshResolved(first),
-            loadArtifactContext(first, currentCandidatures),
-          ]);
+          await refreshResolved(first);
         }
       })
       .catch(() => {
@@ -179,7 +168,7 @@ export function DocumentsWorkspace({
     return () => {
       active = false;
     };
-  }, [loadArtifactContext]);
+  }, []);
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
@@ -199,7 +188,6 @@ export function DocumentsWorkspace({
       });
       setNewTitle("");
       await acceptSavedDocument(created);
-      await loadArtifactContext(created, candidatures);
     } catch {
       setError("Check the document title and selected profile variant.");
     }
@@ -239,10 +227,7 @@ export function DocumentsWorkspace({
     setError(null);
     setNotice(null);
     try {
-      await Promise.all([
-        refreshResolved(document),
-        loadArtifactContext(document, candidatures),
-      ]);
+      await refreshResolved(document);
     } catch {
       setError("AAAAT could not resolve this document.");
     }
@@ -267,13 +252,7 @@ export function DocumentsWorkspace({
       setResolvedCount(0);
       if (first) {
         fillEditor(first);
-        await Promise.all([
-          refreshResolved(first),
-          loadArtifactContext(first, candidatures),
-        ]);
-      } else {
-        setArtifactCandidatureId("");
-        setArtifacts([]);
+        await refreshResolved(first);
       }
     } catch {
       setError("AAAAT could not remove that document.");
@@ -341,7 +320,7 @@ export function DocumentsWorkspace({
   };
 
   const captureArtifact = async () => {
-    if (!selected || !artifactCandidatureId) return;
+    if (!selected || !artifactCandidatureId || !canCaptureArtifact) return;
     if (editorDirty) {
       setError("Save structured content before retaining an application artifact.");
       return;
@@ -486,48 +465,6 @@ export function DocumentsWorkspace({
               <p><span>PDF</span><code>{selected.artifactPath}</code></p>
             </div>
 
-            <section className="manual-source-warning" aria-label="Retained application artifacts">
-              <h3>Retained application artifacts</h3>
-              {associatedCandidatures.length === 0 ? (
-                <p>Associate this working document with a candidature before retaining an application artifact.</p>
-              ) : (
-                <>
-                  <label>
-                    Candidature
-                    <select
-                      value={artifactCandidatureId}
-                      onChange={(event) => void chooseArtifactCandidature(event.target.value)}
-                    >
-                      {associatedCandidatures.map((candidature) => (
-                        <option key={candidature.id} value={candidature.id}>{candidature.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    disabled={editorDirty || capturingArtifact || !artifactCandidatureId}
-                    onClick={() => void captureArtifact()}
-                  >
-                    {capturingArtifact ? "Retaining…" : "Retain application artifact"}
-                  </button>
-                  {selectedArtifacts.length === 0 ? (
-                    <p>No retained snapshot of this document yet.</p>
-                  ) : (
-                    <div className="document-paths">
-                      {selectedArtifacts.map((artifact) => (
-                        <article key={artifact.id}>
-                          <strong>{artifact.title}</strong>
-                          <p>{new Date(artifact.capturedAt).toLocaleString()}</p>
-                          <p><span>Retained source</span><code>{artifact.sourcePath}</code></p>
-                          <p><span>Retained PDF</span><code>{artifact.artifactPath}</code></p>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </section>
-
             <div className="document-items">
               <div className="section-heading"><div><p className="eyebrow">Document-specific</p><h3>Selection and overrides</h3></div></div>
               {orderedItems.map((item, index) => {
@@ -550,6 +487,56 @@ export function DocumentsWorkspace({
             </div>
           </>
         )}
+
+        <section className="manual-source-warning" aria-label="Retained application artifacts">
+          <h3>Retained application artifacts</h3>
+          {candidatures.length === 0 ? (
+            <p>Create a candidature before retaining application material.</p>
+          ) : (
+            <>
+              <label>
+                Candidature
+                <select
+                  value={artifactCandidatureId}
+                  onChange={(event) => void chooseArtifactCandidature(event.target.value)}
+                >
+                  {candidatures.map((candidature) => (
+                    <option key={candidature.id} value={candidature.id}>{candidature.label}</option>
+                  ))}
+                </select>
+              </label>
+              {selected ? (
+                canCaptureArtifact ? (
+                  <button
+                    type="button"
+                    disabled={editorDirty || capturingArtifact}
+                    onClick={() => void captureArtifact()}
+                  >
+                    {capturingArtifact ? "Retaining…" : "Retain application artifact"}
+                  </button>
+                ) : (
+                  <p>Associate the selected working document with this candidature before retaining it.</p>
+                )
+              ) : (
+                <p>Select a working document to retain another snapshot. Existing retained artifacts remain available here.</p>
+              )}
+              {artifacts.length === 0 ? (
+                <p>No retained application artifacts for this candidature.</p>
+              ) : (
+                <div className="document-paths">
+                  {artifacts.map((artifact) => (
+                    <article key={artifact.id}>
+                      <strong>{artifact.title}</strong>
+                      <p>{new Date(artifact.capturedAt).toLocaleString()}</p>
+                      <p><span>Retained source</span><code>{artifact.sourcePath}</code></p>
+                      <p><span>Retained PDF</span><code>{artifact.artifactPath}</code></p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </section>
       </div>
     </section>
   );
