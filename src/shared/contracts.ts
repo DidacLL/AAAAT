@@ -202,7 +202,7 @@ export const documentInputSchema = z
   .object({
     kind: documentKindSchema,
     title: z.string().trim().min(1).max(200),
-    variantId: z.string().uuid(),
+    variantId: z.string().uuid().nullable(),
     language: z.string().trim().min(1).max(40).optional(),
     engine: documentEngineSchema.default("pdflatex"),
     recipient: z.string().max(300).optional(),
@@ -242,7 +242,7 @@ export const documentRecordSchema = z
     id: z.string().uuid(),
     kind: documentKindSchema,
     title: z.string().min(1),
-    variantId: z.string().uuid(),
+    variantId: z.string().uuid().nullable(),
     language: z.string().optional(),
     engine: documentEngineSchema,
     recipient: z.string().optional(),

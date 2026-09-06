@@ -38,14 +38,14 @@ import aaatStyle from "./latex/aaaat.sty?raw";
 import coverLetterTemplate from "./latex/cover-letter.tex?raw";
 import cvTemplate from "./latex/cv.tex?raw";
 import { LatexRunnerError, runLatexmk } from "./latex-runner";
-import { resolveProfileVariant } from "./profile-service";
+import { getProfile, resolveProfileVariant } from "./profile-service";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface DocumentRow {
   readonly id: string;
   readonly kind: string;
   readonly title: string;
-  readonly variantId: string;
+  readonly variantId: string | null;
   readonly language: string | null;
   readonly engine: string;
   readonly recipient: string | null;
@@ -305,12 +305,18 @@ export function getDocument(
   );
 }
 
+function baseItemsForDocument(rootPath: string, document: DocumentRecord): ProfileItem[] {
+  return document.variantId === null
+    ? getProfile(rootPath).items
+    : resolveProfileVariant(rootPath, document.variantId).items;
+}
+
 export function createDocument(
   rootPath: string,
   rawInput: DocumentInput,
 ): DocumentRecord {
   const input = documentInputSchema.parse(rawInput);
-  resolveProfileVariant(rootPath, input.variantId);
+  if (input.variantId !== null) resolveProfileVariant(rootPath, input.variantId);
   const id = randomUUID();
   const now = new Date().toISOString();
 
@@ -440,11 +446,10 @@ export function configureDocumentItem(
 ): DocumentRecord {
   const rule = documentItemRuleInputSchema.parse(rawRule);
   const document = getDocument(rootPath, rule.documentId);
-  const resolved = resolveProfileVariant(rootPath, document.variantId);
-  const base = resolved.items.find((item) => item.id === rule.itemId);
+  const base = baseItemsForDocument(rootPath, document).find((item) => item.id === rule.itemId);
   if (!base) {
     throw new DocumentServiceError(
-      "The selected variant does not contain that profile item.",
+      "The document profile basis does not contain that profile item.",
     );
   }
   const patch = normalizedPatch(base, rule.contentPatch);
@@ -491,9 +496,7 @@ export function reorderDocument(
 ): DocumentRecord {
   const reorder = documentReorderSchema.parse(rawReorder);
   const document = getDocument(rootPath, reorder.documentId);
-  const baseIds = resolveProfileVariant(rootPath, document.variantId).items.map(
-    (item) => item.id,
-  );
+  const baseIds = baseItemsForDocument(rootPath, document).map((item) => item.id);
   if (
     reorder.itemIds.length !== baseIds.length ||
     new Set(reorder.itemIds).size !== baseIds.length ||
@@ -555,7 +558,7 @@ export function resolveDocument(
   documentId: string,
 ): ResolvedDocument {
   const document = getDocument(rootPath, documentId);
-  const base = resolveProfileVariant(rootPath, document.variantId).items;
+  const base = baseItemsForDocument(rootPath, document);
   const rules = new Map(document.rules.map((rule) => [rule.itemId, rule]));
   const baseRank = new Map(base.map((item, index) => [item.id, index]));
   const items = base
