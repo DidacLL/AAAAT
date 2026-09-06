@@ -348,8 +348,19 @@ export async function validateAiConnectionOperation(
   const connection = connectionById(configuration, input.connectionId);
   await validateAiOperation(statusFor(connection), input.operation, provider);
 
-  const connections = configuration.connections.map((candidate) =>
-    candidate.id === connection.id
+  const currentConfiguration = readConfiguration(rootPath);
+  const currentConnection = connectionById(currentConfiguration, input.connectionId);
+  if (
+    currentConnection.endpoint !== connection.endpoint ||
+    currentConnection.model !== connection.model
+  ) {
+    throw new AiConnectionServiceError(
+      "The AI connection changed during capability validation. Validate the operation again.",
+    );
+  }
+
+  const connections = currentConfiguration.connections.map((candidate) =>
+    candidate.id === currentConnection.id
       ? storedConnectionSchema.parse({
           ...candidate,
           validatedOperations: aiOperations.filter(
@@ -359,13 +370,19 @@ export async function validateAiConnectionOperation(
         })
       : candidate,
   );
-  const operationDefaults = configuration.operationDefaults[input.operation]
-    ? configuration.operationDefaults
+  const operationDefaults = currentConfiguration.operationDefaults[input.operation]
+    ? currentConfiguration.operationDefaults
     : operationDefaultsSchema.parse({
-        ...configuration.operationDefaults,
+        ...currentConfiguration.operationDefaults,
         [input.operation]: input.connectionId,
       });
-  return listFor(writeConfiguration(rootPath, { ...configuration, connections, operationDefaults }));
+  return listFor(
+    writeConfiguration(rootPath, {
+      ...currentConfiguration,
+      connections,
+      operationDefaults,
+    }),
+  );
 }
 
 export function setAiOperationDefault(
