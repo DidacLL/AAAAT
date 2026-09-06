@@ -130,6 +130,10 @@ export async function validateAiOperation(
       return;
     }
     case "candidature_comparison": {
+      const compareCandidatures = provider.compareCandidatures;
+      if (!compareCandidatures) {
+        throw new Error("The configured provider does not support candidature comparison.");
+      }
       const context = providerCandidatureComparisonContextSchema.parse({
         candidatures: [
           {
@@ -145,7 +149,7 @@ export async function validateAiOperation(
         ],
       });
       const result = providerCandidatureComparisonResultSchema.parse(
-        await provider.compareCandidatures(connection, context),
+        await compareCandidatures(connection, context),
       );
       const returned = new Set(result.analyses.map((analysis) => analysis.candidatureRef));
       if (
