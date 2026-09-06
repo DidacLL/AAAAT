@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
+import type { ApplicationArtifactRecord } from "../shared/artifact-contracts";
 import type {
+  CandidatureRecord,
   DocumentKind,
   DocumentRecord,
   ProfileItem,
@@ -38,11 +40,15 @@ export function DocumentsWorkspace({
 }) {
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [candidatures, setCandidatures] = useState<CandidatureRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [baseItems, setBaseItems] = useState<ProfileItem[]>([]);
   const [resolvedCount, setResolvedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [artifactCandidatureId, setArtifactCandidatureId] = useState("");
+  const [artifacts, setArtifacts] = useState<ApplicationArtifactRecord[]>([]);
+  const [capturingArtifact, setCapturingArtifact] = useState(false);
 
   const [newKind, setNewKind] = useState<DocumentKind>("cv");
   const [newTitle, setNewTitle] = useState("");
@@ -55,6 +61,13 @@ export function DocumentsWorkspace({
   const orderedItems = useMemo(
     () => (selected ? orderedBaseItems(selected, baseItems) : []),
     [baseItems, selected],
+  );
+  const artifactCandidature = useMemo(
+    () => candidatures.find((candidature) => candidature.id === artifactCandidatureId) ?? null,
+    [artifactCandidatureId, candidatures],
+  );
+  const canCaptureArtifact = Boolean(
+    selected && artifactCandidature?.documentIds.includes(selected.id),
   );
 
   const [title, setTitle] = useState("");
@@ -123,12 +136,25 @@ export function DocumentsWorkspace({
 
   useEffect(() => {
     let active = true;
-    void Promise.all([window.aaaat.profile.current(), window.aaaat.documents.list()])
-      .then(async ([currentProfile, currentDocuments]) => {
+    void Promise.all([
+      window.aaaat.profile.current(),
+      window.aaaat.documents.list(),
+      window.aaaat.candidatures.list(),
+    ])
+      .then(async ([currentProfile, currentDocuments, currentCandidatures]) => {
         if (!active) return;
         setProfile(currentProfile);
         setDocuments(currentDocuments);
+        setCandidatures(currentCandidatures);
         setNewVariantId(currentProfile.variants[0]?.id ?? "");
+
+        const firstCandidature = currentCandidatures[0] ?? null;
+        setArtifactCandidatureId(firstCandidature?.id ?? "");
+        if (firstCandidature) {
+          const retained = await window.aaaat.artifacts.list(firstCandidature.id);
+          if (active) setArtifacts(retained);
+        }
+
         const first = currentDocuments[0] ?? null;
         if (first) {
           setSelectedId(first.id);
@@ -283,6 +309,43 @@ export function DocumentsWorkspace({
     }
   };
 
+  const chooseArtifactCandidature = async (candidatureId: string) => {
+    setArtifactCandidatureId(candidatureId);
+    setError(null);
+    try {
+      setArtifacts(candidatureId ? await window.aaaat.artifacts.list(candidatureId) : []);
+    } catch {
+      setError("AAAAT could not load retained application artifacts.");
+    }
+  };
+
+  const captureArtifact = async () => {
+    if (!selected || !artifactCandidatureId || !canCaptureArtifact) return;
+    if (editorDirty) {
+      setError("Save structured content before retaining an application artifact.");
+      return;
+    }
+    setCapturingArtifact(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const captured = await window.aaaat.artifacts.capture({
+        candidatureId: artifactCandidatureId,
+        documentId: selected.id,
+      });
+      setArtifacts((current) => [captured, ...current.filter((artifact) => artifact.id !== captured.id)]);
+      setNotice(`Retained application artifact: ${captured.artifactPath}`);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "AAAAT could not retain this application artifact.",
+      );
+    } finally {
+      setCapturingArtifact(false);
+    }
+  };
+
   const applyItem = async (event: FormEvent<HTMLFormElement>, item: ProfileItem) => {
     event.preventDefault();
     if (!selected) return;
@@ -373,7 +436,7 @@ export function DocumentsWorkspace({
         ) : (
           <>
             <div className="section-heading"><div><p className="eyebrow">{selected.mode === "managed" ? "Managed source" : "Manual TeX mode"}</p><h2>{selected.title}</h2></div><span>{resolvedCount} selected items</span></div>
-            {editorDirty ? <p className="document-notice">Unsaved structured edits are local. Save before rendering, exporting, or regenerating source.</p> : null}
+            {editorDirty ? <p className="document-notice">Unsaved structured edits are local. Save before rendering, exporting, or retaining application material.</p> : null}
             {selected.mode === "manual" ? (
               <div className="manual-source-warning"><p>Direct TeX edits were detected. AAAAT will preserve them and will not silently regenerate the source.</p><button type="button" disabled={editorDirty} onClick={() => void regenerate()}>Replace manual source from structured data</button></div>
             ) : null}
@@ -424,6 +487,56 @@ export function DocumentsWorkspace({
             </div>
           </>
         )}
+
+        <section className="manual-source-warning" aria-label="Retained application artifacts">
+          <h3>Retained application artifacts</h3>
+          {candidatures.length === 0 ? (
+            <p>Create a candidature before retaining application material.</p>
+          ) : (
+            <>
+              <label>
+                Candidature
+                <select
+                  value={artifactCandidatureId}
+                  onChange={(event) => void chooseArtifactCandidature(event.target.value)}
+                >
+                  {candidatures.map((candidature) => (
+                    <option key={candidature.id} value={candidature.id}>{candidature.label}</option>
+                  ))}
+                </select>
+              </label>
+              {selected ? (
+                canCaptureArtifact ? (
+                  <button
+                    type="button"
+                    disabled={editorDirty || capturingArtifact}
+                    onClick={() => void captureArtifact()}
+                  >
+                    {capturingArtifact ? "Retaining…" : "Retain application artifact"}
+                  </button>
+                ) : (
+                  <p>Associate the selected working document with this candidature before retaining it.</p>
+                )
+              ) : (
+                <p>Select a working document to retain another snapshot. Existing retained artifacts remain available here.</p>
+              )}
+              {artifacts.length === 0 ? (
+                <p>No retained application artifacts for this candidature.</p>
+              ) : (
+                <div className="document-paths">
+                  {artifacts.map((artifact) => (
+                    <article key={artifact.id}>
+                      <strong>{artifact.title}</strong>
+                      <p>{new Date(artifact.capturedAt).toLocaleString()}</p>
+                      <p><span>Retained source</span><code>{artifact.sourcePath}</code></p>
+                      <p><span>Retained PDF</span><code>{artifact.artifactPath}</code></p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </section>
       </div>
     </section>
   );
