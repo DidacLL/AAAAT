@@ -82,16 +82,12 @@ const conceptA: ConceptRecord = {
   name: "Platform",
   definition: "Platform engineering",
   aliases: [],
-  createdAt: "2026-09-04T00:00:00.000Z",
-  updatedAt: "2026-09-04T00:00:00.000Z",
 };
 const conceptB: ConceptRecord = {
   id: "00000000-0000-4000-8000-000000000509",
   name: "Reliability",
   definition: "Reliable systems",
   aliases: [],
-  createdAt: "2026-09-04T00:00:00.000Z",
-  updatedAt: "2026-09-04T00:00:00.000Z",
 };
 
 function record(values: CandidatureRecord["values"]): CandidatureRecord {
