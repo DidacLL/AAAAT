@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
 import type { ApplicationArtifactRecord } from "../shared/artifact-contracts";
 import type {
@@ -117,17 +117,17 @@ export function DocumentsWorkspace({
     setResolvedCount(resolved.items.length);
   };
 
-  const loadArtifactContext = async (
-    document: DocumentRecord,
-    availableCandidatures = candidatures,
-  ) => {
-    const candidature = availableCandidatures.find((candidate) =>
-      candidate.documentIds.includes(document.id),
-    );
-    const candidatureId = candidature?.id ?? "";
-    setArtifactCandidatureId(candidatureId);
-    setArtifacts(candidatureId ? await window.aaaat.artifacts.list(candidatureId) : []);
-  };
+  const loadArtifactContext = useCallback(
+    async (document: DocumentRecord, availableCandidatures: readonly CandidatureRecord[]) => {
+      const candidature = availableCandidatures.find((candidate) =>
+        candidate.documentIds.includes(document.id),
+      );
+      const candidatureId = candidature?.id ?? "";
+      setArtifactCandidatureId(candidatureId);
+      setArtifacts(candidatureId ? await window.aaaat.artifacts.list(candidatureId) : []);
+    },
+    [],
+  );
 
   const storeDocument = (document: DocumentRecord) => {
     setDocuments((current) => {
@@ -179,7 +179,7 @@ export function DocumentsWorkspace({
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadArtifactContext]);
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
@@ -199,7 +199,7 @@ export function DocumentsWorkspace({
       });
       setNewTitle("");
       await acceptSavedDocument(created);
-      await loadArtifactContext(created);
+      await loadArtifactContext(created, candidatures);
     } catch {
       setError("Check the document title and selected profile variant.");
     }
@@ -239,7 +239,10 @@ export function DocumentsWorkspace({
     setError(null);
     setNotice(null);
     try {
-      await Promise.all([refreshResolved(document), loadArtifactContext(document)]);
+      await Promise.all([
+        refreshResolved(document),
+        loadArtifactContext(document, candidatures),
+      ]);
     } catch {
       setError("AAAAT could not resolve this document.");
     }
@@ -264,7 +267,10 @@ export function DocumentsWorkspace({
       setResolvedCount(0);
       if (first) {
         fillEditor(first);
-        await Promise.all([refreshResolved(first), loadArtifactContext(first)]);
+        await Promise.all([
+          refreshResolved(first),
+          loadArtifactContext(first, candidatures),
+        ]);
       } else {
         setArtifactCandidatureId("");
         setArtifacts([]);
