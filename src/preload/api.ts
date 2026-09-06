@@ -123,7 +123,8 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       profileSnapshotSchema.parse(
         await invoke(
           channels.profileReorderVariant,
-          profileVariantReorderSchema.parse(reorder)),
+          profileVariantReorderSchema.parse(reorder),
+        ),
       ),
     resolveVariant: async (variantId: string) =>
       resolvedProfileSchema.parse(
@@ -163,7 +164,8 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       documentRecordSchema.parse(
         await invoke(
           channels.documentConfigureItem,
-          documentItemRuleInputSchema.parse(rule)),
+          documentItemRuleInputSchema.parse(rule),
+        ),
       ),
     reorder: async (reorder: Parameters<DesktopApi["documents"]["reorder"]>[0]) =>
       documentRecordSchema.parse(
@@ -362,8 +364,7 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       variantRecommendationResultSchema.parse(
         await invoke(
           aiChannels.variantRecommend,
-          variantRecommendationRequestSchema.parse(request),
-        ),
+          variantRecommendationRequestSchema.parse(request)),
       ),
     tailorCv: async (request: Parameters<AiDesktopApi["ai"]["tailorCv"]>[0]) =>
       cvTailoringResultSchema.parse(
