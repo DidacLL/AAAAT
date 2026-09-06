@@ -23,6 +23,7 @@ import {
 import {
   createDocument,
   regenerateDocument,
+  removeDocument,
   renderDocument,
   updateDocument,
 } from "../src/main/document-service";
@@ -62,7 +63,7 @@ afterEach(() => {
 });
 
 describe("application artifact service", () => {
-  it("retains source and PDF independently from later working-document edits and renders", async () => {
+  it("retains source, PDF and origin metadata independently from the working document", async () => {
     const root = workspace();
     installFakeLatexmk();
     addProfileItem(root, {
@@ -114,10 +115,18 @@ describe("application artifact service", () => {
     expect(readFileSync(path.join(retained.projectPath, "content.tex"), "utf8")).toBe(retainedContent);
     expect(readFileSync(retained.artifactPath, "utf8")).toBe("pdf-one");
     expect(readFileSync(document.artifactPath, "utf8")).toBe("pdf-two");
-    expect(listApplicationArtifacts(root, candidature.id)[0]).toMatchObject({
-      id: retained.id,
-      title: "Submitted CV",
-      documentId: document.id,
-    });
+
+    removeDocument(root, document.id);
+    expect(listApplicationArtifacts(root, candidature.id)).toEqual([
+      expect.objectContaining({
+        id: retained.id,
+        title: "Submitted CV",
+        documentId: document.id,
+        projectPath: retained.projectPath,
+        sourcePath: retained.sourcePath,
+        artifactPath: retained.artifactPath,
+      }),
+    ]);
+    expect(readFileSync(retained.artifactPath, "utf8")).toBe("pdf-one");
   });
 });
