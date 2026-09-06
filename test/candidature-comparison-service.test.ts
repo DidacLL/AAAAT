@@ -115,12 +115,20 @@ describe("bounded candidature comparison", () => {
       enabled: true,
     });
     updateCandidatureFieldPreferences(root, {
+      ...exposed.preferences,
+      aiContextMode: "expose",
+    });
+    updateCandidatureFieldPreferences(root, {
       ...omitted.preferences,
       aiContextMode: "omit",
     });
     updateCandidatureFieldPreferences(root, {
       ...tokenized.preferences,
       aiContextMode: "token",
+    });
+    updateCandidatureFieldPreferences(root, {
+      ...choice.preferences,
+      aiContextMode: "expose",
     });
 
     const first = createCandidature(root, {
