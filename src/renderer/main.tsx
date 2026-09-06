@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
+import type { TodoDesktopApi } from "../shared/todo-contracts";
 import { App } from "./App";
 import "./styles.css";
 import "./candidatures.css";
@@ -20,7 +21,7 @@ const previewUnavailable = async (): Promise<never> => {
   throw new Error("Create preview data in the desktop app for this operation.");
 };
 
-function createPreviewApi(): DesktopApi {
+function createPreviewApi(): DesktopApi & TodoDesktopApi {
   return Object.freeze({
     system: Object.freeze({
       info: async () => ({
@@ -82,6 +83,13 @@ function createPreviewApi(): DesktopApi {
       createConcept: previewUnavailable,
       updateConcept: previewUnavailable,
       setConcepts: previewUnavailable,
+    }),
+    todos: Object.freeze({
+      list: async () => [],
+      create: previewUnavailable,
+      update: previewUnavailable,
+      toggle: previewUnavailable,
+      remove: async () => [],
     }),
   });
 }
