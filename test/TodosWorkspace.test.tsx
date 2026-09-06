@@ -76,8 +76,9 @@ describe("ToDos workspace", () => {
       body: "Check recruiter reply",
       candidatureId: candidature.id,
     });
-    expect(await screen.findByText("Check recruiter reply")).toBeInTheDocument();
-    expect(screen.getByText("Platform engineer")).toBeInTheDocument();
+    const savedTodo = (await screen.findByText("Check recruiter reply")).closest("article");
+    if (!savedTodo) throw new Error("Expected saved ToDo");
+    expect(within(savedTodo).getByText("Platform engineer")).toBeInTheDocument();
   });
 
   it("edits, toggles, and deletes saved ToDos through the bounded API", async () => {
