@@ -120,14 +120,20 @@ function createPreviewApi(): DesktopApi &
   });
 }
 
-if (!window.aaaat) {
+if (import.meta.env.DEV && !("aaaat" in window)) {
   Object.defineProperty(window, "aaaat", {
-    configurable: true,
+    configurable: false,
     value: createPreviewApi(),
+    writable: false,
   });
 }
 
-createRoot(document.getElementById("root")!).render(
+const root = document.getElementById("root");
+if (!root) {
+  throw new Error("AAAAT renderer root is missing");
+}
+
+createRoot(root).render(
   <StrictMode>
     <App />
   </StrictMode>,
