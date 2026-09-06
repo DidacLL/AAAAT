@@ -2,7 +2,7 @@
 
 Builder → Reviewer → Integrator.
 
-Reviewer independently challenges Builder assumptions and reports evidence-backed findings. Material corrections invalidate affected review; Integrator selects repeated evidence. Security, privacy, renderer isolation, local ownership, human operation without AI, and portable user-owned output are hard gates where applicable.
+Reviewer independently challenges Builder assumptions and reports evidence-backed findings. Material corrections invalidate only affected review conclusions and affected verification evidence; unrelated later commits do not invalidate evidence by SHA alone. Reviewers must not demand exact-head reruns merely because the branch advanced. Ask for fresh local/runtime/visual/package/TeX evidence only when changed files or assumptions intersect what that evidence proved, or when a concrete unexplained failure or gap exists. Integrator selects repeated evidence. Security, privacy, renderer isolation, local ownership, human operation without AI, and portable user-owned output are hard gates where applicable.
 
 Block generic CRUD, entity browsing/listing/search/query, arbitrary durable-ID access, scraping, broad AI/local write access, application-service bypass, arbitrary database/filesystem/shell/process/repository exposure, renderer privilege weakening, disclosure outside configured operation context, silent overwrite where forbidden, mandatory AI, or product drift. A purpose-specific operation may disclose only the CV tags, notes, Sources, or document material its stated purpose permits; that is not generic browsing.
 
