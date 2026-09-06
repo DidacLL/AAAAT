@@ -28,6 +28,7 @@ import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
 const choiceId = "00000000-0000-4000-8000-000000001911";
+type CompareCandidatures = NonNullable<ModelProvider["compareCandidatures"]>;
 
 function workspace(): string {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-comparison-"));
@@ -43,7 +44,7 @@ function provider(overrides: Partial<ModelProvider> = {}): ModelProvider {
     recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(),
     tailorCv: vi.fn<ModelProvider["tailorCv"]>(),
     draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(),
-    compareCandidatures: vi.fn<ModelProvider["compareCandidatures"]>(),
+    compareCandidatures: vi.fn<CompareCandidatures>(),
     ...overrides,
   };
 }
@@ -59,7 +60,7 @@ async function configureComparison(root: string): Promise<void> {
     root,
     { connectionId: connection.id, operation: "candidature_comparison" },
     provider({
-      compareCandidatures: vi.fn<ModelProvider["compareCandidatures"]>(async (_connection, context) => ({
+      compareCandidatures: vi.fn<CompareCandidatures>(async (_connection, context) => ({
         analyses: context.candidatures.map((candidature) => ({
           candidatureRef: candidature.candidatureRef,
           strengths: [],
@@ -167,7 +168,7 @@ describe("bounded candidature comparison", () => {
     expect(serializedPreview).not.toContain(choiceId);
 
     const before = listCandidatures(root);
-    const compare = vi.fn<ModelProvider["compareCandidatures"]>(async (_connection, context) => {
+    const compare = vi.fn<CompareCandidatures>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain(first.id);
       expect(serialized).not.toContain(second.id);
@@ -220,7 +221,7 @@ describe("bounded candidature comparison", () => {
         root,
         { candidatureIds: [first.id, second.id] },
         provider({
-          compareCandidatures: vi.fn<ModelProvider["compareCandidatures"]>(async (_connection, context) => ({
+          compareCandidatures: vi.fn<CompareCandidatures>(async (_connection, context) => ({
             analyses: [
               {
                 candidatureRef: context.candidatures[0]?.candidatureRef ?? "aaaat_missing_1",
