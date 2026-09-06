@@ -16,6 +16,7 @@ interface ConceptRow {
   readonly id: string;
   readonly name: string;
   readonly definition: string;
+  readonly notes: string;
   readonly aliasesJson: string;
 }
 
@@ -62,6 +63,7 @@ function toRecord(row: ConceptRow): ConceptRecord {
     id: row.id,
     name: row.name,
     definition: row.definition,
+    notes: row.notes,
     aliases,
   });
 }
@@ -69,7 +71,7 @@ function toRecord(row: ConceptRow): ConceptRecord {
 function readConcept(database: DatabaseSync, conceptId: string): ConceptRecord {
   const row = database
     .prepare(
-      `SELECT id, name, definition, aliases_json AS aliasesJson
+      `SELECT id, name, definition, notes, aliases_json AS aliasesJson
          FROM concepts
         WHERE id = ?`,
     )
@@ -84,7 +86,7 @@ export function listConcepts(rootPath: string): ConceptRecord[] {
   return withWorkspaceDatabase(rootPath, (database) => {
     const rows = database
       .prepare(
-        `SELECT id, name, definition, aliases_json AS aliasesJson
+        `SELECT id, name, definition, notes, aliases_json AS aliasesJson
            FROM concepts
           ORDER BY name COLLATE NOCASE, id`,
       )
@@ -104,13 +106,14 @@ export function createConcept(
     transact(database, () => {
       database
         .prepare(
-          `INSERT INTO concepts(id, name, definition, aliases_json, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO concepts(id, name, definition, notes, aliases_json, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
           concept.name,
           concept.definition,
+          concept.notes,
           JSON.stringify(concept.aliases),
           now,
           now,
@@ -133,12 +136,13 @@ export function updateConcept(
       database
         .prepare(
           `UPDATE concepts
-              SET name = ?, definition = ?, aliases_json = ?, updated_at = ?
+              SET name = ?, definition = ?, notes = ?, aliases_json = ?, updated_at = ?
             WHERE id = ?`,
         )
         .run(
           update.name,
           update.definition,
+          update.notes,
           JSON.stringify(update.aliases),
           now,
           update.id,
