@@ -212,8 +212,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Protected check context
-        run: echo "Linux package evidence selected by CI impact."
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
@@ -255,8 +253,6 @@ jobs:
       matrix:
         os: ["ubuntu-latest", "windows-latest", "macos-latest"]
     steps:
-      - name: Protected check context
-        run: echo "Full cross-platform package evidence selected by CI impact."
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
@@ -350,3 +346,59 @@ jobs:
             trap "kill $wm_pid 2>/dev/null || true" EXIT
             npm run test:desktop
           '
+
+  gate:
+    name: Verification gate
+    needs: [impact, fast, latex, package_linux, package_full]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require selected verification lanes
+        shell: bash
+        env:
+          IMPACT_RESULT: ${{ needs.impact.result }}
+          FAST_SELECTED: ${{ needs.impact.outputs.fast }}
+          FAST_RESULT: ${{ needs.fast.result }}
+          LATEX_SELECTED: ${{ needs.impact.outputs.latex }}
+          LATEX_RESULT: ${{ needs.latex.result }}
+          LINUX_PACKAGE_SELECTED: ${{ needs.impact.outputs.linux_package }}
+          LINUX_PACKAGE_RESULT: ${{ needs.package_linux.result }}
+          FULL_PACKAGE_SELECTED: ${{ needs.impact.outputs.full_package }}
+          FULL_PACKAGE_RESULT: ${{ needs.package_full.result }}
+        run: |
+          set -euo pipefail
+
+          require_selected() {
+            local selected="$1"
+            local result="$2"
+            local lane="$3"
+            if [[ "$selected" == "true" && "$result" != "success" ]]; then
+              echo "$lane was selected but finished as $result" >&2
+              exit 1
+            fi
+          }
+
+          if [[ "$IMPACT_RESULT" != "success" ]]; then
+            echo "CI impact classification finished as $IMPACT_RESULT" >&2
+            exit 1
+          fi
+
+          require_selected "$FAST_SELECTED" "$FAST_RESULT" "Fast verification"
+          require_selected "$LATEX_SELECTED" "$LATEX_RESULT" "LaTeX portability"
+
+          if [[ "$FULL_PACKAGE_SELECTED" == "true" ]]; then
+            require_selected "true" "$FULL_PACKAGE_RESULT" "Full cross-platform package/runtime"
+          elif [[ "$LINUX_PACKAGE_SELECTED" == "true" ]]; then
+            require_selected "true" "$LINUX_PACKAGE_RESULT" "Linux package/runtime"
+          fi
+
+          {
+            echo "### Verification gate"
+            echo
+            echo "Selected lanes passed. Unselected lanes reuse still-applicable successful evidence."
+            echo "- fast selected: $FAST_SELECTED ($FAST_RESULT)"
+            echo "- LaTeX selected: $LATEX_SELECTED ($LATEX_RESULT)"
+            echo "- Linux package selected: $LINUX_PACKAGE_SELECTED ($LINUX_PACKAGE_RESULT)"
+            echo "- full package selected: $FULL_PACKAGE_SELECTED ($FULL_PACKAGE_RESULT)"
+          } >> "$GITHUB_STEP_SUMMARY"
