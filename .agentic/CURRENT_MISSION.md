@@ -1,23 +1,23 @@
-# Active Mission — Minimal local ToDos
+# Active Mission — Configurable candidature Focus retrieval
 
-**Active:** [Issue #156](https://github.com/DidacLL/AAAAT/issues/156) on `feature/minimal-local-todos`, based on merged recovery `60cf9117609546200bc04b211fbf5750ae42d1b4`.
+**Active:** [Issue #161](https://github.com/DidacLL/AAAAT/issues/161) on `feature/configurable-focus-retrieval`, based on integrated ToDos `00aebc66968dc7b5d5aea17ee7c732288b805fd9`.
 
 ## Outcome
 
-Add the smallest complete human/no-AI ToDo capability required by OWNER_INTENT and SPEC: user text/body, done/not-done state, and an optional relation to one candidature.
+Complete the next bounded slice of the SPEC `Reliable local information and retrieval` destination: the candidature Focus projection must let the user persistently choose useful structural material for an unexpected call.
 
-The complete slice includes local SQLite persistence, one explicit ToDo application service, typed preload/IPC intentions, and a minimal desktop surface to create, inspect, edit, toggle and delete ToDos. A ToDo may exist without a candidature; candidatures remain valid without ToDos.
+Ordinary candidature information already supports Focus visibility, order and prominence. This Mission adds only domain-appropriate Focus participation for retained Sources, associated concepts (including user notes), related ToDos and associated working documents, with independent show/hide choices.
 
 ## Boundaries
 
-No due dates, recurrence, reminders, priority, scheduling, notifications, next-action semantics, workflow/lifecycle engine, AI task protocol, autonomous execution, generic task repository, ORM/EAV, event bus, plugin framework, or external-integration expansion.
+Keep Sources, concepts, ToDos and documents as explicit domain concepts. Do not convert them into generic fields or build a dashboard/presentation registry. No arbitrary pixel layout, recruiter script, workflow/lifecycle semantics, priority/next-action behavior, scheduling/reminders, AI-generated Focus, artifact capture, document-system redesign, external-integration expansion, EAV, Redux, plugin framework, or new dependency.
 
-Use the existing Electron/React/TypeScript/SQLite/application-service architecture. Keep renderer authority bounded through preload/IPC. Backup/recovery includes ToDos naturally through the authoritative workspace database; do not add a parallel store.
+Persist the small structural Focus preference set through the existing local workspace/application-service and typed preload/IPC boundaries. Field Focus preferences remain independent and unchanged. Human operation remains complete without AI.
 
-Expected decision class is B unless the implementation materially expands architecture beyond the explicit ToDo table/service boundary.
+Expected decision class is B unless implementation introduces a material shared framework, security-boundary change or architectural persistence abstraction.
 
 ## Evidence and continuation
 
-Recovery Issue #158 / PR #159 is integrated. Its verification remains reusable for unchanged surfaces. Run only impact-selected verification for this capability.
+Issue #156 / PR #160 is integrated at `00aebc66968dc7b5d5aea17ee7c732288b805fd9`. Verify #391 passed Fast plus Windows/macOS/Linux packaged runtime; that evidence remains reusable for unchanged surfaces.
 
-Next: implement Issue #156 end to end on the active branch, then obtain one independent Reviewer verdict before integration. Invoke Simplifier only if material complexity is introduced.
+Next: implement Issue #161 end to end, run impact-selected Verify, then obtain one independent Reviewer verdict before integration. Invoke Simplifier only if material complexity is introduced.
