@@ -606,6 +606,15 @@ Routing is advisory: Classic for bounded GitHub implementation/coordination/revi
 
 Meaningful completions and actual handoffs begin with `Now`, `Next` (including destination), `Owner attention`, and `Evidence` in a few plain lines. When transport is needed, supply the exact message with repository, authoritative scope, current Issue/ref, outcome, exclusions, required evidence and expected return. The receiving agent verifies live state. Keep temporary prompts, transcripts and acceptance ledgers outside the repository; use existing GitHub coordination rather than another status system.
 
+### Knowledge must survive a PR or conversation
+
+A fresh agent must be able to recover the product direction, reasons for important boundaries, required but unfinished capabilities, and immediate continuation from checked-in files. It must not need the owner to repeat settled requirements or an old conversation/PR search to discover them.
+
+Use the existing documents: OWNER_INTENT for accepted meaning and essential examples; SPEC for architecture, required destinations and concise rationale; ADRs for durable technical decisions and supersession; CURRENT_MISSION for the active outcome, unresolved findings and verification gaps. Issues/PRs retain detailed execution evidence and live coordination. They do not replace the durable synthesis.
+
+When an owner correction exposes drift, preserve the recovered concern and resulting accepted interpretation in the relevant section, including the distinction that prevented misunderstanding. Do not merely fix code or append a PR comment. If meaning remains unresolved, record the concrete uncertainty in the Mission rather than presenting an agent assumption as owner intent.
+
+Before a handoff or integration, reconcile these records with the actual result. When changing Missions, resolve or explicitly carry forward unfinished requirements; a new Mission cannot erase them. Keep this proportional: update existing prose and useful examples, link evidence, remove superseded active instructions, and do not create a transcript archive, acceptance ledger or parallel masterplan.
 ## Recovery rationale and research evidence
 
 This section preserves the important conclusions of the owner-intent review so a fresh agent does not need the original conversation. It is rationale for this SPEC, not another authority. Current owner corrections still take precedence. The implementation audit used `84222dee335ad9fbfea99440f667962e233c982d`; the links below deliberately point to that historical source, not a claim about the current branch.
@@ -622,7 +631,7 @@ This section preserves the important conclusions of the owner-intent review so a
 
 The decisive product interpretations are retained in OWNER_INTENT: optional structure is not forbidden structure; all input producers yield ordinary information; controlled disclosure does not imply mutation permission; permitted CV descriptions let the chosen assistant judge suitability without a corpus browser; and AI-native convenience does not require AAAAT to own a model, agent loop or paid service. Sources remain explicit and operation-scoped, rather than universally prohibited or automatically disclosed. These distinctions should be tested in review whenever a proposed simplification would remove required freedom or introduce a conventional tracker workflow.
 
-The evidence baseline is not a completion certificate. Earlier focused tests established only their stated scope. Current correction results, failures and independent review belong in [recovery Issue #158](https://github.com/DidacLL/AAAAT/issues/158) and [PR #159](https://github.com/DidacLL/AAAAT/pull/159). For context recovery, read AGENTS and its authority sequence **on the PR branch while this work is unmerged**, then the live Issue/PR evidence. Reading main alone will miss the recovery until integration. Reopen the historical sources only for a disputed finding; do not redo the entire research before routine bounded work.
+The evidence baseline is not a completion certificate. Earlier focused tests established only their stated scope. The checked-in CURRENT_MISSION retains the latest known correction state, unresolved findings, verification gaps and next bounded outcome. Detailed execution evidence and live integration state are linked from [recovery Issue #158](https://github.com/DidacLL/AAAAT/issues/158) and [PR #159](https://github.com/DidacLL/AAAAT/pull/159); those threads are supplementary, never the sole record needed to resume. For context recovery, read AGENTS and its authority sequence **on the PR branch while this work is unmerged**, then the live Issue/PR evidence. Reading main alone will miss the recovery until integration. Reopen the historical sources only for a disputed finding; do not redo the entire research before routine bounded work.
 ## Prohibited speculative infrastructure
 
 Do not create unused:
