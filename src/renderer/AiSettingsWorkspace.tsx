@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import type { AiConnectionStatus } from "../shared/ai-contracts";
+import type { NamedAiConnection } from "../shared/ai-connection-contracts";
 
 interface Draft {
   readonly name: string;
@@ -14,11 +14,11 @@ const emptyDraft: Draft = {
   model: "",
 };
 
-function editable(status: AiConnectionStatus): Draft {
+function editable(connection: NamedAiConnection): Draft {
   return {
-    name: status.name,
-    endpoint: status.endpoint,
-    model: status.model,
+    name: connection.name,
+    endpoint: connection.endpoint,
+    model: connection.model,
   };
 }
 
@@ -27,25 +27,31 @@ export function AiSettingsWorkspace({
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const [connections, setConnections] = useState<NamedAiConnection[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [status, setStatus] = useState<AiConnectionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const editing = useMemo(
+    () => connections.find((connection) => connection.id === editingId) ?? null,
+    [connections, editingId],
+  );
+  const baseline = editing ? editable(editing) : emptyDraft;
+  const dirty = JSON.stringify(draft) !== JSON.stringify(baseline);
+  const defaultConnection = connections.find((connection) => connection.isDefault) ?? null;
+
   useEffect(() => {
-    const savedDraft = status ? editable(status) : emptyDraft;
-    onDirtyChange?.(JSON.stringify(draft) !== JSON.stringify(savedDraft));
+    onDirtyChange?.(dirty);
     return () => onDirtyChange?.(false);
-  }, [draft, onDirtyChange, status]);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     let active = true;
-    void window.aaaat.ai
-      .connection()
-      .then((connection) => {
-        if (!active) return;
-        setStatus(connection);
-        if (connection) setDraft(editable(connection));
+    void window.aaaat.aiConnections
+      .list()
+      .then((saved) => {
+        if (active) setConnections(saved);
       })
       .catch(() => {
         if (active) setError("AAAAT could not read the AI connection settings.");
@@ -55,21 +61,72 @@ export function AiSettingsWorkspace({
     };
   }, []);
 
+  const confirmDiscard = () =>
+    !dirty || window.confirm("Discard unsaved AI connection edits?");
+
+  const beginNew = () => {
+    if (!confirmDiscard()) return;
+    setEditingId(null);
+    setDraft(emptyDraft);
+  };
+
+  const beginEdit = (connection: NamedAiConnection) => {
+    if (connection.id === editingId) return;
+    if (!confirmDiscard()) return;
+    setEditingId(connection.id);
+    setDraft(editable(connection));
+  };
+
   const save = async () => {
     setSaving(true);
     setError(null);
     try {
-      const saved = await window.aaaat.ai.saveConnection(draft);
-      setStatus(saved);
-      setDraft(editable(saved));
+      const saved = await window.aaaat.aiConnections.save({
+        ...(editingId ? { id: editingId } : {}),
+        ...draft,
+      });
+      setConnections(saved);
+      const savedConnection = editingId
+        ? saved.find((connection) => connection.id === editingId)
+        : saved.find(
+            (connection) => connection.name.toLocaleLowerCase() === draft.name.trim().toLocaleLowerCase(),
+          );
+      if (savedConnection) {
+        setEditingId(savedConnection.id);
+        setDraft(editable(savedConnection));
+      }
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
-          : "AAAAT could not save the local AI connection.",
+          : "AAAAT could not save this local AI connection.",
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const setDefault = async (connection: NamedAiConnection) => {
+    setError(null);
+    try {
+      setConnections(await window.aaaat.aiConnections.setDefault(connection.id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not change the default AI connection.");
+    }
+  };
+
+  const remove = async (connection: NamedAiConnection) => {
+    if (!window.confirm(`Remove local AI connection “${connection.name}”?`)) return;
+    setError(null);
+    try {
+      const next = await window.aaaat.aiConnections.remove(connection.id);
+      setConnections(next);
+      if (connection.id === editingId) {
+        setEditingId(null);
+        setDraft(emptyDraft);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not remove this AI connection.");
     }
   };
 
@@ -78,15 +135,15 @@ export function AiSettingsWorkspace({
       <div className="profile-column">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">M3 connection</p>
-            <h2>Local AI</h2>
+            <p className="eyebrow">Optional intelligence</p>
+            <h2>{editing ? "Edit local AI connection" : "Add local AI connection"}</h2>
           </div>
           <span>Optional</span>
         </div>
 
         <p>
-          Connect AAAAT to a local OpenAI-compatible model endpoint. This first path is keyless,
-          loopback-only, and keeps manual AAAAT fully usable without AI.
+          Keep several named local OpenAI-compatible endpoints and choose which one AAAAT uses by
+          default. This path remains keyless and loopback-only; manual AAAAT works with no default.
         </p>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
 
@@ -123,8 +180,13 @@ export function AiSettingsWorkspace({
           </label>
           <div className="form-actions wide-field">
             <button className="compact-primary" type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save local connection"}
+              {saving ? "Saving…" : editing ? "Save connection" : "Add connection"}
             </button>
+            {editing ? (
+              <button type="button" className="compact-secondary" onClick={beginNew}>
+                Add another
+              </button>
+            ) : null}
           </div>
         </form>
       </div>
@@ -133,20 +195,63 @@ export function AiSettingsWorkspace({
         <div className="section-heading">
           <div>
             <p className="eyebrow">Connection boundary</p>
-            <h2>Local only</h2>
+            <h2>Configured local connections</h2>
           </div>
+          <span>{connections.length}/16</span>
         </div>
-        {status ? (
-          <p>
-            <strong>{status.name}</strong> uses <code>{status.endpoint}</code> with model{" "}
-            <code>{status.model}</code>.
-          </p>
+
+        {connections.length === 0 ? (
+          <p>No local AI connections are configured yet.</p>
         ) : (
-          <p>No local AI connection is configured yet.</p>
+          <div className="document-list">
+            {connections.map((connection) => (
+              <article key={connection.id} className="document-card">
+                <div>
+                  <h3>{connection.name}</h3>
+                  <p>
+                    <code>{connection.model}</code> · <code>{connection.endpoint}</code>
+                  </p>
+                  {connection.isDefault ? <p><strong>Default connection</strong></p> : null}
+                </div>
+                <div className="button-row">
+                  {!connection.isDefault ? (
+                    <button
+                      type="button"
+                      className="compact-secondary"
+                      onClick={() => void setDefault(connection)}
+                      aria-label={`Use ${connection.name} by default`}
+                    >
+                      Use by default
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="compact-secondary"
+                    onClick={() => beginEdit(connection)}
+                    aria-label={`Edit ${connection.name}`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-secondary"
+                    onClick={() => void remove(connection)}
+                    aria-label={`Remove ${connection.name}`}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
         )}
+
+        {connections.length > 0 && !defaultConnection ? (
+          <p className="error-message">No default AI connection is selected. AI assistance remains disabled until you choose one.</p>
+        ) : null}
         <p>
-          Only loopback endpoints are accepted in this slice. Remote authentication and API-key
-          setup are intentionally not part of the first user path.
+          Existing AI operations use only the selected default. AAAAT never falls back to another
+          connection automatically. Remote authentication and API-key setup are not part of this path.
         </p>
       </div>
     </section>

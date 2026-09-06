@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import path from "node:path";
 
 import { z } from "zod";
 
@@ -58,6 +56,11 @@ import type {
   DocumentRecord,
   ProfileItem,
 } from "../shared/contracts";
+import {
+  getDefaultAiConnection,
+  requireDefaultAiConnection,
+  saveDefaultAiConnection,
+} from "./ai-connection-service";
 import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
 import {
   listCandidatureFields,
@@ -71,17 +74,6 @@ import { listDocuments, resolveDocument } from "./document-service";
 import { getProfile, resolveProfileVariant } from "./profile-service";
 import { withWorkspaceDatabase } from "./workspace";
 
-const storedConnectionSchema = z
-  .object({
-    version: z.literal(1),
-    name: z.string().min(1),
-    endpoint: z.string().url(),
-    model: z.string().min(1),
-  })
-  .strict();
-
-type StoredConnection = z.infer<typeof storedConnectionSchema>;
-
 export class AiServiceError extends Error {
   constructor(message: string) {
     super(message);
@@ -89,75 +81,23 @@ export class AiServiceError extends Error {
   }
 }
 
-function connectionPath(rootPath: string): string {
-  return path.join(rootPath, "ai-connection.json");
+function statusFor(connection: AiConnectionStatus): AiConnectionStatus {
+  return aiConnectionStatusSchema.parse(connection);
 }
 
-function loopbackHost(hostname: string): boolean {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
-}
-
-function validateEndpoint(input: AiConnectionInput): URL {
-  const endpoint = new URL(input.endpoint);
-  if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
-    throw new AiServiceError("The local AI endpoint must be a plain provider base URL.");
-  }
-  if (endpoint.protocol !== "http:" && endpoint.protocol !== "https:") {
-    throw new AiServiceError("The local AI endpoint must use HTTP or HTTPS.");
-  }
-  if (!loopbackHost(endpoint.hostname)) {
-    throw new AiServiceError("The first AI connection must use a loopback endpoint.");
-  }
-  return endpoint;
-}
-
-function readStoredConnection(rootPath: string): StoredConnection | null {
-  const filePath = connectionPath(rootPath);
-  if (!existsSync(filePath)) return null;
-  try {
-    const stored = storedConnectionSchema.parse(JSON.parse(readFileSync(filePath, "utf8")));
-    validateEndpoint({ name: stored.name, endpoint: stored.endpoint, model: stored.model });
-    return stored;
-  } catch {
-    throw new AiServiceError("The stored AI connection configuration is invalid.");
-  }
-}
-
-function statusFor(stored: StoredConnection): AiConnectionStatus {
-  return aiConnectionStatusSchema.parse({
-    name: stored.name,
-    endpoint: stored.endpoint,
-    model: stored.model,
-  });
-}
-
-function requireStoredConnection(rootPath: string): StoredConnection {
-  const stored = readStoredConnection(rootPath);
-  if (!stored) {
-    throw new AiServiceError("Configure a local AI connection before using AI assistance.");
-  }
-  return stored;
+function requireStoredConnection(rootPath: string): AiConnectionStatus {
+  return requireDefaultAiConnection(rootPath);
 }
 
 export function getAiConnection(rootPath: string): AiConnectionStatus | null {
-  const stored = readStoredConnection(rootPath);
-  return stored ? statusFor(stored) : null;
+  return getDefaultAiConnection(rootPath);
 }
 
 export function saveAiConnection(
   rootPath: string,
   rawInput: AiConnectionInput,
 ): AiConnectionStatus {
-  const input = aiConnectionInputSchema.parse(rawInput);
-  const endpoint = validateEndpoint(input);
-  const stored = storedConnectionSchema.parse({
-    version: 1,
-    name: input.name,
-    endpoint: endpoint.toString().replace(/\/$/, ""),
-    model: input.model,
-  });
-  writeFileSync(connectionPath(rootPath), `${JSON.stringify(stored, null, 2)}\n`, "utf8");
-  return statusFor(stored);
+  return saveDefaultAiConnection(rootPath, aiConnectionInputSchema.parse(rawInput));
 }
 
 interface Projection<T> {

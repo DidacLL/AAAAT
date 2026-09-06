@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import type { AiConnectionDesktopApi } from "../shared/ai-connection-contracts";
 import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
 import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
@@ -25,6 +26,7 @@ const previewUnavailable = async (): Promise<never> => {
 };
 
 function createPreviewApi(): DesktopApi &
+  AiConnectionDesktopApi &
   ArtifactDesktopApi &
   CandidatureSearchDesktopApi &
   TodoDesktopApi &
@@ -92,6 +94,12 @@ function createPreviewApi(): DesktopApi &
       setConcepts: previewUnavailable,
     }),
     candidatureSearch: Object.freeze({ search: async () => [] }),
+    aiConnections: Object.freeze({
+      list: async () => [],
+      save: previewUnavailable,
+      setDefault: previewUnavailable,
+      remove: async () => [],
+    }),
     artifacts: Object.freeze({
       list: async () => [],
       capture: previewUnavailable,
