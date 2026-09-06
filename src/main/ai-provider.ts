@@ -65,7 +65,7 @@ export interface ModelProvider {
     connection: AiConnectionStatus,
     context: ProviderDocumentAiContext,
   ): Promise<CoverLetterDraft>;
-  compareCandidatures(
+  compareCandidatures?(
     connection: AiConnectionStatus,
     context: ProviderCandidatureComparisonContext,
   ): Promise<ProviderCandidatureComparisonResult>;
