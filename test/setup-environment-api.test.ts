@@ -22,6 +22,7 @@ const snapshot = {
       { operation: "variant_recommendation" as const, available: false, connectionName: null },
       { operation: "cv_tailoring" as const, available: false, connectionName: null },
       { operation: "cover_letter_draft" as const, available: false, connectionName: null },
+      { operation: "candidature_comparison" as const, available: false, connectionName: null },
     ],
   },
 };
