@@ -1,19 +1,19 @@
-# Active Mission — Shared setup environment capabilities
+# Active Mission — Free-chat setup guidance
 
-**Active:** [Issue #181](https://github.com/DidacLL/AAAAT/issues/181) on `feature/setup-environment-capabilities`, based on integrated validated AI operation routing `fbd43708367c04885eeb7b4e39bbd7993a08ca5c`.
+**Active:** [Issue #183](https://github.com/DidacLL/AAAAT/issues/183) on `feature/setup-free-chat-guidance`, based on integrated shared setup/environment capabilities `160e2ff4e7ffe3b385e1fe30919608da72d0898b`.
 
 ## Outcome
 
-Expose one read-only structured setup-environment snapshot for the configured workspace so graphical Settings can honestly show current workspace, local TeX and validated AI-operation readiness. Reuse the existing authoritative AI routing state and detect existing TeX tools rather than introducing another configuration store or installer engine.
+Generate copyable `installer.ai` and `configurator.ai` free-chat guidance directly from the existing read-only setup snapshot. Keep the guidance understandable to a non-developer, preserve working local software, preserve complete no-AI use, and make every configuration change remain an explicit user action in normal AAAAT Settings.
 
 ## Boundaries
 
-This slice is status/projection only. Probe only the fixed known `latexmk` and `pdflatex` executables with fixed bounded version arguments and no shell interpolation. Do not install or replace software, edit PATH, expose command/filesystem primitives, generate `installer.ai` / `configurator.ai` artifacts, add remote authentication/provider registries/research, implement configuration import/export, redesign backup/host integration/document rendering, migrate the database or add dependencies.
+This slice is pure guidance/UX inside the existing ADR 0019 environment boundary. It adds no preload/main IPC, filesystem/process/shell authority, installation or configuration mutation, PATH editing, provider/host integration, configuration import/export, research capability, migration or dependency. Generated guidance contains setup readiness/routing facts only: no workspace path, TeX version string, connection name, endpoint/model, durable local ID, or career/application content.
 
-This is Class C because it establishes the shared setup/environment contract across renderer, preload and privileged main-process software detection. ADR 0019 records the read-only snapshot boundary. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if material generic setup abstraction appears.
+This is Class B because it is a local UX/pure-transformation choice inside already-established OWNER_INTENT/SPEC meaning. No new ADR or independent Class C review is required unless implementation expands into a shared or privileged architectural boundary.
 
 ## Evidence and continuation
 
-Issue #179 / PR #180 is integrated at `fbd43708367c04885eeb7b4e39bbd7993a08ca5c`. Verify #431 passed typecheck, lint, 49 test files / 153 active tests, selected Linux packaged build/runtime smoke and the aggregate Verification gate; LaTeX and the broader platform matrix were correctly not selected by impact policy.
+Issue #181 / PR #182 is integrated at `160e2ff4e7ffe3b385e1fe30919608da72d0898b`. Verify #434 passed typecheck, lint, 52 test files / 159 active tests, Windows/macOS/Linux packaged runtime smoke and the aggregate Verification gate; LaTeX portability was correctly not selected.
 
-Next: finish Issue #181, run focused environment service/API/Settings tests plus existing AI connection and LaTeX runner tests and impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.
+Next: finish Issue #183, run focused guidance/UI tests plus normal Verify, correct concrete findings, perform bounded Integrator review, and integrate when accepted.

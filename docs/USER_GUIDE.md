@@ -72,6 +72,8 @@ AAAAT generates portable LaTeX source itself, but local PDF rendering uses TeX t
 
 In **Settings**, **Local setup status** checks the current workspace and whether `latexmk` and `pdflatex` are already available. This check is read-only: AAAAT reuses working tools and does not install packages, replace a TeX distribution, edit `PATH`, or run an arbitrary command supplied by the renderer.
 
+The same Settings area generates copyable `installer.ai` guidance from that status. It tells a free-chat assistant which required TeX tools are available or missing, asks it to preserve working software, and asks for ordinary operating-system-appropriate installation guidance only where needed. The copied prompt does not include the workspace path or detected TeX version strings. AAAAT does not send the prompt automatically.
+
 Install `latexmk` and `pdflatex` if the setup status reports them missing. AAAAT documents target the portable pdfLaTeX/pdfTeX baseline. After installing compatible tools through your normal operating-system or TeX-distribution method, use **Refresh environment** in Settings.
 
 If the tools are missing, AAAAT reports that TeX rendering could not start and identifies `latexmk` and the required engine. The generated source is still user-owned and may be compiled independently with compatible tools after those prerequisites are installed.
@@ -93,6 +95,8 @@ Before using a configured connection for an AI operation, validate that operatio
 Changing a connection's endpoint or model clears its recorded operation validations because the capability boundary changed. A name-only edit keeps them. Removing a connection clears any operation defaults that referenced it. AAAAT never scans other configured connections or falls back to another model automatically.
 
 The same **Local setup status** summarizes how many local AI connections are configured and which of the six current AI operations have a validated route. This is a capability/routing status, not a model-quality score.
+
+Settings also generates copyable `configurator.ai` guidance for a free-chat assistant. It carries only the configured-connection count and validated-route availability, not connection names, endpoints/models, workspace paths, or career/application content. The prompt tells the assistant to keep AI optional, use normal AAAAT Settings, avoid JSON/SQLite editing and invented credentials, and recommend only explicitly validated operation routes. AAAAT never sends this guidance automatically; copying it is an explicit user action.
 
 Only loopback endpoints are accepted by this current user-facing path. Remote authentication and API-key setup are not part of this alpha path.
 
@@ -164,4 +168,4 @@ Activation validates the workspace, executable, manifest, and live MCP tool surf
 
 ## Current alpha limitations
 
-The current release path deliberately does not include code signing/notarization, an updater, an automated GitHub Release publisher, a Windows installer, a macOS DMG, or RPM/AppImage/Snap/Flatpak packages. The current setup status detects existing capabilities but does not yet install software or generate `installer.ai` / `configurator.ai` guidance. Those absences should not be interpreted as hidden features or automatic setup.
+The current release path deliberately does not include code signing/notarization, an updater, an automated GitHub Release publisher, a Windows installer, a macOS DMG, or RPM/AppImage/Snap/Flatpak packages. The current setup status and free-chat guidance detect/explain capabilities but do not install software, edit system configuration, or mutate AAAAT configuration automatically. Those absences should not be interpreted as hidden features or automatic setup.
