@@ -149,6 +149,29 @@ describe("official MCP candidature server", () => {
     }
   });
 
+  it("rejects an empty retained Source before mutation", async () => {
+    const root = temporaryWorkspace();
+    const connection = await connectedClient(root);
+    try {
+      const result = await connection.client.callTool({
+        name: candidatureCreateToolName,
+        arguments: {
+          source: {
+            kind: "other",
+            title: "   ",
+            url: "\t",
+            sourceText: "\n  ",
+          },
+        },
+      });
+      expect(result.isError).toBe(true);
+      expect(listCandidatures(root)).toEqual([]);
+    } finally {
+      await connection.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("rejects missing workspaces and malformed process invocation without creating state", () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-mcp-missing-"));
     try {
