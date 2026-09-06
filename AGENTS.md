@@ -1,40 +1,21 @@
 # AAAAT Agent Instructions
 
-Before working:
+AGENTS.md is the entry point. Before changing AAAAT, read: docs/OWNER_INTENT.md; docs/SPEC.md; .agentic/CONSTITUTION.md; .agentic/CURRENT_MISSION.md; .agentic/ROUTING.md; .agentic/DECISION_POLICY.md; .agentic/REVIEW_POLICY.md; docs/engineering/EXECUTION.md when host, runtime, TeX, or handoff behavior matters; then the active GitHub Issue and relevant accepted ADRs.
 
-1. Read `docs/OWNER_INTENT.md`.
-2. Read `docs/SPEC.md`.
-3. Read `.agentic/CONSTITUTION.md`.
-4. Read `.agentic/CURRENT_MISSION.md`.
-5. Read `.agentic/ROUTING.md`.
-6. Read `.agentic/DECISION_POLICY.md`.
-7. Read `.agentic/REVIEW_POLICY.md`.
-8. Read `docs/engineering/EXECUTION.md` when execution behavior matters.
-9. Read the relevant GitHub Issue and relevant accepted ADRs.
+For product meaning: current Product Owner instruction → OWNER_INTENT → SPEC → Mission/Issue → tests → implementation. For technical architecture inside established product meaning: SPEC → accepted ADRs → contracts → Issue → tests → implementation. Historical v1 material and superseded Issues/PRs are evidence only.
 
-For product meaning, authority is:
+AAAAT has no real-user v2 compatibility baseline. Development databases, fixtures, and earlier development migrations are not user commitments; correct obsolete development schema directly when current product meaning requires it.
 
-`current Product Owner instruction → docs/OWNER_INTENT.md → docs/SPEC.md → CURRENT_MISSION / GitHub Issue → tests → implementation`
+Build only current authority. A Mission selects one bounded capability from the accepted masterplan; it does not define a user workflow or complete the product. Once the scope follows established product meaning, orchestrators may activate the next bounded capability without routine owner approval.
 
-Inside established product meaning, technical architecture is:
+AAAAT remains human-operable without AI. Manual, AAAAT-assisted, and bounded external-AI paths use the same ordinary user-owned information. Generated LaTeX is portable and uses a LaTeX2e API with expl3 internals through pdfLaTeX/pdfTeX. Durable mutations use application services. The Electron renderer stays sandboxed and unprivileged.
 
-`docs/SPEC.md → accepted ADRs → contracts → GitHub Issue → tests → implementation`
+AAAAT protects its own local state through explicit domain data, typed validation, narrow application-service mutation paths, bounded integrations, and process/renderer privilege boundaries. External hosts receive only named demonstrated operations, never generic CRUD, browsing/listing/search/query, arbitrary durable IDs, or a scraping surface. Temporary references exist only within their validated operation scope.
 
-Accepted ADRs remain authoritative for technical architecture only where they do not conflict with higher product authority. Historical v1 material and superseded Issues/PRs are research evidence only.
+Purpose-specific disclosure of permitted career context and AI-visible CV tags/notes is allowed so the chosen assistant can judge suitability; AAAAT does not rank CVs. Further permitted content, contributions and production use named operations. This does not grant candidature-corpus access or generic profile/document browsing. Setup describes actual host access honestly.
 
-AAAAT has not yet established a real-user v2 data-compatibility baseline. Development databases, fixtures, and already-merged development migrations are not user compatibility commitments. Do not preserve rejected or obsolete schema merely because earlier development code created it. Git history preserves engineering evidence. Until the Product Owner explicitly establishes a real-use/release data baseline, correct the development schema directly when current product meaning requires it; do not add compatibility machinery for nonexistent users.
+AAAAT does not own external model reasoning, prompt interpretation, provider internals, network, or research behavior. Provider output is ordinary operation input validated through normal contracts. Do not add AI firewalls, prompt-injection systems, generic model-security/policy engines, or universal approval queues where the ordinary local boundary is sufficient. Privacy projection controls disclosure and may expose, omit, or locally replace values while authoritative literals remain local. Sources are explicit retained objects and enter an operation only when its purpose deliberately scopes them.
 
-Build only what current authority requires. Do not introduce speculative future infrastructure. AAAAT remains fully human-operable without AI; manual, AAAAT-assisted AI, and bounded external-AI paths work with the same user-owned information. Generated LaTeX remains portable. Durable mutations use application services. The Electron renderer remains sandboxed and unprivileged.
+Before completion: run impact-appropriate verification selected by .github/workflows/verify.yml and Issue checks. Verification evidence is reusable across later commits when those commits do not alter the behavior, platform path, fixture contract, environment assumption, or other premise that the evidence proves. A new commit SHA alone never invalidates prior evidence and is not a reason to repeat local/Codex/runtime/visual/package checks. Automatic CI follows the same rule: reuse the latest applicable successful evidence and run only lanes affected since that evidence; do not replay expensive TeX/package/runtime matrices merely because an unrelated or documentation-only commit advanced the PR head. Fall back to broader CI only when no applicable successful evidence exists or the changed surface requires it. Re-run local checks only for affected surfaces or when concrete new evidence creates a specific gap; record reused evidence and why it remains applicable. Obtain independent review; invoke Simplifier for material new complexity; resolve Class A/B/C autonomously after Product Meaning check; escalate unresolved product meaning and Class D only. Do not commit temporary prompts, reports, handoffs, acceptance ledgers, review transcripts, personal data, or private workspace material.
 
-AAAAT keeps its own local state consistent through simple explicit domain/data structures, narrow application-service mutation paths, typed validation, bounded integrations, and the existing process/renderer privilege boundaries. An external host receives only named AAAAT-provided operations for a demonstrated use case, never generic CRUD, entity browsing/listing/search/query, arbitrary entity-ID access, or a scraping surface. AAAAT does not own or secure an external AI model's reasoning, prompt interpretation, provider internals, network, or research behavior. Treat AI/provider output as ordinary operation input and check it through normal domain contracts; do not invent AI-firewall, prompt-injection, token-security, generic policy, or mandatory approval machinery where normal local persistence boundaries already prevent unwanted access. Privacy projection controls disclosure to an operation, not whether a generated value has a special role in the product. It may expose, omit, or locally replace/tokenize a value so that its authoritative literal remains local and can be restored locally where the operation requires it; concrete token mechanics are replaceable implementation details. Sources remain explicit retained domain objects: do not include them implicitly in unrelated operations, but do allow an operation to use explicitly scoped Source material when its product purpose and privacy/context rules require it.
-
-Before completion:
-
-- run the impact-appropriate verification selected by `.github/workflows/verify.yml`;
-- run Issue-specific checks;
-- obtain independent review;
-- invoke the Simplifier for material new complexity;
-- resolve architectural Class A/B/C decisions autonomously only after the Product Meaning check passes;
-- escalate unresolved product meaning and Class D decisions to the Product Owner.
-
-Do not commit temporary prompts, sprint reports, handoffs, acceptance ledgers, generated review transcripts, personal data, or private workspace material.
+Context must survive the conversation and PR. Before a handoff or completion, preserve accepted product meaning and essential examples in OWNER_INTENT, architecture/rationale and required destinations in SPEC or the relevant ADR, and unresolved findings/verification gaps plus the next bounded outcome in CURRENT_MISSION. GitHub comments supplement these files; they must not be the sole record of a decision, correction, blocker or required capability. Update existing sections instead of adding transcripts, duplicate plans or a new ledger. Do not silently drop unfinished requirements when replacing a Mission. Unresolved interpretation is recorded as unresolved, not promoted into owner authority.

@@ -54,7 +54,11 @@ const fields: readonly {
   },
 ];
 
-export function CareerContextPanel() {
+export function CareerContextPanel({
+  onDirtyChange,
+}: {
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [context, setContext] = useState<CareerContext | null>(null);
   const [draft, setDraft] = useState<CareerContext>(emptyContext);
   const [editing, setEditing] = useState(false);
@@ -86,6 +90,11 @@ export function CareerContextPanel() {
   );
 
   const dirty = context ? JSON.stringify(draft) !== JSON.stringify(context) : false;
+
+  useEffect(() => {
+    onDirtyChange?.(editing && dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, editing, onDirtyChange]);
 
   const save = async (event: FormEvent) => {
     event.preventDefault();

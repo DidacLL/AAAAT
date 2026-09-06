@@ -1,33 +1,14 @@
 # Contributing
 
-AAAAT v2 is developed through bounded GitHub Issues and short-lived branches.
+AAAAT v2 is developed through bounded GitHub Issues and short-lived branches. Start with AGENTS.md. The Mission selects a bounded capability from the masterplan and the Issue sets the acceptance boundary. Once product meaning is established, normal work and the next bounded Mission do not need routine owner approval.
 
-Before working, follow [`AGENTS.md`](AGENTS.md), the canonical [`docs/SPEC.md`](docs/SPEC.md), the current Mission, and relevant ADRs. The Issue defines the acceptance boundary; do not expand it with future-Mission scaffolding.
+Use Node 24 and the committed lockfile:
 
-## Toolchain
+    npm ci
+    npm run verify
 
-M0 uses Node 24 and npm with exact dependency pins in `package.json` and `package-lock.json`.
+Run Issue-specific runtime, visual, database, package, or TeX checks when the claim requires them.
 
-Install and verify with:
+Keep manual operation independent from AI, the renderer sandboxed, durable changes in application services, generated LaTeX portable and pdfLaTeX-compatible, and private data outside repository material. Do not add speculative providers, registries, plugins, workflows, services, or nonexistent-user compatibility.
 
-```text
-npm ci
-npm run verify
-```
-
-Run Issue-specific runtime, visual, database, or packaging checks in addition to the fast path when the claim requires them.
-
-## Contribution rules
-
-- Keep manual operation independent from AI.
-- Keep the Electron renderer sandboxed and unprivileged.
-- Route durable mutations through application services.
-- Keep generated LaTeX portable and user-owned.
-- Keep private and personal data outside source, fixtures, screenshots, Issues, and PRs.
-- Use fictional examples only when a behavior test genuinely needs domain data.
-- Do not add speculative providers, registries, plugins, workflows, services, or compatibility layers.
-- Test durable behavior and boundaries, not incidental wording or file layout.
-
-## Pull requests
-
-Use short-lived `agentic/<short-description>` branches unless the active execution surface requires another convention. Describe the result, executable verification, actual limitations, and any Class C ADR. Obtain independent review and resolve blocking findings before integration. When work changes surfaces, use the compact contract in [`docs/engineering/EXECUTION.md`](docs/engineering/EXECUTION.md); do not commit task-specific handoff files.
+Use agentic/<short-description> branches unless the active execution surface requires another convention. PRs state what works, evidence, material limitations, and any Class C ADR. Obtain independent review and resolve blockers. Use docs/engineering/EXECUTION.md for a real cross-surface handoff; do not commit one.

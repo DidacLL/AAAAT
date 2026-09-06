@@ -43,6 +43,7 @@ function record(
   value: number | null,
   archived = false,
   conceptIds: string[] = [],
+  sourceSearchText = "",
 ): CandidatureRecord {
   return {
     id,
@@ -50,6 +51,7 @@ function record(
     createdAt: "2026-09-04T00:00:00.000Z",
     updatedAt: "2026-09-04T00:00:00.000Z",
     label: value === null ? "Sparse candidature" : `Pilot opportunity ${value}`,
+    sourceSearchText,
     values:
       value === null
         ? []
@@ -77,6 +79,13 @@ describe("candidature renderer projection", () => {
     );
     const sparse = record("00000000-0000-4000-8000-000000000411", null);
     const archived = record("00000000-0000-4000-8000-000000000412", 800, true);
+    const sourceOnly = record(
+      "00000000-0000-4000-8000-000000000413",
+      null,
+      false,
+      [],
+      `Recruiter message ${"intro ".repeat(20)}late-source-needle`,
+    );
 
     expect(
       filterCandidatures([active, sparse, archived], [hoursField], [concept], "1500", "active"),
@@ -97,5 +106,14 @@ describe("candidature renderer projection", () => {
     expect(
       filterCandidatures([active, sparse, archived], [hoursField], [concept], "", "archived"),
     ).toEqual([archived]);
+    expect(
+      filterCandidatures(
+        [active, sparse, archived, sourceOnly],
+        [hoursField],
+        [concept],
+        "late-source-needle",
+        "active",
+      ),
+    ).toEqual([sourceOnly]);
   });
 });

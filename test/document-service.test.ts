@@ -84,6 +84,7 @@ function installSlowLatexmk(): void {
   const executable = path.join(root, "latexmk");
   writeFileSync(executable, `#!/usr/bin/env node\nrequire(${JSON.stringify(script)});\n`, "utf8");
   chmodSync(executable, 0o755);
+  writeFileSync(path.join(root, "latexmk.cmd"), `@node "${script}" %*\r\n`, "utf8");
   process.env.PATH = `${root}${path.delimiter}${originalPath ?? ""}`;
 }
 

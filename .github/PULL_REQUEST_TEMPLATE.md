@@ -1,37 +1,38 @@
-## Issue
+## Human summary
 
-Closes #
-
-## Product trace
-
-`docs/OWNER_INTENT.md` section(s), or `no product semantics changed`.
+Now:
+Next:
+Owner attention:
+Evidence:
 
 ## Result
 
 What now works?
 
-## Drift
+## Product trace
 
-- additive:
-- subtractive:
-- prescriptive/restrictive:
+Relevant OWNER_INTENT/SPEC sections, or no product semantics changed.
+
+## Scope and drift
+
+- In scope:
+- Excluded:
+- Additive, subtractive, prescriptive, restrictive, and workflow drift checked:
 
 ## Verification
 
-- [ ] relevant tests
-- [ ] typecheck
-- [ ] lint
-- [ ] GitHub Actions
-- [ ] relevant runtime or visual verification when required
+- [ ] relevant behavior checks
+- [ ] typecheck and lint where applicable
+- [ ] CI
+- [ ] runtime, visual, package, or TeX evidence where claim requires it
 
 ## Architecture
 
 - [ ] Product Meaning check passed
-- [ ] no constitutional change unless explicitly authorized
-- [ ] no speculative subsystem
-- [ ] no duplicate mutation path
-- [ ] no unnecessary dependency
-- [ ] portable outputs remain portable where applicable
+- [ ] no constitutional change without authority
+- [ ] no speculative subsystem or duplicate mutation path
+- [ ] portable output remains portable where applicable
+- [ ] Class C ADR included where required
 
 ## Material notes
 

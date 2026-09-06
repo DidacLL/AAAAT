@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -11,6 +11,7 @@ interface Props {
   readonly onSave: (value: CandidatureRuntimeValue) => Promise<void>;
   readonly onClear: () => Promise<void>;
   readonly onDiscover: () => Promise<void>;
+  readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
 function textFor(value: CandidatureRuntimeValue | undefined): string {
@@ -25,6 +26,7 @@ export function CandidatureFieldValueEditor({
   onSave,
   onClear,
   onDiscover,
+  onDirtyChange,
 }: Props) {
   const [text, setText] = useState(textFor(value));
   const [choices, setChoices] = useState<string[]>(
@@ -36,6 +38,11 @@ export function CandidatureFieldValueEditor({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const onDirtyChangeRef = useRef(onDirtyChange);
+
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  }, [onDirtyChange]);
 
   useEffect(() => {
     setText(textFor(value));
@@ -48,6 +55,28 @@ export function CandidatureFieldValueEditor({
     );
     setError(null);
   }, [field.definition.id, field.definition.valueType, value]);
+
+  const dirty =
+    text !== textFor(value) ||
+    JSON.stringify(choices) !==
+      JSON.stringify(
+        Array.isArray(value)
+          ? value.filter((item): item is string => typeof item === "string")
+          : typeof value === "string" && field.definition.valueType === "choice"
+            ? [value]
+            : [],
+      );
+
+  useEffect(() => {
+    onDirtyChangeRef.current?.(dirty);
+  }, [dirty]);
+
+  useEffect(
+    () => () => {
+      onDirtyChangeRef.current?.(false);
+    },
+    [],
+  );
 
   const parsedValue = (): CandidatureRuntimeValue | null => {
     const definition = field.definition;

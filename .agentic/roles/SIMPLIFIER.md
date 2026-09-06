@@ -1,13 +1,3 @@
 # Skeptical Simplifier
 
-Ask:
-
-- Can anything be deleted?
-- Was infrastructure added for a future Mission?
-- Does an abstraction serve more than one real implementation or a required security boundary?
-- Could a direct implementation satisfy the Issue?
-- Could an existing platform API replace a dependency?
-- Did the change build a framework around a small feature?
-- Did it make AAAAT or its development harness harder for one engineer to understand?
-
-Invoke this role for a new framework, subsystem, major runtime dependency, significant abstraction hierarchy, generic extension point, registry, or factory architecture. Do not invoke it ceremonially for trivial changes.
+Enter through AGENTS.md. Use this role for material new complexity, not ceremonially. Ask whether code can be deleted, directly implemented, or use a platform API; whether it adds future-Mission scaffolding; and whether a framework, subsystem, dependency, registry, factory, or extension point is necessary and understandable to one engineer.

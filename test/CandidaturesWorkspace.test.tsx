@@ -6,6 +6,7 @@ import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
+  ConceptRecord,
   DesktopApi,
 } from "../src/shared/contracts";
 
@@ -76,6 +77,19 @@ const workModes: CandidatureFieldConfiguration = {
   },
 };
 
+const conceptA: ConceptRecord = {
+  id: "00000000-0000-4000-8000-000000000508",
+  name: "Platform",
+  definition: "Platform engineering",
+  aliases: [],
+};
+const conceptB: ConceptRecord = {
+  id: "00000000-0000-4000-8000-000000000509",
+  name: "Reliability",
+  definition: "Reliable systems",
+  aliases: [],
+};
+
 function record(values: CandidatureRecord["values"]): CandidatureRecord {
   return {
     id: candidatureId,
@@ -83,6 +97,7 @@ function record(values: CandidatureRecord["values"]): CandidatureRecord {
     createdAt: "2026-09-04T00:00:00.000Z",
     updatedAt: "2026-09-04T00:00:00.000Z",
     label: "Regional Air",
+    sourceSearchText: "",
     values,
     documentIds: [],
     conceptIds: [],
@@ -99,6 +114,7 @@ const retainedOrganisation = {
 
 const list = vi.fn();
 const listFields = vi.fn();
+const listConcepts = vi.fn();
 const createField = vi.fn();
 const setFieldValue = vi.fn();
 const filter = vi.fn();
@@ -106,6 +122,7 @@ const filter = vi.fn();
 function installApi(initial: CandidatureRecord) {
   list.mockResolvedValue([initial]);
   listFields.mockResolvedValue([organisation, hours, workModes]);
+  listConcepts.mockResolvedValue([]);
   createField.mockImplementation(async (input) => ({
     ...field("00000000-0000-4000-8000-000000000507", input.label, input.valueType, false),
     definition: {
@@ -148,7 +165,7 @@ function installApi(initial: CandidatureRecord) {
       updateSource: vi.fn(),
       removeSource: vi.fn(),
       setDocuments: vi.fn(),
-      listConcepts: vi.fn().mockResolvedValue([]),
+      listConcepts,
       createConcept: vi.fn(),
       updateConcept: vi.fn(),
       setConcepts: vi.fn(),
@@ -227,6 +244,72 @@ describe("candidature progressive information workspace", () => {
       choices: [],
       enabled: true,
     });
+  });
+
+  it("keeps an unsaved add-value draft when changing the selected field is declined", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+    await screen.findByRole("region", { name: "Candidature Focus" });
+    await user.click(screen.getByRole("tab", { name: "Information" }));
+    await user.click(screen.getByText("+ Add information"));
+
+    const fieldSelect = screen.getByLabelText("Existing field");
+    await user.selectOptions(fieldSelect, hoursId);
+    const input = screen.getByRole("spinbutton");
+    await user.type(input, "1500");
+    await user.selectOptions(fieldSelect, workModesId);
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved information value edits?");
+    expect(fieldSelect).toHaveValue(hoursId);
+    expect(screen.getByRole("spinbutton")).toHaveValue(1500);
+  });
+
+  it("keeps a managed field draft when switching field editors is declined", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+    await screen.findByRole("region", { name: "Candidature Focus" });
+    await user.click(screen.getByRole("tab", { name: "Information" }));
+    await user.click(screen.getByText("Manage candidature fields"));
+
+    const management = screen.getByText("Manage candidature fields").parentElement;
+    if (!management) throw new Error("Field management surface missing");
+    const managementField = within(management).getByLabelText("Field");
+    await user.selectOptions(managementField, organisationId);
+    const label = within(management).getByLabelText("Label");
+    await user.clear(label);
+    await user.type(label, "Unsaved organisation label");
+    await user.selectOptions(managementField, hoursId);
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved field definition or behavior edits?");
+    expect(managementField).toHaveValue(organisationId);
+    expect(within(management).getByLabelText("Label")).toHaveValue("Unsaved organisation label");
+  });
+
+  it("keeps a concept draft when switching or cancelling the concept editor is declined", async () => {
+    listConcepts.mockResolvedValueOnce([conceptA, conceptB]);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+    await screen.findByRole("region", { name: "Candidature Focus" });
+    await user.click(screen.getByRole("tab", { name: "Concepts" }));
+
+    const editConcepts = screen.getAllByRole("button", { name: "Edit concept" });
+    const firstConcept = editConcepts[0];
+    const secondConcept = editConcepts[1];
+    if (!firstConcept || !secondConcept) throw new Error("Concept edit controls missing");
+    await user.click(firstConcept);
+    const conceptName = screen.getByLabelText("Name");
+    await user.clear(conceptName);
+    await user.type(conceptName, "Unsaved platform concept");
+    await user.click(secondConcept);
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved concept edits?");
+    expect(screen.getByLabelText("Name")).toHaveValue("Unsaved platform concept");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText("Name")).toHaveValue("Unsaved platform concept");
   });
 
   it("delegates field filtering by stable runtime field ID and operator", async () => {

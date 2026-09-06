@@ -2,17 +2,14 @@ import { createReadStream, createWriteStream } from "node:fs";
 
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { z } from "zod";
 
-import { candidatureInputSchema } from "../shared/contracts";
-import { listCandidatureFields } from "./candidature-field-service";
+import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
 import { createCandidature } from "./candidature-service";
 import { openWorkspace } from "./workspace";
 
 const mcpFlag = "--mcp";
 const workspaceFlag = "--workspace";
 export const candidatureCreateToolName = "candidature_create";
-export const candidatureFieldsListToolName = "candidature_fields_list";
 
 function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
@@ -38,41 +35,15 @@ function createServerForWorkspace(rootPath: string): McpServer {
   const server = new McpServer({ name: "aaaat", version: "2.0.0-alpha.0" });
 
   server.registerTool(
-    candidatureFieldsListToolName,
-    {
-      description: "List enabled candidature information fields for bounded external input.",
-      inputSchema: z.object({}).strict(),
-    },
-    async () => {
-      const fields = listCandidatureFields(rootPath)
-        .filter((field) => field.definition.enabled)
-        .map((field) => ({
-          id: field.definition.id,
-          label: field.definition.label,
-          description: field.definition.description,
-          valueType: field.definition.valueType,
-          cardinality: field.definition.cardinality,
-          choices: field.definition.choices,
-        }));
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({ fields }),
-          },
-        ],
-      };
-    },
-  );
-
-  server.registerTool(
     candidatureCreateToolName,
     {
-      description: "Create one new candidature in the configured AAAAT workspace.",
-      inputSchema: candidatureInputSchema,
+      description:
+        "Create one new candidature from one retained Source in the configured AAAAT workspace.",
+      inputSchema: externalCandidatureCreateInputSchema,
     },
     async (input) => {
-      createCandidature(rootPath, input);
+      const parsed = externalCandidatureCreateInputSchema.parse(input);
+      createCandidature(rootPath, { source: parsed.source, values: [] });
       return {
         content: [
           {

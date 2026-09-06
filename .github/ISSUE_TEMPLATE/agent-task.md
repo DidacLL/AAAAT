@@ -1,30 +1,25 @@
 ---
 name: Agent task
-about: Bounded implementation or engineering task for the active Mission
+about: Bounded implementation or engineering task for the active AAAAT Mission
 title: ""
 labels: ""
 assignees: ""
 ---
 
+# Human summary
+
+Now:
+Next:
+Owner attention:
+Evidence:
+
 # Goal
 
-What must work when this Issue is complete?
+One observable outcome.
 
-# Mission
+# Authority and Mission
 
-M#
-
-# Owner intent
-
-Relevant `docs/OWNER_INTENT.md` section(s), or `no product semantics changed`.
-
-# User-visible capability
-
-What becomes possible for the user?
-
-# Not implied
-
-Important product/workflow assumptions this Issue does not establish.
+Relevant OWNER_INTENT/SPEC sections, active Mission, dependencies, and accepted ADRs.
 
 # In scope
 
@@ -34,22 +29,18 @@ Important product/workflow assumptions this Issue does not establish.
 
 -
 
-# Contracts
-
-Existing contracts consumed or intentionally changed.
-
 # Acceptance evidence
 
 -
 
-# Execution lane
-
-Repository-shell / GitHub-coordination / Either
-
-# Handoff evidence
-
-Exact branch, commit, completed checks, remaining actions, and recovery constraint. Use `docs/engineering/EXECUTION.md`; do not add a task-specific handoff file.
-
 # Decision class
 
-A / B / C, after the Product Meaning check in `.agentic/DECISION_POLICY.md`.
+A / B / C after Product Meaning check, or owner decision required.
+
+# Execution and return
+
+Route: ChatGPT Classic / Codex Terra / Codex Astra / Owner
+Required checks:
+Return: branch/commit, check conclusions, review findings, blockers.
+
+Do not create task-specific handoff files. Use docs/engineering/EXECUTION.md for real cross-surface transport.

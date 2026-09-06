@@ -329,7 +329,6 @@ test("packaged desktop preserves security gates and required bounded capabilitie
             url: "",
             sourceText: "private smoke source",
           },
-          values: [],
         }),
         encoding: "utf8",
         timeout: 5_000,

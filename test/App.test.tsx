@@ -130,4 +130,49 @@ describe("AAAAT workspace state", () => {
     expect(screen.getByRole("button", { name: "Choose another workspace" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
   });
+
+  it("keeps a dirty profile editor mounted when top-level navigation is cancelled", async () => {
+    current.mockResolvedValueOnce(readyWorkspace);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Profile" }));
+    await user.type(await screen.findByLabelText("Title"), "Unsaved profile item");
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and leave this workspace area?");
+    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved profile item");
+    expect(screen.queryByRole("heading", { name: "Documents" })).not.toBeInTheDocument();
+  });
+
+  it("does not open the workspace picker while an editor discard is cancelled", async () => {
+    current.mockResolvedValueOnce(readyWorkspace);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Profile" }));
+    await user.type(await screen.findByLabelText("Title"), "Unsaved profile item");
+    await user.click(screen.getByRole("button", { name: "Choose another workspace" }));
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and switch workspaces?");
+    expect(choose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved profile item");
+  });
+
+  it("keeps a draft mounted when the workspace picker is cancelled after confirmation", async () => {
+    current.mockResolvedValueOnce(readyWorkspace);
+    choose.mockResolvedValueOnce(null);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Profile" }));
+    await user.type(await screen.findByLabelText("Title"), "Draft retained after picker cancel");
+    await user.click(screen.getByRole("button", { name: "Choose another workspace" }));
+
+    expect(choose).toHaveBeenCalledWith("create");
+    expect(await screen.findByLabelText("Title")).toHaveValue("Draft retained after picker cancel");
+  });
 });

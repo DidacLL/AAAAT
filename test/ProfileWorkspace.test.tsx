@@ -138,4 +138,29 @@ describe("manual profile workspace", () => {
     expect(screen.getByLabelText("Name")).toHaveValue("New focus");
     expect(screen.getByLabelText("Focus")).toHaveValue("Unsaved new variant");
   });
+
+  it("keeps canonical item edits when switching editors or cancelling is declined", async () => {
+    current.mockResolvedValueOnce(canonicalProfile);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<ProfileWorkspace />);
+    await screen.findByText("Canonical summary");
+
+    const editButtons = screen.getAllByRole("button", { name: "Edit" });
+    const firstEdit = editButtons[0];
+    const secondEdit = editButtons[1];
+    if (!firstEdit || !secondEdit) throw new Error("Expected profile item edit controls");
+    await user.click(firstEdit);
+    const title = screen.getByLabelText("Title");
+    await user.clear(title);
+    await user.type(title, "Unsaved canonical edit");
+
+    await user.click(secondEdit);
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved profile item edits?");
+    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved canonical edit");
+
+    await user.click(screen.getByRole("button", { name: "Cancel edit" }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved canonical edit");
+  });
 });

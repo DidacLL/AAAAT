@@ -100,7 +100,11 @@ function operatorLabel(operator: CandidatureFilterOperator): string {
   return operator.replaceAll("_", " ");
 }
 
-export function CandidaturesWorkspace() {
+export function CandidaturesWorkspace({
+  onDirtyChange,
+}: {
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -133,6 +137,7 @@ export function CandidaturesWorkspace() {
   const [filterValue, setFilterValue] = useState("");
   const [filterChoiceValues, setFilterChoiceValues] = useState<string[]>([]);
   const [fieldMatches, setFieldMatches] = useState<ReadonlySet<string> | null>(null);
+  const [valueEditorDirty, setValueEditorDirty] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const selected = records.find((record) => record.id === selectedId) ?? null;
@@ -149,6 +154,35 @@ export function CandidaturesWorkspace() {
     ? JSON.stringify({ ...conceptDraft, aliases: aliasesFromText(aliasesText) }) !==
       JSON.stringify(persistedConcept ? conceptInput(persistedConcept) : emptyConcept)
     : false;
+  const newFieldDirty =
+    newFieldLabel.length > 0 ||
+    newFieldDescription.length > 0 ||
+    newFieldType !== "text" ||
+    newFieldCardinality !== "one" ||
+    newChoiceLabels.length > 0;
+  const editedField = fields.find((field) => field.definition.id === fieldEditorId);
+  const fieldDefinitionDirty =
+    editedField !== undefined &&
+    fieldDraft !== null &&
+    JSON.stringify(fieldDraft) !== JSON.stringify(fieldUpdate(editedField));
+  const fieldPreferencesDirty =
+    editedField !== undefined &&
+    preferencesDraft !== null &&
+    JSON.stringify(preferencesDraft) !== JSON.stringify(preferenceUpdate(editedField));
+  const hasUnsavedChanges =
+    sourceDirty ||
+    conceptSelectionDirty ||
+    conceptEditorDirty ||
+    documentSelectionDirty ||
+    newFieldDirty ||
+    fieldDefinitionDirty ||
+    fieldPreferencesDirty ||
+    valueEditorDirty.size > 0;
+
+  useEffect(() => {
+    onDirtyChange?.(hasUnsavedChanges);
+    return () => onDirtyChange?.(false);
+  }, [hasUnsavedChanges, onDirtyChange]);
 
   const loadRecords = useCallback(async () => {
     const nextRecords = await window.aaaat.candidatures.list();
@@ -214,8 +248,32 @@ export function CandidaturesWorkspace() {
   };
 
   const confirmDiscard = () =>
-    (!sourceDirty && !conceptSelectionDirty && !conceptEditorDirty && !documentSelectionDirty) ||
-    window.confirm("Discard unsaved Source, concept, or document changes?");
+    !hasUnsavedChanges || window.confirm("Discard unsaved candidature edits?");
+  const confirmConceptEditorDiscard = () =>
+    !conceptEditorDirty || window.confirm("Discard unsaved concept edits?");
+  const confirmFieldEditorDiscard = () =>
+    (!fieldDefinitionDirty && !fieldPreferencesDirty) ||
+    window.confirm("Discard unsaved field definition or behavior edits?");
+  const confirmAddValueDiscard = () =>
+    !addFieldId ||
+    !valueEditorDirty.has(addFieldId) ||
+    window.confirm("Discard unsaved information value edits?");
+
+  const setEditorDirty = (fieldId: string, dirty: boolean) => {
+    setValueEditorDirty((current) => {
+      if (current.has(fieldId) === dirty) return current;
+      const next = new Set(current);
+      if (dirty) next.add(fieldId);
+      else next.delete(fieldId);
+      return next;
+    });
+  };
+
+  const selectAddField = (fieldId: string) => {
+    if (fieldId === addFieldId) return;
+    if (!confirmAddValueDiscard()) return;
+    setAddFieldId(fieldId);
+  };
 
   const switchSection = (next: CandidatureSection) => {
     if (next === section) return;
@@ -246,6 +304,7 @@ export function CandidaturesWorkspace() {
 
   const setArchived = async (archived: boolean) => {
     if (!selected) return;
+    if (!confirmDiscard()) return;
     setError(null);
     try {
       storeRecord(await window.aaaat.candidatures.update({ id: selected.id, archived }));
@@ -299,6 +358,7 @@ export function CandidaturesWorkspace() {
 
   const createField = async () => {
     if (!newFieldLabel.trim()) return;
+    if (!confirmAddValueDiscard() || !confirmFieldEditorDiscard()) return;
     setError(null);
     try {
       const choices =
@@ -333,6 +393,8 @@ export function CandidaturesWorkspace() {
   };
 
   const chooseFieldEditor = (fieldId: string) => {
+    if (fieldId === fieldEditorId) return;
+    if (!confirmFieldEditorDiscard()) return;
     setFieldEditorId(fieldId);
     const field = fields.find((candidate) => candidate.definition.id === fieldId);
     setFieldDraft(field ? fieldUpdate(field) : null);
@@ -475,6 +537,7 @@ export function CandidaturesWorkspace() {
   };
 
   const startNewConcept = () => {
+    if (!confirmConceptEditorDiscard()) return;
     setConceptEditorOpen(true);
     setEditingConceptId(null);
     setConceptDraft(emptyConcept);
@@ -482,12 +545,19 @@ export function CandidaturesWorkspace() {
   };
 
   const chooseConceptForEdit = (conceptId: string) => {
+    if (conceptId === editingConceptId) return;
+    if (!confirmConceptEditorDiscard()) return;
     const concept = concepts.find((candidate) => candidate.id === conceptId);
     if (!concept) return;
     setConceptEditorOpen(true);
     setEditingConceptId(concept.id);
     setConceptDraft(conceptInput(concept));
     setAliasesText(concept.aliases.join(", "));
+  };
+
+  const cancelConceptEditor = () => {
+    if (!confirmConceptEditorDiscard()) return;
+    resetConceptEditor();
   };
 
   const handleSourcesChanged = useCallback(async () => {
@@ -739,6 +809,7 @@ export function CandidaturesWorkspace() {
                                 onSave={(value) => setValue(field.definition.id, value)}
                                 onClear={() => clearValue(field.definition.id)}
                                 onDiscover={() => discoverValue(field.definition.id)}
+                                onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
                               />
                             </article>
                           );
@@ -751,7 +822,7 @@ export function CandidaturesWorkspace() {
                       {enabledMissingFields.length > 0 ? (
                         <label>
                           Existing field
-                          <select value={addFieldId} onChange={(event) => setAddFieldId(event.target.value)}>
+                          <select value={addFieldId} onChange={(event) => selectAddField(event.target.value)}>
                             <option value="">Choose information…</option>
                             {enabledMissingFields.map((field) => (
                               <option key={field.definition.id} value={field.definition.id}>
@@ -773,6 +844,7 @@ export function CandidaturesWorkspace() {
                           }}
                           onClear={async () => setAddFieldId("")}
                           onDiscover={() => discoverValue(addField.definition.id)}
+                          onDirtyChange={(dirty) => setEditorDirty(addField.definition.id, dirty)}
                         />
                       ) : null}
 
@@ -951,7 +1023,7 @@ export function CandidaturesWorkspace() {
                         <label>Definition<textarea rows={4} value={conceptDraft.definition} onChange={(event) => setConceptDraft({ ...conceptDraft, definition: event.target.value })} /></label>
                         <div className="button-row">
                           <button type="button" disabled={!conceptEditorDirty} onClick={() => void saveConcept()}>{editingConceptId ? "Save concept" : "Create concept"}</button>
-                          <button type="button" className="compact-secondary" onClick={resetConceptEditor}>Cancel</button>
+                          <button type="button" className="compact-secondary" onClick={cancelConceptEditor}>Cancel</button>
                         </div>
                       </div>
                     ) : null}

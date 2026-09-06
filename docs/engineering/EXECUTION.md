@@ -1,97 +1,35 @@
 # Execution and delegation guide
 
-This file is advisory and non-authoritative. It records reproducible execution quirks and the minimum handoff format for changing engineering surfaces. It may not change the SPEC, Constitution, Mission, Issue boundary, product contract, or decision class.
+This guide is advisory and non-authoritative. It cannot change product authority, SPEC, Constitution, Mission, Issue boundary, or decision class.
 
-## Current execution split
+Current advisory routing: ChatGPT Classic for bounded GitHub work, CI, documentation, and independent review; Codex Terra for local runtime/package/Electron/browser/TeX/PDF/environment proof; Codex Astra for critical product interpretation and cross-domain architecture; Owner for unresolved product meaning or Class D only.
 
-Current tool mapping:
+A host with broad screen, filesystem, or shell access is a user-chosen trust boundary outside AAAAT's application-level privacy projection. Setup and handoffs must describe that access honestly.
 
-- **ChatGPT Classic + GitHub + GitHub Actions:** normal engineering lane for requirements interpretation, bounded repository changes, source review, documentation, Issue/PR administration, independent review publication, CI inspection, and merge/lifecycle work when local interactive execution is not required.
-- **Codex desktop:** execution-heavy lane for work whose acceptance evidence materially requires a local repository/worktree, shell commands, dependency installation, Electron/native runtime startup, packaging, browser interaction, visual inspection, TeX/PDF execution, filesystem/process integration, or iterative environment-specific debugging.
+Verification evidence is impact-scoped, not commit-SHA-scoped. A successful command, runtime/package/visual/TeX check remains valid for later commits when intervening changes cannot affect the tested behavior, platform path, fixture contract, environment assumption, or other premise that the evidence proves. Exact-head parity alone is not a reason to rerun it, and handoffs/reviews must not ask the owner to spend Codex/local execution reproducing unaffected evidence. When reusing evidence, cite the originating SHA/check and state why intervening changes are non-impacting. Fresh evidence is required only for affected surfaces or a concrete unexplained gap.
 
-Do not choose Codex merely because it is already active or capable of ordinary repository work. Select it when the Issue requires local, interactive, native, browser, visual, or similarly execution-heavy evidence. Return bounded commits and evidence to the normal GitHub/CI/review lane after that need is satisfied.
+Automatic CI obeys the same rule. For an updated PR, classify changes from the latest successful Verify ancestor whose evidence remains reachable, not blindly from the PR base on every synchronize event. Run only the fast, LaTeX, Linux package/runtime, or full cross-platform package/runtime lanes affected since that evidence. Documentation-only and unrelated updates must not replay expensive matrices. If no reusable successful Verify ancestor exists, fall back to the full PR diff. Workflow-orchestration changes do not by themselves imply application/package impact; select additional lanes only when the changed CI logic actually changes how that lane is built or proved. Do not allocate Windows/macOS/package runners merely to emit placeholder status contexts when the lane is not selected. Branch protection should require the aggregate `Verification gate`, which fails when any selected lane fails and accepts unselected lanes only through the evidence-reuse rule; it should not require each expensive platform lane on every commit.
 
-This mapping records current economics and tool access, not AAAAT architecture or provider authority. A later capable surface may fill either lane without changing the product or harness.
+At a real handoff, lead with:
 
-## Standard handoff contract
+Now: what works or was corrected.
+Next: bounded outcome and destination.
+Owner attention: none, or one concrete decision.
+Evidence: Issue/PR and verification result.
 
-Do not create a new handoff file for each task. Pass one bounded message containing:
+Then send exactly:
 
-```text
 Repository: owner/name
-Authority: SPEC, current Mission, accepted ADRs, and Issue URL
+Authority: OWNER_INTENT, SPEC, current Mission, accepted ADRs, Issue URL
 Goal: one observable outcome
-Base and branch: exact refs; never rewrite protected or recovery history
-In scope: smallest complete work
-Out of scope: explicit exclusions
-Evidence already produced: commands, commits, and artifacts
-Remaining actions: exact GitHub or review operations
-Required checks: named checks and runtime evidence
+Base and branch: exact refs; preserve reachable history
+In scope / out of scope: smallest complete work and exclusions
+Evidence already produced: commits, checks, artifacts, conclusions
+Required checks: only checks not already satisfied by still-applicable evidence, plus any newly affected runtime/visual/package evidence
 Return: URLs, commit SHA, check conclusions, review findings, merge SHA, blockers
-Recovery rule: preserve main, tags, and reachable commits; no force-push or history deletion
-```
 
-The recipient must inspect the named Issue and branch rather than infer state from the handoff. It must not broaden scope, create a repository task database, or commit prompts, transcripts, acceptance ledgers, or coordination reports.
+Recipients inspect current Issue and branch state before acting. Do not commit task-specific handoffs, task databases, transcripts, acceptance ledgers, or reports.
 
-## Windows mapped-drive working directory
+Current mapped-drive note: use exact absolute paths and PowerShell LiteralPath; use a per-command Git safe.directory setting if ownership differs; verify location before relative mutation. Retire these host workarounds when the workspace is honored normally.
 
-- **Applies to:** the 2026-09-02 Codex desktop sandbox with this repository on `V:`.
-- **Symptom:** shell commands supplied with the repository `workdir` started in `C:\`.
-- **Safe workaround:** use exact absolute paths, PowerShell `-LiteralPath`, and `git -C <exact-repository>`; verify location before a relative mutation.
-- **Avoid:** recursive relative search or mutation before location is confirmed.
-- **Retire when:** the execution host reliably honors the mapped-drive working directory.
-
-## Patch helper on the mapped drive
-
-- **Evidence date:** 2026-09-02.
-- **Symptom:** the patch helper refused the repository because its path crosses the mapped-drive reparse boundary; `git apply` also could not match LF worktree content through PowerShell's CRLF pipeline.
-- **Safe workaround:** stage the bounded path, create the desired blob through `git hash-object`, update that exact index entry, and materialize it with `git checkout-index`; inspect the staged diff immediately.
-- **Avoid:** broad recursive rewrites, untracked temporary source copies, or bypassing Git recovery.
-- **Retire when:** the patch helper accepts the mapped workspace directly.
-
-## Git ownership under the managed sandbox identity
-
-- **Applies to:** Git commands executed as a sandbox identity different from the desktop owner.
-- **Symptom:** Git reports dubious repository ownership.
-- **Safe workaround:** use `git -c safe.directory=<exact-repository> -C <exact-repository> ...` per invocation.
-- **Verification:** the command succeeds without changing global configuration.
-- **Avoid:** a global wildcard `safe.directory` exception.
-- **Retire when:** repository ownership and execution identity match or the host handles the boundary safely.
-
-## GitHub coordination tools
-
-- **Evidence date:** 2026-09-02.
-- **Observed:** `gh` is not installed. The current Codex GitHub connector does not expose every repository-administration operation.
-- **Safe workaround:** send the standard handoff to ChatGPT Classic with the full-permissions GitHub connector for unsupported lifecycle and metadata operations.
-- **Avoid:** duplicating Issues or milestones in `.agentic/STATE.json` or another local task database.
-- **Retire when:** the active execution surface exposes all required GitHub operations.
-
-## Mapped-drive Playwright command shim
-
-- **Evidence date:** 2026-09-02.
-- **Symptom:** an npm script that invokes the Playwright command shim may fail before discovery with a Windows filename or volume-label error on the mapped workspace, while the same CLI and config succeed with absolute paths.
-- **Safe workaround:** invoke the project Playwright CLI with the active Node executable and absolute CLI/config paths. Keep the portable npm script unchanged for ordinary shells and GitHub Actions.
-- **Avoid:** weakening packaged Electron fuses to make Playwright's Node-inspector launcher work; the packaged smoke attaches to a temporary Chromium debugging endpoint instead.
-- **Retire when:** package scripts reliably inherit the mapped workspace as their process directory.
-
-## npm version identity
-
-- **Evidence date:** 2026-09-02.
-- **Observed:** the exact npm executable reports npm 11.12.1, while inherited user-agent metadata makes npm engine diagnostics and Forge display npm 8.13.1.
-- **Safe workaround:** trust the invoked executable plus the lockfile, use `npm ci`, and let CI provision Node/npm independently. Do not relax the repository engine range to match stale metadata.
-- **Retire when:** the host no longer injects stale npm user-agent metadata.
-
-## PowerShell npm wrapper
-
-- **Applies when:** the `npm.ps1` wrapper touches inaccessible user-scoped paths or script policy blocks it.
-- **Safe workaround:** invoke `npm.cmd` directly and verify the same package-lock-based command.
-- **Avoid:** disabling system-wide PowerShell security policy for one repository.
-- **Retire when:** the wrapper executes normally in the active host.
-
-## Bundled skill validator dependency
-
-- **Evidence date:** 2026-09-02.
-- **Symptom:** `skill-creator/scripts/quick_validate.py` is available, but its bundled Python runtime may not include PyYAML and fails with `ModuleNotFoundError: yaml`.
-- **Safe workaround:** install a pinned PyYAML wheel into an ignored workspace-temporary target, add that target to `sys.path` only for the validator process, run validation, verify the result, then remove the temporary target.
-- **Avoid:** changing global Python packages or silently skipping validation.
-- **Retire when:** the active validator runtime includes its declared dependency.
+For delegation to Classic, the owner carries the exact prompt to a separate chat and brings back the result. Publish a concrete reviewable GitHub scope before handing off. Codex subagents still consume the Codex allowance; do not substitute them for this transport or start them without an explicit request for Codex subagents. Transport is not product approval or a demand for owner QA.

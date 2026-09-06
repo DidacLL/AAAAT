@@ -259,13 +259,16 @@ describe("candidature information service", () => {
         kind: first.kind,
         title: "Recruiter follow-up",
         url: first.url,
-        sourceText: "The role includes a simulator assessment.",
+        sourceText: `${"Earlier source context. ".repeat(8)}The late retained source phrase is searchable.`,
       });
       expect(listCandidatureSources(root, candidature.id)[0]).toMatchObject({
         id: first.id,
         title: "Recruiter follow-up",
-        sourceText: "The role includes a simulator assessment.",
+        sourceText: expect.stringContaining("The late retained source phrase is searchable."),
       });
+      expect(
+        listCandidatures(root).find((record) => record.id === candidature.id)?.sourceSearchText,
+      ).toContain("The late retained source phrase is searchable.");
 
       removeCandidatureSource(root, {
         candidatureId: candidature.id,

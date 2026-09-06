@@ -69,7 +69,7 @@ function initializeWorkspaceFixture(root: string): void {
   }
 }
 
-test("packaged executable exposes bounded live-field catalogue and sparse candidature creation over MCP stdio", async () => {
+test("packaged executable exposes source-only candidature creation over MCP stdio", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-mcp-"));
   initializeWorkspaceFixture(root);
   const transport = new StdioClientTransport({
@@ -82,29 +82,9 @@ test("packaged executable exposes bounded live-field catalogue and sparse candid
   try {
     await client.connect(transport);
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toEqual(
-      expect.arrayContaining(["candidature_fields_list", "candidature_create"]),
-    );
-
-    const catalogueResult = await client.callTool({
-      name: "candidature_fields_list",
-      arguments: {},
-    });
-    expect(catalogueResult.isError).not.toBe(true);
-    const catalogueContent = catalogueResult.content[0];
-    if (!catalogueContent || catalogueContent.type !== "text") {
-      throw new Error("Packaged MCP catalogue result is not text content.");
-    }
-    const catalogue = JSON.parse(catalogueContent.text) as {
-      fields: Array<{ id: string; label: string; valueType: string; cardinality: string }>;
-    };
-    expect(catalogue.fields.length).toBeGreaterThan(0);
-    expect(catalogue.fields[0]).toMatchObject({
-      id: expect.any(String),
-      label: expect.any(String),
-      valueType: expect.any(String),
-      cardinality: expect.any(String),
-    });
+    const names = tools.tools.map((tool) => tool.name);
+    expect(names).toContain("candidature_create");
+    expect(names).not.toContain("candidature_fields_list");
 
     const result = await client.callTool({
       name: "candidature_create",
@@ -115,7 +95,6 @@ test("packaged executable exposes bounded live-field catalogue and sparse candid
           url: "",
           sourceText: "private packaged MCP source",
         },
-        values: [],
       },
     });
     expect(result.isError).not.toBe(true);

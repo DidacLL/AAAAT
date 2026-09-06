@@ -827,21 +827,21 @@ export async function renderDocument(
   activeRenders.add(paths.projectPath);
 
   try {
-    const document = prepareProject(rootPath, documentId);
+    prepareProject(rootPath, documentId);
     mkdirSync(path.dirname(paths.artifactPath), { recursive: true });
     try {
-      await runLatexmk(paths.projectPath, document.engine, timeoutMs);
+      await runLatexmk(paths.projectPath, timeoutMs);
     } catch (error) {
       if (error instanceof LatexRunnerError) {
         throw new DocumentServiceError(
-          `${error.message} Check that latexmk and ${document.engine} are installed and compatible.`,
+          `${error.message} Check that latexmk and pdflatex are installed and compatible.`,
         );
       }
       throw error;
     }
     if (!existsSync(paths.artifactPath)) {
       throw new DocumentServiceError(
-        `TeX rendering failed. Check that latexmk and ${document.engine} are installed and compatible.`,
+        `TeX rendering failed. Check that latexmk and pdflatex are installed and compatible.`,
       );
     }
     withWorkspaceDatabase(rootPath, (database) => {

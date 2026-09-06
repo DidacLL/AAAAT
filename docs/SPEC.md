@@ -1,4 +1,8 @@
-# AAAAT v2 Specification
+# AAAAT v2 — Master architecture
+
+**Owner summary:** Keep v2 and correct its direction. Reconcile authority and the harness, correct confirmed disclosure and data-loss defects, then complete the required capabilities below through small usable slices. Earlier technical checkpoints do not prove the whole product complete.
+
+This is the single masterplan. [OWNER_INTENT.md](OWNER_INTENT.md) defines product meaning; [CURRENT_MISSION.md](../.agentic/CURRENT_MISSION.md) identifies the one active capability and its GitHub work. Destinations here are required outcomes, not pre-created work packages or a prescribed user workflow.
 
 ## Status and authority
 
@@ -21,7 +25,9 @@ Historical AAAAT v1 material is product-research evidence only. It does not defi
 
 ## Product definition
 
-AAAAT is a private, local career/application information workspace and application-artifact generator whose purpose is convenience.
+AAAAT is a private local workspace for capturing, maintaining, retrieving, and reusing career and opportunity information, and for creating application documents. It makes these activities convenient through a coherent graphical experience and optional integration with the user's chosen AI.
+
+AAAAT supplies context and dependable operations; the user or their chosen AI supplies judgment and intelligence. “Specific RAG + orchestrator” describes this role; it does not prescribe a vector database, agent loop, workflow engine or general retrieval platform.
 
 It helps users capture information with little effort, structure it when useful, edit it, retrieve it quickly, reuse it across candidatures and documents, and generate application material while retaining local control.
 
@@ -230,18 +236,24 @@ VCVGenerator remains usable without AI and without a candidature.
 The normal managed-document path is:
 
 ```text
-canonical professional data
-→ named profile variant
-→ document-specific rules
-→ editable document model
-→ portable LaTeX project
-→ standard TeX engine
-→ local artifact
+canonical professional data + optional variant + document-specific content
+→ resolved editable document model
+→ TypeScript feeder
+→ generated data.tex
+→ editable main.tex blueprint using the AAAAT package
+→ local pdfLaTeX
+→ portable source project and PDF
 ```
 
 AI may assist with content selection, transformation, tailoring, or drafting, but managed document rendering remains deterministic and user-editable. AI does not generate arbitrary executable TeX projects by default.
 
-Managed documents detect direct source edits before regeneration. Users may preserve manual TeX edits through explicit manual mode; AAAAT never silently overwrites them.
+The feeder owns its generated data file. It never silently overwrites user-authored blueprints or edited package sources. Package updates are deliberate. Profile reuse must be convenient without requiring ordinary users to administer variants first. Existing whole-project manual mode is a foundation, not completion of this separate data/blueprint ownership model.
+
+The package exposes a documented CV/letter API usable by both managed documents and advanced users writing their own TeX. Begin with one useful blueprint. Detailed sections, executive/classic/dense styles, typography and language/font handling remain the explicitly deferred owner LaTeX collaboration. Multilingual document content remains required under the pdfTeX strategy. This does not authorize a template marketplace.
+
+Combined CV-and-letter output is a bounded production capability. Explicit artifact capture preserves the actual source/PDF used for an opportunity; links to mutable working documents alone do not satisfy this requirement. Later document edits cannot change a retained application artifact.
+
+AgenticCareerBoost's validated-data/template feeder and P3CTeX's public LaTeX API with expl3 internals are precedents, not dependencies to import wholesale.
 
 ### LaTeX portability
 
@@ -253,11 +265,7 @@ Generated LaTeX belongs to the user. A generated project must:
 - remain editable and compilable after AAAAT is removed;
 - be portable to another directory, Git repository, TeX IDE, removable device, or Overleaf-style import.
 
-Document programming uses standard LaTeX plus `expl3`. Lua is not the document implementation language.
-
-pdfLaTeX is the compatibility baseline. LuaLaTeX and XeLaTeX are supported capability extensions. Ordinary Latin-script built-in templates should support all three engines. A template may declare a narrower set only when a real capability such as OpenType fonts or complex-script shaping requires it.
-
-Engine-specific logic begins inside the common package and is split only when substantial real code justifies separate files.
+The public API uses LaTeX2e, implementation uses `expl3`, and production uses pdfTeX through pdfLaTeX. Previous mandatory LuaLaTeX/XeLaTeX extension requirements are superseded by [ADR 0015](adr/0015-owner-approved-recovery-boundaries.md). Do not require users to install another engine or expand the engine matrix speculatively.
 
 The current template architecture uses a small set of data/resource templates plus the reusable `aaaat.sty` package. It does not require a template marketplace, executable JavaScript plugins, or a custom document class without demonstrated need.
 
@@ -280,9 +288,8 @@ The accepted v2 baseline remains:
 | Unit/integration tests | Vitest + React Testing Library |
 | Desktop smoke | Playwright Electron support where useful |
 | Styling | ordinary CSS with explicit design tokens |
-| LaTeX | standard LaTeX + `expl3` |
+| LaTeX | LaTeX2e public API + `expl3` implementation |
 | Baseline TeX engine | pdfLaTeX |
-| Alternate engines | LuaLaTeX + XeLaTeX where supported |
 | Build helper | `latexmk` |
 | MCP | official TypeScript SDK, never handwritten protocol framing |
 
@@ -385,6 +392,10 @@ Useful operation families may include:
 
 Each operation defines the minimum context, privacy requirements, capability requirements, typed output, and mutation/conflict policy it needs. Operations are capabilities, not stages in a required workflow.
 
+External/provider contracts are separate from internal application-service and renderer contracts. Sharing mutation rules does not require sharing local identifiers or the renderer's access surface. Keep durable record, field, choice, variant and item IDs local. Use temporary references only for a required round trip, resolve them locally inside the validated operation scope, and reject unrelated or expired references. These references must not become a general object-access API.
+
+Receiving permitted information does not authorize changing it. An operation's input or result cannot broaden its selected targets or capabilities. Keep ordinary text separate from executable commands, filesystem paths, queries and generated TeX syntax through typed and escaping boundaries. Tags, labels, notes and document text receive disclosure consideration too; they are not automatically harmless metadata.
+
 If the selected/configured environment cannot reliably perform an operation, AAAAT does not pretend that operation is available.
 
 No agent framework, workflow framework, durable general AI-task system, generic field-action registry, provider marketplace, cloud gateway, AI firewall, prompt-injection subsystem, or generic model-security/policy layer is implied.
@@ -445,7 +456,16 @@ Demonstrated bounded host mechanisms may include official MCP, one-shot commands
 
 An external integration exposes only the named, product-specific AAAAT operations deliberately provided for that demonstrated use case. It does not expose generic CRUD, entity browsing/listing/search/query, arbitrary entity-ID access, or a scraping surface. Each operation has bounded purpose-specific input and output and converges on the same local application-service behavior as manual use. This does not require a generic task queue, workflow engine, or external data API.
 
-Bounded capabilities may support workflows such as:
+The required external-assistant destinations are demonstrated named operations to:
+
+1. Receive permitted user-written career direction and relevant professional context.
+2. Inspect AI-visible CV tags and notes so the assistant can judge whether existing material is suitable.
+3. Obtain permitted document content when those descriptions are insufficient.
+4. Contribute bounded information or document content and request supported local production actions.
+
+AAAAT does not rank CV suitability. Purpose-specific CV description disclosure is permitted; it does not establish generic profile/document browsing or candidature-corpus access. Broader sharing requires an understandable deliberate user choice. Omitted identifiers do not make recognizable disclosed content anonymous.
+
+Other bounded capabilities may support uses such as:
 
 - create or enrich a candidature;
 - read explicitly scoped candidature information;
@@ -471,7 +491,7 @@ One structured configuration/capability model should drive, where practical:
 
 - graphical setup;
 - `installer.ai`;
-- `configuration.ai`;
+- `configurator.ai`;
 - AI-assisted setup;
 - provider/host-specific generated integration artifacts.
 
@@ -554,10 +574,64 @@ M0–M5 remain accepted technical/capability checkpoints and their implementatio
 - **M4 — External interoperability/setup foundation:** bounded command/MCP integration, demonstrated host setup, structured setup knowledge, backup/restore.
 - **M5 — Release hardening:** cross-platform packaging, reliability, security, recovery, documentation, and compatibility evidence.
 
-**M6 product acceptance is paused.** Its technically sound implementation remains in place, but its previous product contract included drifted assumptions. `.agentic/CURRENT_MISSION.md` records the current reconciliation classification.
+The former M6 journey is superseded as a product contract. Keep its technically useful implementation where aligned; historical acceptance wording cannot impose a mandatory lifecycle or fixed Focus hierarchy.
 
-No speculative M7–M11 sequence is authoritative. After product-authority recovery, exactly one next Mission is derived from Owner Intent + this SPEC + actual current implementation/evidence, then decomposed only after Product Owner activation.
+The owner-approved recovery is active in [Issue #158](https://github.com/DidacLL/AAAAT/issues/158). The existing ToDo [Issue #156](https://github.com/DidacLL/AAAAT/issues/156) is a later capability proposal, not evidence of an active successor Mission. Verify live state before acting; cached branches are not authority.
 
+Orchestrators may activate one next bounded capability under this accepted masterplan after checking Owner Intent, actual implementation, evidence and live GitHub state. Routine activation does not require owner approval. Escalate only consequential unresolved product meaning and Class D decisions. The current Mission records active work; GitHub records execution and evidence. Do not pre-create a speculative sequence of future Missions.
+
+## Required capability destinations and acceptance
+
+The sequence is **reconcile authority → correct confirmed privacy and data-loss defects → complete these destinations through small usable slices → establish real-use acceptance**. Destination completion requires its stated user behavior, not merely a foundation bearing the same name.
+
+| Destination | Required outcome | Evidence that demonstrates it |
+| --- | --- | --- |
+| Reliable local information and retrieval | Raw Sources searchable by title, URL and full text; no silent draft loss; configurable Focus includes useful Sources/material; concept notes and lightweight ToDos; repeated editing/privacy/presentation behavior across meaningful career/application information. | Save/reopen a raw message and find text beyond the label excerpt. Navigate away from dirty editors, change workspace and use adjacent actions without silent loss. Reproduce an unexpected-call retrieval scenario with user-selected layout and material. |
+| Context and operation boundaries | Separate wire/local contracts, operation-scoped references, deliberate Source context, non-disclosure and local restoration, same ordinary service/conflict rules for all producers. | Inspect actual provider/MCP payloads for no durable local IDs, private paths, excluded values or unrelated records. Verify temporary references only resolve inside their operation. Return malformed, conflicting and out-of-scope results and prove no unrelated mutation. |
+| External assistance | Permitted career context, AI-visible CV descriptions, further scoped document content, bounded contributions and local production; real research routes only when capable. | Let an assistant judge existing CV suitability from permitted descriptions without candidature-corpus access, then obtain permitted content and contribute through the named operation. |
+| Reusable document system | Package/feeder/blueprint ownership; optional variants; editable CV/letter and combined output; multilingual content; retained application artifacts separate from working documents. | Create a CV or letter with no candidature or AI. Compile an exported project and an independently authored TeX document using the package outside AAAAT. Capture used material, edit the working document, recover the exact retained source/PDF. |
+| Accessible setup and recovery | One small explicit environment/capability model for GUI and installer.ai/configurator.ai guidance; detect/reuse software; multiple named connections and operation defaults; honest access descriptions; config import/export and usable backup/recovery. | Complete no-AI, available-connection and free-chat-guidance paths. Verify actual host configuration agrees with disclosure. Validate backup/restore and portable configuration through ordinary user controls. |
+
+Assistance must be integrated with the information/document being worked on; a separate AI area must not become necessary merely because an input came from AI. A mixed-input scenario must permit manual entry, AI enrichment, another manual edit and later reuse of the same ordinary data.
+
+The source audit baseline is `84222de`. It found stable external IDs, inaccurate workspace-path disclosure, incomplete raw-source retrieval and top-level draft loss. The foundations for documents and setup do not yet prove all destinations above. Source-audit results and focused tests do not substitute for fresh packaged, visual or release verification when the active change requires those checks.
+
+Use focused unit/service tests, real SQLite evidence, a small number of realistic UI scenarios and relevant TeX/package checks. Follow the impact selection in `verify.yml`; repeat expensive checks when changes or unresolved evidence justify them. A protected status-context acknowledgement is not an actual packaging test.
+
+### Maintainable execution and owner transport
+
+Use [AGENTS.md](../AGENTS.md) as the single entry sequence. The skill and role files refer there instead of creating competing authority orders. Preserve independent scrutiny and invoke the Simplifier when material complexity warrants it. Tests and role labels alone do not establish review independence.
+
+Routing is advisory: Classic for bounded GitHub implementation/coordination/review, Terra for local tests/native/visual/TeX evidence, Astra for difficult product/architecture interpretation. Owner attention is for consequential unresolved meaning, constitutional decisions and the agreed LaTeX collaboration. Access and economics may change; do not encode model names into product architecture.
+
+Meaningful completions and actual handoffs begin with `Now`, `Next` (including destination), `Owner attention`, and `Evidence` in a few plain lines. When transport is needed, supply the exact message with repository, authoritative scope, current Issue/ref, outcome, exclusions, required evidence and expected return. The receiving agent verifies live state. Keep temporary prompts, transcripts and acceptance ledgers outside the repository; use existing GitHub coordination rather than another status system.
+
+### Knowledge must survive a PR or conversation
+
+A fresh agent must be able to recover the product direction, reasons for important boundaries, required but unfinished capabilities, and immediate continuation from checked-in files. It must not need the owner to repeat settled requirements or an old conversation/PR search to discover them.
+
+Use the existing documents: OWNER_INTENT for accepted meaning and essential examples; SPEC for architecture, required destinations and concise rationale; ADRs for durable technical decisions and supersession; CURRENT_MISSION for the active outcome, unresolved findings and verification gaps. Issues/PRs retain detailed execution evidence and live coordination. They do not replace the durable synthesis.
+
+When an owner correction exposes drift, preserve the recovered concern and resulting accepted interpretation in the relevant section, including the distinction that prevented misunderstanding. Do not merely fix code or append a PR comment. If meaning remains unresolved, record the concrete uncertainty in the Mission rather than presenting an agent assumption as owner intent.
+
+Before a handoff or integration, reconcile these records with the actual result. When changing Missions, resolve or explicitly carry forward unfinished requirements; a new Mission cannot erase them. Keep this proportional: update existing prose and useful examples, link evidence, remove superseded active instructions, and do not create a transcript archive, acceptance ledger or parallel masterplan.
+## Recovery rationale and research evidence
+
+This section preserves the important conclusions of the owner-intent review so a fresh agent does not need the original conversation. It is rationale for this SPEC, not another authority. Current owner corrections still take precedence. The implementation audit used `84222dee335ad9fbfea99440f667962e233c982d`; the links below deliberately point to that historical source, not a claim about the current branch.
+
+| Discovery or interpretation | Why it matters and the decision it supports | Evidence |
+| --- | --- | --- |
+| Retain v2 while correcting its direction. | The desktop privilege boundary, explicit application services, sparse candidature fields and portable-project foundation are useful. A full rewrite would discard valid work; preserving every AI-generated contract would preserve drift. Correct demonstrated defects directly before a real-use baseline exists. | [Sparse field decision](adr/0013-live-sparse-candidature-information-fields.md), [structural boundary](adr/0014-structural-security-and-external-ai-boundary.md), and the domain/desktop sections of this SPEC. |
+| External contracts reused durable field, choice, variant and item identifiers. | Local IDs keep local relationships coherent, but exporting them enables correlation between calls. Separate wire contracts; use operation references only when a round trip needs them. Choice values can leak IDs even after field IDs are removed. Read-only descriptions can use permitted labels. | [Audited AI projection](https://github.com/DidacLL/AAAAT/blob/84222dee335ad9fbfea99440f667962e233c982d/src/main/ai-service.ts), [audited MCP surface](https://github.com/DidacLL/AAAAT/blob/84222dee335ad9fbfea99440f667962e233c982d/src/main/mcp-server.ts), [ADR 0015](adr/0015-owner-approved-recovery-boundaries.md). |
+| Setup claimed paths were not exposed although host configuration contained them. | Distinguish narrow AAAAT tool payloads from authority the user already granted the host. Honest disclosure is required; an application cannot prevent a separately authorized shell tool from reading files. | [Audited disclosure](https://github.com/DidacLL/AAAAT/blob/84222dee335ad9fbfea99440f667962e233c982d/src/main/setup-knowledge.ts), [VS Code configuration](https://github.com/DidacLL/AAAAT/blob/84222dee335ad9fbfea99440f667962e233c982d/src/main/vscode-mcp-setup.ts). |
+| Raw material was retained but not fully searched; ordinary navigation could unmount unsaved editors. | Saving data is insufficient if the user cannot retrieve it, and local ownership is insufficient if the UI silently discards edits. These are ordinary correctness defects; they do not require an AI-specific mechanism. | [Audited search projection](https://github.com/DidacLL/AAAAT/blob/84222dee335ad9fbfea99440f667962e233c982d/src/renderer/candidature-projections.ts), [top-level navigation](https://github.com/DidacLL/AAAAT/blob/84222dee335ad9fbfea99440f667962e233c982d/src/renderer/App.tsx). |
+| Initial document generation did not complete the intended document system. | A generated project and a mutable document association do not prove an independently usable package API, separate feeder/blueprint ownership, combined output, multilingual design, or preservation of the exact submitted material. Those remain required destinations. | [Audited document service](https://github.com/DidacLL/AAAAT/blob/84222dee335ad9fbfea99440f667962e233c982d/src/main/document-service.ts), [document production](#document-production). |
+| AgenticCareerBoost and P3CTeX support a modest document architecture. | Preserve the separation between validated/escaped data feeding an editable template and a public LaTeX API implemented in expl3. Do not import either repository wholesale or assume their examples already satisfy all AAAAT requirements. The owner's chosen engine is pdfTeX. | [ACB feeder precedent](https://github.com/DidacLL/AgenticCareerBoost/blob/main/application-tracker/render_letter.py), [P3CTeX package precedent](https://github.com/DidacLL/P3CTeX/blob/main/tex/latex/pxCORE.sty). These external branch links may evolve. |
+| Historical acceptance and harness wording competed with owner meaning. | A tested journey must not become a compulsory workflow. Retire the rejected M6 journey, keep one instruction entry point and one active Mission, and distinguish technical checkpoints from complete product acceptance. | [Retired journey notice](M6_USER_JOURNEY.md), [audited former journey](https://github.com/DidacLL/AAAAT/blob/84222dee335ad9fbfea99440f667962e233c982d/docs/M6_USER_JOURNEY.md), [AGENTS](../AGENTS.md). |
+
+The decisive product interpretations are retained in OWNER_INTENT: optional structure is not forbidden structure; all input producers yield ordinary information; controlled disclosure does not imply mutation permission; permitted CV descriptions let the chosen assistant judge suitability without a corpus browser; and AI-native convenience does not require AAAAT to own a model, agent loop or paid service. Sources remain explicit and operation-scoped, rather than universally prohibited or automatically disclosed. These distinctions should be tested in review whenever a proposed simplification would remove required freedom or introduce a conventional tracker workflow.
+
+The evidence baseline is not a completion certificate. Earlier focused tests established only their stated scope. The checked-in CURRENT_MISSION retains the latest known correction state, unresolved findings, verification gaps and next bounded outcome. Detailed execution evidence and live integration state are linked from [recovery Issue #158](https://github.com/DidacLL/AAAAT/issues/158) and [PR #159](https://github.com/DidacLL/AAAAT/pull/159); those threads are supplementary, never the sole record needed to resume. For context recovery, read AGENTS and its authority sequence **on the PR branch while this work is unmerged**, then the live Issue/PR evidence. Reading main alone will miss the recovery until integration. Reopen the historical sources only for a disputed finding; do not redo the entire research before routine bounded work.
 ## Prohibited speculative infrastructure
 
 Do not create unused:
@@ -666,7 +740,7 @@ validated v1 product lesson may return; awkward v1 technical contract does not.
 ### Portable document engineering
 
 ```text
-default VCVGenerator template → pdfLaTeX baseline → supported alternate engines verified where applicable.
+LaTeX2e package API + expl3 implementation → pdfLaTeX → portable managed and independently authored documents.
 ```
 
 ### Maintainability

@@ -5,6 +5,7 @@ import {
   candidatureFieldCardinalitySchema,
   candidatureFieldValueTypeSchema,
   candidatureRuntimeValueSchema,
+  candidatureSourceDraftSchema,
 } from "./contracts";
 
 export const aiChannels = Object.freeze({
@@ -258,6 +259,152 @@ export const coverLetterDraftSchema = z
   })
   .strict();
 export type CoverLetterDraft = z.infer<typeof coverLetterDraftSchema>;
+
+/**
+ * References in an AI or external-host payload are fresh, operation-local
+ * handles. They deliberately do not expose the UUIDs AAAAT persists locally.
+ */
+export const operationReferenceSchema = z.string().min(1).max(200).regex(/^aaaat_[a-z0-9_-]+$/);
+export type OperationReference = z.infer<typeof operationReferenceSchema>;
+
+const providerProjectedCandidatureInformationSchema = z
+  .object({
+    label: z.string().min(1),
+    value: candidatureRuntimeValueSchema,
+  })
+  .strict();
+
+export const providerFitProjectedCandidatureSchema = z
+  .object({
+    label: z.string().min(1),
+    information: z.array(providerProjectedCandidatureInformationSchema).max(64),
+    sources: z.array(projectedCandidatureSourceSchema).max(20),
+  })
+  .strict();
+export type ProviderFitProjectedCandidature = z.infer<typeof providerFitProjectedCandidatureSchema>;
+
+export const providerFitProjectedContextSchema = z
+  .object({
+    candidature: providerFitProjectedCandidatureSchema,
+    profileItems: z.array(fitProjectedProfileItemSchema).max(200),
+  })
+  .strict();
+export type ProviderFitProjectedContext = z.infer<typeof providerFitProjectedContextSchema>;
+
+export const providerDiscoveryChoiceSchema = z
+  .object({ choiceRef: operationReferenceSchema, label: z.string().trim().min(1).max(120) })
+  .strict();
+
+export const providerDiscoveryFieldSchema = z
+  .object({
+    fieldRef: operationReferenceSchema,
+    label: z.string().trim().min(1).max(120),
+    description: z.string().max(2000),
+    valueType: candidatureFieldValueTypeSchema,
+    cardinality: candidatureFieldCardinalitySchema,
+    choices: z.array(providerDiscoveryChoiceSchema).max(64),
+  })
+  .strict();
+
+export const providerJobExtractionRequestSchema = jobExtractionRequestSchema
+  .extend({ fields: z.array(providerDiscoveryFieldSchema).min(1).max(32) })
+  .strict();
+export type ProviderJobExtractionRequest = z.infer<typeof providerJobExtractionRequestSchema>;
+
+export const providerJobExtractionResultSchema = z
+  .object({
+    proposals: z
+      .array(
+        z
+          .object({ fieldRef: operationReferenceSchema, value: candidatureRuntimeValueSchema })
+          .strict(),
+      )
+      .max(32),
+  })
+  .strict()
+  .refine(
+    (result) => new Set(result.proposals.map((proposal) => proposal.fieldRef)).size === result.proposals.length,
+    { message: "Each discovery field may be proposed only once." },
+  );
+export type ProviderJobExtractionResult = z.infer<typeof providerJobExtractionResultSchema>;
+
+export const providerVariantRecommendationContextSchema = z
+  .object({
+    candidature: providerFitProjectedCandidatureSchema,
+    variants: z
+      .array(
+        z
+          .object({
+            variantRef: operationReferenceSchema,
+            name: z.string(),
+            focus: z.string(),
+            targetTags: z.array(z.string()),
+            preferredLanguage: z.string().optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(100),
+  })
+  .strict();
+export type ProviderVariantRecommendationContext = z.infer<
+  typeof providerVariantRecommendationContextSchema
+>;
+
+export const providerVariantRecommendationResultSchema = z
+  .object({ variantRef: operationReferenceSchema, rationale: z.string().trim().min(1).max(1500) })
+  .strict();
+export type ProviderVariantRecommendationResult = z.infer<
+  typeof providerVariantRecommendationResultSchema
+>;
+
+export const providerDocumentAiContextSchema = z
+  .object({
+    candidature: providerFitProjectedCandidatureSchema,
+    items: z
+      .array(
+        z
+          .object({
+            itemRef: operationReferenceSchema,
+            kind: z.string().min(1),
+            title: z.string(),
+            subtitle: z.string().optional(),
+            description: z.string().optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(200),
+  })
+  .strict();
+export type ProviderDocumentAiContext = z.infer<typeof providerDocumentAiContextSchema>;
+
+export const providerCvTailoringResultSchema = z
+  .object({
+    recommendations: z
+      .array(
+        z
+          .object({ itemRef: operationReferenceSchema, rationale: z.string().trim().min(1).max(1000) })
+          .strict(),
+      )
+      .min(1)
+      .max(12),
+  })
+  .strict()
+  .refine(
+    (value) => new Set(value.recommendations.map((item) => item.itemRef)).size === value.recommendations.length,
+    { message: "Each CV recommendation must reference an item once." },
+  );
+export type ProviderCvTailoringResult = z.infer<typeof providerCvTailoringResultSchema>;
+
+export const externalCandidatureCreateInputSchema = z
+  .object({ source: candidatureSourceDraftSchema })
+  .strict()
+  .refine(
+    ({ source }) => [source.title, source.url, source.sourceText].some((value) => value.trim().length > 0),
+    { path: ["source"], message: "Source must include a non-empty title, URL, or source text." },
+  );
+export type ExternalCandidatureCreateInput = z.infer<typeof externalCandidatureCreateInputSchema>;
 
 export interface AiDesktopApi {
   readonly ai: {

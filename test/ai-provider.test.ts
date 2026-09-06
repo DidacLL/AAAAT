@@ -5,9 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 import { createOpenAiCompatibleProvider } from "../src/main/ai-provider";
 import type {
   AiConnectionStatus,
-  FitProjectedContext,
-  JobExtractionProviderRequest,
-  VariantRecommendationContext,
+  ProviderFitProjectedContext,
+  ProviderJobExtractionRequest,
+  ProviderVariantRecommendationContext,
 } from "../src/shared/ai-contracts";
 
 const connection: AiConnectionStatus = {
@@ -15,10 +15,10 @@ const connection: AiConnectionStatus = {
   endpoint: "http://localhost:11434/v1",
   model: "fixture-model",
 };
-const fieldId = "00000000-0000-4000-8000-000000000801";
+const fieldRef = "aaaat_provider_00000000-0000-4000-8000-000000000801_1";
 const candidature = {
   label: "Pilot opportunity",
-  information: [{ fieldId, label: "Minimum flight hours", value: 1500 }],
+  information: [{ label: "Minimum flight hours", value: 1500 }],
   sources: [
     {
       title: "Vacancy",
@@ -27,7 +27,7 @@ const candidature = {
     },
   ],
 };
-const context: FitProjectedContext = {
+const context: ProviderFitProjectedContext = {
   candidature,
   profileItems: [{ kind: "skill", title: "TypeScript" }],
 };
@@ -64,14 +64,14 @@ describe("OpenAI-compatible provider", () => {
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
   });
 
-  it("sends the runtime discovery context and reads typed field-ID proposals", async () => {
-    const request: JobExtractionProviderRequest = {
+  it("sends operation-scoped discovery references and reads typed proposals", async () => {
+    const request: ProviderJobExtractionRequest = {
       sourceTitle: "Pilot vacancy",
       sourceUrl: "https://example.invalid/pilot",
       sourceText: "Minimum 1,500 total hours.",
       fields: [
         {
-          id: fieldId,
+          fieldRef,
           label: "Minimum flight hours",
           description: "Minimum total flight hours requested.",
           valueType: "number",
@@ -81,12 +81,12 @@ describe("OpenAI-compatible provider", () => {
       ],
     };
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      response({ proposals: [{ fieldId, value: 1500 }] }),
+      response({ proposals: [{ fieldRef, value: 1500 }] }),
     );
     const provider = createOpenAiCompatibleProvider(fetchImpl);
 
     await expect(provider.extractJob(connection, request)).resolves.toEqual({
-      proposals: [{ fieldId, value: 1500 }],
+      proposals: [{ fieldRef, value: 1500 }],
     });
     const [, init] = fetchImpl.mock.calls[0] ?? [];
     const body = JSON.parse(String(init?.body)) as {
@@ -96,11 +96,11 @@ describe("OpenAI-compatible provider", () => {
   });
 
   it("sends only candidature and existing variant metadata for recommendation", async () => {
-    const variantContext: VariantRecommendationContext = {
+    const variantContext: ProviderVariantRecommendationContext = {
       candidature,
       variants: [
         {
-          id: "00000000-0000-4000-8000-000000000810",
+          variantRef: "aaaat_variant_00000000-0000-4000-8000-000000000810_1",
           name: "Platform",
           focus: "Platform focus",
           targetTags: ["platform"],
@@ -110,7 +110,7 @@ describe("OpenAI-compatible provider", () => {
     };
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       response({
-        variantId: variantContext.variants[0]?.id,
+        variantRef: variantContext.variants[0]?.variantRef,
         rationale: "Matches platform focus.",
       }),
     );

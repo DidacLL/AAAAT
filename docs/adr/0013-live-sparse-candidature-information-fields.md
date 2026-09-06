@@ -1,5 +1,7 @@
 # ADR 0013 — Live sparse candidature information fields
 
+> Recovery clarification: [ADR 0015](0015-owner-approved-recovery-boundaries.md) supersedes outbound durable identifiers and any coupling of external/provider wire contracts to internal identifier-bearing contracts. Unrelated decisions below remain in force.
+
 - Status: Accepted for corrective M6
 - Date: 2026-09-04
 - Decision class: C

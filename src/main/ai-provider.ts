@@ -2,20 +2,20 @@ import { z } from "zod";
 
 import {
   coverLetterDraftSchema,
-  cvTailoringResultSchema,
   fitAssessmentResultSchema,
-  jobExtractionResultSchema,
-  variantRecommendationResultSchema,
   type AiConnectionStatus,
   type CoverLetterDraft,
-  type CvTailoringResult,
-  type DocumentAiContext,
   type FitAssessmentResult,
-  type FitProjectedContext,
-  type JobExtractionProviderRequest,
-  type JobExtractionResult,
-  type VariantRecommendationContext,
-  type VariantRecommendationResult,
+  type ProviderCvTailoringResult,
+  type ProviderDocumentAiContext,
+  type ProviderFitProjectedContext,
+  type ProviderJobExtractionRequest,
+  type ProviderJobExtractionResult,
+  type ProviderVariantRecommendationContext,
+  type ProviderVariantRecommendationResult,
+  providerCvTailoringResultSchema,
+  providerJobExtractionResultSchema,
+  providerVariantRecommendationResultSchema,
 } from "../shared/ai-contracts";
 
 const providerResponseSchema = z
@@ -40,19 +40,19 @@ export class AiProviderError extends Error {
 }
 
 export interface ModelProvider {
-  assessFit(connection: AiConnectionStatus, context: FitProjectedContext): Promise<FitAssessmentResult>;
+  assessFit(connection: AiConnectionStatus, context: ProviderFitProjectedContext): Promise<FitAssessmentResult>;
   extractJob(
     connection: AiConnectionStatus,
-    request: JobExtractionProviderRequest,
-  ): Promise<JobExtractionResult>;
+    request: ProviderJobExtractionRequest,
+  ): Promise<ProviderJobExtractionResult>;
   recommendVariant(
     connection: AiConnectionStatus,
-    context: VariantRecommendationContext,
-  ): Promise<VariantRecommendationResult>;
-  tailorCv(connection: AiConnectionStatus, context: DocumentAiContext): Promise<CvTailoringResult>;
+    context: ProviderVariantRecommendationContext,
+  ): Promise<ProviderVariantRecommendationResult>;
+  tailorCv(connection: AiConnectionStatus, context: ProviderDocumentAiContext): Promise<ProviderCvTailoringResult>;
   draftCoverLetter(
     connection: AiConnectionStatus,
-    context: DocumentAiContext,
+    context: ProviderDocumentAiContext,
   ): Promise<CoverLetterDraft>;
 }
 
@@ -125,7 +125,7 @@ export function createOpenAiCompatibleProvider(
   return Object.freeze({
     async assessFit(
       connection: AiConnectionStatus,
-      context: FitProjectedContext,
+      context: ProviderFitProjectedContext,
     ): Promise<FitAssessmentResult> {
       const content = await requestContent(
         fetchImpl,
@@ -142,58 +142,58 @@ export function createOpenAiCompatibleProvider(
 
     async extractJob(
       connection: AiConnectionStatus,
-      request: JobExtractionProviderRequest,
-    ): Promise<JobExtractionResult> {
+      request: ProviderJobExtractionRequest,
+    ): Promise<ProviderJobExtractionResult> {
       const content = await requestContent(
         fetchImpl,
         connection,
-        "Discover only facts supported by the supplied Source for the explicitly requested fields. Return JSON only as {\"proposals\":[{\"fieldId\":\"...\",\"value\":...}]}. Use only field IDs present in fields, obey each field type, cardinality and choice IDs, omit unsupported values, and never propose or create new field definitions.",
+        "Discover only facts supported by the supplied Source for the explicitly requested fields. Return JSON only as {\"proposals\":[{\"fieldRef\":\"...\",\"value\":...}]}. Use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for choice fields, omit unsupported values, and never propose or create new field definitions.",
         request,
       );
       return parseJson(
         content,
-        jobExtractionResultSchema,
+        providerJobExtractionResultSchema,
         "The configured provider returned invalid candidature field discovery.",
       );
     },
 
     async recommendVariant(
       connection: AiConnectionStatus,
-      context: VariantRecommendationContext,
-    ): Promise<VariantRecommendationResult> {
+      context: ProviderVariantRecommendationContext,
+    ): Promise<ProviderVariantRecommendationResult> {
       const content = await requestContent(
         fetchImpl,
         connection,
-        "Choose exactly one existing profile variant from the supplied variants for the supplied candidature. Return JSON only with keys variantId and rationale. Never invent a variant ID or propose creating a new variant.",
+        "Choose exactly one supplied profile variant for the supplied candidature. Return JSON only with keys variantRef and rationale. Never invent a variantRef or propose creating a new variant.",
         context,
       );
       return parseJson(
         content,
-        variantRecommendationResultSchema,
+        providerVariantRecommendationResultSchema,
         "The configured provider returned an invalid profile variant recommendation.",
       );
     },
 
     async tailorCv(
       connection: AiConnectionStatus,
-      context: DocumentAiContext,
-    ): Promise<CvTailoringResult> {
+      context: ProviderDocumentAiContext,
+    ): Promise<ProviderCvTailoringResult> {
       const content = await requestContent(
         fetchImpl,
         connection,
-        "Recommend the strongest existing career items for this candidature. Return JSON only with key recommendations, an array of objects with itemId and rationale. Use only item IDs supplied in context. Do not rewrite or invent career facts.",
+        "Recommend the strongest supplied career items for this candidature. Return JSON only with key recommendations, an array of objects with itemRef and rationale. Use only itemRef values supplied in context. Do not rewrite or invent career facts.",
         context,
       );
       return parseJson(
         content,
-        cvTailoringResultSchema,
+        providerCvTailoringResultSchema,
         "The configured provider returned an invalid CV tailoring proposal.",
       );
     },
 
     async draftCoverLetter(
       connection: AiConnectionStatus,
-      context: DocumentAiContext,
+      context: ProviderDocumentAiContext,
     ): Promise<CoverLetterDraft> {
       const content = await requestContent(
         fetchImpl,

@@ -1,6 +1,6 @@
 import type { Readable, Writable } from "node:stream";
 
-import { candidatureInputSchema } from "../shared/contracts";
+import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
 import { createCandidature } from "./candidature-service";
 
 const externalCommandFlag = "--external-command";
@@ -97,13 +97,13 @@ export function executeExternalCommand(
     return failure("invalid-json");
   }
 
-  const candidature = candidatureInputSchema.safeParse(decoded);
+  const candidature = externalCandidatureCreateInputSchema.safeParse(decoded);
   if (!candidature.success) {
     return failure("invalid-input");
   }
 
   try {
-    createCandidature(workspacePathFrom(argv), candidature.data);
+    createCandidature(workspacePathFrom(argv), { source: candidature.data.source, values: [] });
   } catch {
     return failure("command-failed");
   }

@@ -1,75 +1,41 @@
-# M6 — Opportunity Understanding & Recruiter Readiness
+# Recovery — Owner-approved v2 direction
 
-**Status: paused pending product-authority reconciliation.** No product Mission is currently authorized for feature development. Do not start a successor Mission until Product Owner authority, the corrected SPEC, and the actual implementation are used to define it.
+**Active:** [Issue #158](https://github.com/DidacLL/AAAAT/issues/158), based on the owner's accepted recovery plan. [OWNER_INTENT](../docs/OWNER_INTENT.md) defines meaning; [SPEC](../docs/SPEC.md) is the master architecture.
 
-## Accepted baseline
+## Outcome and boundary
 
-M0–M5 remain accepted technical/capability checkpoints. Their evidence is preserved; their historical names and Issue wording do not prove every product assumption attached to them was correct or complete.
+Reconcile the product definition, SPEC, skill and harness; retire the contradictory M6 journey. Correct verified external/provider identifier disclosure, inaccurate host-access guidance, raw-source retrieval and silent draft loss. Align the document engine contract with the owner's LaTeX2e/expl3/pdfTeX target.
 
-- M0 proved the secure Electron/React/TypeScript/SQLite foundation and native packaging boundary.
-- M1 proved the VCVGenerator foundation: user-owned workspace, canonical profile and variants, editable CV/cover-letter documents, portable LaTeX, local rendering, and unrelated-directory compilation.
-- M2 proved an initial candidature workspace: sparse records, source/notes, search/filtering, concepts, a Focus projection, document associations, and the then-selected status/archive representation.
-- M3 proved initial optional direct-AI infrastructure: operation-specific context, privacy projection, typed validation, conflict policy, and normal application-service boundaries.
-- M4 proved initial bounded external interoperability and setup infrastructure: packaged candidature creation, official MCP stdio, demonstrated VS Code setup, structured setup knowledge, proposed portable host configuration, and safe workspace backup/restore.
-- M5 proved cross-platform alpha hardening and was owner-accepted at PR #121 head `6a4490798399c75a939ccb694e49a21c22ff2802`, including native Windows/macOS/Linux release artifacts and packaged runtime evidence.
+Keep the useful desktop, service, sparse-information and portable-document foundations. Do not add compatibility machinery for pre-use development data. Required later capabilities remain in SPEC; this recovery does not declare the full document system, external-assistant context, configuration or information experience complete. Detailed blueprint/language design remains a later owner collaboration.
 
-### Preserved M5 acceptance evidence
+## Resume checkpoint — focused source-contract re-review pending
 
-- #111 proves native Windows/macOS ZIP and Linux Debian release artifacts plus artifact inspection and packaged runtime smoke.
-- #113 provides installation, first-run, optional-capability, backup/restore, and troubleshooting documentation for the accepted alpha.
-- #116 corrects the recovery test so its async rejection evidence is awaited.
-- #117 makes packaged Electron shutdown deterministic on Windows; the full matrix and a second Windows packaged-smoke run passed on the same exact head.
-- #119 records reproducible dependency-security evidence.
-- PR #121 exact head `6a4490798399c75a939ccb694e49a21c22ff2802` passed Fast verification, LaTeX portability, and packaged Windows/macOS/Linux checks and was explicitly accepted by the Product Owner.
+The recovery changes are on `agentic/masterplan-recovery`, based on `84222de`. Historical refs such as `07954f0`, `881c531` and `faf0f3c` identify implementation or continuity evidence; they are not a requirement to repeat product research or unaffected verification.
 
-Git history and technical evidence remain reachable. AAAAT has no real-user v2 data-compatibility baseline yet: development databases, fixtures, and development migration files are not compatibility commitments. Corrective M6 work must not preserve rejected schema merely because an earlier development migration created it. Product meaning is governed by `docs/OWNER_INTENT.md` and the reconciled `docs/SPEC.md`, not by historical acceptance wording.
+The first independent review of candidate `b55eda7` found one blocker and no others in the challenged recovery areas: MCP still retained an obsolete structured candidature-create path through `candidature_fields_list`, operation-scoped field/choice references and `values`. Provider-side operation references for actual AI discovery/variant/item round trips, retained-Source retrieval, dirty-editor guards, the Vitest non-completion fix, the pdfLaTeX-only contract and continuity documentation passed that review.
 
-## M6 reconciliation state
+That blocker was removed. MCP now exposes only source-only `candidature_create`, using the same source-only external contract as the one-shot command and calling the ordinary candidature service with no structured values. The MCP field catalogue, operation-scope cache/TTL/cap, field/choice reference conversion, structured-create schemas and corresponding fixtures/claims were removed. VS Code setup knowledge and ADRs 0007/0008 now describe only the source-only capability. Future structured external contributions remain separate named SPEC operations; provider-side operation references remain unchanged.
 
-M6 implementation is not automatically reverted. Its current parts are classified against Owner Intent before further dependency is built on them.
+A targeted re-review then found one remaining shared-contract defect: the source-only schema accepted an all-empty or whitespace-only Source, while the candidature service conditionally skipped such a Source and still created the candidature. This violated ADRs 0007/0008's exactly-one-retained-Source contract. The shared `externalCandidatureCreateInputSchema` now requires at least one non-whitespace `title`, `url`, or `sourceText`, so the same boundary applies to MCP and the one-shot external command. `test/mcp-server.test.ts` proves a whitespace-only Source is rejected before mutation. No service redesign or new abstraction was added.
 
-### ALIGNED
+The recovery also includes truthful host-access disclosure, full retained-Source local search, dirty-editor navigation and adjacent-action guards, pdfLaTeX-only controls and the Windows `.cmd` fake-compiler fixture. The former Vitest non-completion was traced to `CandidatureFieldValueEditor` dirty reporting reacting to parent callback identity; `fdf4890` made reporting depend on dirty state while preserving unmount cleanup.
 
-- multiple independently meaningful candidature sources and preservation of raw source material;
-- sparse/incomplete candidature storage and persistence;
-- progressive UI composition as a technique for avoiding one enormous static form;
-- reusable career context kept separate from factual canonical-profile evidence;
-- concepts/documents integration, application-service mutations, sandboxed renderer, typed preload/IPC, backup/reopen behavior, and the SQLite migration mechanism;
-- Focus as a projection rather than duplicate persisted candidature state.
+**Reusable broad evidence:** candidate `b55eda7fc90b9f8223d52e52082033d25d14a240`, Verify run `34002556407` (#361), completed successfully with Fast verification, real pdfLaTeX portability, and Windows/macOS/Linux package/build/runtime smoke. Those results remain applicable to surfaces not changed by the later MCP/source-contract corrections.
 
-### USEFUL BUT OVER-PRIVILEGED
+**Structured-MCP removal evidence:** `9d96c3962431f639b0f2e9789f066f8d9e2d4091`, Verify run `34003881519` (#380), completed successfully. Impact classification selected Fast verification plus one Ubuntu packaged integration lane for the platform-neutral MCP contract change; LaTeX and the full cross-platform package matrix were intentionally skipped as unaffected reusable evidence. Typecheck, lint and Vitest passed, and Ubuntu packaged build/runtime smoke passed.
 
-- the current working-brief values (fit, evidence, risks, strategy, context, pitch, questions, recruiter preparation) are legitimate information, but M6 treated their fixed grouping as a preferred preparation model;
-- priority and status/lifecycle are allowed optional information, but current M6 requirements gave them excessive importance in list/Focus/acceptance;
-- recruiter-preparation information is useful, but a dedicated preparation stage is not the canonical user workflow;
-- the seven current career-context values are useful reusable information, but their current fixed catalogue does not define all future professional/context information.
+**Retained-Source contract evidence:** `c29a47ae42a028bd538e760e3c10c78f6e511a6c`, Verify run `34023048818` (#383), completed successfully. Impact classification selected Fast verification plus one Ubuntu packaged runtime lane for the shared external-create schema and focused MCP regression test. Both passed. LaTeX and the full Windows/macOS/Linux package matrix were skipped as unaffected evidence already established by #361. Run #383 therefore verifies the changed source-only contract without replaying unrelated expensive lanes.
 
-### UNVALIDATED
+Verification evidence is impact-scoped rather than commit-SHA-scoped. Do not request owner/Codex/local repetition of #361, #380 or #383 merely for exact-head parity. Fresh execution is required only when later changes affect the behavior, platform path, fixture contract, environment assumption or other premise the prior evidence proves.
 
-- the current closed working-brief/source-kind catalogue as a long-term product information model;
-- the current fixed Focus defaults as universal presentation importance;
-- candidature identification rules that privilege company/role fallbacks without user/configuration alternatives;
-- any assumption that the current single AI connection or existing setup surface completes the intended configuration model.
+**Next bounded outcome:** targeted independent Reviewer re-review of only the corrected retained-Source validation and its interaction with the already-reviewed source-only MCP/external-command path. Skeptical Simplifier already passed the source-only simplification and needs repetition only if this validation correction introduces material new complexity. Do not restart review of already-passed recovery areas unless a concrete interaction is found. If the correction receives ACCEPT, proceed to Integrator evaluation; do not start later SPEC capabilities before recovery integration.
 
-### CONTRADICTORY
+Before replacing this Mission, carry any still-required unfinished capability into SPEC/current Mission; a new Issue cannot silently erase it. Keep enduring rationale in SPEC/ADRs and detailed execution evidence in GitHub.
 
-- treating `next action` as a privileged Focus/list requirement or required maintenance loop;
-- a fixed Focus hierarchy with no user control over visibility, order, and relative prominence;
-- the sequential packaged M6 acceptance journey that requires manual status/priority/next-action, evaluation/strategy, pitch/questions, and recruiter-preparation entry before Focus is considered useful;
-- language that makes M6 a primarily manual-entry workflow rather than one human-operable path among manual, direct-AI, and bounded external-AI ways to work with the same information.
+## Evidence and continuation
 
-Contradictory implementation/tests are remediation input for the next properly defined capability Mission. The recovery did not edit development migrations; that is historical fact, not a compatibility requirement for corrective M6 work.
+GitHub records detailed execution and live integration state; checked-in authority retains the product direction, essential rationale, remaining gaps and current continuation so a fresh agent does not require this conversation.
 
-## Next lifecycle step
+The former M6 product journey is superseded. M0–M5 remain evidence of their stated technical foundations only. [ToDo Issue #156](https://github.com/DidacLL/AAAAT/issues/156) is a future capability proposal while this recovery is active; cached branches do not activate it.
 
-After the product-authority recovery merges, derive exactly one next Mission from:
-
-```text
-docs/OWNER_INTENT.md
-+
-docs/SPEC.md
-+
-actual current implementation and evidence
-```
-
-Only that Mission may then be decomposed. No speculative successor-Mission sequence is authoritative.
+After this capability is integrated, an orchestrator may activate one next bounded outcome from SPEC using actual implementation, evidence and live GitHub state. Routine activation needs no owner approval. Escalate consequential unresolved product meaning or Class D decisions only. Update this file to the active capability instead of appending a history or future Mission catalogue.

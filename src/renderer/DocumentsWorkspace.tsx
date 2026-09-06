@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import type {
-  DocumentEngine,
   DocumentKind,
   DocumentRecord,
   ProfileItem,
@@ -9,8 +8,6 @@ import type {
   ProfileSnapshot,
 } from "../shared/contracts";
 import "./documents.css";
-
-const engines: readonly DocumentEngine[] = ["pdflatex", "lualatex", "xelatex"];
 
 function optional(value: string): string | undefined {
   const trimmed = value.trim();
@@ -34,7 +31,11 @@ function orderedBaseItems(document: DocumentRecord, items: readonly ProfileItem[
   });
 }
 
-export function DocumentsWorkspace() {
+export function DocumentsWorkspace({
+  onDirtyChange,
+}: {
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -58,7 +59,6 @@ export function DocumentsWorkspace() {
 
   const [title, setTitle] = useState("");
   const [language, setLanguage] = useState("");
-  const [engine, setEngine] = useState<DocumentEngine>("pdflatex");
   const [recipient, setRecipient] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -67,7 +67,6 @@ export function DocumentsWorkspace() {
   const fillEditor = (document: DocumentRecord) => {
     setTitle(document.title);
     setLanguage(document.language ?? "");
-    setEngine(document.engine);
     setRecipient(document.recipient ?? "");
     setSubject(document.subject ?? "");
     setBody(document.bodyParagraphs.join("\n\n"));
@@ -77,12 +76,20 @@ export function DocumentsWorkspace() {
   const editorDirty = selected
     ? title !== selected.title ||
       language !== (selected.language ?? "") ||
-      engine !== selected.engine ||
       recipient !== (selected.recipient ?? "") ||
       subject !== (selected.subject ?? "") ||
       body !== selected.bodyParagraphs.join("\n\n") ||
       closing !== (selected.closing ?? "")
     : false;
+  const newDocumentDirty =
+    newKind !== "cv" ||
+    newTitle.length > 0 ||
+    newVariantId !== (profile?.variants[0]?.id ?? "");
+
+  useEffect(() => {
+    onDirtyChange?.(editorDirty || newDocumentDirty);
+    return () => onDirtyChange?.(false);
+  }, [editorDirty, newDocumentDirty, onDirtyChange]);
 
   const refreshResolved = async (document: DocumentRecord) => {
     const [variant, resolved] = await Promise.all([
@@ -171,7 +178,7 @@ export function DocumentsWorkspace() {
           id: selected.id,
           title: title.trim(),
           language: optional(language),
-          engine,
+          engine: "pdflatex",
           recipient: optional(recipient),
           subject: optional(subject),
           bodyParagraphs: paragraphs(body),
@@ -239,7 +246,7 @@ export function DocumentsWorkspace() {
       await acceptAdjacentDocument(rendered);
       setNotice(`Rendered PDF: ${rendered.artifactPath}`);
     } catch {
-      setError("Rendering failed. Install a compatible TeX distribution with latexmk and the selected engine.");
+      setError("Rendering failed. Install a compatible TeX distribution with latexmk and pdfLaTeX.");
     }
   };
 
@@ -374,7 +381,6 @@ export function DocumentsWorkspace() {
             <form className="document-fields" onSubmit={(event) => void save(event)}>
               <label>Title<input required value={title} onChange={(event) => setTitle(event.target.value)} /></label>
               <label>Language<input value={language} onChange={(event) => setLanguage(event.target.value)} /></label>
-              <label>TeX engine<select value={engine} onChange={(event) => setEngine(event.target.value as DocumentEngine)}>{engines.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
               {selected.kind === "cover_letter" ? (
                 <>
                   <label>Recipient<input value={recipient} onChange={(event) => setRecipient(event.target.value)} /></label>

@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 describe("VS Code MCP setup", () => {
-  it("writes a portable proposed manifest with the bounded live-field capabilities and no machine paths or secrets", () => {
+  it("writes a portable proposed manifest with the bounded source-only capability and no machine paths or secrets", () => {
     const { workspace, project, executable } = fixture();
     const manifest = proposeVscodeMcpSetup(workspace, project);
     expect(manifest).toMatchObject({
@@ -56,12 +56,8 @@ describe("VS Code MCP setup", () => {
       transport: "stdio",
       recipeId: "vscode.mcp",
     });
-    expect(manifest.capabilityNames).toEqual(
-      expect.arrayContaining(["candidature.fields.list", "candidature.create"]),
-    );
-    expect(manifest.toolNames).toEqual(
-      expect.arrayContaining(["candidature_fields_list", "candidature_create"]),
-    );
+    expect(manifest.capabilityNames).toEqual(["candidature.create"]);
+    expect(manifest.toolNames).toEqual(["candidature_create"]);
     const text = readFileSync(path.join(workspace, "integrations", "vscode-mcp.json"), "utf8");
     expect(text).not.toContain(workspace);
     expect(text).not.toContain(project);

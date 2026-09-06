@@ -4,7 +4,7 @@ CREATE TABLE documents (
   title TEXT NOT NULL,
   variant_id TEXT NOT NULL REFERENCES profile_variants(id) ON DELETE RESTRICT,
   language TEXT,
-  engine TEXT NOT NULL DEFAULT 'pdflatex' CHECK (engine IN ('pdflatex', 'lualatex', 'xelatex')),
+  engine TEXT NOT NULL DEFAULT 'pdflatex' CHECK (engine = 'pdflatex'),
   recipient TEXT,
   subject TEXT,
   body_json TEXT NOT NULL DEFAULT '[]',

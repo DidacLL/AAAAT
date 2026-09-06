@@ -1,5 +1,7 @@
 # ADR 0006 — First direct AI provider boundary
 
+> Recovery clarification: [ADR 0015](0015-owner-approved-recovery-boundaries.md) supersedes outbound durable identifiers and any coupling of external/provider wire contracts to internal identifier-bearing contracts. Unrelated decisions below remain in force.
+
 ## Context
 
 M3 requires optional provider-neutral AI without giving the sandboxed renderer arbitrary networking or credential authority. The first concrete operation is a read-only candidature fit assessment with privacy projection before inference.

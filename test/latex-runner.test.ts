@@ -41,7 +41,7 @@ describe("latex runner", () => {
     process.env.AAAAT_FAKE_LATEX_MODE = "slow";
 
     let timerRan = false;
-    const render = runLatexmk(project, "pdflatex", 1_000);
+    const render = runLatexmk(project, 1_000);
     setTimeout(() => {
       timerRan = true;
     }, 10);
@@ -57,7 +57,7 @@ describe("latex runner", () => {
     process.env.AAAAT_FAKE_LATEX_MODE = "timeout";
     process.env.AAAAT_FAKE_LATEX_SENTINEL = sentinel;
 
-    await expect(runLatexmk(project, "pdflatex", 40)).rejects.toThrow("timed out");
+    await expect(runLatexmk(project, 40)).rejects.toThrow("timed out");
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect(existsSync(sentinel)).toBe(false);
   });
@@ -65,7 +65,7 @@ describe("latex runner", () => {
   it("reports the non-zero latexmk exit code", async () => {
     const project = fakeLatexmk();
     process.env.AAAAT_FAKE_LATEX_MODE = "fail";
-    await expect(runLatexmk(project, "pdflatex", 1_000)).rejects.toThrow(
+    await expect(runLatexmk(project, 1_000)).rejects.toThrow(
       "exit code 2",
     );
   });
@@ -76,7 +76,7 @@ describe("latex runner", () => {
     roots.push(project);
     process.env.PATH = project;
 
-    await expect(runLatexmk(project, "pdflatex", 1_000)).rejects.toThrow(
+    await expect(runLatexmk(project, 1_000)).rejects.toThrow(
       "Install latexmk and pdflatex",
     );
   });

@@ -16,6 +16,7 @@ const candidature = {
   createdAt: "2026-09-04T00:00:00.000Z",
   updatedAt: "2026-09-04T00:00:00.000Z",
   label: "Platform opportunity",
+  sourceSearchText: "",
   values: [],
   documentIds: [cvId, coverId],
   conceptIds: [],
@@ -150,5 +151,29 @@ describe("AI document assistance workspace", () => {
         "Structured cover-letter fields updated. Existing manual TeX source remains protected.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("keeps edited AI cover-letter text when adjacent discard actions are cancelled", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<AiDocumentsWorkspace />);
+
+    const documentSelect = await screen.findByLabelText("Document");
+    await user.selectOptions(documentSelect, coverId);
+    await user.click(screen.getByRole("button", { name: "Draft cover letter" }));
+
+    const subject = await screen.findByLabelText("Subject");
+    await user.clear(subject);
+    await user.type(subject, "Unsaved AI draft subject");
+
+    await user.selectOptions(documentSelect, cvId);
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved AI cover-letter draft edits?");
+    expect(documentSelect).toHaveValue(coverId);
+    expect(screen.getByLabelText("Subject")).toHaveValue("Unsaved AI draft subject");
+
+    await user.click(screen.getByRole("button", { name: "Draft cover letter" }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(draftCoverLetter).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Subject")).toHaveValue("Unsaved AI draft subject");
   });
 });

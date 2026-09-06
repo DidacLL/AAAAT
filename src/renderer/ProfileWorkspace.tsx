@@ -125,7 +125,11 @@ function orderedCanonicalItems(
   });
 }
 
-export function ProfileWorkspace() {
+export function ProfileWorkspace({
+  onDirtyChange,
+}: {
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [snapshot, setSnapshot] = useState<ProfileSnapshot | null>(null);
   const [resolved, setResolved] = useState<ResolvedProfile | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
@@ -155,6 +159,33 @@ export function ProfileWorkspace() {
   const variantDirty = selectedVariant
     ? JSON.stringify(variantState) !== JSON.stringify(variantForm(selectedVariant))
     : false;
+  const editedItem = editingItemId
+    ? snapshot?.items.find((item) => item.id === editingItemId) ?? null
+    : null;
+  const itemDirty = JSON.stringify(itemState) !== JSON.stringify(editedItem ? itemForm(editedItem) : emptyItem);
+
+  useEffect(() => {
+    onDirtyChange?.(variantDirty || itemDirty);
+    return () => onDirtyChange?.(false);
+  }, [itemDirty, onDirtyChange, variantDirty]);
+
+  const confirmItemDiscard = () =>
+    !itemDirty || window.confirm("Discard unsaved profile item edits?");
+
+  const startItemEdit = (item: ProfileItem) => {
+    if (item.id === editingItemId) return;
+    if (!confirmItemDiscard()) return;
+    setEditingItemId(item.id);
+    setItemState(itemForm(item));
+    setError(null);
+  };
+
+  const cancelItemEdit = () => {
+    if (!confirmItemDiscard()) return;
+    setEditingItemId(null);
+    setItemState(emptyItem);
+    setError(null);
+  };
 
   const refreshResolved = async (variantId: string | null) => {
     if (!variantId) {
@@ -247,6 +278,7 @@ export function ProfileWorkspace() {
   };
 
   const removeItem = async (itemId: string) => {
+    if (itemId === editingItemId && !confirmItemDiscard()) return;
     setError(null);
     try {
       await acceptSnapshot(
@@ -538,10 +570,7 @@ export function ProfileWorkspace() {
               <button
                 className="compact-secondary"
                 type="button"
-                onClick={() => {
-                  setEditingItemId(null);
-                  setItemState(emptyItem);
-                }}
+                onClick={cancelItemEdit}
               >
                 Cancel edit
               </button>
@@ -559,13 +588,7 @@ export function ProfileWorkspace() {
                 {item.description ? <p>{item.description}</p> : null}
               </div>
               <div className="row-actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingItemId(item.id);
-                    setItemState(itemForm(item));
-                  }}
-                >
+                <button type="button" onClick={() => startItemEdit(item)}>
                   Edit
                 </button>
                 <button type="button" onClick={() => void removeItem(item.id)}>
