@@ -6,6 +6,8 @@ Current advisory routing: ChatGPT Classic for bounded GitHub work, CI, documenta
 
 A host with broad screen, filesystem, or shell access is a user-chosen trust boundary outside AAAAT's application-level privacy projection. Setup and handoffs must describe that access honestly.
 
+Verification evidence is impact-scoped, not commit-SHA-scoped. A successful command, runtime/package/visual/TeX check remains valid for later commits when intervening changes cannot affect the tested behavior, platform path, fixture contract, environment assumption, or other premise that the evidence proves. Exact-head parity alone is not a reason to rerun it, and handoffs/reviews must not ask the owner to spend Codex/local execution reproducing unaffected evidence. When reusing evidence, cite the originating SHA/check and state why intervening changes are non-impacting. Fresh evidence is required only for affected surfaces or a concrete unexplained gap. Automatically triggered CI may still run according to repository policy; do not manually duplicate equivalent unaffected local checks merely to match the newest SHA.
+
 At a real handoff, lead with:
 
 Now: what works or was corrected.
@@ -21,7 +23,7 @@ Goal: one observable outcome
 Base and branch: exact refs; preserve reachable history
 In scope / out of scope: smallest complete work and exclusions
 Evidence already produced: commits, checks, artifacts, conclusions
-Required checks: named checks and required runtime/visual/package evidence
+Required checks: only checks not already satisfied by still-applicable evidence, plus any newly affected runtime/visual/package evidence
 Return: URLs, commit SHA, check conclusions, review findings, merge SHA, blockers
 
 Recipients inspect current Issue and branch state before acting. Do not commit task-specific handoffs, task databases, transcripts, acceptance ledgers, or reports.
