@@ -20,14 +20,15 @@ export function AiDocumentsWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const coverDraftDirty =
+    coverDraft !== null &&
+    coverDraftBaseline !== null &&
+    JSON.stringify(coverDraft) !== JSON.stringify(coverDraftBaseline);
+
   useEffect(() => {
-    onDirtyChange?.(
-      coverDraft !== null &&
-        coverDraftBaseline !== null &&
-        JSON.stringify(coverDraft) !== JSON.stringify(coverDraftBaseline),
-    );
+    onDirtyChange?.(coverDraftDirty);
     return () => onDirtyChange?.(false);
-  }, [coverDraft, coverDraftBaseline, onDirtyChange]);
+  }, [coverDraftDirty, onDirtyChange]);
 
   useEffect(() => {
     let active = true;
@@ -66,13 +67,29 @@ export function AiDocumentsWorkspace({
     [profileItems],
   );
 
-  const resetProposal = (nextDocumentId: string) => {
-    setDocumentId(nextDocumentId);
+  const confirmDraftDiscard = () =>
+    !coverDraftDirty || window.confirm("Discard unsaved AI cover-letter draft edits?");
+
+  const clearProposal = () => {
     setCvResult(null);
     setCoverDraft(null);
     setCoverDraftBaseline(null);
     setError(null);
     setNotice(null);
+  };
+
+  const selectCandidature = (nextCandidatureId: string) => {
+    if (nextCandidatureId === candidatureId) return;
+    if (!confirmDraftDiscard()) return;
+    setCandidatureId(nextCandidatureId);
+    clearProposal();
+  };
+
+  const selectDocument = (nextDocumentId: string) => {
+    if (nextDocumentId === documentId) return;
+    if (!confirmDraftDiscard()) return;
+    setDocumentId(nextDocumentId);
+    clearProposal();
   };
 
   const tailorCv = async () => {
@@ -97,14 +114,16 @@ export function AiDocumentsWorkspace({
 
   const draftCoverLetter = async () => {
     if (!selectedDocument || !selectedCandidature) return;
+    if (!confirmDraftDiscard()) return;
     setBusy(true);
     setError(null);
     setNotice(null);
     setCoverDraft(null);
+    setCoverDraftBaseline(null);
     try {
       const drafted = await window.aaaat.ai.draftCoverLetter({
-          candidatureId: selectedCandidature.id,
-          documentId: selectedDocument.id,
+        candidatureId: selectedCandidature.id,
+        documentId: selectedDocument.id,
       });
       setCoverDraft(drafted);
       setCoverDraftBaseline(drafted);
@@ -170,11 +189,7 @@ export function AiDocumentsWorkspace({
             Candidature
             <select
               value={candidatureId}
-              onChange={(event) => {
-                setCandidatureId(event.target.value);
-                setCvResult(null);
-                setCoverDraft(null);
-              }}
+              onChange={(event) => selectCandidature(event.target.value)}
             >
               {candidatures.map((record) => (
                 <option key={record.id} value={record.id}>{record.label}</option>
@@ -183,7 +198,7 @@ export function AiDocumentsWorkspace({
           </label>
           <label>
             Document
-            <select value={documentId} onChange={(event) => resetProposal(event.target.value)}>
+            <select value={documentId} onChange={(event) => selectDocument(event.target.value)}>
               {documents.map((document) => (
                 <option key={document.id} value={document.id}>
                   {document.title} · {document.kind === "cv" ? "CV" : "Cover letter"}
