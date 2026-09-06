@@ -99,6 +99,8 @@ function createPreviewApi(): DesktopApi &
       save: previewUnavailable,
       setDefault: previewUnavailable,
       remove: async () => [],
+      validateOperation: previewUnavailable,
+      setOperationDefault: previewUnavailable,
     }),
     artifacts: Object.freeze({
       list: async () => [],
@@ -118,20 +120,14 @@ function createPreviewApi(): DesktopApi &
   });
 }
 
-if (import.meta.env.DEV && !("aaaat" in window)) {
+if (!window.aaaat) {
   Object.defineProperty(window, "aaaat", {
-    configurable: false,
+    configurable: true,
     value: createPreviewApi(),
-    writable: false,
   });
 }
 
-const root = document.getElementById("root");
-if (!root) {
-  throw new Error("AAAAT renderer root is missing");
-}
-
-createRoot(root).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
   </StrictMode>,
