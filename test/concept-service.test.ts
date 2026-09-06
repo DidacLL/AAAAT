@@ -21,7 +21,7 @@ function temporaryWorkspace(): string {
 }
 
 describe("shared candidature concepts", () => {
-  it("persists one editable concept and associates it with multiple sparse candidatures", () => {
+  it("persists editable concept notes without erasing them during ordinary concept edits", () => {
     const root = temporaryWorkspace();
     try {
       const first = createCandidature(root, { values: [] });
@@ -29,6 +29,7 @@ describe("shared candidature concepts", () => {
       const created = createConcept(root, {
         name: "TypeScript",
         definition: "Typed JavaScript",
+        notes: "Mention migration ownership from the platform project.",
         aliases: ["TS"],
       });
 
@@ -53,6 +54,7 @@ describe("shared candidature concepts", () => {
       });
       openWorkspace(root);
 
+      expect(updated.notes).toBe("Mention migration ownership from the platform project.");
       expect(listConcepts(root)).toEqual([updated]);
       expect(listCandidatures(root).map((record) => record.conceptIds)).toEqual([
         [created.id],

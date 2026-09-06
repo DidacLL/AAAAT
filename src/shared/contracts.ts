@@ -519,6 +519,7 @@ export const conceptInputSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
     definition: z.string().max(3000),
+    notes: z.string().max(5000).optional(),
     aliases: z.array(conceptAliasSchema).max(30),
   })
   .strict()
