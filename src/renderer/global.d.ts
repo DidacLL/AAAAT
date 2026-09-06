@@ -7,6 +7,7 @@ import type { DesktopApi } from "../shared/contracts";
 import type { FocusDesktopApi } from "../shared/focus-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { TodoDesktopApi } from "../shared/todo-contracts";
+import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-contracts";
 
 declare global {
   interface Window {
@@ -18,7 +19,8 @@ declare global {
       CombinedDocumentDesktopApi &
       TodoDesktopApi &
       FocusDesktopApi &
-      SetupEnvironmentDesktopApi;
+      SetupEnvironmentDesktopApi &
+      WorkspaceRecoveryDesktopApi;
   }
 }
 

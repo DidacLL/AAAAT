@@ -10,6 +10,7 @@ import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
 import { TodosWorkspace } from "./TodosWorkspace";
+import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
 type ProductView = "candidatures" | "todos" | "profile" | "documents" | "ai-documents" | "settings";
@@ -99,6 +100,14 @@ export function App() {
           : "That folder is not a compatible AAAAT workspace. Choose another folder.",
       );
     }
+  };
+
+  const openRestoredWorkspace = (restoredWorkspace: WorkspaceInfo) => {
+    setEditorDirty(false);
+    setWorkspaceError(null);
+    setWorkspace(restoredWorkspace);
+    setWorkspacePhase("ready");
+    setProductView("candidatures");
   };
 
   const selectProductView = (next: ProductView) => {
@@ -208,6 +217,11 @@ export function App() {
           ) : (
             <div key={`settings-${workspace.rootPath}`}>
               <SetupEnvironmentPanel />
+              <WorkspaceRecoveryPanel
+                currentWorkspace={workspace}
+                editorDirty={editorDirty}
+                onRestored={openRestoredWorkspace}
+              />
               <AiSettingsWorkspace onDirtyChange={setEditorDirty} />
             </div>
           )}
@@ -223,14 +237,21 @@ export function App() {
               : "Choose where AAAAT should keep your career workspace."}
           </h1>
           {loading ? null : (
-            <div className="workspace-actions">
-              <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>
-                {choosing ? "Choosing workspace..." : "Create workspace"}
-              </button>
-              <button className="secondary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>
-                Open existing workspace
-              </button>
-            </div>
+            <>
+              <div className="workspace-actions">
+                <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>
+                  {choosing ? "Choosing workspace..." : "Create workspace"}
+                </button>
+                <button className="secondary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>
+                  Open existing workspace
+                </button>
+              </div>
+              <WorkspaceRecoveryPanel
+                currentWorkspace={null}
+                editorDirty={false}
+                onRestored={openRestoredWorkspace}
+              />
+            </>
           )}
           {workspaceError ? <p className="error-message" role="alert">{workspaceError}</p> : null}
         </main>

@@ -3,9 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/renderer/App";
+import type { AiConnectionDesktopApi } from "../src/shared/ai-connection-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot, WorkspaceInfo } from "../src/shared/contracts";
+import type { SetupEnvironmentDesktopApi } from "../src/shared/setup-environment-contracts";
+import type { WorkspaceRecoveryDesktopApi } from "../src/shared/workspace-recovery-contracts";
 
 const readyWorkspace: WorkspaceInfo = { rootPath: "/tmp/aaaat-workspace" };
+const restoredWorkspace: WorkspaceInfo = { rootPath: "/tmp/restored-aaaat-workspace" };
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
 const emptyCareerContext: CareerContext = {
   careerDirection: "",
@@ -16,17 +20,56 @@ const emptyCareerContext: CareerContext = {
   workPreferences: "",
   applicationWritingPreferences: "",
 };
+const readyEnvironment = {
+  workspaceReady: true,
+  tex: {
+    commands: [
+      { command: "latexmk" as const, available: true, version: "Latexmk" },
+      { command: "pdflatex" as const, available: true, version: "pdfTeX" },
+    ],
+    documentRenderingReady: true,
+  },
+  ai: {
+    configurationReadable: true,
+    connectionCount: 0,
+    operations: [
+      { operation: "fit_assessment" as const, available: false, connectionName: null },
+      { operation: "job_extraction" as const, available: false, connectionName: null },
+      { operation: "historical_field_discovery" as const, available: false, connectionName: null },
+      { operation: "variant_recommendation" as const, available: false, connectionName: null },
+      { operation: "cv_tailoring" as const, available: false, connectionName: null },
+      { operation: "cover_letter_draft" as const, available: false, connectionName: null },
+    ],
+  },
+};
 const current = vi.fn<DesktopApi["workspace"]["current"]>();
 const choose = vi.fn<DesktopApi["workspace"]["choose"]>();
+const backup = vi.fn<WorkspaceRecoveryDesktopApi["workspaceRecovery"]["backup"]>();
+const restore = vi.fn<WorkspaceRecoveryDesktopApi["workspaceRecovery"]["restore"]>();
 const unavailable = async (): Promise<never> => {
   throw new Error("Unavailable in workspace-state test");
 };
 
-const desktopApi: DesktopApi = {
+const desktopApi: DesktopApi &
+  WorkspaceRecoveryDesktopApi &
+  SetupEnvironmentDesktopApi &
+  AiConnectionDesktopApi = {
   system: {
     info: async () => ({ appVersion: "2.0.0", electronVersion: "44.1.1", nodeVersion: "24.19.0" }),
   },
   workspace: { current, choose },
+  workspaceRecovery: { backup, restore },
+  setupEnvironment: { current: async () => readyEnvironment },
+  aiConnections: {
+    list: async () => [],
+    save: async () => [],
+    setDefault: async () => [],
+    remove: async () => [],
+    validateOperation: async () => [],
+    setOperationDefault: async () => [],
+    exportPortable: async () => "cancelled",
+    importPortable: async () => ({ status: "cancelled", connections: [] }),
+  },
   profile: {
     current: async () => emptyProfile,
     addItem: async () => emptyProfile,
@@ -83,8 +126,12 @@ describe("AAAAT workspace state", () => {
   beforeEach(() => {
     current.mockReset();
     choose.mockReset();
+    backup.mockReset();
+    restore.mockReset();
     current.mockResolvedValue(null);
     choose.mockResolvedValue(readyWorkspace);
+    backup.mockResolvedValue({ status: "backed_up" });
+    restore.mockResolvedValue({ status: "cancelled" });
     Object.defineProperty(window, "aaaat", { configurable: true, value: desktopApi });
   });
 
@@ -108,6 +155,18 @@ describe("AAAAT workspace state", () => {
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
   });
 
+  it("restores a workspace directly from the first-run surface", async () => {
+    restore.mockResolvedValueOnce({ status: "restored", workspace: restoredWorkspace });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Restore workspace backup" }));
+
+    expect(restore).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("heading", { name: "Workspace ready." })).toBeInTheDocument();
+    expect(screen.getByText(restoredWorkspace.rootPath)).toBeInTheDocument();
+  });
+
   it("keeps the first-run state when folder selection is cancelled", async () => {
     choose.mockResolvedValueOnce(null);
     const user = userEvent.setup();
@@ -129,6 +188,23 @@ describe("AAAAT workspace state", () => {
     expect(screen.getByText(readyWorkspace.rootPath)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose another workspace" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
+  });
+
+  it("exposes recovery controls in Settings and keeps the current workspace when restore fails", async () => {
+    current.mockResolvedValueOnce(readyWorkspace);
+    restore.mockRejectedValueOnce(new Error("invalid backup"));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Settings" }));
+    expect(await screen.findByRole("button", { name: "Back up workspace" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Restore workspace backup" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "AAAAT could not restore that backup. The current workspace was not changed.",
+    );
+    expect(screen.getByText(readyWorkspace.rootPath)).toBeInTheDocument();
   });
 
   it("keeps a dirty profile editor mounted when top-level navigation is cancelled", async () => {

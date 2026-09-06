@@ -31,12 +31,13 @@ On first launch AAAAT asks where it should keep the career workspace.
 
 - **Create workspace**: choose an empty folder. AAAAT initializes its SQLite database and workspace structure there.
 - **Open existing workspace**: choose a compatible AAAAT v2 workspace that already exists.
+- **Restore workspace backup**: choose an AAAAT backup directory and then a separate empty destination. AAAAT validates the backup before opening the restored workspace.
 
 AAAAT shows the selected workspace path while it is open. Use **Choose another workspace** to switch.
 
 A folder that is non-empty but is not already a compatible AAAAT workspace is rejected. AAAAT v2 does not migrate AAAAT v1 workspaces.
 
-If the previously used workspace was moved, deleted, or is no longer available, AAAAT asks you to choose another workspace rather than silently creating replacement data elsewhere.
+If the previously used workspace was moved, deleted, or is no longer available, AAAAT asks you to choose another workspace or restore a backup rather than silently creating replacement data elsewhere.
 
 ## 3. Use AAAAT without AI
 
@@ -110,13 +111,7 @@ If no local model is running, no connection has been validated for the requested
 
 ## 6. Back up a workspace
 
-Backup and restore are currently packaged command operations rather than desktop buttons.
-
-Create a backup into an existing empty directory:
-
-```text
-AAAAT --workspace-backup --workspace <existing-AAAAT-workspace> --destination <empty-backup-directory>
-```
+Open **Settings → Workspace backup and restore** and choose **Back up workspace**. Select a separate existing empty folder, or create an empty folder in the system picker. AAAAT creates the backup there; the renderer never receives or stores the selected filesystem path.
 
 The backup contains a consistent SQLite snapshot, relevant regular user-owned workspace files, and a portable manifest with relative paths, hashes, sizes, migration metadata, creation time, and declared exclusions.
 
@@ -124,17 +119,25 @@ Secrets and machine-local/transient material are excluded by default, including 
 
 Keep the complete backup directory together; do not edit its manifest or payload if you expect restore validation to succeed.
 
+The packaged command remains available as a technical alternative:
+
+```text
+AAAAT --workspace-backup --workspace <existing-AAAAT-workspace> --destination <empty-backup-directory>
+```
+
 ## 7. Restore a workspace
 
-Restore into an existing empty destination directory:
+Choose **Restore workspace backup** either on the first-run/no-workspace screen or in **Settings → Workspace backup and restore**. Select the backup directory first, then a separate empty destination directory.
+
+If another workspace is already open, AAAAT confirms before switching. Unsaved editor state is protected before the restore operation is invoked. Before writing the destination, AAAAT validates the manifest, relative paths, file sizes/hashes, SQLite integrity, and migration-history compatibility. The backup and destination may not overlap. Invalid or corrupted backups fail closed, and a failed activation removes partial restored state.
+
+After a successful restore, AAAAT immediately opens and remembers the restored workspace. If restore fails, the previously open workspace remains current. Cancelling either directory picker is a no-op.
+
+The packaged command remains available as a technical alternative:
 
 ```text
 AAAAT --workspace-restore --backup <backup-directory> --destination <empty-workspace-directory>
 ```
-
-Before writing the destination, AAAAT validates the manifest, relative paths, file sizes/hashes, SQLite integrity, and migration-history compatibility. The backup and destination may not overlap. Invalid or corrupted backups fail closed, and a failed activation removes partial restored state.
-
-After a successful restore, launch AAAAT and choose **Open existing workspace** for the restored directory.
 
 Because AI connection configuration is intentionally excluded from workspace backups, import a separately exported portable AI setup in **Settings** if you want to restore those connection definitions. Operation validations and per-operation defaults are intentionally not portable and must be re-established on the restored computer.
 
@@ -160,7 +163,7 @@ Activation validates the workspace, executable, manifest, and live MCP tool surf
 
 **AAAAT warns that the build is unsigned or untrusted.** The current alpha artifacts are intentionally not code-signed/notarized. Use your operating system's normal security UI to decide whether to run the build; AAAAT does not disable or bypass platform protections.
 
-**The previous workspace is unavailable.** Choose another existing AAAAT v2 workspace or create a new one in an empty folder. AAAAT does not silently relocate the old workspace.
+**The previous workspace is unavailable.** Choose another existing AAAAT v2 workspace, create a new one in an empty folder, or restore a compatible backup. AAAAT does not silently relocate the old workspace.
 
 **A folder cannot be used as a workspace.** For **Create workspace**, choose an empty folder or an already compatible AAAAT workspace. For **Open existing workspace**, select a compatible AAAAT v2 workspace.
 

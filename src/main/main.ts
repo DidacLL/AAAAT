@@ -76,6 +76,11 @@ import {
   type WorkspaceInfo,
 } from "../shared/contracts";
 import {
+  workspaceBackupResultSchema,
+  workspaceRecoveryChannels,
+  workspaceRestoreResultSchema,
+} from "../shared/workspace-recovery-contracts";
+import {
   assessFit,
   discoverCandidatureFieldFromSources,
   draftCoverLetter,
@@ -134,6 +139,7 @@ import {
   updateProfileVariant,
 } from "./profile-service";
 import { createWindowOptions } from "./window-options";
+import { createWorkspaceBackup, restoreWorkspaceBackup } from "./workspace-backup";
 import {
   createOrOpenWorkspace,
   openWorkspace,
@@ -191,6 +197,42 @@ async function chooseWorkspace(
   return workspace;
 }
 
+async function backUpWorkspace(mainWindow: BrowserWindow) {
+  const selection = await dialog.showOpenDialog(mainWindow, {
+    title: "Back up AAAAT workspace",
+    buttonLabel: "Create backup here",
+    properties: ["openDirectory", "createDirectory", "promptToCreate"],
+  });
+  const destinationPath = selection.filePaths[0];
+  if (selection.canceled || !destinationPath) return { status: "cancelled" as const };
+  await createWorkspaceBackup(requireWorkspaceRoot(), destinationPath);
+  return { status: "backed_up" as const };
+}
+
+async function restoreWorkspace(mainWindow: BrowserWindow) {
+  const sourceSelection = await dialog.showOpenDialog(mainWindow, {
+    title: "Choose an AAAAT workspace backup",
+    buttonLabel: "Use this backup",
+    properties: ["openDirectory"],
+  });
+  const backupPath = sourceSelection.filePaths[0];
+  if (sourceSelection.canceled || !backupPath) return { status: "cancelled" as const };
+
+  const destinationSelection = await dialog.showOpenDialog(mainWindow, {
+    title: "Choose an empty folder for the restored workspace",
+    buttonLabel: "Restore here",
+    properties: ["openDirectory", "createDirectory", "promptToCreate"],
+  });
+  const destinationPath = destinationSelection.filePaths[0];
+  if (destinationSelection.canceled || !destinationPath) return { status: "cancelled" as const };
+
+  restoreWorkspaceBackup(backupPath, destinationPath);
+  const workspace = openWorkspace(destinationPath);
+  rememberWorkspacePath(workspaceSettingsPath(), workspace.rootPath);
+  currentWorkspace = workspace;
+  return { status: "restored" as const, workspace };
+}
+
 async function exportDocument(mainWindow: BrowserWindow, documentId: string) {
   const selection = await dialog.showOpenDialog(mainWindow, {
     title: "Export portable document project",
@@ -208,7 +250,11 @@ async function exportDocument(mainWindow: BrowserWindow, documentId: string) {
 }
 
 function registerIpc(mainWindow: BrowserWindow): void {
-  for (const channel of [...Object.values(channels), ...Object.values(aiChannels)]) {
+  for (const channel of [
+    ...Object.values(channels),
+    ...Object.values(aiChannels),
+    ...Object.values(workspaceRecoveryChannels),
+  ]) {
     ipcMain.removeHandler(channel);
   }
 
@@ -228,6 +274,14 @@ function registerIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(channels.workspaceChoose, async (event, choice: unknown) => {
     assertTrustedSender(event, mainWindow);
     return optionalWorkspaceInfoSchema.parse(await chooseWorkspace(mainWindow, choice));
+  });
+  ipcMain.handle(workspaceRecoveryChannels.backup, async (event) => {
+    assertTrustedSender(event, mainWindow);
+    return workspaceBackupResultSchema.parse(await backUpWorkspace(mainWindow));
+  });
+  ipcMain.handle(workspaceRecoveryChannels.restore, async (event) => {
+    assertTrustedSender(event, mainWindow);
+    return workspaceRestoreResultSchema.parse(await restoreWorkspace(mainWindow));
   });
 
   ipcMain.handle(channels.profileCurrent, (event) => {
