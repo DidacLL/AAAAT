@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { CandidatureInput } from "../shared/contracts";
+import { CandidatureComparisonPanel } from "./CandidatureComparisonPanel";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import { JobExtractionPanel } from "./JobExtractionPanel";
 
@@ -31,6 +32,10 @@ export function CandidaturesAiWorkspace({
   return (
     <>
       <CandidaturesWorkspace key={revision} onDirtyChange={setCandidatureDirty} />
+      <details className="optional-ai-extraction">
+        <summary>Optional AI candidature comparison</summary>
+        <CandidatureComparisonPanel />
+      </details>
       <details className="optional-ai-extraction">
         <summary>Optional AI job extraction</summary>
         <JobExtractionPanel onCreate={createFromProposal} onDirtyChange={setExtractionDirty} />
