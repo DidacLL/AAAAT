@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 import { createArtifactDesktopApi } from "./artifact-api";
+import { createCandidatureSearchDesktopApi } from "./candidature-search-api";
 import { createDesktopApi } from "./api";
 import { createCombinedDocumentDesktopApi } from "./combined-document-api";
 import { createFocusDesktopApi } from "./focus-api";
@@ -13,6 +14,7 @@ contextBridge.exposeInMainWorld(
   Object.freeze({
     ...createDesktopApi(invoke),
     ...createArtifactDesktopApi(invoke),
+    ...createCandidatureSearchDesktopApi(invoke),
     ...createCombinedDocumentDesktopApi(invoke),
     ...createTodoDesktopApi(invoke),
     ...createFocusDesktopApi(invoke),

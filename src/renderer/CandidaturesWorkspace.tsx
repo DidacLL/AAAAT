@@ -115,6 +115,10 @@ export function CandidaturesWorkspace({
   const [selectedConceptIds, setSelectedConceptIds] = useState<string[]>([]);
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [searchResult, setSearchResult] = useState<{
+    readonly query: string;
+    readonly ids: ReadonlySet<string>;
+  } | null>(null);
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
   const [sourceDirty, setSourceDirty] = useState(false);
   const [conceptEditorOpen, setConceptEditorOpen] = useState(false);
@@ -223,11 +227,34 @@ export function CandidaturesWorkspace({
     };
   }, [hydrate]);
 
+  const normalizedQuery = query.trim();
+  useEffect(() => {
+    if (!normalizedQuery) return;
+    let active = true;
+    void window.aaaat.candidatureSearch
+      .search({ query: normalizedQuery })
+      .then((ids) => {
+        if (active) setSearchResult({ query: normalizedQuery, ids: new Set(ids) });
+      })
+      .catch(() => {
+        if (!active) return;
+        setSearchResult({ query: normalizedQuery, ids: new Set() });
+        setError("AAAAT could not search retained candidature information.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [normalizedQuery, records, fields, concepts]);
+
   const currentFilterField = fields.find((field) => field.definition.id === filterFieldId);
   const availableOperators = operatorsFor(currentFilterField);
+  const textMatches = useMemo<ReadonlySet<string> | null>(() => {
+    if (!normalizedQuery) return null;
+    return searchResult?.query === normalizedQuery ? searchResult.ids : new Set();
+  }, [normalizedQuery, searchResult]);
   const visibleRecords = useMemo(
-    () => filterCandidatures(records, fields, concepts, query, archiveFilter, fieldMatches),
-    [records, fields, concepts, query, archiveFilter, fieldMatches],
+    () => filterCandidatures(records, archiveFilter, fieldMatches, textMatches),
+    [records, archiveFilter, fieldMatches, textMatches],
   );
 
   const storeRecord = (record: CandidatureRecord) => {
@@ -595,6 +622,7 @@ export function CandidaturesWorkspace({
           <input
             type="search"
             value={query}
+            maxLength={200}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Organisation, role, custom field, concept…"
           />
