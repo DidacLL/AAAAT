@@ -44,5 +44,6 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     import("./combined-document-ipc"),
     import("./todo-ipc"),
     import("./focus-ipc"),
+    import("./setup-environment-ipc"),
   ]).then(() => import("./main"));
 }

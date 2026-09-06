@@ -5,6 +5,7 @@ import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-c
 import type { CombinedDocumentDesktopApi } from "../shared/combined-document-contracts";
 import type { DesktopApi } from "../shared/contracts";
 import type { FocusDesktopApi } from "../shared/focus-contracts";
+import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { TodoDesktopApi } from "../shared/todo-contracts";
 
 declare global {
@@ -16,7 +17,8 @@ declare global {
       CandidatureSearchDesktopApi &
       CombinedDocumentDesktopApi &
       TodoDesktopApi &
-      FocusDesktopApi;
+      FocusDesktopApi &
+      SetupEnvironmentDesktopApi;
   }
 }
 
