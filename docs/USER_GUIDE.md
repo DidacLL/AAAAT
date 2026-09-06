@@ -99,13 +99,15 @@ Use **Export AI setup** to save a small portable setup file containing only conn
 
 Use **Import AI setup** to replace the current named local AI setup from one of those files. AAAAT asks for confirmation before replacement. Imported connections receive fresh local IDs, preserve the general default by connection name, and start with no validated operations or per-operation defaults. Validate the operations you intend to use again on the destination computer before relying on AI assistance. Cancelling the file picker leaves the current setup unchanged.
 
-The same **Local setup status** summarizes how many local AI connections are configured and which of the six current AI operations have a validated route. This is a capability/routing status, not a model-quality score.
+The same **Local setup status** summarizes how many local AI connections are configured and which of the seven current AI operations have a validated route. This is a capability/routing status, not a model-quality score.
 
 Settings also generates copyable `configurator.ai` guidance for a free-chat assistant. It carries only the configured-connection count and validated-route availability, not connection names, endpoints/models, workspace paths, or career/application content. The prompt tells the assistant to keep AI optional, use normal AAAAT Settings, avoid JSON/SQLite editing and invented credentials, and recommend only explicitly validated operation routes. AAAAT never sends this guidance automatically; copying it is an explicit user action.
 
 Only loopback endpoints are accepted by this current user-facing path. Remote authentication and API-key setup are not part of this alpha path.
 
-When an operation has a validated route, **AI assist** and AI-assisted candidature actions can use bounded operations such as job extraction, fit assessment, profile-variant recommendation, historical field discovery, CV tailoring, and cover-letter drafting. AAAAT constructs operation-specific context, applies its privacy projection, validates the response, and uses normal application services for permitted changes.
+When an operation has a validated route, **AI assist** and AI-assisted candidature actions can use bounded operations such as job extraction, fit assessment, profile-variant recommendation, historical field discovery, CV tailoring, cover-letter drafting, and selected candidature comparison. AAAAT constructs operation-specific context, applies its privacy projection, validates the response, and uses normal application services for permitted changes.
+
+For **Optional AI candidature comparison**, explicitly select 2–5 candidatures and choose **Preview disclosure** first. AAAAT shows the local selections and the exact AI-visible field values it would send. Retained Sources, profile information, documents, ToDos, artifacts, and candidature history are not included. The provider receives generic operation-local candidature references rather than AAAAT's durable record or field identifiers. The comparison is read-only and transient: it may surface strengths, concerns, questions and cross-cutting considerations, but AAAAT does not score or rank the opportunities, choose a winner, recommend which candidature you should prefer, or persist the comparison automatically.
 
 If no local model is running, no connection has been validated for the requested operation, or an AI connection fails, continue using **Profile**, **Documents**, and **Candidatures** manually.
 
