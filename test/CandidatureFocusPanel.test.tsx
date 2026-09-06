@@ -143,8 +143,8 @@ describe("Candidature Focus structural retrieval", () => {
       />,
     );
 
-    expect(await screen.findByText(/Use the payment outage example/)).toBeInTheDocument();
-    const editor = screen.getByLabelText("Concept notes");
+    const editor = await screen.findByLabelText("Concept notes");
+    expect(editor).toHaveValue("Use the payment outage example.");
     await user.clear(editor);
     await user.type(editor, "Use the database failover example instead.");
     await user.click(screen.getByRole("button", { name: "Save concept notes" }));
