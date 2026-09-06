@@ -99,6 +99,8 @@ function createPreviewApi(): DesktopApi &
       save: previewUnavailable,
       setDefault: previewUnavailable,
       remove: async () => [],
+      validateOperation: previewUnavailable,
+      setOperationDefault: previewUnavailable,
     }),
     artifacts: Object.freeze({
       list: async () => [],

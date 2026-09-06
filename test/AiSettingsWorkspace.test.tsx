@@ -12,6 +12,8 @@ const first = {
   endpoint: "http://localhost:11434/v1",
   model: "fast-model",
   isDefault: true,
+  validatedOperations: [],
+  defaultForOperations: [],
 };
 const second = {
   id: secondId,
@@ -19,17 +21,30 @@ const second = {
   endpoint: "http://localhost:11434/v1",
   model: "deep-model",
   isDefault: false,
+  validatedOperations: [],
+  defaultForOperations: [],
 };
 
 const list = vi.fn();
 const save = vi.fn();
 const setDefault = vi.fn();
 const remove = vi.fn();
+const validateOperation = vi.fn();
+const setOperationDefault = vi.fn();
 
 function installApi() {
   Object.defineProperty(window, "aaaat", {
     configurable: true,
-    value: { aiConnections: { list, save, setDefault, remove } },
+    value: {
+      aiConnections: {
+        list,
+        save,
+        setDefault,
+        remove,
+        validateOperation,
+        setOperationDefault,
+      },
+    },
   });
 }
 
@@ -45,7 +60,7 @@ describe("AI settings workspace", () => {
     vi.restoreAllMocks();
   });
 
-  it("adds several local connections, switches the explicit default, and does not fall back after deletion", async () => {
+  it("adds several local connections, switches the general default, and does not invent credentials", async () => {
     const user = userEvent.setup();
     save
       .mockResolvedValueOnce([first])
@@ -68,27 +83,65 @@ describe("AI settings workspace", () => {
       endpoint: "http://localhost:11434/v1",
       model: "fast-model",
     });
-    expect(await screen.findByText("Default connection")).toBeInTheDocument();
+    expect(await screen.findByText("General default connection")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add another" }));
     await user.type(screen.getByLabelText("Connection name"), "Deep local");
     await user.type(screen.getByLabelText("Model"), "deep-model");
     await user.click(screen.getByRole("button", { name: "Add connection" }));
-    expect(save).toHaveBeenLastCalledWith({
-      name: "Deep local",
-      endpoint: "http://localhost:11434/v1",
-      model: "deep-model",
-    });
 
-    await user.click(screen.getByRole("button", { name: "Use Deep local by default" }));
+    await user.click(screen.getByRole("button", { name: "Use Deep local as the general default" }));
     expect(setDefault).toHaveBeenCalledWith(secondId);
 
     await user.click(screen.getByRole("button", { name: "Remove Deep local" }));
     expect(remove).toHaveBeenCalledWith(secondId);
     expect(
-      await screen.findByText(/No default AI connection is selected/),
+      await screen.findByText(/No general default AI connection is selected/),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText(/API key/i)).not.toBeInTheDocument();
+  });
+
+  it("validates operations explicitly and switches only validated operation defaults", async () => {
+    const user = userEvent.setup();
+    list.mockResolvedValue([first, second]);
+    const firstValidated = {
+      ...first,
+      validatedOperations: ["fit_assessment"],
+      defaultForOperations: ["fit_assessment"],
+    };
+    const secondValidated = {
+      ...second,
+      validatedOperations: ["fit_assessment"],
+      defaultForOperations: [],
+    };
+    validateOperation
+      .mockResolvedValueOnce([firstValidated, second])
+      .mockResolvedValueOnce([firstValidated, secondValidated]);
+    setOperationDefault.mockResolvedValue([
+      { ...firstValidated, defaultForOperations: [] },
+      { ...secondValidated, defaultForOperations: ["fit_assessment"] },
+    ]);
+
+    render(<AiSettingsWorkspace />);
+    await screen.findByRole("button", { name: "Validate Fast local for Fit assessment" });
+
+    await user.click(screen.getByRole("button", { name: "Validate Fast local for Fit assessment" }));
+    expect(validateOperation).toHaveBeenCalledWith({
+      connectionId: firstId,
+      operation: "fit_assessment",
+    });
+    expect(await screen.findByText(/Fit assessment: validated · operation default/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Validate Deep local for Fit assessment" }));
+    expect(validateOperation).toHaveBeenLastCalledWith({
+      connectionId: secondId,
+      operation: "fit_assessment",
+    });
+    await user.click(screen.getByRole("button", { name: "Use Deep local for Fit assessment" }));
+    expect(setOperationDefault).toHaveBeenCalledWith({
+      connectionId: secondId,
+      operation: "fit_assessment",
+    });
   });
 
   it("edits an existing named connection by stable ID", async () => {

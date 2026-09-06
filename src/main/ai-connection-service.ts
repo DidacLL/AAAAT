@@ -12,23 +12,48 @@ import {
 } from "../shared/ai-contracts";
 import {
   aiConnectionIdSchema,
+  aiConnectionOperationInputSchema,
+  aiOperationLabels,
+  aiOperationSchema,
+  aiOperations,
   namedAiConnectionInputSchema,
   namedAiConnectionListSchema,
+  type AiConnectionOperationInput,
+  type AiOperation,
   type NamedAiConnection,
   type NamedAiConnectionInput,
 } from "../shared/ai-connection-contracts";
+import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
+import { validateAiOperation } from "./ai-operation-validation";
 
 const storedConnectionSchema = aiConnectionInputSchema
-  .extend({ id: aiConnectionIdSchema })
+  .extend({
+    id: aiConnectionIdSchema,
+    validatedOperations: z.array(aiOperationSchema).max(aiOperations.length),
+  })
   .strict();
 
 type StoredConnection = z.infer<typeof storedConnectionSchema>;
 
+const operationDefaultsSchema = z
+  .object({
+    fit_assessment: aiConnectionIdSchema.optional(),
+    job_extraction: aiConnectionIdSchema.optional(),
+    historical_field_discovery: aiConnectionIdSchema.optional(),
+    variant_recommendation: aiConnectionIdSchema.optional(),
+    cv_tailoring: aiConnectionIdSchema.optional(),
+    cover_letter_draft: aiConnectionIdSchema.optional(),
+  })
+  .strict();
+
+type OperationDefaults = z.infer<typeof operationDefaultsSchema>;
+
 const storedConnectionConfigurationSchema = z
   .object({
-    version: z.literal(2),
+    version: z.literal(3),
     connections: z.array(storedConnectionSchema).max(16),
     defaultConnectionId: aiConnectionIdSchema.nullable(),
+    operationDefaults: operationDefaultsSchema,
   })
   .strict()
   .superRefine((configuration, context) => {
@@ -47,6 +72,17 @@ const storedConnectionConfigurationSchema = z
       )
     ) {
       context.addIssue({ code: "custom", message: "The default AI connection must exist." });
+    }
+    for (const operation of aiOperations) {
+      const connectionId = configuration.operationDefaults[operation];
+      if (!connectionId) continue;
+      const connection = configuration.connections.find((candidate) => candidate.id === connectionId);
+      if (!connection || !connection.validatedOperations.includes(operation)) {
+        context.addIssue({
+          code: "custom",
+          message: `The default connection for ${aiOperationLabels[operation]} must be validated for that operation.`,
+        });
+      }
     }
   });
 
@@ -82,7 +118,7 @@ function validatedEndpoint(input: AiConnectionInput): string {
 }
 
 function emptyConfiguration(): StoredConnectionConfiguration {
-  return { version: 2, connections: [], defaultConnectionId: null };
+  return { version: 3, connections: [], defaultConnectionId: null, operationDefaults: {} };
 }
 
 function readConfiguration(rootPath: string): StoredConnectionConfiguration {
@@ -122,6 +158,12 @@ function listFor(configuration: StoredConnectionConfiguration): NamedAiConnectio
       ...statusFor(connection),
       id: connection.id,
       isDefault: connection.id === configuration.defaultConnectionId,
+      validatedOperations: aiOperations.filter((operation) =>
+        connection.validatedOperations.includes(operation),
+      ),
+      defaultForOperations: aiOperations.filter(
+        (operation) => configuration.operationDefaults[operation] === connection.id,
+      ),
     })),
   );
 }
@@ -129,12 +171,14 @@ function listFor(configuration: StoredConnectionConfiguration): NamedAiConnectio
 function normalizedStoredConnection(
   input: NamedAiConnectionInput,
   id: string,
+  validatedOperations: readonly AiOperation[] = [],
 ): StoredConnection {
   return storedConnectionSchema.parse({
     id,
     name: input.name,
     endpoint: validatedEndpoint(input),
     model: input.model,
+    validatedOperations,
   });
 }
 
@@ -152,6 +196,26 @@ function assertUniqueName(
   ) {
     throw new AiConnectionServiceError("AI connection names must be unique.");
   }
+}
+
+function clearOperationDefaultsForConnection(
+  defaults: OperationDefaults,
+  connectionId: string,
+): OperationDefaults {
+  const next: OperationDefaults = { ...defaults };
+  for (const operation of aiOperations) {
+    if (next[operation] === connectionId) delete next[operation];
+  }
+  return operationDefaultsSchema.parse(next);
+}
+
+function connectionById(
+  configuration: StoredConnectionConfiguration,
+  connectionId: string,
+): StoredConnection {
+  const connection = configuration.connections.find((candidate) => candidate.id === connectionId);
+  if (!connection) throw new AiConnectionServiceError("The AI connection no longer exists.");
+  return connection;
 }
 
 export function listAiConnections(rootPath: string): NamedAiConnection[] {
@@ -179,13 +243,40 @@ export function requireDefaultAiConnection(rootPath: string): AiConnectionStatus
       "Choose a default local AI connection before using AI assistance.",
     );
   }
-  const connection = configuration.connections.find(
-    (candidate) => candidate.id === configuration.defaultConnectionId,
-  );
-  if (!connection) {
-    throw new AiConnectionServiceError("The stored AI connection configuration is invalid.");
+  return statusFor(connectionById(configuration, configuration.defaultConnectionId));
+}
+
+export function getAiConnectionForOperation(
+  rootPath: string,
+  rawOperation: AiOperation,
+): AiConnectionStatus | null {
+  const operation = aiOperationSchema.parse(rawOperation);
+  const configuration = readConfiguration(rootPath);
+  const operationDefaultId = configuration.operationDefaults[operation];
+  if (operationDefaultId) return statusFor(connectionById(configuration, operationDefaultId));
+  if (configuration.defaultConnectionId === null) return null;
+  const fallback = connectionById(configuration, configuration.defaultConnectionId);
+  return fallback.validatedOperations.includes(operation) ? statusFor(fallback) : null;
+}
+
+export function requireAiConnectionForOperation(
+  rootPath: string,
+  rawOperation: AiOperation,
+): AiConnectionStatus {
+  const operation = aiOperationSchema.parse(rawOperation);
+  const configuration = readConfiguration(rootPath);
+  if (configuration.connections.length === 0) {
+    throw new AiConnectionServiceError(
+      "Configure a local AI connection before using AI assistance.",
+    );
   }
-  return statusFor(connection);
+  const connection = getAiConnectionForOperation(rootPath, operation);
+  if (!connection) {
+    throw new AiConnectionServiceError(
+      `Validate and choose a connection for ${aiOperationLabels[operation]} before using this AI operation.`,
+    );
+  }
+  return connection;
 }
 
 export function saveNamedAiConnection(
@@ -199,9 +290,25 @@ export function saveNamedAiConnection(
   if (input.id) {
     const index = configuration.connections.findIndex((connection) => connection.id === input.id);
     if (index < 0) throw new AiConnectionServiceError("The AI connection no longer exists.");
+    const previous = configuration.connections[index];
+    if (!previous) throw new AiConnectionServiceError("The AI connection no longer exists.");
+    const endpoint = validatedEndpoint(input);
+    const capabilityBoundaryChanged = endpoint !== previous.endpoint || input.model !== previous.model;
     const connections = [...configuration.connections];
-    connections[index] = normalizedStoredConnection(input, input.id);
-    return listFor(writeConfiguration(rootPath, { ...configuration, connections }));
+    connections[index] = normalizedStoredConnection(
+      { ...input, endpoint },
+      input.id,
+      capabilityBoundaryChanged ? [] : previous.validatedOperations,
+    );
+    return listFor(
+      writeConfiguration(rootPath, {
+        ...configuration,
+        connections,
+        operationDefaults: capabilityBoundaryChanged
+          ? clearOperationDefaultsForConnection(configuration.operationDefaults, input.id)
+          : configuration.operationDefaults,
+      }),
+    );
   }
 
   if (configuration.connections.length >= 16) {
@@ -225,11 +332,79 @@ export function setDefaultAiConnection(
 ): NamedAiConnection[] {
   const connectionId = aiConnectionIdSchema.parse(rawConnectionId);
   const configuration = readConfiguration(rootPath);
-  if (!configuration.connections.some((connection) => connection.id === connectionId)) {
-    throw new AiConnectionServiceError("The AI connection no longer exists.");
-  }
+  connectionById(configuration, connectionId);
   return listFor(
     writeConfiguration(rootPath, { ...configuration, defaultConnectionId: connectionId }),
+  );
+}
+
+export async function validateAiConnectionOperation(
+  rootPath: string,
+  rawInput: AiConnectionOperationInput,
+  provider: ModelProvider = createOpenAiCompatibleProvider(),
+): Promise<NamedAiConnection[]> {
+  const input = aiConnectionOperationInputSchema.parse(rawInput);
+  const configuration = readConfiguration(rootPath);
+  const connection = connectionById(configuration, input.connectionId);
+  await validateAiOperation(statusFor(connection), input.operation, provider);
+
+  const currentConfiguration = readConfiguration(rootPath);
+  const currentConnection = connectionById(currentConfiguration, input.connectionId);
+  if (
+    currentConnection.endpoint !== connection.endpoint ||
+    currentConnection.model !== connection.model
+  ) {
+    throw new AiConnectionServiceError(
+      "The AI connection changed during capability validation. Validate the operation again.",
+    );
+  }
+
+  const connections = currentConfiguration.connections.map((candidate) =>
+    candidate.id === currentConnection.id
+      ? storedConnectionSchema.parse({
+          ...candidate,
+          validatedOperations: aiOperations.filter(
+            (operation) =>
+              operation === input.operation || candidate.validatedOperations.includes(operation),
+          ),
+        })
+      : candidate,
+  );
+  const operationDefaults = currentConfiguration.operationDefaults[input.operation]
+    ? currentConfiguration.operationDefaults
+    : operationDefaultsSchema.parse({
+        ...currentConfiguration.operationDefaults,
+        [input.operation]: input.connectionId,
+      });
+  return listFor(
+    writeConfiguration(rootPath, {
+      ...currentConfiguration,
+      connections,
+      operationDefaults,
+    }),
+  );
+}
+
+export function setAiOperationDefault(
+  rootPath: string,
+  rawInput: AiConnectionOperationInput,
+): NamedAiConnection[] {
+  const input = aiConnectionOperationInputSchema.parse(rawInput);
+  const configuration = readConfiguration(rootPath);
+  const connection = connectionById(configuration, input.connectionId);
+  if (!connection.validatedOperations.includes(input.operation)) {
+    throw new AiConnectionServiceError(
+      `${connection.name} is not validated for ${aiOperationLabels[input.operation]}.`,
+    );
+  }
+  return listFor(
+    writeConfiguration(rootPath, {
+      ...configuration,
+      operationDefaults: operationDefaultsSchema.parse({
+        ...configuration.operationDefaults,
+        [input.operation]: input.connectionId,
+      }),
+    }),
   );
 }
 
@@ -239,9 +414,7 @@ export function removeAiConnection(
 ): NamedAiConnection[] {
   const connectionId = aiConnectionIdSchema.parse(rawConnectionId);
   const configuration = readConfiguration(rootPath);
-  if (!configuration.connections.some((connection) => connection.id === connectionId)) {
-    throw new AiConnectionServiceError("The AI connection no longer exists.");
-  }
+  connectionById(configuration, connectionId);
   return listFor(
     writeConfiguration(rootPath, {
       ...configuration,
@@ -250,6 +423,10 @@ export function removeAiConnection(
         configuration.defaultConnectionId === connectionId
           ? null
           : configuration.defaultConnectionId,
+      operationDefaults: clearOperationDefaultsForConnection(
+        configuration.operationDefaults,
+        connectionId,
+      ),
     }),
   );
 }

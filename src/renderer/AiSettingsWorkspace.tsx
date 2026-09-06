@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
-import type { NamedAiConnection } from "../shared/ai-connection-contracts";
+import {
+  aiOperationLabels,
+  aiOperations,
+  type AiOperation,
+  type NamedAiConnection,
+} from "../shared/ai-connection-contracts";
 
 interface Draft {
   readonly name: string;
@@ -32,6 +37,7 @@ export function AiSettingsWorkspace({
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [busyOperation, setBusyOperation] = useState<string | null>(null);
 
   const editing = useMemo(
     () => connections.find((connection) => connection.id === editingId) ?? null,
@@ -130,6 +136,44 @@ export function AiSettingsWorkspace({
     }
   };
 
+  const validateOperation = async (connection: NamedAiConnection, operation: AiOperation) => {
+    const busyKey = `validate:${connection.id}:${operation}`;
+    setBusyOperation(busyKey);
+    setError(null);
+    try {
+      setConnections(
+        await window.aaaat.aiConnections.validateOperation({ connectionId: connection.id, operation }),
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : `AAAAT could not validate ${aiOperationLabels[operation]}.`,
+      );
+    } finally {
+      setBusyOperation(null);
+    }
+  };
+
+  const setOperationDefault = async (connection: NamedAiConnection, operation: AiOperation) => {
+    const busyKey = `default:${connection.id}:${operation}`;
+    setBusyOperation(busyKey);
+    setError(null);
+    try {
+      setConnections(
+        await window.aaaat.aiConnections.setOperationDefault({ connectionId: connection.id, operation }),
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : `AAAAT could not change the default for ${aiOperationLabels[operation]}.`,
+      );
+    } finally {
+      setBusyOperation(null);
+    }
+  };
+
   return (
     <section className="profile-workspace" aria-label="AI settings">
       <div className="profile-column">
@@ -142,8 +186,8 @@ export function AiSettingsWorkspace({
         </div>
 
         <p>
-          Keep several named local OpenAI-compatible endpoints and choose which one AAAAT uses by
-          default. This path remains keyless and loopback-only; manual AAAAT works with no default.
+          Keep several named local OpenAI-compatible endpoints. Validate only the operations you
+          intend to use; capability checks use synthetic AAAAT data, not your candidature or profile.
         </p>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
 
@@ -211,7 +255,7 @@ export function AiSettingsWorkspace({
                   <p>
                     <code>{connection.model}</code> · <code>{connection.endpoint}</code>
                   </p>
-                  {connection.isDefault ? <p><strong>Default connection</strong></p> : null}
+                  {connection.isDefault ? <p><strong>General default connection</strong></p> : null}
                 </div>
                 <div className="button-row">
                   {!connection.isDefault ? (
@@ -219,9 +263,9 @@ export function AiSettingsWorkspace({
                       type="button"
                       className="compact-secondary"
                       onClick={() => void setDefault(connection)}
-                      aria-label={`Use ${connection.name} by default`}
+                      aria-label={`Use ${connection.name} as the general default`}
                     >
-                      Use by default
+                      General default
                     </button>
                   ) : null}
                   <button
@@ -241,17 +285,59 @@ export function AiSettingsWorkspace({
                     Remove
                   </button>
                 </div>
+                <div className="wide-field">
+                  <p><strong>Validated operations</strong></p>
+                  {aiOperations.map((operation) => {
+                    const validated = connection.validatedOperations.includes(operation);
+                    const operationDefault = connection.defaultForOperations.includes(operation);
+                    const validateKey = `validate:${connection.id}:${operation}`;
+                    const defaultKey = `default:${connection.id}:${operation}`;
+                    return (
+                      <div key={operation} className="button-row">
+                        <span>
+                          {aiOperationLabels[operation]}: {validated ? "validated" : "not validated"}
+                          {operationDefault ? " · operation default" : ""}
+                        </span>
+                        {!validated ? (
+                          <button
+                            type="button"
+                            className="compact-secondary"
+                            disabled={busyOperation !== null}
+                            onClick={() => void validateOperation(connection, operation)}
+                            aria-label={`Validate ${connection.name} for ${aiOperationLabels[operation]}`}
+                          >
+                            {busyOperation === validateKey ? "Validating…" : "Validate"}
+                          </button>
+                        ) : !operationDefault ? (
+                          <button
+                            type="button"
+                            className="compact-secondary"
+                            disabled={busyOperation !== null}
+                            onClick={() => void setOperationDefault(connection, operation)}
+                            aria-label={`Use ${connection.name} for ${aiOperationLabels[operation]}`}
+                          >
+                            {busyOperation === defaultKey ? "Saving…" : "Use for operation"}
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
               </article>
             ))}
           </div>
         )}
 
         {connections.length > 0 && !defaultConnection ? (
-          <p className="error-message">No default AI connection is selected. AI assistance remains disabled until you choose one.</p>
+          <p className="error-message">
+            No general default AI connection is selected. An operation still works when it has an
+            explicit validated operation default.
+          </p>
         ) : null}
         <p>
-          Existing AI operations use only the selected default. AAAAT never falls back to another
-          connection automatically. Remote authentication and API-key setup are not part of this path.
+          An operation uses its explicit operation default first. The general default is used only
+          when it has been validated for that operation. AAAAT never falls back to another
+          connection automatically, and validation is not a quality benchmark.
         </p>
       </div>
     </section>

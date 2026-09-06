@@ -1,19 +1,19 @@
-# Active Mission — Several named local AI connections
+# Active Mission — Validated AI operation capabilities
 
-**Active:** [Issue #175](https://github.com/DidacLL/AAAAT/issues/175) on `feature/named-ai-connections`, based on integrated local candidature corpus search `a5c4bd1ffb01f14b0711e05592b6ec15803402c9`.
+**Active:** [Issue #179](https://github.com/DidacLL/AAAAT/issues/179) on `feature/ai-operation-capabilities`, based on integrated named local AI connections `bca548e3d1ff1c25a228e93c5baf9cabc29314f0`.
 
 ## Outcome
 
-Allow a workspace to retain several named local, keyless, loopback OpenAI-compatible AI connections and one explicit nullable default. Existing AI operations continue to use exactly one connection at a time: the selected default. Manual AAAAT remains fully usable with no connection or no default.
+Route each existing AAAAT AI operation only through a configured connection that has been explicitly validated for that operation. Allow an explicit per-operation default while retaining the existing general default only as a convenience fallback when it is validated for the requested operation.
 
 ## Boundaries
 
-Keep the existing provider, privacy projection, operation contracts and mutation rules unchanged. Use the existing machine-local `ai-connection.json` boundary, still excluded from workspace backup. Do not add remote authentication, API keys, OAuth, credential storage, provider registries, capability-discovery frameworks, automatic routing/fallback, per-operation defaults, new AI operations, config import/export redesign, database migrations or new dependencies. There is no real-user v2 compatibility baseline, so correct the development-era single-connection file format directly rather than adding compatibility machinery.
+Keep the existing local/keyless loopback OpenAI-compatible provider, operation prompts, privacy projection, typed result validation and mutation/conflict policies unchanged. Capability validation uses synthetic non-user context and records contract compatibility, not model quality. Do not add remote authentication, provider registries, model catalogues, benchmarking, automatic routing/fallback, research, new AI operations, setup wizards, config import/export redesign, database migrations or dependencies. There is no real-user v2 compatibility baseline, so correct the development connection configuration directly to version 3 rather than adding migration machinery.
 
-This is Class C because it changes durable AI-connection configuration and the privileged default-selection semantics shared by current AI operations. ADR 0017 records the plural named-connection and no-fallback boundary. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if material new abstraction appears.
+This is Class C because it changes durable AI connection capability configuration and privileged routing semantics shared by all current AI operations. ADR 0018 records the validation/default boundary. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if material new abstraction appears.
 
 ## Evidence and continuation
 
-Issue #172 / PR #174 is integrated at `a5c4bd1ffb01f14b0711e05592b6ec15803402c9`; Verify #417 passed Fast verification with 46 test files / 145 active tests, Windows/macOS/Linux packaged release/runtime smoke and the aggregate Verification gate. LaTeX portability was correctly not selected for that search-only change.
+Issue #175 / PR #178 is integrated at `bca548e3d1ff1c25a228e93c5baf9cabc29314f0`. The reviewed duplicate single-connection mutation path was removed before merge. Verify #422 passed Fast verification with 49 test files / 151 active tests, Windows/macOS/Linux packaged release/runtime smoke and the aggregate Verification gate; LaTeX portability was correctly not selected.
 
-Next: finish Issue #175, run focused connection service/API/settings and existing AI privacy/provider tests plus impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.
+Next: finish Issue #179, run focused capability/default/routing/API/settings tests plus existing AI privacy/provider tests and impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.

@@ -50,6 +50,7 @@ import {
   type VariantRecommendationRequest,
   type VariantRecommendationResult,
 } from "../shared/ai-contracts";
+import type { AiOperation } from "../shared/ai-connection-contracts";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRuntimeValue,
@@ -58,7 +59,7 @@ import type {
 } from "../shared/contracts";
 import {
   getDefaultAiConnection,
-  requireDefaultAiConnection,
+  requireAiConnectionForOperation,
   saveDefaultAiConnection,
 } from "./ai-connection-service";
 import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
@@ -85,8 +86,8 @@ function statusFor(connection: AiConnectionStatus): AiConnectionStatus {
   return aiConnectionStatusSchema.parse(connection);
 }
 
-function requireStoredConnection(rootPath: string): AiConnectionStatus {
-  return requireDefaultAiConnection(rootPath);
+function requireStoredConnection(rootPath: string, operation: AiOperation): AiConnectionStatus {
+  return requireAiConnectionForOperation(rootPath, operation);
 }
 
 export function getAiConnection(rootPath: string): AiConnectionStatus | null {
@@ -282,7 +283,7 @@ export function previewFitAssessment(
   rawRequest: FitAssessmentRequest,
 ): FitAssessmentPreview {
   const request = fitAssessmentRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath);
+  const stored = requireStoredConnection(rootPath, "fit_assessment");
   const projection = projectFitContext(rootPath, request);
   return fitAssessmentPreviewSchema.parse({
     connection: statusFor(stored),
@@ -322,7 +323,7 @@ export async function assessFit(
   provider: ModelProvider = createOpenAiCompatibleProvider(),
 ): Promise<FitAssessmentResult> {
   const request = fitAssessmentRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath);
+  const stored = requireStoredConnection(rootPath, "fit_assessment");
   const projection = projectFitContext(rootPath, request);
   const providerContext = providerFitProjectedContextSchema.parse({
     candidature: providerCandidature(rootPath, projection.context.candidature),
@@ -422,7 +423,7 @@ export async function extractJob(
   provider: ModelProvider = createOpenAiCompatibleProvider(),
 ): Promise<JobExtractionResult> {
   const request = jobExtractionRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath);
+  const stored = requireStoredConnection(rootPath, "job_extraction");
   const fields = discoveryFields(rootPath);
   if (fields.length === 0) {
     throw new AiServiceError("Enable AI discovery for at least one candidature field first.");
@@ -438,7 +439,7 @@ export async function discoverCandidatureFieldFromSources(
   provider: ModelProvider = createOpenAiCompatibleProvider(),
 ): Promise<HistoricalFieldDiscoveryResult> {
   const request = historicalFieldDiscoveryRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath);
+  const stored = requireStoredConnection(rootPath, "historical_field_discovery");
   const candidature = requireCandidature(rootPath, request.candidatureId);
   const field = listCandidatureFields(rootPath).find(
     (candidate) => candidate.definition.id === request.fieldId,
@@ -484,7 +485,7 @@ export async function recommendVariant(
   provider: ModelProvider = createOpenAiCompatibleProvider(),
 ): Promise<VariantRecommendationResult> {
   const request = variantRecommendationRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath);
+  const stored = requireStoredConnection(rootPath, "variant_recommendation");
   requireCandidature(rootPath, request.candidatureId);
   const variants = getProfile(rootPath).variants;
   if (variants.length === 0) {
@@ -622,7 +623,7 @@ export async function tailorCv(
   provider: ModelProvider = createOpenAiCompatibleProvider(),
 ): Promise<CvTailoringResult> {
   const request = documentAiRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath);
+  const stored = requireStoredConnection(rootPath, "cv_tailoring");
   requireCandidature(rootPath, request.candidatureId);
   const document = requireDocument(rootPath, request.documentId);
   if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
@@ -655,7 +656,7 @@ export async function draftCoverLetter(
   provider: ModelProvider = createOpenAiCompatibleProvider(),
 ): Promise<CoverLetterDraft> {
   const request = documentAiRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath);
+  const stored = requireStoredConnection(rootPath, "cover_letter_draft");
   requireCandidature(rootPath, request.candidatureId);
   const document = requireDocument(rootPath, request.documentId);
   if (document.kind !== "cover_letter") {

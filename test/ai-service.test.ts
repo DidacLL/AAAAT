@@ -6,13 +6,17 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { AiOperation } from "../src/shared/ai-connection-contracts";
+import {
+  saveNamedAiConnection,
+  validateAiConnectionOperation,
+} from "../src/main/ai-connection-service";
 import {
   assessFit,
   discoverCandidatureFieldFromSources,
   extractJob,
   previewFitAssessment,
   recommendVariant,
-  saveAiConnection,
 } from "../src/main/ai-service";
 import type { ModelProvider } from "../src/main/ai-provider";
 import {
@@ -38,16 +42,6 @@ function workspace(): string {
   return root;
 }
 
-function configuredWorkspace(): string {
-  const root = workspace();
-  saveAiConnection(root, {
-    name: "Local model",
-    endpoint: "http://localhost:11434/v1",
-    model: "local-model",
-  });
-  return root;
-}
-
 function provider(overrides: Partial<ModelProvider>): ModelProvider {
   return {
     assessFit: vi.fn<ModelProvider["assessFit"]>(),
@@ -59,6 +53,53 @@ function provider(overrides: Partial<ModelProvider>): ModelProvider {
   };
 }
 
+function validationProvider(): ModelProvider {
+  return provider({
+    assessFit: vi.fn<ModelProvider["assessFit"]>(async () => ({
+      fit: "possible",
+      summary: "Synthetic validation result",
+      strengths: [],
+      gaps: [],
+      focus: [],
+    })),
+    extractJob: vi.fn<ModelProvider["extractJob"]>(async () => ({ proposals: [] })),
+    recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(async () => ({
+      variantRef: "aaaat_validation_variant",
+      rationale: "Synthetic validation result",
+    })),
+    tailorCv: vi.fn<ModelProvider["tailorCv"]>(async () => ({
+      recommendations: [
+        { itemRef: "aaaat_validation_item", rationale: "Synthetic validation result" },
+      ],
+    })),
+    draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(async () => ({
+      recipient: "",
+      subject: "Validation",
+      bodyParagraphs: ["Synthetic validation result."],
+      closing: "",
+    })),
+  });
+}
+
+async function configuredWorkspace(...operations: readonly AiOperation[]): Promise<string> {
+  const root = workspace();
+  const saved = saveNamedAiConnection(root, {
+    name: "Local model",
+    endpoint: "http://localhost:11434/v1",
+    model: "local-model",
+  });
+  const connection = saved[0];
+  if (!connection) throw new Error("connection fixture missing");
+  for (const operation of operations) {
+    await validateAiConnectionOperation(
+      root,
+      { connectionId: connection.id, operation },
+      validationProvider(),
+    );
+  }
+  return root;
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
@@ -66,24 +107,26 @@ afterEach(() => {
 describe("AI service over live candidature information", () => {
   it("persists understandable local-only connection settings and rejects non-loopback endpoints", () => {
     const root = workspace();
-    expect(
-      saveAiConnection(root, {
-        name: "Local model",
-        endpoint: "http://localhost:11434/v1",
-        model: "model-a",
-      }),
-    ).toEqual({
+    const saved = saveNamedAiConnection(root, {
       name: "Local model",
       endpoint: "http://localhost:11434/v1",
       model: "model-a",
     });
+    expect(saved[0]).toMatchObject({
+      name: "Local model",
+      endpoint: "http://localhost:11434/v1",
+      model: "model-a",
+      isDefault: true,
+      validatedOperations: [],
+      defaultForOperations: [],
+    });
     const stored = readFileSync(path.join(root, "ai-connection.json"), "utf8");
-    expect(stored).toContain('"version": 2');
+    expect(stored).toContain('"version": 3');
     expect(stored).toContain('"connections"');
     expect(stored).not.toMatch(/api.?key|credential|secret/i);
 
     expect(() =>
-      saveAiConnection(root, {
+      saveNamedAiConnection(root, {
         name: "Remote",
         endpoint: "https://models.example.test/v1",
         model: "model-a",
@@ -92,7 +135,7 @@ describe("AI service over live candidature information", () => {
   });
 
   it("does not disclose replacement-mode literals and restores them locally in the result", async () => {
-    const root = configuredWorkspace();
+    const root = await configuredWorkspace("fit_assessment");
     const sensitive = createCandidatureField(root, {
       label: "Internal referral code",
       description: "Private local reference.",
@@ -168,7 +211,7 @@ describe("AI service over live candidature information", () => {
   });
 
   it("keeps retained Sources out of ordinary AI projection and lets field privacy control disclosure", async () => {
-    const root = configuredWorkspace();
+    const root = await configuredWorkspace("fit_assessment", "variant_recommendation");
     const omitted = createCandidatureField(root, {
       label: "Private compensation note",
       description: "Never send this field in ordinary AI context.",
@@ -250,7 +293,7 @@ describe("AI service over live candidature information", () => {
   });
 
   it("builds extraction requests from the current live field catalogue, including a field added at runtime", async () => {
-    const root = configuredWorkspace();
+    const root = await configuredWorkspace("job_extraction");
     const hours = createCandidatureField(root, {
       label: "Minimum flight hours",
       description: "Minimum total flight hours requested by the opportunity.",
@@ -294,7 +337,7 @@ describe("AI service over live candidature information", () => {
   });
 
   it("rejects provider proposals for fields that were not requested", async () => {
-    const root = configuredWorkspace();
+    const root = await configuredWorkspace("job_extraction");
     const unexpectedId = "aaaat_discovery_00000000-0000-4000-8000-000000009999_1";
     const extract = vi.fn<ModelProvider["extractJob"]>(async () => ({
       proposals: [{ fieldRef: unexpectedId, value: "invented" }],
@@ -311,7 +354,7 @@ describe("AI service over live candidature information", () => {
   });
 
   it("rediscovers a newly configured field from historical retained Sources and returns proposals without overwriting", async () => {
-    const root = configuredWorkspace();
+    const root = await configuredWorkspace("historical_field_discovery");
     const candidature = createCandidature(root, {
       source: {
         kind: "job_posting",
@@ -392,7 +435,7 @@ describe("AI service over live candidature information", () => {
   });
 
   it("projects choice labels instead of persisted choice and field identifiers", async () => {
-    const root = configuredWorkspace();
+    const root = await configuredWorkspace("fit_assessment");
     const choiceId = "00000000-0000-4000-8000-000000000011";
     const arrangement = createCandidatureField(root, {
       label: "Work arrangement",

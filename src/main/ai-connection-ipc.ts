@@ -5,6 +5,7 @@ import { app, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "elect
 import {
   aiConnectionIdSchema,
   aiConnectionManagementChannels,
+  aiConnectionOperationInputSchema,
   namedAiConnectionInputSchema,
   namedAiConnectionListSchema,
 } from "../shared/ai-connection-contracts";
@@ -12,7 +13,9 @@ import {
   listAiConnections,
   removeAiConnection,
   saveNamedAiConnection,
+  setAiOperationDefault,
   setDefaultAiConnection,
+  validateAiConnectionOperation,
 } from "./ai-connection-service";
 import { readLastWorkspacePath } from "./workspace";
 
@@ -56,6 +59,26 @@ function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return namedAiConnectionListSchema.parse(
       removeAiConnection(requireWorkspaceRoot(), aiConnectionIdSchema.parse(connectionId)),
+    );
+  });
+
+  ipcMain.handle(aiConnectionManagementChannels.validateOperation, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return namedAiConnectionListSchema.parse(
+      await validateAiConnectionOperation(
+        requireWorkspaceRoot(),
+        aiConnectionOperationInputSchema.parse(input),
+      ),
+    );
+  });
+
+  ipcMain.handle(aiConnectionManagementChannels.setOperationDefault, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return namedAiConnectionListSchema.parse(
+      setAiOperationDefault(
+        requireWorkspaceRoot(),
+        aiConnectionOperationInputSchema.parse(input),
+      ),
     );
   });
 }

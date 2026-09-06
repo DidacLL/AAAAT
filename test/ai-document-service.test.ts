@@ -6,8 +6,12 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  saveNamedAiConnection,
+  validateAiConnectionOperation,
+} from "../src/main/ai-connection-service";
 import type { ModelProvider } from "../src/main/ai-provider";
-import { draftCoverLetter, saveAiConnection, tailorCv } from "../src/main/ai-service";
+import { draftCoverLetter, tailorCv } from "../src/main/ai-service";
 import { createCandidature } from "../src/main/candidature-service";
 import { createDocument } from "../src/main/document-service";
 import {
@@ -30,15 +34,43 @@ function provider(overrides: Partial<ModelProvider>): ModelProvider {
   };
 }
 
-function fixture() {
+function validationProvider(): ModelProvider {
+  return provider({
+    tailorCv: vi.fn<ModelProvider["tailorCv"]>(async () => ({
+      recommendations: [
+        { itemRef: "aaaat_validation_item", rationale: "Synthetic validation result" },
+      ],
+    })),
+    draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(async () => ({
+      recipient: "",
+      subject: "Validation",
+      bodyParagraphs: ["Synthetic validation result."],
+      closing: "",
+    })),
+  });
+}
+
+async function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-ai-docs-"));
   roots.push(root);
   createOrOpenWorkspace(root);
-  saveAiConnection(root, {
+  const saved = saveNamedAiConnection(root, {
     name: "Local model",
     endpoint: "http://localhost:11434/v1",
     model: "local-model",
   });
+  const connection = saved[0];
+  if (!connection) throw new Error("connection fixture missing");
+  await validateAiConnectionOperation(
+    root,
+    { connectionId: connection.id, operation: "cv_tailoring" },
+    validationProvider(),
+  );
+  await validateAiConnectionOperation(
+    root,
+    { connectionId: connection.id, operation: "cover_letter_draft" },
+    validationProvider(),
+  );
   addProfileItem(root, { kind: "identity", title: "Private Person" });
   addProfileItem(root, { kind: "contact", title: "private@example.test" });
   addProfileItem(root, {
@@ -88,7 +120,7 @@ afterEach(() => {
 
 describe("document AI services", () => {
   it("tailors a CV from resolved non-sensitive career evidence without implicit Source disclosure", async () => {
-    const { root, candidature, cv, skill } = fixture();
+    const { root, candidature, cv, skill } = await fixture();
     const tailor = vi.fn<ModelProvider["tailorCv"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain("Private Person");
@@ -120,7 +152,7 @@ describe("document AI services", () => {
   });
 
   it("rejects a previously valid CV item reference when the local evidence disappears before apply", async () => {
-    const { root, candidature, cv, skill } = fixture();
+    const { root, candidature, cv, skill } = await fixture();
     let requestedItemRef: string | undefined;
     let resolveTailoring:
       | ((value: { recommendations: Array<{ itemRef: string; rationale: string }> }) => void)
@@ -146,7 +178,7 @@ describe("document AI services", () => {
   });
 
   it("rejects a CV item reference that was never in the operation context", async () => {
-    const { root, candidature, cv } = fixture();
+    const { root, candidature, cv } = await fixture();
     const tailor = vi.fn<ModelProvider["tailorCv"]>(async () => ({
       recommendations: [{ itemRef: "aaaat_other_scope_1", rationale: "Out of scope." }],
     }));
@@ -161,7 +193,7 @@ describe("document AI services", () => {
   });
 
   it("drafts a cover letter without implicit Source disclosure or state mutation", async () => {
-    const { root, candidature, cover } = fixture();
+    const { root, candidature, cover } = await fixture();
     const draft = vi.fn<ModelProvider["draftCoverLetter"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(context.candidature.sources).toEqual([]);

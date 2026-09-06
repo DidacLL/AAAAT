@@ -9,7 +9,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   removeAiConnection,
   saveNamedAiConnection,
+  setAiOperationDefault,
   setDefaultAiConnection,
+  validateAiConnectionOperation,
 } from "../src/main/ai-connection-service";
 import type { ModelProvider } from "../src/main/ai-provider";
 import { assessFit } from "../src/main/ai-service";
@@ -45,8 +47,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-describe("AI default connection routing", () => {
-  it("uses only the explicit default and never falls back after that default is removed", async () => {
+describe("AI operation connection routing", () => {
+  it("uses an operation default before the validated general default and never falls back arbitrarily", async () => {
     const root = workspace();
     const candidature = createCandidature(root, { values: [] });
     const firstSave = saveNamedAiConnection(root, {
@@ -64,32 +66,43 @@ describe("AI default connection routing", () => {
     const second = secondSave.find((connection) => connection.name === "Second local");
     if (!second) throw new Error("second connection fixture missing");
     const modelProvider = provider();
+    const request = {
+      candidatureId: candidature.id,
+      identityPrivacy: "omit" as const,
+      contactPrivacy: "omit" as const,
+    };
 
-    await expect(
-      assessFit(
-        root,
-        { candidatureId: candidature.id, identityPrivacy: "omit", contactPrivacy: "omit" },
-        modelProvider,
-      ),
-    ).resolves.toMatchObject({ summary: "First local" });
+    await expect(assessFit(root, request, modelProvider)).rejects.toThrow(
+      "Validate and choose a connection for Fit assessment",
+    );
 
+    await validateAiConnectionOperation(
+      root,
+      { connectionId: first.id, operation: "fit_assessment" },
+      modelProvider,
+    );
     setDefaultAiConnection(root, second.id);
-    await expect(
-      assessFit(
-        root,
-        { candidatureId: candidature.id, identityPrivacy: "omit", contactPrivacy: "omit" },
-        modelProvider,
-      ),
-    ).resolves.toMatchObject({ summary: "Second local" });
+    await expect(assessFit(root, request, modelProvider)).resolves.toMatchObject({
+      summary: "First local",
+    });
+
+    await validateAiConnectionOperation(
+      root,
+      { connectionId: second.id, operation: "fit_assessment" },
+      modelProvider,
+    );
+    await expect(assessFit(root, request, modelProvider)).resolves.toMatchObject({
+      summary: "First local",
+    });
+
+    setAiOperationDefault(root, { connectionId: second.id, operation: "fit_assessment" });
+    await expect(assessFit(root, request, modelProvider)).resolves.toMatchObject({
+      summary: "Second local",
+    });
 
     removeAiConnection(root, second.id);
-    await expect(
-      assessFit(
-        root,
-        { candidatureId: candidature.id, identityPrivacy: "omit", contactPrivacy: "omit" },
-        modelProvider,
-      ),
-    ).rejects.toThrow("Choose a default local AI connection");
-    expect(first.isDefault).toBe(true);
+    await expect(assessFit(root, request, modelProvider)).rejects.toThrow(
+      "Validate and choose a connection for Fit assessment",
+    );
   });
 });
