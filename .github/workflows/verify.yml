@@ -125,11 +125,20 @@ jobs:
                     linux_package=true
                     full_package=true
                     ;;
-                  src/preload/*|src/main/entry.ts|src/main/main.ts|src/main/latex-runner.ts|src/main/*workspace*.ts|src/main/*backup*.ts|src/main/*vscode*.ts|src/main/*mcp*.ts|src/main/external-command.ts)
+                  src/main/*mcp*.ts)
+                    # MCP tool/schema behavior is platform-neutral. Reuse prior cross-platform
+                    # packaging/startup evidence and run one packaged integration lane unless
+                    # platform-sensitive package/entry/setup files also changed.
+                    linux_package=true
+                    ;;
+                  src/preload/*|src/main/entry.ts|src/main/main.ts|src/main/latex-runner.ts|src/main/*workspace*.ts|src/main/*backup*.ts|src/main/*vscode*.ts|src/main/external-command.ts)
                     linux_package=true
                     full_package=true
                     ;;
                   src/main/*|src/renderer/*|src/shared/*|migrations/*|index.html|test/desktop/m6-manual.spec.ts)
+                    linux_package=true
+                    ;;
+                  test/desktop/packaged-mcp.spec.ts)
                     linux_package=true
                     ;;
                   test/desktop/*)
