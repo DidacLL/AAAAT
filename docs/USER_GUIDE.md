@@ -94,6 +94,10 @@ Before using a configured connection for an AI operation, validate that operatio
 
 Changing a connection's endpoint or model clears its recorded operation validations because the capability boundary changed. A name-only edit keeps them. Removing a connection clears any operation defaults that referenced it. AAAAT never scans other configured connections or falls back to another model automatically.
 
+Use **Export AI setup** to save a small portable setup file containing only connection names, loopback endpoints, model names, and the selected general default. The portable file does not contain AAAAT's local connection IDs, operation-validation results, per-operation defaults, workspace paths, credentials, or career/application data.
+
+Use **Import AI setup** to replace the current named local AI setup from one of those files. AAAAT asks for confirmation before replacement. Imported connections receive fresh local IDs, preserve the general default by connection name, and start with no validated operations or per-operation defaults. Validate the operations you intend to use again on the destination computer before relying on AI assistance. Cancelling the file picker leaves the current setup unchanged.
+
 The same **Local setup status** summarizes how many local AI connections are configured and which of the six current AI operations have a validated route. This is a capability/routing status, not a model-quality score.
 
 Settings also generates copyable `configurator.ai` guidance for a free-chat assistant. It carries only the configured-connection count and validated-route availability, not connection names, endpoints/models, workspace paths, or career/application content. The prompt tells the assistant to keep AI optional, use normal AAAAT Settings, avoid JSON/SQLite editing and invented credentials, and recommend only explicitly validated operation routes. AAAAT never sends this guidance automatically; copying it is an explicit user action.
@@ -132,7 +136,7 @@ Before writing the destination, AAAAT validates the manifest, relative paths, fi
 
 After a successful restore, launch AAAAT and choose **Open existing workspace** for the restored directory.
 
-Because AI connection configuration is intentionally excluded from backups, reconfigure optional local AI in **Settings** after restore if you want it.
+Because AI connection configuration is intentionally excluded from workspace backups, import a separately exported portable AI setup in **Settings** if you want to restore those connection definitions. Operation validations and per-operation defaults are intentionally not portable and must be re-established on the restored computer.
 
 ## 8. Optional VS Code MCP integration
 
@@ -168,4 +172,4 @@ Activation validates the workspace, executable, manifest, and live MCP tool surf
 
 ## Current alpha limitations
 
-The current release path deliberately does not include code signing/notarization, an updater, an automated GitHub Release publisher, a Windows installer, a macOS DMG, or RPM/AppImage/Snap/Flatpak packages. The current setup status and free-chat guidance detect/explain capabilities but do not install software, edit system configuration, or mutate AAAAT configuration automatically. Those absences should not be interpreted as hidden features or automatic setup.
+The current release path deliberately does not include code signing/notarization, an updater, an automated GitHub Release publisher, a Windows installer, a macOS DMG, or RPM/AppImage/Snap/Flatpak packages. The current setup status and free-chat guidance detect/explain capabilities but do not install software, edit system configuration, or silently mutate AAAAT configuration. Portable AI setup import/export is explicit and limited to the named local connection definitions/general default described above.
