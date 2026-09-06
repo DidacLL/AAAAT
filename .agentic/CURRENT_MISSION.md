@@ -22,6 +22,8 @@ The recovery changes are on `agentic/masterplan-recovery`, originally implemente
 - Real LaTeX portability passed using pdfLaTeX tooling and the unrelated-directory portability test.
 - Native package/build inspection and packaged runtime smoke passed on Windows, macOS and Linux. The Windows job also passed the demonstrated VS Code host setup contract; the Linux job passed the packaged Chromium sandbox setup.
 
+The current documentation-only checkpoint commit is `17d64788819181bec3126c8c98838423388dbcd7`; Verify run `34002425117` repeated the selected checks on that exact head and passed Fast verification, real LaTeX portability, and Windows/macOS/Linux package and packaged-runtime smoke.
+
 These checks are execution evidence, not independent review. The automated package smoke exercises the packaged application but is not a substitute for a human visual inspection. The Windows-specific `.cmd` unit-fixture path was introduced to correct the original local Windows fake-compiler ambiguity; the cross-platform package matrix is green, while a focused local Windows unit run remains useful if integration requires direct evidence for that exact branch of the test fixture.
 
 **Next bounded outcome:** obtain fresh independent Reviewer and proportional Skeptical Simplifier assessment of PR #159. A narrow local execution pass may separately cover human visual behavior and the Windows-specific fake-compiler test path; it must not broaden into product redesign or routine duplicate QA. Do not start later SPEC capabilities until this recovery is independently accepted and integrated.
