@@ -77,17 +77,23 @@ describe("official MCP candidature server", () => {
       const created = listCandidatures(root)[0];
       if (!created) throw new Error("Created candidature fixture is missing.");
       expect(created.values).toEqual([]);
-      expect(created.sources).toEqual([
-        expect.objectContaining({
-          kind: "job_posting",
-          title: "Pilot vacancy",
-          url: "https://example.invalid/pilot",
-          sourceText: "Minimum 1,500 total hours.",
-        }),
-      ]);
 
       const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
       try {
+        expect(
+          database
+            .prepare(
+              "SELECT kind, title, url, source_text AS sourceText FROM candidature_sources WHERE candidature_id = ?",
+            )
+            .all(created.id),
+        ).toEqual([
+          {
+            kind: "job_posting",
+            title: "Pilot vacancy",
+            url: "https://example.invalid/pilot",
+            sourceText: "Minimum 1,500 total hours.",
+          },
+        ]);
         expect(
           database
             .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
