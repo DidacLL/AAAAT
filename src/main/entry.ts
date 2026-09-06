@@ -40,6 +40,7 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
   void Promise.all([
     import("./ai-connection-ipc"),
     import("./artifact-ipc"),
+    import("./candidature-comparison-ipc"),
     import("./candidature-search-ipc"),
     import("./combined-document-ipc"),
     import("./todo-ipc"),

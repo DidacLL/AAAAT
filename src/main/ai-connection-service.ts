@@ -45,6 +45,7 @@ const operationDefaultsSchema = z
     variant_recommendation: aiConnectionIdSchema.optional(),
     cv_tailoring: aiConnectionIdSchema.optional(),
     cover_letter_draft: aiConnectionIdSchema.optional(),
+    candidature_comparison: aiConnectionIdSchema.optional(),
   })
   .strict();
 

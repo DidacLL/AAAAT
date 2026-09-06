@@ -17,6 +17,11 @@ import {
   providerJobExtractionResultSchema,
   providerVariantRecommendationResultSchema,
 } from "../shared/ai-contracts";
+import {
+  providerCandidatureComparisonResultSchema,
+  type ProviderCandidatureComparisonContext,
+  type ProviderCandidatureComparisonResult,
+} from "../shared/candidature-comparison-contracts";
 
 const providerResponseSchema = z
   .object({
@@ -40,7 +45,10 @@ export class AiProviderError extends Error {
 }
 
 export interface ModelProvider {
-  assessFit(connection: AiConnectionStatus, context: ProviderFitProjectedContext): Promise<FitAssessmentResult>;
+  assessFit(
+    connection: AiConnectionStatus,
+    context: ProviderFitProjectedContext,
+  ): Promise<FitAssessmentResult>;
   extractJob(
     connection: AiConnectionStatus,
     request: ProviderJobExtractionRequest,
@@ -49,11 +57,18 @@ export interface ModelProvider {
     connection: AiConnectionStatus,
     context: ProviderVariantRecommendationContext,
   ): Promise<ProviderVariantRecommendationResult>;
-  tailorCv(connection: AiConnectionStatus, context: ProviderDocumentAiContext): Promise<ProviderCvTailoringResult>;
+  tailorCv(
+    connection: AiConnectionStatus,
+    context: ProviderDocumentAiContext,
+  ): Promise<ProviderCvTailoringResult>;
   draftCoverLetter(
     connection: AiConnectionStatus,
     context: ProviderDocumentAiContext,
   ): Promise<CoverLetterDraft>;
+  compareCandidatures?(
+    connection: AiConnectionStatus,
+    context: ProviderCandidatureComparisonContext,
+  ): Promise<ProviderCandidatureComparisonResult>;
 }
 
 function chatCompletionsUrl(baseUrl: string): string {
@@ -205,6 +220,23 @@ export function createOpenAiCompatibleProvider(
         content,
         coverLetterDraftSchema,
         "The configured provider returned an invalid cover-letter draft.",
+      );
+    },
+
+    async compareCandidatures(
+      connection: AiConnectionStatus,
+      context: ProviderCandidatureComparisonContext,
+    ): Promise<ProviderCandidatureComparisonResult> {
+      const content = await requestContent(
+        fetchImpl,
+        connection,
+        "Compare only the supplied candidatures without ranking, scoring, choosing a winner, or recommending which opportunity the user should choose. Missing information is normal. Return JSON only with keys analyses and considerations. analyses must contain exactly one object per supplied candidatureRef with keys candidatureRef, strengths, concerns, questions. Use only supplied candidatureRef values and only the supplied information.",
+        context,
+      );
+      return parseJson(
+        content,
+        providerCandidatureComparisonResultSchema,
+        "The configured provider returned an invalid candidature comparison.",
       );
     },
   });

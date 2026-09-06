@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import { createAiConnectionDesktopApi } from "./ai-connection-api";
 import { createArtifactDesktopApi } from "./artifact-api";
+import { createCandidatureComparisonDesktopApi } from "./candidature-comparison-api";
 import { createCandidatureSearchDesktopApi } from "./candidature-search-api";
 import { createDesktopApi } from "./api";
 import { createCombinedDocumentDesktopApi } from "./combined-document-api";
@@ -18,6 +19,7 @@ contextBridge.exposeInMainWorld(
     ...createDesktopApi(invoke),
     ...createAiConnectionDesktopApi(invoke),
     ...createArtifactDesktopApi(invoke),
+    ...createCandidatureComparisonDesktopApi(invoke),
     ...createCandidatureSearchDesktopApi(invoke),
     ...createCombinedDocumentDesktopApi(invoke),
     ...createTodoDesktopApi(invoke),

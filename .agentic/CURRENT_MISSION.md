@@ -1,21 +1,21 @@
-# Active Mission — Graphical workspace backup and restore
+# Active Mission — Bounded candidature comparison
 
-**Active:** [Issue #187](https://github.com/DidacLL/AAAAT/issues/187) on `feature/gui-workspace-recovery`, based on integrated portable local AI setup `99db35d826b5604e61f9d2fbc290821a75b7796f`.
+**Active:** [Issue #191](https://github.com/DidacLL/AAAAT/issues/191) on `feature/candidature-comparison`, based on integrated graphical workspace recovery `4c1fb2bf18ffc9e08a9737453f3bf47d45381608`.
 
 ## Outcome
 
-Expose the already-proven portable workspace backup/restore capability through normal AAAAT desktop controls. A non-developer must be able to create a backup from Settings and restore one either from first-run/no-workspace state or Settings without shell commands, JSON, or renderer-visible filesystem paths.
+Let the user explicitly select 2–5 existing candidatures, preview the ordinary candidature information that AAAAT would disclose, and request one read-only AI comparison. The result surfaces strengths, concerns, questions and cross-cutting considerations without ranking, scoring, choosing a winner, or mutating local state.
 
 ## Boundaries
 
-ADR 0010 remains authoritative for the backup directory format, exclusions, integrity validation, overlap rules and cleanup behavior. This slice adds graphical authority only: fixed no-argument renderer intentions, Electron-main-owned directory dialogs, explicit confirmation before switching away from an open workspace, and current/remembered workspace activation only after a restore succeeds.
+Reuse the established candidature field disclosure meanings and AI capability/default routing. Retained Sources, candidature history, ToDos, documents, artifacts, profile data and unrelated workspace state are outside the comparison context. Provider payloads use fresh operation-local references rather than durable local identifiers. Results are transient and read-only.
 
-Do not redesign the backup format, add archives, scheduled backup, cloud sync, encryption/key management, generic filesystem/path APIs, restore-in-place, migration changes, AI requirements, dependencies or unrelated setup work.
+Do not add Sources opt-in, research/web access, vector/RAG infrastructure, a ranking or recommendation engine, generic multi-record browsing/query, external-host expansion, persistence, migration, dependencies or unrelated AI work.
 
-This is Class C because it adds a privileged renderer → preload → main recovery boundary. ADR 0021 records only that GUI authority/switching decision. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if generic recovery/filesystem abstraction appears.
+This is Class C because it adds a new privileged/provider AI operation and a seventh member of the deliberately finite operation capability model. The established AI operation/privacy architecture is sufficient; no new ADR is required unless implementation introduces a durable decision beyond it. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if a generic comparison/ranking/retrieval abstraction appears.
 
 ## Evidence and continuation
 
-Issue #185 / PR #186 is integrated at `99db35d826b5604e61f9d2fbc290821a75b7796f`. Verify #437 passed typecheck, lint, 54 test files / 167 active tests, Windows/macOS/Linux packaged-runtime smoke and the aggregate Verification gate; LaTeX portability was correctly not selected.
+Issue #187 / PR #190 is integrated at `4c1fb2bf18ffc9e08a9737453f3bf47d45381608`. Verify #438 passed typecheck, lint, 57 test files / 175 active tests, Windows/macOS/Linux packaged-runtime smoke and the aggregate Verification gate; LaTeX portability was correctly not selected.
 
-Next: finish Issue #187, run focused recovery API/UI tests plus existing backup/restore service tests and impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.
+Next: finish Issue #191, run focused comparison service/API/UI tests plus existing AI privacy/routing tests and impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.

@@ -9,6 +9,7 @@ export const aiOperationSchema = z.enum([
   "variant_recommendation",
   "cv_tailoring",
   "cover_letter_draft",
+  "candidature_comparison",
 ]);
 export type AiOperation = z.infer<typeof aiOperationSchema>;
 
@@ -21,6 +22,7 @@ export const aiOperationLabels: Readonly<Record<AiOperation, string>> = Object.f
   variant_recommendation: "Variant recommendation",
   cv_tailoring: "CV tailoring",
   cover_letter_draft: "Cover-letter drafting",
+  candidature_comparison: "Candidature comparison",
 });
 
 export const aiConnectionManagementChannels = Object.freeze({
