@@ -269,8 +269,7 @@ describe("candidature progressive information workspace", () => {
     expect(screen.getByRole("spinbutton")).toHaveValue(1500);
   });
 
-  it("keeps managed field and concept drafts when adjacent editor changes are declined", async () => {
-    listConcepts.mockResolvedValueOnce([conceptA, conceptB]);
+  it("keeps a managed field draft when switching field editors is declined", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
@@ -290,9 +289,16 @@ describe("candidature progressive information workspace", () => {
     expect(confirm).toHaveBeenCalledWith("Discard unsaved field definition or behavior edits?");
     expect(managementField).toHaveValue(organisationId);
     expect(within(management).getByLabelText("Label")).toHaveValue("Unsaved organisation label");
+  });
 
+  it("keeps a concept draft when switching or cancelling the concept editor is declined", async () => {
+    listConcepts.mockResolvedValueOnce([conceptA, conceptB]);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+    await screen.findByRole("region", { name: "Candidature Focus" });
     await user.click(screen.getByRole("tab", { name: "Concepts" }));
-    confirm.mockClear();
+
     const editConcepts = screen.getAllByRole("button", { name: "Edit concept" });
     const firstConcept = editConcepts[0];
     const secondConcept = editConcepts[1];
