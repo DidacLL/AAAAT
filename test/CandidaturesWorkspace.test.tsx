@@ -9,6 +9,7 @@ import type {
   ConceptRecord,
   DesktopApi,
 } from "../src/shared/contracts";
+import type { FocusMaterialPreferences } from "../src/shared/focus-contracts";
 
 const candidatureId = "00000000-0000-4000-8000-000000000501";
 const organisationId = "00000000-0000-4000-8000-000000000502";
@@ -171,6 +172,16 @@ function installApi(initial: CandidatureRecord) {
       setConcepts: vi.fn(),
     },
     documents: { list: vi.fn().mockResolvedValue([]) },
+    todos: { list: vi.fn().mockResolvedValue([]) },
+    focus: {
+      current: vi.fn().mockResolvedValue({
+        sources: true,
+        concepts: true,
+        todos: true,
+        documents: true,
+      }),
+      update: vi.fn().mockImplementation(async (preferences: FocusMaterialPreferences) => preferences),
+    },
     ai: {
       discoverField: vi.fn(),
       previewFit: vi.fn(),
