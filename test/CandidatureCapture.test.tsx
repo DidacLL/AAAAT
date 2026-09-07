@@ -189,7 +189,7 @@ describe("sparse candidature capture", () => {
     });
 
     const focus = await screen.findByRole("region", { name: "Candidature Focus" });
-    expect(within(focus).getByText(phrase)).toBeInTheDocument();
+    expect(focus).toHaveTextContent(phrase);
     expect(screen.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
   });
 
