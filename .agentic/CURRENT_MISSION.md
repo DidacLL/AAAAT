@@ -2,7 +2,7 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#221](https://github.com/DidacLL/AAAAT/issues/221) — implement the accepted sparse candidature capture flow without changing candidature domain authority.
+**Current bounded Issue:** [#223](https://github.com/DidacLL/AAAAT/issues/223) — align the selected-candidature local hierarchy with the accepted interaction contract.
 
 Mission #204 replaces additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
@@ -39,28 +39,26 @@ Focus, Sources, application material, reminders, Concepts, Activity/provenance, 
 - Stage 3 / #212 — reusable professional information; PR #214 merged at `f2a9c22d57916a2e0e3f08d250f87b012c6fa407`.
 - Stage 4 / #215 — Settings/setup/recovery; PR #216 merged at `b258b2f3633083e15daf3d5febf0998fec85a6b0`.
 - Stage 5 / #217 — global shell/navigation synthesis; PR #218 merged at `4e1fe7ee987fb87cd85cbfbdfe1e148de8f38a5b`.
-- Stage 6 / #219 — accepted global shell implementation; PR #220 merged at `63dbda8d31f60e16e0076f7cde6cdb6046d7a9a5`. Exact reviewed head `3df20e9f8a7bd4d63e13ef38ac46ad9f06713d9b` passed Fast verification, Windows/macOS/Linux packaged runtime, exact `720×600` Linux evidence, and Verification gate; independent Reviewer returned `MERGE` and Skeptical Simplifier returned `PASS`.
+- Stage 6 / #219 — accepted global shell implementation; PR #220 merged at `63dbda8d31f60e16e0076f7cde6cdb6046d7a9a5` after exact-head Reviewer `MERGE`, Simplifier `PASS`, full packaged verification, and exact `720×600` Linux evidence.
+- Stage 7 / #221 — sparse candidature capture; PR #222 merged at `c5d7c5aaf20c909ff268198662452e22dca60469`. Exact reviewed head `cb341e18f338fd99a09d44431d4adab6aaf5bbe0` passed Verify run #494 including Fast verification, Windows/macOS/Linux packaged runtime, sparse capture/Focus evidence, exact `720×600` Linux evidence, and Verification gate; independent Reviewer returned `MERGE` and Skeptical Simplifier returned `PASS`.
 
-## Stage 7 — Issue #221: sparse candidature capture — current
+## Stage 8 — Issue #223: selected candidature local hierarchy — current
 
 The bounded implementation must:
 
-- make `New candidature` open a transient local capture draft rather than persist an empty candidature immediately;
-- keep the ordinary path as paste/add available raw material → Save;
-- retain raw text and/or URL as the initial Source using the existing candidature creation contract;
-- require no company, role, status, priority, AI, profile, CV, or completeness ceremony;
-- preserve existing candidature drafts while capture is merely opened/cancelled, and require an explicit discard decision before a successful save replaces a dirty candidature editor;
-- save exactly one candidature, select it, and return to Focus where the retained Source supplies sparse recognition;
-- keep AI optional and manual/no-AI operation complete;
-- remain usable at normal packaged size and exactly `720×600` without horizontal clipping.
+- expose exactly four primary selected-candidature intentions: **Focus**, **Information**, **Sources**, and **Application material**;
+- remove `Concepts` as a peer local tab while preserving Concept association/maintenance as contextual supporting work;
+- replace generic candidature-facing `Documents` navigation with **Application material** without redesigning VCVGenerator;
+- preserve Focus, complete information, Sources, application associations, Concept capabilities, dirty-state safety, contextual AI/reminders, search/capture state, and candidature identity;
+- keep the four local intentions labeled and reachable at normal packaged size and exactly `720×600` without horizontal clipping.
 
-This slice does **not** redesign the selected-candidature section hierarchy, persistence, fields, Sources, Concepts, ToDos, documents, AI/provider architecture, or global shell. Those remain separate bounded work when justified.
+This slice does **not** redesign collection/search, responsive collection-vs-selected transitions, VCVGenerator, professional information, Settings, persistence/domain authority, fields, reminders, provider architecture, or global shell.
 
-This work is **Class C**. Do not merge its PR without exact-head fast/relevant renderer verification, packaged Linux capture evidence at normal size and exactly `720×600`, required GitHub Verification gates, independent Reviewer assessment, and independent Skeptical Simplifier assessment.
+This work is **Class C**. Do not merge its PR without exact-head fast/relevant renderer verification, packaged Linux local-hierarchy evidence at normal size and exactly `720×600`, required GitHub Verification gates, independent Reviewer assessment, and independent Skeptical Simplifier assessment.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 shell evidence at `3df20e9f8a7bd4d63e13ef38ac46ad9f06713d9b` remains reusable where Stage 7 does not alter its premise.
+Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 global-shell evidence and Stage-7 sparse-capture evidence remain reusable where Stage 8 does not alter their premises.
 
 ## North star
 
