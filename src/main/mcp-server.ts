@@ -11,13 +11,18 @@ import {
   externalCvContentSchema,
   externalCvDescriptionsRequestSchema,
   externalCvDescriptionsSchema,
+  externalCvRenderRequestSchema,
+  externalCvRenderResultSchema,
   type ExternalCareerContext,
   type ExternalCvContent,
   type ExternalCvDescriptions,
 } from "../shared/external-assistant-contracts";
 import { createCandidature } from "./candidature-service";
 import { getCareerContext } from "./career-context-service";
-import { selectedCvContentItems } from "./cv-content-access-service";
+import {
+  renderExternallyAuthorizedCv,
+  selectedCvContentItems,
+} from "./cv-content-access-service";
 import { listAiVisibleCvDescriptors } from "./cv-descriptor-service";
 import { openWorkspace } from "./workspace";
 
@@ -27,6 +32,7 @@ export const candidatureCreateToolName = "candidature_create";
 export const careerContextReadToolName = "career_context_read";
 export const cvDescriptionsReadToolName = "cv_descriptions_read";
 export const cvContentReadToolName = "cv_content_read";
+export const cvRenderToolName = "cv_render";
 
 function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
@@ -176,6 +182,28 @@ function createServerForWorkspace(rootPath: string): McpServer {
           {
             type: "text" as const,
             text: JSON.stringify(content),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    cvRenderToolName,
+    {
+      description:
+        "Request AAAAT's normal local PDF render for the one content-selected CV only when the user has separately authorized external rendering. Returns null when no CV is authorized. Accepts no document selector, path, engine, command, or output control.",
+      inputSchema: externalCvRenderRequestSchema,
+    },
+    async (input) => {
+      externalCvRenderRequestSchema.parse(input);
+      const rendered = await renderExternallyAuthorizedCv(rootPath);
+      const result = externalCvRenderResultSchema.parse(rendered ? { rendered: true } : null);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(result),
           },
         ],
       };
