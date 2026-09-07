@@ -101,7 +101,7 @@ function installApi(initial: CandidatureRecord[] = [], fields: CandidatureFieldC
               id: sourceId,
               candidatureId,
               kind: "other",
-              title: phrase,
+              title: "",
               url: "",
               sourceText: phrase,
               createdAt: now,
@@ -181,7 +181,7 @@ describe("sparse candidature capture", () => {
     expect(create).toHaveBeenCalledWith({
       source: {
         kind: "other",
-        title: phrase,
+        title: "",
         url: "",
         sourceText: phrase,
       },
