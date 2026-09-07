@@ -162,7 +162,13 @@ export function CandidaturesAiWorkspace({
         </section>
       ) : (
         <div className="candidature-capture-action">
-          <button type="button" onClick={() => setCaptureOpen(true)}>New candidature</button>
+          <button
+            type="button"
+            data-testid="new-candidature-capture"
+            onClick={() => setCaptureOpen(true)}
+          >
+            New candidature
+          </button>
         </div>
       )}
 
