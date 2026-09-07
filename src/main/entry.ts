@@ -43,6 +43,7 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     import("./candidature-comparison-ipc"),
     import("./candidature-search-ipc"),
     import("./combined-document-ipc"),
+    import("./cv-descriptor-ipc"),
     import("./todo-ipc"),
     import("./focus-ipc"),
     import("./setup-environment-ipc"),
