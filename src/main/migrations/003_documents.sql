@@ -14,9 +14,11 @@ CREATE TABLE documents (
   ai_tags_json TEXT NOT NULL DEFAULT '[]',
   ai_notes TEXT,
   ai_content_visible INTEGER NOT NULL DEFAULT 0 CHECK (ai_content_visible IN (0, 1)),
+  ai_render_allowed INTEGER NOT NULL DEFAULT 0 CHECK (ai_render_allowed IN (0, 1)),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  CHECK (ai_content_visible = 0 OR kind = 'cv')
+  CHECK (ai_content_visible = 0 OR kind = 'cv'),
+  CHECK (ai_render_allowed = 0 OR (kind = 'cv' AND ai_content_visible = 1))
 ) STRICT;
 
 CREATE UNIQUE INDEX documents_one_ai_content_visible_cv
