@@ -275,6 +275,15 @@ export function CandidaturesWorkspace({
 
   const confirmDiscard = () =>
     !hasUnsavedChanges || window.confirm("Discard unsaved candidature edits?");
+  const confirmSectionDiscard = () => {
+    if (section === "sources" && sourceDirty) {
+      return window.confirm("Discard unsaved Source edits?");
+    }
+    if (section === "documents" && documentSelectionDirty) {
+      return window.confirm("Discard unsaved application material associations?");
+    }
+    return true;
+  };
   const confirmConceptEditorDiscard = () =>
     !conceptEditorDirty || window.confirm("Discard unsaved concept edits?");
   const confirmFieldEditorDiscard = () =>
@@ -303,7 +312,7 @@ export function CandidaturesWorkspace({
 
   const switchSection = (next: CandidatureSection) => {
     if (next === section) return;
-    if (!confirmDiscard()) return;
+    if (!confirmSectionDiscard()) return;
     if (section === "documents" && selected) setSelectedDocumentIds(selected.documentIds);
     if (section === "sources") setSourceDirty(false);
     setSection(next);
