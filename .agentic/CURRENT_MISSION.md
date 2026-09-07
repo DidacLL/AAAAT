@@ -16,6 +16,7 @@ Stage-specific design contracts refine one bounded journey without replacing `UX
 
 - Stage 1: `docs/UX_CANDIDATURE_INTERACTION.md`.
 - Stage 2: `docs/UX_VCVGENERATOR_INTERACTION.md`.
+- Stage 3: `docs/UX_PROFESSIONAL_INFORMATION_INTERACTION.md`.
 
 Do not recreate competing current UX-contract documents. Direct Product Owner instruction remains above repository documents; `docs/OWNER_INTENT.md` and `docs/SPEC.md` remain product/architecture authority.
 
@@ -33,7 +34,7 @@ UX is derived from user intentions, not entities or implemented features.
 - Reusable professional information supports many candidatures/documents and is presented as ordinary professional information; variants/differences are progressively disclosed.
 - AI is contextual assistance, never a navigation destination; connection/provider administration is secondary Settings work.
 - ToDos remain lightweight optional checkable notes/reminders, not a task-management pillar.
-- Sparse candidature capture is normal and must require no company/role/status/priority/completeness ceremony.
+- Sparse candidature capture and sparse professional information are normal.
 - Setup, backup/recovery, TeX/environment, AI connections, portability, and host trust are important but secondary/infrequent administration.
 
 ## Development sequence
@@ -48,31 +49,28 @@ Established `docs/UX_DEFINITION.md`, reconciled UX authority/history, and record
 
 `docs/UX_CANDIDATURE_INTERACTION.md` defines collection/search, sparse capture, stable selected-candidature context, Focus, complete information/editing, Sources, contextual Concepts/notes/reminders/privacy/Activity, candidature-specific application material, VCVGenerator handoff, dirty-state safety, and default/minimum `720×600` behavior.
 
-The key interaction decision is that Focus, complete information, Sources, and application material are selected-candidature intentions, not newly invented peer global destinations. At smaller supported sizes, collection and selected context transition rather than compressing all regions into clipped panes.
-
 PR #208 merged the design-only Stage at `43668e27c3951eadfab644e6d607d5ffd12704c5`; #207 is closed. No production UI changed.
 
 ### Stage 2 — Issue #209: VCVGenerator UX — completed
 
-`docs/UX_VCVGENERATOR_INTERACTION.md` defines standalone and candidature-linked document work as two contexts of the same document system.
-
-The accepted interaction model preserves standalone CV/cover-letter work without candidature, AI, or mandatory variant; explicit Candidature X context/return; mutable working documents versus exact retained application artifacts; ordinary content editing before profile/variant/LaTeX mechanics; optional variants and document-specific differences; safe render/result/export; advanced source/ownership/auditability; contextual AI; dirty-state safety; optional TeX/AI states; combined output; and default/minimum `720×600` behavior.
+`docs/UX_VCVGENERATOR_INTERACTION.md` defines standalone and candidature-linked document work as two contexts of the same document system. It preserves standalone document work, candidature context/return, mutable working documents versus retained exact artifacts, ordinary editing before technical mechanics, optional variants and document differences, safe render/result/export, advanced ownership/auditability, contextual AI, and usable default/minimum layouts.
 
 PR #211 merged the design-only Stage at `91b2a4ce5a807da8c99864727e6c277803ea8d44`; #209 is closed. No production UI or LaTeX architecture changed.
 
 ### Stage 3 — Issue #212: reusable professional/profile UX — current
 
-Design ordinary reusable professional information around actual user content: identity/contact, experience, skills, education, projects, languages, links, summaries, certifications, objectives/preferences/constraints, and justified custom information.
+`docs/UX_PROFESSIONAL_INFORMATION_INTERACTION.md` defines reusable professional information around actual user content rather than schema/profile mechanics.
 
-The Stage must define:
+The Stage-3 interaction model preserves:
 
-- sparse/read-first professional-information overview and deliberate editing without a giant profile form;
+- sparse/read-first professional information without completion ceremony or giant forms;
 - built-in and justified custom information without generic database/schema administration;
-- VCVGenerator handoff to edit reusable source information and safe return;
-- base professional information versus optional saved variants versus document-specific differences;
-- variants as understandable stored differences, not cloned identities;
-- privacy/AI-disclosure controls independent from local ownership/deletion;
-- contextual optional AI, dirty-state safety, advanced auditability, and default/minimum `720×600` behavior.
+- a clear base-information → optional saved variation → document-specific difference ownership model;
+- saved variations as understandable stored differences rather than cloned profiles;
+- direct general-CV reuse without a mandatory variant;
+- safe VCVGenerator handoff to edit reusable source information and return;
+- independent privacy/AI-disclosure semantics without treating local storage as a toggle;
+- contextual optional AI, dirty-state safety, advanced auditability, and usable default/minimum `720×600` behavior.
 
 This Stage is **design/interaction architecture only**. No production UI/CSS/React changes, persistence redesign, Stage-4 Settings design, final global navigation, or implementation belongs in #212.
 
@@ -98,4 +96,4 @@ Stages 1–3 are design/documentation work. Do not repeat broad packaged audits 
 
 ## North star
 
-The Mission succeeds when users can retain almost any job-related material without organizing it first, find a candidature from meaningful retained text, recover useful call context immediately, inspect/edit all important information, see application CVs/letters from that candidature, use VCVGenerator independently, work completely without AI, and inspect deeper ownership/privacy/provenance when desired.
+The Mission succeeds when users can retain almost any job-related material without organizing it first, find a candidature from meaningful retained text, recover useful call context immediately, inspect/edit all important information, see application CVs/letters from that candidature, use VCVGenerator independently, maintain reusable professional information without schema/variant ceremony, work completely without AI, and inspect deeper ownership/privacy/provenance when desired.
