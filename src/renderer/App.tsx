@@ -334,6 +334,7 @@ export function App() {
         <main className="empty-state">
           <img className="hero-logo" src={logo} alt="AAAAT explorer robot holding a magnifying glass" />
           <p className="tagline">Your career workspace, on your computer.</p>
+          <p>Your workspace data stays local and under your control. AAAAT works without AI; AI is optional.</p>
           <span className="accent-line" aria-hidden="true" />
           <h1>
             {loading
