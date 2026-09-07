@@ -1,25 +1,25 @@
-# Active Mission — Explicit external CV render authority
+# Active Mission — Integrated real-use acceptance
 
-**Active:** [Issue #200](https://github.com/DidacLL/AAAAT/issues/200) on `feature/external-cv-render`, based on integrated deliberate CV content disclosure `ab75ce0c4778b9a87c80ca9ce90e343496198e92`.
+**Active:** [Issue #202](https://github.com/DidacLL/AAAAT/issues/202) on `agentic/real-use-acceptance`, based on integrated external CV render authority `bfb6533aceb56133a2555f783efe51fa65256487`.
 
 ## Outcome
 
-Complete the missing local-production part of the required external-assistant destination by allowing a configured external host to request AAAAT's normal local PDF render for the one content-selected CV, but only after the user grants a separate explicit render authorization.
+Establish whether the current integrated AAAAT alpha actually satisfies the required SPEC destinations through observable user behavior rather than treating foundations, isolated tests or merged slices as completion. Prove the manual/local, context-boundary, external-assistant, reusable-document, and accessible-setup/recovery scenarios; surface and correct only concrete blockers.
 
 ## Boundaries
 
-Content disclosure does not imply production authority. Render authorization is CV-only, may exist only on the currently content-selected CV, starts disabled, and is revoked automatically whenever that CV loses content-selection authority. Cover letters cannot receive it.
+This Mission is an acceptance audit first, not a redesign or a new feature programme. Reuse still-applicable verification evidence under the impact-scoped evidence policy. Use focused repository/CI evidence for deterministic contracts and local/Codex execution only where interactive desktop, packaged-runtime, filesystem/process, TeX/PDF or visual proof is genuinely required.
 
-The renderer exposes only the existing bounded CV-access surface plus a distinct `updateRender` intention. The Documents UI requires separate confirmation before allowing external rendering and explains that the host can request the normal local render without gaining document selection, path, command, engine, filesystem or process authority.
+Do not add a generic acceptance framework, workflow engine, test DSL, browser-automation platform, provider/research expansion, compatibility layer, dependency, generic external authority or speculative product feature merely to make the acceptance exercise convenient. If one concrete defect blocks acceptance, correct the smallest bounded defect on this Issue or split exactly one independently reviewable implementation Issue when the correction is materially different in scope.
 
-The external `cv_render` operation accepts no data arguments. Without a content-selected and render-authorized CV it returns null. With authorization it delegates to the existing `renderDocument` service and returns only `{ rendered: true }`; it does not expose document identity, paths, TeX/PDF bytes, logs or environment details.
+Hard gates remain local ownership, full human operation without AI, renderer/process isolation, purpose-bounded disclosure and mutation authority, portable user-owned LaTeX/output, ordinary application-service mutation paths, and usable backup/recovery.
 
-Do not add generic external action/permission infrastructure, document selection/search input, arbitrary render controls, output-path control, cover-letter production, provider/research work, compatibility migration machinery, dependencies, workflow machinery or unrelated scope.
-
-This is Class C because it adds durable external production authority and extends the demonstrated MCP host surface. ADR 0024 records the disclosure-vs-production authority boundary. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if a generic permission/action abstraction, compatibility layer, dependency or material framework appears.
+The acceptance audit itself is Class B execution inside established product meaning. Any discovered durable Class C architectural correction requires the normal ADR and independent review; unresolved product meaning or Class D still goes to the owner.
 
 ## Evidence and continuation
 
-Issue #198 / PR #199 is integrated at `ab75ce0c4778b9a87c80ca9ce90e343496198e92`. Verify #451 passed typecheck, lint, 69 passed test files / 202 active tests, Windows/macOS/Linux packaged release/runtime lanes, Windows demonstrated VS Code host-contract installation and the aggregate Verification gate; LaTeX portability was correctly skipped.
+PR #201 is integrated at `bfb6533aceb56133a2555f783efe51fa65256487`; Issue #200 is closed. Production Verify #452 on `208bf406f64e3766e6528383ce24f598a92abe56` passed Fast plus Windows/macOS/Linux packaged runtime, Windows demonstrated VS Code host-contract installation, Linux package/sandbox/runtime smoke and the aggregate Verification gate. Final-head Verify #453 on `e7079f69cdd9672673b8d45c11c9962be7268ebf` passed typecheck/lint, 70 passed test files / 205 active tests and the aggregate gate; its only change from the production head was renderer-failure test evidence.
 
-Next: finish Issue #200, run focused authority/API/UI/MCP/setup tests plus impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.
+Recent integrated slices provide candidate coverage for the five required destination families, but SPEC explicitly requires real-use acceptance before declaring them complete. Issue #202 defines the integrated scenarios, including the currently required multilingual document behavior, host authority disclosure, draft-loss protection, retained artifacts and graphical backup/restore.
+
+Next: audit current `main` against Issue #202, reuse valid evidence, run only genuinely missing acceptance proof, record any concrete blocker, and do not declare alpha acceptance until every hard gate has observable evidence.
