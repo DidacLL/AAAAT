@@ -207,22 +207,42 @@ function chooseLinuxDirectory(): void {
   );
 }
 
+function resizeLinuxAppWindow(width: number, height: number): { width: number; height: number } {
+  const output = execFileSync(
+    "bash",
+    [
+      "-lc",
+      [
+        "set -eu",
+        "window=''",
+        "for attempt in $(seq 1 100); do",
+        "  window=$(xdotool search --onlyvisible --name '^AAAAT$' 2>/dev/null | tail -n 1 || true)",
+        "  if [ -n \"$window\" ]; then break; fi",
+        "  sleep 0.1",
+        "done",
+        "test -n \"$window\"",
+        `xdotool windowactivate --sync "$window"`,
+        `xdotool windowsize --sync "$window" ${String(width)} ${String(height)}`,
+        "sleep 0.15",
+        "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
+        "printf '%s %s\\n' \"$WIDTH\" \"$HEIGHT\"",
+      ].join("\n"),
+    ],
+    { encoding: "utf8" },
+  ).trim();
+  const match = output.match(/(\d+)\s+(\d+)$/);
+  if (!match) throw new Error(`Could not read packaged AAAAT window geometry: ${output}`);
+  return { width: Number(match[1]), height: Number(match[2]) };
+}
+
 async function proveAcceptedShellAtWindowSize(
   page: Page,
   width: number,
   height: number,
 ): Promise<void> {
-  const session = await page.context().newCDPSession(page);
-  const { windowId } = await session.send("Browser.getWindowForTarget");
-  await session.send("Browser.setWindowBounds", {
-    windowId,
-    bounds: { width, height },
-  });
+  const actual = resizeLinuxAppWindow(width, height);
+  expect(actual).toEqual({ width, height });
   await page.waitForTimeout(150);
-
-  const { bounds } = await session.send("Browser.getWindowBounds", { windowId });
-  expect(bounds.width).toBe(width);
-  expect(bounds.height).toBe(height);
 
   const primary = page.getByRole("navigation", { name: "Primary work areas" });
   await expect(primary).toBeVisible();
@@ -241,7 +261,7 @@ async function proveAcceptedShellAtWindowSize(
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
 
   console.log(
-    `[packaged UX] outer=${String(width)}x${String(height)} viewport=${String(geometry.innerWidth)}x${String(geometry.innerHeight)} horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
+    `[packaged UX] window=${String(actual.width)}x${String(actual.height)} viewport=${String(geometry.innerWidth)}x${String(geometry.innerHeight)} horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
   );
 }
 
@@ -283,6 +303,8 @@ test("packaged desktop preserves security gates and required bounded capabilitie
         name: "Choose where AAAAT should keep your career workspace.",
       }),
     ).toBeVisible();
+    await expect(running.page.getByText(/workspace data stays local/i)).toBeVisible();
+    await expect(running.page.getByText(/works without AI/i)).toBeVisible();
 
     const boundary = await running.page.evaluate(() => ({
       processType: typeof Reflect.get(window, "process"),
