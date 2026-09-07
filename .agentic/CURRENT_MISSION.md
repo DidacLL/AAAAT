@@ -2,29 +2,26 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#217](https://github.com/DidacLL/AAAAT/issues/217) — synthesize the global shell/navigation from accepted Stage-1 through Stage-4 contracts.
+**Current bounded Issue:** [#219](https://github.com/DidacLL/AAAAT/issues/219) — implement the accepted global shell hierarchy and relocate rejected peer destinations without losing accepted capability.
 
 Mission #204 replaces the additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
 ## Canonical UX authority
 
 - `docs/UX_DEFINITION.md` — single durable UX/interaction contract.
+- `docs/UX_CANDIDATURE_INTERACTION.md` — accepted candidature interaction contract.
+- `docs/UX_VCVGENERATOR_INTERACTION.md` — accepted CV/letter interaction contract.
+- `docs/UX_PROFESSIONAL_INFORMATION_INTERACTION.md` — accepted reusable professional-information contract.
+- `docs/UX_SETTINGS_RECOVERY_INTERACTION.md` — accepted secondary Settings/setup/recovery contract.
+- `docs/UX_GLOBAL_SHELL_INTERACTION.md` — accepted global shell/navigation contract.
 - `docs/UX_VISUAL_DIRECTION.md` — subordinate visual-character reference only.
 - `docs/UX_HISTORY_RECONCILIATION.md` — historical/research evidence only.
 
-Stage-specific design contracts:
-
-- Stage 1: `docs/UX_CANDIDATURE_INTERACTION.md`.
-- Stage 2: `docs/UX_VCVGENERATOR_INTERACTION.md`.
-- Stage 3: `docs/UX_PROFESSIONAL_INFORMATION_INTERACTION.md`.
-- Stage 4: `docs/UX_SETTINGS_RECOVERY_INTERACTION.md`.
-- Stage 5: `docs/UX_GLOBAL_SHELL_INTERACTION.md`.
-
-Do not recreate competing current UX contracts. Direct Product Owner instruction remains above repository documents; `docs/OWNER_INTENT.md` and `docs/SPEC.md` remain product/architecture authority.
+Direct Product Owner instruction remains above repository documents; `docs/OWNER_INTENT.md` and `docs/SPEC.md` remain product/architecture authority.
 
 ## Durable product hierarchy
 
-The accepted shell synthesis defines three primary work destinations:
+Primary work destinations are exactly:
 
 1. **Candidatures** — job/application work and local candidature search/capture.
 2. **CVs & letters** — standalone and candidature-linked document work.
@@ -34,63 +31,47 @@ The accepted shell synthesis defines three primary work destinations:
 
 Not global primary destinations: Focus, Sources, application material, ToDos/reminders, Concepts, Activity/provenance, privacy/presentation controls, AI, retained artifacts, variants, TeX, backup/recovery, provider connections, generic Documents, or generic Home/dashboard.
 
-## Development sequence
+## Completed design stages
 
-### Stage 0 — Issue #205 — completed
+- Stage 0 / #205 — UX authority reconciliation; PR #206 merged at `bb6825f292bf2cafe3fdd630ff7a2ecef0fc409f`.
+- Stage 1 / #207 — candidature interaction; PR #208 merged at `43668e27c3951eadfab644e6d607d5ffd12704c5`.
+- Stage 2 / #209 — VCVGenerator interaction; PR #211 merged at `91b2a4ce5a807da8c99864727e6c277803ea8d44`.
+- Stage 3 / #212 — reusable professional information; PR #214 merged at `f2a9c22d57916a2e0e3f08d250f87b012c6fa407`.
+- Stage 4 / #215 — Settings/setup/recovery; PR #216 merged at `b258b2f3633083e15daf3d5febf0998fec85a6b0`.
+- Stage 5 / #217 — global shell/navigation synthesis; PR #218 merged at `4e1fe7ee987fb87cd85cbfbdfe1e148de8f38a5b`.
 
-Canonical UX authority/reconciliation. PR #206 merged at `bb6825f292bf2cafe3fdd630ff7a2ecef0fc409f`.
+## Stage 6 — Issue #219: first bounded implementation slice — current
 
-### Stage 1 — Issue #207 — completed
+PR #220 implements the accepted shell hierarchy without reopening product IA.
 
-Candidature interaction contract. PR #208 merged at `43668e27c3951eadfab644e6d607d5ffd12704c5`.
+The bounded implementation must:
 
-### Stage 2 — Issue #209 — completed
+- expose only Candidatures, CVs & letters, and Professional information as primary work destinations;
+- keep Settings consistently reachable but secondary;
+- keep existing candidature AI assistance contextual under Candidatures;
+- keep existing reminders/ToDos reachable as secondary candidature support rather than global navigation;
+- keep existing AI document assistance contextual under CVs & letters;
+- preserve existing professional-information capability under the ordinary-user shell label;
+- keep workspace switching/recovery safe but secondary;
+- preserve dirty-draft, first-run, manual/no-AI, privacy/security/local-ownership behavior;
+- remain usable at normal packaged desktop size and exactly `720×600`;
+- avoid new router/state/design-system/plugin frameworks or unrelated architecture.
 
-VCVGenerator interaction contract. PR #211 merged at `91b2a4ce5a807da8c99864727e6c277803ea8d44`.
+This work is **Class C**. Do not merge PR #220 without exact-head evidence for:
 
-### Stage 3 — Issue #212 — completed
+1. relevant fast/renderer verification;
+2. packaged runtime/UX at normal desktop size;
+3. packaged runtime/UX at exactly `720×600`;
+4. relevant dirty-draft, first-run/workspace, manual/no-AI, privacy/security/local-ownership regressions;
+5. independent Reviewer assessment;
+6. independent Skeptical Simplifier assessment;
+7. required GitHub Verification gates.
 
-Reusable professional-information interaction contract. PR #214 merged at `f2a9c22d57916a2e0e3f08d250f87b012c6fa407`.
-
-### Stage 4 — Issue #215 — completed
-
-Settings/setup/recovery interaction contract. PR #216 merged at `b258b2f3633083e15daf3d5febf0998fec85a6b0`.
-
-### Stage 5 — Issue #217: global shell/navigation synthesis — current
-
-`docs/UX_GLOBAL_SHELL_INTERACTION.md` resolves the durable destination hierarchy and cross-context handoffs.
-
-Key decisions:
-
-- no generic dashboard/Home requirement;
-- candidature retrieval search remains local to Candidatures rather than undefined universal search;
-- candidature → CV/letter handoff preserves Candidature X and explicit return;
-- CV/letter → Professional information handoff preserves the originating document and explicit return;
-- contextual Settings handoffs preserve origin when practical;
-- AI remains contextual, never shell navigation;
-- global navigation protects dirty drafts without routine confirmation noise;
-- at `720×600`, primary destinations remain labeled/reachable while the local work surface takes priority.
-
-This Stage is design/documentation only. No production UI/CSS/React, persistence, routing-library, dependency, or design-system changes belong in #217.
-
-### Stage 6 — implementation
-
-After Stage 5 is accepted and merged, derive exactly one smallest coherent renderer implementation Issue from the accepted contracts.
-
-Stage-6 renderer/shell work is **Class C** and requires:
-
-- independent Reviewer assessment;
-- Skeptical Simplifier assessment;
-- packaged UX evidence at default and `720×600`;
-- functional/privacy/security/local-ownership verification appropriate to changed surfaces.
-
-Do not reopen information architecture during implementation absent a direct authority contradiction.
+If implementation reaches the independent-review gate, preserve the exact head and request those assessments rather than self-approving.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft, TeX, and prior evidence remains reusable unless implementation changes the surface or premise it proved.
-
-Stages 1–5 are documentation/design. Broad packaged visual verification belongs to Stage-6 implementation whose renderer surface it tests.
+Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Existing security, backup/recovery, TeX, portability, source-retrieval, dirty-draft, and packaged-runtime evidence remains reusable unless #219 changes the surface or premise it proved.
 
 ## North star
 
