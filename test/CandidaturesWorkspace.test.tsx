@@ -304,7 +304,7 @@ describe("candidature progressive information workspace", () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
     await screen.findByRole("region", { name: "Candidature Focus" });
-    await user.click(screen.getByRole("tab", { name: "Concepts" }));
+    await user.click(screen.getByText("Concepts", { selector: "summary" }));
 
     const editConcepts = screen.getAllByRole("button", { name: "Edit concept" });
     const firstConcept = editConcepts[0];
