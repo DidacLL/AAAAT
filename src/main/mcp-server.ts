@@ -4,15 +4,39 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 
 import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
+import {
+  externalCareerContextRequestSchema,
+  externalCareerContextSchema,
+  type ExternalCareerContext,
+} from "../shared/external-assistant-contracts";
 import { createCandidature } from "./candidature-service";
+import { getCareerContext } from "./career-context-service";
 import { openWorkspace } from "./workspace";
 
 const mcpFlag = "--mcp";
 const workspaceFlag = "--workspace";
 export const candidatureCreateToolName = "candidature_create";
+export const careerContextReadToolName = "career_context_read";
 
 function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
+}
+
+function projectCareerContext(rootPath: string): ExternalCareerContext {
+  const context = getCareerContext(rootPath);
+  return externalCareerContextSchema.parse({
+    ...(context.careerDirection.trim() ? { careerDirection: context.careerDirection } : {}),
+    ...(context.objectives.trim() ? { objectives: context.objectives } : {}),
+    ...(context.constraints.trim() ? { constraints: context.constraints } : {}),
+    ...(context.targetRoles.trim() ? { targetRoles: context.targetRoles } : {}),
+    ...(context.targetMarketsLocations.trim()
+      ? { targetMarketsLocations: context.targetMarketsLocations }
+      : {}),
+    ...(context.workPreferences.trim() ? { workPreferences: context.workPreferences } : {}),
+    ...(context.applicationWritingPreferences.trim()
+      ? { applicationWritingPreferences: context.applicationWritingPreferences }
+      : {}),
+  });
 }
 
 export function isMcpInvocation(argv: readonly string[]): boolean {
@@ -53,6 +77,27 @@ function createServerForWorkspace(rootPath: string): McpServer {
               capability: "candidature.create",
               created: true,
             }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    careerContextReadToolName,
+    {
+      description:
+        "Read only the non-empty user-written AAAAT Career Context fields permitted for external career assistance. Does not expose candidatures, profile items, documents, local IDs, or workspace paths.",
+      inputSchema: externalCareerContextRequestSchema,
+    },
+    async (input) => {
+      externalCareerContextRequestSchema.parse(input);
+      const context = projectCareerContext(rootPath);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(context),
           },
         ],
       };
