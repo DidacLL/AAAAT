@@ -10,7 +10,7 @@ export const cvAssistantTagsSchema = z
   .array(cvAssistantTagSchema)
   .max(20)
   .refine(
-    (tags) => new Set(tags.map((tag) => tag.toLocaleLowerCase())).size === tags.length,
+    (tags) => new Set(tags.map((tag) => tag.toLowerCase())).size === tags.length,
     { message: "AI-visible CV tags must be unique ignoring case." },
   );
 
