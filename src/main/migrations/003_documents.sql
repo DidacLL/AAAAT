@@ -15,7 +15,8 @@ CREATE TABLE documents (
   ai_notes TEXT,
   ai_content_visible INTEGER NOT NULL DEFAULT 0 CHECK (ai_content_visible IN (0, 1)),
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  CHECK (ai_content_visible = 0 OR kind = 'cv')
 ) STRICT;
 
 CREATE UNIQUE INDEX documents_one_ai_content_visible_cv
