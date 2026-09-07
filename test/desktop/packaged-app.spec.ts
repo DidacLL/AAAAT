@@ -207,6 +207,44 @@ function chooseLinuxDirectory(): void {
   );
 }
 
+async function proveAcceptedShellAtWindowSize(
+  page: Page,
+  width: number,
+  height: number,
+): Promise<void> {
+  const session = await page.context().newCDPSession(page);
+  const { windowId } = await session.send("Browser.getWindowForTarget");
+  await session.send("Browser.setWindowBounds", {
+    windowId,
+    bounds: { width, height },
+  });
+  await page.waitForTimeout(150);
+
+  const { bounds } = await session.send("Browser.getWindowBounds", { windowId });
+  expect(bounds.width).toBe(width);
+  expect(bounds.height).toBe(height);
+
+  const primary = page.getByRole("navigation", { name: "Primary work areas" });
+  await expect(primary).toBeVisible();
+  await expect(primary.getByRole("button", { name: "Candidatures" })).toBeVisible();
+  await expect(primary.getByRole("button", { name: "CVs & letters" })).toBeVisible();
+  await expect(primary.getByRole("button", { name: "Professional information" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Switch workspace" })).toBeVisible();
+
+  const geometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+
+  console.log(
+    `[packaged UX] outer=${String(width)}x${String(height)} viewport=${String(geometry.innerWidth)}x${String(geometry.innerHeight)} horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
+  );
+}
+
 test("packaged external command rejects unsupported authority without opening desktop", () => {
   const uninitializedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-command-smoke-"));
   try {
@@ -286,12 +324,21 @@ test("packaged desktop preserves security gates and required bounded capabilitie
 
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Candidatures" })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Documents" })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "AI assist" })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Settings" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+
+    await proveAcceptedShellAtWindowSize(running.page, 1200, 800);
+    await proveAcceptedShellAtWindowSize(running.page, 720, 600);
+
+    const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
+    await expect(primary.getByRole("button", { name: "Candidatures" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(running.page.getByRole("button", { name: "ToDos" })).toHaveCount(0);
+    await expect(running.page.getByRole("button", { name: "AI assist" })).toHaveCount(0);
+    await expect(running.page.getByRole("button", { name: "Profile" })).toHaveCount(0);
+    await expect(running.page.getByRole("button", { name: "Documents" })).toHaveCount(0);
 
     const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
     expect(existsSync(databasePath)).toBe(true);
@@ -366,9 +413,9 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     }
 
     running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await proveAcceptedShellAtWindowSize(running.page, 720, 600);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
