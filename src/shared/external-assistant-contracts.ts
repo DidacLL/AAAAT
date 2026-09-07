@@ -72,3 +72,10 @@ export const externalCvContentSchema = z
   .strict()
   .nullable();
 export type ExternalCvContent = z.infer<typeof externalCvContentSchema>;
+
+export const externalCvRenderRequestSchema = z.object({}).strict();
+export const externalCvRenderResultSchema = z
+  .object({ rendered: z.literal(true) })
+  .strict()
+  .nullable();
+export type ExternalCvRenderResult = z.infer<typeof externalCvRenderResultSchema>;
