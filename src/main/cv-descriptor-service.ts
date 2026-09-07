@@ -91,18 +91,19 @@ export function updateCvDescriptor(
     transact(database, () => {
       const current = requireRow(database, update.documentId);
       requireCv(current);
+      const occurredAt = new Date().toISOString();
       database
         .prepare(
           `UPDATE documents
               SET ai_tags_json = ?, ai_notes = ?, updated_at = ?
             WHERE id = ?`,
         )
-        .run(JSON.stringify(update.tags), update.notes, new Date().toISOString(), update.documentId);
+        .run(JSON.stringify(update.tags), update.notes, occurredAt, update.documentId);
       database
         .prepare(
           "INSERT INTO document_activity(occurred_at, document_id, action) VALUES (?, ?, ?)",
         )
-        .run(new Date().toISOString(), update.documentId, "document.ai-description.update");
+        .run(occurredAt, update.documentId, "document.ai-description.update");
       return toDescriptor(requireRow(database, update.documentId));
     }),
   );
