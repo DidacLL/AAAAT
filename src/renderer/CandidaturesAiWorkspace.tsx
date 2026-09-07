@@ -6,14 +6,6 @@ import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import "./candidature-capture.css";
 import { JobExtractionPanel } from "./JobExtractionPanel";
 
-function retainedSourceTitle(title: string, url: string, sourceText: string): string {
-  const explicit = title.trim();
-  if (explicit) return explicit;
-  const reference = url.trim();
-  if (reference) return reference;
-  return sourceText.trim().replaceAll(/\s+/g, " ").slice(0, 120);
-}
-
 export function CandidaturesAiWorkspace({
   onDirtyChange,
 }: {
@@ -69,7 +61,7 @@ export function CandidaturesAiWorkspace({
       await window.aaaat.candidatures.create({
         source: {
           kind: url && !sourceText ? "link" : "other",
-          title: retainedSourceTitle(captureTitle, url, sourceText),
+          title: captureTitle.trim(),
           url,
           sourceText,
         },
