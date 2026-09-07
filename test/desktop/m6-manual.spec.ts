@@ -132,6 +132,49 @@ function chooseLinuxDirectory(): void {
   );
 }
 
+function resizeLinuxAppWindow(width: number, height: number): { width: number; height: number } {
+  const output = execFileSync(
+    "bash",
+    [
+      "-lc",
+      [
+        "set -eu",
+        "window=''",
+        "for attempt in $(seq 1 100); do",
+        "  window=$(xdotool search --onlyvisible --name '^AAAAT$' 2>/dev/null | tail -n 1 || true)",
+        "  if [ -n \"$window\" ]; then break; fi",
+        "  sleep 0.1",
+        "done",
+        "test -n \"$window\"",
+        `xdotool windowactivate --sync "$window"`,
+        `xdotool windowsize --sync "$window" ${String(width)} ${String(height)}`,
+        "sleep 0.15",
+        "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
+        "printf '%s %s\\n' \"$WIDTH\" \"$HEIGHT\"",
+      ].join("\n"),
+    ],
+    { encoding: "utf8" },
+  ).trim();
+  const match = output.match(/(\d+)\s+(\d+)$/);
+  if (!match) throw new Error(`Could not read packaged AAAAT window geometry: ${output}`);
+  return { width: Number(match[1]), height: Number(match[2]) };
+}
+
+async function expectNoHorizontalOverflow(page: Page, width: number, height: number): Promise<void> {
+  const actual = resizeLinuxAppWindow(width, height);
+  expect(actual).toEqual({ width, height });
+  await page.waitForTimeout(150);
+  const geometry = await page.evaluate(() => ({
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(geometry.innerWidth).toBe(width);
+  expect(geometry.innerHeight).toBe(height);
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+}
+
 async function selectSection(page: Page, name: string): Promise<void> {
   await page.getByRole("tab", { name, exact: true }).click();
   await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
@@ -211,6 +254,64 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     await expect(
       running.page.getByRole("region", { name: "Sources" }).getByText("Pilot vacancy", { exact: true }),
     ).toBeVisible();
+  } finally {
+    if (running) await stopPackagedApp(running);
+    rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(ownedWorkspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(linuxHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+});
+
+test("packaged sparse capture retains raw Source material and returns to Focus", async () => {
+  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-capture-user-"));
+  const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-capture-workspace-"));
+  const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
+  const rawMaterial =
+    "Recruiter asks whether I can start in October and mentions a Madrid-based role.";
+  let running: RunningApp | undefined;
+
+  try {
+    running = await startPackagedApp(isolatedUserData, linuxHome);
+    await running.page.getByRole("button", { name: "Create workspace" }).click();
+    chooseLinuxDirectory();
+    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+
+    await expectNoHorizontalOverflow(running.page, 1200, 800);
+    await running.page.getByTestId("new-candidature-capture").click();
+    await expect(
+      running.page.getByRole("heading", { name: "Paste or add whatever you have." }),
+    ).toBeVisible();
+    await running.page.getByLabel("What you have").fill(rawMaterial);
+    expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(0);
+    await running.page.getByRole("button", { name: "Save candidature" }).click();
+
+    const focus = running.page.getByRole("region", { name: "Candidature Focus" });
+    await expect(focus).toBeVisible();
+    await expect(focus).toContainText(rawMaterial);
+    const retained = await running.page.evaluate(async () => {
+      const [record] = await window.aaaat.candidatures.list();
+      if (!record) return [];
+      return window.aaaat.candidatures.listSources(record.id);
+    });
+    expect(retained).toHaveLength(1);
+    expect(retained[0]).toMatchObject({ sourceText: rawMaterial });
+
+    await expectNoHorizontalOverflow(running.page, 720, 600);
+    await running.page.getByTestId("new-candidature-capture").click();
+    await expect(
+      running.page.getByRole("heading", { name: "Paste or add whatever you have." }),
+    ).toBeVisible();
+    await expect(running.page.getByLabel("What you have")).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Save candidature" })).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Cancel" })).toBeVisible();
+    await expectNoHorizontalOverflow(running.page, 720, 600);
+
+    await running.page.getByLabel("What you have").fill("Unsaved narrow-window capture");
+    running.page.once("dialog", (dialog) => void dialog.accept());
+    await running.page.getByRole("button", { name: "Cancel" }).click();
+    await expect(focus).toBeVisible();
+    await expect(focus).toContainText(rawMaterial);
+    expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
