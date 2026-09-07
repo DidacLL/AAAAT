@@ -18,14 +18,13 @@ import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
 import { filterCandidatures, type ArchiveFilter } from "./candidature-projections";
 
-type CandidatureSection = "focus" | "information" | "sources" | "concepts" | "documents";
+type CandidatureSection = "focus" | "information" | "sources" | "documents";
 
 const sectionLabels: readonly { key: CandidatureSection; label: string }[] = [
   { key: "focus", label: "Focus" },
   { key: "information", label: "Information" },
   { key: "sources", label: "Sources" },
-  { key: "concepts", label: "Concepts" },
-  { key: "documents", label: "Documents" },
+  { key: "documents", label: "Application material" },
 ];
 
 const emptyConcept: ConceptInput = { name: "", definition: "", aliases: [] };
@@ -276,6 +275,15 @@ export function CandidaturesWorkspace({
 
   const confirmDiscard = () =>
     !hasUnsavedChanges || window.confirm("Discard unsaved candidature edits?");
+  const confirmSectionDiscard = () => {
+    if (section === "sources" && sourceDirty) {
+      return window.confirm("Discard unsaved Source edits?");
+    }
+    if (section === "documents" && documentSelectionDirty) {
+      return window.confirm("Discard unsaved application material associations?");
+    }
+    return true;
+  };
   const confirmConceptEditorDiscard = () =>
     !conceptEditorDirty || window.confirm("Discard unsaved concept edits?");
   const confirmFieldEditorDiscard = () =>
@@ -304,11 +312,7 @@ export function CandidaturesWorkspace({
 
   const switchSection = (next: CandidatureSection) => {
     if (next === section) return;
-    if (!confirmDiscard()) return;
-    if (section === "concepts" && selected) {
-      setSelectedConceptIds(selected.conceptIds);
-      resetConceptEditor();
-    }
+    if (!confirmSectionDiscard()) return;
     if (section === "documents" && selected) setSelectedDocumentIds(selected.documentIds);
     if (section === "sources") setSourceDirty(false);
     setSection(next);
@@ -1008,45 +1012,9 @@ export function CandidaturesWorkspace({
                   />
                 ) : null}
 
-                {section === "concepts" ? (
-                  <section className="candidature-concepts section-surface" aria-label="Concepts">
-                    <div className="candidature-editor-heading">
-                      <div><p className="eyebrow">Reusable knowledge</p><h3>Concepts</h3></div>
-                      <button type="button" className="compact-secondary" onClick={startNewConcept}>Add concept</button>
-                    </div>
-                    {concepts.length === 0 ? <p className="compact-empty">No shared concepts yet.</p> : (
-                      <div className="concept-association-list">
-                        {concepts.map((concept) => (
-                          <article key={concept.id} className="concept-association-card">
-                            <label>
-                              <input type="checkbox" checked={selectedConceptIds.includes(concept.id)} onChange={(event) => setSelectedConceptIds((current) => event.target.checked ? [...current.filter((id) => id !== concept.id), concept.id] : current.filter((id) => id !== concept.id))} />
-                              <span><strong>{concept.name}</strong>{concept.aliases.length > 0 ? <small>{concept.aliases.join(", ")}</small> : null}</span>
-                            </label>
-                            {concept.definition ? <p>{concept.definition}</p> : null}
-                            <button type="button" className="compact-secondary" onClick={() => chooseConceptForEdit(concept.id)}>Edit concept</button>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                    <button type="button" disabled={!conceptSelectionDirty} onClick={() => void saveConceptAssociations()}>Save concept associations</button>
-                    {conceptEditorOpen ? (
-                      <div className="concept-editor" aria-label="Concept editor">
-                        <h3>{editingConceptId ? "Edit concept" : "New concept"}</h3>
-                        <label>Name<input value={conceptDraft.name} onChange={(event) => setConceptDraft({ ...conceptDraft, name: event.target.value })} /></label>
-                        <label>Aliases<input value={aliasesText} onChange={(event) => setAliasesText(event.target.value)} /></label>
-                        <label>Definition<textarea rows={4} value={conceptDraft.definition} onChange={(event) => setConceptDraft({ ...conceptDraft, definition: event.target.value })} /></label>
-                        <div className="button-row">
-                          <button type="button" disabled={!conceptEditorDirty} onClick={() => void saveConcept()}>{editingConceptId ? "Save concept" : "Create concept"}</button>
-                          <button type="button" className="compact-secondary" onClick={cancelConceptEditor}>Cancel</button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </section>
-                ) : null}
-
                 {section === "documents" ? (
-                  <section className="candidature-documents section-surface" aria-label="Documents">
-                    <div><p className="eyebrow">Application material</p><h3>Documents</h3></div>
+                  <section className="candidature-documents section-surface" aria-label="Application material">
+                    <div><p className="eyebrow">Application material</p><h3>Application material</h3></div>
                     {documents.length === 0 ? <p className="compact-empty">No documents are available yet.</p> : (
                       <div className="document-association-list">
                         {documents.map((document) => (
@@ -1061,6 +1029,43 @@ export function CandidaturesWorkspace({
                   </section>
                 ) : null}
               </div>
+
+              <details className="candidature-concepts-support">
+                <summary>Concepts</summary>
+                <section className="candidature-concepts section-surface" aria-label="Concepts">
+                  <div className="candidature-editor-heading">
+                    <div><p className="eyebrow">Contextual knowledge</p><h3>Concepts</h3></div>
+                    <button type="button" className="compact-secondary" onClick={startNewConcept}>Add concept</button>
+                  </div>
+                  {concepts.length === 0 ? <p className="compact-empty">No shared concepts yet.</p> : (
+                    <div className="concept-association-list">
+                      {concepts.map((concept) => (
+                        <article key={concept.id} className="concept-association-card">
+                          <label>
+                            <input type="checkbox" checked={selectedConceptIds.includes(concept.id)} onChange={(event) => setSelectedConceptIds((current) => event.target.checked ? [...current.filter((id) => id !== concept.id), concept.id] : current.filter((id) => id !== concept.id))} />
+                            <span><strong>{concept.name}</strong>{concept.aliases.length > 0 ? <small>{concept.aliases.join(", ")}</small> : null}</span>
+                          </label>
+                          {concept.definition ? <p>{concept.definition}</p> : null}
+                          <button type="button" className="compact-secondary" onClick={() => chooseConceptForEdit(concept.id)}>Edit concept</button>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                  <button type="button" disabled={!conceptSelectionDirty} onClick={() => void saveConceptAssociations()}>Save concept associations</button>
+                  {conceptEditorOpen ? (
+                    <div className="concept-editor" aria-label="Concept editor">
+                      <h3>{editingConceptId ? "Edit concept" : "New concept"}</h3>
+                      <label>Name<input value={conceptDraft.name} onChange={(event) => setConceptDraft({ ...conceptDraft, name: event.target.value })} /></label>
+                      <label>Aliases<input value={aliasesText} onChange={(event) => setAliasesText(event.target.value)} /></label>
+                      <label>Definition<textarea rows={4} value={conceptDraft.definition} onChange={(event) => setConceptDraft({ ...conceptDraft, definition: event.target.value })} /></label>
+                      <div className="button-row">
+                        <button type="button" disabled={!conceptEditorDirty} onClick={() => void saveConcept()}>{editingConceptId ? "Save concept" : "Create concept"}</button>
+                        <button type="button" className="compact-secondary" onClick={cancelConceptEditor}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              </details>
 
               <details className="optional-ai-assistance">
                 <summary>Optional AI assistance</summary>

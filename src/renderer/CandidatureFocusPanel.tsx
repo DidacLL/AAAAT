@@ -181,7 +181,7 @@ export function CandidatureFocusPanel({
             ["sources", "Sources"],
             ["concepts", "Concepts"],
             ["todos", "ToDos"],
-            ["documents", "Documents"],
+            ["documents", "Application material"],
           ] as const
         ).map(([key, label]) => (
           <label key={key}>

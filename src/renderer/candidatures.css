@@ -365,6 +365,7 @@
   border-radius: 8px;
 }
 
+.candidature-concepts-support,
 .optional-ai-assistance,
 .optional-ai-extraction {
   border-top: 1px solid var(--line);
@@ -372,16 +373,21 @@
   color: var(--muted-ink);
 }
 
+.candidature-concepts-support summary,
 .optional-ai-assistance summary,
 .optional-ai-extraction summary {
   cursor: pointer;
   font-size: 0.9rem;
 }
 
+.candidature-concepts-support[open] > .section-surface,
+.optional-ai-content {
+  margin-top: 12px;
+}
+
 .optional-ai-content {
   display: grid;
   gap: 14px;
-  margin-top: 12px;
 }
 
 .candidature-empty-detail {
@@ -431,8 +437,8 @@
   }
 
   .candidature-section-nav {
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    overflow-x: visible;
     padding-bottom: 10px;
   }
 }
