@@ -11,6 +11,8 @@ CREATE TABLE documents (
   closing TEXT,
   mode TEXT NOT NULL DEFAULT 'managed' CHECK (mode IN ('managed', 'manual')),
   source_hash TEXT,
+  ai_tags_json TEXT NOT NULL DEFAULT '[]',
+  ai_notes TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 ) STRICT;
