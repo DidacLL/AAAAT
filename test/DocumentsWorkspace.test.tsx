@@ -14,6 +14,7 @@ import type {
   ProfileSnapshot,
   ProfileVariant,
 } from "../src/shared/contracts";
+import type { CvDescriptorDesktopApi } from "../src/shared/cv-descriptor-contracts";
 
 const item = {
   id: "00000000-0000-4000-8000-000000000101",
@@ -83,6 +84,8 @@ const exportProject = vi.fn<DesktopApi["documents"]["exportProject"]>();
 const listCandidatures = vi.fn<DesktopApi["candidatures"]["list"]>();
 const listArtifacts = vi.fn<ArtifactDesktopApi["artifacts"]["list"]>();
 const captureArtifact = vi.fn<ArtifactDesktopApi["artifacts"]["capture"]>();
+const currentCvDescriptor = vi.fn<CvDescriptorDesktopApi["cvDescriptors"]["current"]>();
+const updateCvDescriptor = vi.fn<CvDescriptorDesktopApi["cvDescriptors"]["update"]>();
 
 function installApi(currentProfile: ProfileSnapshot = profile) {
   const api = {
@@ -102,9 +105,10 @@ function installApi(currentProfile: ProfileSnapshot = profile) {
       regenerate,
       exportProject,
     },
+    cvDescriptors: { current: currentCvDescriptor, update: updateCvDescriptor },
     candidatures: { list: listCandidatures },
     artifacts: { list: listArtifacts, capture: captureArtifact },
-  } as unknown as DesktopApi & ArtifactDesktopApi;
+  } as unknown as DesktopApi & ArtifactDesktopApi & CvDescriptorDesktopApi;
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
 }
 
@@ -121,6 +125,12 @@ describe("manual Documents workspace", () => {
     renderDocument.mockResolvedValue(record());
     regenerate.mockResolvedValue(record());
     exportProject.mockResolvedValue(null);
+    currentCvDescriptor.mockImplementation(async (documentId) => ({
+      documentId,
+      tags: [],
+      notes: null,
+    }));
+    updateCvDescriptor.mockImplementation(async (value) => value);
     installApi();
   });
 
@@ -143,6 +153,7 @@ describe("manual Documents workspace", () => {
     });
     expect(await screen.findByText("/tmp/workspace/documents/doc/main.tex")).toBeInTheDocument();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "AI-visible CV description" })).toBeInTheDocument();
   });
 
   it("creates from the canonical profile when no variants exist", async () => {
@@ -173,7 +184,7 @@ describe("manual Documents workspace", () => {
     );
   });
 
-  it("edits structured cover-letter content through the document service", async () => {
+  it("edits structured cover-letter content through the document service without exposing CV descriptor controls", async () => {
     const cover = record({
       kind: "cover_letter",
       title: "Cover letter",
@@ -189,6 +200,8 @@ describe("manual Documents workspace", () => {
     render(<DocumentsWorkspace />);
 
     const saveButton = await screen.findByRole("button", { name: "Save structured content" });
+    expect(screen.queryByRole("heading", { name: "AI-visible CV description" })).not.toBeInTheDocument();
+    expect(currentCvDescriptor).not.toHaveBeenCalled();
     const form = saveButton.closest("form");
     if (!form) throw new Error("Expected document edit form");
     const editor = within(form);
