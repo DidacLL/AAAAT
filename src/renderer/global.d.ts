@@ -5,6 +5,7 @@ import type { CandidatureComparisonDesktopApi } from "../shared/candidature-comp
 import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
 import type { CombinedDocumentDesktopApi } from "../shared/combined-document-contracts";
 import type { DesktopApi } from "../shared/contracts";
+import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-contracts";
 import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
 import type { FocusDesktopApi } from "../shared/focus-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
@@ -20,6 +21,7 @@ declare global {
       CandidatureComparisonDesktopApi &
       CandidatureSearchDesktopApi &
       CombinedDocumentDesktopApi &
+      CvContentAccessDesktopApi &
       CvDescriptorDesktopApi &
       TodoDesktopApi &
       FocusDesktopApi &
