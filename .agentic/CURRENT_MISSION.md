@@ -1,23 +1,23 @@
-# Completing Mission — Integrated real-use acceptance
+# Active Mission — Cohesive product UX and information architecture
 
-**Issue:** [#202](https://github.com/DidacLL/AAAAT/issues/202) on `agentic/real-use-acceptance`, based on integrated main `bfb6533aceb56133a2555f783efe51fa65256487`.
+**Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204) on `agentic/cohesive-ux`, based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-## Acceptance conclusion
+**Current bounded Issue:** [#205](https://github.com/DidacLL/AAAAT/issues/205) — audit the current packaged UX and define the interaction architecture before changing production UI.
 
-The current integrated alpha has sufficient evidence for the five required SPEC destinations without an unresolved hard-gate defect. PR #203 contains no production-code change; it reconciles the acceptance state and strengthens the existing real pdfLaTeX portability scenario with Spanish/French Latin content.
+## Outcome
 
-Reliable local information/retrieval is covered by focused repository tests plus the Windows packaged UI run: an isolated no-AI workspace, sparse candidature, retained Source, visible full-text-only search using `GLASS-CEDAR-ORBITAL-987`, and cancelled dirty navigation preserving the unsaved Source draft. Context/mutation boundaries and external-assistance authority remain covered by the existing focused direct-AI/MCP tests and the packaged live VS Code evidence from Verify #452. Reusable documents remain covered by source-ownership, optional-variant, combined-output, immutable-artifact and unrelated-directory pdfLaTeX evidence; Verify #455 passed the strengthened multilingual portability scenario.
+Replace the additive-development presentation with one coherent product UX and information architecture. Define what the user should see, where it belongs, when it appears, and how primary work differs from setup/recovery/optional-AI concerns. Preserve the accepted product capabilities and hard gates.
 
-Accessible setup/recovery has layered evidence: existing renderer tests cover the recovery controls and state-transition semantics, while the packaged recovery suite proves backup/restore integrity, exclusions and restored workspace data through the real packaged runtime. The additional Windows acceptance run could inspect but not operate the native folder picker because the available computer-input driver lacked usable input geometry. That is an automation-evidence limitation, not a reproduced AAAAT recovery defect. No production change was justified by it.
+## Execution order
 
-Verify #457 passed at `c0fc2569b6e89674841ef25ac3fa4c97c7f003bd`. Existing #452 packaged/platform/VS Code evidence and #455 real TeX portability evidence remain reusable under impact-scoped verification.
+Issue #205 is audit/design only. Inspect the real packaged application at default and minimum supported window sizes; walk first-run/workspace choice, Candidatures/Sources, ToDos, Profile, Documents, AI assist and Settings/setup/recovery; map current hierarchy and user journeys; then define the proposed navigation, destination boundaries, progressive-disclosure rules and first-run/empty/ready/error states. Do not start with isolated CSS or component fixes.
 
-## UX finding
+Only after #205 establishes the interaction contract should a separate bounded implementation Issue reorganize renderer composition/styles. The broad implementation is Class C and requires independent Reviewer plus Skeptical Simplifier assessment before integration. Do not introduce a UI framework, state framework, generic navigation abstraction or dependency without a demonstrated need.
 
-The acceptance screenshots exposed a broader product UX/information-architecture problem: visible capabilities have accumulated in implementation order without a coherent hierarchy for what belongs where, what should dominate, or how the shell should behave across window sizes. The owner explicitly directed that this must **not** be addressed by a local first-run/CSS patch because it requires a full product UX run.
+## Evidence to reuse
 
-That work is captured separately as [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), **Run cohesive product UX and information-architecture redesign**. No UI fix is part of #202/#203.
+Integrated alpha acceptance PR #203 is merged at `90b578064030ce863c9eb912f854f08559fd4777`; Issue #202 is closed. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft and TeX evidence remains authoritative unless this Mission changes the affected surface. The acceptance screenshots are evidence of the current additive UX problem, not a request for a local first-run patch.
 
 ## Next
 
-Integrate PR #203 once its final impact-scoped check is green, close #202 as completed with the native-picker automation limitation stated explicitly, then activate #204 as the next Mission on a fresh branch. Do not repeat unaffected package, VS Code, TeX or already-observed Source/dirty-draft evidence solely for SHA parity.
+Complete #205 with a concise repository UX/IA design note grounded in the packaged application and current product semantics. If local graphical inspection is needed, use the runtime/computer lane; do not modify production UI in #205.
