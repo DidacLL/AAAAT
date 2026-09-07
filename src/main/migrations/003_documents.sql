@@ -13,9 +13,14 @@ CREATE TABLE documents (
   source_hash TEXT,
   ai_tags_json TEXT NOT NULL DEFAULT '[]',
   ai_notes TEXT,
+  ai_content_visible INTEGER NOT NULL DEFAULT 0 CHECK (ai_content_visible IN (0, 1)),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 ) STRICT;
+
+CREATE UNIQUE INDEX documents_one_ai_content_visible_cv
+  ON documents(ai_content_visible)
+  WHERE ai_content_visible = 1;
 
 CREATE TABLE document_item_rules (
   document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
