@@ -207,6 +207,64 @@ function chooseLinuxDirectory(): void {
   );
 }
 
+function resizeLinuxAppWindow(width: number, height: number): { width: number; height: number } {
+  const output = execFileSync(
+    "bash",
+    [
+      "-lc",
+      [
+        "set -eu",
+        "window=''",
+        "for attempt in $(seq 1 100); do",
+        "  window=$(xdotool search --onlyvisible --name '^AAAAT$' 2>/dev/null | tail -n 1 || true)",
+        "  if [ -n \"$window\" ]; then break; fi",
+        "  sleep 0.1",
+        "done",
+        "test -n \"$window\"",
+        `xdotool windowactivate --sync "$window"`,
+        `xdotool windowsize --sync "$window" ${String(width)} ${String(height)}`,
+        "sleep 0.15",
+        "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
+        "printf '%s %s\\n' \"$WIDTH\" \"$HEIGHT\"",
+      ].join("\n"),
+    ],
+    { encoding: "utf8" },
+  ).trim();
+  const match = output.match(/(\d+)\s+(\d+)$/);
+  if (!match) throw new Error(`Could not read packaged AAAAT window geometry: ${output}`);
+  return { width: Number(match[1]), height: Number(match[2]) };
+}
+
+async function proveAcceptedShellAtWindowSize(
+  page: Page,
+  width: number,
+  height: number,
+): Promise<void> {
+  const actual = resizeLinuxAppWindow(width, height);
+  expect(actual).toEqual({ width, height });
+  await page.waitForTimeout(150);
+
+  const primary = page.getByRole("navigation", { name: "Primary work areas" });
+  await expect(primary).toBeVisible();
+  await expect(primary.getByRole("button", { name: "Candidatures" })).toBeVisible();
+  await expect(primary.getByRole("button", { name: "CVs & letters" })).toBeVisible();
+  await expect(primary.getByRole("button", { name: "Professional information" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Switch workspace" })).toBeVisible();
+
+  const geometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+
+  console.log(
+    `[packaged UX] window=${String(actual.width)}x${String(actual.height)} viewport=${String(geometry.innerWidth)}x${String(geometry.innerHeight)} horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
+  );
+}
+
 test("packaged external command rejects unsupported authority without opening desktop", () => {
   const uninitializedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-command-smoke-"));
   try {
@@ -245,6 +303,8 @@ test("packaged desktop preserves security gates and required bounded capabilitie
         name: "Choose where AAAAT should keep your career workspace.",
       }),
     ).toBeVisible();
+    await expect(running.page.getByText(/workspace data stays local/i)).toBeVisible();
+    await expect(running.page.getByText(/works without AI/i)).toBeVisible();
 
     const boundary = await running.page.evaluate(() => ({
       processType: typeof Reflect.get(window, "process"),
@@ -286,12 +346,21 @@ test("packaged desktop preserves security gates and required bounded capabilitie
 
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Candidatures" })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Documents" })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "AI assist" })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Settings" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+
+    await proveAcceptedShellAtWindowSize(running.page, 1200, 800);
+    await proveAcceptedShellAtWindowSize(running.page, 720, 600);
+
+    const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
+    await expect(primary.getByRole("button", { name: "Candidatures" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(running.page.getByRole("button", { name: "ToDos" })).toHaveCount(0);
+    await expect(running.page.getByRole("button", { name: "AI assist" })).toHaveCount(0);
+    await expect(running.page.getByRole("button", { name: "Profile" })).toHaveCount(0);
+    await expect(running.page.getByRole("button", { name: "Documents" })).toHaveCount(0);
 
     const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
     expect(existsSync(databasePath)).toBe(true);
@@ -366,9 +435,9 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     }
 
     running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await proveAcceptedShellAtWindowSize(running.page, 720, 600);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
