@@ -22,11 +22,12 @@ const document: DocumentRecord = {
 
 const current = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["current"]>();
 const update = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["update"]>();
+const updateRender = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["updateRender"]>();
 
 function installApi() {
   Object.defineProperty(window, "aaaat", {
     configurable: true,
-    value: { cvContentAccess: { current, update } } as CvContentAccessDesktopApi,
+    value: { cvContentAccess: { current, update, updateRender } } as CvContentAccessDesktopApi,
   });
 }
 
@@ -37,12 +38,16 @@ afterEach(() => {
 });
 
 describe("external CV content access control", () => {
-  it("requires explicit confirmation before allowing broader CV content disclosure", async () => {
-    current.mockResolvedValueOnce({ documentId: document.id, allowed: false });
-    update.mockResolvedValueOnce({ documentId: document.id, allowed: true });
+  it("keeps rendering disabled after content disclosure until separately confirmed", async () => {
+    current.mockResolvedValueOnce({ documentId: document.id, allowed: false, renderAllowed: false });
+    update.mockResolvedValueOnce({ documentId: document.id, allowed: true, renderAllowed: false });
+    updateRender.mockResolvedValueOnce({
+      documentId: document.id,
+      allowed: true,
+      renderAllowed: true,
+    });
     installApi();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
-    const onNotice = vi.fn();
     const user = userEvent.setup();
 
     render(
@@ -50,27 +55,25 @@ describe("external CV content access control", () => {
         document={document}
         disabled={false}
         onError={() => undefined}
-        onNotice={onNotice}
+        onNotice={() => undefined}
       />,
     );
 
-    const allow = await screen.findByRole("button", {
-      name: "Allow external assistants to read this CV content",
-    });
-    expect(current).toHaveBeenCalledWith(document.id);
-    await user.click(allow);
-
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("shares the CV content"));
-    expect(update).toHaveBeenCalledWith({ documentId: document.id, allowed: true });
-    expect(onNotice).toHaveBeenCalledWith(
-      "This CV is now the one CV available to the external content-read operation.",
+    await user.click(
+      await screen.findByRole("button", { name: "Allow external assistants to read this CV content" }),
     );
-    expect(await screen.findByText("Content access allowed for this CV.")).toBeInTheDocument();
+    expect(update).toHaveBeenCalledWith({ documentId: document.id, allowed: true });
+    expect(screen.getByText("External rendering is not authorized.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Allow external PDF rendering" }));
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining("request local PDF rendering"));
+    expect(updateRender).toHaveBeenCalledWith({ documentId: document.id, allowed: true });
+    expect(await screen.findByText(/external host may request AAAAT's normal local render/i)).toBeInTheDocument();
   });
 
-  it("revokes immediately and disables permission changes while structured edits are unsaved", async () => {
-    current.mockResolvedValue({ documentId: document.id, allowed: true });
-    update.mockResolvedValue({ documentId: document.id, allowed: false });
+  it("revokes content and render authority together and disables permission changes while edits are unsaved", async () => {
+    current.mockResolvedValue({ documentId: document.id, allowed: true, renderAllowed: true });
+    update.mockResolvedValue({ documentId: document.id, allowed: false, renderAllowed: false });
     installApi();
     const user = userEvent.setup();
 
@@ -83,6 +86,7 @@ describe("external CV content access control", () => {
       />,
     );
     expect(await screen.findByRole("button", { name: "Revoke external CV content access" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Revoke external render authorization" })).toBeDisabled();
 
     rerender(
       <CvExternalContentAccessPanel
@@ -94,5 +98,6 @@ describe("external CV content access control", () => {
     );
     await user.click(screen.getByRole("button", { name: "Revoke external CV content access" }));
     expect(update).toHaveBeenCalledWith({ documentId: document.id, allowed: false });
+    expect(await screen.findByText("External rendering is not authorized.")).toBeInTheDocument();
   });
 });
