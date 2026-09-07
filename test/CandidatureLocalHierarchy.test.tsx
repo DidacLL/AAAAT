@@ -116,16 +116,23 @@ describe("selected candidature local hierarchy", () => {
     await user.click(screen.getByText("Concepts", { selector: "summary" }));
     const concepts = screen.getByRole("region", { name: "Concepts" });
     await user.click(within(concepts).getByRole("checkbox", { name: "Platform" }));
+    await user.click(within(concepts).getByRole("button", { name: "Edit concept" }));
+    const conceptName = within(concepts).getByLabelText("Name");
+    await user.clear(conceptName);
+    await user.type(conceptName, "Unsaved platform concept");
 
     await user.click(screen.getByRole("tab", { name: "Application material" }));
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits?");
-    expect(screen.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "Application material" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("region", { name: "Application material" })).toBeInTheDocument();
+    expect(screen.getByText("Application CV (CV)")).toBeInTheDocument();
+    expect(within(concepts).getByLabelText("Name")).toHaveValue("Unsaved platform concept");
 
     await user.click(within(concepts).getByRole("button", { name: "Save concept associations" }));
     expect(setConcepts).toHaveBeenCalledWith({ candidatureId, conceptIds: [concept.id] });
-
-    await user.click(screen.getByRole("tab", { name: "Application material" }));
-    expect(screen.getByRole("region", { name: "Application material" })).toBeInTheDocument();
-    expect(screen.getByText("Application CV (CV)")).toBeInTheDocument();
   });
 });
