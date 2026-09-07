@@ -1,25 +1,23 @@
-# Active Mission — Explicit external CV render authority
+# Completing Mission — Integrated real-use acceptance
 
-**Active:** [Issue #200](https://github.com/DidacLL/AAAAT/issues/200) on `feature/external-cv-render`, based on integrated deliberate CV content disclosure `ab75ce0c4778b9a87c80ca9ce90e343496198e92`.
+**Issue:** [#202](https://github.com/DidacLL/AAAAT/issues/202) on `agentic/real-use-acceptance`, based on integrated main `bfb6533aceb56133a2555f783efe51fa65256487`.
 
-## Outcome
+## Acceptance conclusion
 
-Complete the missing local-production part of the required external-assistant destination by allowing a configured external host to request AAAAT's normal local PDF render for the one content-selected CV, but only after the user grants a separate explicit render authorization.
+The current integrated alpha has sufficient evidence for the five required SPEC destinations without an unresolved hard-gate defect. PR #203 contains no production-code change; it reconciles the acceptance state and strengthens the existing real pdfLaTeX portability scenario with Spanish/French Latin content.
 
-## Boundaries
+Reliable local information/retrieval is covered by focused repository tests plus the Windows packaged UI run: an isolated no-AI workspace, sparse candidature, retained Source, visible full-text-only search using `GLASS-CEDAR-ORBITAL-987`, and cancelled dirty navigation preserving the unsaved Source draft. Context/mutation boundaries and external-assistance authority remain covered by the existing focused direct-AI/MCP tests and the packaged live VS Code evidence from Verify #452. Reusable documents remain covered by source-ownership, optional-variant, combined-output, immutable-artifact and unrelated-directory pdfLaTeX evidence; Verify #455 passed the strengthened multilingual portability scenario.
 
-Content disclosure does not imply production authority. Render authorization is CV-only, may exist only on the currently content-selected CV, starts disabled, and is revoked automatically whenever that CV loses content-selection authority. Cover letters cannot receive it.
+Accessible setup/recovery has layered evidence: existing renderer tests cover the recovery controls and state-transition semantics, while the packaged recovery suite proves backup/restore integrity, exclusions and restored workspace data through the real packaged runtime. The additional Windows acceptance run could inspect but not operate the native folder picker because the available computer-input driver lacked usable input geometry. That is an automation-evidence limitation, not a reproduced AAAAT recovery defect. No production change was justified by it.
 
-The renderer exposes only the existing bounded CV-access surface plus a distinct `updateRender` intention. The Documents UI requires separate confirmation before allowing external rendering and explains that the host can request the normal local render without gaining document selection, path, command, engine, filesystem or process authority.
+Verify #457 passed at `c0fc2569b6e89674841ef25ac3fa4c97c7f003bd`. Existing #452 packaged/platform/VS Code evidence and #455 real TeX portability evidence remain reusable under impact-scoped verification.
 
-The external `cv_render` operation accepts no data arguments. Without a content-selected and render-authorized CV it returns null. With authorization it delegates to the existing `renderDocument` service and returns only `{ rendered: true }`; it does not expose document identity, paths, TeX/PDF bytes, logs or environment details.
+## UX finding
 
-Do not add generic external action/permission infrastructure, document selection/search input, arbitrary render controls, output-path control, cover-letter production, provider/research work, compatibility migration machinery, dependencies, workflow machinery or unrelated scope.
+The acceptance screenshots exposed a broader product UX/information-architecture problem: visible capabilities have accumulated in implementation order without a coherent hierarchy for what belongs where, what should dominate, or how the shell should behave across window sizes. The owner explicitly directed that this must **not** be addressed by a local first-run/CSS patch because it requires a full product UX run.
 
-This is Class C because it adds durable external production authority and extends the demonstrated MCP host surface. ADR 0024 records the disclosure-vs-production authority boundary. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if a generic permission/action abstraction, compatibility layer, dependency or material framework appears.
+That work is captured separately as [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), **Run cohesive product UX and information-architecture redesign**. No UI fix is part of #202/#203.
 
-## Evidence and continuation
+## Next
 
-Issue #198 / PR #199 is integrated at `ab75ce0c4778b9a87c80ca9ce90e343496198e92`. Verify #451 passed typecheck, lint, 69 passed test files / 202 active tests, Windows/macOS/Linux packaged release/runtime lanes, Windows demonstrated VS Code host-contract installation and the aggregate Verification gate; LaTeX portability was correctly skipped.
-
-Next: finish Issue #200, run focused authority/API/UI/MCP/setup tests plus impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.
+Integrate PR #203 once its final impact-scoped check is green, close #202 as completed with the native-picker automation limitation stated explicitly, then activate #204 as the next Mission on a fresh branch. Do not repeat unaffected package, VS Code, TeX or already-observed Source/dirty-draft evidence solely for SHA parity.
