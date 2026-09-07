@@ -2,9 +2,9 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#219](https://github.com/DidacLL/AAAAT/issues/219) — implement the accepted global shell hierarchy and relocate rejected peer destinations without losing accepted capability.
+**Current bounded Issue:** [#221](https://github.com/DidacLL/AAAAT/issues/221) — implement the accepted sparse candidature capture flow without changing candidature domain authority.
 
-Mission #204 replaces the additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
+Mission #204 replaces additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
 ## Canonical UX authority
 
@@ -29,9 +29,9 @@ Primary work destinations are exactly:
 
 **Settings** is secondary administration, not a peer primary work destination.
 
-Not global primary destinations: Focus, Sources, application material, ToDos/reminders, Concepts, Activity/provenance, privacy/presentation controls, AI, retained artifacts, variants, TeX, backup/recovery, provider connections, generic Documents, or generic Home/dashboard.
+Focus, Sources, application material, reminders, Concepts, Activity/provenance, privacy/presentation controls, AI, variants, TeX, recovery, provider connections, generic Documents, and generic Home/dashboard are not global primary destinations.
 
-## Completed design stages
+## Completed stages
 
 - Stage 0 / #205 — UX authority reconciliation; PR #206 merged at `bb6825f292bf2cafe3fdd630ff7a2ecef0fc409f`.
 - Stage 1 / #207 — candidature interaction; PR #208 merged at `43668e27c3951eadfab644e6d607d5ffd12704c5`.
@@ -39,40 +39,29 @@ Not global primary destinations: Focus, Sources, application material, ToDos/rem
 - Stage 3 / #212 — reusable professional information; PR #214 merged at `f2a9c22d57916a2e0e3f08d250f87b012c6fa407`.
 - Stage 4 / #215 — Settings/setup/recovery; PR #216 merged at `b258b2f3633083e15daf3d5febf0998fec85a6b0`.
 - Stage 5 / #217 — global shell/navigation synthesis; PR #218 merged at `4e1fe7ee987fb87cd85cbfbdfe1e148de8f38a5b`.
+- Stage 6 / #219 — accepted global shell implementation; PR #220 merged at `63dbda8d31f60e16e0076f7cde6cdb6046d7a9a5`. Exact reviewed head `3df20e9f8a7bd4d63e13ef38ac46ad9f06713d9b` passed Fast verification, Windows/macOS/Linux packaged runtime, exact `720×600` Linux evidence, and Verification gate; independent Reviewer returned `MERGE` and Skeptical Simplifier returned `PASS`.
 
-## Stage 6 — Issue #219: first bounded implementation slice — current
-
-PR #220 implements the accepted shell hierarchy without reopening product IA.
+## Stage 7 — Issue #221: sparse candidature capture — current
 
 The bounded implementation must:
 
-- expose only Candidatures, CVs & letters, and Professional information as primary work destinations;
-- keep Settings consistently reachable but secondary;
-- keep existing candidature AI assistance contextual under Candidatures;
-- keep existing reminders/ToDos reachable as secondary candidature support rather than global navigation;
-- keep existing AI document assistance contextual under CVs & letters;
-- preserve existing professional-information capability under the ordinary-user shell label;
-- keep workspace switching/recovery safe but secondary;
-- preserve dirty-draft, first-run, manual/no-AI, privacy/security/local-ownership behavior;
-- remain usable at normal packaged desktop size and exactly `720×600`;
-- avoid new router/state/design-system/plugin frameworks or unrelated architecture.
+- make `New candidature` open a transient local capture draft rather than persist an empty candidature immediately;
+- keep the ordinary path as paste/add available raw material → Save;
+- retain raw text and/or URL as the initial Source using the existing candidature creation contract;
+- require no company, role, status, priority, AI, profile, CV, or completeness ceremony;
+- preserve existing candidature drafts while capture is merely opened/cancelled, and require an explicit discard decision before a successful save replaces a dirty candidature editor;
+- save exactly one candidature, select it, and return to Focus where the retained Source supplies sparse recognition;
+- keep AI optional and manual/no-AI operation complete;
+- remain usable at normal packaged size and exactly `720×600` without horizontal clipping.
 
-This work is **Class C**. Do not merge PR #220 without exact-head evidence for:
+This slice does **not** redesign the selected-candidature section hierarchy, persistence, fields, Sources, Concepts, ToDos, documents, AI/provider architecture, or global shell. Those remain separate bounded work when justified.
 
-1. relevant fast/renderer verification;
-2. packaged runtime/UX at normal desktop size;
-3. packaged runtime/UX at exactly `720×600`;
-4. relevant dirty-draft, first-run/workspace, manual/no-AI, privacy/security/local-ownership regressions;
-5. independent Reviewer assessment;
-6. independent Skeptical Simplifier assessment;
-7. required GitHub Verification gates.
-
-If implementation reaches the independent-review gate, preserve the exact head and request those assessments rather than self-approving.
+This work is **Class C**. Do not merge its PR without exact-head fast/relevant renderer verification, packaged Linux capture evidence at normal size and exactly `720×600`, required GitHub Verification gates, independent Reviewer assessment, and independent Skeptical Simplifier assessment.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Existing security, backup/recovery, TeX, portability, source-retrieval, dirty-draft, and packaged-runtime evidence remains reusable unless #219 changes the surface or premise it proved.
+Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 shell evidence at `3df20e9f8a7bd4d63e13ef38ac46ad9f06713d9b` remains reusable where Stage 7 does not alter its premise.
 
 ## North star
 
-Users can retain job-related material without organizing it first, find and recall candidature context quickly, inspect/edit all important information, see application documents from their candidature, use CV/letter work independently, maintain reusable professional information without schema/variant ceremony, work completely without AI, configure secondary administration without it dominating the product, and inspect deeper ownership/privacy/provenance when desired.
+Users can retain job-related material without organizing it first, find and recall candidature context quickly, inspect/edit important information and Sources, work with application documents in context or independently, maintain reusable professional information without schema/variant ceremony, work completely without AI, configure secondary administration without it dominating the product, and inspect deeper ownership/privacy/provenance when desired.

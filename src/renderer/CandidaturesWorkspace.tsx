@@ -316,19 +316,6 @@ export function CandidaturesWorkspace({
 
   const focusNavigate = (destination: FocusDestination) => switchSection(destination);
 
-  const create = async () => {
-    if (!confirmDiscard()) return;
-    setError(null);
-    try {
-      const created = await window.aaaat.candidatures.create({ values: [] });
-      storeRecord(created);
-      hydrate(created);
-      setSection("information");
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not create this candidature.");
-    }
-  };
-
   const setArchived = async (archived: boolean) => {
     if (!selected) return;
     if (!confirmDiscard()) return;
@@ -613,7 +600,6 @@ export function CandidaturesWorkspace({
           <p className="eyebrow">Sparse opportunity information</p>
           <h2>Candidatures</h2>
         </div>
-        <button type="button" onClick={() => void create()}>New candidature</button>
       </div>
 
       <div className="candidature-filters" aria-label="Candidature filters">
