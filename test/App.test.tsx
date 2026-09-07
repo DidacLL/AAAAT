@@ -154,6 +154,8 @@ describe("AAAAT workspace state", () => {
         name: "Choose where AAAAT should keep your career workspace.",
       }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/workspace data stays local/i)).toBeInTheDocument();
+    expect(screen.getByText(/works without AI/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Create workspace" }));
     expect(choose).toHaveBeenCalledWith("create");
     expect(await screen.findByText(readyWorkspace.rootPath)).toBeInTheDocument();
