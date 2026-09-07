@@ -6,8 +6,13 @@ import {
   cvContentAccessChannels,
   cvContentAccessSchema,
   cvContentAccessUpdateSchema,
+  cvRenderAccessUpdateSchema,
 } from "../shared/cv-content-access-contracts";
-import { getCvContentAccess, updateCvContentAccess } from "./cv-content-access-service";
+import {
+  getCvContentAccess,
+  updateCvContentAccess,
+  updateCvRenderAccess,
+} from "./cv-content-access-service";
 import { readLastWorkspacePath } from "./workspace";
 
 function assertTrustedSender(event: IpcMainInvokeEvent, mainWindow: BrowserWindow): void {
@@ -37,6 +42,12 @@ function registerCvContentAccessIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return cvContentAccessSchema.parse(
       updateCvContentAccess(requireWorkspaceRoot(), cvContentAccessUpdateSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(cvContentAccessChannels.updateRender, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return cvContentAccessSchema.parse(
+      updateCvRenderAccess(requireWorkspaceRoot(), cvRenderAccessUpdateSchema.parse(input)),
     );
   });
 }
