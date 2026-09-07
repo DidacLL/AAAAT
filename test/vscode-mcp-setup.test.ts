@@ -56,8 +56,16 @@ describe("VS Code MCP setup", () => {
       transport: "stdio",
       recipeId: "vscode.mcp",
     });
-    expect(manifest.capabilityNames).toEqual(["candidature.create", "career_context.read"]);
-    expect(manifest.toolNames).toEqual(["candidature_create", "career_context_read"]);
+    expect(manifest.capabilityNames).toEqual([
+      "candidature.create",
+      "career_context.read",
+      "cv_descriptions.read",
+    ]);
+    expect(manifest.toolNames).toEqual([
+      "candidature_create",
+      "career_context_read",
+      "cv_descriptions_read",
+    ]);
     const text = readFileSync(path.join(workspace, "integrations", "vscode-mcp.json"), "utf8");
     expect(text).not.toContain(workspace);
     expect(text).not.toContain(project);
