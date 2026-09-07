@@ -6,28 +6,30 @@
 
 ## Outcome
 
-Replace the additive-development presentation with one coherent product UX and information architecture. Define what the user should see, where it belongs, when it appears, and how primary work differs from setup/recovery/optional-AI concerns. Preserve the accepted product capabilities and hard gates.
+Replace the additive-development presentation with one coherent product UX and information architecture while preserving accepted product capabilities and hard gates. The intended feel is simple and legible for non-technical users while remaining fully editable, inspectable and auditable for advanced users. Historical owner UI suggestions preserve intent/feel, not mandatory mechanics when a clearer solution exists.
 
-The intended feel is simple and legible for non-technical users while remaining fully editable, inspectable and auditable for advanced users. Treat historical owner UI suggestions as evidence of the underlying problem and desired feel, not as mandatory mechanics when a clearer solution exists.
+## UX contract
 
-## UX authority and recovered history
+- `docs/UX_EXPECTATIONS.md` — active UX expectations derived from current Owner Intent/SPEC.
+- `docs/UX_HISTORY_RECONCILIATION.md` — v1/M6 lineage reconciled as research evidence, with superseded mechanics called out.
+- `docs/UX_INFORMATION_ARCHITECTURE.md` — proposed coherent IA grounded in the current renderer source and accepted product semantics.
 
-`docs/UX_EXPECTATIONS.md` now translates current `OWNER_INTENT` / `SPEC` into the active UX expectations for this Mission. `docs/UX_HISTORY_RECONCILIATION.md` records the useful v1 lineage and explicitly separates durable lessons from superseded Smart/Detailed/User modes, wx layouts, task queues, fixed field catalogues and other historical mechanics.
+The proposed primary work destinations are Opportunities, Documents, Career and ToDos. Settings is secondary/global administration. `AI assist` is not a primary destination: assistance moves contextually to the Opportunity/Source/Information/Document/Career task it assists, while connection/host setup remains in Settings. First run centers Create/Open workspace with recovery secondary. Advanced field/Focus/privacy/source/portability controls remain fully reachable through progressive disclosure rather than dominating ordinary work.
 
-Historical sources reviewed include v1 `BasicAppRequirements`, `AAAAT Product Summary`, the approved Smart View and Detailed View planning/requirements trace from PR #37, the v1 drift audit, and the later M6 #127 Focus/progressive-disclosure research. Current owner authority supersedes all of them where they conflict.
+## Current-source audit result
 
-## Execution order
+The current additive composition is confirmed in production source: the shell presents Candidatures, ToDos, Profile, Documents, AI assist and Settings with equal top-level weight; Candidatures appends optional AI comparison/extraction below the ordinary workspace; Profile stacks Career Context above the canonical/variant editor; Documents combines writing, profile differences, retained artifacts, source ownership and assistant-access controls; Settings stacks environment status, free-chat guidance, backup/recovery and AI connection administration.
 
-Issue #205 is audit/design only. Inspect the real packaged application at default and minimum supported window sizes; walk first-run/workspace choice, Candidatures/Sources, ToDos, Profile, Documents, AI assist and Settings/setup/recovery; map current hierarchy and user journeys; then define the proposed navigation, destination boundaries, progressive-disclosure rules and first-run/empty/ready/error states. Do not start with isolated CSS or component fixes.
-
-For each screen ask what the user is trying to accomplish, what currently dominates attention, what is primary/secondary/contextual/advanced, whether implementation terminology is leaking, whether ordinary users can proceed without technical knowledge, and whether advanced users can reach the complete authoritative information and controls without leaving the graphical product.
-
-Only after #205 establishes the interaction contract should a separate bounded implementation Issue reorganize renderer composition/styles. The broad implementation is Class C and requires independent Reviewer plus Skeptical Simplifier assessment before integration. Do not introduce a UI framework, state framework, generic navigation abstraction or dependency without a demonstrated need.
+These are placement/hierarchy findings, not requests to remove the underlying capabilities.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 is merged at `90b578064030ce863c9eb912f854f08559fd4777`; Issue #202 is closed. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft and TeX evidence remains authoritative unless this Mission changes the affected surface. The acceptance screenshots are evidence of the current additive UX problem, not a request for a local first-run patch.
+Integrated alpha acceptance PR #203 is merged at `90b578064030ce863c9eb912f854f08559fd4777`; Issue #202 is closed. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft and TeX evidence remains authoritative unless this Mission changes the affected surface. The prior first-run screenshots remain evidence of the current additive layout problem rather than a request for an isolated CSS patch.
 
-## Next
+## Remaining #205 gate
 
-Run the packaged UX audit from the current `agentic/cohesive-ux` head using `docs/UX_EXPECTATIONS.md` as the current contract and `docs/UX_HISTORY_RECONCILIATION.md` as historical context. Capture representative screenshots/observations at default and declared minimum window sizes, then write the concise proposed information architecture/design note on this same branch. Do not modify production UI in #205.
+Perform one bounded packaged visual challenge of `docs/UX_INFORMATION_ARCHITECTURE.md` at the normal/default window and declared minimum `720×600`.
+
+Walk only enough of first run, Opportunities/Sources/Focus, ToDos, Career/Profile, Documents, contextual AI surfaces and Settings/setup/recovery to answer whether the proposed hierarchy misses a real user need or creates a contradiction. Record screenshots/brief observations, including keyboard/reflow concerns. Do not modify production UI and do not rediscover already-reconciled product history.
+
+If no material contradiction is found, close #205 with the IA note and runtime evidence, then open the first bounded renderer-recomposition Issue under #204. The implementation is Class C and requires independent Reviewer plus Skeptical Simplifier assessment before integration. Do not add a UI framework, state framework, generic navigation abstraction or dependency without demonstrated need.
