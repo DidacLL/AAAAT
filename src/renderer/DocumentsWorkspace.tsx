@@ -11,6 +11,7 @@ import type {
 } from "../shared/contracts";
 import { CombinedDocumentExportPanel } from "./CombinedDocumentExportPanel";
 import { CvAssistantDescriptorPanel } from "./CvAssistantDescriptorPanel";
+import { CvExternalContentAccessPanel } from "./CvExternalContentAccessPanel";
 import "./documents.css";
 
 function optional(value: string): string | undefined {
@@ -467,13 +468,22 @@ export function DocumentsWorkspace({
             </form>
 
             {selected.kind === "cv" ? (
-              <CvAssistantDescriptorPanel
-                key={selected.id}
-                document={selected}
-                onDirtyChange={setDescriptorDirty}
-                onError={setError}
-                onNotice={setNotice}
-              />
+              <>
+                <CvAssistantDescriptorPanel
+                  key={`descriptor:${selected.id}`}
+                  document={selected}
+                  onDirtyChange={setDescriptorDirty}
+                  onError={setError}
+                  onNotice={setNotice}
+                />
+                <CvExternalContentAccessPanel
+                  key={`content-access:${selected.id}`}
+                  document={selected}
+                  disabled={editorDirty}
+                  onError={setError}
+                  onNotice={setNotice}
+                />
+              </>
             ) : null}
 
             <div className="document-paths">
