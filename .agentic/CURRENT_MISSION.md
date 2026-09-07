@@ -1,35 +1,79 @@
 # Active Mission — Cohesive product UX and information architecture
 
-**Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204) on `agentic/cohesive-ux`, based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
+**Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#205](https://github.com/DidacLL/AAAAT/issues/205) — audit the current packaged UX and define the interaction architecture before changing production UI.
+Mission #204 replaces the additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
-## Outcome
+## Canonical UX authority
 
-Replace the additive-development presentation with one coherent product UX and information architecture while preserving accepted product capabilities and hard gates. The intended feel is simple and legible for non-technical users while remaining fully editable, inspectable and auditable for advanced users. Historical owner UI suggestions preserve intent/feel, not mandatory mechanics when a clearer solution exists.
+- `docs/UX_DEFINITION.md` — the single durable UX contract for this Mission.
+- `docs/UX_HISTORY_RECONCILIATION.md` — historical/research evidence only; it cannot define current navigation or interaction mechanics.
 
-## UX contract
+Do not recreate competing current UX-contract documents. Direct Product Owner instruction remains above repository documents; `docs/OWNER_INTENT.md` and `docs/SPEC.md` remain product/architecture authority.
 
-- `docs/UX_EXPECTATIONS.md` — active UX expectations derived from current Owner Intent/SPEC.
-- `docs/UX_HISTORY_RECONCILIATION.md` — v1/M6 lineage reconciled as research evidence, with superseded mechanics called out.
-- `docs/UX_INFORMATION_ARCHITECTURE.md` — proposed coherent IA grounded in the current renderer source and accepted product semantics.
+The current UI and screenshots are evidence that additive development produced weak hierarchy. They are not the source from which the new information architecture is inferred.
 
-The proposed primary work destinations are Opportunities, Documents, Career and ToDos. Settings is secondary/global administration. `AI assist` is not a primary destination: assistance moves contextually to the Opportunity/Source/Information/Document/Career task it assists, while connection/host setup remains in Settings. First run centers Create/Open workspace with recovery secondary. Advanced field/Focus/privacy/source/portability controls remain fully reachable through progressive disclosure rather than dominating ordinary work.
+## Product experience to preserve
 
-## Current-source audit result
+UX is derived from user intentions, not entities or implemented features.
 
-The current additive composition is confirmed in production source: the shell presents Candidatures, ToDos, Profile, Documents, AI assist and Settings with equal top-level weight; Candidatures appends optional AI comparison/extraction below the ordinary workspace; Profile stacks Career Context above the canonical/variant editor; Documents combines writing, profile differences, retained artifacts, source ownership and assistant-access controls; Settings stacks environment status, free-chat guidance, backup/recovery and AI connection administration.
+- A **Candidature** is the central context for job/application work.
+- **Sources** are first-class retained material belonging to a candidature.
+- **Focus** is the configurable fast-recall projection for a selected candidature.
+- Complete candidature information, Sources, application material, Concepts, notes/checkable reminders, privacy/presentation controls, and secondary Activity remain reachable from candidature context without automatically becoming peer top-level destinations.
+- **VCVGenerator** is the major parallel journey and works both from candidature-specific application material and standalone without a candidature.
+- Reusable professional information supports many candidatures/documents and is presented as ordinary professional information; variants/differences are progressively disclosed.
+- AI is contextual assistance, never a navigation destination; connection/provider administration is secondary Settings work.
+- ToDos remain lightweight optional checkable notes/reminders, not a task-management pillar.
+- Sparse candidature capture is normal and must require no company/role/status/priority/completeness ceremony.
+- Setup, backup/recovery, TeX/environment, AI connections, portability, and host trust are important but secondary/infrequent administration.
 
-These are placement/hierarchy findings, not requests to remove the underlying capabilities.
+## Development sequence
+
+Advance one bounded stage at a time. Do not pre-create later Issues.
+
+### Stage 0 — Issue #205: pre-development UX authority/reconciliation
+
+Establish `docs/UX_DEFINITION.md`, reconcile historical/current UX documents, and align Mission/Issue/PR metadata. No production UI, CSS, React redesign, or broad packaged visual audit.
+
+Documentation-only, impact-appropriate verification is sufficient. After #205 merges, close #205 and create exactly one next bounded Stage-1 design Issue.
+
+### Stage 1 — candidature interaction/navigation design
+
+First future UX design slice. Derive and challenge the interaction model for:
+
+**candidature collection/search → candidature selection → selected candidature context → Focus → full information/editing → Sources → application material**
+
+Also cover sparse candidature, long/short Sources, contextual Concepts/reminders, dirty editing, default desktop size, and the declared minimum `720×600`.
+
+This stage is **design/interaction architecture only**. It must produce an interaction contract/wireframe-level design before any production renderer change. It must not begin by styling the current component tree.
+
+### Stage 2 — VCVGenerator UX
+
+Design standalone CV/letter work, candidature-linked document work, transition between candidature X and VCVGenerator, normal editing, advanced source/auditability, render/export, and retained artifact UX.
+
+### Stage 3 — reusable professional/profile UX
+
+Design ordinary professional-information editing and reuse in documents, with variants/differences and disclosure/privacy progressively disclosed.
+
+### Stage 4 — Settings / setup / recovery UX
+
+Design secondary administration for workspace, backup/restore, TeX/environment, AI connections/capabilities, configuration portability, and external-host trust implications. Avoid one giant additive Settings page.
+
+### Stage 5 — global shell/navigation synthesis
+
+Only after Stages 1–4 have interaction contracts, derive global navigation from the validated journeys. Do not invent peer destinations from entities.
+
+### Stage 6 — implementation
+
+Only after navigation/screen interaction contracts exist. Broad renderer reorganization is Class C and proceeds in the smallest coherent implementation slices with independent Reviewer, Skeptical Simplifier, packaged UX verification at default + `720×600`, and all functional/privacy/security/local-ownership gates preserved.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 is merged at `90b578064030ce863c9eb912f854f08559fd4777`; Issue #202 is closed. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft and TeX evidence remains authoritative unless this Mission changes the affected surface. The prior first-run screenshots remain evidence of the current additive layout problem rather than a request for an isolated CSS patch.
+Integrated alpha acceptance PR #203 is merged at `90b578064030ce863c9eb912f854f08559fd4777`; Issue #202 is closed. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft, TeX, and prior visual evidence remains reusable unless a later stage changes the surface or premise it proved.
 
-## Remaining #205 gate
+Do not repeat broad packaged audits merely because documentation or authority changed. Future packaged visual verification belongs to the interaction/implementation stage whose actual UI surface it tests.
 
-Perform one bounded packaged visual challenge of `docs/UX_INFORMATION_ARCHITECTURE.md` at the normal/default window and declared minimum `720×600`.
+## North star
 
-Walk only enough of first run, Opportunities/Sources/Focus, ToDos, Career/Profile, Documents, contextual AI surfaces and Settings/setup/recovery to answer whether the proposed hierarchy misses a real user need or creates a contradiction. Record screenshots/brief observations, including keyboard/reflow concerns. Do not modify production UI and do not rediscover already-reconciled product history.
-
-If no material contradiction is found, close #205 with the IA note and runtime evidence, then open the first bounded renderer-recomposition Issue under #204. The implementation is Class C and requires independent Reviewer plus Skeptical Simplifier assessment before integration. Do not add a UI framework, state framework, generic navigation abstraction or dependency without demonstrated need.
+The Mission succeeds when users can retain almost any job-related material without organizing it first, find a candidature from meaningful retained text, recover useful call context immediately, inspect/edit all important information, see application CVs/letters from that candidature, use VCVGenerator independently, work completely without AI, and inspect deeper ownership/privacy/provenance when desired.
