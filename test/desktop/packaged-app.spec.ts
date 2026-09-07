@@ -265,6 +265,34 @@ async function proveAcceptedShellAtWindowSize(
   );
 }
 
+async function proveCandidatureHierarchyAtWindowSize(
+  page: Page,
+  width: number,
+  height: number,
+): Promise<void> {
+  await proveAcceptedShellAtWindowSize(page, width, height);
+  const local = page.getByRole("tablist", { name: "Candidature sections" });
+  await expect(local).toBeVisible();
+  const tabs = local.getByRole("tab");
+  await expect(tabs).toHaveCount(4);
+  await expect(local.getByRole("tab", { name: "Focus" })).toBeVisible();
+  await expect(local.getByRole("tab", { name: "Information" })).toBeVisible();
+  await expect(local.getByRole("tab", { name: "Sources" })).toBeVisible();
+  await expect(local.getByRole("tab", { name: "Application material" })).toBeVisible();
+  await expect(local.getByRole("tab", { name: "Concepts" })).toHaveCount(0);
+  await expect(local.getByRole("tab", { name: "Documents" })).toHaveCount(0);
+  await expect(page.getByText("Concepts", { exact: true }).first()).toBeVisible();
+
+  const geometry = await local.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+  console.log(
+    `[packaged candidature] window=${String(width)}x${String(height)} local-nav-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
+  );
+}
+
 test("packaged external command rejects unsupported authority without opening desktop", () => {
   const uninitializedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-command-smoke-"));
   try {
@@ -437,7 +465,8 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
-    await proveAcceptedShellAtWindowSize(running.page, 720, 600);
+    await proveCandidatureHierarchyAtWindowSize(running.page, 1200, 800);
+    await proveCandidatureHierarchyAtWindowSize(running.page, 720, 600);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
