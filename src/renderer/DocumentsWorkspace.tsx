@@ -10,6 +10,7 @@ import type {
   ProfileSnapshot,
 } from "../shared/contracts";
 import { CombinedDocumentExportPanel } from "./CombinedDocumentExportPanel";
+import { CvAssistantDescriptorPanel } from "./CvAssistantDescriptorPanel";
 import "./documents.css";
 
 function optional(value: string): string | undefined {
@@ -50,6 +51,7 @@ export function DocumentsWorkspace({
   const [artifactCandidatureId, setArtifactCandidatureId] = useState("");
   const [artifacts, setArtifacts] = useState<ApplicationArtifactRecord[]>([]);
   const [capturingArtifact, setCapturingArtifact] = useState(false);
+  const [descriptorDirty, setDescriptorDirty] = useState(false);
 
   const [newKind, setNewKind] = useState<DocumentKind>("cv");
   const [newTitle, setNewTitle] = useState("");
@@ -101,9 +103,9 @@ export function DocumentsWorkspace({
     newVariantId !== "";
 
   useEffect(() => {
-    onDirtyChange?.(editorDirty || newDocumentDirty);
+    onDirtyChange?.(editorDirty || newDocumentDirty || descriptorDirty);
     return () => onDirtyChange?.(false);
-  }, [editorDirty, newDocumentDirty, onDirtyChange]);
+  }, [descriptorDirty, editorDirty, newDocumentDirty, onDirtyChange]);
 
   const refreshResolved = async (document: DocumentRecord) => {
     const [basis, resolved] = await Promise.all([
@@ -175,7 +177,10 @@ export function DocumentsWorkspace({
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
-    if (editorDirty && !window.confirm("Discard unsaved document edits and create a new document?")) {
+    if (
+      (editorDirty || descriptorDirty) &&
+      !window.confirm("Discard unsaved document edits and create a new document?")
+    ) {
       return;
     }
     setError(null);
@@ -221,7 +226,10 @@ export function DocumentsWorkspace({
 
   const select = async (document: DocumentRecord) => {
     if (document.id === selectedId) return;
-    if (editorDirty && !window.confirm("Discard unsaved document edits and switch documents?")) {
+    if (
+      (editorDirty || descriptorDirty) &&
+      !window.confirm("Discard unsaved document edits and switch documents?")
+    ) {
       return;
     }
     setSelectedId(document.id);
@@ -238,8 +246,8 @@ export function DocumentsWorkspace({
   const remove = async () => {
     if (!selected) return;
     const confirmed = window.confirm(
-      editorDirty
-        ? "Remove this document and discard its unsaved structured edits?"
+      editorDirty || descriptorDirty
+        ? "Remove this document and discard its unsaved edits?"
         : "Remove this document?",
     );
     if (!confirmed) return;
@@ -457,6 +465,16 @@ export function DocumentsWorkspace({
                 <button type="button" onClick={() => void remove()}>Remove document</button>
               </div>
             </form>
+
+            {selected.kind === "cv" ? (
+              <CvAssistantDescriptorPanel
+                key={selected.id}
+                document={selected}
+                onDirtyChange={setDescriptorDirty}
+                onError={setError}
+                onNotice={setNotice}
+              />
+            ) : null}
 
             <div className="document-paths">
               <p><span>Source</span><code>{selected.sourcePath}</code></p>
