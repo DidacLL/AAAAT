@@ -2,7 +2,7 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#209](https://github.com/DidacLL/AAAAT/issues/209) — design the VCVGenerator interaction model before production renderer changes.
+**Current bounded Issue:** [#212](https://github.com/DidacLL/AAAAT/issues/212) — design the reusable professional information interaction model before production renderer changes.
 
 Mission #204 replaces the additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
@@ -52,33 +52,35 @@ The key interaction decision is that Focus, complete information, Sources, and a
 
 PR #208 merged the design-only Stage at `43668e27c3951eadfab644e6d607d5ffd12704c5`; #207 is closed. No production UI changed.
 
-### Stage 2 — Issue #209: VCVGenerator UX — current
+### Stage 2 — Issue #209: VCVGenerator UX — completed
 
 `docs/UX_VCVGENERATOR_INTERACTION.md` defines standalone and candidature-linked document work as two contexts of the same document system.
 
-The Stage-2 interaction model preserves:
+The accepted interaction model preserves standalone CV/cover-letter work without candidature, AI, or mandatory variant; explicit Candidature X context/return; mutable working documents versus exact retained application artifacts; ordinary content editing before profile/variant/LaTeX mechanics; optional variants and document-specific differences; safe render/result/export; advanced source/ownership/auditability; contextual AI; dirty-state safety; optional TeX/AI states; combined output; and default/minimum `720×600` behavior.
 
-- standalone CV/cover-letter creation/editing without candidature, AI, or mandatory variant;
-- explicit Candidature X context and return path for candidature-linked document work;
-- a clear distinction between mutable working documents and exact retained application artifacts;
-- normal content editing before reusable-profile/variant/LaTeX mechanics;
-- professional-information reuse with optional variants and deliberate document-specific differences;
-- render/result/export behavior that never silently renders stale state;
-- advanced source/ownership inspection for user-owned `main.tex`/`aaaat.sty`, feeder-owned generated `data.tex`, PDF/output, portability, and relevant assistant permissions;
-- contextual AI rather than an AI workspace;
-- dirty-state safety, optional TeX/AI states, and default/minimum `720×600` behavior.
+PR #211 merged the design-only Stage at `91b2a4ce5a807da8c99864727e6c277803ea8d44`; #209 is closed. No production UI or LaTeX architecture changed.
 
-This Stage is **design/interaction architecture only**. No production UI, CSS, React redesign, LaTeX architecture change, broad packaged visual audit, Stage 3 work, Settings redesign, or final global navigation belongs in #209.
+### Stage 3 — Issue #212: reusable professional/profile UX — current
 
-### Stage 3 — reusable professional/profile UX
+Design ordinary reusable professional information around actual user content: identity/contact, experience, skills, education, projects, languages, links, summaries, certifications, objectives/preferences/constraints, and justified custom information.
 
-After Stage 2 is accepted and merged, create exactly one bounded design Issue for ordinary professional-information editing and reuse in documents, with variants/differences and disclosure/privacy progressively disclosed.
+The Stage must define:
 
-Do not start it from #209.
+- sparse/read-first professional-information overview and deliberate editing without a giant profile form;
+- built-in and justified custom information without generic database/schema administration;
+- VCVGenerator handoff to edit reusable source information and safe return;
+- base professional information versus optional saved variants versus document-specific differences;
+- variants as understandable stored differences, not cloned identities;
+- privacy/AI-disclosure controls independent from local ownership/deletion;
+- contextual optional AI, dirty-state safety, advanced auditability, and default/minimum `720×600` behavior.
+
+This Stage is **design/interaction architecture only**. No production UI/CSS/React changes, persistence redesign, Stage-4 Settings design, final global navigation, or implementation belongs in #212.
 
 ### Stage 4 — Settings / setup / recovery UX
 
-Design secondary administration for workspace, backup/restore, TeX/environment, AI connections/capabilities, configuration portability, and external-host trust implications. Avoid one giant additive Settings page.
+After Stage 3 is accepted and merged, create exactly one bounded design Issue for secondary administration: workspace, backup/restore, TeX/environment, AI connections/capabilities, configuration portability, and external-host trust implications. Avoid one giant additive Settings page.
+
+Do not start it from #212.
 
 ### Stage 5 — global shell/navigation synthesis
 
@@ -92,7 +94,7 @@ Only after navigation/screen interaction contracts exist. Broad renderer reorgan
 
 Integrated alpha acceptance PR #203 is merged at `90b578064030ce863c9eb912f854f08559fd4777`; Issue #202 is closed. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft, TeX, and prior visual evidence remains reusable unless a later stage changes the surface or premise it proved.
 
-Stages 1–2 change documentation/design only. Do not repeat broad packaged audits merely because interaction contracts change. Future packaged visual verification belongs to implementation work whose actual UI surface it tests.
+Stages 1–3 are design/documentation work. Do not repeat broad packaged audits merely because interaction contracts change. Future packaged visual verification belongs to implementation work whose actual UI surface it tests.
 
 ## North star
 
