@@ -12,7 +12,10 @@ Mission #204 replaces the additive-development presentation with one coherent pr
 - `docs/UX_VISUAL_DIRECTION.md` — direct Product Owner visual-character reference only. It is subordinate to the UX contract for hierarchy/interaction and does not define navigation, layout mechanics, components, tokens, or implementation structure.
 - `docs/UX_HISTORY_RECONCILIATION.md` — historical/research evidence only; it cannot define current navigation or interaction mechanics.
 
-Stage-specific design contracts refine one bounded journey without replacing `UX_DEFINITION.md`. Stage 1 is recorded in `docs/UX_CANDIDATURE_INTERACTION.md`.
+Stage-specific design contracts refine one bounded journey without replacing `UX_DEFINITION.md`:
+
+- Stage 1: `docs/UX_CANDIDATURE_INTERACTION.md`.
+- Stage 2: `docs/UX_VCVGENERATOR_INTERACTION.md`.
 
 Do not recreate competing current UX-contract documents. Direct Product Owner instruction remains above repository documents; `docs/OWNER_INTENT.md` and `docs/SPEC.md` remain product/architecture authority.
 
@@ -51,13 +54,27 @@ PR #208 merged the design-only Stage at `43668e27c3951eadfab644e6d607d5ffd12704c
 
 ### Stage 2 — Issue #209: VCVGenerator UX — current
 
-Design standalone CV/letter work and candidature-linked document work as two contexts of the same document system. Cover the transition between Candidature X and VCVGenerator, normal editing, professional-information reuse without mandatory variant administration, document-specific differences, advanced source/auditability, render/open-result/export behavior, retained used artifacts, contextual AI, dirty-state safety, optional-capability states, and default/minimum `720×600` behavior.
+`docs/UX_VCVGENERATOR_INTERACTION.md` defines standalone and candidature-linked document work as two contexts of the same document system.
 
-This Stage is **design/interaction architecture only**. It must produce a bounded VCVGenerator interaction contract before production renderer change. Do not start implementation, Stage 3, Settings redesign, or final global navigation from #209.
+The Stage-2 interaction model preserves:
+
+- standalone CV/cover-letter creation/editing without candidature, AI, or mandatory variant;
+- explicit Candidature X context and return path for candidature-linked document work;
+- a clear distinction between mutable working documents and exact retained application artifacts;
+- normal content editing before reusable-profile/variant/LaTeX mechanics;
+- professional-information reuse with optional variants and deliberate document-specific differences;
+- render/result/export behavior that never silently renders stale state;
+- advanced source/ownership inspection for user-owned `main.tex`/`aaaat.sty`, feeder-owned generated `data.tex`, PDF/output, portability, and relevant assistant permissions;
+- contextual AI rather than an AI workspace;
+- dirty-state safety, optional TeX/AI states, and default/minimum `720×600` behavior.
+
+This Stage is **design/interaction architecture only**. No production UI, CSS, React redesign, LaTeX architecture change, broad packaged visual audit, Stage 3 work, Settings redesign, or final global navigation belongs in #209.
 
 ### Stage 3 — reusable professional/profile UX
 
-Design ordinary professional-information editing and reuse in documents, with variants/differences and disclosure/privacy progressively disclosed.
+After Stage 2 is accepted and merged, create exactly one bounded design Issue for ordinary professional-information editing and reuse in documents, with variants/differences and disclosure/privacy progressively disclosed.
+
+Do not start it from #209.
 
 ### Stage 4 — Settings / setup / recovery UX
 
@@ -75,7 +92,7 @@ Only after navigation/screen interaction contracts exist. Broad renderer reorgan
 
 Integrated alpha acceptance PR #203 is merged at `90b578064030ce863c9eb912f854f08559fd4777`; Issue #202 is closed. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft, TeX, and prior visual evidence remains reusable unless a later stage changes the surface or premise it proved.
 
-Stage 1 changed documentation/design only and passed the documentation-impact Verification gate. Do not repeat broad packaged audits merely because interaction contracts change. Future packaged visual verification belongs to implementation work whose actual UI surface it tests.
+Stages 1–2 change documentation/design only. Do not repeat broad packaged audits merely because interaction contracts change. Future packaged visual verification belongs to implementation work whose actual UI surface it tests.
 
 ## North star
 
