@@ -26,7 +26,7 @@ import { createOrOpenWorkspace } from "../src/main/workspace";
 const latexIt = process.env.AAAAT_LATEX_TEST === "1" ? it : it.skip;
 
 latexIt(
-  "renders user-owned sources with pdfLaTeX and compiles after unrelated-directory export",
+  "renders multilingual user-owned sources with pdfLaTeX and compiles after unrelated-directory export",
   async () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-latex-workspace-"));
     const exportRoot = mkdtempSync(path.join(tmpdir(), "aaaat-latex-export-"));
@@ -34,22 +34,22 @@ latexIt(
       createOrOpenWorkspace(root);
       addProfileItem(root, {
         kind: "summary",
-        title: "R&D_50% & Platform #1",
+        title: "Ingeniería de plataforma R&D_50% & #1",
         description:
-          "Portable {LaTeX} source with $special$ characters, C:\\tools, ^carets^, and ~tildes~.",
+          "Diseñé herramientas fiables en España y Montréal con {LaTeX}, $special$, C:\\tools, ^carets^ y ~tildes~.",
       });
       const profile = createProfileVariant(root, {
-        name: "Portable",
-        focus: "Portable documents",
+        name: "Portátil",
+        focus: "Documentos portátiles",
         targetTags: ["latex"],
-        preferredLanguage: "en",
+        preferredLanguage: "es",
       });
       const variant = profile.variants[0];
       if (!variant) throw new Error("Expected profile variant");
 
       let document = createDocument(root, {
         kind: "cv",
-        title: "Portable CV",
+        title: "Currículum portátil",
         variantId: variant.id,
         engine: "pdflatex",
         bodyParagraphs: [],
@@ -67,7 +67,7 @@ latexIt(
       document = updateDocument(root, {
         id: document.id,
         title: document.title,
-        language: "en",
+        language: "es",
         engine: "pdflatex",
         bodyParagraphs: [],
       });
@@ -80,6 +80,10 @@ latexIt(
         expect(source).not.toContain(root);
         expect(source).not.toContain(exportRoot);
       }
+      const exportedData = readFileSync(path.join(exported, "data.tex"), "utf8");
+      expect(exportedData).toContain("Currículum portátil");
+      expect(exportedData).toContain("Ingeniería de plataforma");
+      expect(exportedData).toContain("Diseñé herramientas fiables en España y Montréal");
       expect(readFileSync(path.join(exported, "main.tex"), "utf8")).toContain(
         "% user blueprint portability edit",
       );
