@@ -128,4 +128,21 @@ describe("external CV render MCP operation", () => {
       await connection.close();
     }
   });
+
+  it("propagates the normal renderer failure without fallback or output disclosure", async () => {
+    const root = workspace();
+    const cv = createCv(root);
+    updateCvContentAccess(root, { documentId: cv.id, allowed: true });
+    updateCvRenderAccess(root, { documentId: cv.id, allowed: true });
+    process.env.PATH = temporary("aaaat-mcp-cv-render-empty-path-");
+
+    const connection = await connectedClient(root);
+    try {
+      const result = await connection.client.callTool({ name: cvRenderToolName, arguments: {} });
+      expect(result.isError).toBe(true);
+      expect(existsSync(cv.artifactPath)).toBe(false);
+    } finally {
+      await connection.close();
+    }
+  });
 });
