@@ -151,7 +151,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     await expect(running.page).toHaveTitle("AAAAT");
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
 
     const created = await running.page.evaluate(async () => {
       const candidature = await window.aaaat.candidatures.create({ values: [] });
@@ -201,7 +201,6 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     running = undefined;
 
     running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(running.page.getByRole("heading", { name: "Workspace ready." })).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
 
     const focus = running.page.getByRole("region", { name: "Candidature Focus" });
