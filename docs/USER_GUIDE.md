@@ -59,6 +59,8 @@ Use **Documents** to create and edit CVs and cover letters directly from the can
 
 For a CV, **AI-visible CV description** provides optional user-authored tags and notes for a chosen external assistant. These fields are empty by default and do not change the CV itself, its profile basis, its TeX project, or its rendered PDF. They are deliberately separate from profile-variant target tags. If you enable the external `cv_descriptions_read` operation, only CVs with at least one saved descriptor are disclosed, and only their saved tags/notes are returned under temporary labels such as `CV 1`; the operation does not disclose the CV title, content, local document ID, file paths, candidature links, or artifacts.
 
+**External CV content access** is a separate, broader choice. If descriptor tags/notes are not enough for the assistant to judge the material, you may explicitly allow one working CV to be read through `cv_content_read`. AAAAT asks for confirmation before allowing it, and selecting another CV replaces the previous selection. The tool receives the effective CV item content after the document's inclusion choices, overrides, and ordering. It does not receive the working-document title or ID, local profile-item IDs, file paths, raw TeX/PDF, descriptor tags/notes, candidature history, or other documents. Revoke the permission from the same Documents panel when you no longer want that content available. Unsaved structured edits must be saved before changing this permission, so the shared content is always the persisted effective CV.
+
 Generated projects are intended to remain useful outside AAAAT. They contain the non-standard source they need, do not depend on absolute paths back into the AAAAT repository, and can be copied to another directory or used with ordinary compatible TeX tools.
 
 If you edit managed TeX source directly, AAAAT protects those edits instead of silently overwriting them. Follow the application's manual-mode/recovery prompts before regenerating a directly edited project.
@@ -147,13 +149,14 @@ Because AI connection configuration is intentionally excluded from workspace bac
 
 ## 8. Optional VS Code MCP integration
 
-The current demonstrated external-host integration is VS Code and is optional. It uses AAAAT's official MCP stdio server and currently exposes three bounded named operations:
+The current demonstrated external-host integration is VS Code and is optional. It uses AAAAT's official MCP stdio server and currently exposes four bounded named operations:
 
 - `candidature_create` creates one candidature from one retained Source through the ordinary candidature service;
 - `career_context_read` returns only non-empty user-written Career Context values: career direction, objectives, constraints, target roles, target markets/locations, work preferences, and application-writing preferences;
-- `cv_descriptions_read` returns only explicitly saved AI-visible CV tags and notes under response-local labels such as `CV 1`. Blank/un-described CVs and all cover letters are omitted.
+- `cv_descriptions_read` returns only explicitly saved AI-visible CV tags and notes under response-local labels such as `CV 1`. Blank/un-described CVs and all cover letters are omitted;
+- `cv_content_read` accepts no selector and returns `null` unless you have deliberately allowed one CV in Documents. When allowed, it returns only that working CV's effective resolved profile-item content after document-specific inclusion, overrides, and ordering.
 
-`career_context_read` and `cv_descriptions_read` are read-only. `cv_descriptions_read` does not expose CV titles, document content, durable local IDs, profile/variant data, file paths, candidature links/history, Sources or artifacts, and its synthetic labels are not persistent document references. These tools do not provide a generic browse/search/query surface. The configured external host can receive the Career Context and CV descriptor text you chose to store when it invokes the corresponding tools, so treat enabling that host as a disclosure/trust decision.
+`career_context_read`, `cv_descriptions_read`, and `cv_content_read` are read-only. `cv_descriptions_read` does not expose CV titles, document content, durable local IDs, profile/variant data, file paths, candidature links/history, Sources or artifacts, and its synthetic labels are not persistent document references. `cv_content_read` is broader because it returns CV content, but it still does not expose the document title/ID, local item IDs, file paths, raw TeX/PDF, descriptors, candidature history, other documents, or caller-controlled selection/query authority. These tools do not provide a generic browse/search/query surface. The configured external host can receive Career Context, CV descriptor text, and—only after your separate explicit permission—the selected CV content, so treat enabling that host and allowing CV content as disclosure/trust decisions.
 
 First create the proposed portable integration manifest:
 
