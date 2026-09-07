@@ -6,6 +6,7 @@ import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
 import type { CandidatureComparisonDesktopApi } from "../shared/candidature-comparison-contracts";
 import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
+import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
 import type { FocusDesktopApi, FocusMaterialPreferences } from "../shared/focus-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { TodoDesktopApi } from "../shared/todo-contracts";
@@ -33,6 +34,7 @@ function createPreviewApi(): DesktopApi &
   ArtifactDesktopApi &
   CandidatureComparisonDesktopApi &
   CandidatureSearchDesktopApi &
+  CvDescriptorDesktopApi &
   TodoDesktopApi &
   FocusDesktopApi &
   SetupEnvironmentDesktopApi &
@@ -76,6 +78,10 @@ function createPreviewApi(): DesktopApi &
       render: previewUnavailable,
       regenerate: previewUnavailable,
       exportProject: async () => null,
+    }),
+    cvDescriptors: Object.freeze({
+      current: previewUnavailable,
+      update: previewUnavailable,
     }),
     candidatures: Object.freeze({
       list: async () => [],
