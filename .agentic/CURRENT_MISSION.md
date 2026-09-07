@@ -2,7 +2,7 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#207](https://github.com/DidacLL/AAAAT/issues/207) — design the candidature workspace and navigation interaction model before production renderer changes.
+**Current bounded Issue:** [#209](https://github.com/DidacLL/AAAAT/issues/209) — design the VCVGenerator interaction model before production renderer changes.
 
 Mission #204 replaces the additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
@@ -41,23 +41,19 @@ Advance one bounded stage at a time. Do not pre-create later Issues.
 
 Established `docs/UX_DEFINITION.md`, reconciled UX authority/history, and recorded the staged sequence. PR #206 merged as documentation only at `bb6825f292bf2cafe3fdd630ff7a2ecef0fc409f`.
 
-### Stage 1 — Issue #207: candidature interaction/navigation design — current
+### Stage 1 — Issue #207: candidature interaction/navigation design — completed
 
-The Stage-1 contract in `docs/UX_CANDIDATURE_INTERACTION.md` derives the interaction model for:
-
-**candidature collection/search → candidature selection → selected candidature context → Focus → full information/editing → Sources → application material**
-
-It covers sparse capture, fast recall, long/short Sources, contextual Concepts/reminders, privacy/presentation and Activity depth, candidature-linked VCVGenerator handoff, dirty editing, default desktop composition, and the declared minimum `720×600`.
+`docs/UX_CANDIDATURE_INTERACTION.md` defines collection/search, sparse capture, stable selected-candidature context, Focus, complete information/editing, Sources, contextual Concepts/notes/reminders/privacy/Activity, candidature-specific application material, VCVGenerator handoff, dirty-state safety, and default/minimum `720×600` behavior.
 
 The key interaction decision is that Focus, complete information, Sources, and application material are selected-candidature intentions, not newly invented peer global destinations. At smaller supported sizes, collection and selected context transition rather than compressing all regions into clipped panes.
 
-This stage is **design/interaction architecture only**. No production UI, CSS, React redesign, or broad packaged visual audit belongs in #207.
+PR #208 merged the design-only Stage at `43668e27c3951eadfab644e6d607d5ffd12704c5`; #207 is closed. No production UI changed.
 
-### Stage 2 — VCVGenerator UX
+### Stage 2 — Issue #209: VCVGenerator UX — current
 
-After Stage 1 is accepted and merged, create exactly one bounded design Issue for standalone CV/letter work, candidature-linked document work, transition between candidature X and VCVGenerator, normal editing, advanced source/auditability, render/export, and retained artifact UX.
+Design standalone CV/letter work and candidature-linked document work as two contexts of the same document system. Cover the transition between Candidature X and VCVGenerator, normal editing, professional-information reuse without mandatory variant administration, document-specific differences, advanced source/auditability, render/open-result/export behavior, retained used artifacts, contextual AI, dirty-state safety, optional-capability states, and default/minimum `720×600` behavior.
 
-Do not start it from #207.
+This Stage is **design/interaction architecture only**. It must produce a bounded VCVGenerator interaction contract before production renderer change. Do not start implementation, Stage 3, Settings redesign, or final global navigation from #209.
 
 ### Stage 3 — reusable professional/profile UX
 
@@ -79,7 +75,7 @@ Only after navigation/screen interaction contracts exist. Broad renderer reorgan
 
 Integrated alpha acceptance PR #203 is merged at `90b578064030ce863c9eb912f854f08559fd4777`; Issue #202 is closed. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft, TeX, and prior visual evidence remains reusable unless a later stage changes the surface or premise it proved.
 
-Stage 1 changes documentation/design only. Do not repeat broad packaged audits merely because the interaction contract changed. Future packaged visual verification belongs to the implementation stage whose actual UI surface it tests.
+Stage 1 changed documentation/design only and passed the documentation-impact Verification gate. Do not repeat broad packaged audits merely because interaction contracts change. Future packaged visual verification belongs to implementation work whose actual UI surface it tests.
 
 ## North star
 
