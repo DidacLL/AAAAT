@@ -7,16 +7,21 @@ import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
 import {
   externalCareerContextRequestSchema,
   externalCareerContextSchema,
+  externalCvDescriptionsRequestSchema,
+  externalCvDescriptionsSchema,
   type ExternalCareerContext,
+  type ExternalCvDescriptions,
 } from "../shared/external-assistant-contracts";
 import { createCandidature } from "./candidature-service";
 import { getCareerContext } from "./career-context-service";
+import { listAiVisibleCvDescriptors } from "./cv-descriptor-service";
 import { openWorkspace } from "./workspace";
 
 const mcpFlag = "--mcp";
 const workspaceFlag = "--workspace";
 export const candidatureCreateToolName = "candidature_create";
 export const careerContextReadToolName = "career_context_read";
+export const cvDescriptionsReadToolName = "cv_descriptions_read";
 
 function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
@@ -36,6 +41,16 @@ function projectCareerContext(rootPath: string): ExternalCareerContext {
     ...(context.applicationWritingPreferences.trim()
       ? { applicationWritingPreferences: context.applicationWritingPreferences }
       : {}),
+  });
+}
+
+function projectCvDescriptions(rootPath: string): ExternalCvDescriptions {
+  return externalCvDescriptionsSchema.parse({
+    cvs: listAiVisibleCvDescriptors(rootPath).map((descriptor, index) => ({
+      label: `CV ${index + 1}`,
+      tags: descriptor.tags,
+      ...(descriptor.notes ? { notes: descriptor.notes } : {}),
+    })),
   });
 }
 
@@ -98,6 +113,27 @@ function createServerForWorkspace(rootPath: string): McpServer {
           {
             type: "text" as const,
             text: JSON.stringify(context),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    cvDescriptionsReadToolName,
+    {
+      description:
+        "Read only user-authored AI-visible CV tags and notes under response-local labels so an external assistant can judge whether existing CV material may be suitable. Does not expose CV titles, document content, local IDs, file paths, profile data, or candidature history.",
+      inputSchema: externalCvDescriptionsRequestSchema,
+    },
+    async (input) => {
+      externalCvDescriptionsRequestSchema.parse(input);
+      const descriptions = projectCvDescriptions(rootPath);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(descriptions),
           },
         ],
       };

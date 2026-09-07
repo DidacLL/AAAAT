@@ -57,6 +57,8 @@ A practical starting sequence is:
 
 Use **Documents** to create and edit CVs and cover letters directly from the canonical career profile, optionally applying a named profile variant when different emphasis is useful. AAAAT keeps document content editable and produces a normal LaTeX project in the user-owned workspace.
 
+For a CV, **AI-visible CV description** provides optional user-authored tags and notes for a chosen external assistant. These fields are empty by default and do not change the CV itself, its profile basis, its TeX project, or its rendered PDF. They are deliberately separate from profile-variant target tags. If you enable the external `cv_descriptions_read` operation, only CVs with at least one saved descriptor are disclosed, and only their saved tags/notes are returned under temporary labels such as `CV 1`; the operation does not disclose the CV title, content, local document ID, file paths, candidature links, or artifacts.
+
 Generated projects are intended to remain useful outside AAAAT. They contain the non-standard source they need, do not depend on absolute paths back into the AAAAT repository, and can be copied to another directory or used with ordinary compatible TeX tools.
 
 If you edit managed TeX source directly, AAAAT protects those edits instead of silently overwriting them. Follow the application's manual-mode/recovery prompts before regenerating a directly edited project.
@@ -131,7 +133,7 @@ AAAAT --workspace-backup --workspace <existing-AAAAT-workspace> --destination <e
 
 Choose **Restore workspace backup** either on the first-run/no-workspace screen or in **Settings → Workspace backup and restore**. Select the backup directory first, then a separate empty destination directory.
 
-If another workspace is already open, AAAAT confirms before switching. Unsaved editor state is protected before the restore operation is invoked. Before writing the destination, AAAAT validates the manifest, relative paths, file sizes/hashes, SQLite integrity, and migration-history compatibility. The backup and destination may not overlap. Invalid or corrupted backups fail closed, and a failed activation removes partial restored state.
+If another workspace is already open, AAAAT confirms before switching. Unsaved-editor state is protected before the restore operation is invoked. Before writing the destination, AAAAT validates the manifest, relative paths, file sizes/hashes, SQLite integrity, and migration-history compatibility. The backup and destination may not overlap. Invalid or corrupted backups fail closed, and a failed activation removes partial restored state.
 
 After a successful restore, AAAAT immediately opens and remembers the restored workspace. If restore fails, the previously open workspace remains current. Cancelling either directory picker is a no-op.
 
@@ -145,12 +147,13 @@ Because AI connection configuration is intentionally excluded from workspace bac
 
 ## 8. Optional VS Code MCP integration
 
-The current demonstrated external-host integration is VS Code and is optional. It uses AAAAT's official MCP stdio server and currently exposes two bounded named operations:
+The current demonstrated external-host integration is VS Code and is optional. It uses AAAAT's official MCP stdio server and currently exposes three bounded named operations:
 
 - `candidature_create` creates one candidature from one retained Source through the ordinary candidature service;
-- `career_context_read` returns only non-empty user-written Career Context values: career direction, objectives, constraints, target roles, target markets/locations, work preferences, and application-writing preferences.
+- `career_context_read` returns only non-empty user-written Career Context values: career direction, objectives, constraints, target roles, target markets/locations, work preferences, and application-writing preferences;
+- `cv_descriptions_read` returns only explicitly saved AI-visible CV tags and notes under response-local labels such as `CV 1`. Blank/un-described CVs and all cover letters are omitted.
 
-`career_context_read` is read-only. It does not expose workspace paths, local IDs, candidature history or Sources, profile items, documents, concepts, ToDos, artifacts, activity metadata, or a generic browse/search/query surface. The configured external host can receive the Career Context text you chose to store when it invokes this tool, so treat enabling that host as a disclosure/trust decision.
+`career_context_read` and `cv_descriptions_read` are read-only. `cv_descriptions_read` does not expose CV titles, document content, durable local IDs, profile/variant data, file paths, candidature links/history, Sources or artifacts, and its synthetic labels are not persistent document references. These tools do not provide a generic browse/search/query surface. The configured external host can receive the Career Context and CV descriptor text you chose to store when it invokes the corresponding tools, so treat enabling that host as a disclosure/trust decision.
 
 First create the proposed portable integration manifest:
 

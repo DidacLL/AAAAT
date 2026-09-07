@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { cvAssistantNotesSchema, cvAssistantTagsSchema } from "./cv-descriptor-contracts";
+
 const externalCareerContextValueSchema = z
   .string()
   .max(10000)
@@ -22,3 +24,18 @@ export const externalCareerContextSchema = z
   .strict();
 
 export type ExternalCareerContext = z.infer<typeof externalCareerContextSchema>;
+
+export const externalCvDescriptionsRequestSchema = z.object({}).strict();
+
+export const externalCvDescriptionSchema = z
+  .object({
+    label: z.string().regex(/^CV [1-9]\d*$/),
+    tags: cvAssistantTagsSchema,
+    notes: cvAssistantNotesSchema.optional(),
+  })
+  .strict();
+
+export const externalCvDescriptionsSchema = z
+  .object({ cvs: z.array(externalCvDescriptionSchema).max(100) })
+  .strict();
+export type ExternalCvDescriptions = z.infer<typeof externalCvDescriptionsSchema>;
