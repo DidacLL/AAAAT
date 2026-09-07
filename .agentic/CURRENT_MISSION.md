@@ -1,23 +1,23 @@
-# Active Mission — External AI-visible CV descriptions
+# Active Mission — Deliberately shared CV content
 
-**Active:** [Issue #196](https://github.com/DidacLL/AAAAT/issues/196) on `feature/external-cv-descriptors`, based on integrated bounded external Career Context `ab77fa3cb5b293bf0f6c6173120a6182c50fce74`.
+**Active:** [Issue #198](https://github.com/DidacLL/AAAAT/issues/198) on `feature/external-cv-content`, based on integrated AI-visible CV descriptions `ee7921b17bb5c3135232a80542bc3e63c7929b16`.
 
 ## Outcome
 
-Let users explicitly describe existing CVs with AI-visible tags and notes, then expose only those descriptions through one read-only named external-assistant operation so the chosen assistant can judge whether existing material appears suitable without receiving CV content, titles, durable local identifiers, paths, or candidature history.
+Let a user deliberately select at most one existing CV whose effective resolved content may be read by a configured external assistant when the minimal AI-visible tags/notes are insufficient, without creating document browsing, durable external references, or candidature-history access.
 
 ## Boundaries
 
-AI-visible tags/notes are explicit CV-only metadata, distinct from profile-variant target tags and from document content. They default to empty and are edited through a bounded CV descriptor service in the Documents UI. Descriptor edits do not change profile data, variants, item rules, TeX source ownership, rendering, retained artifacts, candidature links, or normal structured document content.
+Selection authority is local and CV-only. One persisted flag plus a database invariant permits at most one selected CV. Enabling another CV atomically revokes the previous selection; cover letters cannot be selected. The permission is independent from descriptors, structured document content, profile/variant data, item rules, TeX/source ownership, rendering, artifacts and candidature links.
 
-The external `cv_descriptions_read` operation accepts no data arguments and returns only described CVs under response-local synthetic labels plus their user-authored tags and optional notes. It does not expose document titles, durable IDs, profile/variant references, CV content, filesystem paths, candidatures/Sources, artifacts or generic browse/search/query authority. AAAAT does not rank CV suitability.
+The external `cv_content_read` operation accepts no data arguments. With no local selection it returns null. With one selection it resolves the working CV through the existing document service and returns only the effective included/overridden/ordered profile-item content under a dedicated external schema, with local IDs and sort order removed. It does not expose document titles/IDs, descriptors, paths, raw TeX/PDF, candidatures/Sources, other documents, or generic browse/search/query authority.
 
-Do not add document-content retrieval, persistent external references, automatic descriptor generation, ranking/scoring, generic document metadata, tag/search infrastructure, provider/research work, compatibility migration machinery, dependencies, workflow machinery, or unrelated setup changes.
+Do not add cover-letter content disclosure, persistent external references, document selection/search input, generic permission/metadata infrastructure, candidature history, ranking/scoring, automatic sharing, provider/research work, compatibility migration machinery, dependencies, workflow machinery, or unrelated scope.
 
-This is Class C because it adds durable disclosure metadata and extends the external integration/privacy surface. ADR 0022 records the bounded descriptor/disclosure decision. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if a generic metadata/external-data abstraction or compatibility layer appears.
+This is Class C because it extends durable local disclosure state and the external privacy surface. ADR 0023 records the single-local-selection/content-projection decision. Obtain one independent Reviewer verdict before integration; invoke Skeptical Simplifier only if a generic permission/document-browser abstraction, compatibility layer, dependency or material framework appears.
 
 ## Evidence and continuation
 
-Issue #194 / PR #195 is integrated at `ab77fa3cb5b293bf0f6c6173120a6182c50fce74`. Verify #449 passed typecheck, lint, 61 passed test files / 183 active tests, Linux packaged-runtime smoke and the aggregate Verification gate; LaTeX portability and the broader platform matrix were correctly not selected.
+Issue #196 / PR #197 is integrated at `ee7921b17bb5c3135232a80542bc3e63c7929b16`. Verify #450 passed typecheck, lint, 65 passed test files / 192 active tests, Windows/macOS/Linux packaged release/runtime lanes, Windows demonstrated VS Code host-contract installation and the aggregate Verification gate; LaTeX portability was correctly skipped.
 
-Next: finish Issue #196, run focused descriptor service/API/UI/MCP/setup tests plus impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.
+Next: finish Issue #198, run focused content-access service/API/UI/MCP/setup tests plus impact-selected Verify, correct concrete findings, obtain independent review, and integrate when accepted.

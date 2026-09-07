@@ -6,6 +6,7 @@ import { createCandidatureComparisonDesktopApi } from "./candidature-comparison-
 import { createCandidatureSearchDesktopApi } from "./candidature-search-api";
 import { createDesktopApi } from "./api";
 import { createCombinedDocumentDesktopApi } from "./combined-document-api";
+import { createCvContentAccessDesktopApi } from "./cv-content-access-api";
 import { createCvDescriptorDesktopApi } from "./cv-descriptor-api";
 import { createFocusDesktopApi } from "./focus-api";
 import { createSetupEnvironmentDesktopApi } from "./setup-environment-api";
@@ -23,6 +24,7 @@ contextBridge.exposeInMainWorld(
     ...createCandidatureComparisonDesktopApi(invoke),
     ...createCandidatureSearchDesktopApi(invoke),
     ...createCombinedDocumentDesktopApi(invoke),
+    ...createCvContentAccessDesktopApi(invoke),
     ...createCvDescriptorDesktopApi(invoke),
     ...createTodoDesktopApi(invoke),
     ...createFocusDesktopApi(invoke),

@@ -7,13 +7,17 @@ import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
 import {
   externalCareerContextRequestSchema,
   externalCareerContextSchema,
+  externalCvContentRequestSchema,
+  externalCvContentSchema,
   externalCvDescriptionsRequestSchema,
   externalCvDescriptionsSchema,
   type ExternalCareerContext,
+  type ExternalCvContent,
   type ExternalCvDescriptions,
 } from "../shared/external-assistant-contracts";
 import { createCandidature } from "./candidature-service";
 import { getCareerContext } from "./career-context-service";
+import { selectedCvContentItems } from "./cv-content-access-service";
 import { listAiVisibleCvDescriptors } from "./cv-descriptor-service";
 import { openWorkspace } from "./workspace";
 
@@ -22,6 +26,7 @@ const workspaceFlag = "--workspace";
 export const candidatureCreateToolName = "candidature_create";
 export const careerContextReadToolName = "career_context_read";
 export const cvDescriptionsReadToolName = "cv_descriptions_read";
+export const cvContentReadToolName = "cv_content_read";
 
 function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
@@ -50,6 +55,22 @@ function projectCvDescriptions(rootPath: string): ExternalCvDescriptions {
       label: `CV ${index + 1}`,
       tags: descriptor.tags,
       ...(descriptor.notes ? { notes: descriptor.notes } : {}),
+    })),
+  });
+}
+
+function projectCvContent(rootPath: string): ExternalCvContent {
+  const items = selectedCvContentItems(rootPath);
+  if (items === null) return null;
+  return externalCvContentSchema.parse({
+    items: items.map((item) => ({
+      kind: item.kind,
+      title: item.title,
+      ...(item.subtitle !== undefined ? { subtitle: item.subtitle } : {}),
+      ...(item.description !== undefined ? { description: item.description } : {}),
+      ...(item.startDate !== undefined ? { startDate: item.startDate } : {}),
+      ...(item.endDate !== undefined ? { endDate: item.endDate } : {}),
+      ...(item.url !== undefined ? { url: item.url } : {}),
     })),
   });
 }
@@ -134,6 +155,27 @@ function createServerForWorkspace(rootPath: string): McpServer {
           {
             type: "text" as const,
             text: JSON.stringify(descriptions),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    cvContentReadToolName,
+    {
+      description:
+        "Read only the effective resolved profile-item content of the single CV the user has explicitly allowed for external content access. Returns null when no CV is allowed. Does not accept document selectors or expose titles, local IDs, paths, raw TeX/PDF, descriptors, or candidature history.",
+      inputSchema: externalCvContentRequestSchema,
+    },
+    async (input) => {
+      externalCvContentRequestSchema.parse(input);
+      const content = projectCvContent(rootPath);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(content),
           },
         ],
       };
