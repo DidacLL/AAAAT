@@ -1,0 +1,88 @@
+.candidature-capture-owner {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+
+.candidature-capture-owner .candidature-toolbar > button {
+  display: none;
+}
+
+.candidature-capture-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.candidature-capture-panel {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+}
+
+.candidature-capture-panel h2 {
+  margin: 0;
+}
+
+.candidature-capture-panel > div > p:not(.eyebrow) {
+  margin: 6px 0 0;
+  color: var(--muted-ink);
+}
+
+.candidature-capture-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.candidature-capture-fields label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--muted-ink);
+  font-size: 0.9rem;
+}
+
+.candidature-capture-fields label > span {
+  font-size: 0.78rem;
+}
+
+.candidature-capture-fields input,
+.candidature-capture-fields textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  color: var(--ink);
+}
+
+.candidature-capture-fields textarea {
+  resize: vertical;
+}
+
+.candidature-capture-material {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 820px) {
+  .candidature-capture-action {
+    justify-content: stretch;
+  }
+
+  .candidature-capture-action > button {
+    width: 100%;
+  }
+
+  .candidature-capture-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .candidature-capture-material {
+    grid-column: auto;
+  }
+}
