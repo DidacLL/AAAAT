@@ -87,6 +87,7 @@ const listArtifacts = vi.fn<ArtifactDesktopApi["artifacts"]["list"]>();
 const captureArtifact = vi.fn<ArtifactDesktopApi["artifacts"]["capture"]>();
 const currentCvContentAccess = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["current"]>();
 const updateCvContentAccess = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["update"]>();
+const updateCvRenderAccess = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["updateRender"]>();
 const currentCvDescriptor = vi.fn<CvDescriptorDesktopApi["cvDescriptors"]["current"]>();
 const updateCvDescriptor = vi.fn<CvDescriptorDesktopApi["cvDescriptors"]["update"]>();
 
@@ -108,7 +109,11 @@ function installApi(currentProfile: ProfileSnapshot = profile) {
       regenerate,
       exportProject,
     },
-    cvContentAccess: { current: currentCvContentAccess, update: updateCvContentAccess },
+    cvContentAccess: {
+      current: currentCvContentAccess,
+      update: updateCvContentAccess,
+      updateRender: updateCvRenderAccess,
+    },
     cvDescriptors: { current: currentCvDescriptor, update: updateCvDescriptor },
     candidatures: { list: listCandidatures },
     artifacts: { list: listArtifacts, capture: captureArtifact },
@@ -132,8 +137,18 @@ describe("manual Documents workspace", () => {
     currentCvContentAccess.mockImplementation(async (documentId) => ({
       documentId,
       allowed: false,
+      renderAllowed: false,
     }));
-    updateCvContentAccess.mockImplementation(async (value) => value);
+    updateCvContentAccess.mockImplementation(async (value) => ({
+      documentId: value.documentId,
+      allowed: value.allowed,
+      renderAllowed: false,
+    }));
+    updateCvRenderAccess.mockImplementation(async (value) => ({
+      documentId: value.documentId,
+      allowed: true,
+      renderAllowed: value.allowed,
+    }));
     currentCvDescriptor.mockImplementation(async (documentId) => ({
       documentId,
       tags: [],

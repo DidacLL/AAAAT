@@ -3,18 +3,27 @@ import type { DatabaseSync } from "node:sqlite";
 import {
   cvContentAccessSchema,
   cvContentAccessUpdateSchema,
+  cvRenderAccessUpdateSchema,
   type CvContentAccess,
   type CvContentAccessUpdate,
+  type CvRenderAccessUpdate,
 } from "../shared/cv-content-access-contracts";
 import type { ProfileItem } from "../shared/contracts";
-import { resolveDocument } from "./document-service";
+import { renderDocument, resolveDocument } from "./document-service";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface AccessRow {
   readonly id: string;
   readonly kind: string;
   readonly contentVisible: number;
+  readonly renderAllowed: number;
 }
+
+type AccessActivity =
+  | "document.ai-content-access.allow"
+  | "document.ai-content-access.revoke"
+  | "document.ai-render-access.allow"
+  | "document.ai-render-access.revoke";
 
 class CvContentAccessServiceError extends Error {
   constructor(message: string) {
@@ -38,7 +47,8 @@ function transact<T>(database: DatabaseSync, action: () => T): T {
 function requireRow(database: DatabaseSync, documentId: string): AccessRow {
   const row = database
     .prepare(
-      `SELECT id, kind, ai_content_visible AS contentVisible
+      `SELECT id, kind, ai_content_visible AS contentVisible,
+              ai_render_allowed AS renderAllowed
          FROM documents
         WHERE id = ?`,
     )
@@ -56,13 +66,14 @@ function toAccess(row: AccessRow): CvContentAccess {
   return cvContentAccessSchema.parse({
     documentId: row.id,
     allowed: row.contentVisible === 1,
+    renderAllowed: row.renderAllowed === 1,
   });
 }
 
 function recordActivity(
   database: DatabaseSync,
   documentId: string,
-  action: "document.ai-content-access.allow" | "document.ai-content-access.revoke",
+  action: AccessActivity,
   occurredAt: string,
 ): void {
   database
@@ -70,6 +81,18 @@ function recordActivity(
       "INSERT INTO document_activity(occurred_at, document_id, action) VALUES (?, ?, ?)",
     )
     .run(occurredAt, documentId, action);
+}
+
+function revokeAccess(database: DatabaseSync, row: AccessRow, occurredAt: string): void {
+  if (row.renderAllowed === 1) {
+    recordActivity(database, row.id, "document.ai-render-access.revoke", occurredAt);
+  }
+  database
+    .prepare(
+      "UPDATE documents SET ai_content_visible = 0, ai_render_allowed = 0, updated_at = ? WHERE id = ?",
+    )
+    .run(occurredAt, row.id);
+  recordActivity(database, row.id, "document.ai-content-access.revoke", occurredAt);
 }
 
 export function getCvContentAccess(rootPath: string, documentId: string): CvContentAccess {
@@ -91,15 +114,15 @@ export function updateCvContentAccess(
       const now = new Date().toISOString();
       if (update.allowed) {
         const previous = database
-          .prepare("SELECT id FROM documents WHERE ai_content_visible = 1")
-          .get() as unknown as { readonly id: string } | undefined;
+          .prepare(
+            `SELECT id, kind, ai_content_visible AS contentVisible,
+                    ai_render_allowed AS renderAllowed
+               FROM documents
+              WHERE ai_content_visible = 1`,
+          )
+          .get() as unknown as AccessRow | undefined;
         if (previous && previous.id !== update.documentId) {
-          database
-            .prepare(
-              "UPDATE documents SET ai_content_visible = 0, updated_at = ? WHERE id = ?",
-            )
-            .run(now, previous.id);
-          recordActivity(database, previous.id, "document.ai-content-access.revoke", now);
+          revokeAccess(database, previous, now);
         }
         database
           .prepare(
@@ -108,14 +131,40 @@ export function updateCvContentAccess(
           .run(now, update.documentId);
         recordActivity(database, update.documentId, "document.ai-content-access.allow", now);
       } else {
-        database
-          .prepare(
-            "UPDATE documents SET ai_content_visible = 0, updated_at = ? WHERE id = ?",
-          )
-          .run(now, update.documentId);
-        recordActivity(database, update.documentId, "document.ai-content-access.revoke", now);
+        revokeAccess(database, current, now);
       }
 
+      return toAccess(requireRow(database, update.documentId));
+    }),
+  );
+}
+
+export function updateCvRenderAccess(
+  rootPath: string,
+  rawUpdate: CvRenderAccessUpdate,
+): CvContentAccess {
+  const update = cvRenderAccessUpdateSchema.parse(rawUpdate);
+  return withWorkspaceDatabase(rootPath, (database) =>
+    transact(database, () => {
+      const current = requireRow(database, update.documentId);
+      if (update.allowed && current.contentVisible !== 1) {
+        throw new CvContentAccessServiceError(
+          "Allow external CV content access before allowing external rendering.",
+        );
+      }
+      const currentlyAllowed = current.renderAllowed === 1;
+      if (currentlyAllowed === update.allowed) return toAccess(current);
+
+      const now = new Date().toISOString();
+      database
+        .prepare("UPDATE documents SET ai_render_allowed = ?, updated_at = ? WHERE id = ?")
+        .run(update.allowed ? 1 : 0, now, update.documentId);
+      recordActivity(
+        database,
+        update.documentId,
+        update.allowed ? "document.ai-render-access.allow" : "document.ai-render-access.revoke",
+        now,
+      );
       return toAccess(requireRow(database, update.documentId));
     }),
   );
@@ -129,4 +178,18 @@ export function selectedCvContentItems(rootPath: string): ProfileItem[] | null {
     return selected?.id ?? null;
   });
   return documentId === null ? null : resolveDocument(rootPath, documentId).items;
+}
+
+export async function renderExternallyAuthorizedCv(rootPath: string): Promise<boolean> {
+  const documentId = withWorkspaceDatabase(rootPath, (database) => {
+    const selected = database
+      .prepare(
+        "SELECT id FROM documents WHERE ai_content_visible = 1 AND ai_render_allowed = 1",
+      )
+      .get() as unknown as { readonly id: string } | undefined;
+    return selected?.id ?? null;
+  });
+  if (documentId === null) return false;
+  await renderDocument(rootPath, documentId);
+  return true;
 }

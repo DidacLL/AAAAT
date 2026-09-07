@@ -25,14 +25,14 @@ export function CvExternalContentAccessPanel({
         if (active) setAccess(current);
       })
       .catch(() => {
-        if (active) onError("AAAAT could not load the external CV content permission.");
+        if (active) onError("AAAAT could not load the external CV permissions.");
       });
     return () => {
       active = false;
     };
   }, [document.id, onError]);
 
-  const update = async (allowed: boolean) => {
+  const updateContent = async (allowed: boolean) => {
     if (
       allowed &&
       !window.confirm(
@@ -49,11 +49,41 @@ export function CvExternalContentAccessPanel({
       setAccess(saved);
       onNotice(
         allowed
-          ? "This CV is now the one CV available to the external content-read operation."
-          : "External content access for this CV was revoked.",
+          ? "This CV is now the one CV available to the external content-read operation. External rendering is still disabled until you allow it separately."
+          : "External content access and any external render authorization for this CV were revoked.",
       );
     } catch {
       onError("AAAAT could not change the external CV content permission.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateRender = async (allowed: boolean) => {
+    if (
+      allowed &&
+      !window.confirm(
+        "Allow the configured external assistant host to request local PDF rendering for this CV? Rendering uses AAAAT's normal local document service and does not grant filesystem, command, path, or document-selection access.",
+      )
+    ) {
+      return;
+    }
+    setSaving(true);
+    onError(null);
+    onNotice(null);
+    try {
+      const saved = await window.aaaat.cvContentAccess.updateRender({
+        documentId: document.id,
+        allowed,
+      });
+      setAccess(saved);
+      onNotice(
+        allowed
+          ? "External rendering is allowed for this CV."
+          : "External render authorization for this CV was revoked.",
+      );
+    } catch {
+      onError("AAAAT could not change the external CV render permission.");
     } finally {
       setSaving(false);
     }
@@ -74,7 +104,7 @@ export function CvExternalContentAccessPanel({
             className={access.allowed ? undefined : "compact-primary"}
             type="button"
             disabled={disabled || saving}
-            onClick={() => void update(!access.allowed)}
+            onClick={() => void updateContent(!access.allowed)}
           >
             {saving
               ? "Saving…"
@@ -83,9 +113,21 @@ export function CvExternalContentAccessPanel({
                 : "Allow external assistants to read this CV content"}
           </button>
           <span>{access.allowed ? "Content access allowed for this CV." : "Content access not allowed."}</span>
+          <button
+            type="button"
+            disabled={disabled || saving || !access.allowed}
+            onClick={() => void updateRender(!access.renderAllowed)}
+          >
+            {access.renderAllowed ? "Revoke external render authorization" : "Allow external PDF rendering"}
+          </button>
+          <span>
+            {access.renderAllowed
+              ? "The external host may request AAAAT's normal local render for this CV."
+              : "External rendering is not authorized."}
+          </span>
         </div>
       ) : (
-        <p>Loading external CV content permission…</p>
+        <p>Loading external CV permissions…</p>
       )}
     </section>
   );

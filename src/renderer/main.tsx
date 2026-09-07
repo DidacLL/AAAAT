@@ -84,6 +84,7 @@ function createPreviewApi(): DesktopApi &
     cvContentAccess: Object.freeze({
       current: previewUnavailable,
       update: previewUnavailable,
+      updateRender: previewUnavailable,
     }),
     cvDescriptors: Object.freeze({
       current: previewUnavailable,

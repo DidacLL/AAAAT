@@ -61,12 +61,14 @@ describe("VS Code MCP setup", () => {
       "career_context.read",
       "cv_descriptions.read",
       "cv_content.read",
+      "cv.render",
     ]);
     expect(manifest.toolNames).toEqual([
       "candidature_create",
       "career_context_read",
       "cv_descriptions_read",
       "cv_content_read",
+      "cv_render",
     ]);
     const text = readFileSync(path.join(workspace, "integrations", "vscode-mcp.json"), "utf8");
     expect(text).not.toContain(workspace);

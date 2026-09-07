@@ -2,6 +2,7 @@ import {
   cvContentAccessChannels,
   cvContentAccessSchema,
   cvContentAccessUpdateSchema,
+  cvRenderAccessUpdateSchema,
   type CvContentAccessDesktopApi,
 } from "../shared/cv-content-access-contracts";
 
@@ -16,6 +17,12 @@ export function createCvContentAccessDesktopApi(invoke: Invoke): CvContentAccess
     update: async (input: Parameters<CvContentAccessDesktopApi["cvContentAccess"]["update"]>[0]) =>
       cvContentAccessSchema.parse(
         await invoke(cvContentAccessChannels.update, cvContentAccessUpdateSchema.parse(input)),
+      ),
+    updateRender: async (
+      input: Parameters<CvContentAccessDesktopApi["cvContentAccess"]["updateRender"]>[0],
+    ) =>
+      cvContentAccessSchema.parse(
+        await invoke(cvContentAccessChannels.updateRender, cvRenderAccessUpdateSchema.parse(input)),
       ),
   });
   return Object.freeze({ cvContentAccess });
