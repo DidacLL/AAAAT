@@ -6,7 +6,8 @@ Mission #204 replaces the additive-development presentation with one coherent pr
 
 ## Canonical UX authority
 
-- `docs/UX_DEFINITION.md` — the single durable UX contract for this Mission.
+- `docs/UX_DEFINITION.md` — the **single durable UX/interaction contract** for this Mission.
+- `docs/UX_VISUAL_DIRECTION.md` — direct Product Owner visual-character reference only. It is subordinate to the UX contract for hierarchy/interaction and does not define navigation, layout mechanics, components, tokens, or implementation structure.
 - `docs/UX_HISTORY_RECONCILIATION.md` — historical/research evidence only; it cannot define current navigation or interaction mechanics.
 
 Do not recreate competing current UX-contract documents. Direct Product Owner instruction remains above repository documents; `docs/OWNER_INTENT.md` and `docs/SPEC.md` remain product/architecture authority.
