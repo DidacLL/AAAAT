@@ -2,77 +2,96 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#215](https://github.com/DidacLL/AAAAT/issues/215) — design Settings, setup, and recovery interaction before global shell synthesis.
+**Current bounded Issue:** [#217](https://github.com/DidacLL/AAAAT/issues/217) — synthesize the global shell/navigation from accepted Stage-1 through Stage-4 contracts.
 
 Mission #204 replaces the additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
 ## Canonical UX authority
 
-- `docs/UX_DEFINITION.md` — the **single durable UX/interaction contract** for this Mission.
-- `docs/UX_VISUAL_DIRECTION.md` — direct Product Owner visual-character reference only. It is subordinate to the UX contract for hierarchy/interaction and does not define navigation, layout mechanics, components, tokens, or implementation structure.
-- `docs/UX_HISTORY_RECONCILIATION.md` — historical/research evidence only; it cannot define current navigation or interaction mechanics.
+- `docs/UX_DEFINITION.md` — single durable UX/interaction contract.
+- `docs/UX_VISUAL_DIRECTION.md` — subordinate visual-character reference only.
+- `docs/UX_HISTORY_RECONCILIATION.md` — historical/research evidence only.
 
-Stage-specific design contracts refine one bounded journey without replacing `UX_DEFINITION.md`:
+Stage-specific design contracts:
 
 - Stage 1: `docs/UX_CANDIDATURE_INTERACTION.md`.
 - Stage 2: `docs/UX_VCVGENERATOR_INTERACTION.md`.
 - Stage 3: `docs/UX_PROFESSIONAL_INFORMATION_INTERACTION.md`.
 - Stage 4: `docs/UX_SETTINGS_RECOVERY_INTERACTION.md`.
+- Stage 5: `docs/UX_GLOBAL_SHELL_INTERACTION.md`.
 
-Do not recreate competing current UX-contract documents. Direct Product Owner instruction remains above repository documents; `docs/OWNER_INTENT.md` and `docs/SPEC.md` remain product/architecture authority.
+Do not recreate competing current UX contracts. Direct Product Owner instruction remains above repository documents; `docs/OWNER_INTENT.md` and `docs/SPEC.md` remain product/architecture authority.
 
-## Product experience to preserve
+## Durable product hierarchy
 
-- Candidature is the central context for job/application work; Sources are first-class retained material; Focus is the fast-recall projection.
-- VCVGenerator is the major parallel journey and works both candidature-linked and standalone.
-- Reusable professional information supports many documents/candidatures; variants/differences remain progressive.
-- AI is contextual assistance, never primary navigation; provider administration belongs in secondary Settings.
-- ToDos remain lightweight reminders, not a task-management pillar.
-- Sparse candidature/professional information are normal.
-- Workspace, backup/recovery, TeX, AI connections, portability, and host trust are important but secondary/infrequent administration.
+The accepted shell synthesis defines three primary work destinations:
+
+1. **Candidatures** — job/application work and local candidature search/capture.
+2. **CVs & letters** — standalone and candidature-linked document work.
+3. **Professional information** — reusable user-owned source content.
+
+**Settings** is secondary administration, not a peer primary work destination.
+
+Not global primary destinations: Focus, Sources, application material, ToDos/reminders, Concepts, Activity/provenance, privacy/presentation controls, AI, retained artifacts, variants, TeX, backup/recovery, provider connections, generic Documents, or generic Home/dashboard.
 
 ## Development sequence
 
-Advance one bounded stage at a time. Do not pre-create later Issues.
-
 ### Stage 0 — Issue #205 — completed
 
-Established `docs/UX_DEFINITION.md`, reconciled UX authority/history, and recorded staged sequencing. PR #206 merged at `bb6825f292bf2cafe3fdd630ff7a2ecef0fc409f`.
+Canonical UX authority/reconciliation. PR #206 merged at `bb6825f292bf2cafe3fdd630ff7a2ecef0fc409f`.
 
 ### Stage 1 — Issue #207 — completed
 
-`docs/UX_CANDIDATURE_INTERACTION.md` defines candidature collection/search, selection/context, Focus, complete information/editing, Sources, application material, contextual support, dirty-state safety, and default/minimum behavior. PR #208 merged at `43668e27c3951eadfab644e6d607d5ffd12704c5`.
+Candidature interaction contract. PR #208 merged at `43668e27c3951eadfab644e6d607d5ffd12704c5`.
 
 ### Stage 2 — Issue #209 — completed
 
-`docs/UX_VCVGENERATOR_INTERACTION.md` defines standalone and candidature-linked document work, working documents versus retained exact artifacts, ordinary editing, optional variants/document differences, render/export, ownership/auditability, contextual AI, and responsive behavior. PR #211 merged at `91b2a4ce5a807da8c99864727e6c277803ea8d44`.
+VCVGenerator interaction contract. PR #211 merged at `91b2a4ce5a807da8c99864727e6c277803ea8d44`.
 
 ### Stage 3 — Issue #212 — completed
 
-`docs/UX_PROFESSIONAL_INFORMATION_INTERACTION.md` defines sparse/read-first reusable professional information, built-in/custom information without schema administration, base → optional saved variation → document-specific difference ownership, VCVGenerator handoff/return, privacy/AI disclosure, dirty-state safety, and responsive behavior. PR #214 merged at `f2a9c22d57916a2e0e3f08d250f87b012c6fa407`.
+Reusable professional-information interaction contract. PR #214 merged at `f2a9c22d57916a2e0e3f08d250f87b012c6fa407`.
 
-### Stage 4 — Issue #215: Settings / setup / recovery UX — current
+### Stage 4 — Issue #215 — completed
 
-`docs/UX_SETTINGS_RECOVERY_INTERACTION.md` defines first-run local workspace entry; workspace switching; backup/restore/recovery; TeX capability/setup; AI connection administration; configuration portability; external-host trust boundaries; contextual handoffs from ordinary work; destructive/dirty-state safety; and usable default/minimum `720×600` behavior.
+Settings/setup/recovery interaction contract. PR #216 merged at `b258b2f3633083e15daf3d5febf0998fec85a6b0`.
 
-The key interaction decision is that Settings groups secondary administration by user intention and frequency. It is not a giant form, provider hierarchy, or primary work destination. First run establishes a usable local workspace without requiring AI or TeX.
+### Stage 5 — Issue #217: global shell/navigation synthesis — current
 
-This Stage is **design/interaction architecture only**. No production UI/CSS/React changes, persistence/provider architecture changes, global shell synthesis, or implementation belongs in #215.
+`docs/UX_GLOBAL_SHELL_INTERACTION.md` resolves the durable destination hierarchy and cross-context handoffs.
 
-### Stage 5 — global shell/navigation synthesis
+Key decisions:
 
-After Stage 4 is accepted and merged, create exactly one bounded design Issue to synthesize the global shell/navigation from accepted Stages 1–4. Do not derive destinations from persisted entities/features.
+- no generic dashboard/Home requirement;
+- candidature retrieval search remains local to Candidatures rather than undefined universal search;
+- candidature → CV/letter handoff preserves Candidature X and explicit return;
+- CV/letter → Professional information handoff preserves the originating document and explicit return;
+- contextual Settings handoffs preserve origin when practical;
+- AI remains contextual, never shell navigation;
+- global navigation protects dirty drafts without routine confirmation noise;
+- at `720×600`, primary destinations remain labeled/reachable while the local work surface takes priority.
+
+This Stage is design/documentation only. No production UI/CSS/React, persistence, routing-library, dependency, or design-system changes belong in #217.
 
 ### Stage 6 — implementation
 
-Only after navigation/screen interaction contracts exist. Broad renderer reorganization is Class C and proceeds in the smallest coherent implementation slices with independent Reviewer, Skeptical Simplifier, packaged UX verification at default + `720×600`, and all functional/privacy/security/local-ownership gates preserved.
+After Stage 5 is accepted and merged, derive exactly one smallest coherent renderer implementation Issue from the accepted contracts.
+
+Stage-6 renderer/shell work is **Class C** and requires:
+
+- independent Reviewer assessment;
+- Skeptical Simplifier assessment;
+- packaged UX evidence at default and `720×600`;
+- functional/privacy/security/local-ownership verification appropriate to changed surfaces.
+
+Do not reopen information architecture during implementation absent a direct authority contradiction.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 is merged at `90b578064030ce863c9eb912f854f08559fd4777`; Issue #202 is closed. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft, TeX, and prior visual evidence remains reusable unless later implementation changes the surface or premise it proved.
+Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Existing package/runtime, security, backup/recovery, VS Code, Source retrieval, dirty-draft, TeX, and prior evidence remains reusable unless implementation changes the surface or premise it proved.
 
-Stages 1–4 are design/documentation work. Do not repeat broad packaged audits merely because interaction contracts change. Packaged visual verification belongs to implementation work whose actual UI surface it tests.
+Stages 1–5 are documentation/design. Broad packaged visual verification belongs to Stage-6 implementation whose renderer surface it tests.
 
 ## North star
 
-The Mission succeeds when users can retain job-related material without organizing it first, find and recall candidature context quickly, inspect/edit all important information, see application documents from their candidature, use VCVGenerator independently, maintain reusable professional information without schema/variant ceremony, work completely without AI, configure secondary administration without it dominating the product, and inspect deeper ownership/privacy/provenance when desired.
+Users can retain job-related material without organizing it first, find and recall candidature context quickly, inspect/edit all important information, see application documents from their candidature, use CV/letter work independently, maintain reusable professional information without schema/variant ceremony, work completely without AI, configure secondary administration without it dominating the product, and inspect deeper ownership/privacy/provenance when desired.
