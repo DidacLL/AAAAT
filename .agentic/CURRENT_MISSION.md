@@ -2,7 +2,7 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#229](https://github.com/DidacLL/AAAAT/issues/229) — align the accepted Professional information local interaction composition and minimum-size behavior.
+**Current bounded Issue:** [#231](https://github.com/DidacLL/AAAAT/issues/231) — compose secondary Settings around accepted administration intentions and minimum-size behavior.
 
 Mission #204 replaces additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
@@ -44,27 +44,30 @@ Focus, Sources, application material, reminders, Concepts, Activity/provenance, 
 - Stage 8 / #223 — selected candidature local hierarchy; PR #224 merged at `c986b9731077591756250384516b5496b319e963`; Verify #499 passed selected fast/Linux package gates and exact `720×600` local-navigation evidence.
 - Stage 9 / #225 — compact candidature collection/selected transition; PR #226 merged at `50b6e133d8bc415e941f2a380582801c09a9b840`. Code head `56f89f829ebd3ceef6390cd4c1bb2943301eb176` passed Verify #501 including Fast verification, Windows/macOS/Linux packaged runtime, exact `720×600` selected/collection behavior, query/archive preservation, and zero horizontal overflow. The Issue was corrected to Class B because it was bounded local UX composition under `.agentic/DECISION_POLICY.md`.
 - Stage 10 / #227 — CVs & letters local composition; PR #228 merged at `1620f38636942fc6dd50ec9d099feab6fa9c2a35`. Exact code head `8d0a41ddd1ac9d1c5ec31e357d363a067c3f3660` passed Verify #506 including Fast verification, Windows/macOS/Linux packaged runtime, aggregate Verification gate, exact `720×600` document collection/selected transitions and local intentions with zero horizontal overflow, plus `1200×800` collection-and-selected continuity.
+- Stage 11 / #229 — Professional information local composition; PR #230 merged at `bc54c4060ed213d17593c50f29afa1f41354ac07`. Exact code head `bf4ec70cb878317e652674eef48696ade55e9733` passed Verify #512 after an infrastructure-only Linux retry, including Fast verification, Windows/macOS/Linux packaged runtime, aggregate Verification gate, and exact `720×600` Professional information overview/item-editor/Saved-variations evidence with zero horizontal overflow.
 
-## Stage 11 — Issue #229: Professional information local composition — current
+## Stage 12 — Issue #231: Settings local interaction composition — current
 
 The bounded implementation must:
 
-- lead with **Professional information** and the information the user actually has rather than `Canonical profile`, `Authoritative`, `Focused variants`, or `Difference-only` implementation terminology;
-- make the ordinary state read-first and sparse-valid, with deliberate **Add information** and edit transitions rather than a permanently open creation form;
-- preserve existing profile item kinds and profile service/domain semantics;
-- keep career direction/objectives/constraints/preferences inside the same global Professional information destination while secondary to reusable professional evidence/content;
-- place **Saved variations** behind an explicit secondary entry and explain that default professional information already works without one;
-- present saved-variation differences in ordinary language such as include, move earlier/later, and alternate content while preserving existing difference semantics and capabilities;
-- preserve unrelated drafts across local Professional information states, while retaining explicit discard guards where a real dirty draft would be lost;
-- at exact `720×600`, present one principal Professional information task at a time with labeled return routes, vertical scrolling as needed, and no horizontal clipping.
+- open Settings to a concise intention-based overview rather than one long additive administration page;
+- expose local Settings intentions for **Workspace**, **Backup & recovery**, **Document rendering**, **AI connections**, and **Portability & external tools**, using existing capabilities only;
+- show useful status/summary first and enter deeper controls deliberately;
+- keep workspace ownership recognizable without exposing database/migration internals;
+- preserve existing backup/restore dirty-state and failure guarantees;
+- present document-rendering availability first, with technical command/path/version detail secondary;
+- state plainly that AI is optional, retain existing connection CRUD/validation/default behavior, and hide add/edit fields until deliberately requested;
+- keep configuration portability distinct from workspace backup and external-tool guidance explicit about host/tool permissions AAAAT does not control;
+- protect real dirty Settings drafts across local Settings transitions and return-to-work without adding routine confirmation noise;
+- at exact `720×600`, show one principal Settings administration task at a time with labeled return routes, vertical scrolling as needed, and no horizontal clipping.
 
-This slice does **not** change profile/career-context persistence or service contracts, variant inheritance/difference semantics, document-specific ownership, AI/provider architecture, candidature behavior, CV/letter behavior, or global shell.
+This slice does **not** change workspace/recovery, setup-environment, AI-connection, portability, provider, persistence, candidature, document, profile, or global-shell service contracts, and does not add navigation/state/design-system/framework dependencies.
 
-This work is **Class B** local UX composition under `.agentic/DECISION_POLICY.md`. Merge requires focused renderer verification, packaged Linux evidence at normal size and exactly `720×600`, and selected GitHub Verification gates. Independent Reviewer/Simplifier is not a mandatory gate unless the change crosses into Class C significance.
+This work is **Class B** local UX composition under `.agentic/DECISION_POLICY.md`. Merge requires focused renderer verification, packaged Linux evidence at normal size and exactly `720×600`, and selected GitHub Verification gates. Independent Reviewer/Simplifier is not a mandatory gate unless implementation crosses into Class C significance.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 shell, Stage-7–9 candidature, and Stage-10 CV/letter evidence remain reusable where Stage 11 does not alter their premises.
+Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 shell, Stage-7–9 candidature, Stage-10 CV/letter, and Stage-11 Professional information evidence remain reusable where Stage 12 does not alter their premises.
 
 ## North star
 

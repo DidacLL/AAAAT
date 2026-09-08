@@ -67,13 +67,16 @@
 .primary-work-nav button:hover,
 .primary-work-nav button:focus-visible,
 .contextual-toggle:hover,
-.contextual-toggle:focus-visible {
+.contextual-toggle:focus-visible,
+.settings-intention:hover,
+.settings-intention:focus-visible {
   background: #f4eee5;
 }
 
 .shell-settings:focus-visible,
 .primary-work-nav button:focus-visible,
-.contextual-toggle:focus-visible {
+.contextual-toggle:focus-visible,
+.settings-intention:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
@@ -134,7 +137,10 @@
 
 .work-surface,
 .destination-area,
-.settings-area {
+.settings-area,
+.settings-workspace,
+.settings-detail,
+.settings-portability-stack {
   min-width: 0;
 }
 
@@ -151,6 +157,67 @@
   font-size: 28px;
   font-weight: 500;
   letter-spacing: -0.02em;
+}
+
+.settings-workspace {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.settings-intro {
+  max-width: 720px;
+  margin: 0 0 16px;
+  color: var(--muted-ink);
+}
+
+.settings-intention-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-intention {
+  display: flex;
+  min-width: 0;
+  min-height: 96px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: #fffdf9;
+  text-align: left;
+}
+
+.settings-intention strong {
+  font-size: 16px;
+}
+
+.settings-intention span,
+.settings-path {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--muted-ink);
+}
+
+.settings-detail-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.settings-detail-heading h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.settings-portability-stack {
+  display: grid;
+  gap: 14px;
 }
 
 .contextual-support {
@@ -272,6 +339,10 @@
     padding: 7px 9px;
     font-size: 12px;
   }
+
+  .settings-intention-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 620px) {
@@ -283,7 +354,8 @@
     font-size: 16px;
   }
 
-  .shell-section-heading {
+  .shell-section-heading,
+  .settings-detail-heading {
     align-items: stretch;
     flex-direction: column;
   }

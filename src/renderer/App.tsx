@@ -2,13 +2,12 @@ import { useEffect, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import { AiDocumentsWorkspace } from "./AiDocumentsWorkspace";
-import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import logo from "./assets/aaaat-logo-light.png";
 import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
 import { CareerContextPanel } from "./CareerContextPanel";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
-import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
+import { SettingsWorkspace } from "./SettingsWorkspace";
 import "./shell.css";
 import { TodosWorkspace } from "./TodosWorkspace";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
@@ -16,11 +15,7 @@ import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
 type ProductView = "candidatures" | "documents" | "professional-information";
 
-function ProfileArea({
-  onDirtyChange,
-}: {
-  readonly onDirtyChange: (dirty: boolean) => void;
-}) {
+function ProfileArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: boolean) => void }) {
   const [careerContextDirty, setCareerContextDirty] = useState(false);
   const [profileDirty, setProfileDirty] = useState(false);
 
@@ -37,11 +32,7 @@ function ProfileArea({
   );
 }
 
-function CandidaturesArea({
-  onDirtyChange,
-}: {
-  readonly onDirtyChange: (dirty: boolean) => void;
-}) {
+function CandidaturesArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: boolean) => void }) {
   const [candidatureDirty, setCandidatureDirty] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [remindersDirty, setRemindersDirty] = useState(false);
@@ -64,30 +55,19 @@ function CandidaturesArea({
     <div className="destination-area">
       <CandidaturesAiWorkspace onDirtyChange={setCandidatureDirty} />
       <section className="contextual-support" aria-label="Candidature supporting tools">
-        <button
-          className="contextual-toggle"
-          type="button"
-          aria-expanded={remindersOpen}
-          onClick={toggleReminders}
-        >
+        <button className="contextual-toggle" type="button" aria-expanded={remindersOpen} onClick={toggleReminders}>
           Reminders
         </button>
         <span>Lightweight checkable notes stay secondary to candidature work.</span>
       </section>
       {remindersOpen ? (
-        <div className="contextual-surface">
-          <TodosWorkspace onDirtyChange={setRemindersDirty} />
-        </div>
+        <div className="contextual-surface"><TodosWorkspace onDirtyChange={setRemindersDirty} /></div>
       ) : null}
     </div>
   );
 }
 
-function DocumentsArea({
-  onDirtyChange,
-}: {
-  readonly onDirtyChange: (dirty: boolean) => void;
-}) {
+function DocumentsArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: boolean) => void }) {
   const [documentDirty, setDocumentDirty] = useState(false);
   const [assistanceOpen, setAssistanceOpen] = useState(false);
   const [assistanceDirty, setAssistanceDirty] = useState(false);
@@ -99,9 +79,7 @@ function DocumentsArea({
 
   const toggleAssistance = () => {
     if (assistanceOpen && assistanceDirty) {
-      const discard = window.confirm(
-        "Discard unsaved AI document assistance edits and close assistance?",
-      );
+      const discard = window.confirm("Discard unsaved AI document assistance edits and close assistance?");
       if (!discard) return;
       setAssistanceDirty(false);
     }
@@ -112,20 +90,13 @@ function DocumentsArea({
     <div className="destination-area">
       <DocumentsWorkspace onDirtyChange={setDocumentDirty} />
       <section className="contextual-support" aria-label="CV and letter supporting tools">
-        <button
-          className="contextual-toggle"
-          type="button"
-          aria-expanded={assistanceOpen}
-          onClick={toggleAssistance}
-        >
+        <button className="contextual-toggle" type="button" aria-expanded={assistanceOpen} onClick={toggleAssistance}>
           Optional AI assistance
         </button>
         <span>Assistance uses the current document context; it is not a separate workspace.</span>
       </section>
       {assistanceOpen ? (
-        <div className="contextual-surface">
-          <AiDocumentsWorkspace onDirtyChange={setAssistanceDirty} />
-        </div>
+        <div className="contextual-surface"><AiDocumentsWorkspace onDirtyChange={setAssistanceDirty} /></div>
       ) : null}
     </div>
   );
@@ -151,21 +122,14 @@ export function App() {
       .catch(() => {
         if (active) {
           setWorkspacePhase("idle");
-          setWorkspaceError(
-            "The previous workspace is no longer available. Choose another workspace.",
-          );
+          setWorkspaceError("The previous workspace is no longer available. Choose another workspace.");
         }
       });
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   const chooseWorkspace = async (choice: WorkspaceChoice) => {
-    if (workspace && editorDirty && !window.confirm("Discard unsaved edits and switch workspaces?")) {
-      return;
-    }
+    if (workspace && editorDirty && !window.confirm("Discard unsaved edits and switch workspaces?")) return;
     setWorkspacePhase("choosing");
     setWorkspaceError(null);
     try {
@@ -198,8 +162,7 @@ export function App() {
     setProductView("candidatures");
   };
 
-  const confirmLeaveCurrentArea = (message: string) =>
-    !editorDirty || window.confirm(message);
+  const confirmLeaveCurrentArea = (message: string) => !editorDirty || window.confirm(message);
 
   const selectProductView = (next: ProductView) => {
     if (!settingsOpen && next === productView) return;
@@ -237,23 +200,12 @@ export function App() {
         {ready ? (
           <div className="shell-utilities">
             <span className="workspace-chip" title={workspace.rootPath}>
-              <span>Workspace</span>
-              <code>{workspace.rootPath}</code>
+              <span>Workspace</span><code>{workspace.rootPath}</code>
             </span>
-            <button
-              className="compact-secondary"
-              type="button"
-              disabled={choosing}
-              onClick={() => void chooseWorkspace("create")}
-            >
+            <button className="compact-secondary" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>
               {choosing ? "Choosing…" : "Switch workspace"}
             </button>
-            <button
-              className={settingsOpen ? "shell-settings active-shell-utility" : "shell-settings"}
-              type="button"
-              aria-current={settingsOpen ? "page" : undefined}
-              onClick={openSettings}
-            >
+            <button className={settingsOpen ? "shell-settings active-shell-utility" : "shell-settings"} type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>
               Settings
             </button>
           </div>
@@ -265,67 +217,31 @@ export function App() {
           {workspaceError ? <p className="error-message shell-error" role="alert">{workspaceError}</p> : null}
           <div className="work-shell">
             <nav className="primary-work-nav" aria-label="Primary work areas">
-              <button
-                type="button"
-                className={!settingsOpen && productView === "candidatures" ? "active-work-destination" : ""}
-                aria-current={!settingsOpen && productView === "candidatures" ? "page" : undefined}
-                onClick={() => selectProductView("candidatures")}
-              >
-                Candidatures
-              </button>
-              <button
-                type="button"
-                className={!settingsOpen && productView === "documents" ? "active-work-destination" : ""}
-                aria-current={!settingsOpen && productView === "documents" ? "page" : undefined}
-                onClick={() => selectProductView("documents")}
-              >
-                CVs &amp; letters
-              </button>
-              <button
-                type="button"
-                className={!settingsOpen && productView === "professional-information" ? "active-work-destination" : ""}
-                aria-current={!settingsOpen && productView === "professional-information" ? "page" : undefined}
-                onClick={() => selectProductView("professional-information")}
-              >
-                Professional information
-              </button>
+              <button type="button" className={!settingsOpen && productView === "candidatures" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "candidatures" ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Candidatures</button>
+              <button type="button" className={!settingsOpen && productView === "documents" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "documents" ? "page" : undefined} onClick={() => selectProductView("documents")}>CVs &amp; letters</button>
+              <button type="button" className={!settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>Professional information</button>
             </nav>
 
             <section className="work-surface">
               {settingsOpen ? (
                 <div className="settings-area" key={`settings-${workspace.rootPath}`}>
                   <div className="shell-section-heading">
-                    <div>
-                      <p className="eyebrow">Secondary administration</p>
-                      <h1>Settings</h1>
-                    </div>
-                    <button className="compact-secondary" type="button" onClick={closeSettings}>
-                      Return to work
-                    </button>
+                    <div><p className="eyebrow">Secondary administration</p><h1>Settings</h1></div>
+                    <button className="compact-secondary" type="button" onClick={closeSettings}>Return to work</button>
                   </div>
-                  <SetupEnvironmentPanel />
-                  <WorkspaceRecoveryPanel
+                  <SettingsWorkspace
                     currentWorkspace={workspace}
-                    editorDirty={editorDirty}
+                    onChooseWorkspace={(choice) => void chooseWorkspace(choice)}
+                    onDirtyChange={setEditorDirty}
                     onRestored={openRestoredWorkspace}
                   />
-                  <AiSettingsWorkspace onDirtyChange={setEditorDirty} />
                 </div>
               ) : productView === "candidatures" ? (
-                <CandidaturesArea
-                  key={`candidatures-${workspace.rootPath}`}
-                  onDirtyChange={setEditorDirty}
-                />
+                <CandidaturesArea key={`candidatures-${workspace.rootPath}`} onDirtyChange={setEditorDirty} />
               ) : productView === "documents" ? (
-                <DocumentsArea
-                  key={`documents-${workspace.rootPath}`}
-                  onDirtyChange={setEditorDirty}
-                />
+                <DocumentsArea key={`documents-${workspace.rootPath}`} onDirtyChange={setEditorDirty} />
               ) : (
-                <ProfileArea
-                  key={`professional-information-${workspace.rootPath}`}
-                  onDirtyChange={setEditorDirty}
-                />
+                <ProfileArea key={`professional-information-${workspace.rootPath}`} onDirtyChange={setEditorDirty} />
               )}
             </section>
           </div>
@@ -336,26 +252,14 @@ export function App() {
           <p className="tagline">Your career workspace, on your computer.</p>
           <p>Your workspace data stays local and under your control. AAAAT works without AI; AI is optional.</p>
           <span className="accent-line" aria-hidden="true" />
-          <h1>
-            {loading
-              ? "Opening your workspace..."
-              : "Choose where AAAAT should keep your career workspace."}
-          </h1>
+          <h1>{loading ? "Opening your workspace..." : "Choose where AAAAT should keep your career workspace."}</h1>
           {loading ? null : (
             <>
               <div className="workspace-actions">
-                <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>
-                  {choosing ? "Choosing workspace..." : "Create workspace"}
-                </button>
-                <button className="secondary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>
-                  Open existing workspace
-                </button>
+                <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing workspace..." : "Create workspace"}</button>
+                <button className="secondary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open existing workspace</button>
               </div>
-              <WorkspaceRecoveryPanel
-                currentWorkspace={null}
-                editorDirty={false}
-                onRestored={openRestoredWorkspace}
-              />
+              <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />
             </>
           )}
           {workspaceError ? <p className="error-message" role="alert">{workspaceError}</p> : null}
