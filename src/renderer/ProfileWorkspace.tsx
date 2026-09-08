@@ -117,7 +117,7 @@ function orderedBaseItems(snapshot: ProfileSnapshot, variant: ProfileVariant): P
   return [...snapshot.items].sort((left, right) => {
     const leftRank = rules.get(left.id)?.orderRank ?? baseRank.get(left.id) ?? 0;
     const rightRank = rules.get(right.id)?.orderRank ?? baseRank.get(right.id) ?? 0;
-    return leftRank - rightRank || left.title.localeCompare(right.title);
+    return leftRank - rightRank;
   });
 }
 
@@ -255,18 +255,31 @@ export function ProfileWorkspace({
       handledInitialItemId.current = null;
       return;
     }
-    if (!snapshot || handledInitialItemId.current === initialItemId) return;
-    const item = snapshot.items.find((candidate) => candidate.id === initialItemId);
+    if (handledInitialItemId.current === initialItemId) return;
     handledInitialItemId.current = initialItemId;
-    if (!item) {
-      setError("The reusable professional-information item is no longer available.");
-      return;
-    }
-    setEditingItemId(item.id);
-    setItemState(itemForm(item));
-    setError(null);
-    setView("item");
-  }, [initialItemId, snapshot]);
+    let active = true;
+    void window.aaaat.profile
+      .current()
+      .then((current) => {
+        if (!active) return;
+        const item = current.items.find((candidate) => candidate.id === initialItemId);
+        if (!item) {
+          setError("The reusable professional-information item is no longer available.");
+          return;
+        }
+        setSnapshot(current);
+        setEditingItemId(item.id);
+        setItemState(itemForm(item));
+        setError(null);
+        setView("item");
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not open that reusable professional information.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [initialItemId]);
 
   const submitItem = async (event: FormEvent) => {
     event.preventDefault();
