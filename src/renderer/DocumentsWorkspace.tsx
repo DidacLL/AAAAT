@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import type { ApplicationArtifactRecord } from "../shared/artifact-contracts";
 import type {
@@ -50,6 +50,7 @@ export function DocumentsWorkspace({
     openSettingsFor,
     returnToCandidature,
   } = useContextualHandoffs();
+  const initialRequestedDocumentId = useRef(documentHandoff?.documentId);
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [candidatures, setCandidatures] = useState<CandidatureRecord[]>([]);
@@ -177,8 +178,9 @@ export function DocumentsWorkspace({
           if (active) setArtifacts(retained);
         }
 
-        const requested = documentHandoff?.documentId
-          ? currentDocuments.find((document) => document.id === documentHandoff.documentId) ?? null
+        const requestedId = initialRequestedDocumentId.current;
+        const requested = requestedId
+          ? currentDocuments.find((document) => document.id === requestedId) ?? null
           : null;
         const first = requested ?? currentDocuments[0] ?? null;
         if (first) {
@@ -199,28 +201,51 @@ export function DocumentsWorkspace({
   useEffect(() => {
     const requestedId = documentHandoff?.documentId;
     if (!requestedId || requestedId === selectedId) return;
-    const requested = documents.find((document) => document.id === requestedId);
-    if (!requested) return;
-    setSelectedId(requested.id);
-    fillEditor(requested);
-    setDocumentView("content");
-    setCompactDocumentOpen(true);
-    setError(null);
-    setNotice(null);
-    void refreshResolved(requested).catch(() => {
-      setError("AAAAT could not resolve this document.");
-    });
-  }, [documentHandoff, documents, selectedId]);
+    let active = true;
+    void window.aaaat.documents
+      .list()
+      .then(async (currentDocuments) => {
+        if (!active) return;
+        const requested = currentDocuments.find((document) => document.id === requestedId);
+        if (!requested) {
+          setError("That linked CV or letter is no longer available.");
+          return;
+        }
+        setDocuments(currentDocuments);
+        setSelectedId(requested.id);
+        fillEditor(requested);
+        setDocumentView("content");
+        setCompactDocumentOpen(true);
+        setError(null);
+        setNotice(null);
+        await refreshResolved(requested);
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not open that linked CV or letter.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [documentHandoff?.documentId, selectedId]);
 
   useEffect(() => {
     const candidatureId = documentHandoff?.candidatureId;
     if (!candidatureId) return;
-    setArtifactCandidatureId(candidatureId);
+    let active = true;
     void window.aaaat.artifacts
       .list(candidatureId)
-      .then(setArtifacts)
-      .catch(() => setError("AAAAT could not load retained application artifacts."));
-  }, [documentHandoff]);
+      .then((retained) => {
+        if (!active) return;
+        setArtifactCandidatureId(candidatureId);
+        setArtifacts(retained);
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not load retained application artifacts.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [documentHandoff?.candidatureId]);
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
