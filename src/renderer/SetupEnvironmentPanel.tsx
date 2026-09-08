@@ -7,7 +7,9 @@ import {
   type SetupGuidanceArtifact,
 } from "./setup-guidance";
 
-export function SetupEnvironmentPanel() {
+type SetupEnvironmentView = "all" | "rendering" | "guidance";
+
+export function SetupEnvironmentPanel({ view = "all" }: { readonly view?: SetupEnvironmentView }) {
   const [snapshot, setSnapshot] = useState<SetupEnvironmentSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,105 +69,99 @@ export function SetupEnvironmentPanel() {
   }, []);
 
   const guidance = snapshot ? buildSetupGuidance(snapshot) : null;
+  const showStatus = view !== "guidance";
+  const showGuidance = view !== "rendering";
 
   return (
     <>
-      <section className="profile-workspace" aria-label="Setup environment">
-        <div className="profile-column">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Environment</p>
-              <h2>Local setup status</h2>
+      {showStatus ? (
+        <section className="profile-workspace" aria-label="Setup environment">
+          <div className="profile-column">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Document rendering</p>
+                <h2>{snapshot?.tex.documentRenderingReady ? "Rendering available" : "Rendering status"}</h2>
+              </div>
+              <button
+                type="button"
+                className="compact-secondary"
+                disabled={loading}
+                onClick={() => void load()}
+              >
+                {loading ? "Checking…" : "Refresh status"}
+              </button>
             </div>
-            <button
-              type="button"
-              className="compact-secondary"
-              disabled={loading}
-              onClick={() => void load()}
-            >
-              {loading ? "Checking…" : "Refresh environment"}
-            </button>
+            <p>
+              {snapshot
+                ? snapshot.tex.documentRenderingReady
+                  ? "Local TeX rendering is available on this computer."
+                  : "Document editing remains available, but local rendering needs compatible latexmk and pdflatex tools."
+                : loading
+                  ? "Checking local rendering capability…"
+                  : "Rendering status is unavailable."}
+            </p>
+            {error ? <p className="error-message" role="alert">{error}</p> : null}
+            {snapshot ? (
+              <details>
+                <summary>Technical details</summary>
+                {snapshot.tex.commands.map((command) => (
+                  <p key={command.command}>
+                    <code>{command.command}</code>: {command.available ? "available" : "not found"}
+                    {command.version ? ` · ${command.version}` : ""}
+                  </p>
+                ))}
+              </details>
+            ) : null}
           </div>
 
-          <p>
-            AAAAT reuses working software already available on this computer. This status is read-only;
-            it does not install packages or change your system configuration.
-          </p>
-          {error ? <p className="error-message" role="alert">{error}</p> : null}
-          {snapshot ? (
-            <div className="document-list">
-              <article className="document-card">
+          {view === "all" ? (
+            <div className="profile-column">
+              <div className="section-heading">
                 <div>
-                  <h3>Workspace</h3>
-                  <p>{snapshot.workspaceReady ? "Configured workspace is available." : "Configured workspace is unavailable."}</p>
+                  <p className="eyebrow">Capabilities</p>
+                  <h2>Optional AI routes</h2>
                 </div>
-              </article>
-              <article className="document-card">
-                <div>
-                  <h3>Document rendering</h3>
-                  <p>
-                    {snapshot.tex.documentRenderingReady
-                      ? "Ready with the detected local TeX tools."
-                      : "Needs a compatible TeX installation providing latexmk and pdflatex."}
-                  </p>
-                  {snapshot.tex.commands.map((command) => (
-                    <p key={command.command}>
-                      <code>{command.command}</code>: {command.available ? "available" : "not found"}
-                      {command.version ? ` · ${command.version}` : ""}
+              </div>
+              {snapshot ? (
+                snapshot.ai.configurationReadable ? (
+                  <>
+                    <p>
+                      {snapshot.ai.connectionCount} configured local AI connection{snapshot.ai.connectionCount === 1 ? "" : "s"}.
+                      Operation availability reflects validated routing, not a model-quality score.
                     </p>
-                  ))}
-                </div>
-              </article>
+                    <div className="document-list">
+                      {snapshot.ai.operations.map((status) => (
+                        <article key={status.operation} className="document-card">
+                          <div>
+                            <h3>{aiOperationLabels[status.operation]}</h3>
+                            <p>
+                              {status.available && status.connectionName
+                                ? `Available via ${status.connectionName}.`
+                                : "No validated route is configured."}
+                            </p>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="error-message">AAAAT could not read the optional AI connection configuration.</p>
+                )
+              ) : (
+                <p>{loading ? "Checking configured capabilities…" : "Environment status is unavailable."}</p>
+              )}
             </div>
           ) : null}
-        </div>
+        </section>
+      ) : null}
 
-        <div className="profile-column">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Capabilities</p>
-              <h2>Optional AI routes</h2>
-            </div>
-          </div>
-
-          {snapshot ? (
-            snapshot.ai.configurationReadable ? (
-              <>
-                <p>
-                  {snapshot.ai.connectionCount} configured local AI connection{snapshot.ai.connectionCount === 1 ? "" : "s"}.
-                  Operation availability below reflects validated routing, not a model-quality score.
-                </p>
-                <div className="document-list">
-                  {snapshot.ai.operations.map((status) => (
-                    <article key={status.operation} className="document-card">
-                      <div>
-                        <h3>{aiOperationLabels[status.operation]}</h3>
-                        <p>
-                          {status.available && status.connectionName
-                            ? `Available via ${status.connectionName}.`
-                            : "No validated route is configured."}
-                        </p>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="error-message">AAAAT could not read the optional AI connection configuration.</p>
-            )
-          ) : (
-            <p>{loading ? "Checking configured capabilities…" : "Environment status is unavailable."}</p>
-          )}
-        </div>
-      </section>
-
-      {guidance ? (
+      {showGuidance && guidance ? (
         <section className="profile-workspace" aria-label="Free-chat setup guidance">
           {guidance.map((artifact) => (
             <div className="profile-column" key={artifact.name}>
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">Free-chat guidance</p>
+                  <p className="eyebrow">External tools</p>
                   <h2>{artifact.name}</h2>
                 </div>
                 <button
@@ -177,17 +173,20 @@ export function SetupEnvironmentPanel() {
                 </button>
               </div>
               <p>
-                Copy this setup-only prompt into a free chat assistant if useful. AAAAT does not send it automatically.
+                Copy this setup-only prompt into a free chat assistant if useful. AAAAT does not send it automatically and does not control permissions granted to an external host or tool.
               </p>
-              <label className="wide-field">
-                {artifact.name} guidance
-                <textarea
-                  aria-label={`${artifact.name} guidance`}
-                  rows={14}
-                  readOnly
-                  value={artifact.text}
-                />
-              </label>
+              <details>
+                <summary>Show guidance</summary>
+                <label className="wide-field">
+                  {artifact.name} guidance
+                  <textarea
+                    aria-label={`${artifact.name} guidance`}
+                    rows={14}
+                    readOnly
+                    value={artifact.text}
+                  />
+                </label>
+              </details>
               {copyFeedback?.name === artifact.name ? (
                 <p
                   className={copyFeedback.error ? "error-message" : undefined}
