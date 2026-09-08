@@ -228,6 +228,13 @@ export function App() {
       professionalInformationHandoff,
       settingsHandoff,
       openDocumentFromCandidature: (candidatureId: string, documentId?: string) => {
+        if (
+          documentId &&
+          documentDirty &&
+          !window.confirm("Discard unsaved document edits and open this candidature document?")
+        ) {
+          return;
+        }
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
@@ -242,6 +249,12 @@ export function App() {
         setProductView("candidatures");
       },
       openProfessionalInformationItem: (documentId: string, itemId: string) => {
+        if (
+          professionalInformationDirty &&
+          !window.confirm("Discard unsaved professional-information edits and open this reusable source?")
+        ) {
+          return;
+        }
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff({ documentId, itemId });
@@ -268,7 +281,15 @@ export function App() {
         setProductView(origin);
       },
     }),
-    [documentHandoff, productView, professionalInformationHandoff, settingsDirty, settingsHandoff],
+    [
+      documentDirty,
+      documentHandoff,
+      productView,
+      professionalInformationDirty,
+      professionalInformationHandoff,
+      settingsDirty,
+      settingsHandoff,
+    ],
   );
 
   const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
