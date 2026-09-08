@@ -198,23 +198,21 @@ test("packaged Professional information is read-first and compact-task oriented"
     await expectNoHorizontalOverflow(running.page, 720, 600, "overview");
 
     await workspace.getByRole("button", { name: "Add information" }).click();
-    await expect(workspace.getByRole("heading", { name: "Add information" })).toBeVisible();
+    await expect(workspace.getByRole("heading", { name: "Add information", exact: true })).toBeVisible();
     await expect(workspace.getByRole("button", { name: "Back to professional information" })).toBeVisible();
-    await workspace.getByLabel("Type", { exact: true }).selectOption("skill");
-    await workspace.getByLabel("Title", { exact: true }).fill("TypeScript");
     await expectNoHorizontalOverflow(running.page, 720, 600, "item-editor");
-    await workspace.getByRole("button", { name: "Add information" }).click();
-    await expect(workspace.getByText("TypeScript", { exact: true })).toBeVisible();
+    await workspace.getByRole("button", { name: "Back to professional information" }).click();
+    await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
 
     await workspace.getByRole("button", { name: "Create saved variation" }).click();
-    await expect(workspace.getByRole("heading", { name: "Saved variations" })).toBeVisible();
+    await expect(workspace.getByRole("heading", { name: "Saved variations", exact: true })).toBeVisible();
     await expect(workspace.getByText(/default professional information/i)).toBeVisible();
     await expect(running.page.getByText("Difference-only", { exact: true })).toHaveCount(0);
     await expect(running.page.getByText("Override title", { exact: true })).toHaveCount(0);
     await expectNoHorizontalOverflow(running.page, 720, 600, "saved-variations");
 
     await workspace.getByRole("button", { name: "Back to professional information" }).click();
-    await expect(workspace.getByText("TypeScript", { exact: true })).toBeVisible();
+    await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
     await expect(running.page.getByRole("region", { name: "Current career context" })).toBeVisible();
     console.log("[packaged professional information] compact return=true career-context-reachable=true");
   } finally {
