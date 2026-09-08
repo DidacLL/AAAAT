@@ -271,46 +271,26 @@ export function AiSettingsWorkspace({
               }}
             >
               <div className="section-heading wide-field">
-                <div>
-                  <h3>{editing ? "Edit connection" : "Add connection"}</h3>
-                </div>
+                <div><h3>{editing ? "Edit connection" : "Add connection"}</h3></div>
                 {view === "connections" ? (
                   <button type="button" className="compact-secondary" onClick={closeForm}>Cancel</button>
                 ) : null}
               </div>
               <label>
                 Connection name
-                <input
-                  value={draft.name}
-                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                  placeholder="Local model"
-                />
+                <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Local model" />
               </label>
               <label>
                 Model
-                <input
-                  value={draft.model}
-                  onChange={(event) => setDraft({ ...draft, model: event.target.value })}
-                  placeholder="model-name"
-                />
+                <input value={draft.model} onChange={(event) => setDraft({ ...draft, model: event.target.value })} placeholder="model-name" />
               </label>
               <label className="wide-field">
                 Local provider base URL
-                <input
-                  value={draft.endpoint}
-                  onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })}
-                  placeholder="http://localhost:11434/v1"
-                />
+                <input value={draft.endpoint} onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })} placeholder="http://localhost:11434/v1" />
               </label>
               <div className="form-actions wide-field">
-                <button className="compact-primary" type="submit" disabled={saving}>
-                  {saving ? "Saving…" : editing ? "Save connection" : "Add connection"}
-                </button>
-                {editing && view === "all" ? (
-                  <button type="button" className="compact-secondary" onClick={beginNew}>
-                    Add another
-                  </button>
-                ) : null}
+                <button className="compact-primary" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save connection" : "Add connection"}</button>
+                {editing && view === "all" ? <button type="button" className="compact-secondary" onClick={beginNew}>Add another</button> : null}
               </div>
             </form>
           ) : (
@@ -322,15 +302,12 @@ export function AiSettingsWorkspace({
       {showConnections ? (
         <div className="profile-column">
           <div className="section-heading">
-            <div>
-              <p className="eyebrow">Configured routes</p>
-              <h2>Configured connections</h2>
-            </div>
+            <div><p className="eyebrow">Configured routes</p><h2>Configured connections</h2></div>
             <span>{connections.length}/16</span>
           </div>
 
           {connections.length === 0 ? (
-            <p>No AI connections are configured. Manual product operation is complete without one.</p>
+            <p>No local AI connections are configured yet. Manual product operation is complete without one.</p>
           ) : (
             <div className="document-list">
               {connections.map((connection) => (
@@ -341,32 +318,9 @@ export function AiSettingsWorkspace({
                     {connection.isDefault ? <p><strong>General default connection</strong></p> : null}
                   </div>
                   <div className="button-row">
-                    {!connection.isDefault ? (
-                      <button
-                        type="button"
-                        className="compact-secondary"
-                        onClick={() => void setDefault(connection)}
-                        aria-label={`Use ${connection.name} as the general default`}
-                      >
-                        General default
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="compact-secondary"
-                      onClick={() => beginEdit(connection)}
-                      aria-label={`Edit ${connection.name}`}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="compact-secondary"
-                      onClick={() => void remove(connection)}
-                      aria-label={`Remove ${connection.name}`}
-                    >
-                      Remove
-                    </button>
+                    {!connection.isDefault ? <button type="button" className="compact-secondary" onClick={() => void setDefault(connection)} aria-label={`Use ${connection.name} as the general default`}>General default</button> : null}
+                    <button type="button" className="compact-secondary" onClick={() => beginEdit(connection)} aria-label={`Edit ${connection.name}`}>Edit</button>
+                    <button type="button" className="compact-secondary" onClick={() => void remove(connection)} aria-label={`Remove ${connection.name}`}>Remove</button>
                   </div>
                   <div className="wide-field">
                     <p><strong>Validated operations</strong></p>
@@ -377,30 +331,11 @@ export function AiSettingsWorkspace({
                       const defaultKey = `default:${connection.id}:${operation}`;
                       return (
                         <div key={operation} className="button-row">
-                          <span>
-                            {aiOperationLabels[operation]}: {validated ? "validated" : "not validated"}
-                            {operationDefault ? " · operation default" : ""}
-                          </span>
+                          <span>{aiOperationLabels[operation]}: {validated ? "validated" : "not validated"}{operationDefault ? " · operation default" : ""}</span>
                           {!validated ? (
-                            <button
-                              type="button"
-                              className="compact-secondary"
-                              disabled={busyOperation !== null}
-                              onClick={() => void validateOperation(connection, operation)}
-                              aria-label={`Validate ${connection.name} for ${aiOperationLabels[operation]}`}
-                            >
-                              {busyOperation === validateKey ? "Validating…" : "Validate"}
-                            </button>
+                            <button type="button" className="compact-secondary" disabled={busyOperation !== null} onClick={() => void validateOperation(connection, operation)} aria-label={`Validate ${connection.name} for ${aiOperationLabels[operation]}`}>{busyOperation === validateKey ? "Validating…" : "Validate"}</button>
                           ) : !operationDefault ? (
-                            <button
-                              type="button"
-                              className="compact-secondary"
-                              disabled={busyOperation !== null}
-                              onClick={() => void setOperationDefault(connection, operation)}
-                              aria-label={`Use ${connection.name} for ${aiOperationLabels[operation]}`}
-                            >
-                              {busyOperation === defaultKey ? "Saving…" : "Use for operation"}
-                            </button>
+                            <button type="button" className="compact-secondary" disabled={busyOperation !== null} onClick={() => void setOperationDefault(connection, operation)} aria-label={`Use ${connection.name} for ${aiOperationLabels[operation]}`}>{busyOperation === defaultKey ? "Saving…" : "Use for operation"}</button>
                           ) : null}
                         </div>
                       );
@@ -411,46 +346,19 @@ export function AiSettingsWorkspace({
             </div>
           )}
 
-          {connections.length > 0 && !defaultConnection ? (
-            <p className="error-message">
-              No general default AI connection is selected. An operation still works when it has an explicit validated operation default.
-            </p>
-          ) : null}
-          <p>
-            An operation uses its explicit operation default first. The general default is used only when validated for that operation; AAAAT does not silently fall back to another connection.
-          </p>
+          {connections.length > 0 && !defaultConnection ? <p className="error-message">No general default AI connection is selected. An operation still works when it has an explicit validated operation default.</p> : null}
+          <p>An operation uses its explicit operation default first. The general default is used only when validated for that operation; AAAAT does not silently fall back to another connection.</p>
         </div>
       ) : null}
 
       {showPortability ? (
         <div className="profile-column">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Configuration portability</p>
-              <h2>Portable AI setup</h2>
-            </div>
-          </div>
+          <div className="section-heading"><div><p className="eyebrow">Configuration portability</p><h2>Portable AI setup</h2></div></div>
           {view === "portability" && error ? <p className="error-message" role="alert">{error}</p> : null}
-          <p>
-            Export or import connection names, local endpoints, models and the general default. This is configuration portability, not a workspace backup; local IDs and capability validation are excluded.
-          </p>
+          <p>Export or import connection names, local endpoints, models and the general default. This is configuration portability, not a workspace backup; local IDs and capability validation are excluded.</p>
           <div className="button-row">
-            <button
-              type="button"
-              className="compact-secondary"
-              disabled={portabilityBusy !== null}
-              onClick={() => void exportPortable()}
-            >
-              {portabilityBusy === "export" ? "Exporting…" : "Export AI setup"}
-            </button>
-            <button
-              type="button"
-              className="compact-secondary"
-              disabled={portabilityBusy !== null}
-              onClick={() => void importPortable()}
-            >
-              {portabilityBusy === "import" ? "Importing…" : "Import AI setup"}
-            </button>
+            <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void exportPortable()}>{portabilityBusy === "export" ? "Exporting…" : "Export AI setup"}</button>
+            <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void importPortable()}>{portabilityBusy === "import" ? "Importing…" : "Import AI setup"}</button>
           </div>
           {portabilityStatus ? <p role="status">{portabilityStatus}</p> : null}
         </div>
