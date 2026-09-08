@@ -10,6 +10,7 @@ import type {
 } from "../shared/contracts";
 import type { FocusMaterialPreferences } from "../shared/focus-contracts";
 import type { TodoRecord } from "../shared/todo-contracts";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 export type FocusDestination = "information";
 
@@ -63,6 +64,7 @@ export function CandidatureFocusPanel({
   onSelectConcept,
   onNavigate,
 }: Props) {
+  const { openDocumentFromCandidature } = useContextualHandoffs();
   const [materialPreferences, setMaterialPreferences] =
     useState<FocusMaterialPreferences>(defaultMaterialPreferences);
   const [sources, setSources] = useState<CandidatureSource[]>([]);
@@ -305,16 +307,36 @@ export function CandidatureFocusPanel({
         </section>
       ) : null}
 
-      {materialPreferences.documents && associatedDocuments.length > 0 ? (
-        <section className="focus-documents">
-          <h4>Application material</h4>
-          <ul>
-            {associatedDocuments.map((document) => (
-              <li key={document.id}>
-                {document.title} · {document.kind === "cv" ? "CV" : "cover letter"}
-              </li>
-            ))}
-          </ul>
+      {materialPreferences.documents ? (
+        <section className="focus-documents" aria-label="Application material">
+          <div className="section-heading">
+            <h4>Application material</h4>
+            <button
+              type="button"
+              className="compact-secondary"
+              onClick={() => openDocumentFromCandidature(record.id)}
+            >
+              Create CV or letter for this candidature
+            </button>
+          </div>
+          {associatedDocuments.length === 0 ? (
+            <p>No associated CVs or letters yet.</p>
+          ) : (
+            <ul>
+              {associatedDocuments.map((document) => (
+                <li key={document.id}>
+                  <span>{document.title} · {document.kind === "cv" ? "CV" : "cover letter"}</span>{" "}
+                  <button
+                    type="button"
+                    className="compact-secondary"
+                    onClick={() => openDocumentFromCandidature(record.id, document.id)}
+                  >
+                    Open in CVs &amp; letters
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       ) : null}
     </section>
