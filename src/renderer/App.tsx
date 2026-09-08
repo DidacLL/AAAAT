@@ -147,7 +147,13 @@ export function App() {
     return () => { active = false; };
   }, []);
 
-  const anyDirty = candidatureDirty || documentDirty || professionalInformationDirty || settingsDirty;
+  const currentDirty =
+    productView === "candidatures"
+      ? candidatureDirty
+      : productView === "documents"
+        ? documentDirty
+        : professionalInformationDirty;
+  const anyDirty = currentDirty || settingsDirty;
 
   const resetHandoffs = () => {
     setDocumentHandoff(null);
@@ -207,7 +213,11 @@ export function App() {
   };
 
   const selectProductView = (next: ProductView) => {
+    if (next === productView && !settingsOpen) return;
     if (!leaveSettings()) return;
+    if (next !== productView && currentDirty && !window.confirm("Discard unsaved edits and leave this workspace area?")) {
+      return;
+    }
     resetHandoffs();
     setProductView(next);
   };
@@ -228,13 +238,6 @@ export function App() {
       professionalInformationHandoff,
       settingsHandoff,
       openDocumentFromCandidature: (candidatureId: string, documentId?: string) => {
-        if (
-          documentId &&
-          documentDirty &&
-          !window.confirm("Discard unsaved document edits and open this candidature document?")
-        ) {
-          return;
-        }
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
@@ -249,12 +252,6 @@ export function App() {
         setProductView("candidatures");
       },
       openProfessionalInformationItem: (documentId: string, itemId: string) => {
-        if (
-          professionalInformationDirty &&
-          !window.confirm("Discard unsaved professional-information edits and open this reusable source?")
-        ) {
-          return;
-        }
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff({ documentId, itemId });
@@ -281,20 +278,18 @@ export function App() {
         setProductView(origin);
       },
     }),
-    [
-      documentDirty,
-      documentHandoff,
-      productView,
-      professionalInformationDirty,
-      professionalInformationHandoff,
-      settingsDirty,
-      settingsHandoff,
-    ],
+    [documentHandoff, productView, professionalInformationHandoff, settingsDirty, settingsHandoff],
   );
 
   const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
   const choosing = workspacePhase === "choosing";
   const loading = workspacePhase === "loading";
+  const keepCandidaturesMounted = productView === "candidatures" || documentHandoff !== null;
+  const keepDocumentsMounted =
+    productView === "documents" ||
+    professionalInformationHandoff !== null ||
+    settingsHandoff?.origin === "documents";
+  const keepProfessionalInformationMounted = productView === "professional-information";
 
   return (
     <ContextualHandoffContext.Provider value={handoffApi}>
@@ -356,29 +351,35 @@ export function App() {
                   </div>
                 ) : null}
 
-                <div hidden={settingsOpen || productView !== "candidatures"}>
-                  <CandidaturesArea key={`candidatures-${workspace.rootPath}`} onDirtyChange={setCandidatureDirty} />
-                </div>
+                {keepCandidaturesMounted ? (
+                  <div hidden={settingsOpen || productView !== "candidatures"}>
+                    <CandidaturesArea key={`candidatures-${workspace.rootPath}`} onDirtyChange={setCandidatureDirty} />
+                  </div>
+                ) : null}
 
-                <div hidden={settingsOpen || productView !== "documents"}>
-                  <DocumentsArea key={`documents-${workspace.rootPath}`} onDirtyChange={setDocumentDirty} />
-                </div>
+                {keepDocumentsMounted ? (
+                  <div hidden={settingsOpen || productView !== "documents"}>
+                    <DocumentsArea key={`documents-${workspace.rootPath}`} onDirtyChange={setDocumentDirty} />
+                  </div>
+                ) : null}
 
-                <div hidden={settingsOpen || productView !== "professional-information"}>
-                  {professionalInformationHandoff ? (
-                    <div className="contextual-return-bar" role="status">
-                      <span>Editing reusable professional information for the current document.</span>
-                      <button className="compact-secondary" type="button" onClick={handoffApi.returnToDocument}>
-                        Return to document
-                      </button>
-                    </div>
-                  ) : null}
-                  <ProfileArea
-                    key={`professional-information-${workspace.rootPath}`}
-                    initialItemId={professionalInformationHandoff?.itemId}
-                    onDirtyChange={setProfessionalInformationDirty}
-                  />
-                </div>
+                {keepProfessionalInformationMounted ? (
+                  <div hidden={settingsOpen || productView !== "professional-information"}>
+                    {professionalInformationHandoff ? (
+                      <div className="contextual-return-bar" role="status">
+                        <span>Editing reusable professional information for the current document.</span>
+                        <button className="compact-secondary" type="button" onClick={handoffApi.returnToDocument}>
+                          Return to document
+                        </button>
+                      </div>
+                    ) : null}
+                    <ProfileArea
+                      key={`professional-information-${workspace.rootPath}`}
+                      initialItemId={professionalInformationHandoff?.itemId}
+                      onDirtyChange={setProfessionalInformationDirty}
+                    />
+                  </div>
+                ) : null}
               </section>
             </div>
           </main>
