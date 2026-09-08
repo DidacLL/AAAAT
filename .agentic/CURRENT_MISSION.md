@@ -2,7 +2,7 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#227](https://github.com/DidacLL/AAAAT/issues/227) — align the accepted CVs & letters local interaction composition and minimum-size behavior.
+**Current bounded Issue:** [#229](https://github.com/DidacLL/AAAAT/issues/229) — align the accepted Professional information local interaction composition and minimum-size behavior.
 
 Mission #204 replaces additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
@@ -43,26 +43,28 @@ Focus, Sources, application material, reminders, Concepts, Activity/provenance, 
 - Stage 7 / #221 — sparse candidature capture; PR #222 merged at `c5d7c5aaf20c909ff268198662452e22dca60469`; Verify #494 passed the selected fast/package gates and exact `720×600` sparse capture/Focus evidence.
 - Stage 8 / #223 — selected candidature local hierarchy; PR #224 merged at `c986b9731077591756250384516b5496b319e963`; Verify #499 passed selected fast/Linux package gates and exact `720×600` local-navigation evidence.
 - Stage 9 / #225 — compact candidature collection/selected transition; PR #226 merged at `50b6e133d8bc415e941f2a380582801c09a9b840`. Code head `56f89f829ebd3ceef6390cd4c1bb2943301eb176` passed Verify #501 including Fast verification, Windows/macOS/Linux packaged runtime, exact `720×600` selected/collection behavior, query/archive preservation, and zero horizontal overflow. The Issue was corrected to Class B because it was bounded local UX composition under `.agentic/DECISION_POLICY.md`.
+- Stage 10 / #227 — CVs & letters local composition; PR #228 merged at `1620f38636942fc6dd50ec9d099feab6fa9c2a35`. Exact code head `8d0a41ddd1ac9d1c5ec31e357d363a067c3f3660` passed Verify #506 including Fast verification, Windows/macOS/Linux packaged runtime, aggregate Verification gate, exact `720×600` document collection/selected transitions and local intentions with zero horizontal overflow, plus `1200×800` collection-and-selected continuity.
 
-## Stage 10 — Issue #227: CVs & letters local composition — current
+## Stage 11 — Issue #229: Professional information local composition — current
 
 The bounded implementation must:
 
-- keep standalone CV/letter selection and creation complete without candidature, AI, TeX, or a saved variation;
-- replace implementation-heavy ordinary language with **CVs & letters**, **Professional information**, **Default professional information**, and optional **Saved variation** terminology;
-- keep selected-document **Content** dominant while progressively exposing **Professional information** and **Output & ownership** as local intentions;
-- preserve existing document-specific inclusion/order/difference behavior, rendering, portable export, source ownership, retained candidature artifacts, CV disclosure/access, combined output, and direct-source preservation without changing their service/domain semantics;
-- allow local intention switching and return to collection without discarding the mounted document draft or producing false discard prompts;
-- at compact/minimum width, present document collection/create or selected document as one principal state at a time with a labeled route back;
-- keep exact `720×600` content readable, vertically scrollable, keyboard reachable, and free of horizontal clipping.
+- lead with **Professional information** and the information the user actually has rather than `Canonical profile`, `Authoritative`, `Focused variants`, or `Difference-only` implementation terminology;
+- make the ordinary state read-first and sparse-valid, with deliberate **Add information** and edit transitions rather than a permanently open creation form;
+- preserve existing profile item kinds and profile service/domain semantics;
+- keep career direction/objectives/constraints/preferences inside the same global Professional information destination while secondary to reusable professional evidence/content;
+- place **Saved variations** behind an explicit secondary entry and explain that default professional information already works without one;
+- present saved-variation differences in ordinary language such as include, move earlier/later, and alternate content while preserving existing difference semantics and capabilities;
+- preserve unrelated drafts across local Professional information states, while retaining explicit discard guards where a real dirty draft would be lost;
+- at exact `720×600`, present one principal Professional information task at a time with labeled return routes, vertical scrolling as needed, and no horizontal clipping.
 
-This slice does **not** change document/profile/artifact persistence, profile/variation semantics, candidature associations, TeX ownership/regeneration rules, provider architecture, external permission semantics, combined-export semantics, or global shell.
+This slice does **not** change profile/career-context persistence or service contracts, variant inheritance/difference semantics, document-specific ownership, AI/provider architecture, candidature behavior, CV/letter behavior, or global shell.
 
-This work is **Class B** local UX composition under `.agentic/DECISION_POLICY.md`. Merge requires focused renderer verification, relevant packaged Linux evidence at normal size and exactly `720×600`, and selected GitHub Verification gates. Independent Reviewer/Simplifier is not a mandatory gate unless the change is raised to Class C significance.
+This work is **Class B** local UX composition under `.agentic/DECISION_POLICY.md`. Merge requires focused renderer verification, packaged Linux evidence at normal size and exactly `720×600`, and selected GitHub Verification gates. Independent Reviewer/Simplifier is not a mandatory gate unless the change crosses into Class C significance.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 shell and Stage-7–9 candidature evidence remain reusable where Stage 10 does not alter their premises.
+Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 shell, Stage-7–9 candidature, and Stage-10 CV/letter evidence remain reusable where Stage 11 does not alter their premises.
 
 ## North star
 
