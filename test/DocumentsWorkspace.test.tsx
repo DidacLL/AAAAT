@@ -121,7 +121,7 @@ function installApi(currentProfile: ProfileSnapshot = profile) {
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
 }
 
-describe("manual Documents workspace", () => {
+describe("manual CVs and letters workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     list.mockResolvedValue([]);
@@ -160,13 +160,16 @@ describe("manual Documents workspace", () => {
 
   afterEach(() => cleanup());
 
-  it("creates a CV from the canonical profile by default", async () => {
+  it("creates a CV from default professional information without implementation terminology", async () => {
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
-    await screen.findByRole("heading", { name: "Documents" });
-    expect(screen.getByLabelText("Profile basis")).toHaveValue("");
+    await screen.findByRole("heading", { name: "CVs & letters" });
+    expect(screen.getByLabelText("Professional information")).toHaveValue("");
+    expect(screen.getByRole("option", { name: "Default professional information" })).toBeInTheDocument();
+    expect(screen.queryByText("Canonical profile")).not.toBeInTheDocument();
+    expect(screen.queryByText("Profile basis")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Title"), "Platform CV");
-    await user.click(screen.getByRole("button", { name: "Create document" }));
+    await user.click(screen.getByRole("button", { name: "Create CV" }));
 
     expect(create).toHaveBeenCalledWith({
       kind: "cv",
@@ -175,41 +178,74 @@ describe("manual Documents workspace", () => {
       engine: "pdflatex",
       bodyParagraphs: [],
     });
+
+    await user.click(screen.getByRole("tab", { name: "Output & ownership" }));
     expect(await screen.findByText("/tmp/workspace/documents/doc/main.tex")).toBeInTheDocument();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "AI-visible CV description" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "External CV content access" })).toBeInTheDocument();
   });
 
-  it("creates from the canonical profile when no variants exist", async () => {
+  it("creates from default professional information when no saved variations exist", async () => {
     installApi({ items: [item], variants: [] });
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
-    await screen.findByRole("heading", { name: "Documents" });
-    expect(screen.getByLabelText("Profile basis")).toHaveValue("");
-    await user.type(screen.getByLabelText("Title"), "Canonical CV");
-    await user.click(screen.getByRole("button", { name: "Create document" }));
+    await screen.findByRole("heading", { name: "CVs & letters" });
+    expect(screen.getByLabelText("Professional information")).toHaveValue("");
+    await user.type(screen.getByLabelText("Title"), "General CV");
+    await user.click(screen.getByRole("button", { name: "Create CV" }));
 
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Canonical CV", variantId: null }),
+      expect.objectContaining({ title: "General CV", variantId: null }),
     );
   });
 
-  it("can explicitly create a CV from a named profile variant", async () => {
+  it("can explicitly create a CV from a saved variation", async () => {
     create.mockResolvedValueOnce(record({ variantId: variant.id }));
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
-    await screen.findByRole("heading", { name: "Documents" });
+    await screen.findByRole("heading", { name: "CVs & letters" });
     await user.type(screen.getByLabelText("Title"), "Focused CV");
-    await user.selectOptions(screen.getByLabelText("Profile basis"), variant.id);
-    await user.click(screen.getByRole("button", { name: "Create document" }));
+    await user.selectOptions(screen.getByLabelText("Professional information"), variant.id);
+    await user.click(screen.getByRole("button", { name: "Create CV" }));
 
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Focused CV", variantId: variant.id }),
     );
+    await user.click(screen.getByRole("tab", { name: "Professional information" }));
+    expect(screen.getByText(/saved variation “Platform focus”/)).toBeInTheDocument();
   });
 
-  it("edits structured cover-letter content through the document service without exposing CV external controls", async () => {
+  it("preserves a dirty document while switching local intentions and returning to collection", async () => {
+    const document = record();
+    list.mockResolvedValueOnce([document]);
+    resolve.mockResolvedValue({ document, items: [item] });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<DocumentsWorkspace />);
+
+    const collectionButton = await screen.findByRole("button", { name: /Platform CV/ });
+    const workspace = screen.getByRole("region", { name: "CVs & letters" });
+    await user.click(collectionButton);
+    expect(workspace).toHaveClass("compact-document-detail");
+
+    const titleInput = screen.getByLabelText("Title");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Unsaved platform CV");
+    await user.click(screen.getByRole("tab", { name: "Professional information" }));
+    await user.click(screen.getByRole("tab", { name: "Output & ownership" }));
+    await user.click(screen.getByRole("tab", { name: "Content" }));
+    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved platform CV");
+    expect(confirm).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Back to CVs & letters" }));
+    expect(workspace).not.toHaveClass("compact-document-detail");
+    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved platform CV");
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it("edits cover-letter content through the document service without exposing CV-only controls", async () => {
     const cover = record({
       kind: "cover_letter",
       title: "Cover letter",
@@ -220,11 +256,15 @@ describe("manual Documents workspace", () => {
     });
     list.mockResolvedValueOnce([cover]);
     resolve.mockResolvedValue({ document: cover, items: [item] });
-    update.mockResolvedValue({ ...cover, recipient: "Hiring manager", bodyParagraphs: ["Edited paragraph"] });
+    update.mockResolvedValue({
+      ...cover,
+      recipient: "Hiring manager",
+      bodyParagraphs: ["Edited paragraph"],
+    });
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
 
-    const saveButton = await screen.findByRole("button", { name: "Save structured content" });
+    const saveButton = await screen.findByRole("button", { name: "Save changes" });
     expect(screen.queryByRole("heading", { name: "AI-visible CV description" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "External CV content access" })).not.toBeInTheDocument();
     expect(currentCvDescriptor).not.toHaveBeenCalled();
@@ -247,14 +287,15 @@ describe("manual Documents workspace", () => {
     );
   });
 
-  it("keeps manual TeX preservation explicit before overwrite", async () => {
+  it("keeps direct source preservation explicit before deliberate replacement", async () => {
     const manual = record({ mode: "manual" });
     list.mockResolvedValueOnce([manual]);
     resolve.mockResolvedValue({ document: manual, items: [item] });
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
 
-    expect(await screen.findByText(/Direct TeX edits were detected/)).toBeInTheDocument();
+    expect(await screen.findByText(/Direct source edits were detected/)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Output & ownership" }));
     await user.click(screen.getByRole("button", { name: "Replace manual source from structured data" }));
     expect(regenerate).toHaveBeenCalledWith(manual.id);
   });
@@ -267,6 +308,8 @@ describe("manual Documents workspace", () => {
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
 
+    await screen.findByRole("heading", { name: "Platform CV" });
+    await user.click(screen.getByRole("tab", { name: "Output & ownership" }));
     const retain = await screen.findByRole("button", { name: "Retain application artifact" });
     expect(screen.getByLabelText("Candidature")).toHaveValue(candidature.id);
     await user.click(retain);
