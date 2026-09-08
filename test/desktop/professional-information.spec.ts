@@ -181,7 +181,7 @@ test("packaged Professional information is read-first and compact-task oriented"
     const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
     await primary.getByRole("button", { name: "Professional information" }).click();
     const workspace = running.page.getByRole("region", { name: "Professional information" });
-    await expect(workspace.getByRole("heading", { name: "Professional information" })).toBeVisible();
+    await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
     await expect(workspace.getByRole("button", { name: "Add information" })).toBeVisible();
     await expect(running.page.getByText("Canonical profile", { exact: true })).toHaveCount(0);
     await expect(running.page.getByText("Focused variants", { exact: true })).toHaveCount(0);
