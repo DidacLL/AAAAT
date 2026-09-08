@@ -2,7 +2,7 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#231](https://github.com/DidacLL/AAAAT/issues/231) — compose secondary Settings around accepted administration intentions and minimum-size behavior.
+**Current bounded Issue:** [#233](https://github.com/DidacLL/AAAAT/issues/233) — implement the accepted contextual handoffs and exact return paths between existing work areas.
 
 Mission #204 replaces additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
@@ -45,30 +45,29 @@ Focus, Sources, application material, reminders, Concepts, Activity/provenance, 
 - Stage 9 / #225 — compact candidature collection/selected transition; PR #226 merged at `50b6e133d8bc415e941f2a380582801c09a9b840`. Code head `56f89f829ebd3ceef6390cd4c1bb2943301eb176` passed Verify #501 including Fast verification, Windows/macOS/Linux packaged runtime, exact `720×600` selected/collection behavior, query/archive preservation, and zero horizontal overflow. The Issue was corrected to Class B because it was bounded local UX composition under `.agentic/DECISION_POLICY.md`.
 - Stage 10 / #227 — CVs & letters local composition; PR #228 merged at `1620f38636942fc6dd50ec9d099feab6fa9c2a35`. Exact code head `8d0a41ddd1ac9d1c5ec31e357d363a067c3f3660` passed Verify #506 including Fast verification, Windows/macOS/Linux packaged runtime, aggregate Verification gate, exact `720×600` document collection/selected transitions and local intentions with zero horizontal overflow, plus `1200×800` collection-and-selected continuity.
 - Stage 11 / #229 — Professional information local composition; PR #230 merged at `bc54c4060ed213d17593c50f29afa1f41354ac07`. Exact code head `bf4ec70cb878317e652674eef48696ade55e9733` passed Verify #512 after an infrastructure-only Linux retry, including Fast verification, Windows/macOS/Linux packaged runtime, aggregate Verification gate, and exact `720×600` Professional information overview/item-editor/Saved-variations evidence with zero horizontal overflow.
+- Stage 12 / #231 — Settings local composition; PR #232 merged at `ed372dacad18393e842b0ffe9e9769629d11002f`. Exact code head `307fe1a159efeb60e98f706e09e1a2c25d5e8f17` passed Verify #514 including Fast verification, Windows/macOS/Linux packaged runtime, aggregate Verification gate, and exact `720×600` Settings overview/AI-add/rendering/portability/return evidence with zero horizontal overflow.
 
-## Stage 12 — Issue #231: Settings local interaction composition — current
+## Stage 13 — Issue #233: contextual handoff integration — current
 
-The bounded implementation must:
+The bounded implementation must complete the already-accepted cross-context flows without reopening IA:
 
-- open Settings to a concise intention-based overview rather than one long additive administration page;
-- expose local Settings intentions for **Workspace**, **Backup & recovery**, **Document rendering**, **AI connections**, and **Portability & external tools**, using existing capabilities only;
-- show useful status/summary first and enter deeper controls deliberately;
-- keep workspace ownership recognizable without exposing database/migration internals;
-- preserve existing backup/restore dirty-state and failure guarantees;
-- present document-rendering availability first, with technical command/path/version detail secondary;
-- state plainly that AI is optional, retain existing connection CRUD/validation/default behavior, and hide add/edit fields until deliberately requested;
-- keep configuration portability distinct from workspace backup and external-tool guidance explicit about host/tool permissions AAAAT does not control;
-- protect real dirty Settings drafts across local Settings transitions and return-to-work without adding routine confirmation noise;
-- at exact `720×600`, show one principal Settings administration task at a time with labeled return routes, vertical scrolling as needed, and no horizontal clipping.
+- Candidature X application material can open an associated CV/letter in the shared **CVs & letters** destination, or start new CV/letter work for that candidature;
+- document work shows explicit candidature context and a labeled return that restores the originating candidature surface;
+- document Professional information can open the contributing reusable source item in the shared **Professional information** destination and return to the same document;
+- document rendering failure can enter **Settings / Document rendering** directly and return to the same document;
+- an existing optional-AI action that fails because assistance is unavailable can offer **Settings / AI connections** and return to the originating work context;
+- contextual visits preserve mounted origin state when safe rather than inventing persisted navigation history or unnecessary discard prompts;
+- dirty drafts are never silently destroyed; workspace switching and destructive local transitions retain their existing explicit protections;
+- exact `720×600` keeps contextual cues and return actions labeled/reachable with vertical scrolling and no horizontal clipping.
 
-This slice does **not** change workspace/recovery, setup-environment, AI-connection, portability, provider, persistence, candidature, document, profile, or global-shell service contracts, and does not add navigation/state/design-system/framework dependencies.
+Implementation is limited to the smallest App/renderer coordination needed for these concrete flows. No router, generic history stack, event bus, global state library, persistence schema, service-authority change, provider semantic change, or new dependency is authorized.
 
-This work is **Class B** local UX composition under `.agentic/DECISION_POLICY.md`. Merge requires focused renderer verification, packaged Linux evidence at normal size and exactly `720×600`, and selected GitHub Verification gates. Independent Reviewer/Simplifier is not a mandatory gate unless implementation crosses into Class C significance.
+This work is **Class C** because it intentionally coordinates multiple accepted destinations. Merge requires focused renderer tests, packaged Linux cross-context evidence at normal size and exactly `720×600`, selected GitHub Verification gates, and independent exact-head Reviewer `MERGE` plus Skeptical Simplifier `PASS`.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 shell, Stage-7–9 candidature, Stage-10 CV/letter, and Stage-11 Professional information evidence remain reusable where Stage 12 does not alter their premises.
+Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 shell, Stage-7–9 candidature, Stage-10 CV/letter, Stage-11 Professional information, and Stage-12 Settings evidence remain reusable where Stage 13 does not alter their premises.
 
 ## North star
 
-Users can retain job-related material without organizing it first, find and recall candidature context quickly, inspect/edit important information and Sources, work with application documents in context or independently, maintain reusable professional information without schema/variant ceremony, work completely without AI, configure secondary administration without it dominating the product, and inspect deeper ownership/privacy/provenance when desired.
+Users can retain job-related material without organizing it first, find and recall candidature context quickly, inspect/edit important information and Sources, work with application documents in context or independently, maintain reusable professional information without schema/variant ceremony, work completely without AI, configure secondary administration without it dominating the product, and move between contextual work surfaces without losing orientation or drafts.
