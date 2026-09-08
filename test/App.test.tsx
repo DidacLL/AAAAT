@@ -149,11 +149,7 @@ describe("AAAAT workspace state", () => {
   it("creates a user-owned workspace with the accepted primary work destinations", async () => {
     const user = userEvent.setup();
     render(<App />);
-    expect(
-      await screen.findByRole("heading", {
-        name: "Choose where AAAAT should keep your career workspace.",
-      }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Choose where AAAAT should keep your career workspace." })).toBeInTheDocument();
     expect(screen.getByText(/workspace data stays local/i)).toBeInTheDocument();
     expect(screen.getByText(/works without AI/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Create workspace" }));
@@ -177,9 +173,7 @@ describe("AAAAT workspace state", () => {
     restore.mockResolvedValueOnce({ status: "restored", workspace: restoredWorkspace });
     const user = userEvent.setup();
     render(<App />);
-
     await user.click(await screen.findByRole("button", { name: "Restore workspace backup" }));
-
     expect(restore).toHaveBeenCalledTimes(1);
     expect(await screen.findByText(restoredWorkspace.rootPath)).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Primary work areas" })).toBeInTheDocument();
@@ -191,11 +185,7 @@ describe("AAAAT workspace state", () => {
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "Open existing workspace" }));
     expect(choose).toHaveBeenCalledWith("open");
-    expect(
-      screen.getByRole("heading", {
-        name: "Choose where AAAAT should keep your career workspace.",
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Choose where AAAAT should keep your career workspace." })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -211,7 +201,6 @@ describe("AAAAT workspace state", () => {
     current.mockResolvedValueOnce(readyWorkspace);
     const user = userEvent.setup();
     render(<App />);
-
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "ToDos" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Reminders" }));
@@ -222,14 +211,13 @@ describe("AAAAT workspace state", () => {
     current.mockResolvedValueOnce(readyWorkspace);
     const user = userEvent.setup();
     render(<App />);
-
     await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
     expect(screen.queryByRole("heading", { name: "Document assistance" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Optional AI assistance" }));
     expect(await screen.findByRole("heading", { name: "Document assistance" })).toBeInTheDocument();
   });
 
-  it("exposes recovery controls through secondary Settings and keeps the current workspace when restore fails", async () => {
+  it("exposes recovery through its Settings intention and keeps the current workspace when restore fails", async () => {
     current.mockResolvedValueOnce(readyWorkspace);
     restore.mockRejectedValueOnce(new Error("invalid backup"));
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -237,12 +225,12 @@ describe("AAAAT workspace state", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "Settings" }));
+    expect(await screen.findByRole("region", { name: "Settings overview" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Backup & recovery/ }));
     expect(await screen.findByRole("button", { name: "Back up workspace" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Restore workspace backup" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "AAAAT could not restore that backup. The current workspace was not changed.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("AAAAT could not restore that backup. The current workspace was not changed.");
     expect(screen.getByText(readyWorkspace.rootPath)).toBeInTheDocument();
   });
 
