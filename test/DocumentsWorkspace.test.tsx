@@ -229,18 +229,19 @@ describe("manual CVs and letters workspace", () => {
     await user.click(collectionButton);
     expect(workspace).toHaveClass("compact-document-detail");
 
-    const titleInput = screen.getByLabelText("Title");
+    const content = screen.getByRole("tabpanel", { name: "Document content" });
+    const titleInput = within(content).getByLabelText("Title");
     await user.clear(titleInput);
     await user.type(titleInput, "Unsaved platform CV");
     await user.click(screen.getByRole("tab", { name: "Professional information" }));
     await user.click(screen.getByRole("tab", { name: "Output & ownership" }));
     await user.click(screen.getByRole("tab", { name: "Content" }));
-    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved platform CV");
+    expect(within(content).getByLabelText("Title")).toHaveValue("Unsaved platform CV");
     expect(confirm).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Back to CVs & letters" }));
     expect(workspace).not.toHaveClass("compact-document-detail");
-    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved platform CV");
+    expect(within(content).getByLabelText("Title")).toHaveValue("Unsaved platform CV");
     expect(confirm).not.toHaveBeenCalled();
     confirm.mockRestore();
   });
