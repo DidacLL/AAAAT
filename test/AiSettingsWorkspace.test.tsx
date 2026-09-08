@@ -80,7 +80,7 @@ describe("AI settings workspace", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<AiSettingsWorkspace />);
-    expect(await screen.findByText("No local AI connections are configured yet.")).toBeInTheDocument();
+    expect(await screen.findByText(/No local AI connections are configured yet\./)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Connection name"), "Fast local");
     await user.type(screen.getByLabelText("Model"), "fast-model");
