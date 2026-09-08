@@ -2,7 +2,7 @@
 
 **Mission:** [Issue #204](https://github.com/DidacLL/AAAAT/issues/204), based on accepted alpha main `90b578064030ce863c9eb912f854f08559fd4777`.
 
-**Current bounded Issue:** [#225](https://github.com/DidacLL/AAAAT/issues/225) — implement the accepted minimum-size candidature collection/selected transition.
+**Current bounded Issue:** [#227](https://github.com/DidacLL/AAAAT/issues/227) — align the accepted CVs & letters local interaction composition and minimum-size behavior.
 
 Mission #204 replaces additive-development presentation with one coherent product UX while preserving accepted functionality, privacy/security, local ownership, human/no-AI operation, document authority, and portability gates.
 
@@ -39,30 +39,30 @@ Focus, Sources, application material, reminders, Concepts, Activity/provenance, 
 - Stage 3 / #212 — reusable professional information; PR #214 merged at `f2a9c22d57916a2e0e3f08d250f87b012c6fa407`.
 - Stage 4 / #215 — Settings/setup/recovery; PR #216 merged at `b258b2f3633083e15daf3d5febf0998fec85a6b0`.
 - Stage 5 / #217 — global shell/navigation synthesis; PR #218 merged at `4e1fe7ee987fb87cd85cbfbdfe1e148de8f38a5b`.
-- Stage 6 / #219 — accepted global shell implementation; PR #220 merged at `63dbda8d31f60e16e0076f7cde6cdb6046d7a9a5` after exact-head Reviewer `MERGE`, Simplifier `PASS`, full packaged verification, and exact `720×600` Linux evidence.
-- Stage 7 / #221 — sparse candidature capture; PR #222 merged at `c5d7c5aaf20c909ff268198662452e22dca60469`. Exact reviewed head `cb341e18f338fd99a09d44431d4adab6aaf5bbe0` passed Verify run #494 including Fast verification, Windows/macOS/Linux packaged runtime, sparse capture/Focus evidence, exact `720×600` Linux evidence, and Verification gate; independent Reviewer returned `MERGE` and Skeptical Simplifier returned `PASS`.
-- Stage 8 / #223 — selected candidature local hierarchy; PR #224 merged at `c986b9731077591756250384516b5496b319e963`. Exact reviewed head `3ccbffca9a6d6896f5aec5832f826b0be272d732` passed Verify run #499 including Fast verification, Linux packaged runtime, exact `720×600` local-navigation evidence, and Verification gate; independent Reviewer returned `MERGE` and Skeptical Simplifier returned `PASS`.
+- Stage 6 / #219 — accepted global shell implementation; PR #220 merged at `63dbda8d31f60e16e0076f7cde6cdb6046d7a9a5` after full packaged verification and exact `720×600` Linux evidence.
+- Stage 7 / #221 — sparse candidature capture; PR #222 merged at `c5d7c5aaf20c909ff268198662452e22dca60469`; Verify #494 passed the selected fast/package gates and exact `720×600` sparse capture/Focus evidence.
+- Stage 8 / #223 — selected candidature local hierarchy; PR #224 merged at `c986b9731077591756250384516b5496b319e963`; Verify #499 passed selected fast/Linux package gates and exact `720×600` local-navigation evidence.
+- Stage 9 / #225 — compact candidature collection/selected transition; PR #226 merged at `50b6e133d8bc415e941f2a380582801c09a9b840`. Code head `56f89f829ebd3ceef6390cd4c1bb2943301eb176` passed Verify #501 including Fast verification, Windows/macOS/Linux packaged runtime, exact `720×600` selected/collection behavior, query/archive preservation, and zero horizontal overflow. The Issue was corrected to Class B because it was bounded local UX composition under `.agentic/DECISION_POLICY.md`.
 
-## Stage 9 — Issue #225: minimum-size candidature transition — current
+## Stage 10 — Issue #227: CVs & letters local composition — current
 
 The bounded implementation must:
 
-- preserve the accepted wide desktop collection + selected-candidature composition where space permits;
-- at compact/minimum candidature width, present one principal state at a time: **collection/search** or **selected candidature**;
-- enter compact candidature work through collection/search even when a record is internally selected for wide-layout continuity;
-- open the selected candidature state after deliberate selection or successful sparse capture;
-- keep candidature identity and the four accepted local intentions visible/reachable in selected compact context;
-- provide a labeled route back to collection/search while preserving query/filter/archive state;
-- preserve dirty drafts when returning to collection because that presentation transition does not destroy the selected candidature state, while retaining existing guards for real destructive boundaries;
+- keep standalone CV/letter selection and creation complete without candidature, AI, TeX, or a saved variation;
+- replace implementation-heavy ordinary language with **CVs & letters**, **Professional information**, **Default professional information**, and optional **Saved variation** terminology;
+- keep selected-document **Content** dominant while progressively exposing **Professional information** and **Output & ownership** as local intentions;
+- preserve existing document-specific inclusion/order/difference behavior, rendering, portable export, source ownership, retained candidature artifacts, CV disclosure/access, combined output, and direct-source preservation without changing their service/domain semantics;
+- allow local intention switching and return to collection without discarding the mounted document draft or producing false discard prompts;
+- at compact/minimum width, present document collection/create or selected document as one principal state at a time with a labeled route back;
 - keep exact `720×600` content readable, vertically scrollable, keyboard reachable, and free of horizontal clipping.
 
-This slice does **not** redesign search/filter semantics, result identity, sparse capture, selected-candidature hierarchy, VCVGenerator, professional information, Settings, persistence/domain authority, fields, Concepts, reminders, provider architecture, or global shell.
+This slice does **not** change document/profile/artifact persistence, profile/variation semantics, candidature associations, TeX ownership/regeneration rules, provider architecture, external permission semantics, combined-export semantics, or global shell.
 
-This work is **Class B** local UX composition under `.agentic/DECISION_POLICY.md`. Merge requires focused renderer verification, packaged Linux state-transition evidence at normal size and exactly `720×600`, and the selected GitHub Verification gates. Independent Reviewer/Simplifier assessment is not a mandatory gate unless review raises the change to Class C significance.
+This work is **Class B** local UX composition under `.agentic/DECISION_POLICY.md`. Merge requires focused renderer verification, relevant packaged Linux evidence at normal size and exactly `720×600`, and selected GitHub Verification gates. Independent Reviewer/Simplifier is not a mandatory gate unless the change is raised to Class C significance.
 
 ## Evidence to reuse
 
-Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 global-shell, Stage-7 sparse-capture, and Stage-8 selected-hierarchy evidence remain reusable where Stage 9 does not alter their premises.
+Integrated alpha acceptance PR #203 merged at `90b578064030ce863c9eb912f854f08559fd4777`. Stage-6 shell and Stage-7–9 candidature evidence remain reusable where Stage 10 does not alter their premises.
 
 ## North star
 
