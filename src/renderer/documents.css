@@ -26,7 +26,8 @@
 
 .document-create label,
 .document-fields label,
-.document-item label {
+.document-item label,
+.document-output-support label {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -41,7 +42,8 @@
 .document-fields select,
 .document-fields textarea,
 .document-item input,
-.document-item textarea {
+.document-item textarea,
+.document-output-support select {
   width: 100%;
   padding: 9px 10px;
   border: 1px solid var(--line);
@@ -73,7 +75,8 @@
   text-align: left;
 }
 
-.document-list button span {
+.document-list button span,
+.document-list > p {
   color: var(--muted-ink);
   font-size: 12px;
 }
@@ -88,10 +91,51 @@
   border-left: 1px solid var(--line);
 }
 
+.compact-document-back {
+  display: none;
+}
+
+.document-context-heading {
+  margin-bottom: 14px;
+}
+
+.document-local-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.document-local-nav button {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+}
+
+.document-local-nav .active-document-view {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.document-local-panel,
+.document-output-support {
+  min-width: 0;
+}
+
 .document-fields,
 .document-items,
-.document-paths {
+.document-paths,
+.document-output-support {
   margin-top: 18px;
+}
+
+.document-section-intro {
+  margin: 0 0 14px;
+  color: var(--muted-ink);
 }
 
 .wide-field {
@@ -107,13 +151,18 @@
 
 .document-actions button,
 .document-item-actions button,
-.manual-source-warning button {
+.manual-source-warning button,
+.compact-document-back {
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 7px;
   color: var(--ink);
   background: #fffdf9;
   cursor: pointer;
+}
+
+.document-output-actions {
+  margin-bottom: 14px;
 }
 
 .document-paths {
@@ -126,7 +175,7 @@
 
 .document-paths p {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 88px minmax(0, 1fr);
   gap: 8px;
   margin: 0;
 }
@@ -183,30 +232,21 @@
   color: var(--muted-ink);
 }
 
+.document-advanced {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.document-advanced summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
 .document-empty {
   padding: 56px 24px;
   text-align: center;
-}
-
-.product-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 22px;
-}
-
-.product-tabs button {
-  padding: 9px 15px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--ink);
-  background: transparent;
-  cursor: pointer;
-}
-
-.product-tabs .active-product-tab {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #fff;
 }
 
 @media (max-width: 900px) {
@@ -218,6 +258,20 @@
     padding-left: 0;
     border-left: 0;
   }
+
+  .documents-workspace:not(.compact-document-detail) .document-editor {
+    display: none;
+  }
+
+  .compact-document-detail .documents-sidebar {
+    display: none;
+  }
+
+  .compact-document-back {
+    display: inline-flex;
+    width: fit-content;
+    margin-bottom: 12px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -228,5 +282,13 @@
 
   .wide-field {
     grid-column: auto;
+  }
+
+  .document-local-nav button {
+    flex: 1 1 140px;
+  }
+
+  .document-paths p {
+    grid-template-columns: 1fr;
   }
 }

@@ -14,6 +14,8 @@ import { CvAssistantDescriptorPanel } from "./CvAssistantDescriptorPanel";
 import { CvExternalContentAccessPanel } from "./CvExternalContentAccessPanel";
 import "./documents.css";
 
+type DocumentView = "content" | "professional-information" | "output";
+
 function optional(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed.length === 0 ? undefined : trimmed;
@@ -53,6 +55,8 @@ export function DocumentsWorkspace({
   const [artifacts, setArtifacts] = useState<ApplicationArtifactRecord[]>([]);
   const [capturingArtifact, setCapturingArtifact] = useState(false);
   const [descriptorDirty, setDescriptorDirty] = useState(false);
+  const [documentView, setDocumentView] = useState<DocumentView>("content");
+  const [compactDocumentOpen, setCompactDocumentOpen] = useState(false);
 
   const [newKind, setNewKind] = useState<DocumentKind>("cv");
   const [newTitle, setNewTitle] = useState("");
@@ -98,10 +102,7 @@ export function DocumentsWorkspace({
       body !== selected.bodyParagraphs.join("\n\n") ||
       closing !== (selected.closing ?? "")
     : false;
-  const newDocumentDirty =
-    newKind !== "cv" ||
-    newTitle.length > 0 ||
-    newVariantId !== "";
+  const newDocumentDirty = newKind !== "cv" || newTitle.length > 0 || newVariantId !== "";
 
   useEffect(() => {
     onDirtyChange?.(editorDirty || newDocumentDirty || descriptorDirty);
@@ -169,7 +170,7 @@ export function DocumentsWorkspace({
         }
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load documents.");
+        if (active) setError("AAAAT could not load CVs and letters.");
       });
     return () => {
       active = false;
@@ -196,8 +197,10 @@ export function DocumentsWorkspace({
       });
       setNewTitle("");
       await acceptSavedDocument(created);
+      setDocumentView("content");
+      setCompactDocumentOpen(true);
     } catch {
-      setError("Check the document title and profile basis.");
+      setError("Check the document title and professional information.");
     }
   };
 
@@ -219,14 +222,17 @@ export function DocumentsWorkspace({
           closing: optional(closing),
         }),
       );
-      setNotice("Structured document content saved.");
+      setNotice("Document changes saved.");
     } catch {
       setError("Check the document fields and try again.");
     }
   };
 
   const select = async (document: DocumentRecord) => {
-    if (document.id === selectedId) return;
+    if (document.id === selectedId) {
+      setCompactDocumentOpen(true);
+      return;
+    }
     if (
       (editorDirty || descriptorDirty) &&
       !window.confirm("Discard unsaved document edits and switch documents?")
@@ -235,6 +241,8 @@ export function DocumentsWorkspace({
     }
     setSelectedId(document.id);
     fillEditor(document);
+    setDocumentView("content");
+    setCompactDocumentOpen(true);
     setError(null);
     setNotice(null);
     try {
@@ -261,6 +269,8 @@ export function DocumentsWorkspace({
       setSelectedId(first?.id ?? null);
       setBaseItems([]);
       setResolvedCount(0);
+      setDocumentView("content");
+      setCompactDocumentOpen(false);
       if (first) {
         fillEditor(first);
         await refreshResolved(first);
@@ -273,7 +283,7 @@ export function DocumentsWorkspace({
   const render = async () => {
     if (!selected) return;
     if (editorDirty) {
-      setError("Save structured content before rendering the persisted document.");
+      setError("Save document changes before rendering.");
       return;
     }
     setError(null);
@@ -290,7 +300,7 @@ export function DocumentsWorkspace({
   const exportProject = async () => {
     if (!selected) return;
     if (editorDirty) {
-      setError("Save structured content before exporting the persisted document.");
+      setError("Save document changes before exporting the portable project.");
       return;
     }
     setError(null);
@@ -306,7 +316,7 @@ export function DocumentsWorkspace({
   const regenerate = async () => {
     if (!selected) return;
     if (editorDirty) {
-      setError("Save structured content before regenerating managed source.");
+      setError("Save document changes before replacing generated source.");
       return;
     }
     setError(null);
@@ -314,7 +324,7 @@ export function DocumentsWorkspace({
     try {
       const regenerated = await window.aaaat.documents.regenerate(selected.id);
       await acceptAdjacentDocument(regenerated);
-      setNotice("Managed source regenerated from structured content.");
+      setNotice("Generated data refreshed from the current document information.");
     } catch {
       setError("AAAAT could not regenerate the managed document source.");
     }
@@ -333,7 +343,7 @@ export function DocumentsWorkspace({
   const captureArtifact = async () => {
     if (!selected || !artifactCandidatureId || !canCaptureArtifact) return;
     if (editorDirty) {
-      setError("Save structured content before retaining an application artifact.");
+      setError("Save document changes before retaining an application artifact.");
       return;
     }
     setCapturingArtifact(true);
@@ -382,7 +392,7 @@ export function DocumentsWorkspace({
         }),
       );
     } catch {
-      setError("AAAAT could not apply that document-specific item rule.");
+      setError("AAAAT could not apply that document-specific change.");
     }
   };
 
@@ -408,168 +418,376 @@ export function DocumentsWorkspace({
   };
 
   if (!profile) {
-    return <section className="documents-workspace"><p>{error ?? "Loading documents..."}</p></section>;
+    return (
+      <section className="documents-workspace" aria-label="CVs & letters">
+        <p>{error ?? "Loading CVs and letters..."}</p>
+      </section>
+    );
   }
 
+  const selectedVariation = selected?.variantId
+    ? profile.variants.find((variant) => variant.id === selected.variantId)?.name ?? "Saved variation"
+    : null;
+
   return (
-    <section className="documents-workspace" aria-label="Documents">
+    <section
+      className={`documents-workspace${compactDocumentOpen && selected ? " compact-document-detail" : ""}`}
+      aria-label="CVs & letters"
+    >
       <div className="documents-sidebar">
         <div className="section-heading">
-          <div><p className="eyebrow">VCVGenerator</p><h2>Documents</h2></div>
+          <div>
+            <p className="eyebrow">Working documents</p>
+            <h2>CVs & letters</h2>
+          </div>
           <span>{documents.length}</span>
         </div>
 
         <form className="document-create" onSubmit={(event) => void create(event)}>
-          <label>Type<select value={newKind} onChange={(event) => setNewKind(event.target.value as DocumentKind)}><option value="cv">CV</option><option value="cover_letter">Cover letter</option></select></label>
-          <label>Title<input required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} /></label>
-          <label>Profile basis<select value={newVariantId} onChange={(event) => setNewVariantId(event.target.value)}><option value="">Canonical profile</option>{profile.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label>
-          <button className="compact-primary" type="submit">Create document</button>
+          <label>
+            Type
+            <select
+              value={newKind}
+              onChange={(event) => setNewKind(event.target.value as DocumentKind)}
+            >
+              <option value="cv">CV</option>
+              <option value="cover_letter">Cover letter</option>
+            </select>
+          </label>
+          <label>
+            Title
+            <input required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} />
+          </label>
+          <label>
+            Professional information
+            <select value={newVariantId} onChange={(event) => setNewVariantId(event.target.value)}>
+              <option value="">Default professional information</option>
+              {profile.variants.length > 0 ? (
+                <optgroup label="Saved variations">
+                  {profile.variants.map((variant) => (
+                    <option key={variant.id} value={variant.id}>{variant.name}</option>
+                  ))}
+                </optgroup>
+              ) : null}
+            </select>
+          </label>
+          <button className="compact-primary" type="submit">
+            {newKind === "cv" ? "Create CV" : "Create cover letter"}
+          </button>
         </form>
 
-        <div className="document-list">
+        <div className="document-list" aria-label="Working CVs and letters">
+          {documents.length === 0 ? <p>No CVs or letters yet.</p> : null}
           {documents.map((document) => (
-            <button className={document.id === selectedId ? "active-document" : ""} type="button" key={document.id} onClick={() => void select(document)}>
-              <strong>{document.title}</strong><span>{document.kind === "cv" ? "CV" : "Cover letter"}</span>
+            <button
+              className={document.id === selectedId ? "active-document" : ""}
+              type="button"
+              key={document.id}
+              onClick={() => void select(document)}
+            >
+              <strong>{document.title}</strong>
+              <span>{document.kind === "cv" ? "CV" : "Cover letter"}</span>
             </button>
           ))}
         </div>
       </div>
 
       <div className="document-editor">
+        {selected ? (
+          <button
+            className="compact-document-back"
+            type="button"
+            onClick={() => setCompactDocumentOpen(false)}
+          >
+            Back to CVs & letters
+          </button>
+        ) : null}
         {error ? <p className="error-message" role="alert">{error}</p> : null}
         {notice ? <p className="document-notice" role="status">{notice}</p> : null}
+
         {!selected ? (
-          <div className="document-empty"><h2>Create a manual CV or cover letter.</h2><p>Start from your canonical profile, optionally apply a focused variant, then specialize the document without changing your profile.</p></div>
+          <div className="document-empty">
+            <h2>Create a CV or cover letter.</h2>
+            <p>
+              Start with your default professional information or an optional saved variation. AI and local rendering are not required to create or edit a document.
+            </p>
+          </div>
         ) : (
           <>
-            <div className="section-heading"><div><p className="eyebrow">{selected.mode === "managed" ? "Managed source" : "Manual TeX mode"}</p><h2>{selected.title}</h2></div><span>{resolvedCount} selected items</span></div>
-            {editorDirty ? <p className="document-notice">Unsaved structured edits are local. Save before rendering, exporting, or retaining application material.</p> : null}
-            {selected.mode === "manual" ? (
-              <div className="manual-source-warning"><p>Direct TeX edits were detected. AAAAT will preserve them and will not silently regenerate the source.</p><button type="button" disabled={editorDirty} onClick={() => void regenerate()}>Replace manual source from structured data</button></div>
-            ) : null}
+            <div className="section-heading document-context-heading">
+              <div>
+                <p className="eyebrow">{selected.kind === "cv" ? "CV" : "Cover letter"}</p>
+                <h2>{selected.title}</h2>
+              </div>
+              <span>{editorDirty || descriptorDirty ? "Unsaved changes" : "Working document"}</span>
+            </div>
 
-            <form className="document-fields" onSubmit={(event) => void save(event)}>
-              <label>Title<input required value={title} onChange={(event) => setTitle(event.target.value)} /></label>
-              <label>Language<input value={language} onChange={(event) => setLanguage(event.target.value)} /></label>
-              {selected.kind === "cover_letter" ? (
-                <>
-                  <label>Recipient<input value={recipient} onChange={(event) => setRecipient(event.target.value)} /></label>
-                  <label className="wide-field">Subject<input value={subject} onChange={(event) => setSubject(event.target.value)} /></label>
-                  <label className="wide-field">Body paragraphs<textarea rows={8} value={body} onChange={(event) => setBody(event.target.value)} /></label>
-                  <label className="wide-field">Closing<input value={closing} onChange={(event) => setClosing(event.target.value)} /></label>
-                </>
+            <div className="document-local-nav" role="tablist" aria-label="Document work">
+              {([
+                ["content", "Content"],
+                ["professional-information", "Professional information"],
+                ["output", "Output & ownership"],
+              ] as const).map(([view, label]) => (
+                <button
+                  key={view}
+                  type="button"
+                  role="tab"
+                  aria-selected={documentView === view}
+                  className={documentView === view ? "active-document-view" : ""}
+                  onClick={() => setDocumentView(view)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <section
+              className="document-local-panel"
+              role="tabpanel"
+              aria-label="Document content"
+              hidden={documentView !== "content"}
+            >
+              {editorDirty ? (
+                <p className="document-notice">
+                  Unsaved document changes stay local. Save before rendering, exporting, or retaining application material.
+                </p>
               ) : null}
-              <div className="document-actions wide-field">
-                <button className="compact-primary" type="submit">Save structured content</button>
+              {selected.mode === "manual" ? (
+                <div className="manual-source-warning">
+                  <p>
+                    Direct source edits were detected. AAAAT will preserve them and will not silently replace the source.
+                  </p>
+                </div>
+              ) : null}
+
+              <form className="document-fields" onSubmit={(event) => void save(event)}>
+                <label>
+                  Title
+                  <input required value={title} onChange={(event) => setTitle(event.target.value)} />
+                </label>
+                <label>
+                  Language
+                  <input value={language} onChange={(event) => setLanguage(event.target.value)} />
+                </label>
+                {selected.kind === "cover_letter" ? (
+                  <>
+                    <label>
+                      Recipient
+                      <input value={recipient} onChange={(event) => setRecipient(event.target.value)} />
+                    </label>
+                    <label className="wide-field">
+                      Subject
+                      <input value={subject} onChange={(event) => setSubject(event.target.value)} />
+                    </label>
+                    <label className="wide-field">
+                      Body paragraphs
+                      <textarea rows={8} value={body} onChange={(event) => setBody(event.target.value)} />
+                    </label>
+                    <label className="wide-field">
+                      Closing
+                      <input value={closing} onChange={(event) => setClosing(event.target.value)} />
+                    </label>
+                  </>
+                ) : null}
+                <div className="document-actions wide-field">
+                  <button className="compact-primary" type="submit">Save changes</button>
+                </div>
+              </form>
+            </section>
+
+            <section
+              className="document-local-panel"
+              role="tabpanel"
+              aria-label="Professional information in this document"
+              hidden={documentView !== "professional-information"}
+            >
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">Reusable source</p>
+                  <h3>Professional information</h3>
+                </div>
+                <span>{resolvedCount} included</span>
+              </div>
+              <p className="document-section-intro">
+                Using {selectedVariation ? `saved variation “${selectedVariation}”` : "default professional information"}. Changes below apply only to this document.
+              </p>
+              <div className="document-items">
+                {orderedItems.length === 0 ? (
+                  <p>No reusable professional information is available yet. The document remains editable.</p>
+                ) : null}
+                {orderedItems.map((item, index) => {
+                  const rule = selected.rules.find((candidate) => candidate.itemId === item.id);
+                  const formKey = `${selected.id}:${item.id}:${JSON.stringify(rule ?? null)}`;
+                  return (
+                    <form
+                      className="document-item"
+                      key={formKey}
+                      onSubmit={(event) => void applyItem(event, item)}
+                    >
+                      <div>
+                        <span className="item-kind">{item.kind}</span>
+                        <strong>{item.title}</strong>
+                      </div>
+                      <label className="include-control">
+                        <input name="included" type="checkbox" defaultChecked={!rule?.excluded} /> Included
+                      </label>
+                      <label>
+                        Change title for this document
+                        <input name="overrideTitle" defaultValue={rule?.contentPatch?.title ?? ""} />
+                      </label>
+                      <label className="wide-field">
+                        Change description for this document
+                        <textarea
+                          name="overrideDescription"
+                          defaultValue={rule?.contentPatch?.description ?? ""}
+                        />
+                      </label>
+                      <div className="document-item-actions wide-field">
+                        <button type="submit">Apply changes</button>
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => void moveItem(item.id, -1)}
+                        >
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          disabled={index === orderedItems.length - 1}
+                          onClick={() => void moveItem(item.id, 1)}
+                        >
+                          Down
+                        </button>
+                      </div>
+                    </form>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section
+              className="document-local-panel"
+              role="tabpanel"
+              aria-label="Document output and ownership"
+              hidden={documentView !== "output"}
+            >
+              {editorDirty ? (
+                <p className="document-notice">
+                  Save document changes before rendering, exporting, or retaining application material.
+                </p>
+              ) : null}
+              <div className="document-actions document-output-actions">
                 <button type="button" disabled={editorDirty} onClick={() => void render()}>Render PDF</button>
-                <button type="button" disabled={editorDirty} onClick={() => void exportProject()}>Export portable project</button>
+                <button type="button" disabled={editorDirty} onClick={() => void exportProject()}>
+                  Export portable project
+                </button>
                 <button type="button" onClick={() => void remove()}>Remove document</button>
               </div>
-            </form>
 
-            {selected.kind === "cv" ? (
-              <>
-                <CvAssistantDescriptorPanel
-                  key={`descriptor:${selected.id}`}
-                  document={selected}
-                  onDirtyChange={setDescriptorDirty}
-                  onError={setError}
-                  onNotice={setNotice}
-                />
-                <CvExternalContentAccessPanel
-                  key={`content-access:${selected.id}`}
-                  document={selected}
-                  disabled={editorDirty}
-                  onError={setError}
-                  onNotice={setNotice}
-                />
-              </>
-            ) : null}
+              {selected.mode === "manual" ? (
+                <div className="manual-source-warning">
+                  <p>
+                    Direct source edits are preserved. Replacing them from structured information is deliberate and may overwrite those edits.
+                  </p>
+                  <button type="button" disabled={editorDirty} onClick={() => void regenerate()}>
+                    Replace manual source from structured data
+                  </button>
+                </div>
+              ) : null}
 
-            <div className="document-paths">
-              <p><span>Source</span><code>{selected.sourcePath}</code></p>
-              <p><span>PDF</span><code>{selected.artifactPath}</code></p>
-            </div>
+              {selected.kind === "cv" ? (
+                <>
+                  <CvAssistantDescriptorPanel
+                    key={`descriptor:${selected.id}`}
+                    document={selected}
+                    onDirtyChange={setDescriptorDirty}
+                    onError={setError}
+                    onNotice={setNotice}
+                  />
+                  <CvExternalContentAccessPanel
+                    key={`content-access:${selected.id}`}
+                    document={selected}
+                    disabled={editorDirty}
+                    onError={setError}
+                    onNotice={setNotice}
+                  />
+                </>
+              ) : null}
 
-            <div className="document-items">
-              <div className="section-heading"><div><p className="eyebrow">Document-specific</p><h3>Selection and overrides</h3></div></div>
-              {orderedItems.map((item, index) => {
-                const rule = selected.rules.find((candidate) => candidate.itemId === item.id);
-                const formKey = `${selected.id}:${item.id}:${JSON.stringify(rule ?? null)}`;
-                return (
-                  <form className="document-item" key={formKey} onSubmit={(event) => void applyItem(event, item)}>
-                    <div><span className="item-kind">{item.kind}</span><strong>{item.title}</strong></div>
-                    <label className="include-control"><input name="included" type="checkbox" defaultChecked={!rule?.excluded} /> Include</label>
-                    <label>Override title<input name="overrideTitle" defaultValue={rule?.contentPatch?.title ?? ""} /></label>
-                    <label className="wide-field">Override description<textarea name="overrideDescription" defaultValue={rule?.contentPatch?.description ?? ""} /></label>
-                    <div className="document-item-actions wide-field">
-                      <button type="submit">Apply item rule</button>
-                      <button type="button" disabled={index === 0} onClick={() => void moveItem(item.id, -1)}>Up</button>
-                      <button type="button" disabled={index === orderedItems.length - 1} onClick={() => void moveItem(item.id, 1)}>Down</button>
-                    </div>
-                  </form>
-                );
-              })}
-            </div>
+              <details className="document-advanced" open={selected.mode === "manual"}>
+                <summary>Source & ownership</summary>
+                <div className="document-paths">
+                  <p><span>Source</span><code>{selected.sourcePath}</code></p>
+                  <p><span>PDF</span><code>{selected.artifactPath}</code></p>
+                </div>
+              </details>
+            </section>
           </>
         )}
 
-        <CombinedDocumentExportPanel
-          documents={documents}
-          disabled={editorDirty}
-          onError={setError}
-          onNotice={setNotice}
-        />
+        <div
+          className="document-output-support"
+          hidden={selected ? documentView !== "output" : false}
+        >
+          <CombinedDocumentExportPanel
+            documents={documents}
+            disabled={editorDirty}
+            onError={setError}
+            onNotice={setNotice}
+          />
 
-        <section className="manual-source-warning" aria-label="Retained application artifacts">
-          <h3>Retained application artifacts</h3>
-          {candidatures.length === 0 ? (
-            <p>Create a candidature before retaining application material.</p>
-          ) : (
-            <>
-              <label>
-                Candidature
-                <select
-                  value={artifactCandidatureId}
-                  onChange={(event) => void chooseArtifactCandidature(event.target.value)}
-                >
-                  {candidatures.map((candidature) => (
-                    <option key={candidature.id} value={candidature.id}>{candidature.label}</option>
-                  ))}
-                </select>
-              </label>
-              {selected ? (
-                canCaptureArtifact ? (
-                  <button
-                    type="button"
-                    disabled={editorDirty || capturingArtifact}
-                    onClick={() => void captureArtifact()}
+          <section className="manual-source-warning" aria-label="Retained application artifacts">
+            <h3>Retained application artifacts</h3>
+            {candidatures.length === 0 ? (
+              <p>Create a candidature before retaining application material.</p>
+            ) : (
+              <>
+                <label>
+                  Candidature
+                  <select
+                    value={artifactCandidatureId}
+                    onChange={(event) => void chooseArtifactCandidature(event.target.value)}
                   >
-                    {capturingArtifact ? "Retaining…" : "Retain application artifact"}
-                  </button>
+                    {candidatures.map((candidature) => (
+                      <option key={candidature.id} value={candidature.id}>{candidature.label}</option>
+                    ))}
+                  </select>
+                </label>
+                {selected ? (
+                  canCaptureArtifact ? (
+                    <button
+                      type="button"
+                      disabled={editorDirty || capturingArtifact}
+                      onClick={() => void captureArtifact()}
+                    >
+                      {capturingArtifact ? "Retaining…" : "Retain application artifact"}
+                    </button>
+                  ) : (
+                    <p>Associate the selected working document with this candidature before retaining it.</p>
+                  )
                 ) : (
-                  <p>Associate the selected working document with this candidature before retaining it.</p>
-                )
-              ) : (
-                <p>Select a working document to retain another snapshot. Existing retained artifacts remain available here.</p>
-              )}
-              {artifacts.length === 0 ? (
-                <p>No retained application artifacts for this candidature.</p>
-              ) : (
-                <div className="document-paths">
-                  {artifacts.map((artifact) => (
-                    <article key={artifact.id}>
-                      <strong>{artifact.title}</strong>
-                      <p>{new Date(artifact.capturedAt).toLocaleString()}</p>
-                      <p><span>Retained source</span><code>{artifact.sourcePath}</code></p>
-                      <p><span>Retained PDF</span><code>{artifact.artifactPath}</code></p>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </section>
+                  <p>
+                    Select a working document to retain another snapshot. Existing retained artifacts remain available here.
+                  </p>
+                )}
+                {artifacts.length === 0 ? (
+                  <p>No retained application artifacts for this candidature.</p>
+                ) : (
+                  <div className="document-paths">
+                    {artifacts.map((artifact) => (
+                      <article key={artifact.id}>
+                        <strong>{artifact.title}</strong>
+                        <p>{new Date(artifact.capturedAt).toLocaleString()}</p>
+                        <p><span>Retained source</span><code>{artifact.sourcePath}</code></p>
+                        <p><span>Retained PDF</span><code>{artifact.artifactPath}</code></p>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        </div>
       </div>
     </section>
   );
