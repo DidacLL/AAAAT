@@ -12,6 +12,7 @@ import type {
 import { CombinedDocumentExportPanel } from "./CombinedDocumentExportPanel";
 import { CvAssistantDescriptorPanel } from "./CvAssistantDescriptorPanel";
 import { CvExternalContentAccessPanel } from "./CvExternalContentAccessPanel";
+import { useContextualHandoffs } from "./contextual-handoffs";
 import "./documents.css";
 
 type DocumentView = "content" | "professional-information" | "output";
@@ -43,6 +44,12 @@ export function DocumentsWorkspace({
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const {
+    documentHandoff,
+    openProfessionalInformationItem,
+    openSettingsFor,
+    returnToCandidature,
+  } = useContextualHandoffs();
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [candidatures, setCandidatures] = useState<CandidatureRecord[]>([]);
@@ -51,6 +58,7 @@ export function DocumentsWorkspace({
   const [resolvedCount, setResolvedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
   const [artifactCandidatureId, setArtifactCandidatureId] = useState("");
   const [artifacts, setArtifacts] = useState<ApplicationArtifactRecord[]>([]);
   const [capturingArtifact, setCapturingArtifact] = useState(false);
@@ -73,6 +81,13 @@ export function DocumentsWorkspace({
   const artifactCandidature = useMemo(
     () => candidatures.find((candidature) => candidature.id === artifactCandidatureId) ?? null,
     [artifactCandidatureId, candidatures],
+  );
+  const contextCandidature = useMemo(
+    () =>
+      documentHandoff?.candidatureId
+        ? candidatures.find((candidature) => candidature.id === documentHandoff.candidatureId) ?? null
+        : null,
+    [candidatures, documentHandoff],
   );
   const canCaptureArtifact = Boolean(
     selected && artifactCandidature?.documentIds.includes(selected.id),
@@ -162,11 +177,15 @@ export function DocumentsWorkspace({
           if (active) setArtifacts(retained);
         }
 
-        const first = currentDocuments[0] ?? null;
+        const requested = documentHandoff?.documentId
+          ? currentDocuments.find((document) => document.id === documentHandoff.documentId) ?? null
+          : null;
+        const first = requested ?? currentDocuments[0] ?? null;
         if (first) {
           setSelectedId(first.id);
           fillEditor(first);
           await refreshResolved(first);
+          if (requested) setCompactDocumentOpen(true);
         }
       })
       .catch(() => {
@@ -176,6 +195,32 @@ export function DocumentsWorkspace({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    const requestedId = documentHandoff?.documentId;
+    if (!requestedId || requestedId === selectedId) return;
+    const requested = documents.find((document) => document.id === requestedId);
+    if (!requested) return;
+    setSelectedId(requested.id);
+    fillEditor(requested);
+    setDocumentView("content");
+    setCompactDocumentOpen(true);
+    setError(null);
+    setNotice(null);
+    void refreshResolved(requested).catch(() => {
+      setError("AAAAT could not resolve this document.");
+    });
+  }, [documentHandoff, documents, selectedId]);
+
+  useEffect(() => {
+    const candidatureId = documentHandoff?.candidatureId;
+    if (!candidatureId) return;
+    setArtifactCandidatureId(candidatureId);
+    void window.aaaat.artifacts
+      .list(candidatureId)
+      .then(setArtifacts)
+      .catch(() => setError("AAAAT could not load retained application artifacts."));
+  }, [documentHandoff]);
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
@@ -187,6 +232,7 @@ export function DocumentsWorkspace({
     }
     setError(null);
     setNotice(null);
+    setRenderSettingsSuggested(false);
     try {
       const created = await window.aaaat.documents.create({
         kind: newKind,
@@ -195,12 +241,26 @@ export function DocumentsWorkspace({
         engine: "pdflatex",
         bodyParagraphs: [],
       });
+      if (contextCandidature) {
+        const linked = await window.aaaat.candidatures.setDocuments({
+          candidatureId: contextCandidature.id,
+          documentIds: [...new Set([...contextCandidature.documentIds, created.id])],
+        });
+        setCandidatures((current) =>
+          current.map((candidate) => (candidate.id === linked.id ? linked : candidate)),
+        );
+        setArtifactCandidatureId(linked.id);
+      }
       setNewTitle("");
       await acceptSavedDocument(created);
       setDocumentView("content");
       setCompactDocumentOpen(true);
-    } catch {
-      setError("Check the document title and professional information.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Check the document title and professional information.",
+      );
     }
   };
 
@@ -245,6 +305,7 @@ export function DocumentsWorkspace({
     setCompactDocumentOpen(true);
     setError(null);
     setNotice(null);
+    setRenderSettingsSuggested(false);
     try {
       await refreshResolved(document);
     } catch {
@@ -288,12 +349,14 @@ export function DocumentsWorkspace({
     }
     setError(null);
     setNotice(null);
+    setRenderSettingsSuggested(false);
     try {
       const rendered = await window.aaaat.documents.render(selected.id);
       await acceptAdjacentDocument(rendered);
       setNotice(`Rendered PDF: ${rendered.artifactPath}`);
     } catch {
-      setError("Rendering failed. Install a compatible TeX distribution with latexmk and pdfLaTeX.");
+      setError("Rendering failed. Check Document rendering in Settings for local TeX status and setup guidance.");
+      setRenderSettingsSuggested(true);
     }
   };
 
@@ -444,6 +507,9 @@ export function DocumentsWorkspace({
         </div>
 
         <form className="document-create" onSubmit={(event) => void create(event)}>
+          {contextCandidature ? (
+            <p className="wide-field document-notice">New work will be associated with {contextCandidature.label}.</p>
+          ) : null}
           <label>
             Type
             <select
@@ -493,6 +559,14 @@ export function DocumentsWorkspace({
       </div>
 
       <div className="document-editor">
+        {contextCandidature ? (
+          <div className="contextual-return-bar" role="status">
+            <span>For: {contextCandidature.label}</span>
+            <button className="compact-secondary" type="button" onClick={returnToCandidature}>
+              Return to {contextCandidature.label}
+            </button>
+          </div>
+        ) : null}
         {selected ? (
           <button
             className="compact-document-back"
@@ -502,7 +576,16 @@ export function DocumentsWorkspace({
             Back to CVs & letters
           </button>
         ) : null}
-        {error ? <p className="error-message" role="alert">{error}</p> : null}
+        {error ? (
+          <div>
+            <p className="error-message" role="alert">{error}</p>
+            {renderSettingsSuggested ? (
+              <button className="compact-secondary" type="button" onClick={() => openSettingsFor("rendering", "documents")}>
+                Open Document rendering settings
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {notice ? <p className="document-notice" role="status">{notice}</p> : null}
 
         {!selected ? (
@@ -627,6 +710,13 @@ export function DocumentsWorkspace({
                       <div>
                         <span className="item-kind">{item.kind}</span>
                         <strong>{item.title}</strong>
+                        <button
+                          type="button"
+                          className="compact-secondary"
+                          onClick={() => openProfessionalInformationItem(selected.id, item.id)}
+                        >
+                          Edit reusable source
+                        </button>
                       </div>
                       <label className="include-control">
                         <input name="included" type="checkbox" defaultChecked={!rule?.excluded} /> Included
