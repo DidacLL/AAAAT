@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 
 import type { CandidatureInput } from "../shared/contracts";
 import { CandidatureComparisonPanel } from "./CandidatureComparisonPanel";
@@ -20,6 +20,7 @@ export function CandidaturesAiWorkspace({
   const [captureText, setCaptureText] = useState("");
   const [captureSaving, setCaptureSaving] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
+  const [compactDetailOpen, setCompactDetailOpen] = useState(false);
 
   const captureDirty =
     captureOpen &&
@@ -69,6 +70,7 @@ export function CandidaturesAiWorkspace({
       });
       resetCapture();
       setRevision((current) => current + 1);
+      setCompactDetailOpen(true);
     } catch (reason) {
       setCaptureError(
         reason instanceof Error ? reason.message : "AAAAT could not save this candidature.",
@@ -85,11 +87,42 @@ export function CandidaturesAiWorkspace({
     if (!proceed) return false;
     await window.aaaat.candidatures.create(input);
     setRevision((current) => current + 1);
+    setCompactDetailOpen(true);
     return true;
   };
 
+  const openCompactDetail = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const candidatureButton = target.closest(".candidature-list > button");
+    if (!candidatureButton) return;
+
+    setCompactDetailOpen(true);
+    if (candidatureDirty && candidatureButton.classList.contains("selected-candidature")) {
+      event.stopPropagation();
+    }
+  };
+
+  const ownerClassName = [
+    "candidature-capture-owner",
+    captureOpen ? "candidature-capture-active" : "",
+    compactDetailOpen ? "compact-candidature-detail" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="candidature-capture-owner">
+    <div className={ownerClassName} onClickCapture={openCompactDetail}>
+      {compactDetailOpen && !captureOpen ? (
+        <button
+          type="button"
+          className="compact-secondary compact-candidature-back"
+          onClick={() => setCompactDetailOpen(false)}
+        >
+          Back to candidatures
+        </button>
+      ) : null}
+
       {captureOpen ? (
         <section className="candidature-capture-panel" aria-label="New candidature capture">
           <div>

@@ -9,6 +9,10 @@
   justify-content: flex-end;
 }
 
+.compact-candidature-back {
+  display: none;
+}
+
 .candidature-capture-panel {
   display: grid;
   min-width: 0;
@@ -80,5 +84,24 @@
 
   .candidature-capture-material {
     grid-column: auto;
+  }
+
+  .compact-candidature-back {
+    display: inline-flex;
+    width: fit-content;
+  }
+
+  .candidature-capture-active > .candidatures-workspace,
+  .candidature-capture-active > .optional-ai-extraction,
+  .compact-candidature-detail > .optional-ai-extraction,
+  .compact-candidature-detail > .candidatures-workspace > .candidature-toolbar,
+  .compact-candidature-detail > .candidatures-workspace > .candidature-filters,
+  .compact-candidature-detail .candidature-list,
+  .candidature-capture-owner:not(.compact-candidature-detail) .candidature-editor {
+    display: none;
+  }
+
+  .compact-candidature-detail .candidature-layout {
+    display: block;
   }
 }

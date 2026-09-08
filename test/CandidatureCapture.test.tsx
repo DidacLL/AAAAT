@@ -118,7 +118,11 @@ function installApi(initial: CandidatureRecord[] = [], fields: CandidatureFieldC
       updateConcept: vi.fn(),
       setConcepts: vi.fn(),
     },
-    candidatureSearch: { search: vi.fn().mockResolvedValue([]) },
+    candidatureSearch: {
+      search: vi.fn().mockImplementation(async () =>
+        persisted.length > 0 ? persisted.map((record) => record.id) : [],
+      ),
+    },
     documents: { list: vi.fn().mockResolvedValue([]) },
     todos: { list: vi.fn().mockResolvedValue([]) },
     focus: {
@@ -191,6 +195,57 @@ describe("sparse candidature capture", () => {
     const focus = await screen.findByRole("region", { name: "Candidature Focus" });
     expect(await within(focus).findByText(phrase)).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Back to candidatures" })).toBeInTheDocument();
+  });
+
+  it("preserves collection search and archive state across selected candidature navigation", async () => {
+    installApi([candidature()]);
+    const user = userEvent.setup();
+    render(<CandidaturesAiWorkspace />);
+
+    await screen.findByRole("region", { name: "Candidature Focus" });
+    const search = screen.getByLabelText("Search retained information");
+    const archive = screen.getByLabelText("Archive");
+    await user.type(search, "October");
+    await user.selectOptions(archive, "all");
+
+    await user.click(screen.getByRole("button", { name: /Recruiter message/ }));
+    expect(screen.getByRole("button", { name: "Back to candidatures" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Back to candidatures" }));
+    expect(screen.queryByRole("button", { name: "Back to candidatures" })).not.toBeInTheDocument();
+    expect(search).toHaveValue("October");
+    expect(archive).toHaveValue("all");
+  });
+
+  it("preserves a dirty selected draft when returning to collection and reopening the same candidature", async () => {
+    const retained = {
+      candidatureId,
+      fieldId,
+      value: "Regional Air",
+      createdAt: now,
+      updatedAt: now,
+    } as const;
+    installApi([candidature([retained], "Regional Air")], [organisationField]);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<CandidaturesAiWorkspace />);
+
+    await screen.findByRole("region", { name: "Candidature Focus" });
+    await user.click(screen.getByRole("button", { name: /Regional Air/ }));
+    await user.click(screen.getByRole("tab", { name: "Information" }));
+    const card = screen.getByRole("heading", { name: "Organisation" }).closest("article");
+    expect(card).not.toBeNull();
+    if (!card) return;
+    const input = within(card).getByRole("textbox");
+    await user.type(input, " unsaved");
+
+    await user.click(screen.getByRole("button", { name: "Back to candidatures" }));
+    await user.click(screen.getByRole("button", { name: /Regional Air/ }));
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(input).toHaveValue("Regional Air unsaved");
+    expect(screen.getByRole("button", { name: "Back to candidatures" })).toBeInTheDocument();
   });
 
   it("does not discard an existing candidature draft when capture starts or a replacement save is cancelled", async () => {
