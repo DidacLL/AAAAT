@@ -30,10 +30,20 @@ export interface ContextualHandoffApi {
   readonly returnFromSettings: () => void;
 }
 
-export const ContextualHandoffContext = createContext<ContextualHandoffApi | null>(null);
+const noHandoffs: ContextualHandoffApi = {
+  documentHandoff: null,
+  professionalInformationHandoff: null,
+  settingsHandoff: null,
+  openDocumentFromCandidature: () => undefined,
+  returnToCandidature: () => undefined,
+  openProfessionalInformationItem: () => undefined,
+  returnToDocument: () => undefined,
+  openSettingsFor: () => undefined,
+  returnFromSettings: () => undefined,
+};
+
+export const ContextualHandoffContext = createContext<ContextualHandoffApi>(noHandoffs);
 
 export function useContextualHandoffs(): ContextualHandoffApi {
-  const value = useContext(ContextualHandoffContext);
-  if (!value) throw new Error("Contextual handoffs require the product shell provider.");
-  return value;
+  return useContext(ContextualHandoffContext);
 }
