@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +8,7 @@ import type { DesktopApi, ProfileSnapshot, ProfileVariant } from "../src/shared/
 const itemA = {
   id: "00000000-0000-4000-8000-000000000001",
   kind: "summary" as const,
-  title: "Canonical summary",
+  title: "Professional summary",
   description: "General experience",
   sortOrder: 0,
 };
@@ -27,12 +27,16 @@ const variant: ProfileVariant = {
   rules: [],
 };
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
-const canonicalProfile: ProfileSnapshot = { items: [itemA, itemB], variants: [] };
-const focusedProfile: ProfileSnapshot = { items: [itemA, itemB], variants: [variant] };
+const baseProfile: ProfileSnapshot = { items: [itemA, itemB], variants: [] };
+const variedProfile: ProfileSnapshot = { items: [itemA, itemB], variants: [variant] };
 
 const current = vi.fn<DesktopApi["profile"]["current"]>();
 const addItem = vi.fn<DesktopApi["profile"]["addItem"]>();
+const updateItem = vi.fn<DesktopApi["profile"]["updateItem"]>();
+const removeItem = vi.fn<DesktopApi["profile"]["removeItem"]>();
 const createVariant = vi.fn<DesktopApi["profile"]["createVariant"]>();
+const updateVariant = vi.fn<DesktopApi["profile"]["updateVariant"]>();
+const removeVariant = vi.fn<DesktopApi["profile"]["removeVariant"]>();
 const configureVariantItem = vi.fn<DesktopApi["profile"]["configureVariantItem"]>();
 const reorderVariant = vi.fn<DesktopApi["profile"]["reorderVariant"]>();
 const resolveVariant = vi.fn<DesktopApi["profile"]["resolveVariant"]>();
@@ -42,11 +46,11 @@ function installApi() {
     profile: {
       current,
       addItem,
-      updateItem: vi.fn(),
-      removeItem: vi.fn(),
+      updateItem,
+      removeItem,
       createVariant,
-      updateVariant: vi.fn(),
-      removeVariant: vi.fn(),
+      updateVariant,
+      removeVariant,
       configureVariantItem,
       reorderVariant,
       resolveVariant,
@@ -55,27 +59,40 @@ function installApi() {
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
 }
 
-describe("manual profile workspace", () => {
+describe("professional information workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     current.mockResolvedValue(emptyProfile);
     addItem.mockResolvedValue({ items: [itemB], variants: [] });
-    createVariant.mockResolvedValue(focusedProfile);
-    configureVariantItem.mockResolvedValue(focusedProfile);
-    reorderVariant.mockResolvedValue(focusedProfile);
+    updateItem.mockResolvedValue(baseProfile);
+    removeItem.mockResolvedValue(emptyProfile);
+    createVariant.mockResolvedValue(variedProfile);
+    updateVariant.mockResolvedValue(variedProfile);
+    removeVariant.mockResolvedValue(baseProfile);
+    configureVariantItem.mockResolvedValue(variedProfile);
+    reorderVariant.mockResolvedValue(variedProfile);
     resolveVariant.mockResolvedValue({ variant, items: [itemA, itemB] });
     installApi();
   });
 
   afterEach(() => cleanup());
 
-  it("adds structured canonical career data without JSON entry", async () => {
+  it("starts read-first and adds reusable information deliberately", async () => {
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
-    expect(await screen.findByRole("heading", { name: "Canonical profile" })).toBeInTheDocument();
+
+    expect(await screen.findByRole("heading", { name: "Professional information" })).toBeInTheDocument();
+    expect(screen.getByText(/No professional information yet/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+    expect(screen.queryByText("Canonical profile")).not.toBeInTheDocument();
+    expect(screen.queryByText("Focused variants")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add information" }));
+    expect(screen.getByRole("heading", { name: "Add information" })).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Type"), "skill");
     await user.type(screen.getByLabelText("Title"), "TypeScript");
-    await user.click(screen.getByRole("button", { name: "Add item" }));
+    await user.click(screen.getByRole("button", { name: "Add information" }));
+
     expect(addItem).toHaveBeenCalledWith({
       kind: "skill",
       title: "TypeScript",
@@ -85,18 +102,26 @@ describe("manual profile workspace", () => {
       endDate: undefined,
       url: undefined,
     });
+    expect(await screen.findByRole("heading", { name: "Professional information" })).toBeInTheDocument();
   });
 
-  it("creates a named variant and applies focused item rules and ordering", async () => {
-    current.mockResolvedValueOnce(canonicalProfile);
+  it("keeps saved variations optional and applies differences in ordinary terms", async () => {
+    current.mockResolvedValueOnce(baseProfile);
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
-    await screen.findByText("Canonical summary");
+
+    await screen.findByText("Professional summary");
+    expect(screen.getByText(/default professional information already works without one/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Create saved variation" }));
+    expect(screen.getByRole("heading", { name: "Saved variations" })).toBeInTheDocument();
+    expect(screen.queryByText("Difference-only")).not.toBeInTheDocument();
+    expect(screen.queryByText("Override title")).not.toBeInTheDocument();
+
     await user.type(screen.getByLabelText("Name"), "Platform focus");
-    await user.type(screen.getByLabelText("Focus"), "Platform roles");
-    await user.type(screen.getByLabelText("Target tags"), "platform");
+    await user.type(screen.getByLabelText("Intended focus"), "Platform roles");
+    await user.type(screen.getByLabelText("Context tags"), "platform");
     await user.type(screen.getByLabelText("Preferred language"), "en");
-    await user.click(screen.getByRole("button", { name: "Create variant" }));
+    await user.click(screen.getByRole("button", { name: "Create saved variation" }));
 
     expect(createVariant).toHaveBeenCalledWith({
       name: "Platform focus",
@@ -104,63 +129,73 @@ describe("manual profile workspace", () => {
       targetTags: ["platform"],
       preferredLanguage: "en",
     });
-    const override = screen.getAllByLabelText("Override title")[0];
-    const apply = screen.getAllByRole("button", { name: "Apply item rule" })[0];
-    const down = screen.getAllByRole("button", { name: "Down" })[0];
-    if (!override || !apply || !down) throw new Error("Expected variant controls");
-    await user.type(override, "Focused summary");
-    await user.click(apply);
+
+    const alternateTitle = screen.getAllByLabelText("Alternate title")[0];
+    const applyDifference = screen.getAllByRole("button", { name: "Apply difference" })[0];
+    const moveLater = screen.getAllByRole("button", { name: "Move later" })[0];
+    if (!alternateTitle || !applyDifference || !moveLater) {
+      throw new Error("Expected saved variation difference controls");
+    }
+    await user.type(alternateTitle, "Platform summary");
+    await user.click(applyDifference);
     expect(configureVariantItem).toHaveBeenCalledWith({
       variantId: variant.id,
       itemId: itemA.id,
       included: true,
-      contentPatch: { title: "Focused summary" },
+      contentPatch: { title: "Platform summary" },
     });
-    await user.click(down);
+    await user.click(moveLater);
     expect(reorderVariant).toHaveBeenCalledWith({
       variantId: variant.id,
       itemIds: [itemB.id, itemA.id],
     });
   });
 
-  it("preserves a new variant draft through canonical item mutations", async () => {
-    current.mockResolvedValueOnce(focusedProfile);
+  it("preserves an unsaved saved-variation draft through base information changes", async () => {
+    current.mockResolvedValueOnce(variedProfile);
     addItem.mockResolvedValue({ items: [itemA, itemB], variants: [variant] });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
-    await screen.findByDisplayValue("Platform focus");
-    await user.click(screen.getByRole("button", { name: "New" }));
+
+    await screen.findByText("Professional summary");
+    await user.click(screen.getByRole("button", { name: "Saved variations (1)" }));
+    await user.click(screen.getByRole("button", { name: "New saved variation" }));
     await user.type(screen.getByLabelText("Name"), "New focus");
-    await user.type(screen.getByLabelText("Focus"), "Unsaved new variant");
+    await user.type(screen.getByLabelText("Intended focus"), "Unsaved new variation");
+
+    await user.click(screen.getByRole("button", { name: "Back to professional information" }));
+    expect(confirm).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Add information" }));
     await user.selectOptions(screen.getByLabelText("Type"), "skill");
     await user.type(screen.getByLabelText("Title"), "TypeScript");
-    await user.click(screen.getByRole("button", { name: "Add item" }));
+    await user.click(screen.getByRole("button", { name: "Add information" }));
+
+    await user.click(screen.getByRole("button", { name: /Saved variations/ }));
     expect(screen.getByLabelText("Name")).toHaveValue("New focus");
-    expect(screen.getByLabelText("Focus")).toHaveValue("Unsaved new variant");
+    expect(screen.getByLabelText("Intended focus")).toHaveValue("Unsaved new variation");
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
   });
 
-  it("keeps canonical item edits when switching editors or cancelling is declined", async () => {
-    current.mockResolvedValueOnce(canonicalProfile);
+  it("guards a dirty information editor before returning to the overview", async () => {
+    current.mockResolvedValueOnce(baseProfile);
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
-    await screen.findByText("Canonical summary");
 
-    const editButtons = screen.getAllByRole("button", { name: "Edit" });
-    const firstEdit = editButtons[0];
-    const secondEdit = editButtons[1];
-    if (!firstEdit || !secondEdit) throw new Error("Expected profile item edit controls");
-    await user.click(firstEdit);
+    const list = await screen.findByRole("region", { name: "Professional information" });
+    const firstItem = within(list).getByText("Professional summary").closest("article");
+    if (!firstItem) throw new Error("Expected professional information item");
+    await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
     const title = screen.getByLabelText("Title");
     await user.clear(title);
-    await user.type(title, "Unsaved canonical edit");
+    await user.type(title, "Unsaved professional edit");
 
-    await user.click(secondEdit);
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved profile item edits?");
-    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved canonical edit");
-
-    await user.click(screen.getByRole("button", { name: "Cancel edit" }));
-    expect(confirm).toHaveBeenCalledTimes(2);
-    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved canonical edit");
+    await user.click(screen.getByRole("button", { name: "Back to professional information" }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved information edits?");
+    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved professional edit");
+    expect(screen.getByRole("heading", { name: "Edit information" })).toBeInTheDocument();
+    confirm.mockRestore();
   });
 });

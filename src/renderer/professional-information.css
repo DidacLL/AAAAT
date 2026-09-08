@@ -1,0 +1,73 @@
+.profile-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.professional-information-overview,
+.professional-information-editor,
+.saved-variations-workspace {
+  width: 100%;
+}
+
+.profile-intro {
+  max-width: 72ch;
+  margin: 6px 0 0;
+  color: var(--muted-ink);
+}
+
+.professional-information-empty {
+  padding: 28px 18px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.professional-information-empty h3 {
+  margin: 0 0 6px;
+}
+
+.professional-information-empty p {
+  margin: 0;
+  color: var(--muted-ink);
+}
+
+.professional-information-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--canvas);
+}
+
+.professional-information-secondary p {
+  max-width: 72ch;
+  margin: 4px 0 0;
+  color: var(--muted-ink);
+  font-size: 14px;
+}
+
+.professional-information-secondary > span {
+  color: var(--muted-ink);
+  font-size: 12px;
+}
+
+.professional-information-back {
+  width: fit-content;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 720px) {
+  .professional-information-secondary,
+  .professional-information-overview .section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .professional-information-secondary > button,
+  .professional-information-overview .section-heading > button {
+    width: 100%;
+  }
+}

@@ -30,9 +30,9 @@ function ProfileArea({
   }, [careerContextDirty, onDirtyChange, profileDirty]);
 
   return (
-    <div>
-      <CareerContextPanel onDirtyChange={setCareerContextDirty} />
+    <div className="professional-information-area">
       <ProfileWorkspace onDirtyChange={setProfileDirty} />
+      <CareerContextPanel onDirtyChange={setCareerContextDirty} />
     </div>
   );
 }

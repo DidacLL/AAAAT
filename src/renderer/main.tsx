@@ -15,6 +15,7 @@ import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-c
 import { App } from "./App";
 import "./styles.css";
 import "./candidatures.css";
+import "./professional-information.css";
 
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
 const emptyCareerContext: CareerContext = {

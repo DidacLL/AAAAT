@@ -253,6 +253,7 @@ describe("AAAAT workspace state", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "Professional information" }));
+    await user.click(await screen.findByRole("button", { name: "Add information" }));
     await user.type(await screen.findByLabelText("Title"), "Unsaved profile item");
     await user.click(screen.getByRole("button", { name: "CVs & letters" }));
 
@@ -268,6 +269,7 @@ describe("AAAAT workspace state", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "Professional information" }));
+    await user.click(await screen.findByRole("button", { name: "Add information" }));
     await user.type(await screen.findByLabelText("Title"), "Unsaved profile item");
     await user.click(screen.getByRole("button", { name: "Switch workspace" }));
 
@@ -284,6 +286,7 @@ describe("AAAAT workspace state", () => {
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "Professional information" }));
+    await user.click(await screen.findByRole("button", { name: "Add information" }));
     await user.type(await screen.findByLabelText("Title"), "Draft retained after picker cancel");
     await user.click(screen.getByRole("button", { name: "Switch workspace" }));
 
