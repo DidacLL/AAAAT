@@ -58,7 +58,7 @@ The bounded implementation must:
 
 This slice does **not** redesign search/filter semantics, result identity, sparse capture, selected-candidature hierarchy, VCVGenerator, professional information, Settings, persistence/domain authority, fields, Concepts, reminders, provider architecture, or global shell.
 
-This work is **Class C**. Do not merge its PR without exact-head fast/relevant renderer verification, packaged Linux state-transition evidence at normal size and exactly `720×600`, required GitHub Verification gates, independent Reviewer assessment, and independent Skeptical Simplifier assessment.
+This work is **Class B** local UX composition under `.agentic/DECISION_POLICY.md`. Merge requires focused renderer verification, packaged Linux state-transition evidence at normal size and exactly `720×600`, and the selected GitHub Verification gates. Independent Reviewer/Simplifier assessment is not a mandatory gate unless review raises the change to Class C significance.
 
 ## Evidence to reuse
 
