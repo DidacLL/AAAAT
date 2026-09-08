@@ -200,8 +200,8 @@ test("packaged Professional information is read-first and compact-task oriented"
     await workspace.getByRole("button", { name: "Add information" }).click();
     await expect(workspace.getByRole("heading", { name: "Add information" })).toBeVisible();
     await expect(workspace.getByRole("button", { name: "Back to professional information" })).toBeVisible();
-    await workspace.getByLabel("Type").selectOption("skill");
-    await workspace.getByLabel("Title").fill("TypeScript");
+    await workspace.getByLabel("Type", { exact: true }).selectOption("skill");
+    await workspace.getByLabel("Title", { exact: true }).fill("TypeScript");
     await expectNoHorizontalOverflow(running.page, 720, 600, "item-editor");
     await workspace.getByRole("button", { name: "Add information" }).click();
     await expect(workspace.getByText("TypeScript", { exact: true })).toBeVisible();
