@@ -206,7 +206,12 @@ test("packaged Professional information is read-first and compact-task oriented"
 
     await workspace.getByRole("button", { name: "Create saved variation" }).click();
     await expect(workspace.getByRole("heading", { name: "Saved variations", exact: true })).toBeVisible();
-    await expect(workspace.getByText(/default professional information/i)).toBeVisible();
+    await expect(
+      workspace.getByText(
+        "A saved variation is optional. With no differences, it simply uses your default professional information.",
+        { exact: true },
+      ),
+    ).toBeVisible();
     await expect(running.page.getByText("Difference-only", { exact: true })).toHaveCount(0);
     await expect(running.page.getByText("Override title", { exact: true })).toHaveCount(0);
     await expectNoHorizontalOverflow(running.page, 720, 600, "saved-variations");
