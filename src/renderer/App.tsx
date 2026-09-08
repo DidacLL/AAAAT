@@ -124,6 +124,7 @@ export function App() {
   const [documentDirty, setDocumentDirty] = useState(false);
   const [professionalInformationDirty, setProfessionalInformationDirty] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const [documentWorkspaceRevision, setDocumentWorkspaceRevision] = useState(0);
   const [documentHandoff, setDocumentHandoff] = useState<DocumentHandoff | null>(null);
   const [professionalInformationHandoff, setProfessionalInformationHandoff] =
     useState<ProfessionalInformationHandoff | null>(null);
@@ -245,6 +246,12 @@ export function App() {
         setProductView("documents");
       },
       returnToCandidature: () => {
+        if (
+          documentDirty &&
+          !window.confirm("Discard unsaved document edits and return to this candidature?")
+        ) {
+          return;
+        }
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
@@ -258,9 +265,23 @@ export function App() {
         setProductView("professional-information");
       },
       returnToDocument: () => {
+        if (
+          professionalInformationDirty &&
+          !window.confirm("Discard unsaved professional-information edits and return to document?")
+        ) {
+          return;
+        }
+        const returningDocumentId = professionalInformationHandoff?.documentId;
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
+        if (!documentDirty && returningDocumentId) {
+          setDocumentHandoff((current) => ({
+            ...(current?.candidatureId ? { candidatureId: current.candidatureId } : {}),
+            documentId: returningDocumentId,
+          }));
+          setDocumentWorkspaceRevision((current) => current + 1);
+        }
         setProductView("documents");
       },
       openSettingsFor: (view: SettingsHandoff["view"], origin: SettingsHandoff["origin"]) => {
@@ -278,13 +299,22 @@ export function App() {
         setProductView(origin);
       },
     }),
-    [documentHandoff, productView, professionalInformationHandoff, settingsDirty, settingsHandoff],
+    [
+      documentDirty,
+      documentHandoff,
+      productView,
+      professionalInformationDirty,
+      professionalInformationHandoff,
+      settingsDirty,
+      settingsHandoff,
+    ],
   );
 
   const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
   const choosing = workspacePhase === "choosing";
   const loading = workspacePhase === "loading";
-  const keepCandidaturesMounted = productView === "candidatures" || documentHandoff !== null;
+  const keepCandidaturesMounted =
+    productView === "candidatures" || Boolean(documentHandoff?.candidatureId);
   const keepDocumentsMounted =
     productView === "documents" ||
     professionalInformationHandoff !== null ||
@@ -359,7 +389,10 @@ export function App() {
 
                 {keepDocumentsMounted ? (
                   <div hidden={settingsOpen || productView !== "documents"}>
-                    <DocumentsArea key={`documents-${workspace.rootPath}`} onDirtyChange={setDocumentDirty} />
+                    <DocumentsArea
+                      key={`documents-${workspace.rootPath}-${String(documentWorkspaceRevision)}`}
+                      onDirtyChange={setDocumentDirty}
+                    />
                   </div>
                 ) : null}
 
