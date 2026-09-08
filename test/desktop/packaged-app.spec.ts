@@ -328,6 +328,71 @@ async function proveCandidatureHierarchyAtWindowSize(
   await assertSelectedCandidatureHierarchy(page, width, height);
 }
 
+async function proveDocumentWorkspace(page: Page): Promise<void> {
+  const primary = page.getByRole("navigation", { name: "Primary work areas" });
+  await primary.getByRole("button", { name: "CVs & letters" }).click();
+
+  await proveAcceptedShellAtWindowSize(page, 720, 600);
+  const workspace = page.getByRole("region", { name: "CVs & letters" });
+  const collection = workspace.locator(".documents-sidebar");
+  const local = page.getByRole("tablist", { name: "Document work" });
+  await expect(collection).toBeVisible();
+  await expect(local).not.toBeVisible();
+  await expect(collection.getByRole("heading", { name: "CVs & letters" })).toBeVisible();
+  await expect(collection.getByLabel("Professional information")).toBeVisible();
+  await expect(page.getByText("Canonical profile", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Profile basis", { exact: true })).toHaveCount(0);
+
+  await collection.getByLabel("Title").fill("Packaged CV");
+  await collection.getByRole("button", { name: "Create CV" }).click();
+  await expect(page.getByRole("button", { name: "Back to CVs & letters" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Packaged CV" })).toBeVisible();
+  await expect(local).toBeVisible();
+  await expect(local.getByRole("tab")).toHaveCount(3);
+  await expect(local.getByRole("tab", { name: "Content" })).toBeVisible();
+  await expect(local.getByRole("tab", { name: "Professional information" })).toBeVisible();
+  await expect(local.getByRole("tab", { name: "Output & ownership" })).toBeVisible();
+
+  const localGeometry = await local.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  const pageGeometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(localGeometry.scrollWidth).toBeLessThanOrEqual(localGeometry.clientWidth);
+  expect(pageGeometry.scrollWidth).toBeLessThanOrEqual(pageGeometry.clientWidth);
+  console.log(
+    `[packaged documents] window=720x600 state=selected local-nav-overflow=${String(localGeometry.scrollWidth - localGeometry.clientWidth)} horizontal-overflow=${String(pageGeometry.scrollWidth - pageGeometry.clientWidth)}`,
+  );
+
+  await local.getByRole("tab", { name: "Professional information" }).click();
+  await expect(page.getByRole("tabpanel", { name: "Professional information in this document" })).toBeVisible();
+  await local.getByRole("tab", { name: "Output & ownership" }).click();
+  await expect(page.getByRole("tabpanel", { name: "Document output and ownership" })).toBeVisible();
+  await local.getByRole("tab", { name: "Content" }).click();
+  await expect(page.getByRole("tabpanel", { name: "Document content" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Back to CVs & letters" }).click();
+  await expect(collection).toBeVisible();
+  await expect(local).not.toBeVisible();
+  console.log("[packaged documents] window=720x600 state=collection return=true");
+
+  await proveAcceptedShellAtWindowSize(page, 1200, 800);
+  await expect(collection).toBeVisible();
+  await expect(local).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Packaged CV" })).toBeVisible();
+  const wideGeometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(wideGeometry.scrollWidth).toBeLessThanOrEqual(wideGeometry.clientWidth);
+  console.log(
+    `[packaged documents] window=1200x800 collection-and-selected=true horizontal-overflow=${String(wideGeometry.scrollWidth - wideGeometry.clientWidth)}`,
+  );
+}
+
 test("packaged external command rejects unsupported authority without opening desktop", () => {
   const uninitializedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-command-smoke-"));
   try {
@@ -502,6 +567,7 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
     await proveCandidatureHierarchyAtWindowSize(running.page, 1200, 800);
     await proveCandidatureHierarchyAtWindowSize(running.page, 720, 600);
+    await proveDocumentWorkspace(running.page);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
