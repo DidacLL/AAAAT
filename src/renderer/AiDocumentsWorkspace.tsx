@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { CoverLetterDraft, CvTailoringResult } from "../shared/ai-contracts";
 import type { CandidatureRecord, DocumentRecord, ProfileItem } from "../shared/contracts";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 export function AiDocumentsWorkspace({
   onDirtyChange,
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const { openSettingsFor } = useContextualHandoffs();
   const [candidatures, setCandidatures] = useState<CandidatureRecord[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [profileItems, setProfileItems] = useState<ProfileItem[]>([]);
@@ -19,6 +21,7 @@ export function AiDocumentsWorkspace({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [aiSettingsSuggested, setAiSettingsSuggested] = useState(false);
 
   const coverDraftDirty =
     coverDraft !== null &&
@@ -76,6 +79,7 @@ export function AiDocumentsWorkspace({
     setCoverDraftBaseline(null);
     setError(null);
     setNotice(null);
+    setAiSettingsSuggested(false);
   };
 
   const selectCandidature = (nextCandidatureId: string) => {
@@ -98,6 +102,7 @@ export function AiDocumentsWorkspace({
     setError(null);
     setNotice(null);
     setCvResult(null);
+    setAiSettingsSuggested(false);
     try {
       setCvResult(
         await window.aaaat.ai.tailorCv({
@@ -107,6 +112,7 @@ export function AiDocumentsWorkspace({
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not tailor this CV.");
+      setAiSettingsSuggested(true);
     } finally {
       setBusy(false);
     }
@@ -120,6 +126,7 @@ export function AiDocumentsWorkspace({
     setNotice(null);
     setCoverDraft(null);
     setCoverDraftBaseline(null);
+    setAiSettingsSuggested(false);
     try {
       const drafted = await window.aaaat.ai.draftCoverLetter({
         candidatureId: selectedCandidature.id,
@@ -131,6 +138,7 @@ export function AiDocumentsWorkspace({
       setError(
         reason instanceof Error ? reason.message : "AAAAT could not draft this cover letter.",
       );
+      setAiSettingsSuggested(true);
     } finally {
       setBusy(false);
     }
@@ -181,7 +189,16 @@ export function AiDocumentsWorkspace({
           Sources are not sent by document assistance; use explicit field discovery when a Source
           should be analyzed. Identity and contact profile items keep their existing privacy controls.
         </p>
-        {error ? <p className="error-message" role="alert">{error}</p> : null}
+        {error ? (
+          <div>
+            <p className="error-message" role="alert">{error}</p>
+            {aiSettingsSuggested ? (
+              <button className="compact-secondary" type="button" onClick={() => openSettingsFor("ai", "documents")}>
+                Open AI connections settings
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {notice ? <p className="document-notice" role="status">{notice}</p> : null}
 
         <div className="editor-card">
