@@ -265,12 +265,7 @@ async function proveAcceptedShellAtWindowSize(
   );
 }
 
-async function proveCandidatureHierarchyAtWindowSize(
-  page: Page,
-  width: number,
-  height: number,
-): Promise<void> {
-  await proveAcceptedShellAtWindowSize(page, width, height);
+async function assertSelectedCandidatureHierarchy(page: Page, width: number, height: number) {
   const local = page.getByRole("tablist", { name: "Candidature sections" });
   await expect(local).toBeVisible();
   const tabs = local.getByRole("tab");
@@ -288,9 +283,49 @@ async function proveCandidatureHierarchyAtWindowSize(
     scrollWidth: element.scrollWidth,
   }));
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+  const pageGeometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(pageGeometry.scrollWidth).toBeLessThanOrEqual(pageGeometry.clientWidth);
   console.log(
-    `[packaged candidature] window=${String(width)}x${String(height)} local-nav-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
+    `[packaged candidature] window=${String(width)}x${String(height)} state=selected local-nav-overflow=${String(geometry.scrollWidth - geometry.clientWidth)} horizontal-overflow=${String(pageGeometry.scrollWidth - pageGeometry.clientWidth)}`,
   );
+}
+
+async function proveCandidatureHierarchyAtWindowSize(
+  page: Page,
+  width: number,
+  height: number,
+): Promise<void> {
+  await proveAcceptedShellAtWindowSize(page, width, height);
+
+  if (width <= 820) {
+    const collection = page.getByRole("complementary", { name: "Candidature list" });
+    const local = page.getByRole("tablist", { name: "Candidature sections" });
+    const search = page.getByLabel("Search retained information");
+    const archive = page.getByLabel("Archive");
+
+    await expect(collection).toBeVisible();
+    await expect(local).not.toBeVisible();
+    await search.fill("packaged smoke");
+    await archive.selectOption("all");
+    await page.getByRole("button", { name: /packaged smoke/ }).click();
+    await expect(page.getByRole("button", { name: "Back to candidatures" })).toBeVisible();
+    await assertSelectedCandidatureHierarchy(page, width, height);
+
+    await page.getByRole("button", { name: "Back to candidatures" }).click();
+    await expect(collection).toBeVisible();
+    await expect(local).not.toBeVisible();
+    await expect(search).toHaveValue("packaged smoke");
+    await expect(archive).toHaveValue("all");
+    console.log(
+      `[packaged candidature] window=${String(width)}x${String(height)} state=collection query-preserved=true archive-preserved=true`,
+    );
+    return;
+  }
+
+  await assertSelectedCandidatureHierarchy(page, width, height);
 }
 
 test("packaged external command rejects unsupported authority without opening desktop", () => {
