@@ -16,6 +16,9 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", () => ({
         <button type="button" onClick={() => handoffs.openDocumentFromCandidature("cand-1")}>
           Create candidature document
         </button>
+        <button type="button" onClick={() => handoffs.openSettingsFor("ai", "candidatures")}>
+          Open candidature AI settings
+        </button>
         <button type="button" onClick={() => onDirtyChange?.(true)}>Make candidature dirty</button>
       </section>
     );
@@ -146,6 +149,19 @@ describe("contextual handoff coordination", () => {
     expect(screen.getByRole("region", { name: "Mock settings" })).toHaveTextContent(
       "Settings detail ai",
     );
+  });
+
+  it("enters AI Settings from candidature context and returns to the same mounted candidature", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const candidatureRegion = await screen.findByRole("region", { name: "Mock candidatures" });
+    await user.click(screen.getByRole("button", { name: "Open candidature AI settings" }));
+    expect(screen.getByRole("region", { name: "Mock settings" })).toHaveTextContent(
+      "Settings detail ai",
+    );
+    await user.click(screen.getByRole("button", { name: "Return to candidature" }));
+    expect(screen.getByRole("region", { name: "Mock candidatures" })).toBe(candidatureRegion);
   });
 
   it("does not discard dirty Professional information through the shell return", async () => {
