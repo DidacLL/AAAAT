@@ -139,7 +139,7 @@ afterEach(() => {
 });
 
 describe("candidature AI Settings fallback", () => {
-  it("routes unavailable field discovery to AI connections and preserves candidature origin", async () => {
+  it("routes unavailable selected-Source discovery to AI connections and preserves candidature origin", async () => {
     installApi();
     const user = userEvent.setup();
     render(
@@ -152,6 +152,14 @@ describe("candidature AI Settings fallback", () => {
     const information = screen.getByRole("region", { name: "Candidature information" });
     await user.click(within(information).getByRole("button", { name: "Discover from Sources" }));
 
+    const discovery = await screen.findByRole("dialog", { name: "Historical Source discovery" });
+    const send = within(discovery).getByRole("button", { name: "Send selected Sources to AI" });
+    expect(send).toBeDisabled();
+    expect(discoverField).not.toHaveBeenCalled();
+
+    await user.click(within(discovery).getByRole("checkbox", { name: "Retained source" }));
+    await user.click(send);
+
     expect(discoverField).toHaveBeenCalledWith({
       candidatureId,
       fieldId,
@@ -160,5 +168,6 @@ describe("candidature AI Settings fallback", () => {
     await vi.waitFor(() => {
       expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
     });
+    expect(screen.getByRole("heading", { name: "AI fallback opportunity" })).toBeInTheDocument();
   });
 });
