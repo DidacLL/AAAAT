@@ -89,31 +89,33 @@ A rendering failure does not make AI necessary and does not change the authorita
 
 ## 5. Optional AI assistance
 
-AI is optional. In **Settings**, AAAAT can keep several named, keyless OpenAI-compatible connections. A loopback connection may use `http:`; a remote connection must use `https:`. The default local example base URL is:
+AI is optional. In **Settings**, AAAAT can keep several named OpenAI-compatible connections. A loopback connection may use `http:`; a remote connection must use `https:`. The default local example base URL is:
 
 ```text
 http://localhost:11434/v1
 ```
 
-Add a connection name, model name, and base URL. AAAAT does not accept URL credentials, query strings, fragments, authorization headers, API keys, OAuth flows, provider-account setup, or secret storage. A remote endpoint must already be authenticated outside AAAAT. The first connection becomes the general default; adding another connection does not switch that choice. The general default is only a convenience fallback for operations that have been validated against that exact endpoint/model.
+For each connection, this current slice stores the user-defined connection name, model name, and base URL. It has no credential, API-key, OAuth, provider-account, authorization-header, or secret-storage configuration. A remote endpoint must therefore already be authenticated outside AAAAT. The first connection becomes the general default; adding another connection does not switch that choice. The general default is only a convenience fallback for operations that have been validated against that exact endpoint/model.
 
 Before using a configured connection for an AI operation, validate that operation from **Settings**. Validation sends only synthetic AAAAT data through the existing operation contract; it does not send your candidature, professional information, Sources, or documents, and it is not a benchmark of model quality. The first successful validation for an operation becomes that operation's default when no operation default exists. Later validations do not switch it automatically. You can explicitly choose another validated connection for that operation.
 
 Changing a connection's endpoint or model clears its recorded operation validations because the capability boundary changed. A name-only edit keeps them. Removing a connection clears any operation defaults that referenced it. AAAAT never scans other configured connections or falls back to another model automatically.
 
-Use **Export AI setup** to save a small portable setup file containing only connection names, accepted endpoints, model names, and the selected general default. The portable file does not contain AAAAT's local connection IDs, operation-validation results, per-operation defaults, workspace paths, credentials, or career/application data.
+Use **Export AI setup** to save a small portable setup file containing only connection names, accepted endpoints, model names, and the selected general default. The portable file does not contain AAAAT's local connection IDs, operation-validation results, per-operation defaults, workspace paths, credential material, or career/application data.
 
 Use **Import AI setup** to replace the current named AI setup from one of those files. AAAAT asks for confirmation before replacement. Imported connections receive fresh local IDs, preserve the general default by connection name, and start with no validated operations or per-operation defaults. Validate the operations you intend to use again on the destination computer before relying on AI assistance. Cancelling the file picker leaves the current setup unchanged.
 
 The same **Setup status** summarizes how many AI connections are configured and which active AI operations have a validated route. This is a capability/routing status, not a model-quality score.
 
-Settings also generates copyable `configurator.ai` guidance for a free-chat assistant. It carries only the configured-connection count and validated-route availability, not connection names, endpoints/models, workspace paths, or career/application content. The prompt tells the assistant to keep AI optional, use normal AAAAT Settings, avoid JSON/SQLite editing and invented credentials, and recommend only explicitly validated operation routes. AAAAT never sends this guidance automatically; copying it is an explicit user action.
+Settings also generates copyable `configurator.ai` guidance for a free-chat assistant. It carries only the configured-connection count and validated-route availability, not connection names, endpoints/models, workspace paths, or career/application content. The prompt tells the assistant to keep AI optional, use normal AAAAT Settings, avoid JSON/SQLite editing and invented authentication details, and recommend only explicitly validated operation routes. AAAAT never sends this guidance automatically; copying it is an explicit user action.
 
-AAAAT accepts loopback `http:` endpoints and remote `https:` endpoints. It never takes responsibility for remote authentication or provider credentials; configure those outside AAAAT before adding the endpoint.
+The current connection path accepts loopback `http:` endpoints and remote `https:` endpoints whose authentication is already handled outside AAAAT. Authentication and credential configuration are outside this slice rather than a product-wide prohibition.
 
 When an operation has a validated route, contextual assistance can use bounded operations such as job extraction, opportunity review, saved-variation recommendation, historical information discovery, CV tailoring, and cover-letter drafting. AAAAT constructs operation-specific context, applies its privacy projection, validates the response, and uses normal application services for permitted changes. It does not compare candidatures, rank opportunities, choose a winner, or prescribe career actions.
 
-When you save a Source-backed candidature and job extraction is available, choose **Review source with AI** in the same candidature flow. AAAAT first retains the Source. Before it sends anything, it shows the selected connection and the exact retained Source material to be disclosed. The AI result is a set of individually reviewable proposals; accept only the information you want to keep. Dismissing the review, unavailable AI, or a provider failure leaves the saved Source-backed candidature intact.
+When you save a Source-backed candidature and job extraction is available, choose **Review source with AI** in the same candidature flow. AAAAT first retains the Source. Before it sends anything, it shows the selected connection, whether that connection is local or remote, and the exact retained Source material to be disclosed; the ordinary review surface does not expose the literal endpoint. The AI result is a set of individually reviewable proposals; accept only the information you want to keep. Dismissing the review, unavailable AI, or a provider failure leaves the saved Source-backed candidature intact.
+
+For historical information discovery inside a candidature, choose **Discover from Sources**, then select one or more retained Sources. Nothing is preselected. AAAAT shows the selected Source material before sending, requires a non-empty selection, and passes only those selected Sources to the discovery operation. Any returned value remains a proposal until you accept it through the normal candidature information service.
 
 If no connection has been validated for the requested operation, or an AI connection fails, continue using **Professional information**, **CVs & letters**, and **Candidatures** manually.
 
