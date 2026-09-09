@@ -148,12 +148,6 @@ export function App() {
     return () => { active = false; };
   }, []);
 
-  const currentDirty =
-    productView === "candidatures"
-      ? candidatureDirty
-      : productView === "documents"
-        ? documentDirty
-        : professionalInformationDirty;
   const protectedWorkDirty =
     candidatureDirty || documentDirty || professionalInformationDirty;
   const anyDirty = protectedWorkDirty || settingsDirty;
