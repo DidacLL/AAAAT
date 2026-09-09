@@ -43,9 +43,12 @@ describe("setup free-chat guidance", () => {
     expect(installer.text).not.toContain("Sensitive pdfTeX version");
 
     expect(configurator.name).toBe("configurator.ai");
-    expect(configurator.text).toContain("0 configured local AI connections");
+    expect(configurator.text).toContain("0 configured AI connections");
     expect(configurator.text).toContain("AI is optional");
+    expect(configurator.text).toContain("loopback HTTP endpoints");
+    expect(configurator.text).toContain("remote HTTPS endpoints whose authentication is already handled outside AAAAT");
     expect(configurator.text).toContain("Opportunity review: no validated route");
+    expect(configurator.text).not.toContain("local loopback OpenAI-compatible endpoints");
   });
 
   it("identifies only missing TeX and validated operation status without connection-name disclosure", () => {
@@ -75,7 +78,7 @@ describe("setup free-chat guidance", () => {
     expect(installer.text).toContain("Guide only the missing prerequisite(s) above");
     expect(installer.text).toContain("Ask which operating system/distribution they use");
 
-    expect(configurator.text).toContain("1 configured local AI connection");
+    expect(configurator.text).toContain("1 configured AI connection");
     expect(configurator.text).toContain("Opportunity review: validated route available");
     expect(configurator.text).toContain("Job extraction: no validated route");
     expect(configurator.text).not.toContain("Private connection name");
