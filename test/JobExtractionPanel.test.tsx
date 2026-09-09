@@ -119,7 +119,7 @@ describe("saved Source AI review", () => {
 
   afterEach(() => cleanup());
 
-  it("keeps the Source first, discloses the exact selected material, and retains only selected proposals", async () => {
+  it("keeps the Source first, discloses only ordinary remote connection detail, and retains only selected proposals", async () => {
     const user = userEvent.setup();
     renderPanel();
 
@@ -128,8 +128,9 @@ describe("saved Source AI review", () => {
 
     await user.click(screen.getByRole("button", { name: "Review source with AI" }));
     expect(screen.getByText("Remote review endpoint")).toBeInTheDocument();
-    expect(screen.getByText("https://review.example.test/v1")).toBeInTheDocument();
-    expect(screen.getByText(/This is a remote HTTPS endpoint/)).toBeInTheDocument();
+    expect(screen.getByText("Remote HTTPS")).toBeInTheDocument();
+    expect(screen.queryByText("https://review.example.test/v1")).not.toBeInTheDocument();
+    expect(screen.queryByText("review-model")).not.toBeInTheDocument();
     expect(screen.getByText(source.sourceText)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Send selected Source to AI" }));
 
@@ -142,6 +143,29 @@ describe("saved Source AI review", () => {
     expect(setFieldValue).toHaveBeenCalledTimes(1);
     expect(onAccepted).toHaveBeenCalledOnce();
     expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it("identifies a loopback connection as local without exposing its literal endpoint", async () => {
+    listConnections.mockResolvedValueOnce([
+      {
+        id: "00000000-0000-4000-8000-000000000904",
+        name: "Laptop model",
+        endpoint: "http://127.0.0.1:11434/v1",
+        model: "local-model",
+        isDefault: true,
+        validatedOperations: ["job_extraction"],
+        defaultForOperations: ["job_extraction"],
+      },
+    ]);
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole("heading", { name: "Review source with AI" });
+    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
+
+    expect(screen.getByText("Laptop model")).toBeInTheDocument();
+    expect(screen.getByText("Local on this computer")).toBeInTheDocument();
+    expect(screen.queryByText("http://127.0.0.1:11434/v1")).not.toBeInTheDocument();
   });
 
   it("allows a saved Source to remain unchanged after dismissal or an AI failure", async () => {
