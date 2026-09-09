@@ -201,7 +201,7 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await expect(documents).toContainText("New work will be associated with Handoff opportunity.");
     await expect(documents.getByRole("button", { name: "Return to Handoff opportunity" })).toBeVisible();
 
-    await documents.getByLabel("Title").fill("Handoff CV");
+    await documents.locator(".document-create").getByLabel("Title").fill("Handoff CV");
     await documents.getByRole("button", { name: "Create CV" }).click();
     await expect(documents.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 600, "document-context");
@@ -220,7 +220,7 @@ test("packaged candidature document handoff preserves dirty associations and exa
 
     await returnedMaterial.getByRole("button", { name: "Create CV or letter for this candidature" }).click();
     const secondDocuments = running.page.getByRole("region", { name: "CVs & letters" });
-    await secondDocuments.getByLabel("Title").fill("Second Handoff CV");
+    await secondDocuments.locator(".document-create").getByLabel("Title").fill("Second Handoff CV");
     await secondDocuments.getByRole("button", { name: "Create CV" }).click();
     await expect(secondDocuments.getByRole("heading", { name: "Second Handoff CV" })).toBeVisible();
     await secondDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
