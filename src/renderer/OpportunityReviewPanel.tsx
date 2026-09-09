@@ -13,6 +13,11 @@ interface Props {
   readonly record: CandidatureRecord;
 }
 
+function isLocalConnection(endpoint: string): boolean {
+  const hostname = new URL(endpoint).hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+}
+
 export function OpportunityReviewPanel({ record }: Props) {
   const { openSettingsFor } = useContextualHandoffs();
   const [identityPrivacy, setIdentityPrivacy] = useState<PrivacyMode>("token");
@@ -134,8 +139,8 @@ export function OpportunityReviewPanel({ record }: Props) {
         <section className="selected-concept-definition">
           <h4>Projected context</h4>
           <p>
-            AI provider: {preview.connection.name} · {preview.connection.model} ·{" "}
-            <code>{preview.connection.endpoint}</code>
+            AI connection: {preview.connection.name} ·{" "}
+            {isLocalConnection(preview.connection.endpoint) ? "local on this computer" : "remote HTTPS"}
           </p>
           <pre>{JSON.stringify(preview.projectedContext, null, 2)}</pre>
           <button type="button" disabled={busy} onClick={() => void assess()}>
