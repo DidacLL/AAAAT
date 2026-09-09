@@ -265,12 +265,6 @@ export function App() {
         setProductView("professional-information");
       },
       returnToDocument: () => {
-        if (
-          professionalInformationDirty &&
-          !window.confirm("Discard unsaved professional-information edits and return to document?")
-        ) {
-          return;
-        }
         const returningDocumentId = professionalInformationHandoff?.documentId;
         setSettingsOpen(false);
         setSettingsHandoff(null);
@@ -303,12 +297,21 @@ export function App() {
       documentDirty,
       documentHandoff,
       productView,
-      professionalInformationDirty,
       professionalInformationHandoff,
       settingsDirty,
       settingsHandoff,
     ],
   );
+
+  const returnToDocumentFromShell = () => {
+    if (
+      professionalInformationDirty &&
+      !window.confirm("Discard unsaved professional-information edits and return to document?")
+    ) {
+      return;
+    }
+    handoffApi.returnToDocument();
+  };
 
   const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
   const choosing = workspacePhase === "choosing";
@@ -401,7 +404,7 @@ export function App() {
                     {professionalInformationHandoff ? (
                       <div className="contextual-return-bar" role="status">
                         <span>Editing reusable professional information for the current document.</span>
-                        <button className="compact-secondary" type="button" onClick={handoffApi.returnToDocument}>
+                        <button className="compact-secondary" type="button" onClick={returnToDocumentFromShell}>
                           Return to document
                         </button>
                       </div>
