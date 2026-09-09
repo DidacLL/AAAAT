@@ -29,6 +29,11 @@ function extractionConnection(connections: NamedAiConnection[]) {
   );
 }
 
+function isLocalConnection(endpoint: string): boolean {
+  const hostname = new URL(endpoint).hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+}
+
 function proposalLabel(
   proposal: JobExtractionResult["proposals"][number],
   fields: CandidatureFieldConfiguration[],
@@ -162,6 +167,8 @@ export function JobExtractionPanel({
     );
   };
 
+  const localConnection = isLocalConnection(connection.endpoint);
+
   return (
     <section className="job-extraction-panel" aria-label="Source information assistance">
       <div>
@@ -181,15 +188,16 @@ export function JobExtractionPanel({
           {disclosureOpen ? (
             <div className="ai-disclosure" role="dialog" aria-label="AI source disclosure">
               <p>
-                <strong>AI provider:</strong> {connection.name}
+                <strong>AI connection:</strong> {connection.name}
               </p>
               <p>
-                <strong>Selected endpoint:</strong> <code>{connection.endpoint}</code>
+                <strong>Connection type:</strong>{" "}
+                {localConnection ? "Local on this computer" : "Remote HTTPS"}
               </p>
               <p>
-                {connection.endpoint.startsWith("https:")
-                  ? "This is a remote HTTPS endpoint. AAAAT will send exactly this saved Source material to it."
-                  : "This is a loopback endpoint on this computer. AAAAT will send exactly this saved Source material to it."} {" "}
+                {localConnection
+                  ? "AAAAT will send exactly this saved Source material through the selected local connection."
+                  : "AAAAT will send exactly this saved Source material through the selected remote connection."} {" "}
                 It remains your choice whether to continue.
               </p>
               <details open>
