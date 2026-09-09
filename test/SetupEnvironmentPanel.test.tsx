@@ -113,7 +113,7 @@ describe("setup environment panel", () => {
     expect((screen.getByRole("textbox", { name: "installer.ai guidance" }) as HTMLTextAreaElement).value)
       .toContain("latexmk: missing");
     expect((screen.getByRole("textbox", { name: "configurator.ai guidance" }) as HTMLTextAreaElement).value)
-      .toContain("0 configured local AI connections");
+      .toContain("0 configured AI connections");
     await user.click(screen.getByRole("button", { name: "Refresh environment" }));
     expect(current).toHaveBeenCalledTimes(2);
   });
