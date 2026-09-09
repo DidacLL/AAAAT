@@ -15,7 +15,7 @@ import { OpportunityReviewPanel } from "./OpportunityReviewPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel, type FocusDestination } from "./CandidatureFocusPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
-import { isAiOperationUnavailable } from "./ai-route-status";
+import { HistoricalFieldDiscoveryPanel } from "./HistoricalFieldDiscoveryPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
 import { filterCandidatures, type ArchiveFilter } from "./candidature-projections";
@@ -106,7 +106,7 @@ export function CandidaturesWorkspace({
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, openDocumentFromCandidature, openSettingsFor } = useContextualHandoffs();
+  const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
   const previousDocumentHandoff = useRef(documentHandoff);
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
@@ -145,6 +145,7 @@ export function CandidaturesWorkspace({
   const [filterChoiceValues, setFilterChoiceValues] = useState<string[]>([]);
   const [fieldMatches, setFieldMatches] = useState<ReadonlySet<string> | null>(null);
   const [valueEditorDirty, setValueEditorDirty] = useState<ReadonlySet<string>>(new Set());
+  const [discoveryFieldId, setDiscoveryFieldId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selected = records.find((record) => record.id === selectedId) ?? null;
@@ -203,6 +204,7 @@ export function CandidaturesWorkspace({
     setSelectedConceptIds(record.conceptIds);
     setSelectedConceptId(record.conceptIds[0] ?? null);
     setSourceDirty(false);
+    setDiscoveryFieldId(null);
   }, []);
 
   useEffect(() => {
@@ -354,6 +356,7 @@ export function CandidaturesWorkspace({
     if (!confirmSectionDiscard()) return;
     if (section === "documents" && selected) setSelectedDocumentIds(selected.documentIds);
     if (section === "sources") setSourceDirty(false);
+    if (section === "information") setDiscoveryFieldId(null);
     setSection(next);
   };
 
@@ -392,33 +395,7 @@ export function CandidaturesWorkspace({
   };
 
   const discoverValue = async (fieldId: string) => {
-    if (!selected) return;
-    const sources = await window.aaaat.candidatures.listSources(selected.id);
-    if (sources.length === 0) throw new Error("Retain a Source before asking AI to rediscover information.");
-    let result;
-    try {
-      result = await window.aaaat.ai.discoverField({
-        candidatureId: selected.id,
-        fieldId,
-        sourceIds: sources.map((source) => source.id),
-      });
-    } catch (reason) {
-      if (await isAiOperationUnavailable("historical_field_discovery")) {
-        openSettingsFor("ai", "candidatures");
-      }
-      throw reason;
-    }
-    if (!result.proposal) {
-      window.alert("The configured AI did not find a supported value in these Sources.");
-      return;
-    }
-    const field = fields.find((candidate) => candidate.definition.id === fieldId);
-    const label = field?.definition.label ?? "this field";
-    const replacement = result.existingValuePresent
-      ? `Replace the existing ${label} value with the reviewed AI proposal?`
-      : `Accept the reviewed AI proposal for ${label}?`;
-    if (!window.confirm(`${replacement}\n\n${JSON.stringify(result.proposal.value)}`)) return;
-    await setValue(fieldId, result.proposal.value);
+    setDiscoveryFieldId(fieldId);
   };
 
   const createField = async () => {
@@ -643,6 +620,7 @@ export function CandidaturesWorkspace({
     : [];
   const addField = fields.find((field) => field.definition.id === addFieldId);
   const editorField = fields.find((field) => field.definition.id === fieldEditorId);
+  const discoveryField = fields.find((field) => field.definition.id === discoveryFieldId);
 
   return (
     <section className="candidatures-workspace" aria-label="Candidatures">
@@ -881,6 +859,15 @@ export function CandidaturesWorkspace({
                         })}
                       </div>
                     )}
+
+                    {discoveryField ? (
+                      <HistoricalFieldDiscoveryPanel
+                        candidatureId={selected.id}
+                        field={discoveryField}
+                        onAccept={(value) => setValue(discoveryField.definition.id, value)}
+                        onClose={() => setDiscoveryFieldId(null)}
+                      />
+                    ) : null}
 
                     <details className="add-information-panel">
                       <summary>+ Add information</summary>
