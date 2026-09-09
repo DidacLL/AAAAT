@@ -28,10 +28,15 @@ function extractionConnection(connections: NamedAiConnection[]) {
   );
 }
 
-function proposalLabel(proposal: JobExtractionResult["proposals"][number]) {
-  return proposal.value === ""
-    ? proposal.fieldLabel
-    : `${proposal.fieldLabel}: ${proposal.value}`;
+function proposalLabel(
+  proposal: JobExtractionResult["proposals"][number],
+  fields: CandidatureFieldConfiguration[],
+) {
+  const fieldLabel =
+    fields.find((field) => field.definition.id === proposal.fieldId)?.definition.label ??
+    "Information";
+  const value = Array.isArray(proposal.value) ? proposal.value.join(", ") : proposal.value;
+  return value === "" ? fieldLabel : `${fieldLabel}: ${value}`;
 }
 
 export function JobExtractionPanel({
@@ -227,7 +232,7 @@ export function JobExtractionPanel({
                     checked={selectedProposalIndexes.includes(index)}
                     onChange={() => toggleProposal(index)}
                   />
-                  {proposalLabel(item)}
+                  {proposalLabel(item, fields)}
                 </label>
               ))}
             </fieldset>

@@ -69,7 +69,7 @@ describe("saved Source AI review", () => {
         defaultForOperations: ["job_extraction"],
       },
     ]);
-    extractJob.mockResolvedValue({ proposals: [{ fieldId, fieldLabel: "Minimum flight hours", value: "1500" }] });
+    extractJob.mockResolvedValue({ proposals: [{ fieldId, value: "1500" }] });
     setFieldValue.mockResolvedValue(undefined);
     Object.defineProperty(window, "aaaat", {
       configurable: true,
