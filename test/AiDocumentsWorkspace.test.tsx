@@ -60,6 +60,36 @@ const updateDocument = vi.fn();
 const profileCurrent = vi.fn();
 const tailorCv = vi.fn();
 const draftCoverLetter = vi.fn();
+const setupEnvironmentCurrent = vi.fn();
+
+function setupEnvironment(operationAvailable = true) {
+  return {
+    workspaceReady: true,
+    tex: {
+      commands: [
+        { command: "latexmk", available: true, version: "Latexmk" },
+        { command: "pdflatex", available: true, version: "pdfTeX" },
+      ],
+      documentRenderingReady: true,
+    },
+    ai: {
+      configurationReadable: true,
+      connectionCount: 1,
+      operations: [
+        { operation: "fit_assessment", available: true, connectionName: "Local" },
+        { operation: "job_extraction", available: true, connectionName: "Local" },
+        { operation: "historical_field_discovery", available: true, connectionName: "Local" },
+        { operation: "variant_recommendation", available: true, connectionName: "Local" },
+        {
+          operation: "cv_tailoring",
+          available: operationAvailable,
+          connectionName: operationAvailable ? "Local" : null,
+        },
+        { operation: "cover_letter_draft", available: true, connectionName: "Local" },
+      ],
+    },
+  };
+}
 
 describe("AI document assistance workspace", () => {
   beforeEach(() => {
@@ -91,6 +121,7 @@ describe("AI document assistance workspace", () => {
       ...input,
       mode: "manual",
     }));
+    setupEnvironmentCurrent.mockResolvedValue(setupEnvironment());
 
     Object.defineProperty(window, "aaaat", {
       configurable: true,
@@ -99,6 +130,7 @@ describe("AI document assistance workspace", () => {
         documents: { list: listDocuments, update: updateDocument },
         profile: { current: profileCurrent },
         ai: { tailorCv, draftCoverLetter },
+        setupEnvironment: { current: setupEnvironmentCurrent },
       },
     });
   });
@@ -175,5 +207,28 @@ describe("AI document assistance workspace", () => {
     expect(confirm).toHaveBeenCalledTimes(2);
     expect(draftCoverLetter).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText("Subject")).toHaveValue("Unsaved AI draft subject");
+  });
+
+  it("offers AI connections only when the failed operation has no validated route", async () => {
+    tailorCv.mockRejectedValueOnce(new Error("No validated route is configured."));
+    setupEnvironmentCurrent.mockResolvedValueOnce(setupEnvironment(false));
+    const user = userEvent.setup();
+    render(<AiDocumentsWorkspace />);
+
+    await user.click(await screen.findByRole("button", { name: "Recommend CV evidence" }));
+
+    expect(await screen.findByRole("button", { name: "Open AI connections settings" })).toBeInTheDocument();
+  });
+
+  it("keeps provider/runtime failures local when a validated route still exists", async () => {
+    tailorCv.mockRejectedValueOnce(new Error("Provider returned invalid output."));
+    setupEnvironmentCurrent.mockResolvedValueOnce(setupEnvironment(true));
+    const user = userEvent.setup();
+    render(<AiDocumentsWorkspace />);
+
+    await user.click(await screen.findByRole("button", { name: "Recommend CV evidence" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Provider returned invalid output.");
+    expect(screen.queryByRole("button", { name: "Open AI connections settings" })).not.toBeInTheDocument();
   });
 });
