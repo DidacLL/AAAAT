@@ -24,15 +24,24 @@ import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
 const candidatureId = "00000000-0000-4000-8000-000000000811";
 const fieldId = "00000000-0000-4000-8000-000000000812";
 const sourceId = "00000000-0000-4000-8000-000000000813";
+const timestamp = "2026-09-09T00:00:00.000Z";
 
 const candidature: CandidatureRecord = {
   id: candidatureId,
   archived: false,
-  createdAt: "2026-09-09T00:00:00.000Z",
-  updatedAt: "2026-09-09T00:00:00.000Z",
+  createdAt: timestamp,
+  updatedAt: timestamp,
   label: "AI fallback opportunity",
   sourceSearchText: "retained source",
-  values: [{ fieldId, value: "Existing value" }],
+  values: [
+    {
+      candidatureId,
+      fieldId,
+      value: "Existing value",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+  ],
   documentIds: [],
   conceptIds: [],
 };
@@ -47,8 +56,8 @@ const field: CandidatureFieldConfiguration = {
     cardinality: "one",
     choices: [],
     enabled: true,
-    createdAt: "2026-09-09T00:00:00.000Z",
-    updatedAt: "2026-09-09T00:00:00.000Z",
+    createdAt: timestamp,
+    updatedAt: timestamp,
   },
   preferences: {
     fieldId,
@@ -93,8 +102,8 @@ function installApi() {
           title: "Retained source",
           url: "",
           sourceText: "Role information",
-          createdAt: "2026-09-09T00:00:00.000Z",
-          updatedAt: "2026-09-09T00:00:00.000Z",
+          createdAt: timestamp,
+          updatedAt: timestamp,
         },
       ]),
       update: vi.fn(),
