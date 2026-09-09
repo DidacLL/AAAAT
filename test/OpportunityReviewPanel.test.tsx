@@ -96,7 +96,7 @@ describe("candidature opportunity-review panel", () => {
 
   afterEach(() => cleanup());
 
-  it("shows the projected payload before running the read-only opportunity review", async () => {
+  it("shows the projected payload and ordinary local connection identity before the read-only review", async () => {
     const user = userEvent.setup();
     renderPanel();
 
@@ -108,6 +108,9 @@ describe("candidature opportunity-review panel", () => {
       identityPrivacy: "token",
       contactPrivacy: "token",
     });
+    expect(screen.getByText(/AI connection: Local fixture · local on this computer/)).toBeInTheDocument();
+    expect(screen.queryByText("http://localhost:11434/v1")).not.toBeInTheDocument();
+    expect(screen.queryByText("fixture-model")).not.toBeInTheDocument();
     expect(
       screen.getByText(
         (content, element) => element?.tagName === "PRE" && content.includes(projectedPrivateValue),
@@ -125,6 +128,28 @@ describe("candidature opportunity-review panel", () => {
     expect(screen.getByRole("heading", { name: "Uncertainties" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Questions" })).toBeInTheDocument();
     expect(screen.queryByText(/strong fit/i)).not.toBeInTheDocument();
+  });
+
+  it("identifies a remote HTTPS connection without exposing endpoint or model detail", async () => {
+    previewOpportunityReview.mockResolvedValueOnce({
+      connection: {
+        name: "Remote fixture",
+        endpoint: "https://models.example.test/v1",
+        model: "remote-model",
+      },
+      projectedContext: {
+        candidature: { label: "Candidature", information: [], sources: [] },
+        profileItems: [],
+      },
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(screen.getByRole("button", { name: "Preview what AI will receive" }));
+
+    expect(screen.getByText(/AI connection: Remote fixture · remote HTTPS/)).toBeInTheDocument();
+    expect(screen.queryByText("https://models.example.test/v1")).not.toBeInTheDocument();
+    expect(screen.queryByText("remote-model")).not.toBeInTheDocument();
   });
 
   it("offers AI connections Settings only when the opportunity-review route is unavailable", async () => {
