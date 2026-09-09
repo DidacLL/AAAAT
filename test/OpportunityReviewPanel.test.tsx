@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CandidatureFitPanel } from "../src/renderer/CandidatureFitPanel";
+import { OpportunityReviewPanel } from "../src/renderer/OpportunityReviewPanel";
 import {
   ContextualHandoffContext,
   type ContextualHandoffApi,
@@ -22,8 +22,8 @@ const record: CandidatureRecord = {
 };
 
 const projectedPrivateValue = "opaque local replacement";
-const previewFit = vi.fn();
-const assessFit = vi.fn();
+const previewOpportunityReview = vi.fn();
+const reviewOpportunity = vi.fn();
 const setupCurrent = vi.fn();
 const openSettingsFor = vi.fn();
 
@@ -44,15 +44,15 @@ function handoffs(): ContextualHandoffApi {
 function renderPanel() {
   return render(
     <ContextualHandoffContext.Provider value={handoffs()}>
-      <CandidatureFitPanel record={record} />
+      <OpportunityReviewPanel record={record} />
     </ContextualHandoffContext.Provider>,
   );
 }
 
-describe("candidature AI fit panel", () => {
+describe("candidature opportunity-review panel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    previewFit.mockResolvedValue({
+    previewOpportunityReview.mockResolvedValue({
       connection: {
         name: "Local fixture",
         endpoint: "http://localhost:11434/v1",
@@ -76,20 +76,19 @@ describe("candidature AI fit panel", () => {
         ],
       },
     });
-    assessFit.mockResolvedValue({
-      fit: "strong",
-      summary: "Strong match.",
-      strengths: ["TypeScript"],
-      gaps: [],
-      focus: ["Platform ownership"],
+    reviewOpportunity.mockResolvedValue({
+      summary: "Relevant TypeScript experience is retained.",
+      relevantEvidence: ["TypeScript"],
+      uncertainties: ["The Source does not state the team scope."],
+      questions: ["Which platform responsibilities matter most?"],
     });
     setupCurrent.mockResolvedValue({
-      ai: { operations: [{ operation: "fit_assessment", available: true }] },
+      ai: { operations: [{ operation: "opportunity_review", available: true }] },
     });
     Object.defineProperty(window, "aaaat", {
       configurable: true,
       value: {
-        ai: { previewFit, assessFit },
+        ai: { previewOpportunityReview, reviewOpportunity },
         setupEnvironment: { current: setupCurrent },
       },
     });
@@ -97,14 +96,14 @@ describe("candidature AI fit panel", () => {
 
   afterEach(() => cleanup());
 
-  it("shows the projected local payload before running the read-only assessment", async () => {
+  it("shows the projected payload before running the read-only opportunity review", async () => {
     const user = userEvent.setup();
     renderPanel();
 
     expect(screen.getByText(/saved candidature snapshot/i)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Preview AI context" }));
+    await user.click(screen.getByRole("button", { name: "Preview what AI will receive" }));
 
-    expect(previewFit).toHaveBeenCalledWith({
+    expect(previewOpportunityReview).toHaveBeenCalledWith({
       candidatureId: record.id,
       identityPrivacy: "token",
       contactPrivacy: "token",
@@ -114,25 +113,29 @@ describe("candidature AI fit panel", () => {
         (content, element) => element?.tagName === "PRE" && content.includes(projectedPrivateValue),
       ),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Run local fit assessment" }));
+    await user.click(screen.getByRole("button", { name: "Ask AI for an opportunity review" }));
 
-    expect(assessFit).toHaveBeenCalledWith({
+    expect(reviewOpportunity).toHaveBeenCalledWith({
       candidatureId: record.id,
       identityPrivacy: "token",
       contactPrivacy: "token",
     });
-    expect(await screen.findByText("Strong match.")).toBeInTheDocument();
+    expect(await screen.findByText("Relevant TypeScript experience is retained.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Relevant evidence" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Uncertainties" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Questions" })).toBeInTheDocument();
+    expect(screen.queryByText(/strong fit/i)).not.toBeInTheDocument();
   });
 
-  it("offers AI connections Settings only when the fit route is unavailable", async () => {
-    previewFit.mockRejectedValueOnce(new Error("No validated AI route is available."));
+  it("offers AI connections Settings only when the opportunity-review route is unavailable", async () => {
+    previewOpportunityReview.mockRejectedValueOnce(new Error("No validated AI route is available."));
     setupCurrent.mockResolvedValueOnce({
-      ai: { operations: [{ operation: "fit_assessment", available: false }] },
+      ai: { operations: [{ operation: "opportunity_review", available: false }] },
     });
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(screen.getByRole("button", { name: "Preview AI context" }));
+    await user.click(screen.getByRole("button", { name: "Preview what AI will receive" }));
     const settings = await screen.findByRole("button", { name: "Open AI connections settings" });
     await user.click(settings);
 

@@ -27,7 +27,7 @@ export function VariantRecommendationPanel({ record }: Props) {
       setResult(recommendation);
       setVariantName(
         profile.variants.find((variant) => variant.id === recommendation.variantId)?.name ??
-          "Existing profile variant",
+          "Existing saved variation",
       );
     } catch (reason) {
       setResult(null);
@@ -35,7 +35,7 @@ export function VariantRecommendationPanel({ record }: Props) {
       setError(
         reason instanceof Error
           ? reason.message
-          : "AAAAT could not recommend a profile variant.",
+          : "AAAAT could not recommend a saved variation.",
       );
       setAiSettingsSuggested(await isAiOperationUnavailable("variant_recommendation"));
     } finally {
@@ -44,12 +44,13 @@ export function VariantRecommendationPanel({ record }: Props) {
   };
 
   return (
-    <section className="selected-concept-definition" aria-label="AI profile variant recommendation">
-      <p className="eyebrow">Optional local AI</p>
-      <h4>Profile variant recommendation</h4>
+    <section className="selected-concept-definition" aria-label="AI saved variation recommendation">
+      <p className="eyebrow">Optional AI assistance</p>
+      <h4>Saved variation recommendation</h4>
       <p>
         Choose among variants you already created using only this saved opportunity and variant
-        names, focus, tags, and preferred language. This does not change your profile.
+        names, focus, tags, and preferred language. This does not change your professional
+        information.
       </p>
       <button type="button" disabled={busy} onClick={() => void recommend()}>
         {busy ? "Recommending…" : "Recommend existing variant"}

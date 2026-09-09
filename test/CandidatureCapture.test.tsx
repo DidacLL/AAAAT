@@ -2,14 +2,11 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../src/renderer/CandidatureComparisonPanel", () => ({
-  CandidatureComparisonPanel: () => null,
-}));
 vi.mock("../src/renderer/JobExtractionPanel", () => ({
   JobExtractionPanel: () => null,
 }));
-vi.mock("../src/renderer/CandidatureFitPanel", () => ({
-  CandidatureFitPanel: () => null,
+vi.mock("../src/renderer/OpportunityReviewPanel", () => ({
+  OpportunityReviewPanel: () => null,
 }));
 vi.mock("../src/renderer/VariantRecommendationPanel", () => ({
   VariantRecommendationPanel: () => null,

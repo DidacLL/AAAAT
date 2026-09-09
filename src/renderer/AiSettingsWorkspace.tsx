@@ -125,7 +125,7 @@ export function AiSettingsWorkspace({
       setError(
         reason instanceof Error
           ? reason.message
-          : "AAAAT could not save this local AI connection.",
+          : "AAAAT could not save this AI connection.",
       );
     } finally {
       setSaving(false);
@@ -143,7 +143,7 @@ export function AiSettingsWorkspace({
   };
 
   const remove = async (connection: NamedAiConnection) => {
-    if (!window.confirm(`Remove local AI connection “${connection.name}”?`)) return;
+    if (!window.confirm(`Remove AI connection “${connection.name}”?`)) return;
     setError(null);
     setPortabilityStatus(null);
     try {
@@ -219,7 +219,7 @@ export function AiSettingsWorkspace({
     if (!confirmDiscard()) return;
     if (
       !window.confirm(
-        "Import portable AI setup? This replaces all current local AI connections and clears operation validations and operation defaults. You will need to validate operations again on this computer.",
+        "Import portable AI setup? This replaces all current AI connections and clears operation validations and operation defaults. You will need to validate operations again on this computer.",
       )
     ) {
       return;
@@ -258,7 +258,10 @@ export function AiSettingsWorkspace({
           </div>
           <p>
             AAAAT works without AI. Configure a connection only when you want contextual assistance;
-            capability checks use synthetic AAAAT data, not your candidature or profile.
+            capability checks use synthetic AAAAT data, not your candidature or professional
+            information. HTTP is accepted only for a loopback endpoint. A remote endpoint must use
+            HTTPS and have its authentication handled outside AAAAT; AAAAT does not collect,
+            transmit, or store credentials.
           </p>
           {error ? <p className="error-message" role="alert">{error}</p> : null}
 
@@ -285,8 +288,12 @@ export function AiSettingsWorkspace({
                 <input value={draft.model} onChange={(event) => setDraft({ ...draft, model: event.target.value })} placeholder="model-name" />
               </label>
               <label className="wide-field">
-                Local provider base URL
-                <input value={draft.endpoint} onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })} placeholder="http://localhost:11434/v1" />
+                AI provider base URL
+                <input
+                  value={draft.endpoint}
+                  onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })}
+                  placeholder="http://localhost:11434/v1 or https://provider.example/v1"
+                />
               </label>
               <div className="form-actions wide-field">
                 <button className="compact-primary" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save connection" : "Add connection"}</button>
@@ -307,7 +314,7 @@ export function AiSettingsWorkspace({
           </div>
 
           {connections.length === 0 ? (
-            <p>No local AI connections are configured yet. Manual product operation is complete without one.</p>
+            <p>No AI connections are configured yet. Manual product operation is complete without one.</p>
           ) : (
             <div className="document-list">
               {connections.map((connection) => (
@@ -355,7 +362,7 @@ export function AiSettingsWorkspace({
         <div className="profile-column">
           <div className="section-heading"><div><p className="eyebrow">Configuration portability</p><h2>Portable AI setup</h2></div></div>
           {view === "portability" && error ? <p className="error-message" role="alert">{error}</p> : null}
-          <p>Export or import connection names, local endpoints, models and the general default. This is configuration portability, not a workspace backup; local IDs and capability validation are excluded.</p>
+          <p>Export or import connection names, endpoints, models and the general default. This is configuration portability, not a workspace backup; local IDs and capability validation are excluded.</p>
           <div className="button-row">
             <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void exportPortable()}>{portabilityBusy === "export" ? "Exporting…" : "Export AI setup"}</button>
             <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void importPortable()}>{portabilityBusy === "import" ? "Importing…" : "Import AI setup"}</button>

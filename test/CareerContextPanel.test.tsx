@@ -36,12 +36,12 @@ describe("CareerContextPanel", () => {
     render(<CareerContextPanel />);
 
     expect(
-      await screen.findByRole("heading", { name: "Current career context" }),
+      await screen.findByRole("heading", { name: "Career preferences" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Add only the current direction and constraints/)).toBeInTheDocument();
+    expect(screen.getByText(/Add only preferences or constraints/)).toBeInTheDocument();
     expect(screen.queryByLabelText("Career direction")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Add career context" }));
+    await user.click(screen.getByRole("button", { name: "Add career preferences" }));
     expect(screen.getByLabelText(/Career direction/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Constraints/)).toBeInTheDocument();
   });
@@ -49,9 +49,9 @@ describe("CareerContextPanel", () => {
   it("saves fictional current context and returns to a non-empty summary", async () => {
     const user = userEvent.setup();
     render(<CareerContextPanel />);
-    await screen.findByRole("button", { name: "Add career context" });
+    await screen.findByRole("button", { name: "Add career preferences" });
 
-    await user.click(screen.getByRole("button", { name: "Add career context" }));
+    await user.click(screen.getByRole("button", { name: "Add career preferences" }));
     await user.type(
       screen.getByLabelText(/Career direction/),
       "Move toward staff-level platform work",
@@ -61,7 +61,7 @@ describe("CareerContextPanel", () => {
       screen.getByLabelText(/Target markets \/ locations/),
       "Spain / EU remote or hybrid",
     );
-    await user.click(screen.getByRole("button", { name: "Save career context" }));
+    await user.click(screen.getByRole("button", { name: "Save career preferences" }));
 
     expect(update).toHaveBeenCalledWith({
       ...emptyContext,

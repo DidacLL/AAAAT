@@ -11,7 +11,7 @@ import type {
   ConceptRecord,
   DocumentRecord,
 } from "../shared/contracts";
-import { CandidatureFitPanel } from "./CandidatureFitPanel";
+import { OpportunityReviewPanel } from "./OpportunityReviewPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel, type FocusDestination } from "./CandidatureFocusPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
@@ -856,7 +856,7 @@ export function CandidaturesWorkspace({
                     </div>
 
                     {selected.values.length === 0 ? (
-                      <p className="compact-empty">No structured information is retained yet.</p>
+                      <p className="compact-empty">No additional information is retained yet.</p>
                     ) : (
                       <div className="retained-information-list">
                         {selected.values.map((retained) => {
@@ -886,7 +886,7 @@ export function CandidaturesWorkspace({
                       <summary>+ Add information</summary>
                       {enabledMissingFields.length > 0 ? (
                         <label>
-                          Existing field
+                          Existing kind of information
                           <select value={addFieldId} onChange={(event) => selectAddField(event.target.value)}>
                             <option value="">Choose information…</option>
                             {enabledMissingFields.map((field) => (
@@ -914,7 +914,7 @@ export function CandidaturesWorkspace({
                       ) : null}
 
                       <details>
-                        <summary>+ New field</summary>
+                        <summary>+ Add a kind of information</summary>
                         <label>
                           Name
                           <input
@@ -960,13 +960,13 @@ export function CandidaturesWorkspace({
                           ) : null}
                         </details>
                         <button type="button" disabled={!newFieldLabel.trim()} onClick={() => void createField()}>
-                          Create field
+                          Save kind of information
                         </button>
                       </details>
                     </details>
 
                     <details className="field-management">
-                      <summary>Manage candidature fields</summary>
+                      <summary>Advanced information settings</summary>
                       <label>
                         Field
                         <select value={fieldEditorId} onChange={(event) => chooseFieldEditor(event.target.value)}>
@@ -1137,7 +1137,7 @@ export function CandidaturesWorkspace({
               <details className="optional-ai-assistance">
                 <summary>Optional AI assistance</summary>
                 <div className="optional-ai-content">
-                  <CandidatureFitPanel key={`fit-${selected.id}`} record={selected} />
+                  <OpportunityReviewPanel key={`review-${selected.id}`} record={selected} />
                   <VariantRecommendationPanel key={`variant-${selected.id}`} record={selected} />
                 </div>
               </details>

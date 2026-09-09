@@ -12,7 +12,7 @@ import type {
   DesktopApi,
 } from "../src/shared/contracts";
 
-vi.mock("../src/renderer/CandidatureFitPanel", () => ({ CandidatureFitPanel: () => null }));
+vi.mock("../src/renderer/OpportunityReviewPanel", () => ({ OpportunityReviewPanel: () => null }));
 vi.mock("../src/renderer/VariantRecommendationPanel", () => ({ VariantRecommendationPanel: () => null }));
 vi.mock("../src/renderer/CandidatureFocusPanel", () => ({
   CandidatureFocusPanel: () => <section aria-label="Mock Focus" />,

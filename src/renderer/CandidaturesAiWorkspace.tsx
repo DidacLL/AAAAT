@@ -1,7 +1,6 @@
 import { useEffect, useState, type MouseEvent } from "react";
 
-import type { CandidatureInput } from "../shared/contracts";
-import { CandidatureComparisonPanel } from "./CandidatureComparisonPanel";
+import type { JobExtractionRequest } from "../shared/ai-contracts";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import "./candidature-capture.css";
 import { JobExtractionPanel } from "./JobExtractionPanel";
@@ -21,6 +20,10 @@ export function CandidaturesAiWorkspace({
   const [captureSaving, setCaptureSaving] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [compactDetailOpen, setCompactDetailOpen] = useState(false);
+  const [savedSource, setSavedSource] = useState<{
+    candidatureId: string;
+    source: JobExtractionRequest;
+  } | null>(null);
 
   const captureDirty =
     captureOpen &&
@@ -59,7 +62,7 @@ export function CandidaturesAiWorkspace({
     const url = captureUrl.trim();
     const sourceText = captureText.trim();
     try {
-      await window.aaaat.candidatures.create({
+      const created = await window.aaaat.candidatures.create({
         source: {
           kind: url && !sourceText ? "link" : "other",
           title: captureTitle.trim(),
@@ -69,6 +72,14 @@ export function CandidaturesAiWorkspace({
         values: [],
       });
       resetCapture();
+      setSavedSource({
+        candidatureId: created.id,
+        source: {
+          sourceTitle: captureTitle.trim(),
+          sourceUrl: url,
+          sourceText,
+        },
+      });
       setRevision((current) => current + 1);
       setCompactDetailOpen(true);
     } catch (reason) {
@@ -78,17 +89,6 @@ export function CandidaturesAiWorkspace({
     } finally {
       setCaptureSaving(false);
     }
-  };
-
-  const createFromProposal = async (input: CandidatureInput): Promise<boolean> => {
-    const proceed = window.confirm(
-      "Create this candidature and reload the candidature workspace? Unsaved candidature edits or association changes will be discarded.",
-    );
-    if (!proceed) return false;
-    await window.aaaat.candidatures.create(input);
-    setRevision((current) => current + 1);
-    setCompactDetailOpen(true);
-    return true;
   };
 
   const openCompactDetail = (event: MouseEvent<HTMLDivElement>) => {
@@ -190,7 +190,10 @@ export function CandidaturesAiWorkspace({
           <button
             type="button"
             data-testid="new-candidature-capture"
-            onClick={() => setCaptureOpen(true)}
+            onClick={() => {
+              setSavedSource(null);
+              setCaptureOpen(true);
+            }}
           >
             New candidature
           </button>
@@ -198,14 +201,15 @@ export function CandidaturesAiWorkspace({
       )}
 
       <CandidaturesWorkspace key={revision} onDirtyChange={setCandidatureDirty} />
-      <details className="optional-ai-extraction">
-        <summary>Optional AI candidature comparison</summary>
-        <CandidatureComparisonPanel />
-      </details>
-      <details className="optional-ai-extraction">
-        <summary>Optional AI job extraction</summary>
-        <JobExtractionPanel onCreate={createFromProposal} onDirtyChange={setExtractionDirty} />
-      </details>
+      {savedSource !== null ? (
+        <JobExtractionPanel
+          candidatureId={savedSource.candidatureId}
+          source={savedSource.source}
+          onAccepted={() => setRevision((current) => current + 1)}
+          onDismiss={() => setSavedSource(null)}
+          onDirtyChange={setExtractionDirty}
+        />
+      ) : null}
     </div>
   );
 }

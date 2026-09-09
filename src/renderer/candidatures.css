@@ -366,16 +366,14 @@
 }
 
 .candidature-concepts-support,
-.optional-ai-assistance,
-.optional-ai-extraction {
+.optional-ai-assistance {
   border-top: 1px solid var(--line);
   padding-top: 12px;
   color: var(--muted-ink);
 }
 
 .candidature-concepts-support summary,
-.optional-ai-assistance summary,
-.optional-ai-extraction summary {
+.optional-ai-assistance summary {
   cursor: pointer;
   font-size: 0.9rem;
 }

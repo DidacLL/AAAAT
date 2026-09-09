@@ -3,13 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { JobExtractionPanel } from "../src/renderer/JobExtractionPanel";
-import {
-  ContextualHandoffContext,
-  type ContextualHandoffApi,
-} from "../src/renderer/contextual-handoffs";
 import type { CandidatureFieldConfiguration } from "../src/shared/contracts";
 
+const candidatureId = "00000000-0000-4000-8000-000000000900";
 const fieldId = "00000000-0000-4000-8000-000000000901";
+const source = {
+  sourceTitle: "Pilot vacancy",
+  sourceUrl: "https://example.test/job/1",
+  sourceText: "Applicants need at least 1,500 total flight hours.",
+};
 const field: CandidatureFieldConfiguration = {
   definition: {
     id: fieldId,
@@ -36,122 +38,110 @@ const field: CandidatureFieldConfiguration = {
 
 const extractJob = vi.fn();
 const listFields = vi.fn();
-const setupCurrent = vi.fn();
-const onCreate = vi.fn();
-const openSettingsFor = vi.fn();
-
-function handoffs(): ContextualHandoffApi {
-  return {
-    documentHandoff: null,
-    professionalInformationHandoff: null,
-    settingsHandoff: null,
-    openDocumentFromCandidature: vi.fn(),
-    returnToCandidature: vi.fn(),
-    openProfessionalInformationItem: vi.fn(),
-    returnToDocument: vi.fn(),
-    openSettingsFor,
-    returnFromSettings: vi.fn(),
-  };
-}
+const listConnections = vi.fn();
+const setFieldValue = vi.fn();
+const onAccepted = vi.fn();
+const onDismiss = vi.fn();
 
 function renderPanel() {
   return render(
-    <ContextualHandoffContext.Provider value={handoffs()}>
-      <JobExtractionPanel onCreate={onCreate} />
-    </ContextualHandoffContext.Provider>,
+    <JobExtractionPanel
+      candidatureId={candidatureId}
+      source={source}
+      onAccepted={onAccepted}
+      onDismiss={onDismiss}
+    />,
   );
 }
 
-describe("Source discovery panel", () => {
+describe("saved Source AI review", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listFields.mockResolvedValue([field]);
-    extractJob.mockResolvedValue({ proposals: [{ fieldId, value: 1500 }] });
-    setupCurrent.mockResolvedValue({
-      ai: { operations: [{ operation: "job_extraction", available: true }] },
-    });
-    onCreate.mockResolvedValue(true);
+    listConnections.mockResolvedValue([
+      {
+        id: "00000000-0000-4000-8000-000000000902",
+        name: "Remote review endpoint",
+        endpoint: "https://review.example.test/v1",
+        model: "review-model",
+        isDefault: true,
+        validatedOperations: ["job_extraction"],
+        defaultForOperations: ["job_extraction"],
+      },
+    ]);
+    extractJob.mockResolvedValue({ proposals: [{ fieldId, fieldLabel: "Minimum flight hours", value: "1500" }] });
+    setFieldValue.mockResolvedValue(undefined);
     Object.defineProperty(window, "aaaat", {
       configurable: true,
       value: {
         ai: { extractJob },
-        candidatures: { listFields },
-        setupEnvironment: { current: setupCurrent },
+        aiConnections: { list: listConnections },
+        candidatures: { listFields, setFieldValue },
       },
     });
   });
 
   afterEach(() => cleanup());
 
-  it("discovers current registered information and creates only after explicit acceptance", async () => {
+  it("keeps the Source first, discloses the exact selected material, and retains only selected proposals", async () => {
     const user = userEvent.setup();
     renderPanel();
-    await screen.findByText("Discover registered information from a Source");
 
-    await user.type(screen.getByLabelText("Source title"), "Pilot vacancy");
-    await user.type(screen.getByLabelText("Source URL"), "https://example.test/job/1");
-    await user.type(screen.getByLabelText("Source text"), "Applicants need at least 1,500 total flight hours.");
-    await user.click(screen.getByRole("button", { name: "Discover configured fields" }));
+    await screen.findByRole("heading", { name: "Review source with AI" });
+    expect(extractJob).not.toHaveBeenCalled();
 
-    expect(extractJob).toHaveBeenCalledWith({
-      sourceTitle: "Pilot vacancy",
-      sourceUrl: "https://example.test/job/1",
-      sourceText: "Applicants need at least 1,500 total flight hours.",
-    });
-    expect(await screen.findByText("Minimum flight hours")).toBeInTheDocument();
-    expect(screen.getByText("1500")).toBeInTheDocument();
-    expect(onCreate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
+    expect(screen.getByText("Remote review endpoint")).toBeInTheDocument();
+    expect(screen.getByText(source.sourceText)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Send selected Source to AI" }));
 
-    await user.click(
-      screen.getByRole("button", { name: "Create candidature and accept proposal" }),
-    );
-    expect(onCreate).toHaveBeenCalledWith({
-      source: {
-        kind: "job_posting",
-        title: "Pilot vacancy",
-        url: "https://example.test/job/1",
-        sourceText: "Applicants need at least 1,500 total flight hours.",
-      },
-      values: [{ fieldId, value: 1500 }],
-    });
+    expect(extractJob).toHaveBeenCalledWith(source);
+    await screen.findByRole("heading", { name: "Proposed information" });
+    await user.click(screen.getByRole("checkbox", { name: /Minimum flight hours: 1500/ }));
+    await user.click(screen.getByRole("button", { name: "Keep selected information" }));
+
+    expect(setFieldValue).toHaveBeenCalledWith(candidatureId, { fieldId, value: "1500" });
+    expect(onAccepted).toHaveBeenCalledOnce();
+    expect(onDismiss).toHaveBeenCalledOnce();
   });
 
-  it("accepts an empty proposal without inventing candidature information", async () => {
-    extractJob.mockResolvedValueOnce({ proposals: [] });
+  it("allows a saved Source to remain unchanged after dismissal or an AI failure", async () => {
     const user = userEvent.setup();
     renderPanel();
-    await screen.findByText("Discover registered information from a Source");
-    await user.type(screen.getByLabelText("Source text"), "A sparse opportunity with no supported facts.");
-    await user.click(screen.getByRole("button", { name: "Discover configured fields" }));
+    await screen.findByRole("heading", { name: "Review source with AI" });
+    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
+    await user.click(screen.getByRole("button", { name: "Keep without AI" }));
 
-    expect(await screen.findByText(/No configured discovery field was supported/)).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: "Create candidature and accept proposal" }),
-    );
-    expect(onCreate).toHaveBeenCalledWith({
-      source: {
-        kind: "job_posting",
-        title: "",
-        url: "",
-        sourceText: "A sparse opportunity with no supported facts.",
-      },
-      values: [],
-    });
+    expect(extractJob).not.toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    extractJob.mockRejectedValueOnce(new Error("The configured endpoint did not respond."));
+    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
+    await user.click(screen.getByRole("button", { name: "Send selected Source to AI" }));
+
+    expect(await screen.findByText("The configured endpoint did not respond.")).toBeInTheDocument();
+    expect(setFieldValue).not.toHaveBeenCalled();
+    expect(onAccepted).not.toHaveBeenCalled();
   });
 
-  it("offers AI connections Settings when job extraction has no available route", async () => {
-    extractJob.mockRejectedValueOnce(new Error("No validated AI route is available."));
-    setupCurrent.mockResolvedValueOnce({
-      ai: { operations: [{ operation: "job_extraction", available: false }] },
-    });
-    const user = userEvent.setup();
-    renderPanel();
-    await screen.findByText("Discover registered information from a Source");
-    await user.type(screen.getByLabelText("Source text"), "Source text requiring AI analysis.");
-    await user.click(screen.getByRole("button", { name: "Discover configured fields" }));
+  it("does not show a generic AI form when the saved Source has no text", () => {
+    render(
+      <JobExtractionPanel
+        candidatureId={candidatureId}
+        source={{ ...source, sourceText: "" }}
+        onAccepted={onAccepted}
+        onDismiss={onDismiss}
+      />,
+    );
+    expect(screen.queryByRole("heading", { name: "Review source with AI" })).not.toBeInTheDocument();
+  });
 
-    const settings = await screen.findByRole("button", { name: "Open AI connections settings" });
-    await user.click(settings);
-    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
+  it("does not show a review action when no valid extraction route exists", async () => {
+    listConnections.mockResolvedValueOnce([]);
+    renderPanel();
+
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Review source with AI" })).not.toBeInTheDocument();
+    });
   });
 });

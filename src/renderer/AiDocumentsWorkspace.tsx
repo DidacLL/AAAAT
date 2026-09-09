@@ -188,7 +188,8 @@ export function AiDocumentsWorkspace({
           Choose a saved candidature and an existing document. AI receives only retained candidature
           fields allowed by their AI-context preferences and non-sensitive career evidence. Retained
           Sources are not sent by document assistance; use explicit field discovery when a Source
-          should be analyzed. Identity and contact profile items keep their existing privacy controls.
+          should be analyzed. Identity and contact professional-information items keep their
+          existing privacy controls.
         </p>
         {error ? (
           <div>
@@ -233,7 +234,7 @@ export function AiDocumentsWorkspace({
           <section className="selected-concept-definition">
             <h3>CV tailoring proposal</h3>
             <p>
-              Recommendations reference existing profile items only. Nothing is changed
+              Recommendations reference existing professional information only. Nothing is changed
               automatically; use the normal Documents controls to accept or reject suggestions.
             </p>
             <button type="button" disabled={busy} onClick={() => void tailorCv()}>
