@@ -4,7 +4,7 @@
 
 ## Context
 
-OWNER_INTENT and SPEC require external assistants to use named AAAAT operations for bounded contributions and supported local production actions. Existing `candidature_create` already demonstrates one bounded external mutation through the ordinary candidature service. After ADR 0023, an external assistant may also read the effective content of one locally selected CV.
+`PRODUCT_DEFINITION.md` permits bounded external-AI contributions and user-owned local production. This ADR records the technical boundary for named AAAAT operations and supported local production actions; it does not define product meaning. Existing `candidature_create` already demonstrates one bounded external mutation through the ordinary candidature service. After ADR 0023, an external assistant may also read the effective content of one locally selected CV.
 
 SPEC states that receiving permitted information does not authorize changing it. A CV being readable therefore cannot silently authorize an external host to trigger production work. Rendering is a bounded supported local action, but it writes the working document's normal generated output and must remain under explicit user authority.
 
