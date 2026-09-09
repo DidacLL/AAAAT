@@ -15,6 +15,7 @@ import { CandidatureFitPanel } from "./CandidatureFitPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel, type FocusDestination } from "./CandidatureFocusPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
+import { isAiOperationUnavailable } from "./ai-route-status";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
 import { filterCandidatures, type ArchiveFilter } from "./candidature-projections";
@@ -105,7 +106,7 @@ export function CandidaturesWorkspace({
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
+  const { documentHandoff, openDocumentFromCandidature, openSettingsFor } = useContextualHandoffs();
   const previousDocumentHandoff = useRef(documentHandoff);
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
@@ -232,16 +233,29 @@ export function CandidaturesWorkspace({
   useEffect(() => {
     const previous = previousDocumentHandoff.current;
     previousDocumentHandoff.current = documentHandoff;
-    if (!previous?.candidatureId || documentHandoff !== null || hasUnsavedChanges) return;
+    if (!previous?.candidatureId || documentHandoff !== null) return;
 
+    const baseline = records.find((record) => record.id === previous.candidatureId) ?? null;
     let active = true;
     void Promise.all([window.aaaat.candidatures.list(), window.aaaat.documents.list()])
       .then(([nextRecords, nextDocuments]) => {
         if (!active) return;
+        const refreshed = nextRecords.find((record) => record.id === previous.candidatureId);
         setRecords(nextRecords);
         setDocuments(nextDocuments);
-        const refreshed = nextRecords.find((record) => record.id === previous.candidatureId);
-        if (refreshed) hydrate(refreshed);
+        if (!refreshed) return;
+        if (!hasUnsavedChanges) {
+          hydrate(refreshed);
+          return;
+        }
+        const baselineIds = new Set(baseline?.documentIds ?? []);
+        const newlyAuthoritativeIds = refreshed.documentIds.filter((id) => !baselineIds.has(id));
+        if (newlyAuthoritativeIds.length > 0) {
+          setSelectedDocumentIds((current) => [
+            ...current,
+            ...newlyAuthoritativeIds.filter((id) => !current.includes(id)),
+          ]);
+        }
       })
       .catch(() => {
         if (active) setError("AAAAT could not refresh application material after returning.");
@@ -249,7 +263,7 @@ export function CandidaturesWorkspace({
     return () => {
       active = false;
     };
-  }, [documentHandoff, hasUnsavedChanges, hydrate]);
+  }, [documentHandoff, hasUnsavedChanges, hydrate, records]);
 
   const normalizedQuery = query.trim();
   useEffect(() => {
@@ -381,11 +395,19 @@ export function CandidaturesWorkspace({
     if (!selected) return;
     const sources = await window.aaaat.candidatures.listSources(selected.id);
     if (sources.length === 0) throw new Error("Retain a Source before asking AI to rediscover information.");
-    const result = await window.aaaat.ai.discoverField({
-      candidatureId: selected.id,
-      fieldId,
-      sourceIds: sources.map((source) => source.id),
-    });
+    let result;
+    try {
+      result = await window.aaaat.ai.discoverField({
+        candidatureId: selected.id,
+        fieldId,
+        sourceIds: sources.map((source) => source.id),
+      });
+    } catch (reason) {
+      if (await isAiOperationUnavailable("historical_field_discovery")) {
+        openSettingsFor("ai", "candidatures");
+      }
+      throw reason;
+    }
     if (!result.proposal) {
       window.alert("The configured AI did not find a supported value in these Sources.");
       return;
