@@ -184,8 +184,13 @@ export function JobExtractionPanel({
                 <strong>AI provider:</strong> {connection.name}
               </p>
               <p>
-                AAAAT will send exactly this saved Source material to the selected endpoint. It
-                remains your choice whether to continue.
+                <strong>Selected endpoint:</strong> <code>{connection.endpoint}</code>
+              </p>
+              <p>
+                {connection.endpoint.startsWith("https:")
+                  ? "This is a remote HTTPS endpoint. AAAAT will send exactly this saved Source material to it."
+                  : "This is a loopback endpoint on this computer. AAAAT will send exactly this saved Source material to it."} {" "}
+                It remains your choice whether to continue.
               </p>
               <details open>
                 <summary>Source material to be disclosed</summary>

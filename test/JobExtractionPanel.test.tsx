@@ -128,6 +128,8 @@ describe("saved Source AI review", () => {
 
     await user.click(screen.getByRole("button", { name: "Review source with AI" }));
     expect(screen.getByText("Remote review endpoint")).toBeInTheDocument();
+    expect(screen.getByText("https://review.example.test/v1")).toBeInTheDocument();
+    expect(screen.getByText(/This is a remote HTTPS endpoint/)).toBeInTheDocument();
     expect(screen.getByText(source.sourceText)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Send selected Source to AI" }));
 
