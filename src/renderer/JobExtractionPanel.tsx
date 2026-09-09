@@ -9,6 +9,8 @@ import type {
   CandidatureInput,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
+import { isAiOperationUnavailable } from "./ai-route-status";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 interface Props {
   readonly onCreate: (input: CandidatureInput) => Promise<boolean>;
@@ -51,11 +53,13 @@ function candidatureInput(
 }
 
 export function JobExtractionPanel({ onCreate, onDirtyChange }: Props) {
+  const { openSettingsFor } = useContextualHandoffs();
   const [request, setRequest] = useState<JobExtractionRequest>(emptyRequest);
   const [proposal, setProposal] = useState<JobExtractionResult | null>(null);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiSettingsSuggested, setAiSettingsSuggested] = useState(false);
 
   useEffect(() => {
     const dirty =
@@ -85,16 +89,19 @@ export function JobExtractionPanel({ onCreate, onDirtyChange }: Props) {
   const sourceChanged = (next: JobExtractionRequest) => {
     setRequest(next);
     setProposal(null);
+    setAiSettingsSuggested(false);
   };
 
   const extract = async () => {
     setBusy(true);
     setError(null);
+    setAiSettingsSuggested(false);
     try {
       setProposal(await window.aaaat.ai.extractJob(request));
     } catch (reason) {
       setProposal(null);
       setError(reason instanceof Error ? reason.message : "AAAAT could not analyze this Source.");
+      setAiSettingsSuggested(await isAiOperationUnavailable("job_extraction"));
     } finally {
       setBusy(false);
     }
@@ -166,7 +173,20 @@ export function JobExtractionPanel({ onCreate, onDirtyChange }: Props) {
         {busy && !proposal ? "Discovering…" : "Discover configured fields"}
       </button>
 
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
+      {error ? (
+        <div>
+          <p className="error-message" role="alert">{error}</p>
+          {aiSettingsSuggested ? (
+            <button
+              className="compact-secondary"
+              type="button"
+              onClick={() => openSettingsFor("ai", "candidatures")}
+            >
+              Open AI connections settings
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {proposal ? (
         <section className="selected-concept-definition" aria-label="Candidature discovery proposal">
