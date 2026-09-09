@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { CoverLetterDraft, CvTailoringResult } from "../shared/ai-contracts";
+import type { AiOperation } from "../shared/ai-connection-contracts";
 import type { CandidatureRecord, DocumentRecord, ProfileItem } from "../shared/contracts";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
@@ -96,6 +97,15 @@ export function AiDocumentsWorkspace({
     clearProposal();
   };
 
+  const routeUnavailable = async (operation: AiOperation): Promise<boolean> => {
+    try {
+      const environment = await window.aaaat.setupEnvironment.current();
+      return environment.ai.operations.find((status) => status.operation === operation)?.available === false;
+    } catch {
+      return false;
+    }
+  };
+
   const tailorCv = async () => {
     if (!selectedDocument || !selectedCandidature) return;
     setBusy(true);
@@ -112,7 +122,7 @@ export function AiDocumentsWorkspace({
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not tailor this CV.");
-      setAiSettingsSuggested(true);
+      setAiSettingsSuggested(await routeUnavailable("cv_tailoring"));
     } finally {
       setBusy(false);
     }
@@ -138,7 +148,7 @@ export function AiDocumentsWorkspace({
       setError(
         reason instanceof Error ? reason.message : "AAAAT could not draft this cover letter.",
       );
-      setAiSettingsSuggested(true);
+      setAiSettingsSuggested(await routeUnavailable("cover_letter_draft"));
     } finally {
       setBusy(false);
     }
