@@ -6,18 +6,22 @@ import type {
   PrivacyMode,
 } from "../shared/ai-contracts";
 import type { CandidatureRecord } from "../shared/contracts";
+import { isAiOperationUnavailable } from "./ai-route-status";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 interface Props {
   readonly record: CandidatureRecord;
 }
 
 export function CandidatureFitPanel({ record }: Props) {
+  const { openSettingsFor } = useContextualHandoffs();
   const [identityPrivacy, setIdentityPrivacy] = useState<PrivacyMode>("token");
   const [contactPrivacy, setContactPrivacy] = useState<PrivacyMode>("token");
   const [preview, setPreview] = useState<FitAssessmentPreview | null>(null);
   const [result, setResult] = useState<FitAssessmentResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiSettingsSuggested, setAiSettingsSuggested] = useState(false);
 
   const request = { candidatureId: record.id, identityPrivacy, contactPrivacy } as const;
 
@@ -26,12 +30,14 @@ export function CandidatureFitPanel({ record }: Props) {
     else setContactPrivacy(value);
     setPreview(null);
     setResult(null);
+    setAiSettingsSuggested(false);
   };
 
   const buildPreview = async () => {
     setBusy(true);
     setError(null);
     setResult(null);
+    setAiSettingsSuggested(false);
     try {
       setPreview(await window.aaaat.ai.previewFit(request));
     } catch (reason) {
@@ -41,6 +47,7 @@ export function CandidatureFitPanel({ record }: Props) {
           ? reason.message
           : "AAAAT could not prepare the AI fit assessment.",
       );
+      setAiSettingsSuggested(await isAiOperationUnavailable("fit_assessment"));
     } finally {
       setBusy(false);
     }
@@ -49,6 +56,7 @@ export function CandidatureFitPanel({ record }: Props) {
   const assess = async () => {
     setBusy(true);
     setError(null);
+    setAiSettingsSuggested(false);
     try {
       setResult(await window.aaaat.ai.assessFit(request));
     } catch (reason) {
@@ -58,6 +66,7 @@ export function CandidatureFitPanel({ record }: Props) {
           ? reason.message
           : "AAAAT could not complete the AI fit assessment.",
       );
+      setAiSettingsSuggested(await isAiOperationUnavailable("fit_assessment"));
     } finally {
       setBusy(false);
     }
@@ -106,7 +115,20 @@ export function CandidatureFitPanel({ record }: Props) {
         {busy && !preview ? "Preparing…" : "Preview AI context"}
       </button>
 
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
+      {error ? (
+        <div>
+          <p className="error-message" role="alert">{error}</p>
+          {aiSettingsSuggested ? (
+            <button
+              className="compact-secondary"
+              type="button"
+              onClick={() => openSettingsFor("ai", "candidatures")}
+            >
+              Open AI connections settings
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {preview ? (
         <section className="selected-concept-definition">

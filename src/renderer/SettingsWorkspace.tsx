@@ -6,13 +6,21 @@ import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
-type SettingsView = "overview" | "workspace" | "recovery" | "rendering" | "ai" | "portability";
+export type SettingsView =
+  | "overview"
+  | "workspace"
+  | "recovery"
+  | "rendering"
+  | "ai"
+  | "portability";
 
 interface SettingsWorkspaceProps {
   readonly currentWorkspace: WorkspaceInfo;
+  readonly initialView?: SettingsView;
   readonly onChooseWorkspace: (choice: WorkspaceChoice) => void;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onRestored: (workspace: WorkspaceInfo) => void;
+  readonly protectedWorkDirty?: boolean;
 }
 
 const settingsLabels: Record<Exclude<SettingsView, "overview">, string> = {
@@ -25,11 +33,13 @@ const settingsLabels: Record<Exclude<SettingsView, "overview">, string> = {
 
 export function SettingsWorkspace({
   currentWorkspace,
+  initialView = "overview",
   onChooseWorkspace,
   onDirtyChange,
   onRestored,
+  protectedWorkDirty = false,
 }: SettingsWorkspaceProps) {
-  const [view, setView] = useState<SettingsView>("overview");
+  const [view, setView] = useState<SettingsView>(initialView);
   const [detailDirty, setDetailDirty] = useState(false);
   const [environment, setEnvironment] = useState<SetupEnvironmentSnapshot | null>(null);
   const [environmentFailed, setEnvironmentFailed] = useState(false);
@@ -146,7 +156,7 @@ export function SettingsWorkspace({
       {view === "recovery" ? (
         <WorkspaceRecoveryPanel
           currentWorkspace={currentWorkspace}
-          editorDirty={detailDirty}
+          editorDirty={detailDirty || protectedWorkDirty}
           onRestored={onRestored}
         />
       ) : null}

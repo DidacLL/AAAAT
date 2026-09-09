@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import type {
   ProfileItem,
@@ -9,6 +9,7 @@ import type {
   ProfileVariant,
   ResolvedProfile,
 } from "../shared/contracts";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 const itemKinds: readonly ProfileItemKind[] = [
   "identity",
@@ -121,10 +122,13 @@ function orderedBaseItems(snapshot: ProfileSnapshot, variant: ProfileVariant): P
 }
 
 export function ProfileWorkspace({
+  initialItemId,
   onDirtyChange,
 }: {
+  readonly initialItemId?: string;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const { professionalInformationHandoff, returnToDocument } = useContextualHandoffs();
   const [snapshot, setSnapshot] = useState<ProfileSnapshot | null>(null);
   const [resolved, setResolved] = useState<ResolvedProfile | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
@@ -133,6 +137,7 @@ export function ProfileWorkspace({
   const [variantState, setVariantState] = useState<VariantFormState>(emptyVariant);
   const [view, setView] = useState<ProfessionalInformationView>("overview");
   const [error, setError] = useState<string | null>(null);
+  const handledInitialItemId = useRef<string | null>(null);
 
   const selectedVariant = useMemo(
     () => snapshot?.variants.find((variant) => variant.id === selectedVariantId) ?? null,
@@ -181,6 +186,7 @@ export function ProfileWorkspace({
     setItemState(emptyItem);
     setError(null);
     setView("overview");
+    if (professionalInformationHandoff) returnToDocument();
   };
 
   const refreshResolved = async (variantId: string | null) => {
@@ -244,6 +250,37 @@ export function ProfileWorkspace({
     };
   }, []);
 
+  useEffect(() => {
+    if (!initialItemId) {
+      handledInitialItemId.current = null;
+      return;
+    }
+    if (handledInitialItemId.current === initialItemId) return;
+    handledInitialItemId.current = initialItemId;
+    let active = true;
+    void window.aaaat.profile
+      .current()
+      .then((current) => {
+        if (!active) return;
+        const item = current.items.find((candidate) => candidate.id === initialItemId);
+        if (!item) {
+          setError("The reusable professional-information item is no longer available.");
+          return;
+        }
+        setSnapshot(current);
+        setEditingItemId(item.id);
+        setItemState(itemForm(item));
+        setError(null);
+        setView("item");
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not open that reusable professional information.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [initialItemId]);
+
   const submitItem = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -255,6 +292,7 @@ export function ProfileWorkspace({
       setItemState(emptyItem);
       await acceptSnapshot(next, selectedVariantId, true);
       setView("overview");
+      if (professionalInformationHandoff) returnToDocument();
     } catch {
       setError("Check the information fields and try again.");
     }
@@ -462,7 +500,7 @@ export function ProfileWorkspace({
       {view === "item" ? (
         <div className="profile-column professional-information-editor">
           <button className="compact-secondary professional-information-back" type="button" onClick={cancelItemEdit}>
-            Back to professional information
+            {professionalInformationHandoff ? "Return to document" : "Back to professional information"}
           </button>
           <div className="section-heading">
             <div>

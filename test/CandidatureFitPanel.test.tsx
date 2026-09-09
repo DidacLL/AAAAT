@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CandidatureFitPanel } from "../src/renderer/CandidatureFitPanel";
+import {
+  ContextualHandoffContext,
+  type ContextualHandoffApi,
+} from "../src/renderer/contextual-handoffs";
 import type { CandidatureRecord } from "../src/shared/contracts";
 
 const record: CandidatureRecord = {
@@ -20,11 +24,34 @@ const record: CandidatureRecord = {
 const projectedPrivateValue = "opaque local replacement";
 const previewFit = vi.fn();
 const assessFit = vi.fn();
+const setupCurrent = vi.fn();
+const openSettingsFor = vi.fn();
+
+function handoffs(): ContextualHandoffApi {
+  return {
+    documentHandoff: null,
+    professionalInformationHandoff: null,
+    settingsHandoff: null,
+    openDocumentFromCandidature: vi.fn(),
+    returnToCandidature: vi.fn(),
+    openProfessionalInformationItem: vi.fn(),
+    returnToDocument: vi.fn(),
+    openSettingsFor,
+    returnFromSettings: vi.fn(),
+  };
+}
+
+function renderPanel() {
+  return render(
+    <ContextualHandoffContext.Provider value={handoffs()}>
+      <CandidatureFitPanel record={record} />
+    </ContextualHandoffContext.Provider>,
+  );
+}
 
 describe("candidature AI fit panel", () => {
   beforeEach(() => {
-    previewFit.mockReset();
-    assessFit.mockReset();
+    vi.clearAllMocks();
     previewFit.mockResolvedValue({
       connection: {
         name: "Local fixture",
@@ -56,9 +83,15 @@ describe("candidature AI fit panel", () => {
       gaps: [],
       focus: ["Platform ownership"],
     });
+    setupCurrent.mockResolvedValue({
+      ai: { operations: [{ operation: "fit_assessment", available: true }] },
+    });
     Object.defineProperty(window, "aaaat", {
       configurable: true,
-      value: { ai: { previewFit, assessFit } },
+      value: {
+        ai: { previewFit, assessFit },
+        setupEnvironment: { current: setupCurrent },
+      },
     });
   });
 
@@ -66,7 +99,7 @@ describe("candidature AI fit panel", () => {
 
   it("shows the projected local payload before running the read-only assessment", async () => {
     const user = userEvent.setup();
-    render(<CandidatureFitPanel record={record} />);
+    renderPanel();
 
     expect(screen.getByText(/saved candidature snapshot/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Preview AI context" }));
@@ -89,5 +122,20 @@ describe("candidature AI fit panel", () => {
       contactPrivacy: "token",
     });
     expect(await screen.findByText("Strong match.")).toBeInTheDocument();
+  });
+
+  it("offers AI connections Settings only when the fit route is unavailable", async () => {
+    previewFit.mockRejectedValueOnce(new Error("No validated AI route is available."));
+    setupCurrent.mockResolvedValueOnce({
+      ai: { operations: [{ operation: "fit_assessment", available: false }] },
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(screen.getByRole("button", { name: "Preview AI context" }));
+    const settings = await screen.findByRole("button", { name: "Open AI connections settings" });
+    await user.click(settings);
+
+    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
   });
 });
