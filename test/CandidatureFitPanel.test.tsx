@@ -24,6 +24,7 @@ const record: CandidatureRecord = {
 const projectedPrivateValue = "opaque local replacement";
 const previewFit = vi.fn();
 const assessFit = vi.fn();
+const setupCurrent = vi.fn();
 const openSettingsFor = vi.fn();
 
 function handoffs(): ContextualHandoffApi {
@@ -82,15 +83,14 @@ describe("candidature AI fit panel", () => {
       gaps: [],
       focus: ["Platform ownership"],
     });
+    setupCurrent.mockResolvedValue({
+      ai: { operations: [{ operation: "fit_assessment", available: true }] },
+    });
     Object.defineProperty(window, "aaaat", {
       configurable: true,
       value: {
         ai: { previewFit, assessFit },
-        setupEnvironment: {
-          current: vi.fn().mockResolvedValue({
-            ai: { operations: [{ operation: "fit_assessment", available: true }] },
-          }),
-        },
+        setupEnvironment: { current: setupCurrent },
       },
     });
   });
@@ -126,9 +126,9 @@ describe("candidature AI fit panel", () => {
 
   it("offers AI connections Settings only when the fit route is unavailable", async () => {
     previewFit.mockRejectedValueOnce(new Error("No validated AI route is available."));
-    window.aaaat.setupEnvironment.current = vi.fn().mockResolvedValue({
+    setupCurrent.mockResolvedValueOnce({
       ai: { operations: [{ operation: "fit_assessment", available: false }] },
-    }) as typeof window.aaaat.setupEnvironment.current;
+    });
     const user = userEvent.setup();
     renderPanel();
 
