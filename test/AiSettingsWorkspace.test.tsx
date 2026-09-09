@@ -67,7 +67,7 @@ describe("AI settings workspace", () => {
     vi.restoreAllMocks();
   });
 
-  it("adds several local connections, switches the general default, and does not invent credentials", async () => {
+  it("adds several connections, switches the general default, and does not invent credentials", async () => {
     const user = userEvent.setup();
     save
       .mockResolvedValueOnce([first])
@@ -80,7 +80,7 @@ describe("AI settings workspace", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<AiSettingsWorkspace />);
-    expect(await screen.findByText(/No local AI connections are configured yet\./)).toBeInTheDocument();
+    expect(await screen.findByText(/No AI connections are configured yet\./)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Connection name"), "Fast local");
     await user.type(screen.getByLabelText("Model"), "fast-model");
@@ -113,12 +113,12 @@ describe("AI settings workspace", () => {
     list.mockResolvedValue([first, second]);
     const firstValidated = {
       ...first,
-      validatedOperations: ["fit_assessment"],
-      defaultForOperations: ["fit_assessment"],
+      validatedOperations: ["opportunity_review"],
+      defaultForOperations: ["opportunity_review"],
     };
     const secondValidated = {
       ...second,
-      validatedOperations: ["fit_assessment"],
+      validatedOperations: ["opportunity_review"],
       defaultForOperations: [],
     };
     validateOperation
@@ -126,28 +126,28 @@ describe("AI settings workspace", () => {
       .mockResolvedValueOnce([firstValidated, secondValidated]);
     setOperationDefault.mockResolvedValue([
       { ...firstValidated, defaultForOperations: [] },
-      { ...secondValidated, defaultForOperations: ["fit_assessment"] },
+      { ...secondValidated, defaultForOperations: ["opportunity_review"] },
     ]);
 
     render(<AiSettingsWorkspace />);
-    await screen.findByRole("button", { name: "Validate Fast local for Fit assessment" });
+    await screen.findByRole("button", { name: "Validate Fast local for Opportunity review" });
 
-    await user.click(screen.getByRole("button", { name: "Validate Fast local for Fit assessment" }));
+    await user.click(screen.getByRole("button", { name: "Validate Fast local for Opportunity review" }));
     expect(validateOperation).toHaveBeenCalledWith({
       connectionId: firstId,
-      operation: "fit_assessment",
+      operation: "opportunity_review",
     });
-    expect(await screen.findByText(/Fit assessment: validated · operation default/)).toBeInTheDocument();
+    expect(await screen.findByText(/Opportunity review: validated · operation default/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Validate Deep local for Fit assessment" }));
+    await user.click(screen.getByRole("button", { name: "Validate Deep local for Opportunity review" }));
     expect(validateOperation).toHaveBeenLastCalledWith({
       connectionId: secondId,
-      operation: "fit_assessment",
+      operation: "opportunity_review",
     });
-    await user.click(screen.getByRole("button", { name: "Use Deep local for Fit assessment" }));
+    await user.click(screen.getByRole("button", { name: "Use Deep local for Opportunity review" }));
     expect(setOperationDefault).toHaveBeenCalledWith({
       connectionId: secondId,
-      operation: "fit_assessment",
+      operation: "opportunity_review",
     });
   });
 
@@ -200,14 +200,14 @@ describe("AI settings workspace", () => {
     confirm.mockReturnValueOnce(false);
     await user.click(screen.getByRole("button", { name: "Import AI setup" }));
     expect(importPortable).not.toHaveBeenCalled();
-    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/replaces all current local AI connections/i));
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/replaces all current AI connections/i));
 
     confirm.mockReturnValueOnce(true);
     await user.click(screen.getByRole("button", { name: "Import AI setup" }));
     expect(importPortable).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Imported local")).toBeInTheDocument();
     expect(screen.queryByText("Fast local")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validate Imported local for Fit assessment" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate Imported local for Opportunity review" })).toBeInTheDocument();
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Validate operations again on this computer",
     );

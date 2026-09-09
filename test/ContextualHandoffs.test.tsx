@@ -86,8 +86,8 @@ vi.mock("../src/renderer/SettingsWorkspace", () => ({
 
 vi.mock("../src/renderer/CareerContextPanel", () => ({
   CareerContextPanel: ({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) => (
-    <section aria-label="Mock career context">
-      <button type="button" onClick={() => onDirtyChange?.(true)}>Make career context dirty</button>
+    <section aria-label="Mock career preferences">
+      <button type="button" onClick={() => onDirtyChange?.(true)}>Make career preferences dirty</button>
     </section>
   ),
 }));
@@ -195,21 +195,21 @@ describe("contextual handoff coordination", () => {
     expect(screen.getByRole("region", { name: "Mock professional information" })).toBeVisible();
   });
 
-  it("does not let profile save bypass a dirty Career context draft", async () => {
+  it("does not let professional-information save bypass a dirty career-preferences draft", async () => {
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
     await user.click(screen.getByRole("button", { name: "Open reusable source" }));
-    await user.click(screen.getByRole("button", { name: "Make career context dirty" }));
+    await user.click(screen.getByRole("button", { name: "Make career preferences dirty" }));
     await user.click(screen.getByRole("button", { name: "Save handed-off item" }));
 
     expect(confirm).toHaveBeenCalledWith(
       "Discard unsaved professional-information edits and return to document?",
     );
     expect(screen.getByRole("region", { name: "Mock professional information" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Mock career context" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Mock career preferences" })).toBeVisible();
   });
 
   it("does not discard a dirty document when returning to a candidature", async () => {

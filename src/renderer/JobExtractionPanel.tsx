@@ -124,16 +124,19 @@ export function JobExtractionPanel({
             return;
           }
 
-          const field = fields.find((candidate) => candidate.id === selected.fieldId);
+          const field = fields.find(
+            (candidate) => candidate.definition.id === selected.fieldId,
+          );
           if (field === undefined) {
             return;
           }
 
-          const value: CandidatureRuntimeValue = {
-            fieldId: field.id,
-            value: selected.value,
-          };
-          await window.aaaat.candidatures.setFieldValue(candidatureId, value);
+          const value: CandidatureRuntimeValue = selected.value;
+          await window.aaaat.candidatures.setFieldValue({
+            candidatureId,
+            fieldId: field.definition.id,
+            value,
+          });
         }),
       );
       onAccepted();

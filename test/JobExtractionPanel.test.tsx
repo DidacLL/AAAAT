@@ -35,6 +35,18 @@ const field: CandidatureFieldConfiguration = {
     aiContextMode: "expose",
   },
 };
+const contactFieldId = "00000000-0000-4000-8000-000000000903";
+const contactField: CandidatureFieldConfiguration = {
+  definition: {
+    ...field.definition,
+    id: contactFieldId,
+    label: "Recruiter contact",
+  },
+  preferences: {
+    ...field.preferences,
+    fieldId: contactFieldId,
+  },
+};
 
 const extractJob = vi.fn();
 const listFields = vi.fn();
@@ -57,7 +69,7 @@ function renderPanel() {
 describe("saved Source AI review", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    listFields.mockResolvedValue([field]);
+    listFields.mockResolvedValue([field, contactField]);
     listConnections.mockResolvedValue([
       {
         id: "00000000-0000-4000-8000-000000000902",
@@ -69,7 +81,12 @@ describe("saved Source AI review", () => {
         defaultForOperations: ["job_extraction"],
       },
     ]);
-    extractJob.mockResolvedValue({ proposals: [{ fieldId, value: "1500" }] });
+    extractJob.mockResolvedValue({
+      proposals: [
+        { fieldId, value: "1500" },
+        { fieldId: contactFieldId, value: "recruiter@example.test" },
+      ],
+    });
     setFieldValue.mockResolvedValue(undefined);
     Object.defineProperty(window, "aaaat", {
       configurable: true,
@@ -97,10 +114,11 @@ describe("saved Source AI review", () => {
 
     expect(extractJob).toHaveBeenCalledWith(source);
     await screen.findByRole("heading", { name: "Proposed information" });
-    await user.click(screen.getByRole("checkbox", { name: /Minimum flight hours: 1500/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Recruiter contact: recruiter@example/ }));
     await user.click(screen.getByRole("button", { name: "Keep selected information" }));
 
-    expect(setFieldValue).toHaveBeenCalledWith(candidatureId, { fieldId, value: "1500" });
+    expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId, value: "1500" });
+    expect(setFieldValue).toHaveBeenCalledTimes(1);
     expect(onAccepted).toHaveBeenCalledOnce();
     expect(onDismiss).toHaveBeenCalledOnce();
   });

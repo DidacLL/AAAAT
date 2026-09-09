@@ -188,7 +188,7 @@ test("packaged Professional information is read-first and compact-task oriented"
 
     const order = await running.page.evaluate(() => {
       const profile = document.querySelector('[aria-label="Professional information"]');
-      const career = document.querySelector('[aria-label="Current career context"]');
+      const career = document.querySelector('[aria-label="Career preferences"]');
       if (!profile || !career) return null;
       return Boolean(profile.compareDocumentPosition(career) & Node.DOCUMENT_POSITION_FOLLOWING);
     });
@@ -218,7 +218,7 @@ test("packaged Professional information is read-first and compact-task oriented"
 
     await workspace.getByRole("button", { name: "Back to professional information" }).click();
     await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
-    await expect(running.page.getByRole("region", { name: "Current career context" })).toBeVisible();
+    await expect(running.page.getByRole("region", { name: "Career preferences" })).toBeVisible();
     console.log("[packaged professional information] compact return=true career-context-reachable=true");
   } finally {
     if (running) await stopPackagedApp(running);

@@ -17,7 +17,7 @@ const readySnapshot = {
     configurationReadable: true,
     connectionCount: 1,
     operations: [
-      { operation: "fit_assessment" as const, available: true, connectionName: "Local model" },
+      { operation: "opportunity_review" as const, available: true, connectionName: "Local model" },
       { operation: "job_extraction" as const, available: false, connectionName: null },
       { operation: "historical_field_discovery" as const, available: false, connectionName: null },
       { operation: "variant_recommendation" as const, available: false, connectionName: null },
@@ -74,7 +74,7 @@ describe("setup environment panel", () => {
 
     expect(installerText).toContain("Document rendering: ready");
     expect(installerText).not.toContain("Latexmk 4.86");
-    expect(configuratorText).toContain("Fit assessment: validated route available");
+    expect(configuratorText).toContain("Opportunity review: validated route available");
     expect(configuratorText).not.toContain("Local model");
 
     await user.click(screen.getByRole("button", { name: "Copy configurator.ai" }));
