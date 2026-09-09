@@ -171,7 +171,7 @@ async function selectApplicationMaterial(page: Page): Promise<void> {
   await expect(tab).toHaveAttribute("aria-selected", "true");
 }
 
-test("packaged candidature document handoff returns to exact Application material context", async () => {
+test("packaged candidature document handoff preserves dirty associations and exact return context", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
@@ -204,23 +204,6 @@ test("packaged candidature document handoff returns to exact Application materia
     await documents.getByLabel("Title").fill("Handoff CV");
     await documents.getByRole("button", { name: "Create CV" }).click();
     await expect(documents.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
-
-    const association = await running.page.evaluate(async () => {
-      const records = await window.aaaat.candidatures.list();
-      const documentRecords = await window.aaaat.documents.list();
-      const candidature = records.find((record) => record.label === "Handoff opportunity");
-      const document = documentRecords.find((record) => record.title === "Handoff CV");
-      return {
-        candidatureId: candidature?.id ?? null,
-        documentId: document?.id ?? null,
-        associated: Boolean(candidature && document && candidature.documentIds.includes(document.id)),
-      };
-    });
-    expect(association.candidatureId).not.toBeNull();
-    expect(association.documentId).not.toBeNull();
-    expect(association.associated).toBe(true);
-    expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
-
     await expectNoHorizontalOverflow(running.page, 720, 600, "document-context");
     await documents.getByRole("button", { name: "Return to Handoff opportunity" }).click();
 
@@ -228,12 +211,44 @@ test("packaged candidature document handoff returns to exact Application materia
     await expect(applicationTab).toHaveAttribute("aria-selected", "true");
     const returnedMaterial = running.page.getByRole("region", { name: "Application material" });
     await expect(returnedMaterial).toContainText("Handoff CV (CV)");
-    await expect(returnedMaterial.getByRole("button", { name: "Open in CVs & letters" })).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 600, "returned-application-material");
 
-    await returnedMaterial.getByRole("button", { name: "Open in CVs & letters" }).click();
+    const firstAssociation = returnedMaterial.getByRole("checkbox", { name: "Handoff CV (CV)" });
+    await expect(firstAssociation).toBeChecked();
+    await firstAssociation.uncheck();
+    await expect(returnedMaterial.getByRole("button", { name: "Save document associations" })).toBeEnabled();
+
+    await returnedMaterial.getByRole("button", { name: "Create CV or letter for this candidature" }).click();
+    const secondDocuments = running.page.getByRole("region", { name: "CVs & letters" });
+    await secondDocuments.getByLabel("Title").fill("Second Handoff CV");
+    await secondDocuments.getByRole("button", { name: "Create CV" }).click();
+    await expect(secondDocuments.getByRole("heading", { name: "Second Handoff CV" })).toBeVisible();
+    await secondDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
+
+    const reconciledMaterial = running.page.getByRole("region", { name: "Application material" });
+    await expect(reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)" })).not.toBeChecked();
+    await expect(reconciledMaterial.getByRole("checkbox", { name: "Second Handoff CV (CV)" })).toBeChecked();
+    await reconciledMaterial.getByRole("button", { name: "Save document associations" }).click();
+
+    const association = await running.page.evaluate(async () => {
+      const records = await window.aaaat.candidatures.list();
+      const documentRecords = await window.aaaat.documents.list();
+      const candidature = records.find((record) => record.label === "Handoff opportunity");
+      const first = documentRecords.find((record) => record.title === "Handoff CV");
+      const second = documentRecords.find((record) => record.title === "Second Handoff CV");
+      return {
+        firstAssociated: Boolean(candidature && first && candidature.documentIds.includes(first.id)),
+        secondAssociated: Boolean(candidature && second && candidature.documentIds.includes(second.id)),
+      };
+    });
+    expect(association.firstAssociated).toBe(false);
+    expect(association.secondAssociated).toBe(true);
+    expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
+
+    await expect(reconciledMaterial.getByRole("button", { name: "Open in CVs & letters" })).toHaveCount(1);
+    await reconciledMaterial.getByRole("button", { name: "Open in CVs & letters" }).click();
     const reopenedDocuments = running.page.getByRole("region", { name: "CVs & letters" });
-    await expect(reopenedDocuments.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
+    await expect(reopenedDocuments.getByRole("heading", { name: "Second Handoff CV" })).toBeVisible();
     await expect(reopenedDocuments.getByRole("button", { name: "Return to Handoff opportunity" })).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 600, "reopened-document-context");
   } finally {
