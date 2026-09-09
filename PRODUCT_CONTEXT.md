@@ -226,4 +226,3 @@ Highest-confidence material includes direct Product Owner statements and owner-a
 AI-generated requirements, Issues, PRs, tests and implementation may preserve real ideas but can also contain semantic drift.
 
 When historical sources conflict, recover the underlying user intention instead of choosing whichever derived document looks most formal.
-

@@ -647,4 +647,3 @@ AI provides optional intelligence; it is neither the application's interface nor
 The user owns the data, the documents, the interpretation of their career and the decisions.
 
 AAAAT's job is to make everything around those decisions substantially easier.
-

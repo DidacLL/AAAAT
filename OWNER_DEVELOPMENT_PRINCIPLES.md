@@ -87,4 +87,3 @@ Do not solve memory problems by making every document authoritative or by creati
 A completed development step should normally leave the application in a more useful coherent state, not merely satisfy an internal architecture milestone.
 
 Development order is not user workflow, but development should visibly converge toward a usable product.
-
