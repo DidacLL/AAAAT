@@ -154,7 +154,9 @@ export function App() {
       : productView === "documents"
         ? documentDirty
         : professionalInformationDirty;
-  const anyDirty = currentDirty || settingsDirty;
+  const protectedWorkDirty =
+    candidatureDirty || documentDirty || professionalInformationDirty;
+  const anyDirty = protectedWorkDirty || settingsDirty;
 
   const resetHandoffs = () => {
     setDocumentHandoff(null);
@@ -216,7 +218,11 @@ export function App() {
   const selectProductView = (next: ProductView) => {
     if (next === productView && !settingsOpen) return;
     if (!leaveSettings()) return;
-    if (next !== productView && currentDirty && !window.confirm("Discard unsaved edits and leave this workspace area?")) {
+    const discardedWorkDirty =
+      (next !== "candidatures" && candidatureDirty) ||
+      (next !== "documents" && documentDirty) ||
+      (next !== "professional-information" && professionalInformationDirty);
+    if (discardedWorkDirty && !window.confirm("Discard unsaved edits and leave this workspace area?")) {
       return;
     }
     resetHandoffs();
@@ -380,6 +386,7 @@ export function App() {
                       onChooseWorkspace={(choice) => void chooseWorkspace(choice)}
                       onDirtyChange={setSettingsDirty}
                       onRestored={openRestoredWorkspace}
+                      protectedWorkDirty={protectedWorkDirty}
                     />
                   </div>
                 ) : null}
