@@ -5,6 +5,7 @@ import type {
   CandidatureFieldConfiguration,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 interface JobExtractionPanelProps {
   candidatureId: string;
@@ -46,6 +47,7 @@ export function JobExtractionPanel({
   onDismiss,
   onDirtyChange,
 }: JobExtractionPanelProps) {
+  const { openSettingsFor } = useContextualHandoffs();
   const [connection, setConnection] = useState<NamedAiConnection | null | undefined>(undefined);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [proposal, setProposal] = useState<JobExtractionResult | null>(null);
@@ -258,7 +260,13 @@ export function JobExtractionPanel({
       {error !== null ? (
         <div className="inline-error" role="alert">
           <p>{error}</p>
-          <a href="#settings">Review AI settings</a>
+          <button
+            className="compact-secondary"
+            type="button"
+            onClick={() => openSettingsFor("ai", "candidatures")}
+          >
+            Open AI connections settings
+          </button>
         </div>
       ) : null}
     </section>

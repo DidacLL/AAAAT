@@ -661,11 +661,11 @@ export function CandidaturesWorkspace({
             value={query}
             maxLength={200}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Organisation, role, custom field, concept…"
+            placeholder="Organisation, role, kind of information, concept…"
           />
         </label>
         <label>
-          Field
+          Information kind
           <select
             value={filterFieldId}
             onChange={(event) => {
@@ -677,7 +677,7 @@ export function CandidaturesWorkspace({
               setFilterChoiceValues([]);
             }}
           >
-            <option value="">No field filter</option>
+            <option value="">No information filter</option>
             {fields.filter((field) => field.definition.enabled).map((field) => (
               <option key={field.definition.id} value={field.definition.id}>
                 {field.definition.label}
@@ -756,10 +756,10 @@ export function CandidaturesWorkspace({
           )
         ) : null}
         <div className="button-row">
-          <button type="button" onClick={() => void applyFieldFilter()}>Apply field filter</button>
+          <button type="button" onClick={() => void applyFieldFilter()}>Apply information filter</button>
           {fieldMatches ? (
             <button type="button" className="compact-secondary" onClick={clearFieldFilter}>
-              Clear field filter
+              Clear information filter
             </button>
           ) : null}
         </div>
@@ -794,7 +794,7 @@ export function CandidaturesWorkspace({
               >
                 <strong>{record.label}</strong>
                 <span>
-                  {record.values.length} retained {record.values.length === 1 ? "field" : "fields"}
+                  {record.values.length} retained {record.values.length === 1 ? "item of information" : "items of information"}
                   {record.archived ? " · archived" : ""}
                 </span>
               </button>
@@ -852,7 +852,7 @@ export function CandidaturesWorkspace({
                     <div>
                       <p className="eyebrow">Retained information</p>
                       <h3>Information</h3>
-                      <p>Missing fields stay absent. Add only information that is useful to retain.</p>
+                      <p>Missing information stays absent. Add only information that is useful to retain.</p>
                     </div>
 
                     {selected.values.length === 0 ? (
@@ -897,7 +897,7 @@ export function CandidaturesWorkspace({
                           </select>
                         </label>
                       ) : (
-                        <p>All enabled fields already have retained values.</p>
+                        <p>All enabled kinds of information already have retained values.</p>
                       )}
                       {addField ? (
                         <CandidatureFieldValueEditor

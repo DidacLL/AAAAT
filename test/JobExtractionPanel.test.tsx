@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { JobExtractionPanel } from "../src/renderer/JobExtractionPanel";
+import {
+  ContextualHandoffContext,
+  type ContextualHandoffApi,
+} from "../src/renderer/contextual-handoffs";
 import type { CandidatureFieldConfiguration } from "../src/shared/contracts";
 
 const candidatureId = "00000000-0000-4000-8000-000000000900";
@@ -54,15 +58,30 @@ const listConnections = vi.fn();
 const setFieldValue = vi.fn();
 const onAccepted = vi.fn();
 const onDismiss = vi.fn();
+const openSettingsFor = vi.fn();
+
+const handoffs: ContextualHandoffApi = {
+  documentHandoff: null,
+  professionalInformationHandoff: null,
+  settingsHandoff: null,
+  openDocumentFromCandidature: vi.fn(),
+  returnToCandidature: vi.fn(),
+  openProfessionalInformationItem: vi.fn(),
+  returnToDocument: vi.fn(),
+  openSettingsFor,
+  returnFromSettings: vi.fn(),
+};
 
 function renderPanel() {
   return render(
-    <JobExtractionPanel
-      candidatureId={candidatureId}
-      source={source}
-      onAccepted={onAccepted}
-      onDismiss={onDismiss}
-    />,
+    <ContextualHandoffContext.Provider value={handoffs}>
+      <JobExtractionPanel
+        candidatureId={candidatureId}
+        source={source}
+        onAccepted={onAccepted}
+        onDismiss={onDismiss}
+      />
+    </ContextualHandoffContext.Provider>,
   );
 }
 
@@ -138,6 +157,8 @@ describe("saved Source AI review", () => {
     await user.click(screen.getByRole("button", { name: "Send selected Source to AI" }));
 
     expect(await screen.findByText("The configured endpoint did not respond.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open AI connections settings" }));
+    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
     expect(setFieldValue).not.toHaveBeenCalled();
     expect(onAccepted).not.toHaveBeenCalled();
   });

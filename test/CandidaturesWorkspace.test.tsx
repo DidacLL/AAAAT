@@ -328,10 +328,10 @@ describe("candidature progressive information workspace", () => {
     render(<CandidaturesWorkspace />);
     await screen.findByRole("region", { name: "Candidature Focus" });
 
-    await user.selectOptions(screen.getByLabelText("Field"), hoursId);
+    await user.selectOptions(screen.getByLabelText("Information kind"), hoursId);
     await user.selectOptions(screen.getByLabelText("Operator"), "greater_than_or_equal");
     await user.type(screen.getByLabelText("Value"), "1200");
-    await user.click(screen.getByRole("button", { name: "Apply field filter" }));
+    await user.click(screen.getByRole("button", { name: "Apply information filter" }));
 
     expect(filter).toHaveBeenCalledWith({
       fieldId: hoursId,
@@ -345,12 +345,12 @@ describe("candidature progressive information workspace", () => {
     render(<CandidaturesWorkspace />);
     await screen.findByRole("region", { name: "Candidature Focus" });
 
-    await user.selectOptions(screen.getByLabelText("Field"), workModesId);
+    await user.selectOptions(screen.getByLabelText("Information kind"), workModesId);
     await user.selectOptions(screen.getByLabelText("Operator"), "contains_all");
     const values = screen.getByRole("group", { name: "Values" });
     await user.click(within(values).getByLabelText("Remote"));
     await user.click(within(values).getByLabelText("Hybrid"));
-    await user.click(screen.getByRole("button", { name: "Apply field filter" }));
+    await user.click(screen.getByRole("button", { name: "Apply information filter" }));
 
     const request = filter.mock.calls.at(-1)?.[0] as
       | { fieldId: string; operator: string; value: string[] }

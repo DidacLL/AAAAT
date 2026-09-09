@@ -129,7 +129,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
     careerContextReadToolName,
     {
       description:
-        "Read only the non-empty user-written AAAAT Career Context fields permitted for external career assistance. Does not expose candidatures, profile items, documents, local IDs, or workspace paths.",
+        "Read only the non-empty user-written AAAAT Career preferences permitted for external career assistance. Does not expose candidatures, professional information, documents, local IDs, or workspace paths.",
       inputSchema: externalCareerContextRequestSchema,
     },
     async (input) => {
@@ -150,7 +150,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
     cvDescriptionsReadToolName,
     {
       description:
-        "Read only user-authored AI-visible CV tags and notes under response-local labels so an external assistant can judge whether existing CV material may be suitable. Does not expose CV titles, document content, local IDs, file paths, profile data, or candidature history.",
+        "Read only user-authored AI-visible CV tags and notes under response-local labels so an external assistant can help with existing CV material. Does not expose CV titles, document content, local IDs, file paths, professional information, or candidature history.",
       inputSchema: externalCvDescriptionsRequestSchema,
     },
     async (input) => {
@@ -171,7 +171,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
     cvContentReadToolName,
     {
       description:
-        "Read only the effective resolved profile-item content of the single CV the user has explicitly allowed for external content access. Returns null when no CV is allowed. Does not accept document selectors or expose titles, local IDs, paths, raw TeX/PDF, descriptors, or candidature history.",
+        "Read only the effective resolved professional-information content of the single CV the user has explicitly allowed for external content access. Returns null when no CV is allowed. Does not accept document selectors or expose titles, local IDs, paths, raw TeX/PDF, descriptors, or candidature history.",
       inputSchema: externalCvContentRequestSchema,
     },
     async (input) => {
