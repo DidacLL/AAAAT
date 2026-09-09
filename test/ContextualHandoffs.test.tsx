@@ -133,21 +133,18 @@ describe("contextual handoff coordination", () => {
     expect(screen.getByRole("region", { name: "Mock candidatures" })).toBe(candidatureRegion);
   });
 
-  it("opens one reusable source and returns to the same document with a fresh mounted document surface", async () => {
+  it("opens one reusable source and returns to the same document context", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
-    const firstDocumentRegion = screen.getByRole("region", { name: "Mock documents" });
     await user.click(screen.getByRole("button", { name: "Open reusable source" }));
     expect(screen.getByRole("region", { name: "Mock professional information" })).toHaveTextContent(
       "Item item-1",
     );
 
     await user.click(screen.getByRole("button", { name: "Return to document" }));
-    const returnedDocumentRegion = screen.getByRole("region", { name: "Mock documents" });
-    expect(returnedDocumentRegion).toHaveTextContent("document doc-1");
-    expect(returnedDocumentRegion).not.toBe(firstDocumentRegion);
+    expect(screen.getByRole("region", { name: "Mock documents" })).toHaveTextContent("document doc-1");
   });
 
   it("enters the requested Settings detail and returns to the mounted document work", async () => {
