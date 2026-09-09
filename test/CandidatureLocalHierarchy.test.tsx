@@ -94,7 +94,7 @@ afterEach(() => {
 });
 
 describe("selected candidature local hierarchy", () => {
-  it("keeps four primary intentions while Concepts stays contextual and application material remains reachable", async () => {
+  it("keeps four primary intentions while Concepts stays contextual and Application material owns document handoffs", async () => {
     installApi();
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
@@ -112,6 +112,7 @@ describe("selected candidature local hierarchy", () => {
     ]);
     expect(screen.queryByRole("tab", { name: "Concepts" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Documents" })).not.toBeInTheDocument();
+    expect(within(focus).queryByRole("button", { name: "Create CV or letter for this candidature" })).not.toBeInTheDocument();
 
     await user.click(screen.getByText("Concepts", { selector: "summary" }));
     const concepts = screen.getByRole("region", { name: "Concepts" });
@@ -128,8 +129,15 @@ describe("selected candidature local hierarchy", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("region", { name: "Application material" })).toBeInTheDocument();
-    expect(screen.getByText("Application CV (CV)")).toBeInTheDocument();
+    const applicationMaterial = screen.getByRole("region", { name: "Application material" });
+    expect(applicationMaterial).toBeInTheDocument();
+    expect(within(applicationMaterial).getByText("Application CV (CV)")).toBeInTheDocument();
+    expect(
+      within(applicationMaterial).getByRole("button", { name: "Create CV or letter for this candidature" }),
+    ).toBeInTheDocument();
+    expect(
+      within(applicationMaterial).getByRole("button", { name: "Open in CVs & letters" }),
+    ).toBeInTheDocument();
     expect(within(concepts).getByLabelText("Name")).toHaveValue("Unsaved platform concept");
 
     await user.click(within(concepts).getByRole("button", { name: "Save concept associations" }));
