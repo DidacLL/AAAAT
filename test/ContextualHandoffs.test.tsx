@@ -178,4 +178,22 @@ describe("contextual handoff coordination", () => {
     );
     expect(screen.getByRole("region", { name: "Mock documents" })).toBeVisible();
   });
+
+  it("does not drop a dirty hidden candidature origin when navigating to a third work area", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<App />);
+
+    const candidatureRegion = await screen.findByRole("region", { name: "Mock candidatures" });
+    await user.click(screen.getByRole("button", { name: "Make candidature dirty" }));
+    await user.click(screen.getByRole("button", { name: "Open linked document" }));
+    const documentRegion = screen.getByRole("region", { name: "Mock documents" });
+
+    await user.click(screen.getByRole("button", { name: "Professional information" }));
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and leave this workspace area?");
+    expect(documentRegion).toBeVisible();
+    expect(candidatureRegion).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Mock professional information" })).not.toBeInTheDocument();
+  });
 });
