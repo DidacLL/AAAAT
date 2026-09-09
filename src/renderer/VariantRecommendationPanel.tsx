@@ -2,18 +2,23 @@ import { useState } from "react";
 
 import type { VariantRecommendationResult } from "../shared/ai-contracts";
 import type { CandidatureRecord } from "../shared/contracts";
+import { isAiOperationUnavailable } from "./ai-route-status";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 interface Props { readonly record: CandidatureRecord; }
 
 export function VariantRecommendationPanel({ record }: Props) {
+  const { openSettingsFor } = useContextualHandoffs();
   const [result, setResult] = useState<VariantRecommendationResult | null>(null);
   const [variantName, setVariantName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiSettingsSuggested, setAiSettingsSuggested] = useState(false);
 
   const recommend = async () => {
     setBusy(true);
     setError(null);
+    setAiSettingsSuggested(false);
     try {
       const [recommendation, profile] = await Promise.all([
         window.aaaat.ai.recommendVariant({ candidatureId: record.id }),
@@ -32,6 +37,7 @@ export function VariantRecommendationPanel({ record }: Props) {
           ? reason.message
           : "AAAAT could not recommend a profile variant.",
       );
+      setAiSettingsSuggested(await isAiOperationUnavailable("variant_recommendation"));
     } finally {
       setBusy(false);
     }
@@ -48,7 +54,20 @@ export function VariantRecommendationPanel({ record }: Props) {
       <button type="button" disabled={busy} onClick={() => void recommend()}>
         {busy ? "Recommending…" : "Recommend existing variant"}
       </button>
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
+      {error ? (
+        <div>
+          <p className="error-message" role="alert">{error}</p>
+          {aiSettingsSuggested ? (
+            <button
+              className="compact-secondary"
+              type="button"
+              onClick={() => openSettingsFor("ai", "candidatures")}
+            >
+              Open AI connections settings
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {result ? (
         <div>
           <p><strong>{variantName}</strong></p>
