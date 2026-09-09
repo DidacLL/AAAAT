@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -15,6 +15,7 @@ import { CandidatureFitPanel } from "./CandidatureFitPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel, type FocusDestination } from "./CandidatureFocusPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
+import { useContextualHandoffs } from "./contextual-handoffs";
 import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
 import { filterCandidatures, type ArchiveFilter } from "./candidature-projections";
 
@@ -104,6 +105,8 @@ export function CandidaturesWorkspace({
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
+  const previousDocumentHandoff = useRef(documentHandoff);
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -225,6 +228,28 @@ export function CandidaturesWorkspace({
       active = false;
     };
   }, [hydrate]);
+
+  useEffect(() => {
+    const previous = previousDocumentHandoff.current;
+    previousDocumentHandoff.current = documentHandoff;
+    if (!previous?.candidatureId || documentHandoff !== null || hasUnsavedChanges) return;
+
+    let active = true;
+    void Promise.all([window.aaaat.candidatures.list(), window.aaaat.documents.list()])
+      .then(([nextRecords, nextDocuments]) => {
+        if (!active) return;
+        setRecords(nextRecords);
+        setDocuments(nextDocuments);
+        const refreshed = nextRecords.find((record) => record.id === previous.candidatureId);
+        if (refreshed) hydrate(refreshed);
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not refresh application material after returning.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [documentHandoff, hasUnsavedChanges, hydrate]);
 
   const normalizedQuery = query.trim();
   useEffect(() => {
@@ -1014,14 +1039,34 @@ export function CandidaturesWorkspace({
 
                 {section === "documents" ? (
                   <section className="candidature-documents section-surface" aria-label="Application material">
-                    <div><p className="eyebrow">Application material</p><h3>Application material</h3></div>
+                    <div className="candidature-editor-heading">
+                      <div><p className="eyebrow">Application material</p><h3>Application material</h3></div>
+                      <button
+                        type="button"
+                        className="compact-secondary"
+                        onClick={() => openDocumentFromCandidature(selected.id)}
+                      >
+                        Create CV or letter for this candidature
+                      </button>
+                    </div>
                     {documents.length === 0 ? <p className="compact-empty">No documents are available yet.</p> : (
                       <div className="document-association-list">
                         {documents.map((document) => (
-                          <label key={document.id}>
-                            <input type="checkbox" checked={selectedDocumentIds.includes(document.id)} onChange={(event) => setSelectedDocumentIds((current) => event.target.checked ? [...current.filter((id) => id !== document.id), document.id] : current.filter((id) => id !== document.id))} />
-                            {document.title} ({document.kind === "cv" ? "CV" : "cover letter"})
-                          </label>
+                          <div className="button-row" key={document.id}>
+                            <label>
+                              <input type="checkbox" checked={selectedDocumentIds.includes(document.id)} onChange={(event) => setSelectedDocumentIds((current) => event.target.checked ? [...current.filter((id) => id !== document.id), document.id] : current.filter((id) => id !== document.id))} />
+                              {document.title} ({document.kind === "cv" ? "CV" : "cover letter"})
+                            </label>
+                            {selected.documentIds.includes(document.id) ? (
+                              <button
+                                type="button"
+                                className="compact-secondary"
+                                onClick={() => openDocumentFromCandidature(selected.id, document.id)}
+                              >
+                                Open in CVs &amp; letters
+                              </button>
+                            ) : null}
+                          </div>
                         ))}
                       </div>
                     )}
