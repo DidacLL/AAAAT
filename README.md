@@ -6,7 +6,7 @@ AAAAT is a private local job-search workspace and application-document tool. It 
 
 For alpha installation, manual workflows, optional AI, backup/restore, and troubleshooting, see [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 
-AI connections are optional and keyless: AAAAT accepts loopback `http:` endpoints and remote `https:` endpoints whose authentication is already handled outside AAAAT. It never stores provider credentials, API keys, or authorization headers.
+AI connections are optional. For each connection, the current slice stores the user-defined connection name, endpoint, and model. It accepts loopback `http:` endpoints and remote `https:` endpoints whose authentication is already handled outside AAAAT. Credential, API-key, OAuth, provider-account, and secret-storage configuration are outside this slice.
 
 ## Development
 
