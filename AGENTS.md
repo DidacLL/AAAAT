@@ -1,21 +1,64 @@
-# AAAAT Agent Instructions
+# AAAAT agent instructions
 
-AGENTS.md is the entry point. Before changing AAAAT, read: docs/OWNER_INTENT.md; docs/SPEC.md; .agentic/CONSTITUTION.md; .agentic/CURRENT_MISSION.md; .agentic/ROUTING.md; .agentic/DECISION_POLICY.md; .agentic/REVIEW_POLICY.md; docs/engineering/EXECUTION.md when host, runtime, TeX, or handoff behavior matters; then the active GitHub Issue and relevant accepted ADRs.
+## Start here
 
-For product meaning: current Product Owner instruction → OWNER_INTENT → SPEC → Mission/Issue → tests → implementation. For technical architecture inside established product meaning: SPEC → accepted ADRs → contracts → Issue → tests → implementation. Historical v1 material and superseded Issues/PRs are evidence only.
+Before changing AAAAT, recover the relevant truth in this order:
 
-AAAAT has no real-user v2 compatibility baseline. Development databases, fixtures, and earlier development migrations are not user commitments; correct obsolete development schema directly when current product meaning requires it.
+1. the current explicit Product Owner instruction;
+2. [PRODUCT_DEFINITION.md](PRODUCT_DEFINITION.md);
+3. [PRODUCT_CONTEXT.md](PRODUCT_CONTEXT.md), only when interpretation or rationale helps;
+4. [OWNER_DEVELOPMENT_PRINCIPLES.md](OWNER_DEVELOPMENT_PRINCIPLES.md);
+5. [docs/SPEC.md](docs/SPEC.md);
+6. [.agentic/CURRENT_MISSION.md](.agentic/CURRENT_MISSION.md), then the linked live GitHub Issue, branch, PR, and CI state;
+7. relevant accepted ADRs, contracts, tests, and implementation evidence.
 
-Build only current authority. A Mission selects one bounded capability from the accepted masterplan; it does not define a user workflow or complete the product. Once the scope follows established product meaning, orchestrators may activate the next bounded capability without routine owner approval.
+Product authority is:
 
-AAAAT remains human-operable without AI. Manual, AAAAT-assisted, and bounded external-AI paths use the same ordinary user-owned information. Generated LaTeX is portable and uses a LaTeX2e API with expl3 internals through pdfLaTeX/pdfTeX. Durable mutations use application services. The Electron renderer stays sandboxed and unprivileged.
+```text
+current explicit Product Owner instruction
+→ PRODUCT_DEFINITION.md
+→ derived SPEC / current Mission / Issue
+→ tests
+→ implementation
+```
 
-AAAAT protects its own local state through explicit domain data, typed validation, narrow application-service mutation paths, bounded integrations, and process/renderer privilege boundaries. External hosts receive only named demonstrated operations, never generic CRUD, browsing/listing/search/query, arbitrary durable IDs, or a scraping surface. Temporary references exist only within their validated operation scope.
+Product Context and `docs/owner-source/` explain or preserve provenance. They never create requirements. A Mission, Issue, ADR, test, migration, existing implementation, historical name, or successful CI run never creates product meaning by itself.
 
-Purpose-specific disclosure of permitted career context and AI-visible CV tags/notes is allowed so the chosen assistant can judge suitability; AAAAT does not rank CVs. Further permitted content, contributions and production use named operations. This does not grant candidature-corpus access or generic profile/document browsing. Setup describes actual host access honestly.
+After product meaning is established, use the derived technical order:
 
-AAAAT does not own external model reasoning, prompt interpretation, provider internals, network, or research behavior. Provider output is ordinary operation input validated through normal contracts. Do not add AI firewalls, prompt-injection systems, generic model-security/policy engines, or universal approval queues where the ordinary local boundary is sufficient. Privacy projection controls disclosure and may expose, omit, or locally replace values while authoritative literals remain local. Sources are explicit retained objects and enter an operation only when its purpose deliberately scopes them.
+```text
+SPEC → accepted ADRs → contracts → Issue → tests → implementation
+```
 
-Before completion: run impact-appropriate verification selected by .github/workflows/verify.yml and Issue checks. Verification evidence is reusable across later commits when those commits do not alter the behavior, platform path, fixture contract, environment assumption, or other premise that the evidence proves. A new commit SHA alone never invalidates prior evidence and is not a reason to repeat local/Codex/runtime/visual/package checks. Automatic CI follows the same rule: reuse the latest applicable successful evidence and run only lanes affected since that evidence; do not replay expensive TeX/package/runtime matrices merely because an unrelated or documentation-only commit advanced the PR head. Fall back to broader CI only when no applicable successful evidence exists or the changed surface requires it. Re-run local checks only for affected surfaces or when concrete new evidence creates a specific gap; record reused evidence and why it remains applicable. Obtain independent review; invoke Simplifier for material new complexity; resolve Class A/B/C autonomously after Product Meaning check; escalate unresolved product meaning and Class D only. Do not commit temporary prompts, reports, handoffs, acceptance ledgers, review transcripts, personal data, or private workspace material.
+If the Product Definition does not resolve a consequential product question, state the concrete uncertainty and ask the Product Owner once. Do not ask the owner to repeat meaning already preserved in this repository.
 
-Context must survive the conversation and PR. Before a handoff or completion, preserve accepted product meaning and essential examples in OWNER_INTENT, architecture/rationale and required destinations in SPEC or the relevant ADR, and unresolved findings/verification gaps plus the next bounded outcome in CURRENT_MISSION. GitHub comments supplement these files; they must not be the sole record of a decision, correction, blocker or required capability. Update existing sections instead of adding transcripts, duplicate plans or a new ledger. Do not silently drop unfinished requirements when replacing a Mission. Unresolved interpretation is recorded as unresolved, not promoted into owner authority.
+## Work autonomously and proportionally
+
+Take the smallest coherent step that advances a real product outcome. Routine implementation, review, testing, and integration proceed without owner approval once their product trace is clear. Escalate only genuine unresolved meaning or a consequential trade-off that cannot be resolved from the authority record.
+
+Tests protect user-visible behavior, domain and security boundaries, local ownership, portable artifacts, and meaningful failure semantics. Do not let fixtures, exact interaction order, internal identity, token syntax, or an old workflow silently become product requirements.
+
+Keep proven technical boundaries where they remain useful: a local authoritative workspace, typed/domain validation, normal application-service mutation paths, a sandboxed unprivileged renderer, optional bounded AI operations, and user-owned portable document output. Do not add a framework, generic CRUD/query surface, policy engine, workflow/agent platform, requirements database, or compatibility machinery without demonstrated need.
+
+AAAAT has no established real-use v2 compatibility baseline. Until the Product Owner explicitly establishes one for actual user data, development databases, fixtures, and development-era schema can be corrected directly when current product meaning requires it. A dormant audit record is not a request to establish a baseline.
+
+## Execution and evidence
+
+Use the GitHub-capable agent for normal bounded implementation, documentation, Issue/PR coordination, CI inspection, and independent review. Use scarce local/Codex work only when actual shell, Electron, package, browser/visual, TeX/PDF, rendering, filesystem/process, or environment evidence is necessary. The Product Owner is an intentional transport and product reviewer, not routine QA.
+
+Choose verification by changed behavior and evidence premises, not by commit SHA. Reuse successful evidence when later changes cannot affect the behavior, platform path, fixture contract, environment assumption, or other premise it proved. Run new local, runtime, visual, package, or TeX checks only for affected surfaces or a concrete evidence gap. Follow the selected lanes in `.github/workflows/verify.yml`.
+
+Meaningful handoffs and completions begin with:
+
+```text
+Now: what works or changed
+Next: one bounded outcome
+Owner attention: none, or one concrete question
+Evidence: Issue/PR and verification conclusion
+```
+
+Keep lasting product meaning in Product Definition, technical rationale in SPEC or the relevant ADR, and unresolved execution state in Current Mission. GitHub is the live coordination record. Do not commit task transcripts, prompts, personal data, acceptance ledgers, or duplicate status systems.
+
+## Third-party agent tooling
+
+No `rsc` harness is installed for AAAAT. Do not add `.rsc/`, `01-TOOLS/`, `02-DOCS/`, generated third-party hooks, or a parallel specification/decision archive. A future tool may assist only if it remains subordinate to this authority sequence and does not create a competing source of truth.

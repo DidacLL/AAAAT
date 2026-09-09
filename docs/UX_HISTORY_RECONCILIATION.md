@@ -1,19 +1,18 @@
 # AAAAT UX history reconciliation
 
-Status: historical/research evidence for Mission #204. Not current UX authority.
+Status: historical/research evidence. Not current UX authority.
 
 Current authority remains:
 
 ```text
-current direct Product Owner instruction
-→ docs/OWNER_INTENT.md
-→ docs/SPEC.md
-→ docs/UX_DEFINITION.md for durable UX requirements
-→ current Mission / Issue
-→ tests / implementation
+current explicit Product Owner instruction
+→ PRODUCT_DEFINITION.md
+→ derived SPEC / current Mission / Issue
+→ tests
+→ implementation
 ```
 
-Historical material below preserves validated user problems and desired feel. It must not revive v1 mechanics, fixed navigation, field catalogues, task queues, lifecycle assumptions, or implementation boundaries.
+Historical material below preserves validated user problems and desired feel. It must not create requirements or revive v1 mechanics, fixed navigation, field catalogues, task queues, lifecycle assumptions, or implementation boundaries.
 
 ## Historical sources reviewed
 
@@ -46,7 +45,7 @@ The accepted lesson is the user need, not wxPython, Smart/Detailed/User modes, f
 
 ### v2 redesign research
 
-`docs/v2DefinitionPrompt/RedesignOwnerNotes.md` and `docs/v2DefinitionPrompt/Method.md` preserved current-direction requirements that remain relevant where consistent with today’s authority: human-operable unified UX, sparse/raw starting points, independently core VCVGenerator, contextual AI, provider-neutrality, portable local documents, and progressive technical depth.
+`docs/owner-source/RedesignOwnerNotes.md` and `docs/owner-source/Method.md` preserve historical owner-source material that may help interpretation where consistent with today’s authority: human-operable unified UX, sparse/raw starting points, independently core VCVGenerator, contextual AI, provider-neutrality, portable local documents, and progressive technical depth.
 
 Later M6/Focus work also reinforced read-first Focus, sparse-valid states, explicit Sources, dirty-state protection, responsive small-window behavior, and ordinary language. Superseded M6 mechanics are not authority.
 
@@ -105,7 +104,7 @@ The following assumptions are superseded and must not re-enter future UX authori
 - equal-weight primary destinations because capabilities exist;
 - deriving shell/navigation from database/domain entities or the current component tree.
 
-The current durable model is recorded only in `docs/UX_DEFINITION.md`.
+The UX definition subsequently used for completed renderer work is recorded in [`UX_DEFINITION.md`](UX_DEFINITION.md). It remains derived UX evidence, not a second product definition.
 
 ## Current resolved UX direction
 

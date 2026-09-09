@@ -5,35 +5,18 @@ Next:
 Owner attention:
 Evidence:
 
-## Result
+## Outcome and scope
 
-What now works?
+- Observable outcome:
+- In scope:
+- Excluded:
 
 ## Product trace
 
-Relevant OWNER_INTENT/SPEC sections, or no product semantics changed.
-
-## Scope and drift
-
-- In scope:
-- Excluded:
-- Additive, subtractive, prescriptive, restrictive, and workflow drift checked:
+Relevant Product Definition / SPEC / Mission sections, or: no product meaning changed.
 
 ## Verification
 
-- [ ] relevant behavior checks
-- [ ] typecheck and lint where applicable
-- [ ] CI
-- [ ] runtime, visual, package, or TeX evidence where claim requires it
-
-## Architecture
-
-- [ ] Product Meaning check passed
-- [ ] no constitutional change without authority
-- [ ] no speculative subsystem or duplicate mutation path
-- [ ] portable output remains portable where applicable
-- [ ] Class C ADR included where required
-
-## Material notes
-
-Only actual limitations or decisions.
+- Checks run:
+- Reused evidence and why it remains applicable:
+- Remaining limitation or follow-up:

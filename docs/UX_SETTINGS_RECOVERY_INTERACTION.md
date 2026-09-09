@@ -1,10 +1,10 @@
-# AAAAT Settings, setup, and recovery interaction contract
+# AAAAT Settings, setup, and recovery interaction notes
 
-Status: Stage 4 design contract for Mission #204 / Issue #215.
+Status: historical UX and implementation evidence from a completed bounded change. Not product authority or an active work contract.
 
-This document is subordinate to `docs/UX_DEFINITION.md`. Accepted Stage-1/2/3 contracts define candidature, VCVGenerator, and reusable-professional-information interaction. `docs/UX_VISUAL_DIRECTION.md` supplies visual character only; `docs/UX_HISTORY_RECONCILIATION.md` is historical evidence only.
+Use this record only to understand existing secondary administration after product meaning has been established through [`PRODUCT_DEFINITION.md`](../PRODUCT_DEFINITION.md). It is subordinate to the Product Definition and derived [`SPEC.md`](SPEC.md); related interaction notes, [`UX_VISUAL_DIRECTION.md`](UX_VISUAL_DIRECTION.md), and [`UX_HISTORY_RECONCILIATION.md`](UX_HISTORY_RECONCILIATION.md) do not create requirements.
 
-This contract defines secondary administration before global shell synthesis. It does not define final global navigation, React components, CSS, pane geometry, provider architecture, persistence design, or environment abstractions.
+This record describes secondary administration considered before global shell synthesis. It does not prescribe final global navigation, React components, CSS, pane geometry, provider architecture, persistence design, or environment abstractions.
 
 ## 1. Interaction objective
 

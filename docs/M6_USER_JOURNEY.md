@@ -2,6 +2,6 @@
 
 Status: superseded historical research.
 
-This document recorded a rejected M6 product and UX contract. It is retained through Git history as implementation and research evidence only. It does not constrain current product meaning, persistence, renderer composition, Issue scope, or future Missions.
+This document recorded a rejected programme and UX contract. It remains historical implementation and research evidence only. It does not constrain current product meaning, persistence, renderer composition, Issue scope, or future Missions.
 
-Use docs/OWNER_INTENT.md and docs/SPEC.md for current product meaning, .agentic/CURRENT_MISSION.md for the active bounded capability, and AGENTS.md for development authority.
+Use [PRODUCT_DEFINITION.md](../PRODUCT_DEFINITION.md) for current product meaning, [docs/SPEC.md](SPEC.md) for derived architecture, [.agentic/CURRENT_MISSION.md](../.agentic/CURRENT_MISSION.md) for active execution, and [AGENTS.md](../AGENTS.md) for development entry.

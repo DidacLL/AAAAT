@@ -2,7 +2,7 @@
 
 > Recovery clarification: [ADR 0015](0015-owner-approved-recovery-boundaries.md) supersedes outbound durable identifiers and any coupling of external/provider wire contracts to internal identifier-bearing contracts. Unrelated decisions below remain in force.
 
-- Status: Accepted for corrective M6
+- Status: Accepted corrective technical decision; the historical M6 name is non-authoritative.
 - Date: 2026-09-04
 - Decision class: C
 - Issue: #150

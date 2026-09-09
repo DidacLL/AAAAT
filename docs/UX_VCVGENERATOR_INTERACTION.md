@@ -1,10 +1,10 @@
-# AAAAT VCVGenerator interaction contract
+# AAAAT VCVGenerator interaction notes
 
-Status: Stage 2 design contract for Mission #204 / Issue #209.
+Status: historical UX and implementation evidence from a completed bounded change. Not product authority or an active work contract.
 
-This document is subordinate to `docs/UX_DEFINITION.md`, which remains the canonical durable UX contract. `docs/UX_CANDIDATURE_INTERACTION.md` defines the accepted candidature handoff/context contract. `docs/UX_VISUAL_DIRECTION.md` supplies visual character only. `docs/UX_HISTORY_RECONCILIATION.md` is historical evidence only.
+Use this record only to understand existing document interaction after product meaning has been established through [`PRODUCT_DEFINITION.md`](../PRODUCT_DEFINITION.md). It is subordinate to the Product Definition and derived [`SPEC.md`](SPEC.md); related interaction notes, [`UX_VISUAL_DIRECTION.md`](UX_VISUAL_DIRECTION.md), and [`UX_HISTORY_RECONCILIATION.md`](UX_HISTORY_RECONCILIATION.md) do not create requirements.
 
-This contract defines VCVGenerator interaction before production renderer work. It deliberately does not define the final global shell, exact navigation widget, React composition, CSS, visual tokens, pane ratios, breakpoints, reusable-profile workspace, Settings architecture, or LaTeX package/template architecture.
+This record describes VCVGenerator interaction considered before production renderer work. It deliberately does not prescribe the final global shell, exact navigation widget, React composition, CSS, visual tokens, pane ratios, breakpoints, reusable-profile workspace, Settings architecture, or LaTeX package/template architecture.
 
 ## 1. Interaction objective
 

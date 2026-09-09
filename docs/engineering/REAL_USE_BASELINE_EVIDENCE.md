@@ -1,8 +1,8 @@
-# First real-use v2 baseline candidate
+# Dormant first real-use baseline evidence
 
-Status: **candidate only — no real-use/release compatibility baseline has been established.**
+Status: **archived reference — no real-use/release compatibility baseline has been established.**
 
-Parent Mission: #235. Audit Issue: #236.
+This record preserves the dated engineering audit formerly associated with Issue #235 and audit Issue #236. It is not an active Mission, release plan, or request for a Product Owner decision. Revisit and revalidate it only if the Product Owner explicitly asks to establish a real-use or release data baseline.
 
 ## Candidate
 
@@ -32,7 +32,7 @@ At the candidate commit, workspace startup owns exactly these ordered migrations
 
 `src/main/workspace.ts` derives SHA-256 from each raw SQL migration, stores `version`, `name`, `sha256`, and `applied_at`, validates the ordered applied prefix, fails closed on name/hash mismatch, and applies each missing migration transactionally. New-workspace initialization removes provisional SQLite/WAL/SHM state when migration fails.
 
-Before explicit baseline approval these files remain development-era schema under `OWNER_INTENT` / `SPEC`; their history is not a compatibility commitment. If the Product Owner establishes this candidate as the first real-use/release baseline, these exact migration contents become the baseline history and later schema evolution must use new numbered migrations rather than editing the released/applied baseline migrations.
+Before explicit baseline approval these files remain development-era schema under [`PRODUCT_DEFINITION.md`](../../PRODUCT_DEFINITION.md) and [`SPEC.md`](../SPEC.md); their history is not a compatibility commitment. If the Product Owner establishes this candidate as the first real-use/release baseline, these exact migration contents become the baseline history and later schema evolution must use new numbered migrations rather than editing the released/applied baseline migrations.
 
 ## Evidence map
 
@@ -68,11 +68,11 @@ The following are not blockers to nominating the current product/data state for 
 
 Multilingual document content is **not** treated as deferred: integrated acceptance #203 already strengthened the real pdfLaTeX portability scenario with Spanish/French Latin content, and later UX work did not change that document-production boundary.
 
-## Audit result
+## Historical audit result
 
-No concrete blocker was found that makes `9e238b90be351ae55ac5732a5b136bc6dd8aebc8` unsafe to **nominate** as the first real-use v2 data baseline candidate.
+At the time of this audit, no concrete blocker was found that made `9e238b90be351ae55ac5732a5b136bc6dd8aebc8` unsafe to nominate as a first real-use v2 data baseline candidate.
 
-This conclusion does not establish the baseline. It means the engineering/audit side is ready for one explicit Product Owner decision.
+This conclusion did not establish a baseline and does not request one now. A future baseline decision must revalidate the intended commit, migration set, evidence, and actual product state rather than treating this archived result as current approval.
 
 ## Consequence of approval
 

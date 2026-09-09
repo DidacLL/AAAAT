@@ -1,17 +1,17 @@
-# AAAAT global shell and navigation interaction contract
+# AAAAT global shell and navigation interaction notes
 
-Status: Stage 5 design contract for Mission #204 / Issue #217.
+Status: historical UX and implementation evidence from a completed bounded change. Not product authority or an active work contract.
 
-This document is subordinate to `docs/UX_DEFINITION.md` and synthesizes the accepted bounded interaction contracts:
+Use this record only to understand existing global-shell interaction after product meaning has been established through [`PRODUCT_DEFINITION.md`](../PRODUCT_DEFINITION.md). It is subordinate to the Product Definition and derived [`SPEC.md`](SPEC.md). It relates the following historical interaction records:
 
 - `docs/UX_CANDIDATURE_INTERACTION.md`;
 - `docs/UX_VCVGENERATOR_INTERACTION.md`;
 - `docs/UX_PROFESSIONAL_INFORMATION_INTERACTION.md`;
 - `docs/UX_SETTINGS_RECOVERY_INTERACTION.md`.
 
-`docs/UX_VISUAL_DIRECTION.md` supplies visual character only. `docs/UX_HISTORY_RECONCILIATION.md` is historical evidence only.
+[`UX_VISUAL_DIRECTION.md`](UX_VISUAL_DIRECTION.md) supplies visual guidance only. [`UX_HISTORY_RECONCILIATION.md`](UX_HISTORY_RECONCILIATION.md) is historical evidence only. None of these documents creates requirements.
 
-This contract defines the durable global information hierarchy and shell interaction. It does not define React components, routing libraries, CSS implementation, exact pixel geometry, design-system tokens, or persistence architecture.
+This record describes the global information hierarchy and shell interaction accepted for the prior renderer work. It does not prescribe React components, routing libraries, CSS implementation, exact pixel geometry, design-system tokens, or persistence architecture.
 
 ## 1. Global product hierarchy
 
@@ -73,7 +73,7 @@ They remain contextual, local, secondary, or progressively disclosed according t
 
 AAAAT does not require a dashboard or Home destination merely to provide a landing page.
 
-A generic dashboard would duplicate candidature retrieval, document selection, reminders, Settings status, or other existing contexts and would recreate the additive/entity-driven hierarchy that Mission #204 is replacing.
+A generic dashboard would duplicate candidature retrieval, document selection, reminders, Settings status, or other existing contexts and would recreate the additive/entity-driven hierarchy that the historical Mission #204 work was intended to replace.
 
 If a future bounded user need justifies an overview, it must be derived from that need rather than introduced as shell filler.
 
