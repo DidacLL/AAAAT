@@ -50,46 +50,6 @@ const operationDefaultsSchema = z
 
 type OperationDefaults = z.infer<typeof operationDefaultsSchema>;
 
-const legacyAiOperationSchema = z.enum([
-  "fit_assessment",
-  "job_extraction",
-  "historical_field_discovery",
-  "variant_recommendation",
-  "cv_tailoring",
-  "cover_letter_draft",
-  "candidature_comparison",
-]);
-type LegacyAiOperation = z.infer<typeof legacyAiOperationSchema>;
-
-const legacyStoredConnectionSchema = aiConnectionInputSchema
-  .extend({
-    id: aiConnectionIdSchema,
-    validatedOperations: z.array(legacyAiOperationSchema).max(legacyAiOperationSchema.options.length),
-  })
-  .strict();
-
-const legacyOperationDefaultsSchema = z
-  .object({
-    fit_assessment: aiConnectionIdSchema.optional(),
-    job_extraction: aiConnectionIdSchema.optional(),
-    historical_field_discovery: aiConnectionIdSchema.optional(),
-    variant_recommendation: aiConnectionIdSchema.optional(),
-    cv_tailoring: aiConnectionIdSchema.optional(),
-    cover_letter_draft: aiConnectionIdSchema.optional(),
-    candidature_comparison: aiConnectionIdSchema.optional(),
-  })
-  .strict();
-
-const legacyAiOperationLabels: Readonly<Record<LegacyAiOperation, string>> = Object.freeze({
-  fit_assessment: "Fit assessment",
-  job_extraction: "Job extraction",
-  historical_field_discovery: "Historical field discovery",
-  variant_recommendation: "Variant recommendation",
-  cv_tailoring: "CV tailoring",
-  cover_letter_draft: "Cover-letter drafting",
-  candidature_comparison: "Candidature comparison",
-});
-
 const storedConnectionConfigurationSchema = z
   .object({
     version: z.literal(4),
@@ -130,46 +90,6 @@ const storedConnectionConfigurationSchema = z
 
 type StoredConnectionConfiguration = z.infer<typeof storedConnectionConfigurationSchema>;
 
-const legacyStoredConnectionConfigurationSchema = z
-  .object({
-    version: z.literal(3),
-    connections: z.array(legacyStoredConnectionSchema).max(16),
-    defaultConnectionId: aiConnectionIdSchema.nullable(),
-    operationDefaults: legacyOperationDefaultsSchema,
-  })
-  .strict()
-  .superRefine((configuration, context) => {
-    const ids = configuration.connections.map((connection) => connection.id);
-    if (new Set(ids).size !== ids.length) {
-      context.addIssue({ code: "custom", message: "AI connection IDs must be unique." });
-    }
-    const names = configuration.connections.map((connection) => connection.name.toLocaleLowerCase());
-    if (new Set(names).size !== names.length) {
-      context.addIssue({ code: "custom", message: "AI connection names must be unique." });
-    }
-    if (
-      configuration.defaultConnectionId !== null &&
-      !configuration.connections.some(
-        (connection) => connection.id === configuration.defaultConnectionId,
-      )
-    ) {
-      context.addIssue({ code: "custom", message: "The default AI connection must exist." });
-    }
-    for (const operation of legacyAiOperationSchema.options) {
-      const connectionId = configuration.operationDefaults[operation];
-      if (!connectionId) continue;
-      const connection = configuration.connections.find((candidate) => candidate.id === connectionId);
-      if (!connection || !connection.validatedOperations.includes(operation)) {
-        context.addIssue({
-          code: "custom",
-          message: `The default connection for ${legacyAiOperationLabels[operation]} must be validated for that operation.`,
-        });
-      }
-    }
-  });
-
-type LegacyStoredConnectionConfiguration = z.infer<typeof legacyStoredConnectionConfigurationSchema>;
-
 export class AiConnectionServiceError extends Error {
   constructor(message: string) {
     super(message);
@@ -203,62 +123,14 @@ function emptyConfiguration(): StoredConnectionConfiguration {
   return { version: 4, connections: [], defaultConnectionId: null, operationDefaults: {} };
 }
 
-function normalizeLegacyOperation(operation: LegacyAiOperation): AiOperation | null {
-  if (operation === "fit_assessment") return "opportunity_review";
-  if (operation === "candidature_comparison") return null;
-  return operation;
-}
-
-function normalizeLegacyConfiguration(
-  configuration: LegacyStoredConnectionConfiguration,
-): StoredConnectionConfiguration {
-  const opportunityReviewDefault = configuration.operationDefaults.fit_assessment;
-  return storedConnectionConfigurationSchema.parse({
-    version: 4,
-    connections: configuration.connections.map((connection) => ({
-      ...connection,
-      validatedOperations: [
-        ...new Set(
-          connection.validatedOperations.flatMap((operation) => {
-            const normalized = normalizeLegacyOperation(operation);
-            return normalized ? [normalized] : [];
-          }),
-        ),
-      ],
-    })),
-    defaultConnectionId: configuration.defaultConnectionId,
-    operationDefaults: {
-      ...(opportunityReviewDefault ? { opportunity_review: opportunityReviewDefault } : {}),
-      ...(configuration.operationDefaults.job_extraction
-        ? { job_extraction: configuration.operationDefaults.job_extraction }
-        : {}),
-      ...(configuration.operationDefaults.historical_field_discovery
-        ? { historical_field_discovery: configuration.operationDefaults.historical_field_discovery }
-        : {}),
-      ...(configuration.operationDefaults.variant_recommendation
-        ? { variant_recommendation: configuration.operationDefaults.variant_recommendation }
-        : {}),
-      ...(configuration.operationDefaults.cv_tailoring
-        ? { cv_tailoring: configuration.operationDefaults.cv_tailoring }
-        : {}),
-      ...(configuration.operationDefaults.cover_letter_draft
-        ? { cover_letter_draft: configuration.operationDefaults.cover_letter_draft }
-        : {}),
-    },
-  });
-}
-
 function readConfiguration(rootPath: string): StoredConnectionConfiguration {
   const filePath = connectionPath(rootPath);
   if (!existsSync(filePath)) return emptyConfiguration();
   try {
-    const rawConfiguration = JSON.parse(readFileSync(filePath, "utf8"));
-    const current = storedConnectionConfigurationSchema.safeParse(rawConfiguration);
-    const configuration = current.success
-      ? current.data
-      : normalizeLegacyConfiguration(legacyStoredConnectionConfigurationSchema.parse(rawConfiguration));
+    const configuration = storedConnectionConfigurationSchema.parse(
+      JSON.parse(readFileSync(filePath, "utf8")),
+    );
     for (const connection of configuration.connections) validatedEndpoint(connection);
-    if (!current.success) writeConfiguration(rootPath, configuration);
     return configuration;
   } catch {
     throw new AiConnectionServiceError("The stored AI connection configuration is invalid.");
