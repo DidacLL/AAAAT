@@ -1,10 +1,10 @@
-# AAAAT candidature interaction contract
+# AAAAT candidature interaction notes
 
-Status: Stage 1 design contract for Mission #204 / Issue #207.
+Status: historical UX and implementation evidence from a completed bounded change. Not product authority or an active work contract.
 
-This document is subordinate to `docs/UX_DEFINITION.md`, which remains the canonical durable UX contract. `docs/UX_VISUAL_DIRECTION.md` supplies visual character only. `docs/UX_HISTORY_RECONCILIATION.md` is historical evidence only.
+Use this record only to understand existing candidature interaction after product meaning has been established through [`PRODUCT_DEFINITION.md`](../PRODUCT_DEFINITION.md). It is subordinate to the Product Definition and derived [`SPEC.md`](SPEC.md); [`UX_VISUAL_DIRECTION.md`](UX_VISUAL_DIRECTION.md) is visual guidance and [`UX_HISTORY_RECONCILIATION.md`](UX_HISTORY_RECONCILIATION.md) is historical evidence.
 
-This contract defines the candidature journey before production renderer work. It deliberately does not define the global shell, sidebar-vs-tabs choice, exact React composition, CSS, theme implementation, breakpoints, pane ratios, or final candidature section labels.
+This record describes the candidature interaction considered before production renderer work. It deliberately does not prescribe the global shell, sidebar-vs-tabs choice, exact React composition, CSS, theme implementation, breakpoints, pane ratios, or final candidature section labels.
 
 ## 1. Interaction objective
 

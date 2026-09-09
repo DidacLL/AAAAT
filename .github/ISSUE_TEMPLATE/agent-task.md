@@ -1,46 +1,35 @@
 ---
 name: Agent task
-about: Bounded implementation or engineering task for the active AAAAT Mission
+about: One bounded AAAAT engineering outcome
 title: ""
 labels: ""
 assignees: ""
 ---
 
-# Human summary
+## Human summary
 
 Now:
 Next:
 Owner attention:
 Evidence:
 
-# Goal
+## Outcome
 
 One observable outcome.
 
-# Authority and Mission
+## Authority and current state
 
-Relevant OWNER_INTENT/SPEC sections, active Mission, dependencies, and accepted ADRs.
+Relevant Product Definition / SPEC sections, Current Mission, live dependencies, and technical ADRs where applicable.
 
-# In scope
+## Scope
 
--
+- In scope:
+- Explicitly excluded:
 
-# Explicitly out of scope
+## Acceptance evidence
 
--
+- Behavior or document outcome:
+- Required checks:
+- Reusable evidence:
 
-# Acceptance evidence
-
--
-
-# Decision class
-
-A / B / C after Product Meaning check, or owner decision required.
-
-# Execution and return
-
-Route: ChatGPT Classic / Codex Terra / Codex Astra / Owner
-Required checks:
-Return: branch/commit, check conclusions, review findings, blockers.
-
-Do not create task-specific handoff files. Use docs/engineering/EXECUTION.md for real cross-surface transport.
+Ask the Product Owner only for genuine unresolved product meaning or a consequential trade-off that cannot be resolved from the authority record.

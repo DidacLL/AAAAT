@@ -1,6 +1,6 @@
 # ADR 0011: Keep current career context separate from professional evidence
 
-- Status: Accepted for M6
+- Status: Accepted technical decision; the historical M6 scope is non-authoritative.
 - Decision class: C
 - Issue: #128
 

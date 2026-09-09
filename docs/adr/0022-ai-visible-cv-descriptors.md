@@ -4,7 +4,7 @@
 
 ## Context
 
-OWNER_INTENT and SPEC require an external assistant to be able to inspect **AI-visible CV tags and notes** so the assistant can judge whether existing material appears suitable. This is deliberately narrower than later access to CV/document content, and AAAAT must not rank CV suitability itself.
+`PRODUCT_DEFINITION.md` permits bounded external-AI contributions. This ADR records the technical privacy boundary for **AI-visible CV tags and notes**; it does not define product meaning. The boundary is deliberately narrower than later access to CV/document content, and AAAAT must not rank CV suitability itself.
 
 The current v2 document model has no such descriptors. Profile-variant `targetTags` describe a variant's intended focus; reusing them as CV descriptions would conflate two meanings and could disclose information the user did not deliberately mark for this external purpose. Document titles, profile items, rendered/source paths and candidature associations are also not substitutes for explicit disclosure metadata.
 

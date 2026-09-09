@@ -1,6 +1,6 @@
 # ADR 0012 — Candidature sources and current working brief
 
-- Status: Accepted for M6
+- Status: Superseded by ADR 0013; retained as historical implementation evidence.
 - Date: 2026-09-04
 - Decision class: C
 - Issue: #129

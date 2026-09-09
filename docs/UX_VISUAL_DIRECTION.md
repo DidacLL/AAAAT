@@ -2,7 +2,7 @@
 
 Status: Product Owner visual-direction reference for future UX/UI implementation.
 
-This document defines the intended visual character of AAAAT. It is not a navigation contract, component specification, design system, color token file, or instruction to start a standalone styling/redesign loop. Product behavior and interaction architecture remain governed by current Product Owner intent, `docs/OWNER_INTENT.md`, `docs/SPEC.md`, and the canonical UX definition produced by Mission #204.
+This document defines the intended visual character of AAAAT. It is not a navigation contract, component specification, design system, color token file, or instruction to start a standalone styling/redesign loop. Product behavior and interaction architecture remain governed by current explicit Product Owner instruction, [`PRODUCT_DEFINITION.md`](../PRODUCT_DEFINITION.md), and derived [`SPEC.md`](SPEC.md). This document does not override them or create product requirements.
 
 Use this document whenever work changes visible UI. Interpret the direction rather than copying individual historical mockups or locking onto incidental details.
 
@@ -156,7 +156,7 @@ The target is **friendly worn retrofuturism with professional information clarit
 
 ## Historical visual references
 
-`docs/v2DefinitionPrompt/` currently contains historical generated AAAAT visual assets, including:
+`docs/owner-source/` contains historical generated AAAAT visual assets, including:
 
 - `AAAATART.png`
 - `AAAATlogo.png` / `AAAATlogolight.png`
@@ -164,11 +164,11 @@ The target is **friendly worn retrofuturism with professional information clarit
 - `AAAATbg.png` / `AAAATbglight.png`
 - `AAAATloading.png` / `AAAATloadinglight.png`
 
-These are visual research inputs only. The surrounding `v2DefinitionPrompt` folder is not guaranteed to reflect current product authority. A future visual-design run should inspect the images directly, preserve useful motifs where they agree with this owner direction, and discard anything that conflicts with current UX/product requirements.
+These are visual research inputs only. The surrounding [`owner-source`](owner-source/) folder is not guaranteed to reflect current product authority. A future visual-design run should inspect the images directly, preserve useful motifs where they agree with this derived guidance, and discard anything that conflicts with current product meaning.
 
 ## Guidance for future visual implementation runs
 
-Before changing visible UI, read this document together with the current canonical UX definition.
+Before changing visible UI, establish product meaning through [`PRODUCT_DEFINITION.md`](../PRODUCT_DEFINITION.md), then use the relevant derived technical architecture and this visual guidance.
 
 A visual implementation should be able to explain:
 

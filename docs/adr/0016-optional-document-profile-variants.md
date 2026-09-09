@@ -7,7 +7,7 @@
 
 ## Context
 
-Owner Intent and the SPEC define document production as canonical professional information plus optional variant differences plus document-specific differences. The current development document schema and contracts instead require a profile variant for every CV or cover letter, which blocks ordinary document creation from canonical information alone.
+`PRODUCT_DEFINITION.md` establishes reusable professional information and independently usable document production. This ADR applies that product meaning to the technical variant architecture; it does not define product meaning. The current development document schema and contracts instead require a profile variant for every CV or cover letter, which blocks ordinary document creation from canonical information alone.
 
 AAAAT has no real-user v2 compatibility baseline, so the obsolete development representation should be corrected directly rather than preserved through a migration chain or hidden compatibility object.
 

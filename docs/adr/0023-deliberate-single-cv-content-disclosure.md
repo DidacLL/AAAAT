@@ -4,7 +4,7 @@
 
 ## Context
 
-OWNER_INTENT and SPEC require an external assistant to be able to obtain further permitted document content when AI-visible CV descriptions are insufficient. That broader sharing must be an understandable deliberate user choice and must not become generic profile/document browsing, candidature-corpus access, or a durable local-ID interface.
+`PRODUCT_DEFINITION.md` permits bounded external-AI contributions. This ADR records the technical boundary for an external assistant to obtain further permitted document content when AI-visible CV descriptions are insufficient; it does not define product meaning. That broader sharing must be an understandable deliberate user choice and must not become generic profile/document browsing, candidature-corpus access, or a durable local-ID interface.
 
 ADR 0022 deliberately made `cv_descriptions_read` labels response-local and unusable as document references. Reusing `CV 1`, a document title, a local UUID, a path, tags, or search text as input to a later content operation would either create cross-operation reference authority or a document query surface.
 

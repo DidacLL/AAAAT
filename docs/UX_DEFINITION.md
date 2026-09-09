@@ -1,8 +1,8 @@
 # AAAAT UX Definition
 
-Status: canonical durable UX contract for Mission #204.
+Status: derived UX reference, not product authority or an active Mission contract.
 
-Current direct Product Owner instruction remains highest authority, followed by `docs/OWNER_INTENT.md` and `docs/SPEC.md`. This document defines durable user-experience requirements derived from that authority. `docs/UX_HISTORY_RECONCILIATION.md` is research evidence only.
+Current explicit Product Owner instruction and [`PRODUCT_DEFINITION.md`](../PRODUCT_DEFINITION.md) establish product meaning. [`SPEC.md`](SPEC.md) records the derived technical architecture. This document records useful UX guidance within that established meaning; it cannot add, alter, or settle product requirements. [`UX_HISTORY_RECONCILIATION.md`](UX_HISTORY_RECONCILIATION.md) is research evidence only.
 
 This is not a screen specification. It does not prescribe React components, tabs, sidebars, card layouts, routes, CSS, exact labels, breakpoints, pane ratios, visual theme, or component decomposition.
 
@@ -31,9 +31,9 @@ The durable mental model is:
 9. The normal UX is simple for non-technical users while remaining editable, inspectable and auditable through progressive disclosure.
 10. Sparse input is normal. A recruiter message, URL, raw offer, or one useful fact is already a valid candidature.
 
-## 2. Canonical user journeys
+## 2. Representative interaction flows
 
-These journeys constrain later interaction and navigation design.
+These examples illustrate interaction needs. They do not prescribe one mandatory lifecycle, workflow, or navigation sequence.
 
 ### Capture
 
