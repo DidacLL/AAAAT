@@ -2,11 +2,11 @@
 
 Status: **archived reference — no real-use/release compatibility baseline has been established.**
 
-This record preserves the dated engineering audit formerly associated with Issue #235 and audit Issue #236. It is not an active Mission, release plan, or request for a Product Owner decision. Revisit and revalidate it only if the Product Owner explicitly asks to establish a real-use or release data baseline.
+This record preserves the dated engineering audit formerly associated with Issue #235 and audit Issue #236. It is not an active Mission, release plan, or request for a Product Owner decision. Its runtime and AI-operation observations apply only to the recorded historical head, not to later authority-aligned changes. Revisit and revalidate it only if the Product Owner explicitly asks to establish a real-use or release data baseline.
 
-## Candidate
+## Dated candidate
 
-The current runtime/data candidate is merged `main` commit:
+The recorded runtime/data candidate was merged `main` commit:
 
 `9e238b90be351ae55ac5732a5b136bc6dd8aebc8`
 
@@ -41,7 +41,7 @@ Before explicit baseline approval these files remain development-era schema unde
 | Fresh/current workspace and migration integrity | `src/main/workspace.ts`; `test/workspace.test.ts`; packaged recovery tests exercise real SQLite migration history and hash validation. |
 | Local ownership and complete manual/no-AI use | Integrated acceptance Issue #202 / PR #203; packaged manual candidature/document/setup flows. The UX Mission preserved the same application-service and local-workspace authority. |
 | Renderer/process isolation | `test/window-options.test.ts`, `test/preload-api.test.ts`, external-command/API tests, and packaged runtime security checks. Mission #204 changed renderer composition, not the Electron privilege boundary. |
-| Privacy and bounded operation context | `test/ai-service.test.ts`, candidature comparison/privacy tests, MCP CV descriptor/content/render tests, and the fixed named-operation preload/main boundaries. |
+| Privacy and bounded operation context | `test/ai-service.test.ts`, bounded-operation privacy tests, MCP CV descriptor/content/render tests, and the fixed named-operation preload/main boundaries. This row records the candidate's prior evidence only; it does not preserve removed comparison behavior as a current capability. |
 | Backup and restore | `test/workspace-backup.test.ts`, `test/WorkspaceRecoveryPanel.test.tsx`, `test/desktop/packaged-recovery.spec.ts`, plus integrated acceptance #202/#203. |
 | Portable user-owned documents | `test/document-service.test.ts`, `test/latex-portability.test.ts`, `test/artifact-service.test.ts`, `test/combined-document-service.test.ts`. PR #203 strengthened real pdfLaTeX portability with Spanish/French Latin content. |
 | Cross-platform packaged application | Verify #548 (`34296548080`) passed Fast verification, Windows/macOS/Linux release packaging and packaged runtime smoke, and the aggregate gate. |

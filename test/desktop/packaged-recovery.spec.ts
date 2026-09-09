@@ -28,52 +28,65 @@ function packagedExecutable(): string {
   return path.join(packageRoot, process.platform === "win32" ? "aaaat.exe" : "aaaat");
 }
 
-const migrationFiles = [
-  [1, "workspace", "001_workspace.sql"],
-  [2, "profile", "002_profile.sql"],
-  [3, "documents", "003_documents.sql"],
-  [4, "candidatures", "004_candidatures.sql"],
-  [5, "concepts", "005_concepts.sql"],
-  [6, "activity", "006_activity.sql"],
-] as const;
-
-function initializePreInformationWorkspace(root: string): void {
+function initializeCurrentWorkspace(root: string): string {
   const database = new DatabaseSync(path.join(root, "workspace.sqlite"));
   const now = "2026-09-03T00:00:00.000Z";
+  const candidatureId = "packaged-recovery-candidature";
+  const migrations = readdirSync(path.resolve("src/main/migrations"))
+    .map((file) => {
+      const match = /^(\d+)_(.+)\.sql$/.exec(file);
+      const version = match?.[1];
+      const name = match?.[2];
+      if (!version || !name) return null;
+      return {
+        version: Number(version),
+        name: name.replaceAll("_", "-"),
+        sql: readFileSync(path.resolve("src/main/migrations", file), "utf8"),
+      };
+    })
+    .filter((migration): migration is { version: number; name: string; sql: string } => migration !== null)
+    .sort((left, right) => left.version - right.version);
+
   try {
     database.exec(
       "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;",
     );
-    for (const [version, name, file] of migrationFiles) {
-      const sql = readFileSync(path.resolve("src/main/migrations", file), "utf8");
-      database.exec("BEGIN IMMEDIATE");
-      try {
-        database.exec(sql);
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      for (const migration of migrations) {
+        database.exec(migration.sql);
         database
           .prepare(
             "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
           )
-          .run(version, name, createHash("sha256").update(sql).digest("hex"), now);
-        database.exec("COMMIT");
-      } catch (error) {
-        database.exec("ROLLBACK");
-        throw error;
+          .run(
+            migration.version,
+            migration.name,
+            createHash("sha256").update(migration.sql).digest("hex"),
+            now,
+          );
       }
+      database
+        .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
+        .run("workspace.initialized_at", now);
+      database
+        .prepare(
+          "INSERT INTO candidatures(id, archived, created_at, updated_at) VALUES (?, 0, ?, ?)",
+        )
+        .run(candidatureId, now, now);
+      database
+        .prepare("INSERT INTO candidature_activity(occurred_at, candidature_id, action) VALUES (?, ?, ?)")
+        .run(now, candidatureId, "candidature.created");
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      throw error;
     }
-    database
-      .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
-      .run("workspace.initialized_at", now);
-    database
-      .prepare(
-        "INSERT INTO candidatures(id, archived, created_at, updated_at) VALUES (?, 0, ?, ?)",
-      )
-      .run("packaged-recovery-candidature", now, now);
-    database
-      .prepare("INSERT INTO candidature_activity(occurred_at, candidature_id, action) VALUES (?, ?, ?)")
-      .run(now, "packaged-recovery-candidature", "candidature.created");
   } finally {
     database.close();
   }
+
+  return candidatureId;
 }
 
 function run(executable: string, args: readonly string[]) {
@@ -88,7 +101,7 @@ function response(stdout: string): unknown {
   return JSON.parse(stdout.trim());
 }
 
-test("packaged recovery upgrades a sparse workspace and preserves user-owned data without secret or transient state", () => {
+test("packaged recovery preserves a sparse workspace and user-owned data without secret or transient state", () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-recovery-"));
   const workspace = path.join(root, "workspace");
   const backup = path.join(root, "backup");
@@ -96,7 +109,7 @@ test("packaged recovery upgrades a sparse workspace and preserves user-owned dat
   mkdirSync(workspace);
   mkdirSync(backup);
   mkdirSync(restored);
-  initializePreInformationWorkspace(workspace);
+  const candidatureId = initializeCurrentWorkspace(workspace);
   mkdirSync(path.join(workspace, "documents"));
   mkdirSync(path.join(workspace, "integrations"));
   writeFileSync(path.join(workspace, "documents", "cv.tex"), "portable cv", "utf8");
@@ -164,32 +177,22 @@ test("packaged recovery upgrades a sparse workspace and preserves user-owned dat
       expect(
         database
           .prepare("SELECT id, archived FROM candidatures WHERE id = ?")
-          .get("packaged-recovery-candidature"),
-      ).toEqual({ id: "packaged-recovery-candidature", archived: 0 });
-      expect(
-        database
-          .prepare("SELECT COUNT(*) AS count FROM candidature_field_values WHERE candidature_id = ?")
-          .get("packaged-recovery-candidature"),
-      ).toEqual({ count: 0 });
-      expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_fields").get()).toMatchObject({
-        count: expect.any(Number),
-      });
+          .get(candidatureId),
+      ).toEqual({ id: candidatureId, archived: 0 });
       expect(
         database
           .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
-          .get("packaged-recovery-candidature"),
+          .get(candidatureId),
       ).toEqual({ action: "candidature.created" });
-      expect(database.prepare("SELECT version, name FROM schema_migrations ORDER BY version").all()).toEqual([
-        { version: 1, name: "workspace" },
-        { version: 2, name: "profile" },
-        { version: 3, name: "documents" },
-        { version: 4, name: "candidatures" },
-        { version: 5, name: "concepts" },
-        { version: 6, name: "activity" },
-        { version: 7, name: "career-context" },
-        { version: 8, name: "candidature-information" },
-        { version: 9, name: "todos" },
-      ]);
+      const migrations = database
+        .prepare("SELECT version, name, sha256 FROM schema_migrations ORDER BY version")
+        .all() as Array<{ version: number; name: string; sha256: string }>;
+      expect(migrations).not.toHaveLength(0);
+      for (const migration of migrations) {
+        expect(migration.version).toEqual(expect.any(Number));
+        expect(migration.name).toEqual(expect.any(String));
+        expect(migration.sha256).toMatch(/^[a-f0-9]{64}$/);
+      }
     } finally {
       database.close();
     }

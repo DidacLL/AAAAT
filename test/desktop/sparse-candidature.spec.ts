@@ -97,7 +97,7 @@ async function stopPackagedApp(running: RunningApp): Promise<void> {
 }
 
 function prepareLinuxChooserHome(workspacePath: string): string {
-  const homePath = mkdtempSync(path.join(tmpdir(), "aaaat-m6-home-"));
+  const homePath = mkdtempSync(path.join(tmpdir(), "aaaat-sparse-candidature-home-"));
   const configPath = path.join(homePath, ".config");
   mkdirSync(configPath, { recursive: true });
   const escaped = workspacePath.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
@@ -184,8 +184,8 @@ async function selectSection(page: Page, name: string): Promise<void> {
 }
 
 test("packaged sparse candidature accepts a runtime field and survives close/reopen", async () => {
-  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-m6-user-"));
-  const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-m6-workspace-"));
+  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-sparse-candidature-user-"));
+  const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-sparse-candidature-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
   let running: RunningApp | undefined;
 

@@ -40,10 +40,10 @@ Ordinary users work with recognizable professional content such as:
 - links;
 - summaries;
 - certifications or other justified credentials;
-- objectives, preferences, constraints, target roles/markets/locations, and other relevant career context;
+- objectives, preferences, constraints, target roles/markets/locations, and other relevant Career preferences;
 - justified custom information.
 
-This list is illustrative, not a required profile checklist or permanent catalogue.
+This list is illustrative, not a required professional-information checklist or permanent catalogue.
 
 The ordinary experience must not require users to understand field IDs, canonical schemas, EAV structures, patches, rules, migrations, or storage records.
 
@@ -138,7 +138,7 @@ Do not expose database types, column names, JSON, identifiers, migration details
 
 Custom information must remain reusable and inspectable without making the product a general-purpose database editor.
 
-## 8. Objectives, preferences, constraints, and career context
+## 8. Career preferences: objectives, preferences, and constraints
 
 Objectives/preferences/constraints are user-owned professional context, but they are not evidence such as experience or education.
 
@@ -301,7 +301,7 @@ In this Stage, the key ordinary distinction is:
 
 The UX must not present “stored locally” as a toggle that can be casually disabled for an existing local item.
 
-Sensitive identity/contact or career-context information should expose AI disclosure deliberately without making privacy administration permanent first-sight chrome.
+Sensitive identity/contact or Career preferences should expose AI disclosure deliberately without making privacy administration permanent first-sight chrome.
 
 ## 18. Contextual AI
 
