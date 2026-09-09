@@ -58,12 +58,24 @@ vi.mock("../src/renderer/ProfileWorkspace", () => ({
   }: {
     initialItemId?: string;
     onDirtyChange?: (dirty: boolean) => void;
-  }) => (
-    <section aria-label="Mock professional information">
-      <p>Item {initialItemId ?? "overview"}</p>
-      <button type="button" onClick={() => onDirtyChange?.(true)}>Make professional information dirty</button>
-    </section>
-  ),
+  }) => {
+    const handoffs = useContextualHandoffs();
+    return (
+      <section aria-label="Mock professional information">
+        <p>Item {initialItemId ?? "overview"}</p>
+        <button type="button" onClick={() => onDirtyChange?.(true)}>Make professional information dirty</button>
+        <button
+          type="button"
+          onClick={() => {
+            onDirtyChange?.(false);
+            handoffs.returnToDocument();
+          }}
+        >
+          Save handed-off item
+        </button>
+      </section>
+    );
+  },
 }));
 
 vi.mock("../src/renderer/SettingsWorkspace", () => ({
@@ -72,7 +84,13 @@ vi.mock("../src/renderer/SettingsWorkspace", () => ({
   ),
 }));
 
-vi.mock("../src/renderer/CareerContextPanel", () => ({ CareerContextPanel: () => null }));
+vi.mock("../src/renderer/CareerContextPanel", () => ({
+  CareerContextPanel: ({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) => (
+    <section aria-label="Mock career context">
+      <button type="button" onClick={() => onDirtyChange?.(true)}>Make career context dirty</button>
+    </section>
+  ),
+}));
 vi.mock("../src/renderer/AiDocumentsWorkspace", () => ({ AiDocumentsWorkspace: () => null }));
 vi.mock("../src/renderer/TodosWorkspace", () => ({ TodosWorkspace: () => null }));
 vi.mock("../src/renderer/WorkspaceRecoveryPanel", () => ({ WorkspaceRecoveryPanel: () => null }));
@@ -178,6 +196,23 @@ describe("contextual handoff coordination", () => {
       "Discard unsaved professional-information edits and return to document?",
     );
     expect(screen.getByRole("region", { name: "Mock professional information" })).toBeVisible();
+  });
+
+  it("does not let profile save bypass a dirty Career context draft", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
+    await user.click(screen.getByRole("button", { name: "Open reusable source" }));
+    await user.click(screen.getByRole("button", { name: "Make career context dirty" }));
+    await user.click(screen.getByRole("button", { name: "Save handed-off item" }));
+
+    expect(confirm).toHaveBeenCalledWith(
+      "Discard unsaved professional-information edits and return to document?",
+    );
+    expect(screen.getByRole("region", { name: "Mock professional information" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Mock career context" })).toBeVisible();
   });
 
   it("does not discard a dirty document when returning to a candidature", async () => {
