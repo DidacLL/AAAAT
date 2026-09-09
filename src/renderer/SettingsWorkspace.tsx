@@ -20,6 +20,7 @@ interface SettingsWorkspaceProps {
   readonly onChooseWorkspace: (choice: WorkspaceChoice) => void;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onRestored: (workspace: WorkspaceInfo) => void;
+  readonly protectedWorkDirty?: boolean;
 }
 
 const settingsLabels: Record<Exclude<SettingsView, "overview">, string> = {
@@ -36,6 +37,7 @@ export function SettingsWorkspace({
   onChooseWorkspace,
   onDirtyChange,
   onRestored,
+  protectedWorkDirty = false,
 }: SettingsWorkspaceProps) {
   const [view, setView] = useState<SettingsView>(initialView);
   const [detailDirty, setDetailDirty] = useState(false);
@@ -154,7 +156,7 @@ export function SettingsWorkspace({
       {view === "recovery" ? (
         <WorkspaceRecoveryPanel
           currentWorkspace={currentWorkspace}
-          editorDirty={detailDirty}
+          editorDirty={detailDirty || protectedWorkDirty}
           onRestored={onRestored}
         />
       ) : null}
