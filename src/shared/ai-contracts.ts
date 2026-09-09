@@ -10,8 +10,8 @@ import {
 
 export const aiChannels = Object.freeze({
   connectionCurrent: "aaaat:ai-connection-current",
-  fitPreview: "aaaat:ai-fit-preview",
-  fitAssess: "aaaat:ai-fit-assess",
+  opportunityReviewPreview: "aaaat:ai-opportunity-review-preview",
+  opportunityReview: "aaaat:ai-opportunity-review",
   jobExtract: "aaaat:ai-job-extract",
   fieldDiscover: "aaaat:ai-field-discover",
   variantRecommend: "aaaat:ai-variant-recommend",
@@ -39,14 +39,14 @@ export const optionalAiConnectionStatusSchema = aiConnectionStatusSchema.nullabl
 export const privacyModeSchema = z.enum(["expose", "omit", "token"]);
 export type PrivacyMode = z.infer<typeof privacyModeSchema>;
 
-export const fitAssessmentRequestSchema = z
+export const opportunityReviewRequestSchema = z
   .object({
     candidatureId: z.string().uuid(),
     identityPrivacy: privacyModeSchema,
     contactPrivacy: privacyModeSchema,
   })
   .strict();
-export type FitAssessmentRequest = z.infer<typeof fitAssessmentRequestSchema>;
+export type OpportunityReviewRequest = z.infer<typeof opportunityReviewRequestSchema>;
 
 export const projectedCandidatureInformationSchema = z
   .object({
@@ -64,16 +64,16 @@ export const projectedCandidatureSourceSchema = z
   })
   .strict();
 
-export const fitProjectedCandidatureSchema = z
+export const aiProjectedCandidatureSchema = z
   .object({
     label: z.string().min(1),
     information: z.array(projectedCandidatureInformationSchema).max(64),
     sources: z.array(projectedCandidatureSourceSchema).max(20),
   })
   .strict();
-export type FitProjectedCandidature = z.infer<typeof fitProjectedCandidatureSchema>;
+export type AiProjectedCandidature = z.infer<typeof aiProjectedCandidatureSchema>;
 
-export const fitProjectedProfileItemSchema = z
+export const aiProjectedProfileItemSchema = z
   .object({
     kind: z.string().min(1),
     title: z.string(),
@@ -83,31 +83,45 @@ export const fitProjectedProfileItemSchema = z
     endDate: z.string().optional(),
   })
   .strict();
-export type FitProjectedProfileItem = z.infer<typeof fitProjectedProfileItemSchema>;
+export type AiProjectedProfileItem = z.infer<typeof aiProjectedProfileItemSchema>;
 
-export const fitProjectedContextSchema = z
+export const opportunityReviewProjectedContextSchema = z
   .object({
-    candidature: fitProjectedCandidatureSchema,
-    profileItems: z.array(fitProjectedProfileItemSchema).max(200),
+    candidature: aiProjectedCandidatureSchema,
+    profileItems: z.array(aiProjectedProfileItemSchema).max(200),
   })
   .strict();
-export type FitProjectedContext = z.infer<typeof fitProjectedContextSchema>;
+export type OpportunityReviewProjectedContext = z.infer<
+  typeof opportunityReviewProjectedContextSchema
+>;
 
-export const fitAssessmentPreviewSchema = z
-  .object({ connection: aiConnectionStatusSchema, projectedContext: fitProjectedContextSchema })
+export const opportunityReviewPreviewSchema = z
+  .object({ connection: aiConnectionStatusSchema, projectedContext: opportunityReviewProjectedContextSchema })
   .strict();
-export type FitAssessmentPreview = z.infer<typeof fitAssessmentPreviewSchema>;
+export type OpportunityReviewPreview = z.infer<typeof opportunityReviewPreviewSchema>;
 
-export const fitAssessmentResultSchema = z
+export const opportunityReviewResultSchema = z
   .object({
-    fit: z.enum(["weak", "possible", "strong"]),
     summary: z.string().trim().min(1).max(2000),
-    strengths: z.array(z.string().trim().min(1).max(1000)).max(8),
-    gaps: z.array(z.string().trim().min(1).max(1000)).max(8),
-    focus: z.array(z.string().trim().min(1).max(1000)).max(8),
+    relevantEvidence: z.array(z.string().trim().min(1).max(1000)).max(8),
+    uncertainties: z.array(z.string().trim().min(1).max(1000)).max(8),
+    questions: z.array(z.string().trim().min(1).max(1000)).max(8),
   })
-  .strict();
-export type FitAssessmentResult = z.infer<typeof fitAssessmentResultSchema>;
+  .strict()
+  .superRefine((result, context) => {
+    const prohibited = /\b(?:score|scored|scoring|rating|rated|rank|ranked|ranking|winner)\b|\b(?:you should|next steps?|apply for|pursue this|choose (?:this|the))\b/i;
+    for (const [key, values] of Object.entries(result)) {
+      const items = Array.isArray(values) ? values : [values];
+      if (items.some((value) => prohibited.test(value))) {
+        context.addIssue({
+          code: "custom",
+          path: [key],
+          message: "Opportunity reviews cannot rate, rank, choose, or prescribe action.",
+        });
+      }
+    }
+  });
+export type OpportunityReviewResult = z.infer<typeof opportunityReviewResultSchema>;
 
 export const aiDiscoveryFieldSchema = z
   .object({
@@ -176,7 +190,7 @@ export type VariantRecommendationRequest = z.infer<typeof variantRecommendationR
 
 export const variantRecommendationContextSchema = z
   .object({
-    candidature: fitProjectedCandidatureSchema,
+    candidature: aiProjectedCandidatureSchema,
     variants: z
       .array(
         z
@@ -221,7 +235,7 @@ export type DocumentEvidenceItem = z.infer<typeof documentEvidenceItemSchema>;
 
 export const documentAiContextSchema = z
   .object({
-    candidature: fitProjectedCandidatureSchema,
+    candidature: aiProjectedCandidatureSchema,
     items: z.array(documentEvidenceItemSchema).min(1).max(200),
   })
   .strict();
@@ -273,22 +287,26 @@ const providerProjectedCandidatureInformationSchema = z
   })
   .strict();
 
-export const providerFitProjectedCandidatureSchema = z
+export const providerOpportunityReviewCandidatureSchema = z
   .object({
     label: z.string().min(1),
     information: z.array(providerProjectedCandidatureInformationSchema).max(64),
     sources: z.array(projectedCandidatureSourceSchema).max(20),
   })
   .strict();
-export type ProviderFitProjectedCandidature = z.infer<typeof providerFitProjectedCandidatureSchema>;
+export type ProviderOpportunityReviewCandidature = z.infer<
+  typeof providerOpportunityReviewCandidatureSchema
+>;
 
-export const providerFitProjectedContextSchema = z
+export const providerOpportunityReviewContextSchema = z
   .object({
-    candidature: providerFitProjectedCandidatureSchema,
-    profileItems: z.array(fitProjectedProfileItemSchema).max(200),
+    candidature: providerOpportunityReviewCandidatureSchema,
+    profileItems: z.array(aiProjectedProfileItemSchema).max(200),
   })
   .strict();
-export type ProviderFitProjectedContext = z.infer<typeof providerFitProjectedContextSchema>;
+export type ProviderOpportunityReviewContext = z.infer<
+  typeof providerOpportunityReviewContextSchema
+>;
 
 export const providerDiscoveryChoiceSchema = z
   .object({ choiceRef: operationReferenceSchema, label: z.string().trim().min(1).max(120) })
@@ -329,7 +347,7 @@ export type ProviderJobExtractionResult = z.infer<typeof providerJobExtractionRe
 
 export const providerVariantRecommendationContextSchema = z
   .object({
-    candidature: providerFitProjectedCandidatureSchema,
+    candidature: providerOpportunityReviewCandidatureSchema,
     variants: z
       .array(
         z
@@ -359,7 +377,7 @@ export type ProviderVariantRecommendationResult = z.infer<
 
 export const providerDocumentAiContextSchema = z
   .object({
-    candidature: providerFitProjectedCandidatureSchema,
+    candidature: providerOpportunityReviewCandidatureSchema,
     items: z
       .array(
         z
@@ -408,8 +426,12 @@ export type ExternalCandidatureCreateInput = z.infer<typeof externalCandidatureC
 export interface AiDesktopApi {
   readonly ai: {
     readonly connection: () => Promise<AiConnectionStatus | null>;
-    readonly previewFit: (request: FitAssessmentRequest) => Promise<FitAssessmentPreview>;
-    readonly assessFit: (request: FitAssessmentRequest) => Promise<FitAssessmentResult>;
+    readonly previewOpportunityReview: (
+      request: OpportunityReviewRequest,
+    ) => Promise<OpportunityReviewPreview>;
+    readonly reviewOpportunity: (
+      request: OpportunityReviewRequest,
+    ) => Promise<OpportunityReviewResult>;
     readonly extractJob: (request: JobExtractionRequest) => Promise<JobExtractionResult>;
     readonly discoverField: (
       request: HistoricalFieldDiscoveryRequest,

@@ -1,9 +1,9 @@
 import {
   coverLetterDraftSchema,
-  fitAssessmentResultSchema,
+  opportunityReviewResultSchema,
   providerCvTailoringResultSchema,
   providerDocumentAiContextSchema,
-  providerFitProjectedContextSchema,
+  providerOpportunityReviewContextSchema,
   providerJobExtractionRequestSchema,
   providerJobExtractionResultSchema,
   providerVariantRecommendationContextSchema,
@@ -11,17 +11,11 @@ import {
   type AiConnectionStatus,
 } from "../shared/ai-contracts";
 import type { AiOperation } from "../shared/ai-connection-contracts";
-import {
-  providerCandidatureComparisonContextSchema,
-  providerCandidatureComparisonResultSchema,
-} from "../shared/candidature-comparison-contracts";
 import type { ModelProvider } from "./ai-provider";
 
 const fieldRef = "aaaat_validation_field";
 const variantRef = "aaaat_validation_variant";
 const itemRef = "aaaat_validation_item";
-const comparisonRefA = "aaaat_validation_comparison_a";
-const comparisonRefB = "aaaat_validation_comparison_b";
 
 const candidature = {
   label: "Validation opportunity",
@@ -62,12 +56,12 @@ export async function validateAiOperation(
   provider: ModelProvider,
 ): Promise<void> {
   switch (operation) {
-    case "fit_assessment": {
-      const context = providerFitProjectedContextSchema.parse({
+    case "opportunity_review": {
+      const context = providerOpportunityReviewContextSchema.parse({
         candidature,
         profileItems: [],
       });
-      fitAssessmentResultSchema.parse(await provider.assessFit(connection, context));
+      opportunityReviewResultSchema.parse(await provider.reviewOpportunity(connection, context));
       return;
     }
     case "job_extraction":
@@ -127,40 +121,6 @@ export async function validateAiOperation(
         ],
       });
       coverLetterDraftSchema.parse(await provider.draftCoverLetter(connection, context));
-      return;
-    }
-    case "candidature_comparison": {
-      const compareCandidatures = provider.compareCandidatures;
-      if (!compareCandidatures) {
-        throw new Error("The configured provider does not support candidature comparison.");
-      }
-      const context = providerCandidatureComparisonContextSchema.parse({
-        candidatures: [
-          {
-            candidatureRef: comparisonRefA,
-            label: "Candidature 1",
-            information: [{ label: "Role", value: "Validation Engineer" }],
-          },
-          {
-            candidatureRef: comparisonRefB,
-            label: "Candidature 2",
-            information: [{ label: "Role", value: "Validation Analyst" }],
-          },
-        ],
-      });
-      const result = providerCandidatureComparisonResultSchema.parse(
-        await compareCandidatures(connection, context),
-      );
-      const returned = new Set(result.analyses.map((analysis) => analysis.candidatureRef));
-      if (
-        returned.size !== 2 ||
-        !returned.has(comparisonRefA) ||
-        !returned.has(comparisonRefB)
-      ) {
-        throw new Error(
-          "The configured provider returned out-of-scope validation candidature references.",
-        );
-      }
       return;
     }
   }

@@ -4,7 +4,7 @@ import { buildSetupGuidance } from "../src/renderer/setup-guidance";
 import type { SetupEnvironmentSnapshot } from "../src/shared/setup-environment-contracts";
 
 const operations = [
-  { operation: "fit_assessment" as const, available: false, connectionName: null },
+  { operation: "opportunity_review" as const, available: false, connectionName: null },
   { operation: "job_extraction" as const, available: false, connectionName: null },
   { operation: "historical_field_discovery" as const, available: false, connectionName: null },
   { operation: "variant_recommendation" as const, available: false, connectionName: null },
@@ -62,7 +62,7 @@ describe("setup free-chat guidance", () => {
           configurationReadable: true,
           connectionCount: 1,
           operations: operations.map((status) =>
-            status.operation === "fit_assessment"
+            status.operation === "opportunity_review"
               ? { ...status, available: true, connectionName: "Private connection name" }
               : status,
           ),

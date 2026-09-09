@@ -2,13 +2,13 @@ import { z } from "zod";
 
 import {
   coverLetterDraftSchema,
-  fitAssessmentResultSchema,
+  opportunityReviewResultSchema,
   type AiConnectionStatus,
   type CoverLetterDraft,
-  type FitAssessmentResult,
+  type OpportunityReviewResult,
   type ProviderCvTailoringResult,
   type ProviderDocumentAiContext,
-  type ProviderFitProjectedContext,
+  type ProviderOpportunityReviewContext,
   type ProviderJobExtractionRequest,
   type ProviderJobExtractionResult,
   type ProviderVariantRecommendationContext,
@@ -17,11 +17,6 @@ import {
   providerJobExtractionResultSchema,
   providerVariantRecommendationResultSchema,
 } from "../shared/ai-contracts";
-import {
-  providerCandidatureComparisonResultSchema,
-  type ProviderCandidatureComparisonContext,
-  type ProviderCandidatureComparisonResult,
-} from "../shared/candidature-comparison-contracts";
 
 const providerResponseSchema = z
   .object({
@@ -45,10 +40,10 @@ export class AiProviderError extends Error {
 }
 
 export interface ModelProvider {
-  assessFit(
+  reviewOpportunity(
     connection: AiConnectionStatus,
-    context: ProviderFitProjectedContext,
-  ): Promise<FitAssessmentResult>;
+    context: ProviderOpportunityReviewContext,
+  ): Promise<OpportunityReviewResult>;
   extractJob(
     connection: AiConnectionStatus,
     request: ProviderJobExtractionRequest,
@@ -65,10 +60,6 @@ export interface ModelProvider {
     connection: AiConnectionStatus,
     context: ProviderDocumentAiContext,
   ): Promise<CoverLetterDraft>;
-  compareCandidatures?(
-    connection: AiConnectionStatus,
-    context: ProviderCandidatureComparisonContext,
-  ): Promise<ProviderCandidatureComparisonResult>;
 }
 
 function chatCompletionsUrl(baseUrl: string): string {
@@ -102,10 +93,10 @@ async function requestContent(
       }),
     });
   } catch {
-    throw new AiProviderError("AAAAT could not reach the configured local model provider.");
+    throw new AiProviderError("AAAAT could not reach the configured AI provider.");
   }
   if (!response.ok) {
-    throw new AiProviderError("The configured local model provider rejected the request.");
+    throw new AiProviderError("The configured AI provider rejected the request.");
   }
 
   let payload: unknown;
@@ -138,20 +129,20 @@ export function createOpenAiCompatibleProvider(
   fetchImpl: typeof fetch = fetch,
 ): ModelProvider {
   return Object.freeze({
-    async assessFit(
+    async reviewOpportunity(
       connection: AiConnectionStatus,
-      context: ProviderFitProjectedContext,
-    ): Promise<FitAssessmentResult> {
+      context: ProviderOpportunityReviewContext,
+    ): Promise<OpportunityReviewResult> {
       const content = await requestContent(
         fetchImpl,
         connection,
-        "Assess opportunity fit using only the supplied context. Return JSON only with keys fit, summary, strengths, gaps, focus. fit must be weak, possible, or strong. Missing candidature information is normal; do not invent facts.",
+        "Review one opportunity using only the supplied context. Return JSON only with keys summary, relevantEvidence, uncertainties, questions. Do not rate, score, rank, choose a winner, prescribe next actions, or define a career workflow. Missing candidature information is normal; do not invent facts.",
         context,
       );
       return parseJson(
         content,
-        fitAssessmentResultSchema,
-        "The configured provider returned an invalid fit assessment.",
+        opportunityReviewResultSchema,
+        "The configured provider returned an invalid opportunity review.",
       );
     },
 
@@ -220,23 +211,6 @@ export function createOpenAiCompatibleProvider(
         content,
         coverLetterDraftSchema,
         "The configured provider returned an invalid cover-letter draft.",
-      );
-    },
-
-    async compareCandidatures(
-      connection: AiConnectionStatus,
-      context: ProviderCandidatureComparisonContext,
-    ): Promise<ProviderCandidatureComparisonResult> {
-      const content = await requestContent(
-        fetchImpl,
-        connection,
-        "Compare only the supplied candidatures without ranking, scoring, choosing a winner, or recommending which opportunity the user should choose. Missing information is normal. Return JSON only with keys analyses and considerations. analyses must contain exactly one object per supplied candidatureRef with keys candidatureRef, strengths, concerns, questions. Use only supplied candidatureRef values and only the supplied information.",
-        context,
-      );
-      return parseJson(
-        content,
-        providerCandidatureComparisonResultSchema,
-        "The configured provider returned an invalid candidature comparison.",
       );
     },
   });

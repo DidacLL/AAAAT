@@ -25,7 +25,7 @@ const roots: string[] = [];
 
 function provider(overrides: Partial<ModelProvider>): ModelProvider {
   return {
-    assessFit: vi.fn<ModelProvider["assessFit"]>(),
+    reviewOpportunity: vi.fn<ModelProvider["reviewOpportunity"]>(),
     extractJob: vi.fn<ModelProvider["extractJob"]>(),
     recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(),
     tailorCv: vi.fn<ModelProvider["tailorCv"]>(),

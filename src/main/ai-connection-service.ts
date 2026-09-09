@@ -39,6 +39,37 @@ type StoredConnection = z.infer<typeof storedConnectionSchema>;
 
 const operationDefaultsSchema = z
   .object({
+    opportunity_review: aiConnectionIdSchema.optional(),
+    job_extraction: aiConnectionIdSchema.optional(),
+    historical_field_discovery: aiConnectionIdSchema.optional(),
+    variant_recommendation: aiConnectionIdSchema.optional(),
+    cv_tailoring: aiConnectionIdSchema.optional(),
+    cover_letter_draft: aiConnectionIdSchema.optional(),
+  })
+  .strict();
+
+type OperationDefaults = z.infer<typeof operationDefaultsSchema>;
+
+const legacyAiOperationSchema = z.enum([
+  "fit_assessment",
+  "job_extraction",
+  "historical_field_discovery",
+  "variant_recommendation",
+  "cv_tailoring",
+  "cover_letter_draft",
+  "candidature_comparison",
+]);
+type LegacyAiOperation = z.infer<typeof legacyAiOperationSchema>;
+
+const legacyStoredConnectionSchema = aiConnectionInputSchema
+  .extend({
+    id: aiConnectionIdSchema,
+    validatedOperations: z.array(legacyAiOperationSchema).max(legacyAiOperationSchema.options.length),
+  })
+  .strict();
+
+const legacyOperationDefaultsSchema = z
+  .object({
     fit_assessment: aiConnectionIdSchema.optional(),
     job_extraction: aiConnectionIdSchema.optional(),
     historical_field_discovery: aiConnectionIdSchema.optional(),
@@ -49,11 +80,19 @@ const operationDefaultsSchema = z
   })
   .strict();
 
-type OperationDefaults = z.infer<typeof operationDefaultsSchema>;
+const legacyAiOperationLabels: Readonly<Record<LegacyAiOperation, string>> = Object.freeze({
+  fit_assessment: "Fit assessment",
+  job_extraction: "Job extraction",
+  historical_field_discovery: "Historical field discovery",
+  variant_recommendation: "Variant recommendation",
+  cv_tailoring: "CV tailoring",
+  cover_letter_draft: "Cover-letter drafting",
+  candidature_comparison: "Candidature comparison",
+});
 
 const storedConnectionConfigurationSchema = z
   .object({
-    version: z.literal(3),
+    version: z.literal(4),
     connections: z.array(storedConnectionSchema).max(16),
     defaultConnectionId: aiConnectionIdSchema.nullable(),
     operationDefaults: operationDefaultsSchema,
@@ -91,6 +130,46 @@ const storedConnectionConfigurationSchema = z
 
 type StoredConnectionConfiguration = z.infer<typeof storedConnectionConfigurationSchema>;
 
+const legacyStoredConnectionConfigurationSchema = z
+  .object({
+    version: z.literal(3),
+    connections: z.array(legacyStoredConnectionSchema).max(16),
+    defaultConnectionId: aiConnectionIdSchema.nullable(),
+    operationDefaults: legacyOperationDefaultsSchema,
+  })
+  .strict()
+  .superRefine((configuration, context) => {
+    const ids = configuration.connections.map((connection) => connection.id);
+    if (new Set(ids).size !== ids.length) {
+      context.addIssue({ code: "custom", message: "AI connection IDs must be unique." });
+    }
+    const names = configuration.connections.map((connection) => connection.name.toLocaleLowerCase());
+    if (new Set(names).size !== names.length) {
+      context.addIssue({ code: "custom", message: "AI connection names must be unique." });
+    }
+    if (
+      configuration.defaultConnectionId !== null &&
+      !configuration.connections.some(
+        (connection) => connection.id === configuration.defaultConnectionId,
+      )
+    ) {
+      context.addIssue({ code: "custom", message: "The default AI connection must exist." });
+    }
+    for (const operation of legacyAiOperationSchema.options) {
+      const connectionId = configuration.operationDefaults[operation];
+      if (!connectionId) continue;
+      const connection = configuration.connections.find((candidate) => candidate.id === connectionId);
+      if (!connection || !connection.validatedOperations.includes(operation)) {
+        context.addIssue({
+          code: "custom",
+          message: `The default connection for ${legacyAiOperationLabels[operation]} must be validated for that operation.`,
+        });
+      }
+    }
+  });
+
+type LegacyStoredConnectionConfiguration = z.infer<typeof legacyStoredConnectionConfigurationSchema>;
+
 export class AiConnectionServiceError extends Error {
   constructor(message: string) {
     super(message);
@@ -109,29 +188,77 @@ function loopbackHost(hostname: string): boolean {
 function validatedEndpoint(input: AiConnectionInput): string {
   const endpoint = new URL(input.endpoint);
   if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
-    throw new AiConnectionServiceError("The local AI endpoint must be a plain provider base URL.");
+    throw new AiConnectionServiceError("The AI endpoint must be a plain provider base URL.");
   }
   if (endpoint.protocol !== "http:" && endpoint.protocol !== "https:") {
-    throw new AiConnectionServiceError("The local AI endpoint must use HTTP or HTTPS.");
+    throw new AiConnectionServiceError("The AI endpoint must use HTTP or HTTPS.");
   }
-  if (!loopbackHost(endpoint.hostname)) {
-    throw new AiConnectionServiceError("Local AI connections must use a loopback endpoint.");
+  if (endpoint.protocol === "http:" && !loopbackHost(endpoint.hostname)) {
+    throw new AiConnectionServiceError("HTTP AI endpoints must use a loopback host.");
   }
   return endpoint.toString().replace(/\/$/, "");
 }
 
 function emptyConfiguration(): StoredConnectionConfiguration {
-  return { version: 3, connections: [], defaultConnectionId: null, operationDefaults: {} };
+  return { version: 4, connections: [], defaultConnectionId: null, operationDefaults: {} };
+}
+
+function normalizeLegacyOperation(operation: LegacyAiOperation): AiOperation | null {
+  if (operation === "fit_assessment") return "opportunity_review";
+  if (operation === "candidature_comparison") return null;
+  return operation;
+}
+
+function normalizeLegacyConfiguration(
+  configuration: LegacyStoredConnectionConfiguration,
+): StoredConnectionConfiguration {
+  const opportunityReviewDefault = configuration.operationDefaults.fit_assessment;
+  return storedConnectionConfigurationSchema.parse({
+    version: 4,
+    connections: configuration.connections.map((connection) => ({
+      ...connection,
+      validatedOperations: [
+        ...new Set(
+          connection.validatedOperations.flatMap((operation) => {
+            const normalized = normalizeLegacyOperation(operation);
+            return normalized ? [normalized] : [];
+          }),
+        ),
+      ],
+    })),
+    defaultConnectionId: configuration.defaultConnectionId,
+    operationDefaults: {
+      ...(opportunityReviewDefault ? { opportunity_review: opportunityReviewDefault } : {}),
+      ...(configuration.operationDefaults.job_extraction
+        ? { job_extraction: configuration.operationDefaults.job_extraction }
+        : {}),
+      ...(configuration.operationDefaults.historical_field_discovery
+        ? { historical_field_discovery: configuration.operationDefaults.historical_field_discovery }
+        : {}),
+      ...(configuration.operationDefaults.variant_recommendation
+        ? { variant_recommendation: configuration.operationDefaults.variant_recommendation }
+        : {}),
+      ...(configuration.operationDefaults.cv_tailoring
+        ? { cv_tailoring: configuration.operationDefaults.cv_tailoring }
+        : {}),
+      ...(configuration.operationDefaults.cover_letter_draft
+        ? { cover_letter_draft: configuration.operationDefaults.cover_letter_draft }
+        : {}),
+    },
+  });
 }
 
 function readConfiguration(rootPath: string): StoredConnectionConfiguration {
   const filePath = connectionPath(rootPath);
   if (!existsSync(filePath)) return emptyConfiguration();
   try {
-    const configuration = storedConnectionConfigurationSchema.parse(
-      JSON.parse(readFileSync(filePath, "utf8")),
-    );
+    const rawConfiguration = JSON.parse(readFileSync(filePath, "utf8"));
+    const current = storedConnectionConfigurationSchema.safeParse(rawConfiguration);
+    const configuration = current.success
+      ? current.data
+      : normalizeLegacyConfiguration(legacyStoredConnectionConfigurationSchema.parse(rawConfiguration));
     for (const connection of configuration.connections) validatedEndpoint(connection);
+    if (!current.success) writeConfiguration(rootPath, configuration);
     return configuration;
   } catch {
     throw new AiConnectionServiceError("The stored AI connection configuration is invalid.");
@@ -238,12 +365,12 @@ export function requireDefaultAiConnection(rootPath: string): AiConnectionStatus
   const configuration = readConfiguration(rootPath);
   if (configuration.connections.length === 0) {
     throw new AiConnectionServiceError(
-      "Configure a local AI connection before using AI assistance.",
+      "Configure an AI connection before using AI assistance.",
     );
   }
   if (configuration.defaultConnectionId === null) {
     throw new AiConnectionServiceError(
-      "Choose a default local AI connection before using AI assistance.",
+      "Choose a default AI connection before using AI assistance.",
     );
   }
   return statusFor(connectionById(configuration, configuration.defaultConnectionId));
@@ -270,7 +397,7 @@ export function requireAiConnectionForOperation(
   const configuration = readConfiguration(rootPath);
   if (configuration.connections.length === 0) {
     throw new AiConnectionServiceError(
-      "Configure a local AI connection before using AI assistance.",
+      "Configure an AI connection before using AI assistance.",
     );
   }
   const connection = getAiConnectionForOperation(rootPath, operation);
@@ -315,7 +442,7 @@ export function saveNamedAiConnection(
   }
 
   if (configuration.connections.length >= 16) {
-    throw new AiConnectionServiceError("AAAAT supports at most 16 local AI connections.");
+    throw new AiConnectionServiceError("AAAAT supports at most 16 AI connections.");
   }
   const id = randomUUID();
   const connection = normalizedStoredConnection(input, id);
@@ -449,7 +576,7 @@ export function saveDefaultAiConnection(
   }
   if (configuration.connections.length > 0) {
     throw new AiConnectionServiceError(
-      "Choose a default local AI connection before updating the current connection.",
+      "Choose a default AI connection before updating the current connection.",
     );
   }
   saveNamedAiConnection(rootPath, input);
@@ -496,7 +623,7 @@ export function replaceAiConnectionsFromPortableSetup(
   }
   return listFor(
     writeConfiguration(rootPath, {
-      version: 3,
+      version: 4,
       connections,
       defaultConnectionId: defaultConnection?.id ?? null,
       operationDefaults: {},

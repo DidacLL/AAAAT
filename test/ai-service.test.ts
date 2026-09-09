@@ -12,11 +12,11 @@ import {
   validateAiConnectionOperation,
 } from "../src/main/ai-connection-service";
 import {
-  assessFit,
   discoverCandidatureFieldFromSources,
   extractJob,
-  previewFitAssessment,
+  previewOpportunityReview,
   recommendVariant,
+  reviewOpportunity,
 } from "../src/main/ai-service";
 import type { ModelProvider } from "../src/main/ai-provider";
 import {
@@ -44,7 +44,7 @@ function workspace(): string {
 
 function provider(overrides: Partial<ModelProvider>): ModelProvider {
   return {
-    assessFit: vi.fn<ModelProvider["assessFit"]>(),
+    reviewOpportunity: vi.fn<ModelProvider["reviewOpportunity"]>(),
     extractJob: vi.fn<ModelProvider["extractJob"]>(),
     recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(),
     tailorCv: vi.fn<ModelProvider["tailorCv"]>(),
@@ -55,12 +55,11 @@ function provider(overrides: Partial<ModelProvider>): ModelProvider {
 
 function validationProvider(): ModelProvider {
   return provider({
-    assessFit: vi.fn<ModelProvider["assessFit"]>(async () => ({
-      fit: "possible",
+    reviewOpportunity: vi.fn<ModelProvider["reviewOpportunity"]>(async () => ({
       summary: "Synthetic validation result",
-      strengths: [],
-      gaps: [],
-      focus: [],
+      relevantEvidence: [],
+      uncertainties: [],
+      questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(async () => ({ proposals: [] })),
     recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(async () => ({
@@ -105,7 +104,7 @@ afterEach(() => {
 });
 
 describe("AI service over live candidature information", () => {
-  it("persists understandable local-only connection settings and rejects non-loopback endpoints", () => {
+  it("persists keyless local or remote connection settings and rejects unsafe endpoints", () => {
     const root = workspace();
     const saved = saveNamedAiConnection(root, {
       name: "Local model",
@@ -121,21 +120,31 @@ describe("AI service over live candidature information", () => {
       defaultForOperations: [],
     });
     const stored = readFileSync(path.join(root, "ai-connection.json"), "utf8");
-    expect(stored).toContain('"version": 3');
+    expect(stored).toContain('"version": 4');
     expect(stored).toContain('"connections"');
     expect(stored).not.toMatch(/api.?key|credential|secret/i);
 
-    expect(() =>
+    expect(
       saveNamedAiConnection(root, {
         name: "Remote",
         endpoint: "https://models.example.test/v1",
         model: "model-a",
-      }),
-    ).toThrow("loopback endpoint");
+      })[1],
+    ).toMatchObject({ endpoint: "https://models.example.test/v1" });
+    for (const endpoint of [
+      "http://models.example.test/v1",
+      "https://user:password@models.example.test/v1",
+      "https://models.example.test/v1?token=secret",
+      "https://models.example.test/v1#secret",
+    ]) {
+      expect(() =>
+        saveNamedAiConnection(root, { name: endpoint, endpoint, model: "model-a" }),
+      ).toThrow();
+    }
   });
 
   it("does not disclose replacement-mode literals and restores them locally in the result", async () => {
-    const root = await configuredWorkspace("fit_assessment");
+    const root = await configuredWorkspace("opportunity_review");
     const sensitive = createCandidatureField(root, {
       label: "Internal referral code",
       description: "Private local reference.",
@@ -153,7 +162,7 @@ describe("AI service over live candidature information", () => {
     });
     addProfileItem(root, { kind: "identity", title: "Didac Example" });
 
-    const preview = previewFitAssessment(root, {
+    const preview = previewOpportunityReview(root, {
       candidatureId: candidature.id,
       identityPrivacy: "token",
       contactPrivacy: "omit",
@@ -174,7 +183,7 @@ describe("AI service over live candidature information", () => {
     expect(serialized).not.toContain("Didac Example");
     expect(serialized).not.toContain("LOCAL-REFERRAL-ONLY");
 
-    const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
+    const review = vi.fn<ModelProvider["reviewOpportunity"]>(async (_connection, context) => {
       const projectedValue = context.candidature.information.find(
         (item) => item.label === "Internal referral code",
       )?.value;
@@ -186,32 +195,31 @@ describe("AI service over live candidature information", () => {
       expect(projectedIdentity).not.toBe("Didac Example");
       expect(projectedValue).not.toBe(projectedIdentity);
       return {
-        fit: "possible",
         summary: String(projectedValue),
-        strengths: [projectedIdentity ?? ""],
-        gaps: [],
-        focus: [],
+        relevantEvidence: [projectedIdentity ?? ""],
+        uncertainties: [],
+        questions: [],
       };
     });
 
     await expect(
-      assessFit(
+      reviewOpportunity(
         root,
         {
           candidatureId: candidature.id,
           identityPrivacy: "token",
           contactPrivacy: "omit",
         },
-        provider({ assessFit: assess }),
+        provider({ reviewOpportunity: review }),
       ),
     ).resolves.toMatchObject({
       summary: "LOCAL-REFERRAL-ONLY",
-      strengths: ["Didac Example"],
+      relevantEvidence: ["Didac Example"],
     });
   });
 
   it("keeps retained Sources out of ordinary AI projection and lets field privacy control disclosure", async () => {
-    const root = await configuredWorkspace("fit_assessment", "variant_recommendation");
+    const root = await configuredWorkspace("opportunity_review", "variant_recommendation");
     const omitted = createCandidatureField(root, {
       label: "Private compensation note",
       description: "Never send this field in ordinary AI context.",
@@ -255,7 +263,7 @@ describe("AI service over live candidature information", () => {
     }).variants[0];
     if (!variant) throw new Error("variant fixture missing");
 
-    const preview = previewFitAssessment(root, {
+    const preview = previewOpportunityReview(root, {
       candidatureId: candidature.id,
       identityPrivacy: "omit",
       contactPrivacy: "omit",
@@ -435,7 +443,7 @@ describe("AI service over live candidature information", () => {
   });
 
   it("projects choice labels instead of persisted choice and field identifiers", async () => {
-    const root = await configuredWorkspace("fit_assessment");
+    const root = await configuredWorkspace("opportunity_review");
     const choiceId = "00000000-0000-4000-8000-000000000011";
     const arrangement = createCandidatureField(root, {
       label: "Work arrangement",
@@ -452,7 +460,7 @@ describe("AI service over live candidature information", () => {
     const candidature = createCandidature(root, {
       values: [{ fieldId: arrangement.definition.id, value: choiceId }],
     });
-    const assess = vi.fn<ModelProvider["assessFit"]>(async (_connection, context) => {
+    const review = vi.fn<ModelProvider["reviewOpportunity"]>(async (_connection, context) => {
       const payload = JSON.stringify(context);
       expect(payload).not.toContain(arrangement.definition.id);
       expect(payload).not.toContain(choiceId);
@@ -460,14 +468,19 @@ describe("AI service over live candidature information", () => {
         label: "Work arrangement",
         value: "Remote",
       });
-      return { fit: "possible", summary: "Choice projected.", strengths: [], gaps: [], focus: [] };
+      return {
+        summary: "Choice projected.",
+        relevantEvidence: [],
+        uncertainties: [],
+        questions: [],
+      };
     });
     await expect(
-      assessFit(
+      reviewOpportunity(
         root,
         { candidatureId: candidature.id, identityPrivacy: "omit", contactPrivacy: "omit" },
-        provider({ assessFit: assess }),
+        provider({ reviewOpportunity: review }),
       ),
-    ).resolves.toMatchObject({ fit: "possible" });
+    ).resolves.toMatchObject({ summary: "Choice projected." });
   });
 });

@@ -16,13 +16,12 @@ const snapshot = {
     configurationReadable: true,
     connectionCount: 1,
     operations: [
-      { operation: "fit_assessment" as const, available: true, connectionName: "Local model" },
+      { operation: "opportunity_review" as const, available: true, connectionName: "Local model" },
       { operation: "job_extraction" as const, available: false, connectionName: null },
       { operation: "historical_field_discovery" as const, available: false, connectionName: null },
       { operation: "variant_recommendation" as const, available: false, connectionName: null },
       { operation: "cv_tailoring" as const, available: false, connectionName: null },
       { operation: "cover_letter_draft" as const, available: false, connectionName: null },
-      { operation: "candidature_comparison" as const, available: false, connectionName: null },
     ],
   },
 };

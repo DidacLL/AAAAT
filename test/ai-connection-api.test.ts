@@ -12,8 +12,8 @@ const connections = [
     endpoint: "http://localhost:11434/v1",
     model: "fast-model",
     isDefault: true,
-    validatedOperations: ["fit_assessment"],
-    defaultForOperations: ["fit_assessment"],
+    validatedOperations: ["opportunity_review"],
+    defaultForOperations: ["opportunity_review"],
   },
   {
     id: secondId,
@@ -56,7 +56,7 @@ describe("AI connection management preload API", () => {
     await expect(
       api.aiConnections.setOperationDefault({
         connectionId: firstId,
-        operation: "fit_assessment",
+        operation: "opportunity_review",
       }),
     ).resolves.toEqual(connections);
     await expect(api.aiConnections.exportPortable()).resolves.toBe("exported");
@@ -79,7 +79,7 @@ describe("AI connection management preload API", () => {
     });
     expect(invoke).toHaveBeenCalledWith(aiConnectionManagementChannels.setOperationDefault, {
       connectionId: firstId,
-      operation: "fit_assessment",
+      operation: "opportunity_review",
     });
     expect(invoke).toHaveBeenCalledWith(aiConnectionManagementChannels.exportPortable);
     expect(invoke).toHaveBeenCalledWith(aiConnectionManagementChannels.importPortable);

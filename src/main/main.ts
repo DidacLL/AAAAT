@@ -14,9 +14,9 @@ import {
   coverLetterDraftSchema,
   cvTailoringResultSchema,
   documentAiRequestSchema,
-  fitAssessmentPreviewSchema,
-  fitAssessmentRequestSchema,
-  fitAssessmentResultSchema,
+  opportunityReviewPreviewSchema,
+  opportunityReviewRequestSchema,
+  opportunityReviewResultSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
@@ -81,12 +81,12 @@ import {
   workspaceRestoreResultSchema,
 } from "../shared/workspace-recovery-contracts";
 import {
-  assessFit,
   discoverCandidatureFieldFromSources,
   draftCoverLetter,
   extractJob,
   getAiConnection,
-  previewFitAssessment,
+  previewOpportunityReview,
+  reviewOpportunity,
   recommendVariant,
   tailorCv,
 } from "./ai-service";
@@ -550,16 +550,16 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return optionalAiConnectionStatusSchema.parse(getAiConnection(requireWorkspaceRoot()));
   });
-  ipcMain.handle(aiChannels.fitPreview, (event, input: unknown) => {
+  ipcMain.handle(aiChannels.opportunityReviewPreview, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return fitAssessmentPreviewSchema.parse(
-      previewFitAssessment(requireWorkspaceRoot(), fitAssessmentRequestSchema.parse(input)),
+    return opportunityReviewPreviewSchema.parse(
+      previewOpportunityReview(requireWorkspaceRoot(), opportunityReviewRequestSchema.parse(input)),
     );
   });
-  ipcMain.handle(aiChannels.fitAssess, async (event, input: unknown) => {
+  ipcMain.handle(aiChannels.opportunityReview, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return fitAssessmentResultSchema.parse(
-      await assessFit(requireWorkspaceRoot(), fitAssessmentRequestSchema.parse(input)),
+    return opportunityReviewResultSchema.parse(
+      await reviewOpportunity(requireWorkspaceRoot(), opportunityReviewRequestSchema.parse(input)),
     );
   });
   ipcMain.handle(aiChannels.jobExtract, async (event, input: unknown) => {

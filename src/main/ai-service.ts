@@ -9,11 +9,11 @@ import {
   cvTailoringResultSchema,
   documentAiContextSchema,
   documentAiRequestSchema,
-  fitAssessmentPreviewSchema,
-  fitAssessmentRequestSchema,
-  fitAssessmentResultSchema,
-  fitProjectedCandidatureSchema,
-  fitProjectedContextSchema,
+  aiProjectedCandidatureSchema,
+  opportunityReviewPreviewSchema,
+  opportunityReviewProjectedContextSchema,
+  opportunityReviewRequestSchema,
+  opportunityReviewResultSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
@@ -23,8 +23,8 @@ import {
   variantRecommendationResultSchema,
   providerDocumentAiContextSchema,
   providerCvTailoringResultSchema,
-  providerFitProjectedCandidatureSchema,
-  providerFitProjectedContextSchema,
+  providerOpportunityReviewCandidatureSchema,
+  providerOpportunityReviewContextSchema,
   providerJobExtractionRequestSchema,
   providerJobExtractionResultSchema,
   providerVariantRecommendationContextSchema,
@@ -34,18 +34,18 @@ import {
   type CoverLetterDraft,
   type CvTailoringResult,
   type DocumentAiRequest,
-  type FitAssessmentPreview,
-  type FitAssessmentRequest,
-  type FitAssessmentResult,
-  type FitProjectedCandidature,
-  type FitProjectedProfileItem,
+  type AiProjectedCandidature,
+  type AiProjectedProfileItem,
+  type OpportunityReviewPreview,
+  type OpportunityReviewRequest,
+  type OpportunityReviewResult,
   type HistoricalFieldDiscoveryRequest,
   type HistoricalFieldDiscoveryResult,
   type JobExtractionRequest,
   type JobExtractionResult,
   type PrivacyMode,
   type ProviderDocumentAiContext,
-  type ProviderFitProjectedCandidature,
+  type ProviderOpportunityReviewCandidature,
   type ProviderJobExtractionRequest,
   type VariantRecommendationRequest,
   type VariantRecommendationResult,
@@ -137,7 +137,7 @@ function projectedItem(
   item: ProfileItem,
   mode: PrivacyMode,
   token: (value: string) => string,
-): FitProjectedProfileItem | null {
+): AiProjectedProfileItem | null {
   if (mode === "omit") return null;
   const project = (value: string | undefined) => {
     if (value === undefined) return undefined;
@@ -170,7 +170,7 @@ function projectCandidature(
   rootPath: string,
   candidatureId: string,
   additionalForbidden: readonly string[] = [],
-): Projection<FitProjectedCandidature> {
+): Projection<AiProjectedCandidature> {
   const candidature = getCandidature(rootPath, candidatureId);
   const fieldConfigurations = listCandidatureFields(rootPath);
   const fields = new Map(
@@ -201,7 +201,7 @@ function projectCandidature(
     ];
   });
   return {
-    context: fitProjectedCandidatureSchema.parse({
+    context: aiProjectedCandidatureSchema.parse({
       label: "Candidature",
       information,
       sources: [],
@@ -216,8 +216,8 @@ function operationScope(kind: string): string {
 
 function providerCandidature(
   rootPath: string,
-  candidature: FitProjectedCandidature,
-): ProviderFitProjectedCandidature {
+  candidature: AiProjectedCandidature,
+): ProviderOpportunityReviewCandidature {
   const choicesByFieldId = new Map(
     listCandidatureFields(rootPath).map((field) => [
       field.definition.id,
@@ -231,7 +231,7 @@ function providerCandidature(
       typeof candidate === "string" ? (choices.get(candidate) ?? candidate) : candidate;
     return Array.isArray(value) ? value.map(label) : label(value);
   };
-  return providerFitProjectedCandidatureSchema.parse({
+  return providerOpportunityReviewCandidatureSchema.parse({
     label: candidature.label,
     information: candidature.information.map((information) => ({
       label: information.label,
@@ -249,7 +249,10 @@ function requireCandidature(rootPath: string, candidatureId: string) {
   }
 }
 
-function projectFitContext(rootPath: string, request: FitAssessmentRequest): Projection<z.infer<typeof fitProjectedContextSchema>> {
+function projectOpportunityReviewContext(
+  rootPath: string,
+  request: OpportunityReviewRequest,
+): Projection<z.infer<typeof opportunityReviewProjectedContextSchema>> {
   const profile = getProfile(rootPath).items;
   const profileCorpus = profileItemStrings(profile);
   const candidatureProjection = projectCandidature(
@@ -270,7 +273,7 @@ function projectFitContext(rootPath: string, request: FitAssessmentRequest): Pro
     return projected ? [projected] : [];
   });
   return {
-    context: fitProjectedContextSchema.parse({
+    context: opportunityReviewProjectedContextSchema.parse({
       candidature: candidatureProjection.context,
       profileItems,
     }),
@@ -278,14 +281,14 @@ function projectFitContext(rootPath: string, request: FitAssessmentRequest): Pro
   };
 }
 
-export function previewFitAssessment(
+export function previewOpportunityReview(
   rootPath: string,
-  rawRequest: FitAssessmentRequest,
-): FitAssessmentPreview {
-  const request = fitAssessmentRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath, "fit_assessment");
-  const projection = projectFitContext(rootPath, request);
-  return fitAssessmentPreviewSchema.parse({
+  rawRequest: OpportunityReviewRequest,
+): OpportunityReviewPreview {
+  const request = opportunityReviewRequestSchema.parse(rawRequest);
+  const stored = requireStoredConnection(rootPath, "opportunity_review");
+  const projection = projectOpportunityReviewContext(rootPath, request);
+  return opportunityReviewPreviewSchema.parse({
     connection: statusFor(stored),
     projectedContext: projection.context,
   });
@@ -304,33 +307,32 @@ function rehydrate(value: string, tokenMap: ReadonlyMap<string, string>): string
   return value.replace(pattern, (token) => tokenMap.get(token) ?? token);
 }
 
-function rehydrateFitResult(
-  result: FitAssessmentResult,
+function rehydrateOpportunityReviewResult(
+  result: OpportunityReviewResult,
   tokenMap: ReadonlyMap<string, string>,
-): FitAssessmentResult {
-  return fitAssessmentResultSchema.parse({
-    fit: result.fit,
+): OpportunityReviewResult {
+  return opportunityReviewResultSchema.parse({
     summary: rehydrate(result.summary, tokenMap),
-    strengths: result.strengths.map((value) => rehydrate(value, tokenMap)),
-    gaps: result.gaps.map((value) => rehydrate(value, tokenMap)),
-    focus: result.focus.map((value) => rehydrate(value, tokenMap)),
+    relevantEvidence: result.relevantEvidence.map((value) => rehydrate(value, tokenMap)),
+    uncertainties: result.uncertainties.map((value) => rehydrate(value, tokenMap)),
+    questions: result.questions.map((value) => rehydrate(value, tokenMap)),
   });
 }
 
-export async function assessFit(
+export async function reviewOpportunity(
   rootPath: string,
-  rawRequest: FitAssessmentRequest,
+  rawRequest: OpportunityReviewRequest,
   provider: ModelProvider = createOpenAiCompatibleProvider(),
-): Promise<FitAssessmentResult> {
-  const request = fitAssessmentRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath, "fit_assessment");
-  const projection = projectFitContext(rootPath, request);
-  const providerContext = providerFitProjectedContextSchema.parse({
+): Promise<OpportunityReviewResult> {
+  const request = opportunityReviewRequestSchema.parse(rawRequest);
+  const stored = requireStoredConnection(rootPath, "opportunity_review");
+  const projection = projectOpportunityReviewContext(rootPath, request);
+  const providerContext = providerOpportunityReviewContextSchema.parse({
     candidature: providerCandidature(rootPath, projection.context.candidature),
     profileItems: projection.context.profileItems,
   });
-  const result = await provider.assessFit(statusFor(stored), providerContext);
-  return rehydrateFitResult(result, projection.tokenMap);
+  const result = await provider.reviewOpportunity(statusFor(stored), providerContext);
+  return rehydrateOpportunityReviewResult(result, projection.tokenMap);
 }
 
 function discoveryFields(rootPath: string): CandidatureFieldConfiguration[] {
@@ -560,7 +562,7 @@ function documentBaseItems(rootPath: string, document: DocumentRecord): ProfileI
 }
 
 function documentContext(
-  candidature: FitProjectedCandidature,
+  candidature: AiProjectedCandidature,
   items: readonly ProfileItem[],
 ) {
   const evidence = items
