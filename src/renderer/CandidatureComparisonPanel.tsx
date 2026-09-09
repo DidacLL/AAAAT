@@ -5,12 +5,15 @@ import type {
   CandidatureComparisonResult,
 } from "../shared/candidature-comparison-contracts";
 import type { CandidatureRecord, CandidatureRuntimeValue } from "../shared/contracts";
+import { isAiOperationUnavailable } from "./ai-route-status";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 function valueText(value: CandidatureRuntimeValue): string {
   return Array.isArray(value) ? value.map(String).join(", ") : String(value);
 }
 
 export function CandidatureComparisonPanel() {
+  const { openSettingsFor } = useContextualHandoffs();
   const [candidatures, setCandidatures] = useState<CandidatureRecord[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [preview, setPreview] = useState<CandidatureComparisonPreview | null>(null);
@@ -18,6 +21,7 @@ export function CandidatureComparisonPanel() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiSettingsSuggested, setAiSettingsSuggested] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -51,12 +55,14 @@ export function CandidatureComparisonPanel() {
     setPreview(null);
     setResult(null);
     setError(null);
+    setAiSettingsSuggested(false);
   };
 
   const requestPreview = async () => {
     setRunning(true);
     setError(null);
     setResult(null);
+    setAiSettingsSuggested(false);
     try {
       setPreview(
         await window.aaaat.candidatureComparison.preview({ candidatureIds: selectedIds }),
@@ -68,6 +74,7 @@ export function CandidatureComparisonPanel() {
           ? reason.message
           : "AAAAT could not preview this candidature comparison.",
       );
+      setAiSettingsSuggested(await isAiOperationUnavailable("candidature_comparison"));
     } finally {
       setRunning(false);
     }
@@ -77,6 +84,7 @@ export function CandidatureComparisonPanel() {
     if (!preview) return;
     setRunning(true);
     setError(null);
+    setAiSettingsSuggested(false);
     try {
       setResult(
         await window.aaaat.candidatureComparison.run({ candidatureIds: selectedIds }),
@@ -88,6 +96,7 @@ export function CandidatureComparisonPanel() {
           ? reason.message
           : "AAAAT could not compare the selected candidatures.",
       );
+      setAiSettingsSuggested(await isAiOperationUnavailable("candidature_comparison"));
     } finally {
       setRunning(false);
     }
@@ -141,7 +150,20 @@ export function CandidatureComparisonPanel() {
         >
           {running ? "Working…" : "Preview disclosure"}
         </button>
-        {error ? <p className="error-message" role="alert">{error}</p> : null}
+        {error ? (
+          <div>
+            <p className="error-message" role="alert">{error}</p>
+            {aiSettingsSuggested ? (
+              <button
+                className="compact-secondary"
+                type="button"
+                onClick={() => openSettingsFor("ai", "candidatures")}
+              >
+                Open AI connections settings
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="profile-column">
