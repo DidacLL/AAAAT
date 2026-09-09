@@ -269,43 +269,18 @@ describe("named AI connections", () => {
     expect(() => listAiConnections(root)).toThrow("stored AI connection configuration is invalid");
   });
 
-  it("normalizes a valid v3 configuration in place without preserving retired operations", () => {
+  it("rejects a v3 development-era configuration without rewriting it", () => {
     const root = workspace();
-    const id = "00000000-0000-4000-8000-000000000001";
-    writeFileSync(
-      path.join(root, "ai-connection.json"),
-      JSON.stringify({
-        version: 3,
-        connections: [
-          {
-            id,
-            name: "Existing connection",
-            endpoint: "https://models.example.test/v1",
-            model: "existing-model",
-            validatedOperations: ["fit_assessment", "job_extraction", "candidature_comparison"],
-          },
-        ],
-        defaultConnectionId: id,
-        operationDefaults: {
-          fit_assessment: id,
-          job_extraction: id,
-          candidature_comparison: id,
-        },
-      }),
-      "utf8",
-    );
+    const obsolete = JSON.stringify({
+      version: 3,
+      connections: [],
+      defaultConnectionId: null,
+      operationDefaults: {},
+    });
+    const filePath = path.join(root, "ai-connection.json");
+    writeFileSync(filePath, obsolete, "utf8");
 
-    expect(listAiConnections(root)).toEqual([
-      expect.objectContaining({
-        id,
-        validatedOperations: ["opportunity_review", "job_extraction"],
-        defaultForOperations: ["opportunity_review", "job_extraction"],
-      }),
-    ]);
-    const corrected = readFileSync(path.join(root, "ai-connection.json"), "utf8");
-    expect(corrected).toContain('"version": 4');
-    expect(corrected).toContain('"opportunity_review"');
-    expect(corrected).not.toContain("fit_assessment");
-    expect(corrected).not.toContain("candidature_comparison");
+    expect(() => listAiConnections(root)).toThrow("stored AI connection configuration is invalid");
+    expect(readFileSync(filePath, "utf8")).toBe(obsolete);
   });
 });
