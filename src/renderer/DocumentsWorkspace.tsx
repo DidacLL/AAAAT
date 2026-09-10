@@ -219,10 +219,7 @@ export function DocumentsWorkspace({
 
   useEffect(() => {
     const candidatureId = documentHandoff?.candidatureId;
-    if (!candidatureId) {
-      setArtifacts([]);
-      return;
-    }
+    if (!candidatureId) return;
     let active = true;
     void window.aaaat.artifacts
       .list(candidatureId)
