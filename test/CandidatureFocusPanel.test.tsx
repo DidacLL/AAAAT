@@ -47,10 +47,22 @@ const todo: TodoRecord = {
   updatedAt: "2026-09-06T10:00:00.000Z",
 };
 
+const otherTodo: TodoRecord = {
+  ...todo,
+  id: "00000000-0000-4000-8000-000000000402",
+  body: "Reminder from another candidature",
+  candidatureId: "00000000-0000-4000-8000-000000000399",
+};
+
 const current = vi.fn<FocusDesktopApi["focus"]["current"]>();
 const update = vi.fn<FocusDesktopApi["focus"]["update"]>();
 const listConcepts = vi.fn();
 const updateConcept = vi.fn();
+const listTodos = vi.fn<TodoDesktopApi["todos"]["list"]>();
+const createTodo = vi.fn<TodoDesktopApi["todos"]["create"]>();
+const updateTodo = vi.fn<TodoDesktopApi["todos"]["update"]>();
+const toggleTodo = vi.fn<TodoDesktopApi["todos"]["toggle"]>();
+const removeTodo = vi.fn<TodoDesktopApi["todos"]["remove"]>();
 
 function installApi() {
   Object.defineProperty(window, "aaaat", {
@@ -61,10 +73,30 @@ function installApi() {
         listConcepts,
         updateConcept,
       },
-      todos: { list: async () => [todo] } as Pick<TodoDesktopApi["todos"], "list">,
+      todos: {
+        list: listTodos,
+        create: createTodo,
+        update: updateTodo,
+        toggle: toggleTodo,
+        remove: removeTodo,
+      },
       focus: { current, update },
     },
   });
+}
+
+function renderFocus(record: CandidatureRecord = candidature) {
+  return render(
+    <CandidatureFocusPanel
+      record={record}
+      fields={[]}
+      concepts={record.conceptIds.includes(concept.id) ? [concept] : []}
+      documents={[]}
+      selectedConceptId={record.conceptIds.includes(concept.id) ? concept.id : null}
+      onSelectConcept={vi.fn()}
+      onNavigate={vi.fn()}
+    />,
+  );
 }
 
 describe("Candidature Focus structural retrieval", () => {
@@ -74,42 +106,37 @@ describe("Candidature Focus structural retrieval", () => {
     update.mockImplementation(async (preferences) => preferences);
     listConcepts.mockResolvedValue([]);
     updateConcept.mockImplementation(async (input) => input);
+    listTodos.mockResolvedValue([todo, otherTodo]);
+    createTodo.mockImplementation(async (input) => ({
+      ...todo,
+      id: "00000000-0000-4000-8000-000000000403",
+      body: input.body.trim(),
+      candidatureId: input.candidatureId,
+    }));
+    updateTodo.mockImplementation(async (input) => ({ ...todo, ...input, body: input.body.trim() }));
+    toggleTodo.mockImplementation(async (input) => ({ ...todo, done: input.done }));
+    removeTodo.mockResolvedValue([otherTodo]);
     installApi();
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    cleanup();
+  });
 
-  it("shows retained Source context and related ToDos without extraction", async () => {
-    render(
-      <CandidatureFocusPanel
-        record={candidature}
-        fields={[]}
-        concepts={[]}
-        documents={[]}
-        selectedConceptId={null}
-        onSelectConcept={vi.fn()}
-        onNavigate={vi.fn()}
-      />,
-    );
+  it("shows retained Source context and only reminders related to this candidature", async () => {
+    renderFocus();
 
     expect(await screen.findByText("Recruiter note")).toBeInTheDocument();
     expect(screen.getByText(/distributed systems experience/)).toBeInTheDocument();
-    expect(screen.getByText(/Open · Prepare incident response example/)).toBeInTheDocument();
+    const reminders = screen.getByRole("region", { name: "Reminders" });
+    expect(within(reminders).getByText("Prepare incident response example")).toBeInTheDocument();
+    expect(within(reminders).queryByText("Reminder from another candidature")).not.toBeInTheDocument();
   });
 
   it("persists an independent structural material choice and hides that section", async () => {
     const user = userEvent.setup();
-    render(
-      <CandidatureFocusPanel
-        record={candidature}
-        fields={[]}
-        concepts={[]}
-        documents={[]}
-        selectedConceptId={null}
-        onSelectConcept={vi.fn()}
-        onNavigate={vi.fn()}
-      />,
-    );
+    renderFocus();
 
     await screen.findByText("Recruiter note");
     const material = screen.getByRole("group", { name: "Focus material" });
@@ -122,7 +149,71 @@ describe("Candidature Focus structural retrieval", () => {
       documents: true,
     });
     expect(screen.queryByText("Recruiter note")).not.toBeInTheDocument();
-    expect(screen.getByText(/Open · Prepare incident response example/)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Reminders" })).toBeInTheDocument();
+  });
+
+  it("uses the existing Focus material preference to hide reminders without deleting them", async () => {
+    const user = userEvent.setup();
+    renderFocus();
+
+    const material = await screen.findByRole("group", { name: "Focus material" });
+    expect(screen.getByRole("region", { name: "Reminders" })).toBeInTheDocument();
+    await user.click(within(material).getByRole("checkbox", { name: "Reminders" }));
+
+    expect(update).toHaveBeenCalledWith({
+      sources: true,
+      concepts: true,
+      todos: false,
+      documents: true,
+    });
+    expect(screen.queryByRole("region", { name: "Reminders" })).not.toBeInTheDocument();
+    expect(removeTodo).not.toHaveBeenCalled();
+  });
+
+  it("adds, checks, edits and removes reminders for the current candidature", async () => {
+    const user = userEvent.setup();
+    const prompt = vi.spyOn(window, "prompt");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderFocus();
+
+    const reminders = await screen.findByRole("region", { name: "Reminders" });
+
+    prompt.mockReturnValueOnce("Ask about remote policy");
+    await user.click(within(reminders).getByRole("button", { name: "Add reminder" }));
+    expect(createTodo).toHaveBeenCalledWith({
+      body: "Ask about remote policy",
+      candidatureId: candidature.id,
+    });
+    expect(within(reminders).getByText("Ask about remote policy")).toBeInTheDocument();
+
+    const originalRow = within(reminders)
+      .getByText("Prepare incident response example")
+      .closest("li");
+    expect(originalRow).not.toBeNull();
+    if (!originalRow) return;
+
+    await user.click(
+      within(originalRow).getByRole("checkbox", { name: "Mark Prepare incident response example done" }),
+    );
+    expect(toggleTodo).toHaveBeenCalledWith({ id: todo.id, done: true });
+
+    prompt.mockReturnValueOnce("Prepare database failover example");
+    await user.click(within(originalRow).getByRole("button", { name: "Edit" }));
+    expect(updateTodo).toHaveBeenCalledWith({
+      id: todo.id,
+      body: "Prepare database failover example",
+      candidatureId: candidature.id,
+    });
+
+    const editedRow = within(reminders)
+      .getByText("Prepare database failover example")
+      .closest("li");
+    expect(editedRow).not.toBeNull();
+    if (!editedRow) return;
+    await user.click(within(editedRow).getByRole("button", { name: "Delete" }));
+    expect(confirm).toHaveBeenCalledWith("Delete reminder “Prepare database failover example”?");
+    expect(removeTodo).toHaveBeenCalledWith(todo.id);
+    expect(within(reminders).queryByText("Prepare database failover example")).not.toBeInTheDocument();
   });
 
   it("shows and edits notes for a concept associated with the selected candidature", async () => {
@@ -131,17 +222,7 @@ describe("Candidature Focus structural retrieval", () => {
     listConcepts.mockResolvedValue([concept]);
     updateConcept.mockImplementation(async (input) => ({ ...concept, ...input }));
 
-    render(
-      <CandidatureFocusPanel
-        record={record}
-        fields={[]}
-        concepts={[concept]}
-        documents={[]}
-        selectedConceptId={concept.id}
-        onSelectConcept={vi.fn()}
-        onNavigate={vi.fn()}
-      />,
-    );
+    renderFocus(record);
 
     const editor = await screen.findByLabelText("Concept notes");
     expect(editor).toHaveValue("Use the payment outage example.");

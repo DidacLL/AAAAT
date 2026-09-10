@@ -2,9 +2,13 @@
 
 ## Active bounded work
 
-None. [Issue #262](https://github.com/DidacLL/AAAAT/issues/262) and [PR #263](https://github.com/DidacLL/AAAAT/pull/263) are complete.
+[Issue #266](https://github.com/DidacLL/AAAAT/issues/266) is the sole active bounded product outcome on branch `product/contextual-candidature-reminders`.
 
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+The outcome is to make candidature-scoped lightweight reminders directly manageable in Focus: add, check/uncheck, edit, and remove using the existing persisted Todo records and bounded Todo API. The contextual surface uses user-facing reminder language and remains subordinate to candidature work rather than becoming a primary task workspace.
+
+This is renderer interaction work over existing Todo authority. It does not authorize schema/migrations, new IPC/main privilege, scheduling or recurrence, due dates, priorities, workflow states, global task navigation, AI planning, or dependencies. Preserve Focus material visibility preferences, candidature scoping, manual/no-AI behavior, dirty-state safety, and compact `720×600` use.
+
+Treat this as Class B unless implementation changes persistence authority, IPC/main privilege boundaries, or durable model semantics; if so, escalate to Class C. Skeptical Simplifier is required only if material abstraction appears.
 
 ## Recently completed outcomes
 

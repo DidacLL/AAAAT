@@ -111,6 +111,59 @@ export function CandidatureFocusPanel({
     }
   };
 
+  const replaceTodo = (updated: TodoRecord) => {
+    setTodos((current) => current.map((todo) => (todo.id === updated.id ? updated : todo)));
+  };
+
+  const addReminder = async () => {
+    const body = window.prompt("Reminder");
+    if (!body?.trim()) return;
+    setMaterialError(null);
+    try {
+      const created = await window.aaaat.todos.create({ body, candidatureId: record.id });
+      if (created.candidatureId === record.id) setTodos((current) => [created, ...current]);
+    } catch {
+      setMaterialError("AAAAT could not add this reminder.");
+    }
+  };
+
+  const toggleReminder = async (todo: TodoRecord) => {
+    setMaterialError(null);
+    try {
+      replaceTodo(await window.aaaat.todos.toggle({ id: todo.id, done: !todo.done }));
+    } catch {
+      setMaterialError("AAAAT could not update this reminder.");
+    }
+  };
+
+  const editReminder = async (todo: TodoRecord) => {
+    const body = window.prompt("Edit reminder", todo.body);
+    if (body === null || !body.trim() || body.trim() === todo.body) return;
+    setMaterialError(null);
+    try {
+      replaceTodo(
+        await window.aaaat.todos.update({
+          id: todo.id,
+          body,
+          candidatureId: record.id,
+        }),
+      );
+    } catch {
+      setMaterialError("AAAAT could not save this reminder.");
+    }
+  };
+
+  const removeReminder = async (todo: TodoRecord) => {
+    if (!window.confirm(`Delete reminder “${todo.body}”?`)) return;
+    setMaterialError(null);
+    try {
+      const remaining = await window.aaaat.todos.remove(todo.id);
+      setTodos(remaining.filter((item) => item.candidatureId === record.id));
+    } catch {
+      setMaterialError("AAAAT could not delete this reminder.");
+    }
+  };
+
   const values = new Map(record.values.map((value) => [value.fieldId, value.value]));
   const focusFields = fields
     .filter(
@@ -180,7 +233,7 @@ export function CandidatureFocusPanel({
           [
             ["sources", "Sources"],
             ["concepts", "Concepts"],
-            ["todos", "ToDos"],
+            ["todos", "Reminders"],
             ["documents", "Application material"],
           ] as const
         ).map(([key, label]) => (
@@ -292,16 +345,37 @@ export function CandidatureFocusPanel({
         </section>
       ) : null}
 
-      {materialPreferences.todos && todos.length > 0 ? (
-        <section className="focus-documents">
-          <h4>ToDos</h4>
-          <ul>
-            {todos.map((todo) => (
-              <li key={todo.id}>
-                {todo.done ? "Done" : "Open"} · {todo.body}
-              </li>
-            ))}
-          </ul>
+      {materialPreferences.todos ? (
+        <section className="focus-documents" aria-label="Reminders">
+          <div className="button-row">
+            <h4>Reminders</h4>
+            <button type="button" className="compact-secondary" onClick={() => void addReminder()}>
+              Add reminder
+            </button>
+          </div>
+          {todos.length === 0 ? <p className="compact-empty">No reminders for this candidature.</p> : (
+            <ul>
+              {todos.map((todo) => (
+                <li key={todo.id}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={todo.done}
+                      onChange={() => void toggleReminder(todo)}
+                      aria-label={`Mark ${todo.body} ${todo.done ? "not done" : "done"}`}
+                    />{" "}
+                    <span>{todo.body}</span>
+                  </label>{" "}
+                  <button type="button" className="compact-secondary" onClick={() => void editReminder(todo)}>
+                    Edit
+                  </button>{" "}
+                  <button type="button" className="compact-secondary" onClick={() => void removeReminder(todo)}>
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       ) : null}
 
