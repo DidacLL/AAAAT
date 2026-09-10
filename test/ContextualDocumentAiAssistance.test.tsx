@@ -176,6 +176,14 @@ function renderLinked(documentId: string) {
   );
 }
 
+function renderStandaloneWithHandoffs() {
+  return render(
+    <ContextualHandoffContext.Provider value={{ ...handoffs(), documentHandoff: null }}>
+      <DocumentsWorkspace />
+    </ContextualHandoffContext.Provider>,
+  );
+}
+
 async function openAssistance() {
   await userEvent.setup().click(await screen.findByText("AI assistance"));
 }
@@ -217,7 +225,8 @@ describe("contextual document AI assistance", () => {
     expect(tailorCv).toHaveBeenCalledWith({ candidatureId, documentId: cvId });
     expect(updateDocument).not.toHaveBeenCalled();
     expect(setCandidatureDocuments).not.toHaveBeenCalled();
-    expect(await screen.findByText("TypeScript")).toBeInTheDocument();
+    const assistance = screen.getByLabelText("AI assistance for current document");
+    expect(within(assistance).getByText("TypeScript", { selector: "strong" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Current cover letter/ }));
     await openAssistance();
@@ -350,7 +359,7 @@ describe("contextual document AI assistance", () => {
       .mockResolvedValueOnce(environment(true, true))
       .mockResolvedValueOnce(environment(false, true));
     const user = userEvent.setup();
-    render(<DocumentsWorkspace />);
+    renderStandaloneWithHandoffs();
 
     await screen.findByRole("heading", { name: "Current CV" });
     await openAssistance();
