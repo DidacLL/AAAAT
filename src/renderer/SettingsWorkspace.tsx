@@ -4,6 +4,7 @@ import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import type { SetupEnvironmentSnapshot } from "../shared/setup-environment-contracts";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
+import { VscodeExternalToolSetup } from "./VscodeExternalToolSetup";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
 export type SettingsView =
@@ -114,7 +115,7 @@ export function SettingsWorkspace({
           </button>
           <button className="settings-intention" type="button" onClick={() => selectView("portability")}>
             <strong>Portability &amp; external tools</strong>
-            <span>Portable AI configuration and deliberate external-tool setup guidance.</span>
+            <span>Connect the demonstrated VS Code external tool or move portable AI setup.</span>
           </button>
         </div>
       </section>
@@ -169,6 +170,7 @@ export function SettingsWorkspace({
 
       {view === "portability" ? (
         <div className="settings-portability-stack">
+          <VscodeExternalToolSetup />
           <AiSettingsWorkspace view="portability" />
           <SetupEnvironmentPanel view="guidance" />
         </div>

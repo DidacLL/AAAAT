@@ -61,7 +61,10 @@ const desktopApi: DesktopApi &
   },
   workspace: { current, choose },
   workspaceRecovery: { backup, restore },
-  setupEnvironment: { current: async () => readyEnvironment },
+  setupEnvironment: {
+    current: async () => readyEnvironment,
+    connectVscode: async () => ({ status: "cancelled", message: "No project was changed." }),
+  },
   aiConnections: {
     list: async () => [],
     save: async () => [],

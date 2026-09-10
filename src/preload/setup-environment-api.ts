@@ -1,6 +1,7 @@
 import {
   setupEnvironmentChannels,
   setupEnvironmentSnapshotSchema,
+  vscodeConnectionResultSchema,
   type SetupEnvironmentDesktopApi,
 } from "../shared/setup-environment-contracts";
 
@@ -12,6 +13,10 @@ export function createSetupEnvironmentDesktopApi(invoke: Invoke): SetupEnvironme
       current: async () =>
         setupEnvironmentSnapshotSchema.parse(
           await invoke(setupEnvironmentChannels.current),
+        ),
+      connectVscode: async () =>
+        vscodeConnectionResultSchema.parse(
+          await invoke(setupEnvironmentChannels.connectVscode),
         ),
     }),
   });
