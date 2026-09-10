@@ -16,16 +16,18 @@ interface JobExtractionPanelProps {
 }
 
 function extractionConnection(connections: NamedAiConnection[]) {
-  const configuredDefault = connections.find(
+  const operationDefault = connections.find(
     (connection) =>
       connection.defaultForOperations.includes("job_extraction") &&
       connection.validatedOperations.includes("job_extraction"),
   );
+  if (operationDefault) return operationDefault;
 
   return (
-    configuredDefault ??
-    connections.find((connection) => connection.validatedOperations.includes("job_extraction")) ??
-    null
+    connections.find(
+      (connection) =>
+        connection.isDefault && connection.validatedOperations.includes("job_extraction"),
+    ) ?? null
   );
 }
 
