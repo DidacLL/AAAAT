@@ -44,6 +44,7 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     import("./combined-document-ipc"),
     import("./cv-content-access-ipc"),
     import("./cv-descriptor-ipc"),
+    import("./document-output-ipc"),
     import("./todo-ipc"),
     import("./focus-ipc"),
     import("./setup-environment-ipc"),
