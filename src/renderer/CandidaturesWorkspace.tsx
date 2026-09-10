@@ -21,6 +21,7 @@ import { useContextualHandoffs } from "./contextual-handoffs";
 import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
 import {
   candidatureRecognitionCues,
+  candidatureSearchMatchCue,
   filterCandidatures,
   type ArchiveFilter,
 } from "./candidature-projections";
@@ -768,7 +769,13 @@ export function CandidaturesWorkspace({
             <p>No candidatures match these filters.</p>
           ) : (
             visibleRecords.map((record) => {
-              const recognitionCues = candidatureRecognitionCues(record, fields);
+              const searchMatchCue =
+                normalizedQuery && textMatches?.has(record.id)
+                  ? candidatureSearchMatchCue(record, fields, concepts, normalizedQuery)
+                  : null;
+              const recognitionCues = searchMatchCue
+                ? [searchMatchCue]
+                : candidatureRecognitionCues(record, fields);
               return (
                 <button
                   type="button"
