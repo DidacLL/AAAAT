@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { filterCandidatures } from "../src/renderer/candidature-projections";
+import {
+  candidatureRecognitionCues,
+  filterCandidatures,
+} from "../src/renderer/candidature-projections";
 import type { CandidatureRecord } from "../src/shared/contracts";
 
 function record(id: string, archived = false): CandidatureRecord {
@@ -35,5 +38,20 @@ describe("candidature renderer projection", () => {
     expect(
       filterCandidatures([active, other, archived], "archived", null, new Set([archived.id])),
     ).toEqual([archived]);
+  });
+
+  it("uses the source continuation when the candidature label came from the source prefix", () => {
+    const sourceText =
+      "Nimbus Labs is hiring a platform engineer in Barcelona with hybrid work and a small infrastructure team.";
+    const derivedLabel = sourceText.slice(0, 80);
+    const rawFirst = {
+      ...record("00000000-0000-4000-8000-000000000413"),
+      label: derivedLabel,
+      sourceSearchText: sourceText,
+    };
+
+    expect(candidatureRecognitionCues(rawFirst, [])).toEqual([
+      { label: "Source", value: sourceText.slice(80).trim() },
+    ]);
   });
 });
