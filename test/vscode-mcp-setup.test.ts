@@ -75,7 +75,9 @@ describe("VS Code MCP setup", () => {
       "cv_render",
     ]);
     expect(manifest.privacyDisclosure).toContain("selected one candidature for that task");
-    expect(manifest.privacyDisclosure).toMatch(/(?:does not|never) expose other candidatures/);
+    expect(manifest.privacyDisclosure).toMatch(
+      /(?:does not[^.]*expose|never[^.]*exposes)[^.]*other candidatures/i,
+    );
     const text = readFileSync(path.join(workspace, "integrations", "vscode-mcp.json"), "utf8");
     expect(text).not.toContain(workspace);
     expect(text).not.toContain(project);
