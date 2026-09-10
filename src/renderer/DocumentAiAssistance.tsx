@@ -25,6 +25,7 @@ export function DocumentAiAssistance({
   readonly profileItems: readonly ProfileItem[];
   readonly documentDirty: boolean;
   readonly onPrepareCurrentDocument: () => Promise<DocumentRecord | null>;
+  readonly onDiscardCurrentDocumentEdits?: () => void;
   readonly onDocumentApplied: (document: DocumentRecord) => Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
