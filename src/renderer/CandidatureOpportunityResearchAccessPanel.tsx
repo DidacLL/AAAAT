@@ -15,8 +15,13 @@ export function CandidatureOpportunityResearchAccessPanel({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const api = window.aaaat.candidatureOpportunityResearchAccess;
+    if (!api) {
+      setError("External opportunity-research access is unavailable in this build.");
+      return;
+    }
     let active = true;
-    void window.aaaat.candidatureOpportunityResearchAccess
+    void api
       .current(candidatureId)
       .then((current) => {
         if (active) setAccess(current);
@@ -31,8 +36,10 @@ export function CandidatureOpportunityResearchAccessPanel({
 
   useEffect(() => {
     if (!contextDirty || !access?.allowed) return;
+    const api = window.aaaat.candidatureOpportunityResearchAccess;
+    if (!api) return;
     let active = true;
-    void window.aaaat.candidatureOpportunityResearchAccess
+    void api
       .update({ candidatureId, allowed: false })
       .then((saved) => {
         if (!active) return;
@@ -53,14 +60,16 @@ export function CandidatureOpportunityResearchAccessPanel({
 
   const update = async (allowed: boolean) => {
     if (allowed && contextDirty) return;
+    const api = window.aaaat.candidatureOpportunityResearchAccess;
+    if (!api) {
+      setError("External opportunity-research access is unavailable in this build.");
+      return;
+    }
     setSaving(true);
     setMessage(null);
     setError(null);
     try {
-      const saved = await window.aaaat.candidatureOpportunityResearchAccess.update({
-        candidatureId,
-        allowed,
-      });
+      const saved = await api.update({ candidatureId, allowed });
       setAccess(saved);
       setMessage(
         allowed
