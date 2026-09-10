@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DocumentsWorkspace } from "../src/renderer/DocumentsWorkspace";
+import {
+  ContextualHandoffContext,
+  type ContextualHandoffApi,
+} from "../src/renderer/contextual-handoffs";
 import type {
   ApplicationArtifactRecord,
   ArtifactDesktopApi,
@@ -16,6 +20,7 @@ import type {
 } from "../src/shared/contracts";
 import type { CvContentAccessDesktopApi } from "../src/shared/cv-content-access-contracts";
 import type { CvDescriptorDesktopApi } from "../src/shared/cv-descriptor-contracts";
+import type { DocumentOutputDesktopApi } from "../src/shared/document-output-contracts";
 
 const item = {
   id: "00000000-0000-4000-8000-000000000101",
@@ -85,6 +90,7 @@ const exportProject = vi.fn<DesktopApi["documents"]["exportProject"]>();
 const listCandidatures = vi.fn<DesktopApi["candidatures"]["list"]>();
 const listArtifacts = vi.fn<ArtifactDesktopApi["artifacts"]["list"]>();
 const captureArtifact = vi.fn<ArtifactDesktopApi["artifacts"]["capture"]>();
+const openDocumentOutput = vi.fn<DocumentOutputDesktopApi["documentOutput"]["open"]>();
 const currentCvContentAccess = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["current"]>();
 const updateCvContentAccess = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["update"]>();
 const updateCvRenderAccess = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["updateRender"]>();
@@ -109,6 +115,7 @@ function installApi(currentProfile: ProfileSnapshot = profile) {
       regenerate,
       exportProject,
     },
+    documentOutput: { open: openDocumentOutput },
     cvContentAccess: {
       current: currentCvContentAccess,
       update: updateCvContentAccess,
@@ -117,8 +124,34 @@ function installApi(currentProfile: ProfileSnapshot = profile) {
     cvDescriptors: { current: currentCvDescriptor, update: updateCvDescriptor },
     candidatures: { list: listCandidatures },
     artifacts: { list: listArtifacts, capture: captureArtifact },
-  } as unknown as DesktopApi & ArtifactDesktopApi & CvContentAccessDesktopApi & CvDescriptorDesktopApi;
+  } as unknown as DesktopApi &
+    ArtifactDesktopApi &
+    CvContentAccessDesktopApi &
+    CvDescriptorDesktopApi &
+    DocumentOutputDesktopApi;
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
+}
+
+function candidatureHandoffs(documentId?: string): ContextualHandoffApi {
+  return {
+    documentHandoff: { candidatureId: candidature.id, documentId },
+    professionalInformationHandoff: null,
+    settingsHandoff: null,
+    openDocumentFromCandidature: vi.fn(),
+    returnToCandidature: vi.fn(),
+    openProfessionalInformationItem: vi.fn(),
+    returnToDocument: vi.fn(),
+    openSettingsFor: vi.fn(),
+    returnFromSettings: vi.fn(),
+  };
+}
+
+function renderForCandidature(documentId?: string) {
+  return render(
+    <ContextualHandoffContext.Provider value={candidatureHandoffs(documentId)}>
+      <DocumentsWorkspace />
+    </ContextualHandoffContext.Provider>,
+  );
 }
 
 describe("manual CVs and letters workspace", () => {
@@ -128,6 +161,7 @@ describe("manual CVs and letters workspace", () => {
     listCandidatures.mockResolvedValue([]);
     listArtifacts.mockResolvedValue([]);
     captureArtifact.mockResolvedValue(retainedArtifact);
+    openDocumentOutput.mockResolvedValue({ opened: true });
     create.mockResolvedValue(record({ variantId: null }));
     update.mockImplementation(async (value) => record({ ...value }));
     resolve.mockResolvedValue({ document: record(), items: [item] });
@@ -160,7 +194,7 @@ describe("manual CVs and letters workspace", () => {
 
   afterEach(() => cleanup());
 
-  it("creates a CV from default professional information without implementation terminology", async () => {
+  it("creates a CV from default professional information and makes the rendered result the ordinary output task", async () => {
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
     await screen.findByRole("heading", { name: "CVs & letters" });
@@ -179,11 +213,45 @@ describe("manual CVs and letters workspace", () => {
       bodyParagraphs: [],
     });
 
-    await user.click(screen.getByRole("tab", { name: "Output & ownership" }));
-    expect(await screen.findByText("/tmp/workspace/documents/doc/main.tex")).toBeInTheDocument();
-    expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "AI-visible CV description" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "External CV content access" })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Output" }));
+    expect(screen.getByRole("region", { name: "Rendered PDF result" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Render PDF" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Export portable project" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Open PDF" })).not.toBeInTheDocument();
+    expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).not.toBeVisible();
+    expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).not.toBeVisible();
+    expect(screen.queryByRole("heading", { name: "AI-visible CV description" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "External CV content access" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Retained application artifacts" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Render PDF" }));
+    expect(renderDocument).toHaveBeenCalledWith(record().id);
+    expect(await screen.findByText("PDF rendered successfully. Open the result below.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Open PDF" }));
+    expect(openDocumentOutput).toHaveBeenCalledWith(record().id);
+    expect(await screen.findByText("Opened the rendered PDF.")).toBeVisible();
+
+    await user.click(screen.getByText("Source & advanced ownership"));
+    expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).toBeVisible();
+    expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).toBeVisible();
+    await user.click(screen.getByText("External assistant privacy & integration"));
+    expect(await screen.findByRole("heading", { name: "AI-visible CV description" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "External CV content access" })).toBeVisible();
+  });
+
+  it("keeps candidature artifact administration out of standalone output even when candidatures exist", async () => {
+    const document = record();
+    list.mockResolvedValueOnce([document]);
+    listCandidatures.mockResolvedValueOnce([candidature]);
+    resolve.mockResolvedValue({ document, items: [item] });
+    const user = userEvent.setup();
+    render(<DocumentsWorkspace />);
+
+    await screen.findByRole("heading", { name: "Platform CV" });
+    await user.click(screen.getByRole("tab", { name: "Output" }));
+    expect(screen.queryByText(`Application artifact for ${candidature.label}`)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Retained application artifacts" })).not.toBeInTheDocument();
+    expect(listArtifacts).not.toHaveBeenCalled();
   });
 
   it("creates from default professional information when no saved variations exist", async () => {
@@ -234,7 +302,7 @@ describe("manual CVs and letters workspace", () => {
     await user.clear(titleInput);
     await user.type(titleInput, "Unsaved platform CV");
     await user.click(screen.getByRole("tab", { name: "Professional information" }));
-    await user.click(screen.getByRole("tab", { name: "Output & ownership" }));
+    await user.click(screen.getByRole("tab", { name: "Output" }));
     await user.click(screen.getByRole("tab", { name: "Content" }));
     expect(within(content).getByLabelText("Title")).toHaveValue("Unsaved platform CV");
     expect(confirm).not.toHaveBeenCalled();
@@ -296,41 +364,43 @@ describe("manual CVs and letters workspace", () => {
     render(<DocumentsWorkspace />);
 
     expect(await screen.findByText(/Direct source edits were detected/)).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Output & ownership" }));
+    await user.click(screen.getByRole("tab", { name: "Output" }));
     await user.click(screen.getByRole("button", { name: "Replace manual source from structured data" }));
     expect(regenerate).toHaveBeenCalledWith(manual.id);
   });
 
-  it("retains a working document only for an associated candidature", async () => {
+  it("retains a working document only in candidature-linked context", async () => {
     const document = record();
     list.mockResolvedValueOnce([document]);
     listCandidatures.mockResolvedValueOnce([candidature]);
     resolve.mockResolvedValue({ document, items: [item] });
     const user = userEvent.setup();
-    render(<DocumentsWorkspace />);
+    renderForCandidature(document.id);
 
     await screen.findByRole("heading", { name: "Platform CV" });
-    await user.click(screen.getByRole("tab", { name: "Output & ownership" }));
+    await user.click(screen.getByRole("tab", { name: "Output" }));
+    await user.click(await screen.findByText(`Application artifact for ${candidature.label}`));
     const retain = await screen.findByRole("button", { name: "Retain application artifact" });
-    expect(screen.getByLabelText("Candidature")).toHaveValue(candidature.id);
     await user.click(retain);
 
+    expect(listArtifacts).toHaveBeenCalledWith(candidature.id);
     expect(captureArtifact).toHaveBeenCalledWith({
       candidatureId: candidature.id,
       documentId: document.id,
     });
-    expect(await screen.findByText(retainedArtifact.artifactPath)).toBeInTheDocument();
+    expect(await screen.findByText(retainedArtifact.artifactPath)).toBeVisible();
   });
 
-  it("lists retained candidature artifacts without a surviving working document association", async () => {
+  it("lists retained candidature artifacts without a surviving working document association only in candidature context", async () => {
     list.mockResolvedValueOnce([]);
     listCandidatures.mockResolvedValueOnce([{ ...candidature, documentIds: [] }]);
     listArtifacts.mockResolvedValueOnce([retainedArtifact]);
-    render(<DocumentsWorkspace />);
+    const user = userEvent.setup();
+    renderForCandidature();
 
-    expect(await screen.findByText(retainedArtifact.artifactPath)).toBeInTheDocument();
-    expect(screen.getByText(retainedArtifact.sourcePath)).toBeInTheDocument();
-    expect(screen.getByLabelText("Candidature")).toHaveValue(candidature.id);
+    await user.click(await screen.findByText(`Application artifact for ${candidature.label}`));
+    expect(await screen.findByText(retainedArtifact.artifactPath)).toBeVisible();
+    expect(screen.getByText(retainedArtifact.sourcePath)).toBeVisible();
     expect(listArtifacts).toHaveBeenCalledWith(candidature.id);
     expect(screen.queryByRole("button", { name: "Retain application artifact" })).not.toBeInTheDocument();
   });
