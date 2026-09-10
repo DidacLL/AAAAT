@@ -168,21 +168,31 @@ describe("Candidature Focus structural retrieval", () => {
     });
     expect(within(reminders).getByText("Ask about remote policy")).toBeInTheDocument();
 
+    const originalRow = within(reminders)
+      .getByText("Prepare incident response example")
+      .closest("li");
+    expect(originalRow).not.toBeNull();
+    if (!originalRow) return;
+
     await user.click(
-      within(reminders).getByRole("checkbox", { name: "Mark Prepare incident response example done" }),
+      within(originalRow).getByRole("checkbox", { name: "Mark Prepare incident response example done" }),
     );
     expect(toggleTodo).toHaveBeenCalledWith({ id: todo.id, done: true });
 
     prompt.mockReturnValueOnce("Prepare database failover example");
-    await user.click(within(reminders).getAllByRole("button", { name: "Edit" })[1]);
+    await user.click(within(originalRow).getByRole("button", { name: "Edit" }));
     expect(updateTodo).toHaveBeenCalledWith({
       id: todo.id,
       body: "Prepare database failover example",
       candidatureId: candidature.id,
     });
-    expect(within(reminders).getByText("Prepare database failover example")).toBeInTheDocument();
 
-    await user.click(within(reminders).getAllByRole("button", { name: "Delete" })[1]);
+    const editedRow = within(reminders)
+      .getByText("Prepare database failover example")
+      .closest("li");
+    expect(editedRow).not.toBeNull();
+    if (!editedRow) return;
+    await user.click(within(editedRow).getByRole("button", { name: "Delete" }));
     expect(confirm).toHaveBeenCalledWith("Delete reminder “Prepare database failover example”?");
     expect(removeTodo).toHaveBeenCalledWith(todo.id);
     expect(within(reminders).queryByText("Prepare database failover example")).not.toBeInTheDocument();
