@@ -18,7 +18,7 @@ import {
   type ExternalOpportunityResearchContext,
 } from "../shared/external-assistant-contracts";
 import { listCandidatureFields } from "./candidature-field-service";
-import { addCandidatureSource, getCandidature } from "./candidature-service";
+import { addCandidatureSource, getCandidature, listCandidatureSources } from "./candidature-service";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface AccessRow {
@@ -30,12 +30,6 @@ interface AccessRow {
 type ResearchAccessActivity =
   | "candidature.opportunity-research-access.allow"
   | "candidature.opportunity-research-access.revoke";
-
-const researchFields = Object.freeze([
-  ["candidature.organization", "organisation"],
-  ["candidature.role", "role"],
-  ["candidature.location", "location"],
-] as const);
 
 export class CandidatureOpportunityResearchAccessServiceError extends Error {
   constructor(message: string) {
@@ -168,34 +162,48 @@ export function updateCandidatureOpportunityResearchAccess(
   );
 }
 
-function privateReference(): string {
-  return `[AAAT_PRIVATE_${randomUUID()}]`;
+function runtimeStrings(value: CandidatureRuntimeValue): string[] {
+  return Array.isArray(value) ? value.map(String) : [String(value)];
 }
 
-function exposedValue(
+function tokenFactory(forbidden: readonly string[]) {
+  const blocked = [...forbidden];
+  return (value: string): string => {
+    let placeholder: string;
+    do {
+      placeholder = `[AAAT_PRIVATE_${randomUUID()}]`;
+    } while (blocked.some((text) => text.includes(placeholder)));
+    blocked.push(value, placeholder);
+    return placeholder;
+  };
+}
+
+function tokenRuntimeValue(
+  value: CandidatureRuntimeValue,
+  token: (value: string) => string,
+): CandidatureRuntimeValue {
+  return Array.isArray(value)
+    ? value.map((item) => token(String(item)))
+    : token(String(value));
+}
+
+function exposedChoiceLabels(
   field: CandidatureFieldConfiguration,
   value: CandidatureRuntimeValue,
-): string | undefined {
-  if (field.preferences.aiContextMode === "omit") return undefined;
-  if (field.preferences.aiContextMode === "token") return privateReference();
-
-  const stringify = (candidate: string | number | boolean): string => {
-    if (field.definition.valueType !== "choice" || typeof candidate !== "string") {
-      return String(candidate);
-    }
-    const choice = field.definition.choices.find((item) => item.id === candidate);
-    if (!choice) {
+): CandidatureRuntimeValue {
+  if (field.definition.valueType !== "choice") return value;
+  const choices = new Map(field.definition.choices.map((choice) => [choice.id, choice.label]));
+  const label = (candidate: string | number | boolean): string | number | boolean => {
+    if (typeof candidate !== "string") return candidate;
+    const resolved = choices.get(candidate);
+    if (resolved === undefined) {
       throw new CandidatureOpportunityResearchAccessServiceError(
         "Stored opportunity-research information is invalid.",
       );
     }
-    return choice.label;
+    return resolved;
   };
-
-  const projected = Array.isArray(value)
-    ? value.map(stringify).join(", ")
-    : stringify(value);
-  return projected.trim() ? projected : undefined;
+  return Array.isArray(value) ? value.map(label) : label(value);
 }
 
 export function selectedOpportunityResearchContext(
@@ -205,19 +213,34 @@ export function selectedOpportunityResearchContext(
   if (candidatureId === null) return null;
 
   const candidature = getCandidature(rootPath, candidatureId);
-  const fields = listCandidatureFields(rootPath);
-  const context: Record<string, string> = {};
+  const fieldConfigurations = listCandidatureFields(rootPath);
+  const fields = new Map(
+    fieldConfigurations.map((field) => [field.definition.id, field]),
+  );
+  const retainedSources = listCandidatureSources(rootPath, candidatureId);
+  const privacyCorpus = [
+    candidature.label,
+    ...candidature.values.flatMap((retained) => runtimeStrings(retained.value)),
+    ...fieldConfigurations.map((field) => field.definition.label),
+    ...retainedSources.flatMap((source) => [source.title, source.url, source.sourceText]),
+  ];
+  const token = tokenFactory(privacyCorpus);
 
-  for (const [systemKey, outputKey] of researchFields) {
-    const field = fields.find((candidate) => candidate.definition.systemKey === systemKey);
-    if (!field) continue;
-    const retained = candidature.values.find((value) => value.fieldId === field.definition.id);
-    if (!retained) continue;
-    const value = exposedValue(field, retained.value);
-    if (value !== undefined) context[outputKey] = value;
-  }
+  const information = candidature.values.flatMap((retained) => {
+    const field = fields.get(retained.fieldId);
+    if (!field || field.preferences.aiContextMode === "omit") return [];
+    return [
+      {
+        label: field.definition.label,
+        value:
+          field.preferences.aiContextMode === "token"
+            ? tokenRuntimeValue(retained.value, token)
+            : exposedChoiceLabels(field, retained.value),
+      },
+    ];
+  });
 
-  return externalOpportunityResearchContextSchema.parse(context);
+  return externalOpportunityResearchContextSchema.parse({ information });
 }
 
 export function addSourceToSelectedOpportunityResearchCandidature(
