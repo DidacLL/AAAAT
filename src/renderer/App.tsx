@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
-import { AiDocumentsWorkspace } from "./AiDocumentsWorkspace";
 import logo from "./assets/aaaat-logo-light.png";
 import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
 import { CareerContextPanel } from "./CareerContextPanel";
@@ -80,36 +79,9 @@ function CandidaturesArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: b
 }
 
 function DocumentsArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: boolean) => void }) {
-  const [documentDirty, setDocumentDirty] = useState(false);
-  const [assistanceOpen, setAssistanceOpen] = useState(false);
-  const [assistanceDirty, setAssistanceDirty] = useState(false);
-
-  useEffect(() => {
-    onDirtyChange(documentDirty || (assistanceOpen && assistanceDirty));
-    return () => onDirtyChange(false);
-  }, [assistanceDirty, assistanceOpen, documentDirty, onDirtyChange]);
-
-  const toggleAssistance = () => {
-    if (assistanceOpen && assistanceDirty) {
-      const discard = window.confirm("Discard unsaved AI document assistance edits and close assistance?");
-      if (!discard) return;
-      setAssistanceDirty(false);
-    }
-    setAssistanceOpen((current) => !current);
-  };
-
   return (
     <div className="destination-area">
-      <DocumentsWorkspace onDirtyChange={setDocumentDirty} />
-      <section className="contextual-support" aria-label="CV and letter supporting tools">
-        <button className="contextual-toggle" type="button" aria-expanded={assistanceOpen} onClick={toggleAssistance}>
-          Optional AI assistance
-        </button>
-        <span>Assistance uses the current document context; it is not a separate workspace.</span>
-      </section>
-      {assistanceOpen ? (
-        <div className="contextual-surface"><AiDocumentsWorkspace onDirtyChange={setAssistanceDirty} /></div>
-      ) : null}
+      <DocumentsWorkspace onDirtyChange={onDirtyChange} />
     </div>
   );
 }
