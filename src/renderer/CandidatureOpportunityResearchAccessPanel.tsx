@@ -16,10 +16,7 @@ export function CandidatureOpportunityResearchAccessPanel({
 
   useEffect(() => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
-    if (!api) {
-      setError("External opportunity-research access is unavailable in this build.");
-      return;
-    }
+    if (!api) return;
     let active = true;
     void api
       .current(candidatureId)
@@ -61,10 +58,7 @@ export function CandidatureOpportunityResearchAccessPanel({
   const update = async (allowed: boolean) => {
     if (allowed && contextDirty) return;
     const api = window.aaaat.candidatureOpportunityResearchAccess;
-    if (!api) {
-      setError("External opportunity-research access is unavailable in this build.");
-      return;
-    }
+    if (!api) return;
     setSaving(true);
     setMessage(null);
     setError(null);
