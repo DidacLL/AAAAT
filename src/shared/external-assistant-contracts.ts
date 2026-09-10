@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { candidatureSourceDraftSchema } from "./contracts";
+import {
+  candidatureRuntimeValueSchema,
+  candidatureSourceDraftSchema,
+} from "./contracts";
 import { cvAssistantNotesSchema, cvAssistantTagsSchema } from "./cv-descriptor-contracts";
 
 const externalCareerContextValueSchema = z
@@ -28,13 +31,16 @@ export type ExternalCareerContext = z.infer<typeof externalCareerContextSchema>;
 
 export const externalOpportunityResearchContextRequestSchema = z.object({}).strict();
 
-const externalOpportunityResearchValueSchema = z.string().trim().min(1).max(50000);
+export const externalOpportunityResearchInformationSchema = z
+  .object({
+    label: z.string().trim().min(1).max(120),
+    value: candidatureRuntimeValueSchema,
+  })
+  .strict();
 
 export const externalOpportunityResearchContextSchema = z
   .object({
-    organisation: externalOpportunityResearchValueSchema.optional(),
-    role: externalOpportunityResearchValueSchema.optional(),
-    location: externalOpportunityResearchValueSchema.optional(),
+    information: z.array(externalOpportunityResearchInformationSchema).max(64),
   })
   .strict()
   .nullable();
