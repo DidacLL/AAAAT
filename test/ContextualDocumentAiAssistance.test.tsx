@@ -225,6 +225,19 @@ describe("contextual document AI assistance", () => {
     expect(screen.queryByRole("button", { name: "Recommend CV evidence" })).not.toBeInTheDocument();
   });
 
+  it("explains genuinely missing candidature context without creating a dead generic workspace", async () => {
+    listCandidatures.mockResolvedValue([]);
+    render(<DocumentsWorkspace />);
+
+    await screen.findByRole("heading", { name: "Current CV" });
+    await openAssistance();
+
+    expect(screen.getByText(/This assistance needs candidature context/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Document")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Candidature for this assistance")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Recommend CV evidence" })).toBeDisabled();
+  });
+
   it("reuses candidature-linked context and applies an edited draft to the visible current document", async () => {
     const user = userEvent.setup();
     renderLinked(coverId);
@@ -289,9 +302,11 @@ describe("contextual document AI assistance", () => {
     expect(updateDocument).toHaveBeenCalledWith(
       expect.objectContaining({ id: coverId, subject: "Unsaved current subject" }),
     );
-    expect(updateDocument.mock.invocationCallOrder[0]).toBeLessThan(
-      draftCoverLetter.mock.invocationCallOrder[0],
-    );
+    const saveOrder = updateDocument.mock.invocationCallOrder[0];
+    const assistanceOrder = draftCoverLetter.mock.invocationCallOrder[0];
+    expect(saveOrder).toBeDefined();
+    expect(assistanceOrder).toBeDefined();
+    expect(saveOrder ?? Number.MAX_SAFE_INTEGER).toBeLessThan(assistanceOrder ?? 0);
   });
 
   it("keeps a current document draft when applying an AI proposal would overwrite it", async () => {
@@ -345,5 +360,22 @@ describe("contextual document AI assistance", () => {
     const settings = await screen.findByRole("button", { name: "Open AI connections settings" });
     await user.click(settings);
     expect(openSettingsFor).toHaveBeenCalledWith("ai", "documents");
+  });
+
+  it("keeps provider/runtime failures local when a validated route still exists", async () => {
+    tailorCv.mockRejectedValueOnce(new Error("Provider returned invalid output."));
+    setupEnvironmentCurrent
+      .mockResolvedValueOnce(environment(true, true))
+      .mockResolvedValueOnce(environment(true, true));
+    const user = userEvent.setup();
+    render(<DocumentsWorkspace />);
+
+    await screen.findByRole("heading", { name: "Current CV" });
+    await openAssistance();
+    await user.selectOptions(screen.getByLabelText("Candidature for this assistance"), candidatureId);
+    await user.click(screen.getByRole("button", { name: "Recommend CV evidence" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Provider returned invalid output.");
+    expect(screen.queryByRole("button", { name: "Open AI connections settings" })).not.toBeInTheDocument();
   });
 });
