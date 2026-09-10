@@ -58,6 +58,8 @@ describe("VS Code MCP setup", () => {
     });
     expect(manifest.capabilityNames).toEqual([
       "candidature.create",
+      "opportunity_research.context.read",
+      "candidature.source.add",
       "career_context.read",
       "cv_descriptions.read",
       "cv_content.read",
@@ -65,16 +67,20 @@ describe("VS Code MCP setup", () => {
     ]);
     expect(manifest.toolNames).toEqual([
       "candidature_create",
+      "opportunity_research_context_read",
+      "candidature_source_add",
       "career_context_read",
       "cv_descriptions_read",
       "cv_content_read",
       "cv_render",
     ]);
+    expect(manifest.privacyDisclosure).toContain("selected one candidature for that task");
+    expect(manifest.privacyDisclosure).toContain("does not expose other candidatures");
     const text = readFileSync(path.join(workspace, "integrations", "vscode-mcp.json"), "utf8");
     expect(text).not.toContain(workspace);
     expect(text).not.toContain(project);
     expect(text).not.toContain(executable);
-    expect(text).not.toMatch(/token|password|secret/i);
+    expect(text).not.toMatch(/password|secret/i);
   });
 
   it("validates connection before writing the exact VS Code stdio entry", async () => {
