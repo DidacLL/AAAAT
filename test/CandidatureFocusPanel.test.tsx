@@ -152,6 +152,24 @@ describe("Candidature Focus structural retrieval", () => {
     expect(screen.getByRole("region", { name: "Reminders" })).toBeInTheDocument();
   });
 
+  it("uses the existing Focus material preference to hide reminders without deleting them", async () => {
+    const user = userEvent.setup();
+    renderFocus();
+
+    const material = await screen.findByRole("group", { name: "Focus material" });
+    expect(screen.getByRole("region", { name: "Reminders" })).toBeInTheDocument();
+    await user.click(within(material).getByRole("checkbox", { name: "Reminders" }));
+
+    expect(update).toHaveBeenCalledWith({
+      sources: true,
+      concepts: true,
+      todos: false,
+      documents: true,
+    });
+    expect(screen.queryByRole("region", { name: "Reminders" })).not.toBeInTheDocument();
+    expect(removeTodo).not.toHaveBeenCalled();
+  });
+
   it("adds, checks, edits and removes reminders for the current candidature", async () => {
     const user = userEvent.setup();
     const prompt = vi.spyOn(window, "prompt");
