@@ -21,6 +21,7 @@ import { useContextualHandoffs } from "./contextual-handoffs";
 import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
 import {
   candidatureRecognitionCues,
+  candidatureSearchMatchCue,
   filterCandidatures,
   type ArchiveFilter,
 } from "./candidature-projections";
@@ -768,7 +769,13 @@ export function CandidaturesWorkspace({
             <p>No candidatures match these filters.</p>
           ) : (
             visibleRecords.map((record) => {
-              const recognitionCues = candidatureRecognitionCues(record, fields);
+              const searchMatchCue =
+                normalizedQuery && textMatches?.has(record.id)
+                  ? candidatureSearchMatchCue(record, fields, concepts, normalizedQuery)
+                  : null;
+              const recognitionCues = searchMatchCue
+                ? [searchMatchCue]
+                : candidatureRecognitionCues(record, fields);
               return (
                 <button
                   type="button"
@@ -1003,7 +1010,7 @@ export function CandidaturesWorkspace({
                               <option value="compact">Compact</option><option value="normal">Normal</option><option value="wide">Wide</option>
                             </select>
                           </label>
-                          <label>Recognition priority<input type="number" min="0" value={preferencesDraft.identityOrder ?? ""} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, identityOrder: event.target.value ? Number(event.target.value) : null })} /></label>
+                          <label>Recognition priority<input type="number" min="0" value={preferencesDraft.identityOrder ?? ""} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, identityOrder: event.target.checked ? Number(event.target.value) : null })} /></label>
                           <label><input type="checkbox" checked={preferencesDraft.aiDiscovery} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, aiDiscovery: event.target.checked })} /> AI may suggest this information from Sources</label>
                           <label>
                             When AI uses candidature context
