@@ -152,6 +152,9 @@ describe("AAAAT workspace state", () => {
     expect(await screen.findByRole("heading", { name: "Choose where AAAAT should keep your career workspace." })).toBeInTheDocument();
     expect(screen.getByText(/workspace data stays local/i)).toBeInTheDocument();
     expect(screen.getByText(/works without AI/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open existing workspace" })).toBeInTheDocument();
+    expect(screen.getByText("Restore a backup", { selector: "summary" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Create workspace" }));
     expect(choose).toHaveBeenCalledWith("create");
     expect(await screen.findByText(readyWorkspace.rootPath)).toBeInTheDocument();
@@ -169,11 +172,18 @@ describe("AAAAT workspace state", () => {
     expect(screen.queryByRole("button", { name: "Documents" })).not.toBeInTheDocument();
   });
 
-  it("restores a workspace directly from the first-run surface", async () => {
+  it("keeps backup restore secondary but usable from the first-run surface", async () => {
     restore.mockResolvedValueOnce({ status: "restored", workspace: restoredWorkspace });
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole("button", { name: "Restore workspace backup" }));
+
+    const restoreDisclosure = await screen.findByText("Restore a backup", { selector: "summary" });
+    expect(screen.getByRole("button", { name: "Create workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open existing workspace" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Choose backup to restore" })).not.toBeInTheDocument();
+
+    await user.click(restoreDisclosure);
+    await user.click(screen.getByRole("button", { name: "Choose backup to restore" }));
     expect(restore).toHaveBeenCalledTimes(1);
     expect(await screen.findByText(restoredWorkspace.rootPath)).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Primary work areas" })).toBeInTheDocument();
