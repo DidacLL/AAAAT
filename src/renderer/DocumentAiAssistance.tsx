@@ -73,7 +73,6 @@ export function DocumentAiAssistance({
 
   useEffect(() => {
     let active = true;
-    setRouteAvailable(null);
     void (async () => {
       try {
         const environment = await window.aaaat.setupEnvironment.current();
