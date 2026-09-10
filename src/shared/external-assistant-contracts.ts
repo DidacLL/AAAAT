@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import {
+  candidatureRuntimeValueSchema,
+  candidatureSourceDraftSchema,
+} from "./contracts";
 import { cvAssistantNotesSchema, cvAssistantTagsSchema } from "./cv-descriptor-contracts";
 
 const externalCareerContextValueSchema = z
@@ -24,6 +28,42 @@ export const externalCareerContextSchema = z
   .strict();
 
 export type ExternalCareerContext = z.infer<typeof externalCareerContextSchema>;
+
+export const externalCandidatureContextRequestSchema = z.object({}).strict();
+
+export const externalCandidatureInformationSchema = z
+  .object({
+    label: z.string().trim().min(1).max(120),
+    value: candidatureRuntimeValueSchema,
+  })
+  .strict();
+
+export const externalCandidatureContextSchema = z
+  .object({
+    information: z.array(externalCandidatureInformationSchema).max(64),
+  })
+  .strict()
+  .nullable();
+export type ExternalCandidatureContext = z.infer<typeof externalCandidatureContextSchema>;
+
+export const externalCandidatureSourceAddInputSchema = z
+  .object({ source: candidatureSourceDraftSchema })
+  .strict()
+  .refine(
+    ({ source }) => [source.title, source.url, source.sourceText].some((value) => value.trim().length > 0),
+    { path: ["source"], message: "Source must include a non-empty title, URL, or source text." },
+  );
+export type ExternalCandidatureSourceAddInput = z.infer<
+  typeof externalCandidatureSourceAddInputSchema
+>;
+
+export const externalCandidatureSourceAddResultSchema = z
+  .object({ retained: z.literal(true) })
+  .strict()
+  .nullable();
+export type ExternalCandidatureSourceAddResult = z.infer<
+  typeof externalCandidatureSourceAddResultSchema
+>;
 
 export const externalCvDescriptionsRequestSchema = z.object({}).strict();
 
