@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   rmSync,
   writeFileSync,
@@ -128,7 +129,16 @@ interface RunningApp {
   readonly page: Page;
 }
 
-async function startPackagedApp(userData: string, linuxHome?: string): Promise<RunningApp> {
+interface LinuxDocumentTools {
+  readonly rootPath: string;
+  readonly openLogPath: string;
+}
+
+async function startPackagedApp(
+  userData: string,
+  linuxHome?: string,
+  linuxDocumentTools?: LinuxDocumentTools,
+): Promise<RunningApp> {
   const port = await reservePort();
   const endpoint = "http://127.0.0.1:" + port;
   const child = spawn(
@@ -142,6 +152,12 @@ async function startPackagedApp(userData: string, linuxHome?: string): Promise<R
               GTK_USE_PORTAL: "0",
               ...(linuxHome
                 ? { HOME: linuxHome, XDG_CONFIG_HOME: path.join(linuxHome, ".config") }
+                : {}),
+              ...(linuxDocumentTools
+                ? {
+                    PATH: `${linuxDocumentTools.rootPath}${path.delimiter}${process.env.PATH ?? ""}`,
+                    AAAAT_TEST_OUTPUT_OPEN_LOG: linuxDocumentTools.openLogPath,
+                  }
                 : {}),
             }
           : process.env,
@@ -182,6 +198,33 @@ function prepareLinuxChooserHome(workspacePath: string): string {
     "utf8",
   );
   return homePath;
+}
+
+function prepareLinuxDocumentTools(): LinuxDocumentTools {
+  const rootPath = mkdtempSync(path.join(tmpdir(), "aaaat-document-tools-"));
+  const openLogPath = path.join(rootPath, "opened-output.log");
+  writeFileSync(
+    path.join(rootPath, "latexmk"),
+    [
+      "#!/bin/sh",
+      "set -eu",
+      "mkdir -p build",
+      "printf '%s\\n' '%PDF-1.4' '%%EOF' > build/main.pdf",
+      "",
+    ].join("\n"),
+    { encoding: "utf8", mode: 0o755 },
+  );
+  writeFileSync(
+    path.join(rootPath, "xdg-open"),
+    [
+      "#!/bin/sh",
+      "set -eu",
+      "printf '%s\\n' \"$1\" >> \"$AAAAT_TEST_OUTPUT_OPEN_LOG\"",
+      "",
+    ].join("\n"),
+    { encoding: "utf8", mode: 0o755 },
+  );
+  return { rootPath, openLogPath };
 }
 
 function chooseLinuxDirectory(): void {
@@ -328,7 +371,33 @@ async function proveCandidatureHierarchyAtWindowSize(
   await assertSelectedCandidatureHierarchy(page, width, height);
 }
 
-async function proveDocumentWorkspace(page: Page): Promise<void> {
+function packagedDocumentId(workspacePath: string): string {
+  const database = new DatabaseSync(path.join(workspacePath, "workspace.sqlite"), { readOnly: true });
+  try {
+    const row = database
+      .prepare("SELECT id FROM documents WHERE title = ?")
+      .get("Packaged CV") as { id: string } | undefined;
+    if (!row) throw new Error("Packaged document was not persisted");
+    return row.id;
+  } finally {
+    database.close();
+  }
+}
+
+async function expectLastOpenedOutput(openLogPath: string, expectedOutputPath: string): Promise<void> {
+  await expect
+    .poll(() => {
+      if (!existsSync(openLogPath)) return "";
+      return readFileSync(openLogPath, "utf8").trim().split(/\r?\n/).at(-1) ?? "";
+    })
+    .toBe(expectedOutputPath);
+}
+
+async function proveDocumentWorkspace(
+  page: Page,
+  workspacePath: string,
+  openLogPath: string,
+): Promise<void> {
   const primary = page.getByRole("navigation", { name: "Primary work areas" });
   await primary.getByRole("button", { name: "CVs & letters" }).click();
 
@@ -351,7 +420,12 @@ async function proveDocumentWorkspace(page: Page): Promise<void> {
   await expect(local.getByRole("tab")).toHaveCount(3);
   await expect(local.getByRole("tab", { name: "Content" })).toBeVisible();
   await expect(local.getByRole("tab", { name: "Professional information" })).toBeVisible();
-  await expect(local.getByRole("tab", { name: "Output & ownership" })).toBeVisible();
+  await expect(local.getByRole("tab", { name: "Output" })).toBeVisible();
+
+  const content = page.getByRole("tabpanel", { name: "Document content" });
+  await content.getByLabel("Language").fill("en");
+  await content.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Document changes saved.")).toBeVisible();
 
   const localGeometry = await local.evaluate((element) => ({
     clientWidth: element.clientWidth,
@@ -369,11 +443,25 @@ async function proveDocumentWorkspace(page: Page): Promise<void> {
 
   await local.getByRole("tab", { name: "Professional information" }).click();
   await expect(page.getByRole("tabpanel", { name: "Professional information in this document" })).toBeVisible();
-  await local.getByRole("tab", { name: "Output & ownership" }).click();
-  await expect(page.getByRole("tabpanel", { name: "Document output and ownership" })).toBeVisible();
-  await local.getByRole("tab", { name: "Content" }).click();
-  await expect(page.getByRole("tabpanel", { name: "Document content" })).toBeVisible();
+  await local.getByRole("tab", { name: "Output" }).click();
+  await expect(page.getByRole("tabpanel", { name: "Document output" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Rendered PDF result" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Render PDF" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AI-visible CV description" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Retained application artifacts" })).toHaveCount(0);
 
+  const documentId = packagedDocumentId(workspacePath);
+  const expectedOutputPath = path.join(workspacePath, "documents", documentId, "build", "main.pdf");
+  await expect(page.getByText(expectedOutputPath)).not.toBeVisible();
+  await page.getByRole("button", { name: "Render PDF" }).click();
+  await expect(page.getByText("PDF rendered successfully. Open the result below.")).toBeVisible();
+  expect(existsSync(expectedOutputPath)).toBe(true);
+  await page.getByRole("button", { name: "Open PDF" }).click();
+  await expectLastOpenedOutput(openLogPath, expectedOutputPath);
+  console.log("[packaged documents] window=720x600 create-edit-render-open=true");
+
+  await local.getByRole("tab", { name: "Content" }).click();
+  await expect(content).toBeVisible();
   await page.getByRole("button", { name: "Back to CVs & letters" }).click();
   await expect(collection).toBeVisible();
   await expect(local).not.toBeVisible();
@@ -383,13 +471,17 @@ async function proveDocumentWorkspace(page: Page): Promise<void> {
   await expect(collection).toBeVisible();
   await expect(local).toBeVisible();
   await expect(page.getByRole("heading", { name: "Packaged CV" })).toBeVisible();
+  await local.getByRole("tab", { name: "Output" }).click();
+  await expect(page.getByRole("button", { name: "Open PDF" })).toBeVisible();
+  await page.getByRole("button", { name: "Open PDF" }).click();
+  await expectLastOpenedOutput(openLogPath, expectedOutputPath);
   const wideGeometry = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
   }));
   expect(wideGeometry.scrollWidth).toBeLessThanOrEqual(wideGeometry.clientWidth);
   console.log(
-    `[packaged documents] window=1200x800 collection-and-selected=true horizontal-overflow=${String(wideGeometry.scrollWidth - wideGeometry.clientWidth)}`,
+    `[packaged documents] window=1200x800 result-access=true horizontal-overflow=${String(wideGeometry.scrollWidth - wideGeometry.clientWidth)}`,
   );
 }
 
@@ -420,11 +512,12 @@ test("packaged desktop preserves security gates and required bounded capabilitie
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
   const linuxHome = process.platform === "linux" ? prepareLinuxChooserHome(ownedWorkspace) : undefined;
+  const linuxDocumentTools = process.platform === "linux" ? prepareLinuxDocumentTools() : undefined;
   expect(existsSync(executablePath)).toBe(true);
   let running: RunningApp | undefined;
 
   try {
-    running = await startPackagedApp(isolatedUserData, linuxHome);
+    running = await startPackagedApp(isolatedUserData, linuxHome, linuxDocumentTools);
     await expect(running.page).toHaveTitle("AAAAT");
     await expect(
       running.page.getByRole("heading", {
@@ -443,6 +536,7 @@ test("packaged desktop preserves security gates and required bounded capabilitie
       profileCurrent: typeof window.aaaat.profile.current,
       documentList: typeof window.aaaat.documents.list,
       documentRender: typeof window.aaaat.documents.render,
+      documentOutputOpen: typeof window.aaaat.documentOutput.open,
       candidatureList: typeof window.aaaat.candidatures.list,
       candidatureCreate: typeof window.aaaat.candidatures.create,
       candidatureFilter: typeof window.aaaat.candidatures.filter,
@@ -562,18 +656,22 @@ test("packaged desktop preserves security gates and required bounded capabilitie
       commandDatabase.close();
     }
 
-    running = await startPackagedApp(isolatedUserData, linuxHome);
+    running = await startPackagedApp(isolatedUserData, linuxHome, linuxDocumentTools);
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
     await proveCandidatureHierarchyAtWindowSize(running.page, 1200, 800);
     await proveCandidatureHierarchyAtWindowSize(running.page, 720, 600);
-    await proveDocumentWorkspace(running.page);
+    if (!linuxDocumentTools) throw new Error("Linux document tools are required for packaged evidence");
+    await proveDocumentWorkspace(running.page, ownedWorkspace, linuxDocumentTools.openLogPath);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     rmSync(ownedWorkspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     if (linuxHome) {
       rmSync(linuxHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }
+    if (linuxDocumentTools) {
+      rmSync(linuxDocumentTools.rootPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   }
 });
