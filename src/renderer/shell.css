@@ -254,8 +254,8 @@
 }
 
 .hero-logo {
-  width: clamp(128px, 18vw, 174px);
-  margin-bottom: 12px;
+  width: clamp(112px, 16vw, 160px);
+  margin-bottom: 10px;
 }
 
 .tagline {
@@ -263,12 +263,12 @@
 }
 
 .accent-line {
-  margin: 18px 0;
+  margin: 16px 0;
 }
 
 .empty-state h1 {
-  margin-bottom: 18px;
-  font-size: clamp(26px, 2.4vw, 34px);
+  margin-bottom: 16px;
+  font-size: clamp(25px, 2.4vw, 34px);
 }
 
 .workspace-actions {
@@ -282,6 +282,55 @@
   min-width: 220px;
   padding: 13px 20px;
   font-size: 17px;
+}
+
+.first-run-recovery {
+  width: min(100%, 540px);
+  margin-top: 18px;
+  color: var(--muted-ink);
+  text-align: left;
+}
+
+.first-run-recovery > summary {
+  width: fit-content;
+  margin: 0 auto;
+  padding: 7px 10px;
+  border-radius: 7px;
+  color: var(--muted-ink);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.first-run-recovery > summary:hover,
+.first-run-recovery > summary:focus-visible {
+  color: var(--ink);
+  background: #f4eee5;
+}
+
+.first-run-recovery > summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.first-run-recovery-body {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.first-run-recovery-body p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.first-run-recovery-body .secondary-action {
+  min-width: 0;
+  padding: 9px 14px;
+  font-size: 14px;
 }
 
 @media (max-width: 840px) {
@@ -342,6 +391,28 @@
 
   .settings-intention-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .empty-state {
+    padding-top: 16px;
+  }
+
+  .hero-logo {
+    width: 108px;
+    margin-bottom: 6px;
+  }
+
+  .accent-line {
+    margin: 12px 0;
+  }
+
+  .empty-state h1 {
+    margin-bottom: 12px;
+    font-size: 25px;
+  }
+
+  .first-run-recovery {
+    margin-top: 12px;
   }
 }
 
