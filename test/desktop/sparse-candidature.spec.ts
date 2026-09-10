@@ -268,6 +268,7 @@ test("packaged first-use candidature loop remains information-first at normal an
     "Recruiter asks whether I can start in October and mentions a Madrid-based role.";
   const secondMaterial =
     "Nimbus Labs is hiring a platform engineer in Barcelona with hybrid work.";
+  const secondTitle = "Nimbus platform role";
   let running: RunningApp | undefined;
 
   try {
@@ -317,6 +318,7 @@ test("packaged first-use candidature loop remains information-first at normal an
     await expect(information.getByRole("heading", { name: "Availability" })).toBeVisible();
 
     await running.page.getByTestId("new-candidature-capture").click();
+    await running.page.getByLabel(/Short title/).fill(secondTitle);
     await running.page.getByLabel("What you have").fill(secondMaterial);
     await running.page.getByRole("button", { name: "Save candidature" }).click();
 
@@ -324,8 +326,9 @@ test("packaged first-use candidature loop remains information-first at normal an
     await expect(collection.locator(":scope > button")).toHaveCount(2);
     const firstCandidature = collection.locator(":scope > button").filter({ hasText: "Availability" });
     await expect(firstCandidature).toContainText("October or November");
-    const secondCandidature = collection.locator(":scope > button").filter({ hasText: secondMaterial });
+    const secondCandidature = collection.locator(":scope > button").filter({ hasText: secondTitle });
     await expect(secondCandidature).toContainText("Source");
+    await expect(secondCandidature).toContainText(secondMaterial);
 
     await firstCandidature.click();
     await selectSection(running.page, "Information");
