@@ -220,8 +220,8 @@ describe("manual CVs and letters workspace", () => {
     expect(screen.queryByRole("button", { name: "Open PDF" })).not.toBeInTheDocument();
     expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).not.toBeVisible();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).not.toBeVisible();
-    expect(screen.queryByRole("heading", { name: "AI-visible CV description" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "External CV content access" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "AI-visible CV description" })).not.toBeVisible();
+    expect(screen.getByRole("heading", { name: "External CV content access" })).not.toBeVisible();
     expect(screen.queryByRole("heading", { name: "Retained application artifacts" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Render PDF" }));
