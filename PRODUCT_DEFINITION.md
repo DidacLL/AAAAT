@@ -184,6 +184,12 @@ No one protocol defines AAAAT.
 
 External intelligence must not receive arbitrary database, filesystem, shell or process authority merely for convenience.
 
+Each external capability is scoped to a named task. AAAAT should construct a formatted payload containing the information that task actually needs, omit unrelated information, and anonymize or tokenize values where identity is unnecessary or the user's privacy settings require it. A company/opportunity task, a user-fit task and a document task may therefore receive different information. Permission for one task does not imply permission for another.
+
+This is not a fixed developer allowlist. Future AAAAT versions may let users define useful tasks and task payloads. Those tasks should still execute through bounded formatted capabilities rather than generic CRUD, arbitrary corpus access or database-shaped APIs.
+
+Broad private experiences whose purpose is to inspect AAAAT itself—such as seeing all candidatures together or inspecting complete private user information—belong in the AAAAT application. An external AI may direct the user to AAAAT, or a bounded capability may open it when supported, instead of recreating those experiences by exporting the underlying private corpus.
+
 ## AI should reduce work, not create another workflow
 
 Good examples of optional intelligence include:
@@ -396,6 +402,8 @@ allowed to this AI operation
 
 Hiding something from AI does not delete or hide it locally. Hiding it from Focus does not imply anything about AI access.
 
+External disclosure is evaluated per operation: only information justified by that task should leave AAAAT, in the least identifying useful form. Data that is legitimate for one operation may remain unavailable to another. Task-level minimization and field-level privacy controls work together; neither becomes blanket authority over the user's local information.
+
 Privacy mechanisms should be understandable but must not dominate ordinary UX.
 
 ## Research and enrichment
@@ -593,6 +601,7 @@ When ambiguity arises, recover the underlying user intention rather than relying
 - “User View” refers, in its original sense, to an optional configurable modular workspace.
 - “Research” means useful external enrichment where available; it does not require a dedicated AAAAT research subsystem.
 - “Manual operation” means full operation without AI; it does not mean manual typing should be preferred when reliable automation can reduce effort.
+- “External AI access” means task-scoped formatted capabilities with operation-specific minimization; not generic access to AAAAT's private local corpus.
 
 ## Product north star
 

@@ -5,6 +5,8 @@ import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/s
 
 import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
 import {
+  externalCandidatureSourceAddInputSchema,
+  externalCandidatureSourceAddResultSchema,
   externalCareerContextRequestSchema,
   externalCareerContextSchema,
   externalCvContentRequestSchema,
@@ -13,10 +15,16 @@ import {
   externalCvDescriptionsSchema,
   externalCvRenderRequestSchema,
   externalCvRenderResultSchema,
+  externalOpportunityResearchContextRequestSchema,
+  externalOpportunityResearchContextSchema,
   type ExternalCareerContext,
   type ExternalCvContent,
   type ExternalCvDescriptions,
 } from "../shared/external-assistant-contracts";
+import {
+  addSourceToSelectedOpportunityResearchCandidature,
+  selectedOpportunityResearchContext,
+} from "./candidature-opportunity-research-access-service";
 import { createCandidature } from "./candidature-service";
 import { getCareerContext } from "./career-context-service";
 import {
@@ -29,6 +37,8 @@ import { openWorkspace } from "./workspace";
 const mcpFlag = "--mcp";
 const workspaceFlag = "--workspace";
 export const candidatureCreateToolName = "candidature_create";
+export const opportunityResearchContextReadToolName = "opportunity_research_context_read";
+export const candidatureSourceAddToolName = "candidature_source_add";
 export const careerContextReadToolName = "career_context_read";
 export const cvDescriptionsReadToolName = "cv_descriptions_read";
 export const cvContentReadToolName = "cv_content_read";
@@ -119,6 +129,53 @@ function createServerForWorkspace(rootPath: string): McpServer {
               capability: "candidature.create",
               created: true,
             }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    opportunityResearchContextReadToolName,
+    {
+      description:
+        "Read only the AI-permitted retained information of the single candidature the user locally selected for the external opportunity-research task. Returns null when none is selected. Accepts no candidature, field, query, path, or corpus selector and does not expose Sources, other candidatures, professional information, Career preferences, documents, Concepts, ToDos, activity, IDs, or paths.",
+      inputSchema: externalOpportunityResearchContextRequestSchema,
+    },
+    async (input) => {
+      externalOpportunityResearchContextRequestSchema.parse(input);
+      const context = externalOpportunityResearchContextSchema.parse(
+        selectedOpportunityResearchContext(rootPath),
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(context),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    candidatureSourceAddToolName,
+    {
+      description:
+        "Retain one Source on the single candidature the user locally selected for the external opportunity-research task. Accepts only Source material, no candidature selector or local ID, and returns only a bounded acknowledgement or null when no candidature is selected.",
+      inputSchema: externalCandidatureSourceAddInputSchema,
+    },
+    async (input) => {
+      const parsed = externalCandidatureSourceAddInputSchema.parse(input);
+      const retained = addSourceToSelectedOpportunityResearchCandidature(rootPath, parsed);
+      const result = externalCandidatureSourceAddResultSchema.parse(
+        retained ? { retained: true } : null,
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(result),
           },
         ],
       };

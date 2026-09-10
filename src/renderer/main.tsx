@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import type { AiConnectionDesktopApi } from "../shared/ai-connection-contracts";
 import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
+import type { CandidatureOpportunityResearchAccessDesktopApi } from "../shared/candidature-opportunity-research-access-contracts";
 import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
 import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-contracts";
@@ -34,6 +35,7 @@ const previewUnavailable = async (): Promise<never> => {
 function createPreviewApi(): DesktopApi &
   AiConnectionDesktopApi &
   ArtifactDesktopApi &
+  CandidatureOpportunityResearchAccessDesktopApi &
   CandidatureSearchDesktopApi &
   CvContentAccessDesktopApi &
   CvDescriptorDesktopApi &
@@ -115,6 +117,10 @@ function createPreviewApi(): DesktopApi &
       createConcept: previewUnavailable,
       updateConcept: previewUnavailable,
       setConcepts: previewUnavailable,
+    }),
+    candidatureOpportunityResearchAccess: Object.freeze({
+      current: previewUnavailable,
+      update: previewUnavailable,
     }),
     candidatureSearch: Object.freeze({ search: async () => [] }),
     aiConnections: Object.freeze({

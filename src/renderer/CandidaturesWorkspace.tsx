@@ -14,6 +14,7 @@ import type {
 import { OpportunityReviewPanel } from "./OpportunityReviewPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel, type FocusDestination } from "./CandidatureFocusPanel";
+import { CandidatureOpportunityResearchAccessPanel } from "./CandidatureOpportunityResearchAccessPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { HistoricalFieldDiscoveryPanel } from "./HistoricalFieldDiscoveryPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
@@ -181,6 +182,8 @@ export function CandidaturesWorkspace({
     editedField !== undefined &&
     preferencesDraft !== null &&
     JSON.stringify(preferencesDraft) !== JSON.stringify(preferenceUpdate(editedField));
+  const taskContextDirty =
+    fieldDefinitionDirty || fieldPreferencesDirty || valueEditorDirty.size > 0;
   const hasUnsavedChanges =
     sourceDirty ||
     conceptSelectionDirty ||
@@ -1108,6 +1111,11 @@ export function CandidaturesWorkspace({
                 <div className="optional-ai-content">
                   <OpportunityReviewPanel key={`review-${selected.id}`} record={selected} />
                   <VariantRecommendationPanel key={`variant-${selected.id}`} record={selected} />
+                  <CandidatureOpportunityResearchAccessPanel
+                    key={`external-research-${selected.id}`}
+                    candidatureId={selected.id}
+                    contextDirty={taskContextDirty}
+                  />
                 </div>
               </details>
             </>

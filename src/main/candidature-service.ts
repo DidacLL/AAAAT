@@ -279,6 +279,20 @@ export function updateCandidature(
     const now = new Date().toISOString();
     transact(database, () => {
       readCandidatureInDatabase(database, update.id);
+      const access = database
+        .prepare("SELECT opportunity_research_selected AS selected FROM candidatures WHERE id = ?")
+        .get(update.id) as unknown as { readonly selected: number };
+      if (update.archived && access.selected === 1) {
+        database
+          .prepare("UPDATE candidatures SET opportunity_research_selected = 0 WHERE id = ?")
+          .run(update.id);
+        recordActivity(
+          database,
+          update.id,
+          "candidature.opportunity-research-access.revoke",
+          now,
+        );
+      }
       database
         .prepare("UPDATE candidatures SET archived = ?, updated_at = ? WHERE id = ?")
         .run(update.archived ? 1 : 0, now, update.id);
@@ -298,36 +312,44 @@ export function listCandidatureSources(
   });
 }
 
+export function addCandidatureSourceInDatabase(
+  database: DatabaseSync,
+  rawInput: CandidatureSourceInput,
+  now: string,
+): CandidatureSource[] {
+  const source = candidatureSourceInputSchema.parse(rawInput);
+  readCandidatureInDatabase(database, source.candidatureId);
+  database
+    .prepare(
+      `INSERT INTO candidature_sources(
+         id, candidature_id, kind, title, url, source_text, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      randomUUID(),
+      source.candidatureId,
+      source.kind,
+      source.title,
+      source.url,
+      source.sourceText,
+      now,
+      now,
+    );
+  touch(database, source.candidatureId, now);
+  recordActivity(database, source.candidatureId, "candidature.source-added", now);
+  return readSources(database, source.candidatureId);
+}
+
 export function addCandidatureSource(
   rootPath: string,
   rawInput: CandidatureSourceInput,
 ): CandidatureSource[] {
   const source = candidatureSourceInputSchema.parse(rawInput);
-  return withWorkspaceDatabase(rootPath, (database) => {
-    const now = new Date().toISOString();
-    transact(database, () => {
-      readCandidatureInDatabase(database, source.candidatureId);
-      database
-        .prepare(
-          `INSERT INTO candidature_sources(
-             id, candidature_id, kind, title, url, source_text, created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          randomUUID(),
-          source.candidatureId,
-          source.kind,
-          source.title,
-          source.url,
-          source.sourceText,
-          now,
-          now,
-        );
-      touch(database, source.candidatureId, now);
-      recordActivity(database, source.candidatureId, "candidature.source-added", now);
-    });
-    return readSources(database, source.candidatureId);
-  });
+  return withWorkspaceDatabase(rootPath, (database) =>
+    transact(database, () =>
+      addCandidatureSourceInDatabase(database, source, new Date().toISOString()),
+    ),
+  );
 }
 
 export function updateCandidatureSource(
