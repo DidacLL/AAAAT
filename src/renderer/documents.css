@@ -165,6 +165,22 @@
   margin-bottom: 14px;
 }
 
+.document-result-card {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fffdf9;
+}
+
+.document-result-card .section-heading {
+  margin-bottom: 10px;
+}
+
+.document-result-ready {
+  margin: 0;
+  color: var(--muted-ink);
+}
+
 .document-paths {
   display: grid;
   gap: 8px;
@@ -242,6 +258,10 @@
 .document-advanced summary {
   cursor: pointer;
   font-weight: 700;
+}
+
+.document-advanced-actions {
+  margin-top: 14px;
 }
 
 .document-empty {
