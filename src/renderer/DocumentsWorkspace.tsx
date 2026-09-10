@@ -12,6 +12,7 @@ import type {
 import { CombinedDocumentExportPanel } from "./CombinedDocumentExportPanel";
 import { CvAssistantDescriptorPanel } from "./CvAssistantDescriptorPanel";
 import { CvExternalContentAccessPanel } from "./CvExternalContentAccessPanel";
+import { DocumentAiAssistance } from "./DocumentAiAssistance";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import "./documents.css";
 
@@ -63,6 +64,7 @@ export function DocumentsWorkspace({
   const [artifacts, setArtifacts] = useState<ApplicationArtifactRecord[]>([]);
   const [capturingArtifact, setCapturingArtifact] = useState(false);
   const [descriptorDirty, setDescriptorDirty] = useState(false);
+  const [assistanceDirty, setAssistanceDirty] = useState(false);
   const [documentView, setDocumentView] = useState<DocumentView>("content");
   const [compactDocumentOpen, setCompactDocumentOpen] = useState(false);
   const [renderedResultId, setRenderedResultId] = useState<string | null>(null);
@@ -117,9 +119,9 @@ export function DocumentsWorkspace({
   const newDocumentDirty = newKind !== "cv" || newTitle.length > 0 || newVariantId !== "";
 
   useEffect(() => {
-    onDirtyChange?.(editorDirty || newDocumentDirty || descriptorDirty);
+    onDirtyChange?.(editorDirty || newDocumentDirty || descriptorDirty || assistanceDirty);
     return () => onDirtyChange?.(false);
-  }, [descriptorDirty, editorDirty, newDocumentDirty, onDirtyChange]);
+  }, [assistanceDirty, descriptorDirty, editorDirty, newDocumentDirty, onDirtyChange]);
 
   const refreshResolved = async (document: DocumentRecord) => {
     const [basis, resolved] = await Promise.all([
@@ -202,6 +204,7 @@ export function DocumentsWorkspace({
         }
         setDocuments(currentDocuments);
         setSelectedId(requested.id);
+        setAssistanceDirty(false);
         fillEditor(requested);
         setDocumentView("content");
         setCompactDocumentOpen(true);
@@ -237,7 +240,7 @@ export function DocumentsWorkspace({
   const create = async (event: FormEvent) => {
     event.preventDefault();
     if (
-      (editorDirty || descriptorDirty) &&
+      (editorDirty || descriptorDirty || assistanceDirty) &&
       !window.confirm("Discard unsaved document edits and create a new document?")
     ) {
       return;
@@ -263,6 +266,7 @@ export function DocumentsWorkspace({
         );
       }
       setNewTitle("");
+      setAssistanceDirty(false);
       await acceptSavedDocument(created);
       setDocumentView("content");
       setCompactDocumentOpen(true);
@@ -275,27 +279,48 @@ export function DocumentsWorkspace({
     }
   };
 
+  const persistCurrentDocument = async (): Promise<DocumentRecord | null> => {
+    if (!selected) return null;
+    const saved = await window.aaaat.documents.update({
+      id: selected.id,
+      title: title.trim(),
+      language: optional(language),
+      engine: "pdflatex",
+      recipient: optional(recipient),
+      subject: optional(subject),
+      bodyParagraphs: paragraphs(body),
+      closing: optional(closing),
+    });
+    await acceptSavedDocument(saved);
+    return saved;
+  };
+
   const save = async (event: FormEvent) => {
     event.preventDefault();
     if (!selected) return;
     setError(null);
     setNotice(null);
     try {
-      await acceptSavedDocument(
-        await window.aaaat.documents.update({
-          id: selected.id,
-          title: title.trim(),
-          language: optional(language),
-          engine: "pdflatex",
-          recipient: optional(recipient),
-          subject: optional(subject),
-          bodyParagraphs: paragraphs(body),
-          closing: optional(closing),
-        }),
-      );
+      await persistCurrentDocument();
       setNotice("Document changes saved.");
     } catch {
       setError("Check the document fields and try again.");
+    }
+  };
+
+  const prepareCurrentDocumentForAi = async (): Promise<DocumentRecord | null> => {
+    if (!selected) return null;
+    if (!editorDirty) return selected;
+    if (!window.confirm("Save current document changes before using AI assistance?")) return null;
+    setError(null);
+    setNotice(null);
+    try {
+      const saved = await persistCurrentDocument();
+      if (saved) setNotice("Document changes saved before AI assistance.");
+      return saved;
+    } catch {
+      setError("AAAAT could not save the current document for AI assistance.");
+      return null;
     }
   };
 
@@ -305,12 +330,13 @@ export function DocumentsWorkspace({
       return;
     }
     if (
-      (editorDirty || descriptorDirty) &&
+      (editorDirty || descriptorDirty || assistanceDirty) &&
       !window.confirm("Discard unsaved document edits and switch documents?")
     ) {
       return;
     }
     setSelectedId(document.id);
+    setAssistanceDirty(false);
     fillEditor(document);
     setDocumentView("content");
     setCompactDocumentOpen(true);
@@ -327,7 +353,7 @@ export function DocumentsWorkspace({
   const remove = async () => {
     if (!selected) return;
     const confirmed = window.confirm(
-      editorDirty || descriptorDirty
+      editorDirty || descriptorDirty || assistanceDirty
         ? "Remove this document and discard its unsaved edits?"
         : "Remove this document?",
     );
@@ -339,6 +365,7 @@ export function DocumentsWorkspace({
       setDocuments(next);
       const first = next[0] ?? null;
       setSelectedId(first?.id ?? null);
+      setAssistanceDirty(false);
       setBaseItems([]);
       setResolvedCount(0);
       setDocumentView("content");
@@ -616,7 +643,7 @@ export function DocumentsWorkspace({
                 <p className="eyebrow">{selected.kind === "cv" ? "CV" : "Cover letter"}</p>
                 <h2>{selected.title}</h2>
               </div>
-              <span>{editorDirty || descriptorDirty ? "Unsaved changes" : "Working document"}</span>
+              <span>{editorDirty || descriptorDirty || assistanceDirty ? "Unsaved changes" : "Working document"}</span>
             </div>
 
             <div className="document-local-nav" role="tablist" aria-label="Document work">
@@ -690,6 +717,19 @@ export function DocumentsWorkspace({
                   <button className="compact-primary" type="submit">Save changes</button>
                 </div>
               </form>
+
+              <DocumentAiAssistance
+                key={`${selected.id}:${contextCandidature?.id ?? "standalone"}`}
+                document={selected}
+                candidatures={candidatures}
+                contextCandidature={contextCandidature}
+                profileItems={profile.items}
+                documentDirty={editorDirty}
+                onPrepareCurrentDocument={prepareCurrentDocumentForAi}
+                onDiscardCurrentDocumentEdits={() => fillEditor(selected)}
+                onDocumentApplied={acceptSavedDocument}
+                onDirtyChange={setAssistanceDirty}
+              />
             </section>
 
             <section
