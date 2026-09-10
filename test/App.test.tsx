@@ -180,9 +180,12 @@ describe("AAAAT workspace state", () => {
     const restoreDisclosure = await screen.findByText("Restore a backup", { selector: "summary" });
     expect(screen.getByRole("button", { name: "Create workspace" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open existing workspace" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Choose backup to restore" })).not.toBeInTheDocument();
+    const restoreDetails = restoreDisclosure.closest("details");
+    expect(restoreDetails).not.toBeNull();
+    expect(restoreDetails).not.toHaveAttribute("open");
 
     await user.click(restoreDisclosure);
+    expect(restoreDetails).toHaveAttribute("open");
     await user.click(screen.getByRole("button", { name: "Choose backup to restore" }));
     expect(restore).toHaveBeenCalledTimes(1);
     expect(await screen.findByText(restoredWorkspace.rootPath)).toBeInTheDocument();
