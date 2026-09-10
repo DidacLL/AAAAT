@@ -75,7 +75,10 @@ describe("WorkspaceRecoveryPanel", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Back up workspace" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Restore workspace backup" }));
+    const restoreDisclosure = screen.getByText("Restore a backup", { selector: "summary" });
+    expect(restoreDisclosure.closest("details")).not.toHaveAttribute("open");
+    await user.click(restoreDisclosure);
+    await user.click(screen.getByRole("button", { name: "Choose backup to restore" }));
     expect(restore).toHaveBeenCalledTimes(1);
     expect(onRestored).not.toHaveBeenCalled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
