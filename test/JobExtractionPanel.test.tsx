@@ -59,6 +59,7 @@ const setFieldValue = vi.fn();
 const onAccepted = vi.fn();
 const onDismiss = vi.fn();
 const openSettingsFor = vi.fn();
+const onDirtyChange = vi.fn();
 
 const handoffs: ContextualHandoffApi = {
   documentHandoff: null,
@@ -80,12 +81,13 @@ function renderPanel() {
         source={source}
         onAccepted={onAccepted}
         onDismiss={onDismiss}
+        onDirtyChange={onDirtyChange}
       />
     </ContextualHandoffContext.Provider>,
   );
 }
 
-describe("saved Source AI review", () => {
+describe("saved Source extraction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listFields.mockResolvedValue([field, contactField]);
@@ -119,23 +121,25 @@ describe("saved Source AI review", () => {
 
   afterEach(() => cleanup());
 
-  it("keeps the Source first, discloses only ordinary remote connection detail, and retains only selected proposals", async () => {
+  it("presents configured extraction immediately after save, discloses the exact Source, and retains only selected proposals", async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Review source with AI" });
+    await screen.findByRole("heading", { name: "Extract useful information?" });
+    expect(screen.queryByRole("button", { name: "Review source with AI" })).not.toBeInTheDocument();
     expect(extractJob).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
     expect(screen.getByText("Remote review endpoint")).toBeInTheDocument();
     expect(screen.getByText("Remote HTTPS")).toBeInTheDocument();
     expect(screen.queryByText("https://review.example.test/v1")).not.toBeInTheDocument();
     expect(screen.queryByText("review-model")).not.toBeInTheDocument();
     expect(screen.getByText(source.sourceText)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Send selected Source to AI" }));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+
+    await user.click(screen.getByRole("button", { name: "Extract useful information" }));
 
     expect(extractJob).toHaveBeenCalledWith(source);
     await screen.findByRole("heading", { name: "Proposed information" });
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
     await user.click(screen.getByRole("checkbox", { name: /Recruiter contact: recruiter@example/ }));
     await user.click(screen.getByRole("button", { name: "Keep selected information" }));
 
@@ -157,12 +161,9 @@ describe("saved Source AI review", () => {
         defaultForOperations: ["job_extraction"],
       },
     ]);
-    const user = userEvent.setup();
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Review source with AI" });
-    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
-
+    await screen.findByRole("heading", { name: "Extract useful information?" });
     expect(screen.getByText("Laptop model")).toBeInTheDocument();
     expect(screen.getByText("Local on this computer")).toBeInTheDocument();
     expect(screen.queryByText("http://127.0.0.1:11434/v1")).not.toBeInTheDocument();
@@ -189,38 +190,38 @@ describe("saved Source AI review", () => {
         defaultForOperations: [],
       },
     ]);
-    const user = userEvent.setup();
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Review source with AI" });
-    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
-
+    await screen.findByRole("heading", { name: "Extract useful information?" });
     expect(screen.getByText("Selected general default")).toBeInTheDocument();
     expect(screen.queryByText("Validated alternative")).not.toBeInTheDocument();
   });
 
-  it("allows a saved Source to remain unchanged after dismissal or an AI failure", async () => {
+  it("keeps the saved Source unchanged when the user keeps it without AI or extraction fails", async () => {
     const user = userEvent.setup();
     renderPanel();
-    await screen.findByRole("heading", { name: "Review source with AI" });
-    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
+    await screen.findByRole("heading", { name: "Extract useful information?" });
     await user.click(screen.getByRole("button", { name: "Keep without AI" }));
 
     expect(extractJob).not.toHaveBeenCalled();
-    expect(onDismiss).not.toHaveBeenCalled();
+    expect(onDismiss).toHaveBeenCalledOnce();
+    expect(setFieldValue).not.toHaveBeenCalled();
 
+    onDismiss.mockClear();
     extractJob.mockRejectedValueOnce(new Error("The configured endpoint did not respond."));
-    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
-    await user.click(screen.getByRole("button", { name: "Send selected Source to AI" }));
+    renderPanel();
+    await screen.findAllByRole("heading", { name: "Extract useful information?" });
+    const buttons = screen.getAllByRole("button", { name: "Extract useful information" });
+    await user.click(buttons.at(-1)!);
 
     expect(await screen.findByText("The configured endpoint did not respond.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Open AI connections settings" }));
+    await user.click(screen.getAllByRole("button", { name: "Open AI connections settings" }).at(-1)!);
     expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
     expect(setFieldValue).not.toHaveBeenCalled();
     expect(onAccepted).not.toHaveBeenCalled();
   });
 
-  it("does not show a generic AI form when the saved Source has no text", () => {
+  it("shows no extraction ceremony when the Source has no text", () => {
     render(
       <JobExtractionPanel
         candidatureId={candidatureId}
@@ -229,10 +230,10 @@ describe("saved Source AI review", () => {
         onDismiss={onDismiss}
       />,
     );
-    expect(screen.queryByRole("heading", { name: "Review source with AI" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Extract useful information?" })).not.toBeInTheDocument();
   });
 
-  it("does not scan validated alternatives when the selected route is invalid", async () => {
+  it("shows no extraction ceremony when the selected route is not validated", async () => {
     listConnections.mockResolvedValueOnce([
       {
         id: "00000000-0000-4000-8000-000000000907",
@@ -256,7 +257,7 @@ describe("saved Source AI review", () => {
     renderPanel();
 
     await vi.waitFor(() => {
-      expect(screen.queryByRole("heading", { name: "Review source with AI" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Extract useful information?" })).not.toBeInTheDocument();
     });
   });
 });

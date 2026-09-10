@@ -2,9 +2,13 @@
 
 ## Active bounded work
 
-None. [Issue #256](https://github.com/DidacLL/AAAAT/issues/256) and [PR #257](https://github.com/DidacLL/AAAAT/pull/257) are complete.
+[Issue #259](https://github.com/DidacLL/AAAAT/issues/259) is the sole active bounded product outcome on branch `product/contextual-candidature-extraction`.
 
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+The outcome is to keep sparse candidature capture as `paste/add whatever exists → Save` while making an already-configured job-extraction capability participate in that same interaction instead of requiring a separate post-save AI mini-workflow. The retained Source and candidature remain authoritative first; manual/no-AI capture remains complete; extraction failure is non-destructive; and remote Source disclosure remains deliberate and understandable.
+
+This work must reuse the existing `job_extraction` operation, provider validation, candidature mutation paths, and contextual routing. It does not authorize a new AI workflow engine, provider/auth work, source fetching/scraping, field-schema redesign, generic intake pipeline, candidature advice/ranking, new external-host capability, migration, or release work.
+
+Treat this as Class B unless the final implementation changes renderer/main privilege boundaries, privacy projection semantics, or durable mutation authority; if so, escalate to Class C. Skeptical Simplifier is required only if material abstraction appears.
 
 ## Recently completed outcomes
 
@@ -20,7 +24,7 @@ No successor Mission or implementation Issue is selected here. The next step is 
 
 [Issue #235](https://github.com/DidacLL/AAAAT/issues/235) remains open as a dormant reference to the first real-use baseline audit. It is not active work, a release decision, or a reason to stop ordinary autonomous work.
 
-The archived technical record is [REAL_USE_BASELINE_EVIDENCE.md](../docs/engineering/REAL_USE_BASELINE_EVIDENCE.md). It becomes relevant only when the Product Owner explicitly asks to establish a real-use or release data baseline. Until then, development databases, fixtures, and development-era schema remain pre-baseline and may be corrected directly when current product meaning requires it.
+The archived technical record is [REAL_USE_BASELINE_EVIDENCE.md](../docs/engineering/REAL_USE_BASELINE_EVIDENCE.md). It becomes relevant only when the Product Owner explicitly asks to establish a real-use or release data baseline. Until then, development databases, fixtures and development-era schema remain pre-baseline and may be corrected directly when current product meaning requires it.
 
 ## Current reading rule
 
