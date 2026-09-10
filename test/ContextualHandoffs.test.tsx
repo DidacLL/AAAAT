@@ -91,7 +91,6 @@ vi.mock("../src/renderer/CareerContextPanel", () => ({
     </section>
   ),
 }));
-vi.mock("../src/renderer/AiDocumentsWorkspace", () => ({ AiDocumentsWorkspace: () => null }));
 vi.mock("../src/renderer/TodosWorkspace", () => ({ TodosWorkspace: () => null }));
 vi.mock("../src/renderer/WorkspaceRecoveryPanel", () => ({ WorkspaceRecoveryPanel: () => null }));
 

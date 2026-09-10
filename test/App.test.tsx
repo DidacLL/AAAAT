@@ -220,14 +220,16 @@ describe("AAAAT workspace state", () => {
     expect(await screen.findByRole("heading", { name: "ToDos" })).toBeInTheDocument();
   });
 
-  it("keeps AI document assistance contextual under CVs and letters", async () => {
+  it("keeps document AI contextual instead of adding destination-level AI chrome", async () => {
     current.mockResolvedValueOnce(readyWorkspace);
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
+
     expect(screen.queryByRole("heading", { name: "Document assistance" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Optional AI assistance" }));
-    expect(await screen.findByRole("heading", { name: "Document assistance" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Optional AI assistance" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Create a CV or cover letter." })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create CV" })).toBeInTheDocument();
   });
 
   it("exposes recovery through its Settings intention and keeps the current workspace when restore fails", async () => {
