@@ -72,6 +72,24 @@ describe("desktop preload API", () => {
       }
       if (channel === channels.candidatureSourceList) return [];
       if (channel === aiChannels.connectionCurrent) return null;
+      if (channel === aiChannels.opportunityReviewPreview) {
+        return {
+          connection: {
+            name: "Remote provider",
+            endpoint: "https://models.example.test/v1",
+            model: "review-model",
+          },
+          projectedContext: { candidature: { label: "Candidature", information: [], sources: [] }, profileItems: [] },
+        };
+      }
+      if (channel === aiChannels.opportunityReview) {
+        return {
+          summary: "The supplied information is relevant evidence.",
+          relevantEvidence: ["TypeScript"],
+          uncertainties: [],
+          questions: [],
+        };
+      }
       if (channel === aiChannels.jobExtract) {
         return { proposals: [{ fieldId, value: 1500 }] };
       }
@@ -117,6 +135,25 @@ describe("desktop preload API", () => {
       }),
     ).resolves.toEqual({ proposals: [{ fieldId, value: 1500 }] });
     await expect(
+      api.ai.previewOpportunityReview({
+        candidatureId,
+        identityPrivacy: "omit",
+        contactPrivacy: "omit",
+      }),
+    ).resolves.toMatchObject({ connection: { name: "Remote provider" } });
+    await expect(
+      api.ai.reviewOpportunity({
+        candidatureId,
+        identityPrivacy: "omit",
+        contactPrivacy: "omit",
+      }),
+    ).resolves.toEqual({
+      summary: "The supplied information is relevant evidence.",
+      relevantEvidence: ["TypeScript"],
+      uncertainties: [],
+      questions: [],
+    });
+    await expect(
       api.ai.discoverField({ candidatureId, fieldId, sourceIds: [sourceId] }),
     ).resolves.toEqual({
       proposal: { fieldId, value: 1500 },
@@ -138,6 +175,16 @@ describe("desktop preload API", () => {
       sourceTitle: "Pilot vacancy",
       sourceUrl: "",
       sourceText: "Minimum 1,500 hours.",
+    });
+    expect(invoke).toHaveBeenCalledWith(aiChannels.opportunityReviewPreview, {
+      candidatureId,
+      identityPrivacy: "omit",
+      contactPrivacy: "omit",
+    });
+    expect(invoke).toHaveBeenCalledWith(aiChannels.opportunityReview, {
+      candidatureId,
+      identityPrivacy: "omit",
+      contactPrivacy: "omit",
     });
   });
 

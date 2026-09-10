@@ -67,6 +67,42 @@ function activityCount(root: string): number {
   }
 }
 
+function addOversizedProfessionalInformation(root: string): void {
+  const database = new DatabaseSync(path.join(root, "workspace.sqlite"));
+  const now = new Date().toISOString();
+  const insert = database.prepare(
+    `INSERT INTO profile_items(
+       id, kind, title, subtitle, description, start_date, end_date,
+       url, sort_order, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+
+  database.exec("BEGIN");
+  try {
+    for (let index = 0; index < 201; index += 1) {
+      insert.run(
+        `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+        "skill",
+        `Skill ${index}`,
+        null,
+        null,
+        null,
+        null,
+        null,
+        index,
+        now,
+        now,
+      );
+    }
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  } finally {
+    database.close();
+  }
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
@@ -198,9 +234,7 @@ describe("external CV-content MCP operation", () => {
 
   it("fails closed when selected effective content exceeds the external contract", async () => {
     const root = workspace();
-    for (let index = 0; index < 201; index += 1) {
-      addProfileItem(root, { kind: "skill", title: `Skill ${index}` });
-    }
+    addOversizedProfessionalInformation(root);
     const cv = createDocument(root, {
       kind: "cv",
       title: "Oversized private CV",

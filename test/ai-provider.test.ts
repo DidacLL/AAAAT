@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createOpenAiCompatibleProvider } from "../src/main/ai-provider";
 import type {
   AiConnectionStatus,
-  ProviderFitProjectedContext,
+  ProviderOpportunityReviewContext,
   ProviderJobExtractionRequest,
   ProviderVariantRecommendationContext,
 } from "../src/shared/ai-contracts";
@@ -27,7 +27,7 @@ const candidature = {
     },
   ],
 };
-const context: ProviderFitProjectedContext = {
+const context: ProviderOpportunityReviewContext = {
   candidature,
   profileItems: [{ kind: "skill", title: "TypeScript" }],
 };
@@ -40,19 +40,20 @@ function response(content: unknown): Response {
 }
 
 describe("OpenAI-compatible provider", () => {
-  it("sends one keyless fit request and validates the typed result", async () => {
+  it("sends one keyless opportunity review request and validates the neutral result", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       response({
-        fit: "strong",
-        summary: "Strong match.",
-        strengths: ["TypeScript"],
-        gaps: [],
-        focus: ["Review evidence"],
+        summary: "The supplied TypeScript experience is relevant evidence.",
+        relevantEvidence: ["TypeScript"],
+        uncertainties: [],
+        questions: ["Which responsibilities matter most for this role?"],
       }),
     );
     const provider = createOpenAiCompatibleProvider(fetchImpl);
 
-    await expect(provider.assessFit(connection, context)).resolves.toMatchObject({ fit: "strong" });
+    await expect(provider.reviewOpportunity(connection, context)).resolves.toMatchObject({
+      relevantEvidence: ["TypeScript"],
+    });
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
     expect(url).toBe("http://localhost:11434/v1/chat/completions");
     expect(init?.headers).toEqual({ "content-type": "application/json" });
@@ -129,13 +130,32 @@ describe("OpenAI-compatible provider", () => {
         }),
       ),
     );
-    await expect(malformed.assessFit(connection, context)).rejects.toThrow("invalid fit assessment");
+    await expect(malformed.reviewOpportunity(connection, context)).rejects.toThrow(
+      "invalid opportunity review",
+    );
 
     const failed = createOpenAiCompatibleProvider(
       vi.fn<typeof fetch>().mockResolvedValue(new Response("private provider detail", { status: 500 })),
     );
-    await expect(failed.assessFit(connection, context)).rejects.toThrow(
-      "configured local model provider rejected the request",
+    await expect(failed.reviewOpportunity(connection, context)).rejects.toThrow(
+      "configured AI provider rejected the request",
+    );
+  });
+
+  it("rejects ratings, rankings, winner selection, and prescribed actions", async () => {
+    const provider = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockResolvedValue(
+        response({
+          summary: "Score: 9 out of 10.",
+          relevantEvidence: [],
+          uncertainties: [],
+          questions: ["You should apply for this opportunity."],
+        }),
+      ),
+    );
+
+    await expect(provider.reviewOpportunity(connection, context)).rejects.toThrow(
+      "invalid opportunity review",
     );
   });
 });

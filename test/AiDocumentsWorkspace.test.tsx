@@ -76,7 +76,7 @@ function setupEnvironment(operationAvailable = true) {
       configurationReadable: true,
       connectionCount: 1,
       operations: [
-        { operation: "fit_assessment", available: true, connectionName: "Local" },
+        { operation: "opportunity_review", available: true, connectionName: "Local" },
         { operation: "job_extraction", available: true, connectionName: "Local" },
         { operation: "historical_field_discovery", available: true, connectionName: "Local" },
         { operation: "variant_recommendation", available: true, connectionName: "Local" },

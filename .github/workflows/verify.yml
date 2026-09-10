@@ -135,7 +135,7 @@ jobs:
                     linux_package=true
                     full_package=true
                     ;;
-                  src/main/*|src/renderer/*|src/shared/*|migrations/*|index.html|test/desktop/m6-manual.spec.ts)
+                  src/main/*|src/renderer/*|src/shared/*|migrations/*|index.html|test/desktop/sparse-candidature.spec.ts)
                     linux_package=true
                     ;;
                   test/desktop/packaged-mcp.spec.ts)

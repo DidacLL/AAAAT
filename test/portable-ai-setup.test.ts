@@ -29,12 +29,11 @@ function workspace(): string {
 
 function provider(): ModelProvider {
   return {
-    assessFit: vi.fn<ModelProvider["assessFit"]>(async () => ({
-      fit: "possible",
+    reviewOpportunity: vi.fn<ModelProvider["reviewOpportunity"]>(async () => ({
       summary: "Synthetic validation result",
-      strengths: [],
-      gaps: [],
-      focus: [],
+      relevantEvidence: [],
+      uncertainties: [],
+      questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(async () => ({ proposals: [] })),
     recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(async () => ({
@@ -75,7 +74,7 @@ describe("portable local AI setup", () => {
     setDefaultAiConnection(root, second.id);
     await validateAiConnectionOperation(
       root,
-      { connectionId: first.id, operation: "fit_assessment" },
+      { connectionId: first.id, operation: "opportunity_review" },
       provider(),
     );
 
@@ -99,7 +98,7 @@ describe("portable local AI setup", () => {
     expect(imported.every((connection) => !previousIds.has(connection.id))).toBe(true);
     expect(imported.every((connection) => connection.validatedOperations.length === 0)).toBe(true);
     expect(imported.every((connection) => connection.defaultForOperations.length === 0)).toBe(true);
-    expect(getAiConnectionForOperation(root, "fit_assessment")).toBeNull();
+    expect(getAiConnectionForOperation(root, "opportunity_review")).toBeNull();
   });
 
   it("rejects invalid portable setup before replacing the current connections", () => {
@@ -109,18 +108,29 @@ describe("portable local AI setup", () => {
       endpoint: "http://localhost:11434/v1",
       model: "existing-model",
     });
+    const remote = replaceAiConnectionsFromPortableSetup(root, {
+      format: "aaaat-ai-setup",
+      version: 1,
+      connections: [
+        { name: "Remote", endpoint: "https://models.example.test/v1", model: "remote-model" },
+      ],
+      defaultConnectionName: "Remote",
+    });
+    expect(remote).toEqual([
+      expect.objectContaining({ name: "Remote", endpoint: "https://models.example.test/v1" }),
+    ]);
     const before = listAiConnections(root);
 
     expect(() =>
       replaceAiConnectionsFromPortableSetup(root, {
-        format: "aaaat-ai-setup",
+        format: "not-an-ai-setup",
         version: 1,
         connections: [
-          { name: "Remote", endpoint: "https://models.example.test/v1", model: "remote-model" },
+          { name: "Different", endpoint: "https://models.example.test/v1", model: "remote-model" },
         ],
-        defaultConnectionName: "Remote",
-      }),
-    ).toThrow("loopback endpoint");
+        defaultConnectionName: "Different",
+      } as never),
+    ).toThrow();
     expect(listAiConnections(root)).toEqual(before);
 
     expect(() =>

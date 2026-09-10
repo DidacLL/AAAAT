@@ -32,12 +32,11 @@ function workspace(): string {
 
 function provider(): ModelProvider {
   return {
-    assessFit: vi.fn<ModelProvider["assessFit"]>(async () => ({
-      fit: "possible",
+    reviewOpportunity: vi.fn<ModelProvider["reviewOpportunity"]>(async () => ({
       summary: "Synthetic validation result",
-      strengths: [],
-      gaps: [],
-      focus: [],
+      relevantEvidence: [],
+      uncertainties: [],
+      questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(async () => ({ proposals: [] })),
     recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(async () => ({
@@ -62,7 +61,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-describe("named local AI connections", () => {
+describe("named AI connections", () => {
   it("routes operations only through explicitly validated capabilities", async () => {
     const root = workspace();
     expect(listAiConnections(root)).toEqual([]);
@@ -80,9 +79,9 @@ describe("named local AI connections", () => {
       validatedOperations: [],
       defaultForOperations: [],
     });
-    expect(getAiConnectionForOperation(root, "fit_assessment")).toBeNull();
-    expect(() => requireAiConnectionForOperation(root, "fit_assessment")).toThrow(
-      "Validate and choose a connection for Fit assessment",
+    expect(getAiConnectionForOperation(root, "opportunity_review")).toBeNull();
+    expect(() => requireAiConnectionForOperation(root, "opportunity_review")).toThrow(
+      "Validate and choose a connection for Opportunity review",
     );
 
     const secondSave = saveNamedAiConnection(root, {
@@ -96,33 +95,33 @@ describe("named local AI connections", () => {
 
     const firstValidated = await validateAiConnectionOperation(
       root,
-      { connectionId: first.id, operation: "fit_assessment" },
+      { connectionId: first.id, operation: "opportunity_review" },
       provider(),
     );
     expect(firstValidated.find((connection) => connection.id === first.id)).toMatchObject({
-      validatedOperations: ["fit_assessment"],
-      defaultForOperations: ["fit_assessment"],
+      validatedOperations: ["opportunity_review"],
+      defaultForOperations: ["opportunity_review"],
     });
-    expect(getAiConnectionForOperation(root, "fit_assessment")?.name).toBe("Fast local");
+    expect(getAiConnectionForOperation(root, "opportunity_review")?.name).toBe("Fast local");
 
     const bothValidated = await validateAiConnectionOperation(
       root,
-      { connectionId: second.id, operation: "fit_assessment" },
+      { connectionId: second.id, operation: "opportunity_review" },
       provider(),
     );
     expect(bothValidated.find((connection) => connection.id === first.id)?.defaultForOperations).toEqual([
-      "fit_assessment",
+      "opportunity_review",
     ]);
     expect(bothValidated.find((connection) => connection.id === second.id)?.defaultForOperations).toEqual([]);
 
     const switched = setAiOperationDefault(root, {
       connectionId: second.id,
-      operation: "fit_assessment",
+      operation: "opportunity_review",
     });
     expect(switched.find((connection) => connection.id === second.id)?.defaultForOperations).toEqual([
-      "fit_assessment",
+      "opportunity_review",
     ]);
-    expect(getAiConnectionForOperation(root, "fit_assessment")?.name).toBe("Deep local");
+    expect(getAiConnectionForOperation(root, "opportunity_review")?.name).toBe("Deep local");
 
     const renamed = saveNamedAiConnection(root, {
       id: second.id,
@@ -131,8 +130,8 @@ describe("named local AI connections", () => {
       model: second.model,
     });
     expect(renamed.find((connection) => connection.id === second.id)).toMatchObject({
-      validatedOperations: ["fit_assessment"],
-      defaultForOperations: ["fit_assessment"],
+      validatedOperations: ["opportunity_review"],
+      defaultForOperations: ["opportunity_review"],
     });
 
     const modelChanged = saveNamedAiConnection(root, {
@@ -145,17 +144,17 @@ describe("named local AI connections", () => {
       validatedOperations: [],
       defaultForOperations: [],
     });
-    expect(getAiConnectionForOperation(root, "fit_assessment")).toBeNull();
+    expect(getAiConnectionForOperation(root, "opportunity_review")).toBeNull();
 
     const afterRemoval = removeAiConnection(root, second.id);
     expect(afterRemoval).toEqual([
       expect.objectContaining({ id: first.id, name: "Fast local", isDefault: false }),
     ]);
     expect(getDefaultAiConnection(root)).toBeNull();
-    expect(() => requireDefaultAiConnection(root)).toThrow("Choose a default local AI connection");
+    expect(() => requireDefaultAiConnection(root)).toThrow("Choose a default AI connection");
 
     const stored = readFileSync(path.join(root, "ai-connection.json"), "utf8");
-    expect(stored).toContain('"version": 3');
+    expect(stored).toContain('"version": 4');
     expect(stored).toContain('"validatedOperations"');
     expect(stored).toContain('"operationDefaults"');
     expect(stored).not.toMatch(/api.?key|credential|secret/i);
@@ -180,21 +179,20 @@ describe("named local AI connections", () => {
       releaseValidation = resolve;
     });
     const blockingProvider = provider();
-    blockingProvider.assessFit = vi.fn<ModelProvider["assessFit"]>(async () => {
+    blockingProvider.reviewOpportunity = vi.fn<ModelProvider["reviewOpportunity"]>(async () => {
       markStarted?.();
       await validationGate;
       return {
-        fit: "possible",
         summary: "Synthetic validation result",
-        strengths: [],
-        gaps: [],
-        focus: [],
+        relevantEvidence: [],
+        uncertainties: [],
+        questions: [],
       };
     });
 
     const pending = validateAiConnectionOperation(
       root,
-      { connectionId: connection.id, operation: "fit_assessment" },
+      { connectionId: connection.id, operation: "opportunity_review" },
       blockingProvider,
     );
     await started;
@@ -214,7 +212,7 @@ describe("named local AI connections", () => {
     });
   });
 
-  it("rejects invalid routing, ambiguous names, remote endpoints, and obsolete development config", async () => {
+  it("rejects invalid routing, ambiguous names, unsafe endpoints, and obsolete development config", async () => {
     const root = workspace();
     const saved = saveNamedAiConnection(root, {
       name: "Local model",
@@ -232,13 +230,13 @@ describe("named local AI connections", () => {
     ).toThrow("is not validated for CV tailoring");
 
     const failingProvider = provider();
-    failingProvider.assessFit = vi.fn<ModelProvider["assessFit"]>(async () => {
+    failingProvider.reviewOpportunity = vi.fn<ModelProvider["reviewOpportunity"]>(async () => {
       throw new Error("synthetic validation failed");
     });
     await expect(
       validateAiConnectionOperation(
         root,
-        { connectionId: connection.id, operation: "fit_assessment" },
+        { connectionId: connection.id, operation: "opportunity_review" },
         failingProvider,
       ),
     ).rejects.toThrow("synthetic validation failed");
@@ -253,11 +251,11 @@ describe("named local AI connections", () => {
     ).toThrow("names must be unique");
     expect(() =>
       saveNamedAiConnection(root, {
-        name: "Remote",
-        endpoint: "https://models.example.test/v1",
+        name: "Unsafe remote HTTP",
+        endpoint: "http://models.example.test/v1",
         model: "model-c",
       }),
-    ).toThrow("loopback endpoint");
+    ).toThrow("loopback host");
 
     writeFileSync(
       path.join(root, "ai-connection.json"),
@@ -269,5 +267,20 @@ describe("named local AI connections", () => {
       "utf8",
     );
     expect(() => listAiConnections(root)).toThrow("stored AI connection configuration is invalid");
+  });
+
+  it("rejects a v3 development-era configuration without rewriting it", () => {
+    const root = workspace();
+    const obsolete = JSON.stringify({
+      version: 3,
+      connections: [],
+      defaultConnectionId: null,
+      operationDefaults: {},
+    });
+    const filePath = path.join(root, "ai-connection.json");
+    writeFileSync(filePath, obsolete, "utf8");
+
+    expect(() => listAiConnections(root)).toThrow("stored AI connection configuration is invalid");
+    expect(readFileSync(filePath, "utf8")).toBe(obsolete);
   });
 });

@@ -3,9 +3,9 @@ import {
   coverLetterDraftSchema,
   cvTailoringResultSchema,
   documentAiRequestSchema,
-  fitAssessmentPreviewSchema,
-  fitAssessmentRequestSchema,
-  fitAssessmentResultSchema,
+  opportunityReviewPreviewSchema,
+  opportunityReviewRequestSchema,
+  opportunityReviewResultSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
@@ -336,13 +336,20 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
   const ai = Object.freeze({
     connection: async () =>
       optionalAiConnectionStatusSchema.parse(await invoke(aiChannels.connectionCurrent)),
-    previewFit: async (request: Parameters<AiDesktopApi["ai"]["previewFit"]>[0]) =>
-      fitAssessmentPreviewSchema.parse(
-        await invoke(aiChannels.fitPreview, fitAssessmentRequestSchema.parse(request)),
+    previewOpportunityReview: async (
+      request: Parameters<AiDesktopApi["ai"]["previewOpportunityReview"]>[0],
+    ) =>
+      opportunityReviewPreviewSchema.parse(
+        await invoke(
+          aiChannels.opportunityReviewPreview,
+          opportunityReviewRequestSchema.parse(request),
+        ),
       ),
-    assessFit: async (request: Parameters<AiDesktopApi["ai"]["assessFit"]>[0]) =>
-      fitAssessmentResultSchema.parse(
-        await invoke(aiChannels.fitAssess, fitAssessmentRequestSchema.parse(request)),
+    reviewOpportunity: async (
+      request: Parameters<AiDesktopApi["ai"]["reviewOpportunity"]>[0],
+    ) =>
+      opportunityReviewResultSchema.parse(
+        await invoke(aiChannels.opportunityReview, opportunityReviewRequestSchema.parse(request)),
       ),
     extractJob: async (request: Parameters<AiDesktopApi["ai"]["extractJob"]>[0]) =>
       jobExtractionResultSchema.parse(

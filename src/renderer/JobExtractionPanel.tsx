@@ -1,216 +1,288 @@
 import { useEffect, useState } from "react";
-
-import type {
-  JobExtractionRequest,
-  JobExtractionResult,
-} from "../shared/ai-contracts";
+import type { JobExtractionRequest, JobExtractionResult } from "../shared/ai-contracts";
+import type { NamedAiConnection } from "../shared/ai-connection-contracts";
 import type {
   CandidatureFieldConfiguration,
-  CandidatureInput,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
-import { isAiOperationUnavailable } from "./ai-route-status";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
-interface Props {
-  readonly onCreate: (input: CandidatureInput) => Promise<boolean>;
-  readonly onDirtyChange?: (dirty: boolean) => void;
+interface JobExtractionPanelProps {
+  candidatureId: string;
+  source: JobExtractionRequest;
+  onAccepted: () => void;
+  onDismiss: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-const emptyRequest: JobExtractionRequest = {
-  sourceTitle: "",
-  sourceUrl: "",
-  sourceText: "",
-};
+function extractionConnection(connections: NamedAiConnection[]) {
+  const operationDefault = connections.find(
+    (connection) =>
+      connection.defaultForOperations.includes("job_extraction") &&
+      connection.validatedOperations.includes("job_extraction"),
+  );
+  if (operationDefault) return operationDefault;
 
-function displayValue(
-  field: CandidatureFieldConfiguration | undefined,
-  value: CandidatureRuntimeValue,
-): string {
-  const displayOne = (item: string | number | boolean): string => {
-    if (field?.definition.valueType === "choice" && typeof item === "string") {
-      return field.definition.choices.find((choice) => choice.id === item)?.label ?? item;
-    }
-    if (typeof item === "boolean") return item ? "Yes" : "No";
-    return String(item);
-  };
-  return Array.isArray(value) ? value.map(displayOne).join(", ") : displayOne(value);
+  return (
+    connections.find(
+      (connection) =>
+        connection.isDefault && connection.validatedOperations.includes("job_extraction"),
+    ) ?? null
+  );
 }
 
-function candidatureInput(
-  request: JobExtractionRequest,
-  proposal: JobExtractionResult,
-): CandidatureInput {
-  return {
-    source: {
-      kind: "job_posting",
-      title: request.sourceTitle,
-      url: request.sourceUrl,
-      sourceText: request.sourceText,
-    },
-    values: proposal.proposals,
-  };
+function isLocalConnection(endpoint: string): boolean {
+  const hostname = new URL(endpoint).hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
 }
 
-export function JobExtractionPanel({ onCreate, onDirtyChange }: Props) {
+function proposalLabel(
+  proposal: JobExtractionResult["proposals"][number],
+  fields: CandidatureFieldConfiguration[],
+) {
+  const fieldLabel =
+    fields.find((field) => field.definition.id === proposal.fieldId)?.definition.label ??
+    "Information";
+  const value = Array.isArray(proposal.value) ? proposal.value.join(", ") : proposal.value;
+  return value === "" ? fieldLabel : `${fieldLabel}: ${value}`;
+}
+
+export function JobExtractionPanel({
+  candidatureId,
+  source,
+  onAccepted,
+  onDismiss,
+  onDirtyChange,
+}: JobExtractionPanelProps) {
   const { openSettingsFor } = useContextualHandoffs();
-  const [request, setRequest] = useState<JobExtractionRequest>(emptyRequest);
-  const [proposal, setProposal] = useState<JobExtractionResult | null>(null);
+  const [connection, setConnection] = useState<NamedAiConnection | null | undefined>(undefined);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [proposal, setProposal] = useState<JobExtractionResult | null>(null);
+  const [selectedProposalIndexes, setSelectedProposalIndexes] = useState<number[]>([]);
+  const [disclosureOpen, setDisclosureOpen] = useState(false);
+  const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aiSettingsSuggested, setAiSettingsSuggested] = useState(false);
-
-  useEffect(() => {
-    const dirty =
-      request.sourceTitle.length > 0 ||
-      request.sourceUrl.length > 0 ||
-      request.sourceText.length > 0 ||
-      proposal !== null;
-    onDirtyChange?.(dirty);
-    return () => onDirtyChange?.(false);
-  }, [onDirtyChange, proposal, request]);
 
   useEffect(() => {
     let active = true;
-    void window.aaaat.candidatures
-      .listFields()
-      .then((next) => {
-        if (active) setFields(next);
+
+    void Promise.all([
+      window.aaaat.aiConnections.list(),
+      window.aaaat.candidatures.listFields(),
+    ])
+      .then(([connections, configuredFields]) => {
+        if (!active) {
+          return;
+        }
+
+        setConnection(extractionConnection(connections));
+        setFields(configuredFields);
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load the current candidature field catalogue.");
+        if (active) {
+          setConnection(null);
+        }
       });
+
     return () => {
       active = false;
     };
   }, []);
 
-  const sourceChanged = (next: JobExtractionRequest) => {
-    setRequest(next);
-    setProposal(null);
-    setAiSettingsSuggested(false);
-  };
+  useEffect(() => {
+    onDirtyChange?.(disclosureOpen || proposal !== null);
+  }, [disclosureOpen, onDirtyChange, proposal]);
 
-  const extract = async () => {
-    setBusy(true);
+  if (source.sourceText.trim() === "" || connection === undefined || connection === null) {
+    return null;
+  }
+
+  const requestProposal = async () => {
+    setIsWorking(true);
     setError(null);
-    setAiSettingsSuggested(false);
+
     try {
-      setProposal(await window.aaaat.ai.extractJob(request));
-    } catch (reason) {
-      setProposal(null);
-      setError(reason instanceof Error ? reason.message : "AAAAT could not analyze this Source.");
-      setAiSettingsSuggested(await isAiOperationUnavailable("job_extraction"));
+      const result = await window.aaaat.ai.extractJob(source);
+      setProposal(result);
+      setSelectedProposalIndexes(result.proposals.map((_, index) => index));
+      setDisclosureOpen(false);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "AAAAT could not review this Source with AI.",
+      );
     } finally {
-      setBusy(false);
+      setIsWorking(false);
     }
   };
 
-  const create = async () => {
-    if (!proposal) return;
-    setBusy(true);
+  const acceptSelected = async () => {
+    if (proposal === null) {
+      return;
+    }
+
+    setIsWorking(true);
     setError(null);
+
     try {
-      const created = await onCreate(candidatureInput(request, proposal));
-      if (created) {
-        setRequest(emptyRequest);
-        setProposal(null);
-      }
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not create this candidature.");
+      await Promise.all(
+        selectedProposalIndexes.map(async (index) => {
+          const selected = proposal.proposals[index];
+          if (selected === undefined) {
+            return;
+          }
+
+          const field = fields.find(
+            (candidate) => candidate.definition.id === selected.fieldId,
+          );
+          if (field === undefined) {
+            return;
+          }
+
+          const value: CandidatureRuntimeValue = selected.value;
+          await window.aaaat.candidatures.setFieldValue({
+            candidatureId,
+            fieldId: field.definition.id,
+            value,
+          });
+        }),
+      );
+      onAccepted();
+      onDismiss();
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "AAAAT could not retain the selected information.",
+      );
     } finally {
-      setBusy(false);
+      setIsWorking(false);
     }
   };
+
+  const toggleProposal = (index: number) => {
+    setSelectedProposalIndexes((selected) =>
+      selected.includes(index)
+        ? selected.filter((selectedIndex) => selectedIndex !== index)
+        : [...selected, index],
+    );
+  };
+
+  const localConnection = isLocalConnection(connection.endpoint);
 
   return (
-    <section className="selected-concept-definition" aria-label="Candidature Source discovery">
+    <section className="job-extraction-panel" aria-label="Source information assistance">
       <div>
-        <p className="eyebrow">Optional local AI</p>
-        <h3>Discover registered information from a Source</h3>
+        <p className="eyebrow">Optional AI assistance</p>
+        <h2>Review source with AI</h2>
         <p>
-          AAAAT asks only for fields currently enabled for AI discovery. The model cannot add field
-          definitions, and nothing is retained until you accept the proposal.
+          Your Source is already saved. AI can propose individual items of information for
+          your review; nothing changes unless you select and retain a proposal.
         </p>
       </div>
 
-      <div className="candidature-fields">
-        <label>
-          Source title
-          <input
-            value={request.sourceTitle}
-            disabled={busy}
-            onChange={(event) => sourceChanged({ ...request, sourceTitle: event.target.value })}
-            placeholder="Company site or offer title"
-          />
-        </label>
-        <label>
-          Source URL
-          <input
-            value={request.sourceUrl}
-            disabled={busy}
-            onChange={(event) => sourceChanged({ ...request, sourceUrl: event.target.value })}
-            placeholder="Optional reference URL"
-          />
-        </label>
-        <label className="wide-field">
-          Source text
-          <textarea
-            rows={8}
-            value={request.sourceText}
-            disabled={busy}
-            onChange={(event) => sourceChanged({ ...request, sourceText: event.target.value })}
-          />
-        </label>
-      </div>
-
-      <button
-        type="button"
-        disabled={busy || request.sourceText.trim().length === 0}
-        onClick={() => void extract()}
-      >
-        {busy && !proposal ? "Discovering…" : "Discover configured fields"}
-      </button>
-
-      {error ? (
-        <div>
-          <p className="error-message" role="alert">{error}</p>
-          {aiSettingsSuggested ? (
-            <button
-              className="compact-secondary"
-              type="button"
-              onClick={() => openSettingsFor("ai", "candidatures")}
-            >
-              Open AI connections settings
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {proposal ? (
-        <section className="selected-concept-definition" aria-label="Candidature discovery proposal">
-          <h4>Review discovered information</h4>
-          {proposal.proposals.length === 0 ? (
-            <p>No configured discovery field was supported by this Source.</p>
-          ) : (
-            <dl className="focus-facts">
-              {proposal.proposals.map((item) => {
-                const field = fields.find((candidate) => candidate.definition.id === item.fieldId);
-                return (
-                  <div key={item.fieldId}>
-                    <dt>{field?.definition.label ?? item.fieldId}</dt>
-                    <dd>{displayValue(field, item.value)}</dd>
-                  </div>
-                );
-              })}
-            </dl>
-          )}
-          <p>The raw Source is retained independently. No lifecycle or preparation values are created.</p>
-          <button type="button" disabled={busy} onClick={() => void create()}>
-            {busy ? "Creating…" : "Create candidature and accept proposal"}
+      {proposal === null ? (
+        <>
+          <button type="button" className="secondary-button" onClick={() => setDisclosureOpen(true)}>
+            Review source with AI
           </button>
-        </section>
+          {disclosureOpen ? (
+            <div className="ai-disclosure" role="dialog" aria-label="AI source disclosure">
+              <p>
+                <strong>AI connection:</strong> {connection.name}
+              </p>
+              <p>
+                <strong>Connection type:</strong>{" "}
+                {localConnection ? "Local on this computer" : "Remote HTTPS"}
+              </p>
+              <p>
+                {localConnection
+                  ? "AAAAT will send exactly this saved Source material through the selected local connection."
+                  : "AAAAT will send exactly this saved Source material through the selected remote connection."} {" "}
+                It remains your choice whether to continue.
+              </p>
+              <details open>
+                <summary>Source material to be disclosed</summary>
+                <dl>
+                  <div>
+                    <dt>Title</dt>
+                    <dd>{source.sourceTitle || "Not provided"}</dd>
+                  </div>
+                  <div>
+                    <dt>Link</dt>
+                    <dd>{source.sourceUrl || "Not provided"}</dd>
+                  </div>
+                  <div>
+                    <dt>Text</dt>
+                    <dd>
+                      <pre>{source.sourceText}</pre>
+                    </dd>
+                  </div>
+                </dl>
+              </details>
+              <div className="form-actions">
+                <button type="button" onClick={() => void requestProposal()} disabled={isWorking}>
+                  {isWorking ? "Reviewing source…" : "Send selected Source to AI"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setDisclosureOpen(false)}
+                  disabled={isWorking}
+                >
+                  Keep without AI
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <div className="extraction-proposals">
+          <h3>Proposed information</h3>
+          {proposal.proposals.length === 0 ? (
+            <p>No information was proposed. Your saved Source has not changed.</p>
+          ) : (
+            <fieldset>
+              <legend>Select only the information you want to retain</legend>
+              {proposal.proposals.map((item, index) => (
+                <label key={`${item.fieldId}-${index}`} className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={selectedProposalIndexes.includes(index)}
+                    onChange={() => toggleProposal(index)}
+                  />
+                  {proposalLabel(item, fields)}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          <div className="form-actions">
+            <button
+              type="button"
+              onClick={() => void acceptSelected()}
+              disabled={isWorking || selectedProposalIndexes.length === 0}
+            >
+              {isWorking ? "Keeping information…" : "Keep selected information"}
+            </button>
+            <button type="button" className="secondary-button" onClick={onDismiss} disabled={isWorking}>
+              Dismiss proposals
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error !== null ? (
+        <div className="inline-error" role="alert">
+          <p>{error}</p>
+          <button
+            className="compact-secondary"
+            type="button"
+            onClick={() => openSettingsFor("ai", "candidatures")}
+          >
+            Open AI connections settings
+          </button>
+        </div>
       ) : null}
     </section>
   );

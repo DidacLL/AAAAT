@@ -25,12 +25,11 @@ function workspace(): string {
 
 function provider(): ModelProvider {
   return {
-    assessFit: vi.fn<ModelProvider["assessFit"]>(async () => ({
-      fit: "possible",
+    reviewOpportunity: vi.fn<ModelProvider["reviewOpportunity"]>(async () => ({
       summary: "Synthetic validation result",
-      strengths: [],
-      gaps: [],
-      focus: [],
+      relevantEvidence: [],
+      uncertainties: [],
+      questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(async () => ({ proposals: [] })),
     recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(async () => ({
@@ -63,7 +62,7 @@ describe("setup environment service", () => {
     if (!connection) throw new Error("connection fixture missing");
     await validateAiConnectionOperation(
       root,
-      { connectionId: connection.id, operation: "fit_assessment" },
+      { connectionId: connection.id, operation: "opportunity_review" },
       provider(),
     );
 
@@ -82,7 +81,7 @@ describe("setup environment service", () => {
     expect(snapshot.tex).toMatchObject({ documentRenderingReady: true });
     expect(snapshot.ai).toMatchObject({ configurationReadable: true, connectionCount: 1 });
     expect(snapshot.ai.operations).toContainEqual({
-      operation: "fit_assessment",
+      operation: "opportunity_review",
       available: true,
       connectionName: "Local fit model",
     });

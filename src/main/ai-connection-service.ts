@@ -39,13 +39,12 @@ type StoredConnection = z.infer<typeof storedConnectionSchema>;
 
 const operationDefaultsSchema = z
   .object({
-    fit_assessment: aiConnectionIdSchema.optional(),
+    opportunity_review: aiConnectionIdSchema.optional(),
     job_extraction: aiConnectionIdSchema.optional(),
     historical_field_discovery: aiConnectionIdSchema.optional(),
     variant_recommendation: aiConnectionIdSchema.optional(),
     cv_tailoring: aiConnectionIdSchema.optional(),
     cover_letter_draft: aiConnectionIdSchema.optional(),
-    candidature_comparison: aiConnectionIdSchema.optional(),
   })
   .strict();
 
@@ -53,7 +52,7 @@ type OperationDefaults = z.infer<typeof operationDefaultsSchema>;
 
 const storedConnectionConfigurationSchema = z
   .object({
-    version: z.literal(3),
+    version: z.literal(4),
     connections: z.array(storedConnectionSchema).max(16),
     defaultConnectionId: aiConnectionIdSchema.nullable(),
     operationDefaults: operationDefaultsSchema,
@@ -109,19 +108,19 @@ function loopbackHost(hostname: string): boolean {
 function validatedEndpoint(input: AiConnectionInput): string {
   const endpoint = new URL(input.endpoint);
   if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
-    throw new AiConnectionServiceError("The local AI endpoint must be a plain provider base URL.");
+    throw new AiConnectionServiceError("The AI endpoint must be a plain provider base URL.");
   }
   if (endpoint.protocol !== "http:" && endpoint.protocol !== "https:") {
-    throw new AiConnectionServiceError("The local AI endpoint must use HTTP or HTTPS.");
+    throw new AiConnectionServiceError("The AI endpoint must use HTTP or HTTPS.");
   }
-  if (!loopbackHost(endpoint.hostname)) {
-    throw new AiConnectionServiceError("Local AI connections must use a loopback endpoint.");
+  if (endpoint.protocol === "http:" && !loopbackHost(endpoint.hostname)) {
+    throw new AiConnectionServiceError("HTTP AI endpoints must use a loopback host.");
   }
   return endpoint.toString().replace(/\/$/, "");
 }
 
 function emptyConfiguration(): StoredConnectionConfiguration {
-  return { version: 3, connections: [], defaultConnectionId: null, operationDefaults: {} };
+  return { version: 4, connections: [], defaultConnectionId: null, operationDefaults: {} };
 }
 
 function readConfiguration(rootPath: string): StoredConnectionConfiguration {
@@ -238,12 +237,12 @@ export function requireDefaultAiConnection(rootPath: string): AiConnectionStatus
   const configuration = readConfiguration(rootPath);
   if (configuration.connections.length === 0) {
     throw new AiConnectionServiceError(
-      "Configure a local AI connection before using AI assistance.",
+      "Configure an AI connection before using AI assistance.",
     );
   }
   if (configuration.defaultConnectionId === null) {
     throw new AiConnectionServiceError(
-      "Choose a default local AI connection before using AI assistance.",
+      "Choose a default AI connection before using AI assistance.",
     );
   }
   return statusFor(connectionById(configuration, configuration.defaultConnectionId));
@@ -270,7 +269,7 @@ export function requireAiConnectionForOperation(
   const configuration = readConfiguration(rootPath);
   if (configuration.connections.length === 0) {
     throw new AiConnectionServiceError(
-      "Configure a local AI connection before using AI assistance.",
+      "Configure an AI connection before using AI assistance.",
     );
   }
   const connection = getAiConnectionForOperation(rootPath, operation);
@@ -315,7 +314,7 @@ export function saveNamedAiConnection(
   }
 
   if (configuration.connections.length >= 16) {
-    throw new AiConnectionServiceError("AAAAT supports at most 16 local AI connections.");
+    throw new AiConnectionServiceError("AAAAT supports at most 16 AI connections.");
   }
   const id = randomUUID();
   const connection = normalizedStoredConnection(input, id);
@@ -449,7 +448,7 @@ export function saveDefaultAiConnection(
   }
   if (configuration.connections.length > 0) {
     throw new AiConnectionServiceError(
-      "Choose a default local AI connection before updating the current connection.",
+      "Choose a default AI connection before updating the current connection.",
     );
   }
   saveNamedAiConnection(rootPath, input);
@@ -496,7 +495,7 @@ export function replaceAiConnectionsFromPortableSetup(
   }
   return listFor(
     writeConfiguration(rootPath, {
-      version: 3,
+      version: 4,
       connections,
       defaultConnectionId: defaultConnection?.id ?? null,
       operationDefaults: {},

@@ -34,7 +34,7 @@ const readyEnvironment = {
     configurationReadable: true,
     connectionCount: 0,
     operations: [
-      { operation: "fit_assessment" as const, available: false, connectionName: null },
+      { operation: "opportunity_review" as const, available: false, connectionName: null },
       { operation: "job_extraction" as const, available: false, connectionName: null },
       { operation: "historical_field_discovery" as const, available: false, connectionName: null },
       { operation: "variant_recommendation" as const, available: false, connectionName: null },

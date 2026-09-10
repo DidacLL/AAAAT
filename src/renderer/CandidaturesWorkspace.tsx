@@ -11,11 +11,11 @@ import type {
   ConceptRecord,
   DocumentRecord,
 } from "../shared/contracts";
-import { CandidatureFitPanel } from "./CandidatureFitPanel";
+import { OpportunityReviewPanel } from "./OpportunityReviewPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel, type FocusDestination } from "./CandidatureFocusPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
-import { isAiOperationUnavailable } from "./ai-route-status";
+import { HistoricalFieldDiscoveryPanel } from "./HistoricalFieldDiscoveryPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
 import { filterCandidatures, type ArchiveFilter } from "./candidature-projections";
@@ -106,7 +106,7 @@ export function CandidaturesWorkspace({
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, openDocumentFromCandidature, openSettingsFor } = useContextualHandoffs();
+  const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
   const previousDocumentHandoff = useRef(documentHandoff);
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
@@ -145,6 +145,7 @@ export function CandidaturesWorkspace({
   const [filterChoiceValues, setFilterChoiceValues] = useState<string[]>([]);
   const [fieldMatches, setFieldMatches] = useState<ReadonlySet<string> | null>(null);
   const [valueEditorDirty, setValueEditorDirty] = useState<ReadonlySet<string>>(new Set());
+  const [discoveryFieldId, setDiscoveryFieldId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selected = records.find((record) => record.id === selectedId) ?? null;
@@ -203,6 +204,7 @@ export function CandidaturesWorkspace({
     setSelectedConceptIds(record.conceptIds);
     setSelectedConceptId(record.conceptIds[0] ?? null);
     setSourceDirty(false);
+    setDiscoveryFieldId(null);
   }, []);
 
   useEffect(() => {
@@ -354,6 +356,7 @@ export function CandidaturesWorkspace({
     if (!confirmSectionDiscard()) return;
     if (section === "documents" && selected) setSelectedDocumentIds(selected.documentIds);
     if (section === "sources") setSourceDirty(false);
+    if (section === "information") setDiscoveryFieldId(null);
     setSection(next);
   };
 
@@ -392,33 +395,7 @@ export function CandidaturesWorkspace({
   };
 
   const discoverValue = async (fieldId: string) => {
-    if (!selected) return;
-    const sources = await window.aaaat.candidatures.listSources(selected.id);
-    if (sources.length === 0) throw new Error("Retain a Source before asking AI to rediscover information.");
-    let result;
-    try {
-      result = await window.aaaat.ai.discoverField({
-        candidatureId: selected.id,
-        fieldId,
-        sourceIds: sources.map((source) => source.id),
-      });
-    } catch (reason) {
-      if (await isAiOperationUnavailable("historical_field_discovery")) {
-        openSettingsFor("ai", "candidatures");
-      }
-      throw reason;
-    }
-    if (!result.proposal) {
-      window.alert("The configured AI did not find a supported value in these Sources.");
-      return;
-    }
-    const field = fields.find((candidate) => candidate.definition.id === fieldId);
-    const label = field?.definition.label ?? "this field";
-    const replacement = result.existingValuePresent
-      ? `Replace the existing ${label} value with the reviewed AI proposal?`
-      : `Accept the reviewed AI proposal for ${label}?`;
-    if (!window.confirm(`${replacement}\n\n${JSON.stringify(result.proposal.value)}`)) return;
-    await setValue(fieldId, result.proposal.value);
+    setDiscoveryFieldId(fieldId);
   };
 
   const createField = async () => {
@@ -643,6 +620,7 @@ export function CandidaturesWorkspace({
     : [];
   const addField = fields.find((field) => field.definition.id === addFieldId);
   const editorField = fields.find((field) => field.definition.id === fieldEditorId);
+  const discoveryField = fields.find((field) => field.definition.id === discoveryFieldId);
 
   return (
     <section className="candidatures-workspace" aria-label="Candidatures">
@@ -661,11 +639,11 @@ export function CandidaturesWorkspace({
             value={query}
             maxLength={200}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Organisation, role, custom field, concept…"
+            placeholder="Organisation, role, kind of information, concept…"
           />
         </label>
         <label>
-          Field
+          Information kind
           <select
             value={filterFieldId}
             onChange={(event) => {
@@ -677,7 +655,7 @@ export function CandidaturesWorkspace({
               setFilterChoiceValues([]);
             }}
           >
-            <option value="">No field filter</option>
+            <option value="">No information filter</option>
             {fields.filter((field) => field.definition.enabled).map((field) => (
               <option key={field.definition.id} value={field.definition.id}>
                 {field.definition.label}
@@ -756,10 +734,10 @@ export function CandidaturesWorkspace({
           )
         ) : null}
         <div className="button-row">
-          <button type="button" onClick={() => void applyFieldFilter()}>Apply field filter</button>
+          <button type="button" onClick={() => void applyFieldFilter()}>Apply information filter</button>
           {fieldMatches ? (
             <button type="button" className="compact-secondary" onClick={clearFieldFilter}>
-              Clear field filter
+              Clear information filter
             </button>
           ) : null}
         </div>
@@ -794,7 +772,7 @@ export function CandidaturesWorkspace({
               >
                 <strong>{record.label}</strong>
                 <span>
-                  {record.values.length} retained {record.values.length === 1 ? "field" : "fields"}
+                  {record.values.length} retained {record.values.length === 1 ? "item of information" : "items of information"}
                   {record.archived ? " · archived" : ""}
                 </span>
               </button>
@@ -852,11 +830,11 @@ export function CandidaturesWorkspace({
                     <div>
                       <p className="eyebrow">Retained information</p>
                       <h3>Information</h3>
-                      <p>Missing fields stay absent. Add only information that is useful to retain.</p>
+                      <p>Missing information stays absent. Add only information that is useful to retain.</p>
                     </div>
 
                     {selected.values.length === 0 ? (
-                      <p className="compact-empty">No structured information is retained yet.</p>
+                      <p className="compact-empty">No additional information is retained yet.</p>
                     ) : (
                       <div className="retained-information-list">
                         {selected.values.map((retained) => {
@@ -882,11 +860,20 @@ export function CandidaturesWorkspace({
                       </div>
                     )}
 
+                    {discoveryField ? (
+                      <HistoricalFieldDiscoveryPanel
+                        candidatureId={selected.id}
+                        field={discoveryField}
+                        onAccept={(value) => setValue(discoveryField.definition.id, value)}
+                        onClose={() => setDiscoveryFieldId(null)}
+                      />
+                    ) : null}
+
                     <details className="add-information-panel">
                       <summary>+ Add information</summary>
                       {enabledMissingFields.length > 0 ? (
                         <label>
-                          Existing field
+                          Existing kind of information
                           <select value={addFieldId} onChange={(event) => selectAddField(event.target.value)}>
                             <option value="">Choose information…</option>
                             {enabledMissingFields.map((field) => (
@@ -897,7 +884,7 @@ export function CandidaturesWorkspace({
                           </select>
                         </label>
                       ) : (
-                        <p>All enabled fields already have retained values.</p>
+                        <p>All enabled kinds of information already have retained values.</p>
                       )}
                       {addField ? (
                         <CandidatureFieldValueEditor
@@ -914,7 +901,7 @@ export function CandidaturesWorkspace({
                       ) : null}
 
                       <details>
-                        <summary>+ New field</summary>
+                        <summary>+ Add a kind of information</summary>
                         <label>
                           Name
                           <input
@@ -960,13 +947,13 @@ export function CandidaturesWorkspace({
                           ) : null}
                         </details>
                         <button type="button" disabled={!newFieldLabel.trim()} onClick={() => void createField()}>
-                          Create field
+                          Save kind of information
                         </button>
                       </details>
                     </details>
 
                     <details className="field-management">
-                      <summary>Manage candidature fields</summary>
+                      <summary>Advanced information settings</summary>
                       <label>
                         Field
                         <select value={fieldEditorId} onChange={(event) => chooseFieldEditor(event.target.value)}>
@@ -1137,7 +1124,7 @@ export function CandidaturesWorkspace({
               <details className="optional-ai-assistance">
                 <summary>Optional AI assistance</summary>
                 <div className="optional-ai-content">
-                  <CandidatureFitPanel key={`fit-${selected.id}`} record={selected} />
+                  <OpportunityReviewPanel key={`review-${selected.id}`} record={selected} />
                   <VariantRecommendationPanel key={`variant-${selected.id}`} record={selected} />
                 </div>
               </details>

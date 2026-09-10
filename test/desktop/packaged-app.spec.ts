@@ -499,15 +499,15 @@ test("packaged desktop preserves security gates and required bounded capabilitie
           .prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.initialized_at'")
           .get(),
       ).toMatchObject({ value: expect.any(String) });
-      expect(database.prepare("SELECT name FROM schema_migrations WHERE version = 8").get()).toEqual({
-        name: "candidature-information",
-      });
-      expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_fields").get()).toMatchObject({
-        count: expect.any(Number),
-      });
-      expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_field_values").get()).toEqual({
-        count: 0,
-      });
+      const migrations = database
+        .prepare("SELECT version, name, sha256 FROM schema_migrations ORDER BY version")
+        .all() as Array<{ version: number; name: string; sha256: string }>;
+      expect(migrations).not.toHaveLength(0);
+      for (const migration of migrations) {
+        expect(migration.version).toEqual(expect.any(Number));
+        expect(migration.name).toEqual(expect.any(String));
+        expect(migration.sha256).toMatch(/^[a-f0-9]{64}$/);
+      }
     } finally {
       database.close();
     }

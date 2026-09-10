@@ -74,7 +74,7 @@ export function CareerContextPanel({
         setDraft(current);
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load the current career context.");
+        if (active) setError("AAAAT could not load your career preferences.");
       });
     return () => {
       active = false;
@@ -105,26 +105,26 @@ export function CareerContextPanel({
       setDraft(saved);
       setEditing(false);
     } catch {
-      setError("AAAAT could not save the current career context.");
+      setError("AAAAT could not save your career preferences.");
     }
   };
 
   const cancel = () => {
-    if (dirty && !window.confirm("Discard unsaved career context edits?")) return;
+    if (dirty && !window.confirm("Discard unsaved career preferences edits?")) return;
     setDraft(context ?? emptyContext);
     setEditing(false);
     setError(null);
   };
 
   return (
-    <section className="career-context-panel" aria-label="Current career context">
+    <section className="career-context-panel" aria-label="Career preferences">
       <div className="section-heading">
         <div>
           <p className="eyebrow">Current direction</p>
-          <h2>Current career context</h2>
+          <h2>Career preferences</h2>
           <p>
-            Reusable goals, constraints, and preferences for judging opportunities. This is
-            separate from your professional evidence.
+            Reusable direction, constraints, and preferences to keep alongside your professional
+            information. AAAAT retains them; it does not choose opportunities for you.
           </p>
         </div>
         {!editing && context ? (
@@ -136,7 +136,7 @@ export function CareerContextPanel({
               setEditing(true);
             }}
           >
-            {nonEmpty.length === 0 ? "Add career context" : "Edit career context"}
+            {nonEmpty.length === 0 ? "Add career preferences" : "Edit career preferences"}
           </button>
         ) : null}
       </div>
@@ -148,7 +148,7 @@ export function CareerContextPanel({
       ) : null}
 
       {!context ? (
-        <p>{error ? null : "Loading current career context..."}</p>
+        <p>{error ? null : "Loading career preferences..."}</p>
       ) : editing ? (
         <form className="editor-card career-context-editor" onSubmit={(event) => void save(event)}>
           {fields.map(({ key, label, hint }) => (
@@ -165,7 +165,7 @@ export function CareerContextPanel({
           ))}
           <div className="form-actions wide-field">
             <button className="compact-primary" type="submit">
-              Save career context
+              Save career preferences
             </button>
             <button className="compact-secondary" type="button" onClick={cancel}>
               Cancel
@@ -174,7 +174,8 @@ export function CareerContextPanel({
         </form>
       ) : nonEmpty.length === 0 ? (
         <p className="empty-copy">
-          Add only the current direction and constraints that help you judge opportunities.
+          Add only preferences or constraints that help you recognise or describe suitable
+          opportunities.
         </p>
       ) : (
         <dl className="career-context-summary">

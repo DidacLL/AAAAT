@@ -83,7 +83,7 @@ The capture surface may offer a secondary way to add structured information befo
 
 When the user pastes raw material, AAAAT preserves it as a Source rather than silently replacing it with extracted fields. A URL can be retained even when no fetch or extraction occurs.
 
-AI extraction is contextual assistance after or alongside explicit Source capture when available. It is never required for validity.
+When extraction is available, it is contextual assistance in the same Source-capture flow after the Source is retained. The user sees the selected connection and exact Source material before requesting it, then reviews each proposed piece of ordinary editable information. It is never required for validity.
 
 After Save, the candidature becomes selected and opens a useful recognition state, normally Focus. A very sparse candidature may use a compact retained Source clue/excerpt for recognition until richer information exists. This is a presentation fallback, not an AI summary or second data model.
 

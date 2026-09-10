@@ -80,7 +80,7 @@ Do not automatically make each of those a peer top-level navigation destination.
 
 ### Raw offer → application
 
-User may retain a Source, manually add information, ask AI to extract from that explicit Source, evaluate fit, prepare questions/notes, create or use a CV, create or use a cover letter, and retain the exact material actually used.
+User may retain a Source, manually add information, ask AI to extract from that explicit Source, request an opportunity review, prepare questions/notes, create or use a CV, create or use a cover letter, and retain the exact material actually used.
 
 AAAAT supports these actions without forcing a prescribed workflow. The user may perform them in another order or omit any optional step.
 
@@ -102,7 +102,7 @@ No candidature is required. This is the major parallel journey to candidature ma
 
 User maintains reusable experience, skills, education, projects, identity/contact, languages, links, summaries, and relevant objectives/preferences/constraints.
 
-Ordinary UX should present actual professional information. Users must not need to understand “canonical profile”, patches, rule engines, or variants before normal use.
+Ordinary UX should present actual professional information. Users must not need to understand internal profile architecture, patches, rule engines, or variants before normal use.
 
 Variants/differences remain available through progressive disclosure.
 
@@ -116,7 +116,7 @@ If no valid AI route exists, manual work remains complete.
 
 ### Aggregate candidature work
 
-Search, filter, archive, and explicitly selected comparison belong around the candidature collection. They help the user find/select candidatures; they do not create a second CRM/table-management product.
+Search, filter, and archive belong around the candidature collection. They help the user find/select candidatures; they do not create a second CRM/table-management product. Cross-candidature use means corpus retrieval and synthesis where useful, not pairwise opportunity comparison.
 
 ### Setup / recovery
 

@@ -10,7 +10,7 @@
 
 Keep the current Electron, React, TypeScript, SQLite and application-service architecture. Separate external/provider wire contracts from internal renderer/service contracts. Durable identifiers stay local. Where an operation requires a round trip, expose temporary references resolved only within that operation's validated scope. Receiving data grants no additional mutation capability. Use ordinary validation and conflict behavior, without a generic policy framework or approval queue.
 
-ADR 0014's structural boundary remains in force. Purpose-specific disclosure of permitted career context and AI-visible CV tags/notes is allowed so an external assistant can judge suitability; AAAAT does not perform that ranking. Further permitted document content, contributions and production actions use named operations. This grants neither candidature-corpus access nor a generic entity browser.
+ADR 0014's structural boundary remains in force. Purpose-specific disclosure of permitted career preferences and AI-visible CV tags/notes is allowed for bounded assistance; AAAAT does not rank opportunities or manage a career workflow. Further permitted document content, contributions and production actions use named operations. This grants neither candidature-corpus access nor a generic entity browser.
 
 The owner fixes document production to a LaTeX2e public API, expl3 internals and pdfTeX through pdfLaTeX. This supersedes the previous SPEC's mandatory LuaLaTeX/XeLaTeX extension/matrix requirement. A TypeScript feeder owns generated data; editable blueprints and modified package sources remain user-owned. Keep local async process execution, portability and service boundaries. Detailed blueprint and language/font design remains the agreed later owner collaboration.
 
@@ -20,4 +20,4 @@ There is no real-use v2 data baseline. Correct obsolete development schema/contr
 
 Tests that assert durable external IDs must change with the rejected contract. Verify disclosure, operation scope, conflicts and local restoration, not incidental placeholder syntax. Setup describes actual host access, including workspace paths in generated configuration and the separate trust granted to shell-capable hosts.
 
-The corrected SPEC is the masterplan. Future capabilities remain required even when their initial foundation passed a checkpoint. Independent review and impact-selected runtime/TeX evidence establish implementation completion; this decision alone does not claim those capabilities are delivered.
+`PRODUCT_DEFINITION.md` is the normative product path; the derived SPEC records technical architecture and this ADR records a technical correction. Future capability selection follows the authority ladder rather than a historical checkpoint. Independent review and impact-selected runtime/TeX evidence establish implementation completion; this decision alone does not claim capabilities are delivered.

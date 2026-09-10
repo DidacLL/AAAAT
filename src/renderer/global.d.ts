@@ -1,7 +1,6 @@
 import type { AiConnectionDesktopApi } from "../shared/ai-connection-contracts";
 import type { AiDesktopApi } from "../shared/ai-contracts";
 import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
-import type { CandidatureComparisonDesktopApi } from "../shared/candidature-comparison-contracts";
 import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
 import type { CombinedDocumentDesktopApi } from "../shared/combined-document-contracts";
 import type { DesktopApi } from "../shared/contracts";
@@ -18,7 +17,6 @@ declare global {
       AiDesktopApi &
       AiConnectionDesktopApi &
       ArtifactDesktopApi &
-      CandidatureComparisonDesktopApi &
       CandidatureSearchDesktopApi &
       CombinedDocumentDesktopApi &
       CvContentAccessDesktopApi &

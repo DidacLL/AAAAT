@@ -1,16 +1,16 @@
 # ADR 0018 — Validated AI operation capabilities and defaults
 
-**Status:** Accepted for Issue #179
+**Status:** Accepted for Issue #179. The capability/default-routing decision remains accepted. References to format version 3 below are historical provenance for that pre-baseline slice; the current configuration format is version 4 and does not retain a v3 compatibility reader or migration path.
 
 ## Context
 
-ADR 0017 established several named local AI connections and one explicit nullable general default, while deliberately deferring capability discovery and per-operation routing. Product authority now requires honest capability-aware setup: multiple connections may provide different capabilities, no provider is assumed to support every operation, and useful operation defaults must be based on actual capability rather than assumption.
+ADR 0017 established several named AI connections and one explicit nullable general default, while deliberately deferring capability discovery and per-operation routing. Product authority then required honest capability-aware setup: multiple connections may provide different capabilities, no provider is assumed to support every operation, and useful operation defaults must be based on actual capability rather than assumption.
 
-There is still no real-user v2 compatibility baseline. The format-version-2 plural connection file is development-era configuration, not an upgrade commitment.
+There was no real-user v2 compatibility baseline. The format-version-2 plural connection file was development-era configuration, not an upgrade commitment.
 
 ## Decision
 
-`ai-connection.json` remains the single machine-local AI configuration file and moves directly to format version 3. Each stable-ID connection stores a bounded set of existing AAAAT AI operations that have been explicitly validated for its current endpoint/model. The file also stores explicit per-operation default connection IDs.
+For this historical slice, `ai-connection.json` moved directly to format version 3. Each stable-ID connection stored a bounded set of existing AAAAT AI operations that had been explicitly validated for its current endpoint/model. The file also stored explicit per-operation default connection IDs. These are internal routing/validation metadata; the user-defined connection coordinates remain name, endpoint and model.
 
 Validation uses only synthetic AAAAT context and the existing provider operation contract. It records success only when the provider returns output valid for that operation's current typed contract. Validation does not disclose candidature, profile, Source or document content and is not a benchmark or claim about model intelligence.
 
@@ -20,10 +20,10 @@ The first connection successfully validated for an operation becomes that operat
 
 AI operations resolve their explicit operation default first. The general default from ADR 0017 remains a convenience fallback only when that connection is itself validated for the requested operation. AAAAT never searches other connections or falls back automatically.
 
-The development-era version-2 format is not migrated or projected; it is corrected directly under the pre-baseline rule.
+The development-era version-2 format was not migrated or projected; it was corrected directly under the pre-baseline rule. The same rule now applies to development-era v3 configuration: current v4 rejects it rather than normalizing or rewriting it.
 
 ## Consequences
 
-AAAAT can distinguish connection capability and operation routing without a provider registry, ranking system, generic routing engine or background discovery service. Existing provider prompts, privacy projection and mutation rules remain unchanged.
+AAAAT can distinguish connection capability and operation routing without a provider registry, ranking system, generic routing engine or background discovery service. Existing provider prompts, privacy projection and mutation rules remain bounded by current product authority.
 
-Remote authentication, research capability, provider-specific onboarding, model benchmarking, automatic fallback and broader setup orchestration remain separate product slices. A future setup capability may reuse these validated operation facts rather than inventing a second capability model.
+Credential/authentication configuration, research capability, provider-specific onboarding, model benchmarking, automatic fallback and broader setup orchestration are outside this slice. Their absence here is not a product-wide prohibition.

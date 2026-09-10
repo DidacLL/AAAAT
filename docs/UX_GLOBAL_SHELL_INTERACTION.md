@@ -41,7 +41,7 @@ The same destination also hosts document work entered from Candidature X; candid
 
 Professional information is a primary destination because the user maintains reusable source content independently of any one candidature or document.
 
-The destination is named for the user’s content, not for implementation concepts such as canonical profile, variants, patches, or career-context tables.
+The destination is named for the user’s content, not for implementation concepts such as internal profile architecture, variants, patches, or career-preference storage.
 
 ### Settings
 

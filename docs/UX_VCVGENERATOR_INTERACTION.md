@@ -35,7 +35,7 @@ For ordinary users, VCVGenerator exposes three concepts:
 
 The normal UX should not require understanding:
 
-- canonical profile;
+- internal profile architecture;
 - variants as patches;
 - document override rules;
 - feeder ownership;
@@ -688,7 +688,7 @@ A future design/implementation satisfies Stage 2 only if the answer is yes to al
 2. Can I create a useful general CV without a candidature, AI, or variant?
 3. From Candidature X, can I see/open/create its CVs and letters without reconstructing the relationship elsewhere?
 4. When I enter document work from Candidature X, do I retain enough context to know what application I am working for and return naturally?
-5. Is normal editing understandable without canonical-profile, patch, feeder, or LaTeX implementation terminology?
+5. Is normal editing understandable without internal profile, patch, feeder, or LaTeX implementation terminology?
 6. Can I reuse professional information without silently changing its ownership semantics?
 7. Can advanced users inspect user-owned source, feeder-generated data, differences, PDF/output, portability, and relevant assistant permissions deliberately?
 8. Is a retained exact application artifact clearly different from a later-mutated working document?

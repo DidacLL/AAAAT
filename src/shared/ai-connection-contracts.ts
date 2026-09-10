@@ -3,26 +3,24 @@ import { z } from "zod";
 import { aiConnectionInputSchema } from "./ai-contracts";
 
 export const aiOperationSchema = z.enum([
-  "fit_assessment",
+  "opportunity_review",
   "job_extraction",
   "historical_field_discovery",
   "variant_recommendation",
   "cv_tailoring",
   "cover_letter_draft",
-  "candidature_comparison",
 ]);
 export type AiOperation = z.infer<typeof aiOperationSchema>;
 
 export const aiOperations = aiOperationSchema.options;
 
 export const aiOperationLabels: Readonly<Record<AiOperation, string>> = Object.freeze({
-  fit_assessment: "Fit assessment",
+  opportunity_review: "Opportunity review",
   job_extraction: "Job extraction",
   historical_field_discovery: "Historical field discovery",
   variant_recommendation: "Variant recommendation",
   cv_tailoring: "CV tailoring",
   cover_letter_draft: "Cover-letter drafting",
-  candidature_comparison: "Candidature comparison",
 });
 
 export const aiConnectionManagementChannels = Object.freeze({

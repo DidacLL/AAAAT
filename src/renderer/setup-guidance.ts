@@ -9,7 +9,7 @@ export interface SetupGuidanceArtifact {
 }
 
 function connectionCountLabel(count: number): string {
-  return `${count} configured local AI connection${count === 1 ? "" : "s"}`;
+  return `${count} configured AI connection${count === 1 ? "" : "s"}`;
 }
 
 export function buildSetupGuidance(
@@ -57,13 +57,13 @@ ${operationLines}
 
 Rules for this setup conversation:
 - AI is optional. Preserve complete manual use and do not pressure the user to configure a model or paid service.
-- The current user-facing connection path is for local loopback OpenAI-compatible endpoints. Do not invent API keys, OAuth, remote authentication, provider accounts, or capabilities that AAAAT has not reported.
+- The current user-facing connection path supports loopback HTTP endpoints and remote HTTPS endpoints whose authentication is already handled outside AAAAT. Do not invent API keys, OAuth, provider accounts, or authentication capabilities that AAAAT has not reported.
 - Guide changes only through AAAAT Settings. Do not ask the user to edit JSON, SQLite, workspace files, or hidden scripts.
 - An operation may use only a connection validated for that operation. Do not recommend connection scanning, automatic alternate fallback, or an unvalidated operation default.
-- If a desired operation has no validated route, explain how to add or select a local connection in Settings, validate that specific operation, and then set an explicit operation default if useful.
+- If a desired operation has no validated route, explain how to add or select a connection in Settings, validate that specific operation, and then set an explicit operation default if useful.
 - Do not request candidature, profile, Source, document, or other career/application content; this setup conversation does not need it.
 - Treat suggestions as proposals. The user makes every configuration choice explicitly in AAAAT.
-- If AAAAT reports that AI configuration is unreadable, do not guess. Tell the user to return to Settings, refresh the environment status, and resolve that local setup problem first.`;
+- If AAAAT reports that AI configuration is unreadable, do not guess. Tell the user to return to Settings, refresh the environment status, and resolve that setup problem first.`;
 
   return [
     { name: "installer.ai", text: installer },

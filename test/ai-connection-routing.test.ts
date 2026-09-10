@@ -14,7 +14,7 @@ import {
   validateAiConnectionOperation,
 } from "../src/main/ai-connection-service";
 import type { ModelProvider } from "../src/main/ai-provider";
-import { assessFit } from "../src/main/ai-service";
+import { reviewOpportunity } from "../src/main/ai-service";
 import { createCandidature } from "../src/main/candidature-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
@@ -29,12 +29,11 @@ function workspace(): string {
 
 function provider(): ModelProvider {
   return {
-    assessFit: vi.fn<ModelProvider["assessFit"]>(async (connection) => ({
-      fit: "possible",
+    reviewOpportunity: vi.fn<ModelProvider["reviewOpportunity"]>(async (connection) => ({
       summary: connection.name,
-      strengths: [],
-      gaps: [],
-      focus: [],
+      relevantEvidence: [],
+      uncertainties: [],
+      questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(),
     recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(),
@@ -72,37 +71,37 @@ describe("AI operation connection routing", () => {
       contactPrivacy: "omit" as const,
     };
 
-    await expect(assessFit(root, request, modelProvider)).rejects.toThrow(
-      "Validate and choose a connection for Fit assessment",
+    await expect(reviewOpportunity(root, request, modelProvider)).rejects.toThrow(
+      "Validate and choose a connection for Opportunity review",
     );
 
     await validateAiConnectionOperation(
       root,
-      { connectionId: first.id, operation: "fit_assessment" },
+      { connectionId: first.id, operation: "opportunity_review" },
       modelProvider,
     );
     setDefaultAiConnection(root, second.id);
-    await expect(assessFit(root, request, modelProvider)).resolves.toMatchObject({
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
       summary: "First local",
     });
 
     await validateAiConnectionOperation(
       root,
-      { connectionId: second.id, operation: "fit_assessment" },
+      { connectionId: second.id, operation: "opportunity_review" },
       modelProvider,
     );
-    await expect(assessFit(root, request, modelProvider)).resolves.toMatchObject({
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
       summary: "First local",
     });
 
-    setAiOperationDefault(root, { connectionId: second.id, operation: "fit_assessment" });
-    await expect(assessFit(root, request, modelProvider)).resolves.toMatchObject({
+    setAiOperationDefault(root, { connectionId: second.id, operation: "opportunity_review" });
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
       summary: "Second local",
     });
 
     removeAiConnection(root, second.id);
-    await expect(assessFit(root, request, modelProvider)).rejects.toThrow(
-      "Validate and choose a connection for Fit assessment",
+    await expect(reviewOpportunity(root, request, modelProvider)).rejects.toThrow(
+      "Validate and choose a connection for Opportunity review",
     );
   });
 });

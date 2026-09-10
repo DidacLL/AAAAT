@@ -41,25 +41,25 @@ If the previously used workspace was moved, deleted, or is no longer available, 
 
 ## 3. Use AAAAT without AI
 
-The main workspace areas are **Candidatures**, **Profile**, **Documents**, **AI assist**, and **Settings**. The first three form the normal manual path and do not require an AI connection.
+The main workspace areas are **Candidatures**, **Professional information**, **CVs & letters**, and **Settings**. Ordinary work in Candidatures, Professional information, and CVs & letters does not require an AI connection.
 
-### Profile
+### Professional information
 
-Use **Profile** for canonical professional information such as experience, education, projects, skills, certifications, languages, links, and related career knowledge. Named profile variants focus or override selected details without creating a second copy of your professional identity.
+Use **Professional information** for reusable experience, education, projects, skills, certifications, languages, links, summaries, and related material. Saved variations can give a role or market different emphasis without creating a second professional identity.
 
 A practical starting sequence is:
 
 1. add the career information you want to reuse;
-2. create a focused profile variant when a role needs different emphasis;
-3. keep authoritative information in the canonical profile and use variants only for differences.
+2. create a saved variation only when a role needs different emphasis;
+3. keep reusable information in one place and use variations only for deliberate differences.
 
 ### Documents
 
-Use **Documents** to create and edit CVs and cover letters directly from the canonical career profile, optionally applying a named profile variant when different emphasis is useful. AAAAT keeps document content editable and produces a normal LaTeX project in the user-owned workspace.
+Use **CVs & letters** to create and edit CVs and cover letters from reusable professional information, optionally applying a saved variation when different emphasis is useful. AAAAT keeps document content editable and produces a normal LaTeX project in the user-owned workspace.
 
-For a CV, **AI-visible CV description** provides optional user-authored tags and notes for a chosen external assistant. These fields are empty by default and do not change the CV itself, its profile basis, its TeX project, or its rendered PDF. They are deliberately separate from profile-variant target tags. If you enable the external `cv_descriptions_read` operation, only CVs with at least one saved descriptor are disclosed, and only their saved tags/notes are returned under temporary labels such as `CV 1`; the operation does not disclose the CV title, content, local document ID, file paths, candidature links, or artifacts.
+For a CV, **AI-visible CV description** provides optional user-authored tags and notes for a chosen external assistant. These fields are empty by default and do not change the CV itself, its reusable professional-information basis, its TeX project, or its rendered PDF. They are deliberately separate from saved-variation target tags. If you enable the external `cv_descriptions_read` operation, only CVs with at least one saved descriptor are disclosed, and only their saved tags/notes are returned under temporary labels such as `CV 1`; the operation does not disclose the CV title, content, local document ID, file paths, candidature links, or artifacts.
 
-**External CV content access** is a separate, broader choice. If descriptor tags/notes are not enough for the assistant to judge the material, you may explicitly allow one working CV to be read through `cv_content_read`. AAAAT asks for confirmation before allowing it, and selecting another CV replaces the previous selection. The tool receives the effective CV item content after the document's inclusion choices, overrides, and ordering. It does not receive the working-document title or ID, local profile-item IDs, file paths, raw TeX/PDF, descriptor tags/notes, candidature history, or other documents. Revoke the permission from the same Documents panel when you no longer want that content available. Unsaved structured edits must be saved before changing this permission, so the shared content is always the persisted effective CV.
+**External CV content access** is a separate, broader choice. If descriptor tags/notes are not enough for the assistant to judge the material, you may explicitly allow one working CV to be read through `cv_content_read`. AAAAT asks for confirmation before allowing it, and selecting another CV replaces the previous selection. The tool receives the effective CV item content after the document's inclusion choices, overrides, and ordering. It does not receive the working-document title or ID, local professional-information item IDs, file paths, raw TeX/PDF, descriptor tags/notes, candidature history, or other documents. Revoke the permission from the same Documents panel when you no longer want that content available. Unsaved structured edits must be saved before changing this permission, so the shared content is always the persisted effective CV.
 
 **External PDF rendering** is a separate production permission on top of content access. Allowing an assistant to read the CV does not allow it to render anything. After content access is enabled for that CV, you may separately confirm **Allow external PDF rendering**. The external `cv_render` tool then has no selector, path, engine, command, or output controls: it can only ask AAAAT to run the same normal local render for that one CV and receives only a success acknowledgement. Revoking content access also revokes render authorization automatically. Render authorization can also be revoked independently while leaving content access enabled.
 
@@ -85,37 +85,39 @@ Install `latexmk` and `pdflatex` if the setup status reports them missing. AAAAT
 
 If the tools are missing, AAAAT reports that TeX rendering could not start and identifies `latexmk` and the required engine. The generated source is still user-owned and may be compiled independently with compatible tools after those prerequisites are installed.
 
-A rendering failure does not make AI necessary and does not change the authoritative profile/candidature data.
+A rendering failure does not make AI necessary and does not change the authoritative professional-information or candidature data.
 
-## 5. Optional local AI assistance
+## 5. Optional AI assistance
 
-AI is optional. In **Settings**, AAAAT can keep several named keyless, loopback-only OpenAI-compatible connections. The default example base URL is:
+AI is optional. In **Settings**, AAAAT can keep several named OpenAI-compatible connections. A loopback connection may use `http:`; a remote connection must use `https:`. The default local example base URL is:
 
 ```text
 http://localhost:11434/v1
 ```
 
-Add a connection name, model name, and local provider base URL. The first connection becomes the general default; adding another connection does not switch that choice. The general default is only a convenience fallback for operations that have been validated against that exact endpoint/model.
+For each connection, this current slice stores the user-defined connection name, model name, and base URL. It has no credential, API-key, OAuth, provider-account, authorization-header, or secret-storage configuration. A remote endpoint must therefore already be authenticated outside AAAAT. The first connection becomes the general default; adding another connection does not switch that choice. The general default is only a convenience fallback for operations that have been validated against that exact endpoint/model.
 
-Before using a configured connection for an AI operation, validate that operation from **Settings**. Validation sends only synthetic AAAAT data through the existing operation contract; it does not send your candidature, profile, Sources, or documents, and it is not a benchmark of model quality. The first successful validation for an operation becomes that operation's default when no operation default exists. Later validations do not switch it automatically. You can explicitly choose another validated connection for that operation.
+Before using a configured connection for an AI operation, validate that operation from **Settings**. Validation sends only synthetic AAAAT data through the existing operation contract; it does not send your candidature, professional information, Sources, or documents, and it is not a benchmark of model quality. The first successful validation for an operation becomes that operation's default when no operation default exists. Later validations do not switch it automatically. You can explicitly choose another validated connection for that operation.
 
 Changing a connection's endpoint or model clears its recorded operation validations because the capability boundary changed. A name-only edit keeps them. Removing a connection clears any operation defaults that referenced it. AAAAT never scans other configured connections or falls back to another model automatically.
 
-Use **Export AI setup** to save a small portable setup file containing only connection names, loopback endpoints, model names, and the selected general default. The portable file does not contain AAAAT's local connection IDs, operation-validation results, per-operation defaults, workspace paths, credentials, or career/application data.
+Use **Export AI setup** to save a small portable setup file containing only connection names, accepted endpoints, model names, and the selected general default. The portable file does not contain AAAAT's local connection IDs, operation-validation results, per-operation defaults, workspace paths, credential material, or career/application data.
 
-Use **Import AI setup** to replace the current named local AI setup from one of those files. AAAAT asks for confirmation before replacement. Imported connections receive fresh local IDs, preserve the general default by connection name, and start with no validated operations or per-operation defaults. Validate the operations you intend to use again on the destination computer before relying on AI assistance. Cancelling the file picker leaves the current setup unchanged.
+Use **Import AI setup** to replace the current named AI setup from one of those files. AAAAT asks for confirmation before replacement. Imported connections receive fresh local IDs, preserve the general default by connection name, and start with no validated operations or per-operation defaults. Validate the operations you intend to use again on the destination computer before relying on AI assistance. Cancelling the file picker leaves the current setup unchanged.
 
-The same **Local setup status** summarizes how many local AI connections are configured and which of the seven current AI operations have a validated route. This is a capability/routing status, not a model-quality score.
+The same **Setup status** summarizes how many AI connections are configured and which active AI operations have a validated route. This is a capability/routing status, not a model-quality score.
 
-Settings also generates copyable `configurator.ai` guidance for a free-chat assistant. It carries only the configured-connection count and validated-route availability, not connection names, endpoints/models, workspace paths, or career/application content. The prompt tells the assistant to keep AI optional, use normal AAAAT Settings, avoid JSON/SQLite editing and invented credentials, and recommend only explicitly validated operation routes. AAAAT never sends this guidance automatically; copying it is an explicit user action.
+Settings also generates copyable `configurator.ai` guidance for a free-chat assistant. It carries only the configured-connection count and validated-route availability, not connection names, endpoints/models, workspace paths, or career/application content. The prompt tells the assistant to keep AI optional, use normal AAAAT Settings, avoid JSON/SQLite editing and invented authentication details, and recommend only explicitly validated operation routes. AAAAT never sends this guidance automatically; copying it is an explicit user action.
 
-Only loopback endpoints are accepted by this current user-facing path. Remote authentication and API-key setup are not part of this alpha path.
+The current connection path accepts loopback `http:` endpoints and remote `https:` endpoints whose authentication is already handled outside AAAAT. Authentication and credential configuration are outside this slice rather than a product-wide prohibition.
 
-When an operation has a validated route, **AI assist** and AI-assisted candidature actions can use bounded operations such as job extraction, fit assessment, profile-variant recommendation, historical field discovery, CV tailoring, cover-letter drafting, and selected candidature comparison. AAAAT constructs operation-specific context, applies its privacy projection, validates the response, and uses normal application services for permitted changes.
+When an operation has a validated route, contextual assistance can use bounded operations such as job extraction, opportunity review, saved-variation recommendation, historical information discovery, CV tailoring, and cover-letter drafting. AAAAT constructs operation-specific context, applies its privacy projection, validates the response, and uses normal application services for permitted changes. It does not compare candidatures, rank opportunities, choose a winner, or prescribe career actions.
 
-For **Optional AI candidature comparison**, explicitly select 2–5 candidatures and choose **Preview disclosure** first. AAAAT shows the local selections and the exact AI-visible field values it would send. Retained Sources, profile information, documents, ToDos, artifacts, and candidature history are not included. The provider receives generic operation-local candidature references rather than AAAAT's durable record or field identifiers. The comparison is read-only and transient: it may surface strengths, concerns, questions and cross-cutting considerations, but AAAAT does not score or rank the opportunities, choose a winner, recommend which candidature you should prefer, or persist the comparison automatically.
+When you save a Source-backed candidature and job extraction is available, choose **Review source with AI** in the same candidature flow. AAAAT first retains the Source. Before it sends anything, it shows the selected connection, whether that connection is local or remote, and the exact retained Source material to be disclosed; the ordinary review surface does not expose the literal endpoint. The AI result is a set of individually reviewable proposals; accept only the information you want to keep. Dismissing the review, unavailable AI, or a provider failure leaves the saved Source-backed candidature intact.
 
-If no local model is running, no connection has been validated for the requested operation, or an AI connection fails, continue using **Profile**, **Documents**, and **Candidatures** manually.
+For historical information discovery inside a candidature, choose **Discover from Sources**, then select one or more retained Sources. Nothing is preselected. AAAAT shows the selected Source material before sending, requires a non-empty selection, and passes only those selected Sources to the discovery operation. Any returned value remains a proposal until you accept it through the normal candidature information service.
+
+If no connection has been validated for the requested operation, or an AI connection fails, continue using **Professional information**, **CVs & letters**, and **Candidatures** manually.
 
 ## 6. Back up a workspace
 
@@ -149,17 +151,17 @@ AAAAT --workspace-restore --backup <backup-directory> --destination <empty-works
 
 Because AI connection configuration is intentionally excluded from workspace backups, import a separately exported portable AI setup in **Settings** if you want to restore those connection definitions. Operation validations and per-operation defaults are intentionally not portable and must be re-established on the restored computer.
 
-## 8. Optional VS Code MCP integration
+## 8. Advanced optional VS Code MCP integration
 
-The current demonstrated external-host integration is VS Code and is optional. It uses AAAAT's official MCP stdio server and currently exposes five bounded named operations:
+The current demonstrated external-host integration is VS Code and is optional. It is advanced technical integration, not ordinary setup. It uses AAAAT's official MCP stdio server and currently exposes five bounded named operations:
 
 - `candidature_create` creates one candidature from one retained Source through the ordinary candidature service;
-- `career_context_read` returns only non-empty user-written Career Context values: career direction, objectives, constraints, target roles, target markets/locations, work preferences, and application-writing preferences;
+- `career_context_read` returns only non-empty user-written Career preferences values: career direction, objectives, constraints, target roles, target markets/locations, work preferences, and application-writing preferences;
 - `cv_descriptions_read` returns only explicitly saved AI-visible CV tags and notes under response-local labels such as `CV 1`. Blank/un-described CVs and all cover letters are omitted;
 - `cv_content_read` accepts no selector and returns `null` unless you have deliberately allowed one CV in Documents. When allowed, it returns only that working CV's effective resolved profile-item content after document-specific inclusion, overrides, and ordering;
 - `cv_render` accepts no selector or render controls and returns `null` unless the same content-selected CV also has separate local external-render authorization. When authorized, it asks AAAAT to perform its ordinary local PDF render and returns only `{ "rendered": true }`.
 
-`career_context_read`, `cv_descriptions_read`, and `cv_content_read` are read-only. `cv_descriptions_read` does not expose CV titles, document content, durable local IDs, profile/variant data, file paths, candidature links/history, Sources or artifacts, and its synthetic labels are not persistent document references. `cv_content_read` is broader because it returns CV content, but it still does not expose the document title/ID, local item IDs, file paths, raw TeX/PDF, descriptors, candidature history, other documents, or caller-controlled selection/query authority. `cv_render` is a production action, not an additional data-reading route: it cannot select a document, path, engine, command or output location and does not return document identity, paths, TeX/PDF bytes, logs or environment details. Content disclosure never enables rendering automatically; the render permission is a separate user choice and is cleared when content access is revoked or moved to another CV. These tools do not provide a generic browse/search/query/filesystem/process surface. Treat host activation, content disclosure and render authorization as distinct trust decisions.
+`career_context_read`, `cv_descriptions_read`, and `cv_content_read` are read-only. `cv_descriptions_read` does not expose CV titles, document content, durable local IDs, reusable professional-information or variation data, file paths, candidature links/history, Sources or artifacts, and its synthetic labels are not persistent document references. `cv_content_read` is broader because it returns CV content, but it still does not expose the document title/ID, local item IDs, file paths, raw TeX/PDF, descriptors, candidature history, other documents, or caller-controlled selection/query authority. `cv_render` is a production action, not an additional data-reading route: it cannot select a document, path, engine, command or output location and does not return document identity, paths, TeX/PDF bytes, logs or environment details. Content disclosure never enables rendering automatically; the render permission is a separate user choice and is cleared when content access is revoked or moved to another CV. These tools do not provide a generic browse/search/query/filesystem/process surface. Treat host activation, content disclosure and render authorization as distinct trust decisions.
 
 First create the proposed portable integration manifest:
 
@@ -185,10 +187,10 @@ Activation validates the workspace, executable, manifest, and live MCP tool surf
 
 **PDF rendering cannot start.** Check **Settings → Local setup status**. Install `latexmk` and `pdflatex` through a compatible TeX distribution if they are missing, then refresh the environment status and retry. Your generated LaTeX source remains available even when rendering fails.
 
-**AI actions fail or no AI is configured.** AI is optional. Check that the selected local OpenAI-compatible endpoint is running and remains a loopback address, then validate the specific operation in **Settings**. If several validated connections exist, choose the desired operation default explicitly. Manual Profile, Documents, and Candidatures workflows continue to work without AI.
+**AI actions fail or no AI is configured.** AI is optional. Check that the selected OpenAI-compatible endpoint is available, that it is loopback `http:` or remote `https:`, and that any remote authentication is already handled outside AAAAT. Then validate the specific operation in **Settings**. If several validated connections exist, choose the desired operation default explicitly. Manual Professional information, CVs & letters, and Candidatures workflows continue to work without AI.
 
 **Restore rejects a backup.** Do not bypass validation. Use an intact AAAAT backup directory and a separate empty destination. A restore may reject modified manifests/payloads, path traversal, file corruption, incompatible migration history, overlapping directories, symlinks, or special files.
 
 ## Current alpha limitations
 
-The current release path deliberately does not include code signing/notarization, an updater, an automated GitHub Release publisher, a Windows installer, a macOS DMG, or RPM/AppImage/Snap/Flatpak packages. The current setup status and free-chat guidance detect/explain capabilities but do not install software, edit system configuration, or silently mutate AAAAT configuration. Portable AI setup import/export is explicit and limited to the named local connection definitions/general default described above.
+The current release path deliberately does not include code signing/notarization, an updater, an automated GitHub Release publisher, a Windows installer, a macOS DMG, or RPM/AppImage/Snap/Flatpak packages. The current setup status and free-chat guidance detect/explain capabilities but do not install software, edit system configuration, configure provider accounts, or silently mutate AAAAT configuration. Portable AI setup import/export is explicit and limited to the named connection definitions/general default described above.

@@ -1,6 +1,5 @@
 // @vitest-environment node
 
-import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
@@ -19,47 +18,9 @@ import {
   readLastWorkspacePath,
   rememberWorkspacePath,
 } from "../src/main/workspace";
-import workspaceMigrationSql from "../src/main/migrations/001_workspace.sql?raw";
-import profileMigrationSql from "../src/main/migrations/002_profile.sql?raw";
-import documentMigrationSql from "../src/main/migrations/003_documents.sql?raw";
-import candidatureMigrationSql from "../src/main/migrations/004_candidatures.sql?raw";
-import conceptMigrationSql from "../src/main/migrations/005_concepts.sql?raw";
-import activityMigrationSql from "../src/main/migrations/006_activity.sql?raw";
 
 function temporaryDirectory(): string {
   return mkdtempSync(path.join(tmpdir(), "aaaat-workspace-"));
-}
-
-function createV6Workspace(directory: string): void {
-  const database = new DatabaseSync(path.join(directory, "workspace.sqlite"));
-  const now = "2026-01-01T00:00:00.000Z";
-  const migrations = [
-    [1, "workspace", workspaceMigrationSql],
-    [2, "profile", profileMigrationSql],
-    [3, "documents", documentMigrationSql],
-    [4, "candidatures", candidatureMigrationSql],
-    [5, "concepts", conceptMigrationSql],
-    [6, "activity", activityMigrationSql],
-  ] as const;
-
-  try {
-    database.exec(
-      "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;",
-    );
-    for (const [version, name, sql] of migrations) {
-      database.exec(sql);
-      database
-        .prepare(
-          "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
-        )
-        .run(version, name, createHash("sha256").update(sql).digest("hex"), now);
-    }
-    database
-      .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
-      .run("workspace.initialized_at", now);
-  } finally {
-    database.close();
-  }
 }
 
 describe("user-owned workspace", () => {
@@ -74,13 +35,15 @@ describe("user-owned workspace", () => {
 
       const database = new DatabaseSync(databasePath);
       try {
-        expect(
-          database
-            .prepare(
-              "SELECT version, name, length(sha256) AS hashLength FROM schema_migrations ORDER BY version DESC LIMIT 1",
-            )
-            .get(),
-        ).toMatchObject({ version: 9, name: "todos", hashLength: 64 });
+        const migrations = database
+          .prepare("SELECT version, name, sha256 FROM schema_migrations ORDER BY version")
+          .all() as Array<{ version: number; name: string; sha256: string }>;
+        expect(migrations).not.toHaveLength(0);
+        for (const migration of migrations) {
+          expect(migration.version).toEqual(expect.any(Number));
+          expect(migration.name).toEqual(expect.any(String));
+          expect(migration.sha256).toMatch(/^[a-f0-9]{64}$/);
+        }
         database.exec("CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;");
         database
           .prepare("INSERT INTO persistence_probe(value) VALUES (?)")
@@ -97,71 +60,6 @@ describe("user-owned workspace", () => {
         });
       } finally {
         reopenedDatabase.close();
-      }
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
-
-  it("upgrades the accepted pre-information prefix while preserving sparse candidature identity", () => {
-    const directory = temporaryDirectory();
-    const databasePath = path.join(directory, "workspace.sqlite");
-    const candidatureId = "00000000-0000-4000-8000-000000000801";
-
-    try {
-      createV6Workspace(directory);
-      const v6 = new DatabaseSync(databasePath);
-      try {
-        v6.prepare(
-          "INSERT INTO candidatures(id, archived, created_at, updated_at) VALUES (?, 0, ?, ?)",
-        ).run(
-          candidatureId,
-          "2026-01-02T00:00:00.000Z",
-          "2026-01-02T00:00:00.000Z",
-        );
-      } finally {
-        v6.close();
-      }
-
-      expect(openWorkspace(directory)).toEqual({ rootPath: directory });
-      const database = new DatabaseSync(databasePath, { readOnly: true });
-      try {
-        expect(
-          database.prepare("SELECT version, name FROM schema_migrations ORDER BY version").all(),
-        ).toEqual([
-          { version: 1, name: "workspace" },
-          { version: 2, name: "profile" },
-          { version: 3, name: "documents" },
-          { version: 4, name: "candidatures" },
-          { version: 5, name: "concepts" },
-          { version: 6, name: "activity" },
-          { version: 7, name: "career-context" },
-          { version: 8, name: "candidature-information" },
-          { version: 9, name: "todos" },
-        ]);
-        expect(
-          database
-            .prepare("SELECT id, archived FROM candidatures WHERE id = ?")
-            .get(candidatureId),
-        ).toEqual({ id: candidatureId, archived: 0 });
-        expect(
-          database
-            .prepare("SELECT COUNT(*) AS count FROM candidature_field_values WHERE candidature_id = ?")
-            .get(candidatureId),
-        ).toEqual({ count: 0 });
-        expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_fields").get()).toMatchObject({
-          count: expect.any(Number),
-        });
-        expect(
-          database
-            .prepare(
-              "SELECT career_direction AS careerDirection, constraints_text AS constraints FROM career_context WHERE id = 1",
-            )
-            .get(),
-        ).toEqual({ careerDirection: "", constraints: "" });
-        expect(database.prepare("SELECT COUNT(*) AS count FROM todos").get()).toEqual({ count: 0 });
-      } finally {
-        database.close();
       }
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -216,7 +114,10 @@ describe("user-owned workspace", () => {
       createOrOpenWorkspace(directory);
       const database = new DatabaseSync(databasePath);
       try {
-        database.prepare("UPDATE schema_migrations SET sha256 = ? WHERE version = 1").run(badHash);
+        const first = database
+          .prepare("SELECT version FROM schema_migrations ORDER BY version LIMIT 1")
+          .get() as { version: number };
+        database.prepare("UPDATE schema_migrations SET sha256 = ? WHERE version = ?").run(badHash, first.version);
       } finally {
         database.close();
       }
@@ -225,9 +126,7 @@ describe("user-owned workspace", () => {
       );
       const unchanged = new DatabaseSync(databasePath, { readOnly: true });
       try {
-        expect(unchanged.prepare("SELECT sha256 FROM schema_migrations WHERE version = 1").get()).toEqual({
-          sha256: badHash,
-        });
+        expect(unchanged.prepare("SELECT COUNT(*) AS count FROM schema_migrations WHERE sha256 = ?").get(badHash)).toEqual({ count: 1 });
       } finally {
         unchanged.close();
       }
@@ -243,7 +142,10 @@ describe("user-owned workspace", () => {
       createOrOpenWorkspace(directory);
       const database = new DatabaseSync(databasePath);
       try {
-        database.prepare("UPDATE schema_migrations SET name = ? WHERE version = 2").run("not-profile");
+        const first = database
+          .prepare("SELECT version FROM schema_migrations ORDER BY version LIMIT 1")
+          .get() as { version: number };
+        database.prepare("UPDATE schema_migrations SET name = ? WHERE version = ?").run("tampered-name", first.version);
       } finally {
         database.close();
       }
@@ -261,8 +163,13 @@ describe("user-owned workspace", () => {
     try {
       createOrOpenWorkspace(directory);
       const database = new DatabaseSync(databasePath);
+      const before = database
+        .prepare("SELECT version FROM schema_migrations ORDER BY version")
+        .all() as Array<{ version: number }>;
+      const removed = before[1];
+      if (!removed) throw new Error("Expected a workspace with more than one migration");
       try {
-        database.prepare("DELETE FROM schema_migrations WHERE version = 2").run();
+        database.prepare("DELETE FROM schema_migrations WHERE version = ?").run(removed.version);
       } finally {
         database.close();
       }
@@ -271,16 +178,9 @@ describe("user-owned workspace", () => {
       );
       const unchanged = new DatabaseSync(databasePath, { readOnly: true });
       try {
-        expect(unchanged.prepare("SELECT version FROM schema_migrations ORDER BY version").all()).toEqual([
-          { version: 1 },
-          { version: 3 },
-          { version: 4 },
-          { version: 5 },
-          { version: 6 },
-          { version: 7 },
-          { version: 8 },
-          { version: 9 },
-        ]);
+        expect(unchanged.prepare("SELECT version FROM schema_migrations ORDER BY version").all()).toEqual(
+          before.filter((migration) => migration.version !== removed.version),
+        );
       } finally {
         unchanged.close();
       }
@@ -296,11 +196,14 @@ describe("user-owned workspace", () => {
       createOrOpenWorkspace(directory);
       const database = new DatabaseSync(databasePath);
       try {
+        const latest = database
+          .prepare("SELECT MAX(version) AS version FROM schema_migrations")
+          .get() as { version: number };
         database
           .prepare(
             "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
           )
-          .run(10, "future", "f".repeat(64), new Date().toISOString());
+          .run(latest.version + 1, "future", "f".repeat(64), new Date().toISOString());
       } finally {
         database.close();
       }

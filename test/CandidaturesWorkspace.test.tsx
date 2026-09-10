@@ -184,8 +184,8 @@ function installApi(initial: CandidatureRecord) {
     },
     ai: {
       discoverField: vi.fn(),
-      previewFit: vi.fn(),
-      assessFit: vi.fn(),
+      previewOpportunityReview: vi.fn(),
+      reviewOpportunity: vi.fn(),
       recommendVariant: vi.fn(),
     },
     profile: { current: vi.fn().mockResolvedValue({ items: [], variants: [] }) },
@@ -219,7 +219,7 @@ describe("candidature progressive information workspace", () => {
     expect(screen.queryByRole("heading", { name: "Minimum flight hours" })).not.toBeInTheDocument();
 
     await user.click(screen.getByText("+ Add information"));
-    await user.selectOptions(screen.getByLabelText("Existing field"), hoursId);
+    await user.selectOptions(screen.getByLabelText("Existing kind of information"), hoursId);
     const addPanel = screen.getByText("+ Add information").parentElement;
     expect(addPanel).not.toBeNull();
     if (!addPanel) return;
@@ -241,11 +241,11 @@ describe("candidature progressive information workspace", () => {
     await screen.findByRole("region", { name: "Candidature Focus" });
     await user.click(screen.getByRole("tab", { name: "Information" }));
     await user.click(screen.getByText("+ Add information"));
-    await user.click(screen.getByText("+ New field"));
+    await user.click(screen.getByText("+ Add a kind of information"));
 
     const name = screen.getByPlaceholderText("Minimum flight hours");
     await user.type(name, "Type rating");
-    await user.click(screen.getByRole("button", { name: "Create field" }));
+    await user.click(screen.getByRole("button", { name: "Save kind of information" }));
 
     expect(createField).toHaveBeenCalledWith({
       label: "Type rating",
@@ -265,7 +265,7 @@ describe("candidature progressive information workspace", () => {
     await user.click(screen.getByRole("tab", { name: "Information" }));
     await user.click(screen.getByText("+ Add information"));
 
-    const fieldSelect = screen.getByLabelText("Existing field");
+    const fieldSelect = screen.getByLabelText("Existing kind of information");
     await user.selectOptions(fieldSelect, hoursId);
     const input = screen.getByRole("spinbutton");
     await user.type(input, "1500");
@@ -282,9 +282,9 @@ describe("candidature progressive information workspace", () => {
     render(<CandidaturesWorkspace />);
     await screen.findByRole("region", { name: "Candidature Focus" });
     await user.click(screen.getByRole("tab", { name: "Information" }));
-    await user.click(screen.getByText("Manage candidature fields"));
+    await user.click(screen.getByText("Advanced information settings"));
 
-    const management = screen.getByText("Manage candidature fields").parentElement;
+    const management = screen.getByText("Advanced information settings").parentElement;
     if (!management) throw new Error("Field management surface missing");
     const managementField = within(management).getByLabelText("Field");
     await user.selectOptions(managementField, organisationId);
@@ -328,10 +328,10 @@ describe("candidature progressive information workspace", () => {
     render(<CandidaturesWorkspace />);
     await screen.findByRole("region", { name: "Candidature Focus" });
 
-    await user.selectOptions(screen.getByLabelText("Field"), hoursId);
+    await user.selectOptions(screen.getByLabelText("Information kind"), hoursId);
     await user.selectOptions(screen.getByLabelText("Operator"), "greater_than_or_equal");
     await user.type(screen.getByLabelText("Value"), "1200");
-    await user.click(screen.getByRole("button", { name: "Apply field filter" }));
+    await user.click(screen.getByRole("button", { name: "Apply information filter" }));
 
     expect(filter).toHaveBeenCalledWith({
       fieldId: hoursId,
@@ -345,12 +345,12 @@ describe("candidature progressive information workspace", () => {
     render(<CandidaturesWorkspace />);
     await screen.findByRole("region", { name: "Candidature Focus" });
 
-    await user.selectOptions(screen.getByLabelText("Field"), workModesId);
+    await user.selectOptions(screen.getByLabelText("Information kind"), workModesId);
     await user.selectOptions(screen.getByLabelText("Operator"), "contains_all");
     const values = screen.getByRole("group", { name: "Values" });
     await user.click(within(values).getByLabelText("Remote"));
     await user.click(within(values).getByLabelText("Hybrid"));
-    await user.click(screen.getByRole("button", { name: "Apply field filter" }));
+    await user.click(screen.getByRole("button", { name: "Apply information filter" }));
 
     const request = filter.mock.calls.at(-1)?.[0] as
       | { fieldId: string; operator: string; value: string[] }

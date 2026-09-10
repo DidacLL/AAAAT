@@ -78,8 +78,8 @@ function installApi() {
     },
     ai: {
       discoverField: vi.fn(),
-      previewFit: vi.fn(),
-      assessFit: vi.fn(),
+      previewOpportunityReview: vi.fn(),
+      reviewOpportunity: vi.fn(),
       recommendVariant: vi.fn(),
     },
     profile: { current: vi.fn().mockResolvedValue({ items: [], variants: [] }) },

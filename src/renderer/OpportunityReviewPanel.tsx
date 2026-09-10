@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 import type {
-  FitAssessmentPreview,
-  FitAssessmentResult,
+  OpportunityReviewPreview,
+  OpportunityReviewResult,
   PrivacyMode,
 } from "../shared/ai-contracts";
 import type { CandidatureRecord } from "../shared/contracts";
@@ -13,12 +13,17 @@ interface Props {
   readonly record: CandidatureRecord;
 }
 
-export function CandidatureFitPanel({ record }: Props) {
+function isLocalConnection(endpoint: string): boolean {
+  const hostname = new URL(endpoint).hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+}
+
+export function OpportunityReviewPanel({ record }: Props) {
   const { openSettingsFor } = useContextualHandoffs();
   const [identityPrivacy, setIdentityPrivacy] = useState<PrivacyMode>("token");
   const [contactPrivacy, setContactPrivacy] = useState<PrivacyMode>("token");
-  const [preview, setPreview] = useState<FitAssessmentPreview | null>(null);
-  const [result, setResult] = useState<FitAssessmentResult | null>(null);
+  const [preview, setPreview] = useState<OpportunityReviewPreview | null>(null);
+  const [result, setResult] = useState<OpportunityReviewResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiSettingsSuggested, setAiSettingsSuggested] = useState(false);
@@ -39,15 +44,15 @@ export function CandidatureFitPanel({ record }: Props) {
     setResult(null);
     setAiSettingsSuggested(false);
     try {
-      setPreview(await window.aaaat.ai.previewFit(request));
+      setPreview(await window.aaaat.ai.previewOpportunityReview(request));
     } catch (reason) {
       setPreview(null);
       setError(
         reason instanceof Error
           ? reason.message
-          : "AAAAT could not prepare the AI fit assessment.",
+          : "AAAAT could not prepare the AI opportunity review.",
       );
-      setAiSettingsSuggested(await isAiOperationUnavailable("fit_assessment"));
+      setAiSettingsSuggested(await isAiOperationUnavailable("opportunity_review"));
     } finally {
       setBusy(false);
     }
@@ -58,29 +63,29 @@ export function CandidatureFitPanel({ record }: Props) {
     setError(null);
     setAiSettingsSuggested(false);
     try {
-      setResult(await window.aaaat.ai.assessFit(request));
+      setResult(await window.aaaat.ai.reviewOpportunity(request));
     } catch (reason) {
       setResult(null);
       setError(
         reason instanceof Error
           ? reason.message
-          : "AAAAT could not complete the AI fit assessment.",
+          : "AAAAT could not complete the AI opportunity review.",
       );
-      setAiSettingsSuggested(await isAiOperationUnavailable("fit_assessment"));
+      setAiSettingsSuggested(await isAiOperationUnavailable("opportunity_review"));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section className="focus-concepts" aria-label="AI fit assessment">
+    <section className="focus-concepts" aria-label="AI opportunity review">
       <div>
-        <p className="eyebrow">Optional local AI</p>
-        <h4>Fit assessment</h4>
+        <p className="eyebrow">Optional AI assistance</p>
+        <h4>Opportunity review</h4>
         <p>
-          AAAAT builds a read-only context from the saved candidature snapshot and your profile.
-          Unsaved candidature edits are not included. The operation does not mutate candidature,
-          profile, or document data.
+          AAAAT builds a read-only context from the saved candidature snapshot and selected
+          professional information. Unsaved candidature edits are not included. The operation
+          does not change candidature, professional information, or document data.
         </p>
       </div>
 
@@ -112,7 +117,7 @@ export function CandidatureFitPanel({ record }: Props) {
       </div>
 
       <button type="button" disabled={busy} onClick={() => void buildPreview()}>
-        {busy && !preview ? "Preparing…" : "Preview AI context"}
+        {busy && !preview ? "Preparing…" : "Preview what AI will receive"}
       </button>
 
       {error ? (
@@ -134,26 +139,26 @@ export function CandidatureFitPanel({ record }: Props) {
         <section className="selected-concept-definition">
           <h4>Projected context</h4>
           <p>
-            Local provider: {preview.connection.name} · {preview.connection.model} ·{" "}
-            <code>{preview.connection.endpoint}</code>
+            AI connection: {preview.connection.name} ·{" "}
+            {isLocalConnection(preview.connection.endpoint) ? "local on this computer" : "remote HTTPS"}
           </p>
           <pre>{JSON.stringify(preview.projectedContext, null, 2)}</pre>
           <button type="button" disabled={busy} onClick={() => void assess()}>
-            {busy ? "Assessing…" : "Run local fit assessment"}
+            {busy ? "Reviewing…" : "Ask AI for an opportunity review"}
           </button>
         </section>
       ) : null}
 
       {result ? (
-        <article className="selected-concept-definition" aria-label="Fit assessment result">
-          <h4>{result.fit} fit</h4>
+        <article className="selected-concept-definition" aria-label="Opportunity review result">
+          <h4>Opportunity review</h4>
           <p>{result.summary}</p>
-          <h4>Strengths</h4>
-          <ul>{result.strengths.map((item) => <li key={item}>{item}</li>)}</ul>
-          <h4>Gaps or risks</h4>
-          <ul>{result.gaps.map((item) => <li key={item}>{item}</li>)}</ul>
-          <h4>Suggested focus</h4>
-          <ul>{result.focus.map((item) => <li key={item}>{item}</li>)}</ul>
+          <h4>Relevant evidence</h4>
+          <ul>{result.relevantEvidence.map((item) => <li key={item}>{item}</li>)}</ul>
+          <h4>Uncertainties</h4>
+          <ul>{result.uncertainties.map((item) => <li key={item}>{item}</li>)}</ul>
+          <h4>Questions</h4>
+          <ul>{result.questions.map((item) => <li key={item}>{item}</li>)}</ul>
         </article>
       ) : null}
     </section>
