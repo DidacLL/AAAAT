@@ -16,7 +16,6 @@ export function DocumentAiAssistance({
   profileItems,
   documentDirty,
   onPrepareCurrentDocument,
-  onDiscardCurrentDocumentEdits,
   onDocumentApplied,
   onDirtyChange,
 }: {
@@ -26,7 +25,6 @@ export function DocumentAiAssistance({
   readonly profileItems: readonly ProfileItem[];
   readonly documentDirty: boolean;
   readonly onPrepareCurrentDocument: () => Promise<DocumentRecord | null>;
-  readonly onDiscardCurrentDocumentEdits: () => void;
   readonly onDocumentApplied: (document: DocumentRecord) => Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
@@ -174,7 +172,6 @@ export function DocumentAiAssistance({
     ) {
       return;
     }
-    if (documentDirty) onDiscardCurrentDocumentEdits();
 
     setBusy(true);
     setError(null);
@@ -205,12 +202,7 @@ export function DocumentAiAssistance({
     }
   };
 
-  if (
-    routeAvailable !== true ||
-    (!contextCandidature && activeCandidatures.length === 0)
-  ) {
-    return null;
-  }
+  if (routeAvailable !== true) return null;
 
   return (
     <details className="document-advanced" aria-label="AI assistance for current document">
@@ -228,7 +220,7 @@ export function DocumentAiAssistance({
           <p className="document-notice" role="status">
             Using candidature: {contextCandidature.label}
           </p>
-        ) : (
+        ) : activeCandidatures.length > 0 ? (
           <div className="editor-card">
             <label>
               Candidature for this assistance
@@ -247,6 +239,11 @@ export function DocumentAiAssistance({
               document with that candidature.
             </p>
           </div>
+        ) : (
+          <p className="document-notice">
+            This assistance needs candidature context. Save a candidature first; the current document
+            remains independent and fully editable without AI.
+          </p>
         )}
 
         <p>
