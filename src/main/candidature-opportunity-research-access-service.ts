@@ -17,8 +17,14 @@ import {
   type ExternalCandidatureSourceAddInput,
   type ExternalOpportunityResearchContext,
 } from "../shared/external-assistant-contracts";
-import { listCandidatureFields } from "./candidature-field-service";
-import { addCandidatureSource, getCandidature, listCandidatureSources } from "./candidature-service";
+import {
+  listCandidatureFieldsInDatabase,
+  readCandidatureFieldValuesInDatabase,
+} from "./candidature-field-service";
+import {
+  addCandidatureSourceInDatabase,
+  listCandidatureSourcesInDatabase,
+} from "./candidature-service";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface AccessRow {
@@ -40,6 +46,18 @@ export class CandidatureOpportunityResearchAccessServiceError extends Error {
 
 function transact<T>(database: DatabaseSync, action: () => T): T {
   database.exec("BEGIN IMMEDIATE");
+  try {
+    const result = action();
+    database.exec("COMMIT");
+    return result;
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function snapshot<T>(database: DatabaseSync, action: () => T): T {
+  database.exec("BEGIN");
   try {
     const result = action();
     database.exec("COMMIT");
@@ -209,38 +227,41 @@ function exposedChoiceLabels(
 export function selectedOpportunityResearchContext(
   rootPath: string,
 ): ExternalOpportunityResearchContext {
-  const candidatureId = withWorkspaceDatabase(rootPath, selectedId);
-  if (candidatureId === null) return null;
+  return withWorkspaceDatabase(rootPath, (database) =>
+    snapshot(database, () => {
+      const candidatureId = selectedId(database);
+      if (candidatureId === null) return null;
 
-  const candidature = getCandidature(rootPath, candidatureId);
-  const fieldConfigurations = listCandidatureFields(rootPath);
-  const fields = new Map(
-    fieldConfigurations.map((field) => [field.definition.id, field]),
+      const fieldConfigurations = listCandidatureFieldsInDatabase(database);
+      const fields = new Map(
+        fieldConfigurations.map((field) => [field.definition.id, field]),
+      );
+      const values = readCandidatureFieldValuesInDatabase(database, candidatureId);
+      const retainedSources = listCandidatureSourcesInDatabase(database, candidatureId);
+      const privacyCorpus = [
+        ...values.flatMap((retained) => runtimeStrings(retained.value)),
+        ...fieldConfigurations.map((field) => field.definition.label),
+        ...retainedSources.flatMap((source) => [source.title, source.url, source.sourceText]),
+      ];
+      const token = tokenFactory(privacyCorpus);
+
+      const information = values.flatMap((retained) => {
+        const field = fields.get(retained.fieldId);
+        if (!field || field.preferences.aiContextMode === "omit") return [];
+        return [
+          {
+            label: field.definition.label,
+            value:
+              field.preferences.aiContextMode === "token"
+                ? tokenRuntimeValue(retained.value, token)
+                : exposedChoiceLabels(field, retained.value),
+          },
+        ];
+      });
+
+      return externalOpportunityResearchContextSchema.parse({ information });
+    }),
   );
-  const retainedSources = listCandidatureSources(rootPath, candidatureId);
-  const privacyCorpus = [
-    candidature.label,
-    ...candidature.values.flatMap((retained) => runtimeStrings(retained.value)),
-    ...fieldConfigurations.map((field) => field.definition.label),
-    ...retainedSources.flatMap((source) => [source.title, source.url, source.sourceText]),
-  ];
-  const token = tokenFactory(privacyCorpus);
-
-  const information = candidature.values.flatMap((retained) => {
-    const field = fields.get(retained.fieldId);
-    if (!field || field.preferences.aiContextMode === "omit") return [];
-    return [
-      {
-        label: field.definition.label,
-        value:
-          field.preferences.aiContextMode === "token"
-            ? tokenRuntimeValue(retained.value, token)
-            : exposedChoiceLabels(field, retained.value),
-      },
-    ];
-  });
-
-  return externalOpportunityResearchContextSchema.parse({ information });
 }
 
 export function addSourceToSelectedOpportunityResearchCandidature(
@@ -248,8 +269,16 @@ export function addSourceToSelectedOpportunityResearchCandidature(
   rawInput: ExternalCandidatureSourceAddInput,
 ): boolean {
   const input = externalCandidatureSourceAddInputSchema.parse(rawInput);
-  const candidatureId = withWorkspaceDatabase(rootPath, selectedId);
-  if (candidatureId === null) return false;
-  addCandidatureSource(rootPath, { candidatureId, ...input.source });
-  return true;
+  return withWorkspaceDatabase(rootPath, (database) =>
+    transact(database, () => {
+      const candidatureId = selectedId(database);
+      if (candidatureId === null) return false;
+      addCandidatureSourceInDatabase(
+        database,
+        { candidatureId, ...input.source },
+        new Date().toISOString(),
+      );
+      return true;
+    }),
+  );
 }
