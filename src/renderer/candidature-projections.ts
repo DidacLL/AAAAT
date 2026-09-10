@@ -2,6 +2,7 @@ import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
   CandidatureRuntimeValue,
+  ConceptRecord,
 } from "../shared/contracts";
 
 export type ArchiveFilter = "active" | "archived" | "all";
@@ -47,6 +48,59 @@ function sourceCue(record: CandidatureRecord): CandidatureRecognitionCue | null 
 
   const value = distinct.length > 112 ? `${distinct.slice(0, 109).trimEnd()}…` : distinct;
   return { label: "Source", value };
+}
+
+function matchingExcerpt(text: string, query: string, limit = 112): string | null {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const needle = query.trim().toLocaleLowerCase();
+  if (!normalized || !needle) return null;
+  const index = normalized.toLocaleLowerCase().indexOf(needle);
+  if (index < 0) return null;
+  if (normalized.length <= limit) return normalized;
+
+  const context = Math.max(16, Math.floor((limit - needle.length) / 2));
+  let start = Math.max(0, index - context);
+  let end = Math.min(normalized.length, index + needle.length + context);
+  if (end - start < limit) {
+    if (start === 0) end = Math.min(normalized.length, limit);
+    else if (end === normalized.length) start = Math.max(0, normalized.length - limit);
+  }
+  const excerpt = normalized.slice(start, end).trim();
+  return `${start > 0 ? "…" : ""}${excerpt}${end < normalized.length ? "…" : ""}`;
+}
+
+export function candidatureSearchMatchCue(
+  record: CandidatureRecord,
+  fields: readonly CandidatureFieldConfiguration[],
+  concepts: readonly ConceptRecord[],
+  query: string,
+): CandidatureRecognitionCue | null {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) return null;
+
+  if (record.label.toLocaleLowerCase().includes(normalizedQuery.toLocaleLowerCase())) return null;
+
+  const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
+  for (const retained of record.values) {
+    const field = fieldById.get(retained.fieldId);
+    if (!field) continue;
+    const value = displayValue(field, retained.value);
+    const excerpt = matchingExcerpt(value, normalizedQuery, 96);
+    if (excerpt) return { label: field.definition.label, value: excerpt };
+  }
+
+  const sourceExcerpt = matchingExcerpt(record.sourceSearchText, normalizedQuery);
+  if (sourceExcerpt) return { label: "Source match", value: sourceExcerpt };
+
+  for (const concept of concepts) {
+    if (!record.conceptIds.includes(concept.id)) continue;
+    const candidates = [concept.name, ...concept.aliases, concept.definition, concept.notes ?? ""];
+    if (candidates.some((candidate) => matchingExcerpt(candidate, normalizedQuery) !== null)) {
+      return { label: "Concept match", value: concept.name };
+    }
+  }
+
+  return null;
 }
 
 export function candidatureRecognitionCues(
