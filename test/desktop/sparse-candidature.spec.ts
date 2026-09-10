@@ -176,11 +176,9 @@ async function expectNoHorizontalOverflow(page: Page, width: number, height: num
 }
 
 async function selectSection(page: Page, name: string): Promise<void> {
-  await page.getByRole("tab", { name, exact: true }).click();
-  await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  const tab = page.getByRole("tab", { name, exact: true });
+  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
 }
 
 test("packaged sparse candidature accepts a runtime field and survives close/reopen", async () => {
@@ -262,21 +260,31 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
   }
 });
 
-test("packaged sparse capture retains raw Source material and returns to Focus", async () => {
+test("packaged first-use candidature loop remains information-first at normal and 720x600 sizes", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-capture-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-capture-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
   const rawMaterial =
     "Recruiter asks whether I can start in October and mentions a Madrid-based role.";
+  const secondMaterial =
+    "Nimbus Labs is hiring a platform engineer in Barcelona with hybrid work.";
+  const secondTitle = "Nimbus platform role";
   let running: RunningApp | undefined;
 
   try {
     running = await startPackagedApp(isolatedUserData, linuxHome);
+
+    await expectNoHorizontalOverflow(running.page, 720, 600);
+    await expect(running.page.getByRole("button", { name: "Create workspace" })).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Open existing workspace" })).toBeVisible();
+    await expect(running.page.getByText("Restore a backup", { exact: true })).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Choose backup to restore" })).toBeHidden();
+
+    await expectNoHorizontalOverflow(running.page, 1200, 800);
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
 
-    await expectNoHorizontalOverflow(running.page, 1200, 800);
     await running.page.getByTestId("new-candidature-capture").click();
     await expect(
       running.page.getByRole("heading", { name: "Paste or add whatever you have." }),
@@ -296,7 +304,47 @@ test("packaged sparse capture retains raw Source material and returns to Focus",
     expect(retained).toHaveLength(1);
     expect(retained[0]).toMatchObject({ sourceText: rawMaterial });
 
+    await selectSection(running.page, "Information");
+    const information = running.page.getByRole("region", { name: "Candidature information" });
+    await information.getByText("+ Add information", { exact: true }).click();
+    await information.getByText("+ Add something not listed", { exact: true }).click();
+    await information.getByLabel("What is it?").fill("Availability");
+    await information.getByRole("button", { name: "Continue", exact: true }).click();
+    const addInformation = information.locator(".add-information-panel");
+    const newValue = addInformation.locator(".candidature-value-editor input[type='text']");
+    await expect(newValue).toBeVisible();
+    await newValue.fill("October or November");
+    await addInformation.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(information.getByRole("heading", { name: "Availability" })).toBeVisible();
+
+    await running.page.getByTestId("new-candidature-capture").click();
+    await running.page.getByLabel(/Short title/).fill(secondTitle);
+    await running.page.getByLabel("What you have").fill(secondMaterial);
+    await running.page.getByRole("button", { name: "Save candidature" }).click();
+
+    const collection = running.page.getByLabel("Candidature list");
+    await expect(collection.locator(":scope > button")).toHaveCount(2);
+    const firstCandidature = collection.locator(":scope > button").filter({ hasText: "Availability" });
+    await expect(firstCandidature).toContainText("October or November");
+    const secondCandidature = collection.locator(":scope > button").filter({ hasText: secondTitle });
+    await expect(secondCandidature).toContainText("Source");
+    await expect(secondCandidature).toContainText(secondMaterial);
+
+    await firstCandidature.click();
+    await selectSection(running.page, "Information");
+    await expect(information.getByRole("heading", { name: "Availability" })).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 600);
+
+    const availability = information.locator(".retained-information-card").filter({ hasText: "Availability" });
+    const availabilityInput = availability.locator("input[type='text']");
+    await expect(availabilityInput).toBeVisible();
+    await availabilityInput.fill("October through December");
+    await availability.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(availabilityInput).toHaveValue("October through December");
+    await expectNoHorizontalOverflow(running.page, 720, 600);
+
+    await selectSection(running.page, "Focus");
+    await expect(focus).toContainText(rawMaterial);
     await running.page.getByTestId("new-candidature-capture").click();
     await expect(
       running.page.getByRole("heading", { name: "Paste or add whatever you have." }),

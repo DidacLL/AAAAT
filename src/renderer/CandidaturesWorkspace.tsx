@@ -18,7 +18,11 @@ import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { HistoricalFieldDiscoveryPanel } from "./HistoricalFieldDiscoveryPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
-import { filterCandidatures, type ArchiveFilter } from "./candidature-projections";
+import {
+  candidatureRecognitionCues,
+  filterCandidatures,
+  type ArchiveFilter,
+} from "./candidature-projections";
 
 type CandidatureSection = "focus" | "information" | "sources" | "documents";
 
@@ -329,7 +333,7 @@ export function CandidaturesWorkspace({
     !conceptEditorDirty || window.confirm("Discard unsaved concept edits?");
   const confirmFieldEditorDiscard = () =>
     (!fieldDefinitionDirty && !fieldPreferencesDirty) ||
-    window.confirm("Discard unsaved field definition or behavior edits?");
+    window.confirm("Discard unsaved information settings?");
   const confirmAddValueDiscard = () =>
     !addFieldId ||
     !valueEditorDirty.has(addFieldId) ||
@@ -430,7 +434,7 @@ export function CandidaturesWorkspace({
       setNewFieldCardinality("one");
       setNewChoiceLabels("");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not create this field.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not create this information.");
     }
   };
 
@@ -458,7 +462,7 @@ export function CandidaturesWorkspace({
       replaceField(await window.aaaat.candidatures.updateField(fieldDraft));
       await loadRecords();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not update this field.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not update this information.");
     }
   };
 
@@ -469,12 +473,12 @@ export function CandidaturesWorkspace({
       replaceField(await window.aaaat.candidatures.updateFieldPreferences(preferencesDraft));
       await loadRecords();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not update field behavior.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not update information settings.");
     }
   };
 
   const deleteField = async () => {
-    if (!fieldDraft || !window.confirm(`Delete unused field “${fieldDraft.label}”?`)) return;
+    if (!fieldDraft || !window.confirm(`Delete unused information “${fieldDraft.label}”?`)) return;
     setError(null);
     try {
       const nextFields = await window.aaaat.candidatures.deleteField(fieldDraft.id);
@@ -484,7 +488,7 @@ export function CandidaturesWorkspace({
       setPreferencesDraft(null);
       setAddFieldId("");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not delete this field.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not delete this information.");
     }
   };
 
@@ -760,23 +764,36 @@ export function CandidaturesWorkspace({
           ) : visibleRecords.length === 0 ? (
             <p>No candidatures match these filters.</p>
           ) : (
-            visibleRecords.map((record) => (
-              <button
-                type="button"
-                key={record.id}
-                className={record.id === selectedId ? "selected-candidature" : ""}
-                onClick={() => {
-                  if (!confirmDiscard()) return;
-                  hydrate(record);
-                }}
-              >
-                <strong>{record.label}</strong>
-                <span>
-                  {record.values.length} retained {record.values.length === 1 ? "item of information" : "items of information"}
-                  {record.archived ? " · archived" : ""}
-                </span>
-              </button>
-            ))
+            visibleRecords.map((record) => {
+              const recognitionCues = candidatureRecognitionCues(record, fields);
+              return (
+                <button
+                  type="button"
+                  key={record.id}
+                  className={record.id === selectedId ? "selected-candidature" : ""}
+                  onClick={() => {
+                    if (!confirmDiscard()) return;
+                    hydrate(record);
+                  }}
+                >
+                  <strong>{record.label}</strong>
+                  {recognitionCues.length > 0 ? (
+                    <span className="candidature-recognition-cues">
+                      {recognitionCues.map((cue, index) => (
+                        <span className="candidature-recognition-cue" key={`${cue.label}-${index}`}>
+                          <span>{cue.label}</span>
+                          <span>{cue.value}</span>
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                  <small>
+                    {record.values.length} retained {record.values.length === 1 ? "item of information" : "items of information"}
+                    {record.archived ? " · archived" : ""}
+                  </small>
+                </button>
+              );
+            })
           )}
         </aside>
 
@@ -873,7 +890,7 @@ export function CandidaturesWorkspace({
                       <summary>+ Add information</summary>
                       {enabledMissingFields.length > 0 ? (
                         <label>
-                          Existing kind of information
+                          Choose information to add
                           <select value={addFieldId} onChange={(event) => selectAddField(event.target.value)}>
                             <option value="">Choose information…</option>
                             {enabledMissingFields.map((field) => (
@@ -884,7 +901,7 @@ export function CandidaturesWorkspace({
                           </select>
                         </label>
                       ) : (
-                        <p>All enabled kinds of information already have retained values.</p>
+                        <p>All available information already has a retained value.</p>
                       )}
                       {addField ? (
                         <CandidatureFieldValueEditor
@@ -901,53 +918,18 @@ export function CandidaturesWorkspace({
                       ) : null}
 
                       <details>
-                        <summary>+ Add a kind of information</summary>
+                        <summary>+ Add something not listed</summary>
                         <label>
-                          Name
+                          What is it?
                           <input
                             value={newFieldLabel}
                             onChange={(event) => setNewFieldLabel(event.target.value)}
                             placeholder="Minimum flight hours"
                           />
                         </label>
-                        <details>
-                          <summary>Advanced field options</summary>
-                          <label>
-                            Description
-                            <textarea
-                              rows={3}
-                              value={newFieldDescription}
-                              onChange={(event) => setNewFieldDescription(event.target.value)}
-                            />
-                          </label>
-                          <label>
-                            Type
-                            <select value={newFieldType} onChange={(event) => setNewFieldType(event.target.value as CandidatureFieldUpdate["valueType"])}>
-                              <option value="text">Text</option>
-                              <option value="long_text">Long text</option>
-                              <option value="number">Number</option>
-                              <option value="boolean">Boolean</option>
-                              <option value="date">Date</option>
-                              <option value="url">URL</option>
-                              <option value="choice">Choice</option>
-                            </select>
-                          </label>
-                          <label>
-                            Cardinality
-                            <select value={newFieldCardinality} onChange={(event) => setNewFieldCardinality(event.target.value as CandidatureFieldUpdate["cardinality"])}>
-                              <option value="one">One value</option>
-                              <option value="many">Many values</option>
-                            </select>
-                          </label>
-                          {newFieldType === "choice" ? (
-                            <label>
-                              Choices — one per line
-                              <textarea rows={4} value={newChoiceLabels} onChange={(event) => setNewChoiceLabels(event.target.value)} />
-                            </label>
-                          ) : null}
-                        </details>
+                        <p className="compact-help">AAAAT will start this as simple text. Other formats and behavior remain available under Advanced information settings.</p>
                         <button type="button" disabled={!newFieldLabel.trim()} onClick={() => void createField()}>
-                          Save kind of information
+                          Continue
                         </button>
                       </details>
                     </details>
@@ -955,12 +937,12 @@ export function CandidaturesWorkspace({
                     <details className="field-management">
                       <summary>Advanced information settings</summary>
                       <label>
-                        Field
+                        Kind of information
                         <select value={fieldEditorId} onChange={(event) => chooseFieldEditor(event.target.value)}>
-                          <option value="">Choose field…</option>
+                          <option value="">Choose information…</option>
                           {fields.map((field) => (
                             <option key={field.definition.id} value={field.definition.id}>
-                              {field.definition.label}{field.definition.enabled ? "" : " · retired"}
+                              {field.definition.label}{field.definition.enabled ? "" : " · unavailable"}
                             </option>
                           ))}
                         </select>
@@ -968,19 +950,19 @@ export function CandidaturesWorkspace({
 
                       {editorField && fieldDraft && preferencesDraft ? (
                         <div className="field-editor">
-                          <h4>Definition</h4>
-                          <label>Label<input value={fieldDraft.label} onChange={(event) => setFieldDraft({ ...fieldDraft, label: event.target.value })} /></label>
+                          <h4>Display and format</h4>
+                          <label>Name<input value={fieldDraft.label} onChange={(event) => setFieldDraft({ ...fieldDraft, label: event.target.value })} /></label>
                           <label>Description<textarea rows={3} value={fieldDraft.description} onChange={(event) => setFieldDraft({ ...fieldDraft, description: event.target.value })} /></label>
                           <label>
-                            Type
+                            Format
                             <select value={fieldDraft.valueType} onChange={(event) => setFieldDraft({ ...fieldDraft, valueType: event.target.value as CandidatureFieldUpdate["valueType"], choices: event.target.value === "choice" ? fieldDraft.choices : [] })}>
-                              <option value="text">Text</option><option value="long_text">Long text</option><option value="number">Number</option><option value="boolean">Boolean</option><option value="date">Date</option><option value="url">URL</option><option value="choice">Choice</option>
+                              <option value="text">Text</option><option value="long_text">Long text</option><option value="number">Number</option><option value="boolean">Yes / no</option><option value="date">Date</option><option value="url">URL</option><option value="choice">Choice</option>
                             </select>
                           </label>
                           <label>
-                            Cardinality
+                            Values
                             <select value={fieldDraft.cardinality} onChange={(event) => setFieldDraft({ ...fieldDraft, cardinality: event.target.value as CandidatureFieldUpdate["cardinality"] })}>
-                              <option value="one">One</option><option value="many">Many</option>
+                              <option value="one">Single value</option><option value="many">Multiple values</option>
                             </select>
                           </label>
                           {fieldDraft.valueType === "choice" ? (
@@ -1006,10 +988,10 @@ export function CandidaturesWorkspace({
                               </button>
                             </div>
                           ) : null}
-                          <label><input type="checkbox" checked={fieldDraft.enabled} onChange={(event) => setFieldDraft({ ...fieldDraft, enabled: event.target.checked })} /> Enabled</label>
-                          <button type="button" onClick={() => void saveFieldDefinition()}>Save definition</button>
+                          <label><input type="checkbox" checked={fieldDraft.enabled} onChange={(event) => setFieldDraft({ ...fieldDraft, enabled: event.target.checked })} /> Available for adding</label>
+                          <button type="button" onClick={() => void saveFieldDefinition()}>Save display and format</button>
 
-                          <h4>Focus, identity and AI</h4>
+                          <h4>Focus, recognition and AI</h4>
                           <label><input type="checkbox" checked={preferencesDraft.focusVisible} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, focusVisible: event.target.checked })} /> Show in Focus when retained</label>
                           <label>Focus order<input type="number" min="0" value={preferencesDraft.focusOrder ?? ""} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, focusOrder: event.target.value ? Number(event.target.value) : null })} /></label>
                           <label>
@@ -1018,18 +1000,18 @@ export function CandidaturesWorkspace({
                               <option value="compact">Compact</option><option value="normal">Normal</option><option value="wide">Wide</option>
                             </select>
                           </label>
-                          <label>Identity order<input type="number" min="0" value={preferencesDraft.identityOrder ?? ""} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, identityOrder: event.target.value ? Number(event.target.value) : null })} /></label>
-                          <label><input type="checkbox" checked={preferencesDraft.aiDiscovery} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, aiDiscovery: event.target.checked })} /> AI may discover this field from Sources</label>
+                          <label>Recognition priority<input type="number" min="0" value={preferencesDraft.identityOrder ?? ""} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, identityOrder: event.target.value ? Number(event.target.value) : null })} /></label>
+                          <label><input type="checkbox" checked={preferencesDraft.aiDiscovery} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, aiDiscovery: event.target.checked })} /> AI may suggest this information from Sources</label>
                           <label>
-                            AI context
+                            When AI uses candidature context
                             <select value={preferencesDraft.aiContextMode} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, aiContextMode: event.target.value as CandidatureFieldPreferencesUpdate["aiContextMode"] })}>
-                              <option value="omit">Omit</option><option value="expose">Expose</option><option value="token">Tokenize</option>
+                              <option value="omit">Do not share</option><option value="expose">Share value</option><option value="token">Use local placeholder</option>
                             </select>
                           </label>
-                          <button type="button" onClick={() => void saveFieldPreferences()}>Save behavior</button>
+                          <button type="button" onClick={() => void saveFieldPreferences()}>Save information settings</button>
                           {editorField.definition.systemKey === null ? (
                             <button type="button" className="compact-secondary" onClick={() => void deleteField()}>
-                              Delete unused field
+                              Delete unused information kind
                             </button>
                           ) : null}
                         </div>

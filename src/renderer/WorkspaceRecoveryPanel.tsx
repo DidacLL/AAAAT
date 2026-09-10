@@ -57,6 +57,29 @@ export function WorkspaceRecoveryPanel({
     }
   };
 
+  if (!currentWorkspace) {
+    return (
+      <details className="first-run-recovery">
+        <summary>Restore a backup</summary>
+        <div className="first-run-recovery-body">
+          <p>
+            Use this when you have an AAAAT backup to recover. To keep working with a live AAAAT workspace that already exists, use <strong>Open existing workspace</strong> above instead.
+          </p>
+          <button
+            type="button"
+            className="secondary-action"
+            disabled={busy !== null}
+            onClick={() => void restore()}
+          >
+            {busy === "restore" ? "Restoring…" : "Choose backup to restore"}
+          </button>
+          {notice ? <p role="status">{notice}</p> : null}
+          {error ? <p className="error-message" role="alert">{error}</p> : null}
+        </div>
+      </details>
+    );
+  }
+
   return (
     <section className="profile-workspace" aria-label="Workspace recovery">
       <div className="profile-column">
@@ -70,16 +93,14 @@ export function WorkspaceRecoveryPanel({
           Backups are user-owned directories. Restore validates the backup into a separate empty folder before AAAAT switches workspaces.
         </p>
         <div className="workspace-actions">
-          {currentWorkspace ? (
-            <button
-              type="button"
-              className="secondary-action"
-              disabled={busy !== null}
-              onClick={() => void backUp()}
-            >
-              {busy === "backup" ? "Backing up…" : "Back up workspace"}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="secondary-action"
+            disabled={busy !== null}
+            onClick={() => void backUp()}
+          >
+            {busy === "backup" ? "Backing up…" : "Back up workspace"}
+          </button>
           <button
             type="button"
             className="secondary-action"

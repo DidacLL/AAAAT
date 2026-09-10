@@ -113,6 +113,14 @@ const retainedOrganisation = {
   updatedAt: "2026-09-04T00:00:00.000Z",
 } as const;
 
+const retainedHours = {
+  candidatureId,
+  fieldId: hoursId,
+  value: 1500,
+  createdAt: "2026-09-04T00:00:00.000Z",
+  updatedAt: "2026-09-04T00:00:00.000Z",
+} as const;
+
 const list = vi.fn();
 const listFields = vi.fn();
 const listConcepts = vi.fn();
@@ -204,7 +212,37 @@ describe("candidature progressive information workspace", () => {
     vi.restoreAllMocks();
   });
 
-  it("projects only retained configured Focus information and adds a missing runtime field on demand", async () => {
+  it("shows compact retained-information and Source cues so multiple candidatures are recognizable", async () => {
+    list.mockResolvedValueOnce([
+      record([retainedOrganisation, retainedHours]),
+      {
+        id: "00000000-0000-4000-8000-000000000510",
+        archived: false,
+        createdAt: "2026-09-04T00:00:00.000Z",
+        updatedAt: "2026-09-04T00:00:00.000Z",
+        label: "Nimbus Labs",
+        sourceSearchText: "Remote platform role in Barcelona",
+        values: [],
+        documentIds: [],
+        conceptIds: [],
+      },
+    ]);
+
+    render(<CandidaturesWorkspace />);
+    await screen.findByRole("region", { name: "Candidature Focus" });
+
+    const collection = screen.getByRole("complementary", { name: "Candidature list" });
+    const regionalAir = within(collection).getByRole("button", { name: /Regional Air/ });
+    expect(regionalAir).toHaveTextContent("Minimum flight hours");
+    expect(regionalAir).toHaveTextContent("1500");
+    expect(regionalAir).not.toHaveTextContent("OrganisationRegional Air");
+
+    const nimbus = within(collection).getByRole("button", { name: /Nimbus Labs/ });
+    expect(nimbus).toHaveTextContent("Source");
+    expect(nimbus).toHaveTextContent("Remote platform role in Barcelona");
+  });
+
+  it("projects only retained configured Focus information and adds missing information on demand", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
@@ -219,7 +257,7 @@ describe("candidature progressive information workspace", () => {
     expect(screen.queryByRole("heading", { name: "Minimum flight hours" })).not.toBeInTheDocument();
 
     await user.click(screen.getByText("+ Add information"));
-    await user.selectOptions(screen.getByLabelText("Existing kind of information"), hoursId);
+    await user.selectOptions(screen.getByLabelText("Choose information to add"), hoursId);
     const addPanel = screen.getByText("+ Add information").parentElement;
     expect(addPanel).not.toBeNull();
     if (!addPanel) return;
@@ -235,17 +273,21 @@ describe("candidature progressive information workspace", () => {
     expect(await screen.findByRole("heading", { name: "Minimum flight hours" })).toBeInTheDocument();
   });
 
-  it("creates a new information field from the progressive surface without requiring another UI route", async () => {
+  it("adds unlisted information without making schema terminology part of the ordinary interaction", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
     await screen.findByRole("region", { name: "Candidature Focus" });
     await user.click(screen.getByRole("tab", { name: "Information" }));
     await user.click(screen.getByText("+ Add information"));
-    await user.click(screen.getByText("+ Add a kind of information"));
+    await user.click(screen.getByText("+ Add something not listed"));
 
-    const name = screen.getByPlaceholderText("Minimum flight hours");
+    expect(screen.queryByText("Field", { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByText("Type", { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByText("Cardinality", { exact: true })).not.toBeInTheDocument();
+
+    const name = screen.getByLabelText("What is it?");
     await user.type(name, "Type rating");
-    await user.click(screen.getByRole("button", { name: "Save kind of information" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(createField).toHaveBeenCalledWith({
       label: "Type rating",
@@ -257,7 +299,7 @@ describe("candidature progressive information workspace", () => {
     });
   });
 
-  it("keeps an unsaved add-value draft when changing the selected field is declined", async () => {
+  it("keeps an unsaved add-value draft when changing the selected information is declined", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
@@ -265,7 +307,7 @@ describe("candidature progressive information workspace", () => {
     await user.click(screen.getByRole("tab", { name: "Information" }));
     await user.click(screen.getByText("+ Add information"));
 
-    const fieldSelect = screen.getByLabelText("Existing kind of information");
+    const fieldSelect = screen.getByLabelText("Choose information to add");
     await user.selectOptions(fieldSelect, hoursId);
     const input = screen.getByRole("spinbutton");
     await user.type(input, "1500");
@@ -276,7 +318,7 @@ describe("candidature progressive information workspace", () => {
     expect(screen.getByRole("spinbutton")).toHaveValue(1500);
   });
 
-  it("keeps a managed field draft when switching field editors is declined", async () => {
+  it("keeps an unsaved advanced-information draft when switching settings is declined", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
@@ -285,17 +327,17 @@ describe("candidature progressive information workspace", () => {
     await user.click(screen.getByText("Advanced information settings"));
 
     const management = screen.getByText("Advanced information settings").parentElement;
-    if (!management) throw new Error("Field management surface missing");
-    const managementField = within(management).getByLabelText("Field");
+    if (!management) throw new Error("Information settings surface missing");
+    const managementField = within(management).getByLabelText("Kind of information");
     await user.selectOptions(managementField, organisationId);
-    const label = within(management).getByLabelText("Label");
+    const label = within(management).getByLabelText("Name");
     await user.clear(label);
     await user.type(label, "Unsaved organisation label");
     await user.selectOptions(managementField, hoursId);
 
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved field definition or behavior edits?");
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved information settings?");
     expect(managementField).toHaveValue(organisationId);
-    expect(within(management).getByLabelText("Label")).toHaveValue("Unsaved organisation label");
+    expect(within(management).getByLabelText("Name")).toHaveValue("Unsaved organisation label");
   });
 
   it("keeps a concept draft when switching or cancelling the concept editor is declined", async () => {
