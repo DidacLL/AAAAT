@@ -2,13 +2,13 @@
 
 ## Active bounded work
 
-[Issue #253](https://github.com/DidacLL/AAAAT/issues/253) is the sole active bounded product outcome on branch `product/external-candidature-roundtrip`.
+None. [Issue #253](https://github.com/DidacLL/AAAAT/issues/253) and [PR #254](https://github.com/DidacLL/AAAAT/pull/254) are complete.
 
-The outcome is to make one existing candidature usable through a deliberately authorized external-assistant round trip: the chosen external host can read only bounded candidature information permitted for AI context and can retain one returned Source through the normal candidature service. This advances the Product Definition's external-AI entrance without introducing corpus browsing, durable-ID authority, generic task/workflow infrastructure, REST/CRUD surfaces, or an adapter framework.
-
-This is Class C because it expands external disclosure/mutation authority and adds candidature-specific durable access state. The implementation requires a short ADR and one independent Reviewer verdict on the exact final head. Skeptical Simplifier is required only if material abstraction appears beyond the bounded candidature-specific pattern.
+No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
 
 ## Recently completed outcomes
+
+[Issue #253](https://github.com/DidacLL/AAAAT/issues/253) and [PR #254](https://github.com/DidacLL/AAAAT/pull/254) are complete. External-AI access now has a demonstrated task-scoped round trip for one locally selected candidature: the external opportunity-research task receives a formatted projection of retained candidature information permitted by the existing AI-context preferences, without a fixed three-field allowlist or generic corpus/CRUD authority, and returned material can be retained only as a normal Source through the bounded Source-add operation. Selection and use are atomic at the SQLite boundary, and migrations 001–009 remain unchanged with task-selection state added by migration 010.
 
 [Issue #250](https://github.com/DidacLL/AAAAT/issues/250) and [PR #251](https://github.com/DidacLL/AAAAT/pull/251) are complete. Existing CV-tailoring and cover-letter drafting are contextual to the current VCVGenerator document: candidature handoff context is reused automatically, standalone assistance asks only for genuinely missing candidature context, proposals remain deliberate, and dirty document state cannot be silently bypassed.
 
