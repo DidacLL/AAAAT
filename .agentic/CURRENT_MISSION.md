@@ -2,15 +2,13 @@
 
 ## Active bounded work
 
-[Issue #259](https://github.com/DidacLL/AAAAT/issues/259) is the sole active bounded product outcome on branch `product/contextual-candidature-extraction`.
+None. [Issue #259](https://github.com/DidacLL/AAAAT/issues/259) and [PR #260](https://github.com/DidacLL/AAAAT/pull/260) are complete.
 
-The outcome is to keep sparse candidature capture as `paste/add whatever exists → Save` while making an already-configured job-extraction capability participate in that same interaction instead of requiring a separate post-save AI mini-workflow. The retained Source and candidature remain authoritative first; manual/no-AI capture remains complete; extraction failure is non-destructive; and remote Source disclosure remains deliberate and understandable.
-
-This work must reuse the existing `job_extraction` operation, provider validation, candidature mutation paths, and contextual routing. It does not authorize a new AI workflow engine, provider/auth work, source fetching/scraping, field-schema redesign, generic intake pipeline, candidature advice/ranking, new external-host capability, migration, or release work.
-
-Treat this as Class B unless the final implementation changes renderer/main privilege boundaries, privacy projection semantics, or durable mutation authority; if so, escalate to Class C. Skeptical Simplifier is required only if material abstraction appears.
+No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
 
 ## Recently completed outcomes
+
+[Issue #259](https://github.com/DidacLL/AAAAT/issues/259) and [PR #260](https://github.com/DidacLL/AAAAT/pull/260) are complete. Sparse candidature capture remains Source-first and manual/no-AI complete, while a selected validated job-extraction route now appears immediately as part of the saved-capture result rather than behind a separate post-save AI discovery step. The user sees the selected connection type and exact retained Source material before requesting extraction, may keep the candidature without AI, and reviews deliberate ordinary-information proposals before any field mutation. Extraction failure leaves the saved candidature/Source intact, and proposal dirty state clears when the result is dismissed.
 
 [Issue #256](https://github.com/DidacLL/AAAAT/issues/256) and [PR #257](https://github.com/DidacLL/AAAAT/pull/257) are complete. The already-demonstrated VS Code external-AI connection is now usable from **Settings → Portability & external tools** through a renderer operation that accepts no paths, executable, configuration, or selectors. The trusted main process owns project-folder selection, current workspace and packaged executable resolution, and reuses the existing ADR-0009 proposal/activation path with live MCP verification, compatible-entry preservation, conflict refusal, and VS Code-owned trust. The CLI setup path remains available, and the #253/ADR-0025 task-relative privacy model is unchanged.
 
