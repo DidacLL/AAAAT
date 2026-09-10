@@ -85,6 +85,7 @@ export function JobExtractionPanel({
 
   useEffect(() => {
     onDirtyChange?.(proposal !== null);
+    return () => onDirtyChange?.(false);
   }, [onDirtyChange, proposal]);
 
   if (source.sourceText.trim() === "" || connection === undefined || connection === null) {
