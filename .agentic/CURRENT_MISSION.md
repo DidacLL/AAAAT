@@ -2,13 +2,7 @@
 
 ## Active bounded work
 
-[Issue #244](https://github.com/DidacLL/AAAAT/issues/244) is the sole active bounded product outcome on branch `product/first-use-candidature-loop`.
-
-The outcome is to make the first-use candidature loop information-first: launch/create/open workspace, raw-first candidature capture, multi-candidature recognition, and ordinary information editing without recovery-heavy onboarding or schema/field administration becoming the user's mental model.
-
-This work is derived from `PRODUCT_DEFINITION.md`, current Product Context, direct owner evaluation, and live renderer evidence. It is not a continuation of a historical roadmap.
-
-Do not expand it into schema/migration redesign, new AI operations, provider/auth work, VCVGenerator redesign, User View, dashboard infrastructure, or a new workflow.
+None. [Issue #244](https://github.com/DidacLL/AAAAT/issues/244) and [PR #245](https://github.com/DidacLL/AAAAT/pull/245) are complete and are not active work. No successor Mission is selected here.
 
 ## Dormant compatibility evidence
 
