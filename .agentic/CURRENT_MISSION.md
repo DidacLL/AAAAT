@@ -2,9 +2,15 @@
 
 ## Active bounded work
 
-None. [Issue #247](https://github.com/DidacLL/AAAAT/issues/247) and [PR #248](https://github.com/DidacLL/AAAAT/pull/248) are complete. No successor Mission is selected here; the next step is project-level reevaluation by the primary orchestrator.
+[Issue #250](https://github.com/DidacLL/AAAAT/issues/250) is the sole active bounded product outcome on branch `product/contextual-document-ai`.
 
-The completed outcome made standalone VCVGenerator output/result interaction task-first: a user can create or edit a CV or cover letter, render it, and access the resulting user-owned output without external-AI permissions, candidature artifact administration, or source/audit details defining ordinary document work.
+The outcome is to make existing CV/cover-letter AI assistance genuinely contextual: use the current working document and reuse candidature context already known by AAAAT, rather than opening a generic assistance workspace that asks the user to rebuild that context.
+
+This is a renderer/product-composition correction under existing AI operation, privacy, document, candidature, and provider boundaries. It does not authorize new AI operations, external-host/MCP expansion, persistence/schema changes, LaTeX changes, provider/auth work, or a generic AI task/workflow architecture.
+
+## Recently completed outcome
+
+[Issue #247](https://github.com/DidacLL/AAAAT/issues/247) and [PR #248](https://github.com/DidacLL/AAAAT/pull/248) are complete. Standalone VCVGenerator output/result interaction is task-first: a user can create or edit a CV or cover letter, render it, and access the resulting user-owned output without external-AI permissions, candidature artifact administration, or source/audit details defining ordinary document work.
 
 ## Dormant compatibility evidence
 
