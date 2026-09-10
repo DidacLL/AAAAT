@@ -312,7 +312,7 @@ test("packaged first-use candidature loop remains information-first at normal an
     const addInformation = information.locator(".add-information-panel");
     const newValue = addInformation.locator(".candidature-value-editor input[type='text']");
     await expect(newValue).toBeVisible();
-    await newValue.fill("October");
+    await newValue.fill("October or November");
     await addInformation.getByRole("button", { name: "Save", exact: true }).click();
     await expect(information.getByRole("heading", { name: "Availability" })).toBeVisible();
 
@@ -323,7 +323,7 @@ test("packaged first-use candidature loop remains information-first at normal an
     const collection = running.page.getByLabel("Candidature list");
     await expect(collection.locator(":scope > button")).toHaveCount(2);
     const firstCandidature = collection.locator(":scope > button").filter({ hasText: "Availability" });
-    await expect(firstCandidature).toContainText("October");
+    await expect(firstCandidature).toContainText("October or November");
     const secondCandidature = collection.locator(":scope > button").filter({ hasText: secondMaterial });
     await expect(secondCandidature).toContainText("Source");
 
@@ -335,9 +335,9 @@ test("packaged first-use candidature loop remains information-first at normal an
     const availability = information.locator(".retained-information-card").filter({ hasText: "Availability" });
     const availabilityInput = availability.locator("input[type='text']");
     await expect(availabilityInput).toBeVisible();
-    await availabilityInput.fill("October or November");
+    await availabilityInput.fill("October through December");
     await availability.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(availabilityInput).toHaveValue("October or November");
+    await expect(availabilityInput).toHaveValue("October through December");
     await expectNoHorizontalOverflow(running.page, 720, 600);
 
     await selectSection(running.page, "Focus");
