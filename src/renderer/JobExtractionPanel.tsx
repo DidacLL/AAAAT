@@ -59,7 +59,6 @@ export function JobExtractionPanel({
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [proposal, setProposal] = useState<JobExtractionResult | null>(null);
   const [selectedProposalIndexes, setSelectedProposalIndexes] = useState<number[]>([]);
-  const [disclosureOpen, setDisclosureOpen] = useState(false);
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,17 +70,12 @@ export function JobExtractionPanel({
       window.aaaat.candidatures.listFields(),
     ])
       .then(([connections, configuredFields]) => {
-        if (!active) {
-          return;
-        }
-
+        if (!active) return;
         setConnection(extractionConnection(connections));
         setFields(configuredFields);
       })
       .catch(() => {
-        if (active) {
-          setConnection(null);
-        }
+        if (active) setConnection(null);
       });
 
     return () => {
@@ -90,8 +84,8 @@ export function JobExtractionPanel({
   }, []);
 
   useEffect(() => {
-    onDirtyChange?.(disclosureOpen || proposal !== null);
-  }, [disclosureOpen, onDirtyChange, proposal]);
+    onDirtyChange?.(proposal !== null);
+  }, [onDirtyChange, proposal]);
 
   if (source.sourceText.trim() === "" || connection === undefined || connection === null) {
     return null;
@@ -105,12 +99,11 @@ export function JobExtractionPanel({
       const result = await window.aaaat.ai.extractJob(source);
       setProposal(result);
       setSelectedProposalIndexes(result.proposals.map((_, index) => index));
-      setDisclosureOpen(false);
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "AAAAT could not review this Source with AI.",
+          : "AAAAT could not extract information from this Source.",
       );
     } finally {
       setIsWorking(false);
@@ -118,9 +111,7 @@ export function JobExtractionPanel({
   };
 
   const acceptSelected = async () => {
-    if (proposal === null) {
-      return;
-    }
+    if (proposal === null) return;
 
     setIsWorking(true);
     setError(null);
@@ -129,16 +120,12 @@ export function JobExtractionPanel({
       await Promise.all(
         selectedProposalIndexes.map(async (index) => {
           const selected = proposal.proposals[index];
-          if (selected === undefined) {
-            return;
-          }
+          if (selected === undefined) return;
 
           const field = fields.find(
             (candidate) => candidate.definition.id === selected.fieldId,
           );
-          if (field === undefined) {
-            return;
-          }
+          if (field === undefined) return;
 
           const value: CandidatureRuntimeValue = selected.value;
           await window.aaaat.candidatures.setFieldValue({
@@ -172,70 +159,42 @@ export function JobExtractionPanel({
   const localConnection = isLocalConnection(connection.endpoint);
 
   return (
-    <section className="job-extraction-panel" aria-label="Source information assistance">
-      <div>
-        <p className="eyebrow">Optional AI assistance</p>
-        <h2>Review source with AI</h2>
-        <p>
-          Your Source is already saved. AI can propose individual items of information for
-          your review; nothing changes unless you select and retain a proposal.
-        </p>
-      </div>
-
+    <section className="job-extraction-panel" aria-label="Saved candidature extraction">
       {proposal === null ? (
         <>
-          <button type="button" className="secondary-button" onClick={() => setDisclosureOpen(true)}>
-            Review source with AI
-          </button>
-          {disclosureOpen ? (
-            <div className="ai-disclosure" role="dialog" aria-label="AI source disclosure">
-              <p>
-                <strong>AI connection:</strong> {connection.name}
-              </p>
-              <p>
-                <strong>Connection type:</strong>{" "}
-                {localConnection ? "Local on this computer" : "Remote HTTPS"}
-              </p>
-              <p>
-                {localConnection
-                  ? "AAAAT will send exactly this saved Source material through the selected local connection."
-                  : "AAAAT will send exactly this saved Source material through the selected remote connection."} {" "}
-                It remains your choice whether to continue.
-              </p>
-              <details open>
-                <summary>Source material to be disclosed</summary>
-                <dl>
-                  <div>
-                    <dt>Title</dt>
-                    <dd>{source.sourceTitle || "Not provided"}</dd>
-                  </div>
-                  <div>
-                    <dt>Link</dt>
-                    <dd>{source.sourceUrl || "Not provided"}</dd>
-                  </div>
-                  <div>
-                    <dt>Text</dt>
-                    <dd>
-                      <pre>{source.sourceText}</pre>
-                    </dd>
-                  </div>
-                </dl>
-              </details>
-              <div className="form-actions">
-                <button type="button" onClick={() => void requestProposal()} disabled={isWorking}>
-                  {isWorking ? "Reviewing source…" : "Send selected Source to AI"}
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => setDisclosureOpen(false)}
-                  disabled={isWorking}
-                >
-                  Keep without AI
-                </button>
-              </div>
+          <div>
+            <p className="eyebrow">Candidature saved</p>
+            <h2>Extract useful information?</h2>
+            <p>
+              The original Source is already retained. AAAAT can use your configured extraction connection to suggest ordinary candidature information now, or you can keep working without AI.
+            </p>
+          </div>
+          <div className="ai-disclosure" aria-label="Extraction disclosure">
+            <p><strong>Connection:</strong> {connection.name}</p>
+            <p><strong>Connection type:</strong> {localConnection ? "Local on this computer" : "Remote HTTPS"}</p>
+            <p>
+              {localConnection
+                ? "AAAAT will send this saved Source material through the selected local connection."
+                : "AAAAT will send this saved Source material through the selected remote connection."}
+              {" "}No candidature information changes unless you retain a proposal.
+            </p>
+            <details open>
+              <summary>Source material to be disclosed</summary>
+              <dl>
+                <div><dt>Title</dt><dd>{source.sourceTitle || "Not provided"}</dd></div>
+                <div><dt>Link</dt><dd>{source.sourceUrl || "Not provided"}</dd></div>
+                <div><dt>Text</dt><dd><pre>{source.sourceText}</pre></dd></div>
+              </dl>
+            </details>
+            <div className="form-actions">
+              <button type="button" onClick={() => void requestProposal()} disabled={isWorking}>
+                {isWorking ? "Extracting information…" : "Extract useful information"}
+              </button>
+              <button type="button" className="secondary-button" onClick={onDismiss} disabled={isWorking}>
+                Keep without AI
+              </button>
             </div>
-          ) : null}
+          </div>
         </>
       ) : (
         <div className="extraction-proposals">
