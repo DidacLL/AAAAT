@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import {
-  candidatureRuntimeValueSchema,
-  candidatureSourceDraftSchema,
-} from "./contracts";
+import { candidatureSourceDraftSchema } from "./contracts";
 import { cvAssistantNotesSchema, cvAssistantTagsSchema } from "./cv-descriptor-contracts";
 
 const externalCareerContextValueSchema = z
@@ -29,22 +26,21 @@ export const externalCareerContextSchema = z
 
 export type ExternalCareerContext = z.infer<typeof externalCareerContextSchema>;
 
-export const externalCandidatureContextRequestSchema = z.object({}).strict();
+export const externalOpportunityResearchContextRequestSchema = z.object({}).strict();
 
-export const externalCandidatureInformationSchema = z
-  .object({
-    label: z.string().trim().min(1).max(120),
-    value: candidatureRuntimeValueSchema,
-  })
-  .strict();
+const externalOpportunityResearchValueSchema = z.string().trim().min(1).max(50000);
 
-export const externalCandidatureContextSchema = z
+export const externalOpportunityResearchContextSchema = z
   .object({
-    information: z.array(externalCandidatureInformationSchema).max(64),
+    organisation: externalOpportunityResearchValueSchema.optional(),
+    role: externalOpportunityResearchValueSchema.optional(),
+    location: externalOpportunityResearchValueSchema.optional(),
   })
   .strict()
   .nullable();
-export type ExternalCandidatureContext = z.infer<typeof externalCandidatureContextSchema>;
+export type ExternalOpportunityResearchContext = z.infer<
+  typeof externalOpportunityResearchContextSchema
+>;
 
 export const externalCandidatureSourceAddInputSchema = z
   .object({ source: candidatureSourceDraftSchema })
