@@ -6,6 +6,7 @@ import type { CombinedDocumentDesktopApi } from "../shared/combined-document-con
 import type { DesktopApi } from "../shared/contracts";
 import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-contracts";
 import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
+import type { DocumentOutputDesktopApi } from "../shared/document-output-contracts";
 import type { FocusDesktopApi } from "../shared/focus-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { TodoDesktopApi } from "../shared/todo-contracts";
@@ -21,6 +22,7 @@ declare global {
       CombinedDocumentDesktopApi &
       CvContentAccessDesktopApi &
       CvDescriptorDesktopApi &
+      DocumentOutputDesktopApi &
       TodoDesktopApi &
       FocusDesktopApi &
       SetupEnvironmentDesktopApi &

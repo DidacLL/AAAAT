@@ -7,6 +7,7 @@ import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-c
 import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
 import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-contracts";
 import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
+import type { DocumentOutputDesktopApi } from "../shared/document-output-contracts";
 import type { FocusDesktopApi, FocusMaterialPreferences } from "../shared/focus-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { TodoDesktopApi } from "../shared/todo-contracts";
@@ -36,6 +37,7 @@ function createPreviewApi(): DesktopApi &
   CandidatureSearchDesktopApi &
   CvContentAccessDesktopApi &
   CvDescriptorDesktopApi &
+  DocumentOutputDesktopApi &
   TodoDesktopApi &
   FocusDesktopApi &
   SetupEnvironmentDesktopApi &
@@ -79,6 +81,9 @@ function createPreviewApi(): DesktopApi &
       render: previewUnavailable,
       regenerate: previewUnavailable,
       exportProject: async () => null,
+    }),
+    documentOutput: Object.freeze({
+      open: previewUnavailable,
     }),
     cvContentAccess: Object.freeze({
       current: previewUnavailable,

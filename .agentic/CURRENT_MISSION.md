@@ -2,7 +2,11 @@
 
 ## Active bounded work
 
-None. [Issue #244](https://github.com/DidacLL/AAAAT/issues/244) and [PR #245](https://github.com/DidacLL/AAAAT/pull/245) are complete and are not active work. No successor Mission is selected here.
+[Issue #247](https://github.com/DidacLL/AAAAT/issues/247) is the sole active bounded product outcome on branch `product/document-output-result-first`.
+
+The outcome is to make standalone VCVGenerator output/result interaction task-first: create or edit a CV or cover letter, render it, and access the resulting user-owned output without external-AI permissions, candidature artifact administration, or source/audit details competing with ordinary document work.
+
+This work is derived from `PRODUCT_DEFINITION.md`, current Product Context, direct owner-source material, and live renderer evidence. It does not authorize document persistence/schema redesign, LaTeX architecture redesign, AI-operation/provider work, candidature redesign, Professional information redesign, User View, or unrelated cleanup.
 
 ## Dormant compatibility evidence
 

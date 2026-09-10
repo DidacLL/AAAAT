@@ -7,6 +7,7 @@ import { createDesktopApi } from "./api";
 import { createCombinedDocumentDesktopApi } from "./combined-document-api";
 import { createCvContentAccessDesktopApi } from "./cv-content-access-api";
 import { createCvDescriptorDesktopApi } from "./cv-descriptor-api";
+import { createDocumentOutputDesktopApi } from "./document-output-api";
 import { createFocusDesktopApi } from "./focus-api";
 import { createSetupEnvironmentDesktopApi } from "./setup-environment-api";
 import { createTodoDesktopApi } from "./todo-api";
@@ -24,6 +25,7 @@ contextBridge.exposeInMainWorld(
     ...createCombinedDocumentDesktopApi(invoke),
     ...createCvContentAccessDesktopApi(invoke),
     ...createCvDescriptorDesktopApi(invoke),
+    ...createDocumentOutputDesktopApi(invoke),
     ...createTodoDesktopApi(invoke),
     ...createFocusDesktopApi(invoke),
     ...createSetupEnvironmentDesktopApi(invoke),

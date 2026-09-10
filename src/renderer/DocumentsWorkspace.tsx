@@ -60,12 +60,12 @@ export function DocumentsWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
-  const [artifactCandidatureId, setArtifactCandidatureId] = useState("");
   const [artifacts, setArtifacts] = useState<ApplicationArtifactRecord[]>([]);
   const [capturingArtifact, setCapturingArtifact] = useState(false);
   const [descriptorDirty, setDescriptorDirty] = useState(false);
   const [documentView, setDocumentView] = useState<DocumentView>("content");
   const [compactDocumentOpen, setCompactDocumentOpen] = useState(false);
+  const [renderedResultId, setRenderedResultId] = useState<string | null>(null);
 
   const [newKind, setNewKind] = useState<DocumentKind>("cv");
   const [newTitle, setNewTitle] = useState("");
@@ -79,10 +79,6 @@ export function DocumentsWorkspace({
     () => (selected ? orderedBaseItems(selected, baseItems) : []),
     [baseItems, selected],
   );
-  const artifactCandidature = useMemo(
-    () => candidatures.find((candidature) => candidature.id === artifactCandidatureId) ?? null,
-    [artifactCandidatureId, candidatures],
-  );
   const contextCandidature = useMemo(
     () =>
       documentHandoff?.candidatureId
@@ -91,7 +87,7 @@ export function DocumentsWorkspace({
     [candidatures, documentHandoff],
   );
   const canCaptureArtifact = Boolean(
-    selected && artifactCandidature?.documentIds.includes(selected.id),
+    selected && contextCandidature?.documentIds.includes(selected.id),
   );
 
   const [title, setTitle] = useState("");
@@ -171,13 +167,6 @@ export function DocumentsWorkspace({
         setCandidatures(currentCandidatures);
         setNewVariantId("");
 
-        const firstCandidature = currentCandidatures[0] ?? null;
-        setArtifactCandidatureId(firstCandidature?.id ?? "");
-        if (firstCandidature) {
-          const retained = await window.aaaat.artifacts.list(firstCandidature.id);
-          if (active) setArtifacts(retained);
-        }
-
         const requestedId = initialRequestedDocumentId.current;
         const requested = requestedId
           ? currentDocuments.find((document) => document.id === requestedId) ?? null
@@ -235,9 +224,7 @@ export function DocumentsWorkspace({
     void window.aaaat.artifacts
       .list(candidatureId)
       .then((retained) => {
-        if (!active) return;
-        setArtifactCandidatureId(candidatureId);
-        setArtifacts(retained);
+        if (active) setArtifacts(retained);
       })
       .catch(() => {
         if (active) setError("AAAAT could not load retained application artifacts.");
@@ -274,7 +261,6 @@ export function DocumentsWorkspace({
         setCandidatures((current) =>
           current.map((candidate) => (candidate.id === linked.id ? linked : candidate)),
         );
-        setArtifactCandidatureId(linked.id);
       }
       setNewTitle("");
       await acceptSavedDocument(created);
@@ -378,10 +364,23 @@ export function DocumentsWorkspace({
     try {
       const rendered = await window.aaaat.documents.render(selected.id);
       await acceptAdjacentDocument(rendered);
-      setNotice(`Rendered PDF: ${rendered.artifactPath}`);
+      setRenderedResultId(rendered.id);
+      setNotice("PDF rendered successfully. Open the result below.");
     } catch {
       setError("Rendering failed. Check Document rendering in Settings for local TeX status and setup guidance.");
       setRenderSettingsSuggested(true);
+    }
+  };
+
+  const openRenderedOutput = async () => {
+    if (!selected) return;
+    setError(null);
+    setNotice(null);
+    try {
+      await window.aaaat.documentOutput.open(selected.id);
+      setNotice("Opened the rendered PDF.");
+    } catch {
+      setError("AAAAT could not open the rendered PDF. Render this document again and try opening the result.");
     }
   };
 
@@ -418,18 +417,8 @@ export function DocumentsWorkspace({
     }
   };
 
-  const chooseArtifactCandidature = async (candidatureId: string) => {
-    setArtifactCandidatureId(candidatureId);
-    setError(null);
-    try {
-      setArtifacts(candidatureId ? await window.aaaat.artifacts.list(candidatureId) : []);
-    } catch {
-      setError("AAAAT could not load retained application artifacts.");
-    }
-  };
-
   const captureArtifact = async () => {
-    if (!selected || !artifactCandidatureId || !canCaptureArtifact) return;
+    if (!selected || !contextCandidature || !canCaptureArtifact) return;
     if (editorDirty) {
       setError("Save document changes before retaining an application artifact.");
       return;
@@ -439,7 +428,7 @@ export function DocumentsWorkspace({
     setNotice(null);
     try {
       const captured = await window.aaaat.artifacts.capture({
-        candidatureId: artifactCandidatureId,
+        candidatureId: contextCandidature.id,
         documentId: selected.id,
       });
       setArtifacts((current) => [captured, ...current.filter((artifact) => artifact.id !== captured.id)]);
@@ -634,7 +623,7 @@ export function DocumentsWorkspace({
               {([
                 ["content", "Content"],
                 ["professional-information", "Professional information"],
-                ["output", "Output & ownership"],
+                ["output", "Output"],
               ] as const).map(([view, label]) => (
                 <button
                   key={view}
@@ -783,35 +772,66 @@ export function DocumentsWorkspace({
             <section
               className="document-local-panel"
               role="tabpanel"
-              aria-label="Document output and ownership"
+              aria-label="Document output"
               hidden={documentView !== "output"}
             >
               {editorDirty ? (
                 <p className="document-notice">
-                  Save document changes before rendering, exporting, or retaining application material.
+                  Save document changes before rendering or exporting. Your last rendered PDF remains separate from unsaved edits.
                 </p>
               ) : null}
-              <div className="document-actions document-output-actions">
-                <button type="button" disabled={editorDirty} onClick={() => void render()}>Render PDF</button>
-                <button type="button" disabled={editorDirty} onClick={() => void exportProject()}>
-                  Export portable project
-                </button>
-                <button type="button" onClick={() => void remove()}>Remove document</button>
-              </div>
 
-              {selected.mode === "manual" ? (
-                <div className="manual-source-warning">
-                  <p>
-                    Direct source edits are preserved. Replacing them from structured information is deliberate and may overwrite those edits.
-                  </p>
-                  <button type="button" disabled={editorDirty} onClick={() => void regenerate()}>
-                    Replace manual source from structured data
+              <section className="document-result-card" aria-label="Rendered PDF result">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">Result</p>
+                    <h3>PDF output</h3>
+                  </div>
+                  <span>{renderedResultId === selected.id ? "Ready" : "Not rendered this session"}</span>
+                </div>
+                <p className="document-section-intro">
+                  Render the saved working document, then open the resulting PDF directly.
+                </p>
+                <div className="document-actions document-output-actions">
+                  <button className="compact-primary" type="button" disabled={editorDirty} onClick={() => void render()}>
+                    Render PDF
+                  </button>
+                  {renderedResultId === selected.id ? (
+                    <button type="button" onClick={() => void openRenderedOutput()}>Open PDF</button>
+                  ) : null}
+                  <button type="button" disabled={editorDirty} onClick={() => void exportProject()}>
+                    Export portable project
                   </button>
                 </div>
-              ) : null}
+                {renderedResultId === selected.id ? (
+                  <p className="document-result-ready">The current rendered PDF is ready to open.</p>
+                ) : null}
+              </section>
+
+              <details className="document-advanced" open={selected.mode === "manual"}>
+                <summary>Source & advanced ownership</summary>
+                {selected.mode === "manual" ? (
+                  <div className="manual-source-warning">
+                    <p>
+                      Direct source edits are preserved. Replacing them from structured information is deliberate and may overwrite those edits.
+                    </p>
+                    <button type="button" disabled={editorDirty} onClick={() => void regenerate()}>
+                      Replace manual source from structured data
+                    </button>
+                  </div>
+                ) : null}
+                <div className="document-paths">
+                  <p><span>Source</span><code>{selected.sourcePath}</code></p>
+                  <p><span>PDF</span><code>{selected.artifactPath}</code></p>
+                </div>
+                <div className="document-actions document-advanced-actions">
+                  <button type="button" onClick={() => void remove()}>Remove document</button>
+                </div>
+              </details>
 
               {selected.kind === "cv" ? (
-                <>
+                <details className="document-advanced">
+                  <summary>External assistant privacy & integration</summary>
                   <CvAssistantDescriptorPanel
                     key={`descriptor:${selected.id}`}
                     document={selected}
@@ -826,16 +846,8 @@ export function DocumentsWorkspace({
                     onError={setError}
                     onNotice={setNotice}
                   />
-                </>
+                </details>
               ) : null}
-
-              <details className="document-advanced" open={selected.mode === "manual"}>
-                <summary>Source & ownership</summary>
-                <div className="document-paths">
-                  <p><span>Source</span><code>{selected.sourcePath}</code></p>
-                  <p><span>PDF</span><code>{selected.artifactPath}</code></p>
-                </div>
-              </details>
             </section>
           </>
         )}
@@ -844,30 +856,24 @@ export function DocumentsWorkspace({
           className="document-output-support"
           hidden={selected ? documentView !== "output" : false}
         >
-          <CombinedDocumentExportPanel
-            documents={documents}
-            disabled={editorDirty}
-            onError={setError}
-            onNotice={setNotice}
-          />
+          <details className="document-advanced">
+            <summary>Combined CV + cover letter</summary>
+            <CombinedDocumentExportPanel
+              documents={documents}
+              disabled={editorDirty}
+              onError={setError}
+              onNotice={setNotice}
+            />
+          </details>
 
-          <section className="manual-source-warning" aria-label="Retained application artifacts">
-            <h3>Retained application artifacts</h3>
-            {candidatures.length === 0 ? (
-              <p>Create a candidature before retaining application material.</p>
-            ) : (
-              <>
-                <label>
-                  Candidature
-                  <select
-                    value={artifactCandidatureId}
-                    onChange={(event) => void chooseArtifactCandidature(event.target.value)}
-                  >
-                    {candidatures.map((candidature) => (
-                      <option key={candidature.id} value={candidature.id}>{candidature.label}</option>
-                    ))}
-                  </select>
-                </label>
+          {contextCandidature ? (
+            <details className="document-advanced">
+              <summary>Application artifact for {contextCandidature.label}</summary>
+              <section className="manual-source-warning" aria-label="Retained application artifacts">
+                <h3>Retained application artifacts</h3>
+                <p>
+                  Preserve an exact snapshot only when this material is actually used for {contextCandidature.label}.
+                </p>
                 {selected ? (
                   canCaptureArtifact ? (
                     <button
@@ -899,9 +905,9 @@ export function DocumentsWorkspace({
                     ))}
                   </div>
                 )}
-              </>
-            )}
-          </section>
+              </section>
+            </details>
+          ) : null}
         </div>
       </div>
     </section>
