@@ -93,7 +93,7 @@ function readConceptIds(database: DatabaseSync, candidatureId: string): string[]
           WHERE candidature_id = ?
           ORDER BY concept_id`,
       )
-      .all(candidatureId) as unknown as IdRow[];
+      .all(candidatureId) as unknown as IdRow[]
   ).map((row) => row.id);
 }
 
