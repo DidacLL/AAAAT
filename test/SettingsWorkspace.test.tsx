@@ -35,6 +35,7 @@ const backup = vi.fn();
 const restore = vi.fn();
 const list = vi.fn();
 const save = vi.fn();
+const connectVscode = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -42,10 +43,14 @@ beforeEach(() => {
   save.mockResolvedValue([]);
   backup.mockResolvedValue({ status: "backed_up" });
   restore.mockResolvedValue({ status: "cancelled" });
+  connectVscode.mockResolvedValue({
+    status: "configured",
+    message: "Connected. VS Code still controls whether to trust and enable the AAAAT tool.",
+  });
   Object.defineProperty(window, "aaaat", {
     configurable: true,
     value: {
-      setupEnvironment: { current: async () => readyEnvironment },
+      setupEnvironment: { current: async () => readyEnvironment, connectVscode },
       workspaceRecovery: { backup, restore },
       aiConnections: {
         list,
@@ -90,6 +95,27 @@ describe("Settings workspace", () => {
     expect(await screen.findByRole("region", { name: "Document rendering settings" })).toBeInTheDocument();
     expect(screen.getByText("Local TeX rendering is available on this computer.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Back to Settings" })).toBeInTheDocument();
+  });
+
+  it("connects only the demonstrated VS Code host through the narrow no-input desktop operation", async () => {
+    const user = userEvent.setup();
+    render(
+      <SettingsWorkspace
+        currentWorkspace={workspace}
+        onChooseWorkspace={choose}
+        onDirtyChange={dirty}
+        onRestored={restored}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: /Portability & external tools/ }));
+    expect(screen.getByRole("region", { name: "VS Code external tool setup" })).toBeInTheDocument();
+    expect(screen.getByText(/one candidature you locally select for opportunity research/i)).toBeInTheDocument();
+    expect(screen.getByText(/cannot browse your local corpus/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Connect VS Code project" }));
+    expect(connectVscode).toHaveBeenCalledTimes(1);
+    expect(connectVscode).toHaveBeenCalledWith();
+    expect(await screen.findByRole("status")).toHaveTextContent(/VS Code still controls whether to trust and enable/i);
   });
 
   it("keeps AI optional and protects a dirty connection draft before leaving its Settings detail", async () => {

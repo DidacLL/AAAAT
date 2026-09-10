@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it, vi } from "vitest";
 
 import { createSetupEnvironmentDesktopApi } from "../src/preload/setup-environment-api";
@@ -27,19 +29,24 @@ const snapshot = {
 };
 
 describe("setup environment preload API", () => {
-  it("exposes one bounded read-only environment operation", async () => {
-    const invoke = vi.fn(async () => snapshot);
+  it("exposes bounded environment status and a no-input VS Code setup action", async () => {
+    const invoke = vi.fn(async (channel: string) =>
+      channel === setupEnvironmentChannels.current
+        ? snapshot
+        : { status: "configured", message: "Connected." },
+    );
     const api = createSetupEnvironmentDesktopApi(invoke);
 
     await expect(api.setupEnvironment.current()).resolves.toEqual(snapshot);
-    expect(invoke).toHaveBeenCalledTimes(1);
-    expect(invoke).toHaveBeenCalledWith(setupEnvironmentChannels.current);
+    await expect(api.setupEnvironment.connectVscode()).resolves.toEqual({ status: "configured", message: "Connected." });
+    expect(invoke).toHaveBeenNthCalledWith(1, setupEnvironmentChannels.current);
+    expect(invoke).toHaveBeenNthCalledWith(2, setupEnvironmentChannels.connectVscode);
   });
 
   it("rejects malformed privileged output", async () => {
-    const invoke = vi.fn(async () => ({ ...snapshot, workspaceReady: "yes" }));
+    const invoke = vi.fn(async () => ({ status: "configured", path: "/arbitrary" }));
     const api = createSetupEnvironmentDesktopApi(invoke);
 
-    await expect(api.setupEnvironment.current()).rejects.toThrow();
+    await expect(api.setupEnvironment.connectVscode()).rejects.toThrow();
   });
 });

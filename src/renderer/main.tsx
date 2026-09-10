@@ -150,6 +150,7 @@ function createPreviewApi(): DesktopApi &
     }),
     setupEnvironment: Object.freeze({
       current: previewUnavailable,
+      connectVscode: previewUnavailable,
     }),
     workspaceRecovery: Object.freeze({
       backup: previewUnavailable,
