@@ -2,9 +2,7 @@
 
 ## Active bounded work
 
-[Issue #241](https://github.com/DidacLL/AAAAT/issues/241), implemented by [PR #242](https://github.com/DidacLL/AAAAT/pull/242) on `product/authority-aligned-ux`, is the active bounded work. It aligns the current runtime, UX, and active documentation with `PRODUCT_DEFINITION.md`: neutral one-opportunity AI review, no candidature comparison/ranking/advice, v4-only pre-baseline AI configuration, deliberate Source selection for historical discovery, and ordinary local/remote connection disclosure without exposing technical endpoint details.
-
-This slice does not establish a real-use compatibility baseline, add database/schema migrations, introduce provider credentials or authentication systems, add workflow/runtime pipelines, redesign VCVGenerator, or expand into pairwise/corpus comparison.
+None. [Issue #241](https://github.com/DidacLL/AAAAT/issues/241) and [PR #242](https://github.com/DidacLL/AAAAT/pull/242) are complete and are not active work. No successor Mission is selected here.
 
 ## Dormant compatibility evidence
 
@@ -14,4 +12,4 @@ The archived technical record is [REAL_USE_BASELINE_EVIDENCE.md](../docs/enginee
 
 ## Current reading rule
 
-Product Definition determines product meaning. Product Context and owner-source material inform interpretation only. SPEC supplies derived technical architecture. This file and its linked live Issue select execution; neither can redefine the product.
+Product Definition determines product meaning. Product Context and owner-source material inform interpretation only. SPEC supplies derived technical architecture. This file and linked live GitHub state select execution; neither can redefine the product.
