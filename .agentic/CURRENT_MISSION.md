@@ -2,9 +2,13 @@
 
 ## Active bounded work
 
-None. [Issue #253](https://github.com/DidacLL/AAAAT/issues/253) and [PR #254](https://github.com/DidacLL/AAAAT/pull/254) are complete.
+[Issue #256](https://github.com/DidacLL/AAAAT/issues/256) is the sole active bounded product outcome on branch `product/external-host-setup-ui`.
 
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+The outcome is to make the already-demonstrated VS Code external-AI connection usable from normal **Settings → Portability & external tools** without requiring the user to construct CLI invocations, supply workspace/executable paths, or understand MCP configuration structure.
+
+This is a usability completion of the existing ADR-0009 host integration and the #253 task-scoped external round trip. It does not authorize another host, generic host detection/registry/adapter infrastructure, new external tasks, broader data authority, provider/auth work, schema changes, release work, or changes to the task-relative privacy model established in `PRODUCT_DEFINITION.md` and ADR 0025.
+
+Treat this as Class C because the desktop renderer gains a narrow trigger for an existing outside-workspace host-configuration mutation. Require one fresh independent Reviewer verdict on the exact final head. Skeptical Simplifier is required only if material abstraction appears beyond the single demonstrated VS Code case.
 
 ## Recently completed outcomes
 
