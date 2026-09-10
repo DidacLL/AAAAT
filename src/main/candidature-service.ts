@@ -280,16 +280,16 @@ export function updateCandidature(
     transact(database, () => {
       readCandidatureInDatabase(database, update.id);
       const access = database
-        .prepare("SELECT external_assistant_selected AS selected FROM candidatures WHERE id = ?")
+        .prepare("SELECT opportunity_research_selected AS selected FROM candidatures WHERE id = ?")
         .get(update.id) as unknown as { readonly selected: number };
       if (update.archived && access.selected === 1) {
         database
-          .prepare("UPDATE candidatures SET external_assistant_selected = 0 WHERE id = ?")
+          .prepare("UPDATE candidatures SET opportunity_research_selected = 0 WHERE id = ?")
           .run(update.id);
         recordActivity(
           database,
           update.id,
-          "candidature.external-assistant-access.revoke",
+          "candidature.opportunity-research-access.revoke",
           now,
         );
       }
