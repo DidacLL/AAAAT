@@ -168,6 +168,37 @@ describe("saved Source AI review", () => {
     expect(screen.queryByText("http://127.0.0.1:11434/v1")).not.toBeInTheDocument();
   });
 
+  it("shows the same validated general default that runtime routing will use", async () => {
+    listConnections.mockResolvedValueOnce([
+      {
+        id: "00000000-0000-4000-8000-000000000905",
+        name: "Validated alternative",
+        endpoint: "https://alternative.example.test/v1",
+        model: "alternative-model",
+        isDefault: false,
+        validatedOperations: ["job_extraction"],
+        defaultForOperations: [],
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000906",
+        name: "Selected general default",
+        endpoint: "http://localhost:11434/v1",
+        model: "default-model",
+        isDefault: true,
+        validatedOperations: ["job_extraction"],
+        defaultForOperations: [],
+      },
+    ]);
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole("heading", { name: "Review source with AI" });
+    await user.click(screen.getByRole("button", { name: "Review source with AI" }));
+
+    expect(screen.getByText("Selected general default")).toBeInTheDocument();
+    expect(screen.queryByText("Validated alternative")).not.toBeInTheDocument();
+  });
+
   it("allows a saved Source to remain unchanged after dismissal or an AI failure", async () => {
     const user = userEvent.setup();
     renderPanel();
@@ -201,8 +232,27 @@ describe("saved Source AI review", () => {
     expect(screen.queryByRole("heading", { name: "Review source with AI" })).not.toBeInTheDocument();
   });
 
-  it("does not show a review action when no valid extraction route exists", async () => {
-    listConnections.mockResolvedValueOnce([]);
+  it("does not scan validated alternatives when the selected route is invalid", async () => {
+    listConnections.mockResolvedValueOnce([
+      {
+        id: "00000000-0000-4000-8000-000000000907",
+        name: "Validated alternative",
+        endpoint: "https://alternative.example.test/v1",
+        model: "alternative-model",
+        isDefault: false,
+        validatedOperations: ["job_extraction"],
+        defaultForOperations: [],
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000908",
+        name: "Unvalidated general default",
+        endpoint: "http://localhost:11434/v1",
+        model: "default-model",
+        isDefault: true,
+        validatedOperations: [],
+        defaultForOperations: [],
+      },
+    ]);
     renderPanel();
 
     await vi.waitFor(() => {
