@@ -2,7 +2,11 @@
 
 ## Active bounded work
 
-None. [Issue #250](https://github.com/DidacLL/AAAAT/issues/250) and [PR #251](https://github.com/DidacLL/AAAAT/pull/251) are complete. No successor Mission is selected here; the next step is project-level reevaluation against the Product Definition and current product evidence.
+[Issue #253](https://github.com/DidacLL/AAAAT/issues/253) is the sole active bounded product outcome on branch `product/external-candidature-roundtrip`.
+
+The outcome is to make one existing candidature usable through a deliberately authorized external-assistant round trip: the chosen external host can read only bounded candidature information permitted for AI context and can retain one returned Source through the normal candidature service. This advances the Product Definition's external-AI entrance without introducing corpus browsing, durable-ID authority, generic task/workflow infrastructure, REST/CRUD surfaces, or an adapter framework.
+
+This is Class C because it expands external disclosure/mutation authority and adds candidature-specific durable access state. The implementation requires a short ADR and one independent Reviewer verdict on the exact final head. Skeptical Simplifier is required only if material abstraction appears beyond the bounded candidature-specific pattern.
 
 ## Recently completed outcomes
 
