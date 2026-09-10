@@ -2,15 +2,13 @@
 
 ## Active bounded work
 
-[Issue #262](https://github.com/DidacLL/AAAAT/issues/262) is the sole active bounded product outcome on branch `product/search-match-recognition`.
+None. [Issue #262](https://github.com/DidacLL/AAAAT/issues/262) and [PR #263](https://github.com/DidacLL/AAAAT/pull/263) are complete.
 
-The outcome is to make candidature corpus search explain why each visible result matched when that explanation can be derived from already-loaded candidature, Source, or Concept projection data. Search authority and query semantics remain unchanged; query-related recognition cues take precedence over generic list cues, with bounded excerpts and no search-index/schema leakage.
-
-This is renderer projection/presentation work. It does not authorize a new search engine, duplicated persistence/query logic, IPC/main privilege changes, schema/migrations, AI behavior, generic ranking, or dependencies. Preserve archive/field filters, selected candidature context, dirty-state safety, manual/no-AI use, and compact `720×600` retrieval.
-
-Treat this as Class B unless implementation changes search authority, renderer/main privilege boundaries, durable persistence, or privacy semantics; if so, escalate to Class C. Skeptical Simplifier is required only if material abstraction appears.
+No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
 
 ## Recently completed outcomes
+
+[Issue #262](https://github.com/DidacLL/AAAAT/issues/262) and [PR #263](https://github.com/DidacLL/AAAAT/pull/263) are complete. Candidature corpus search still uses the existing authoritative search service and filter semantics, while visible text-search results now prefer a locally derived explanation when the query matches retained information, Source search text, or an associated Concept. Source explanations use bounded excerpts around the matching phrase, Concept explanations expose the human-readable Concept name, visible label matches remain self-explanatory, and generic recognition cues remain the fallback. No persistence, privacy, IPC/main authority, schema, AI/provider behavior, or dependency boundary changed.
 
 [Issue #259](https://github.com/DidacLL/AAAAT/issues/259) and [PR #260](https://github.com/DidacLL/AAAAT/pull/260) are complete. Sparse candidature capture remains Source-first and manual/no-AI complete, while a selected validated job-extraction route now appears immediately as part of the saved-capture result rather than behind a separate post-save AI discovery step. The user sees the selected connection type and exact retained Source material before requesting extraction, may keep the candidature without AI, and reviews deliberate ordinary-information proposals before any field mutation. Extraction failure leaves the saved candidature/Source intact, and proposal dirty state clears when the result is dismissed.
 
