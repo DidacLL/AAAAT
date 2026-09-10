@@ -34,10 +34,18 @@ function displayValue(
 
 function sourceCue(record: CandidatureRecord): CandidatureRecognitionCue | null {
   const normalized = record.sourceSearchText.replace(/\s+/g, " ").trim();
-  if (!normalized || record.label.toLocaleLowerCase().includes(normalized.toLocaleLowerCase())) {
-    return null;
-  }
-  const value = normalized.length > 112 ? `${normalized.slice(0, 109).trimEnd()}…` : normalized;
+  if (!normalized) return null;
+
+  const title = record.label.replace(/\s+/g, " ").trim();
+  const sourceLower = normalized.toLocaleLowerCase();
+  const titleLower = title.toLocaleLowerCase();
+  const distinct =
+    title && sourceLower.startsWith(titleLower)
+      ? normalized.slice(title.length).replace(/^[\s·|:;,.\-–—]+/, "").trim()
+      : normalized;
+  if (!distinct || titleLower.includes(distinct.toLocaleLowerCase())) return null;
+
+  const value = distinct.length > 112 ? `${distinct.slice(0, 109).trimEnd()}…` : distinct;
   return { label: "Source", value };
 }
 
