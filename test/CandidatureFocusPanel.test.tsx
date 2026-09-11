@@ -168,10 +168,10 @@ describe("Candidature Focus rapid recall", () => {
     expect(firstSourceLabel).toBeDefined();
     if (!firstSourceLabel) return;
     expect(firstSourceLabel.compareDocumentPosition(customize) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.queryByRole("group", { name: "Focus material" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Focus material" })).not.toBeVisible();
 
     await user.click(customize);
-    expect(screen.getByRole("group", { name: "Focus material" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Focus material" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Configure Focus information" }));
     expect(onNavigate).toHaveBeenCalledWith("information");
   });
@@ -185,6 +185,7 @@ describe("Candidature Focus rapid recall", () => {
     await screen.findAllByText("Recruiter note");
     expect(screen.queryByText(longText)).not.toBeInTheDocument();
     expect(screen.getAllByText(/Distributed systems and incident response/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("article", { name: "Recognition clue" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Open Sources" }));
     expect(onNavigate).toHaveBeenCalledWith("sources");
@@ -235,7 +236,7 @@ describe("Candidature Focus rapid recall", () => {
     renderFocus();
 
     const reminders = await screen.findByRole("region", { name: "Reminders" });
-    expect(within(reminders).queryByRole("button", { name: "Add reminder" })).not.toBeInTheDocument();
+    expect(within(reminders).getByRole("button", { name: "Add reminder" })).not.toBeVisible();
 
     const originalCheckbox = within(reminders).getByRole("checkbox", {
       name: "Mark Prepare incident response example done",
