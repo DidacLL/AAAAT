@@ -1,14 +1,19 @@
 import path from "node:path";
 
-import { app, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { app, ipcMain, shell, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
 
 import {
   applicationArtifactCaptureSchema,
   applicationArtifactListSchema,
+  applicationArtifactOpenResultSchema,
   applicationArtifactRecordSchema,
   artifactChannels,
 } from "../shared/artifact-contracts";
-import { captureApplicationArtifact, listApplicationArtifacts } from "./artifact-service";
+import {
+  captureApplicationArtifact,
+  listApplicationArtifacts,
+  openApplicationArtifact,
+} from "./artifact-service";
 import { readLastWorkspacePath } from "./workspace";
 
 function assertTrustedSender(event: IpcMainInvokeEvent, mainWindow: BrowserWindow): void {
@@ -43,6 +48,16 @@ function registerArtifactIpc(mainWindow: BrowserWindow): void {
       await captureApplicationArtifact(
         requireWorkspaceRoot(),
         applicationArtifactCaptureSchema.parse(input),
+      ),
+    );
+  });
+  ipcMain.handle(artifactChannels.open, async (event, artifactId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return applicationArtifactOpenResultSchema.parse(
+      await openApplicationArtifact(
+        requireWorkspaceRoot(),
+        applicationArtifactRecordSchema.shape.id.parse(artifactId),
+        (artifactPath) => shell.openPath(artifactPath),
       ),
     );
   });
