@@ -2,9 +2,9 @@
 
 ## Active bounded work
 
-None. [Issue #275](https://github.com/DidacLL/AAAAT/issues/275) and [PR #276](https://github.com/DidacLL/AAAAT/pull/276) are complete.
+[Issue #277](https://github.com/DidacLL/AAAAT/issues/277) is the sole active bounded product outcome on branch `product/information-read-first`.
 
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+The outcome is to make populated candidature Information readable by default and editing deliberate/local while preserving the existing field/value services, Add information flow, historical discovery, advanced information settings, Focus preferences, AI-disclosure preferences and manual/no-AI semantics. Treat this as Class B while it remains renderer-only. Do not expand it into schema/service/preload/main changes, a new information model, AI behavior, global routing/state, dependencies or unrelated candidature redesign.
 
 ## Recently completed outcomes
 
