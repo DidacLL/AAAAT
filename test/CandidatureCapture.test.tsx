@@ -234,6 +234,7 @@ describe("sparse candidature capture", () => {
     const card = screen.getByRole("heading", { name: "Organisation" }).closest("article");
     expect(card).not.toBeNull();
     if (!card) return;
+    await user.click(within(card).getByRole("button", { name: "Edit" }));
     const input = within(card).getByRole("textbox");
     await user.type(input, " unsaved");
 
@@ -263,6 +264,7 @@ describe("sparse candidature capture", () => {
     const card = screen.getByRole("heading", { name: "Organisation" }).closest("article");
     expect(card).not.toBeNull();
     if (!card) return;
+    await user.click(within(card).getByRole("button", { name: "Edit" }));
     const input = within(card).getByRole("textbox");
     await user.type(input, " unsaved");
 
