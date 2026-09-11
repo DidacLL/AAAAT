@@ -2,9 +2,9 @@
 
 ## Active bounded work
 
-None. [Issue #277](https://github.com/DidacLL/AAAAT/issues/277) and [PR #278](https://github.com/DidacLL/AAAAT/pull/278) are complete.
+[Issue #279](https://github.com/DidacLL/AAAAT/issues/279) is the sole active bounded product outcome on branch `product/combined-application-artifact`.
 
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+The outcome is to make the existing combined CV + cover-letter production capability retainable as one exact candidature application artifact while truthfully preserving both contributing working documents. Reuse existing combined production and retained-artifact opening; require both documents to be associated to the candidature; keep standalone combined export unchanged; do not create a persistent combined working-document kind, generic artifact graph/versioning model, new PDF dependency, AI behavior, or unrelated candidature/document redesign. Treat as Class C and resolve review/integration autonomously; owner attention is not required.
 
 ## Recently completed outcomes
 
