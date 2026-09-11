@@ -152,13 +152,26 @@ describe("task-first candidature application material", () => {
   it("reports retained artifact open failures without mutating document associations", async () => {
     const user = userEvent.setup();
     openArtifact.mockRejectedValue(new Error("The retained application PDF is missing."));
-    const { onDocumentSelectionChange, onSaveDocuments } = renderPanel();
+    const { rerender, onDocumentSelectionChange, onSaveDocuments, onOpenDocument } = renderPanel();
 
     const retained = await screen.findByRole("region", { name: "Retained application artifacts" });
     await user.click(within(retained).getByRole("button", { name: "Open retained PDF" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The retained application PDF is missing.");
     expect(onDocumentSelectionChange).not.toHaveBeenCalled();
     expect(onSaveDocuments).not.toHaveBeenCalled();
+
+    rerender(
+      <CandidatureApplicationMaterialPanel
+        candidature={{ ...candidature, id: "00000000-0000-4000-8000-000000000805", label: "Other role" }}
+        documents={[workingDocument, otherDocument]}
+        selectedDocumentIds={[workingDocument.id]}
+        documentSelectionDirty={false}
+        onDocumentSelectionChange={onDocumentSelectionChange}
+        onSaveDocuments={onSaveDocuments}
+        onOpenDocument={onOpenDocument}
+      />,
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("preserves explicit association changes and save as secondary management", async () => {
