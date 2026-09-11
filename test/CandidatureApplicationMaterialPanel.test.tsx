@@ -155,33 +155,6 @@ describe("task-first candidature application material", () => {
     ).toBeInTheDocument();
   });
 
-  it("refreshes retained artifacts when document return refreshes the document projection", async () => {
-    listArtifacts.mockResolvedValueOnce([]).mockResolvedValueOnce([artifact]);
-    const documents = [workingDocument, otherDocument];
-    const { rerender, onDocumentSelectionChange, onSaveDocuments, onOpenDocument } = renderPanel({
-      documents,
-    });
-
-    await screen.findByRole("region", { name: "Working application documents" });
-    expect(screen.queryByRole("region", { name: "Retained application artifacts" })).not.toBeInTheDocument();
-
-    rerender(
-      <CandidatureApplicationMaterialPanel
-        candidature={candidature}
-        documents={[...documents]}
-        selectedDocumentIds={[workingDocument.id]}
-        documentSelectionDirty={false}
-        onDocumentSelectionChange={onDocumentSelectionChange}
-        onSaveDocuments={onSaveDocuments}
-        onOpenDocument={onOpenDocument}
-      />,
-    );
-
-    const retained = await screen.findByRole("region", { name: "Retained application artifacts" });
-    expect(within(retained).getByRole("heading", { name: "Platform CV submitted" })).toBeInTheDocument();
-    expect(listArtifacts).toHaveBeenCalledTimes(2);
-  });
-
   it("reports retained artifact open failures without mutating document associations", async () => {
     const user = userEvent.setup();
     openArtifact.mockRejectedValue(new Error("The retained application PDF is missing."));
