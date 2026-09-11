@@ -2,7 +2,7 @@
 
 ## Active bounded work
 
-None.
+[Issue #281](https://github.com/DidacLL/AAAAT/issues/281) is the sole active bounded outcome on branch `product/concept-notes-maintenance`: make the already-persisted user-notes portion of shared Concepts editable through the existing secondary Concept maintenance surface. Keep Focus read-first and reuse the existing Concept input/update authority; no schema, service, IPC, AI, rich-text, knowledge-management, dependency or routing/state expansion is in scope. This is Class B and requires normal Reviewer/Integrator resolution without owner involvement.
 
 ## Recently completed outcomes
 
