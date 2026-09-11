@@ -28,24 +28,36 @@ export function CandidatureApplicationMaterialPanel({
   readonly onSaveDocuments: () => void;
   readonly onOpenDocument: (documentId?: string) => void;
 }) {
-  const [artifacts, setArtifacts] = useState<ApplicationArtifactRecord[]>([]);
-  const [artifactError, setArtifactError] = useState<string | null>(null);
+  const [artifactState, setArtifactState] = useState<{
+    readonly candidatureId: string;
+    readonly artifacts: ApplicationArtifactRecord[];
+    readonly error: string | null;
+  }>(() => ({ candidatureId: candidature.id, artifacts: [], error: null }));
 
   useEffect(() => {
     let active = true;
     void window.aaaat.artifacts
       .list(candidature.id)
-      .then((next) => {
-        if (active) setArtifacts(next);
+      .then((artifacts) => {
+        if (active) setArtifactState({ candidatureId: candidature.id, artifacts, error: null });
       })
       .catch(() => {
-        if (active) setArtifactError("AAAAT could not load retained application artifacts.");
+        if (!active) return;
+        setArtifactState({
+          candidatureId: candidature.id,
+          artifacts: [],
+          error: "AAAAT could not load retained application artifacts.",
+        });
       });
     return () => {
       active = false;
     };
   }, [candidature.id]);
 
+  const artifacts =
+    artifactState.candidatureId === candidature.id ? artifactState.artifacts : [];
+  const artifactError =
+    artifactState.candidatureId === candidature.id ? artifactState.error : null;
   const associatedDocuments = useMemo(
     () =>
       candidature.documentIds
