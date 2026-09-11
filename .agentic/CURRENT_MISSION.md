@@ -2,11 +2,11 @@
 
 ## Active bounded work
 
-[Issue #279](https://github.com/DidacLL/AAAAT/issues/279) is the sole active bounded product outcome on branch `product/combined-application-artifact`.
-
-The outcome is to make the existing combined CV + cover-letter production capability retainable as one exact candidature application artifact while truthfully preserving both contributing working documents. Reuse existing combined production and retained-artifact opening; require both documents to be associated to the candidature; keep standalone combined export unchanged; do not create a persistent combined working-document kind, generic artifact graph/versioning model, new PDF dependency, AI behavior, or unrelated candidature/document redesign. Treat as Class C and resolve review/integration autonomously; owner attention is not required.
+None.
 
 ## Recently completed outcomes
+
+[Issue #279](https://github.com/DidacLL/AAAAT/issues/279) and [PR #280](https://github.com/DidacLL/AAAAT/pull/280) are complete. Candidature-linked CVs & letters can now retain one exact combined CV + cover-letter packet while preserving the explicit contributing CV and cover-letter document IDs. Combined retention reuses the existing combined production path, requires both contributors to already belong to the candidature, remains atomic across production and database-commit failure, and renders as distinct retained evidence through the existing ID-only artifact-opening authority. Migration 011 performs the minimal forward artifact representation change while preserving legacy single-document artifacts and migrations 001–010. Standalone combined export, manual/no-AI document work and single-document artifact behavior remain valid; no third combined working-document kind, generic contributor graph, second PDF combiner, new dependency, generic filesystem authority or routing/state framework was introduced. Exact-head verification includes successful fast verification and packaged Linux combined-retention/return evidence at `720×600` with no horizontal overflow.
 
 [Issue #277](https://github.com/DidacLL/AAAAT/issues/277) and [PR #278](https://github.com/DidacLL/AAAAT/pull/278) are complete. Populated candidature Information is now read-first: retained values render as ordinary readable content, including human-readable choice labels and yes/no values, and mutation begins only through a deliberate local Edit action that reuses the existing Save, Clear and Source-discovery authority. Missing information still uses the existing Add information flow, advanced field/presentation/privacy controls remain secondary and unchanged, and dirty retained-value drafts are protected when leaving Information. Packaged Linux evidence covers read → Edit → Save at exact `720×600`. No schema, service, preload/main authority, AI behavior, dependency, new preference model, routing/state framework or unrelated candidature redesign was introduced.
 
