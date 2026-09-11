@@ -6,16 +6,18 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   captureApplicationArtifact,
   listApplicationArtifacts,
+  openApplicationArtifact,
 } from "../src/main/artifact-service";
 import {
   createCandidature,
@@ -64,7 +66,7 @@ afterEach(() => {
 });
 
 describe("application artifact service", () => {
-  it("retains the effective user-owned project, PDF and origin metadata independently", async () => {
+  it("retains and opens the exact user-owned PDF by authoritative artifact ID", async () => {
     const root = workspace();
     installFakeLatexmk();
     addProfileItem(root, {
@@ -116,6 +118,16 @@ describe("application artifact service", () => {
     expect(readFileSync(retained.artifactPath, "utf8")).toBe("pdf-one");
     expect(listApplicationArtifacts(root, candidature.id)).toEqual([retained]);
 
+    const openPath = vi.fn(async () => "");
+    await expect(openApplicationArtifact(root, retained.id, openPath)).resolves.toEqual({ opened: true });
+    expect(openPath).toHaveBeenCalledWith(retained.artifactPath);
+    await expect(
+      openApplicationArtifact(root, retained.id, async () => "platform failure"),
+    ).rejects.toThrow("AAAAT could not open the retained application PDF.");
+    await expect(
+      openApplicationArtifact(root, "00000000-0000-4000-8000-000000000999", openPath),
+    ).rejects.toThrow("The retained application artifact no longer exists.");
+
     updateDocument(root, {
       id: document.id,
       title: "Later edited CV",
@@ -142,5 +154,10 @@ describe("application artifact service", () => {
       }),
     ]);
     expect(readFileSync(retained.artifactPath, "utf8")).toBe("pdf-one");
+
+    unlinkSync(retained.artifactPath);
+    await expect(openApplicationArtifact(root, retained.id, openPath)).rejects.toThrow(
+      "The retained application PDF is missing.",
+    );
   });
 });
