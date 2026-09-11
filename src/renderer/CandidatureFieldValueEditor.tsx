@@ -20,6 +20,30 @@ function textFor(value: CandidatureRuntimeValue | undefined): string {
   return typeof value === "boolean" ? (value ? "true" : "false") : String(value);
 }
 
+function choicesFor(
+  field: CandidatureFieldConfiguration,
+  value: CandidatureRuntimeValue | undefined,
+): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+  return typeof value === "string" && field.definition.valueType === "choice" ? [value] : [];
+}
+
+function displayValue(
+  field: CandidatureFieldConfiguration,
+  value: CandidatureRuntimeValue,
+): string {
+  const displayOne = (item: string | number | boolean): string => {
+    if (field.definition.valueType === "choice" && typeof item === "string") {
+      return field.definition.choices.find((choice) => choice.id === item)?.label ?? item;
+    }
+    if (typeof item === "boolean") return item ? "Yes" : "No";
+    return String(item);
+  };
+  return Array.isArray(value) ? value.map(displayOne).join(", ") : displayOne(value);
+}
+
 export function CandidatureFieldValueEditor({
   field,
   value,
@@ -28,14 +52,9 @@ export function CandidatureFieldValueEditor({
   onDiscover,
   onDirtyChange,
 }: Props) {
+  const [editing, setEditing] = useState(value === undefined);
   const [text, setText] = useState(textFor(value));
-  const [choices, setChoices] = useState<string[]>(
-    Array.isArray(value)
-      ? value.filter((item): item is string => typeof item === "string")
-      : typeof value === "string" && field.definition.valueType === "choice"
-        ? [value]
-        : [],
-  );
+  const [choices, setChoices] = useState<string[]>(choicesFor(field, value));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onDirtyChangeRef = useRef(onDirtyChange);
@@ -46,26 +65,13 @@ export function CandidatureFieldValueEditor({
 
   useEffect(() => {
     setText(textFor(value));
-    setChoices(
-      Array.isArray(value)
-        ? value.filter((item): item is string => typeof item === "string")
-        : typeof value === "string" && field.definition.valueType === "choice"
-          ? [value]
-          : [],
-    );
+    setChoices(choicesFor(field, value));
     setError(null);
   }, [field.definition.id, field.definition.valueType, value]);
 
   const dirty =
-    text !== textFor(value) ||
-    JSON.stringify(choices) !==
-      JSON.stringify(
-        Array.isArray(value)
-          ? value.filter((item): item is string => typeof item === "string")
-          : typeof value === "string" && field.definition.valueType === "choice"
-            ? [value]
-            : [],
-      );
+    editing &&
+    (text !== textFor(value) || JSON.stringify(choices) !== JSON.stringify(choicesFor(field, value)));
 
   useEffect(() => {
     onDirtyChangeRef.current?.(dirty);
@@ -131,6 +137,7 @@ export function CandidatureFieldValueEditor({
       } else {
         await onSave(parsed);
       }
+      setEditing(false);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save this value.");
     } finally {
@@ -143,6 +150,7 @@ export function CandidatureFieldValueEditor({
     setError(null);
     try {
       await onClear();
+      setEditing(false);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not clear this value.");
     } finally {
@@ -161,6 +169,28 @@ export function CandidatureFieldValueEditor({
       setBusy(false);
     }
   };
+
+  const cancel = () => {
+    setText(textFor(value));
+    setChoices(choicesFor(field, value));
+    setError(null);
+    setEditing(false);
+  };
+
+  if (value !== undefined && !editing) {
+    return (
+      <div className="candidature-value-editor candidature-value-reader">
+        <p style={{ margin: 0, overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}>
+          {displayValue(field, value)}
+        </p>
+        <div className="button-row">
+          <button type="button" className="compact-secondary" onClick={() => setEditing(true)}>
+            Edit
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const input = (() => {
     if (field.definition.valueType === "choice") {
@@ -244,9 +274,14 @@ export function CandidatureFieldValueEditor({
       <div className="button-row">
         <button type="button" disabled={busy} onClick={() => void save()}>Save</button>
         {value !== undefined ? (
-          <button type="button" className="compact-secondary" disabled={busy} onClick={() => void clear()}>
-            Clear
-          </button>
+          <>
+            <button type="button" className="compact-secondary" disabled={busy} onClick={() => void clear()}>
+              Clear
+            </button>
+            <button type="button" className="compact-secondary" disabled={busy} onClick={cancel}>
+              Cancel
+            </button>
+          </>
         ) : null}
         <button type="button" className="compact-secondary" disabled={busy} onClick={() => void discover()}>
           Discover from Sources
