@@ -102,7 +102,7 @@ describe("read-first candidature information value", () => {
   });
 
   it("renders choice labels and booleans rather than storage-shaped values", () => {
-    const { rerender } = render(
+    render(
       <StatefulEditor
         configuration={field("choice", "many")}
         initialValue={[remoteId, hybridId]}
@@ -111,7 +111,8 @@ describe("read-first candidature information value", () => {
     expect(screen.getByText("Remote, Hybrid", { exact: true })).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
 
-    rerender(<StatefulEditor configuration={field("boolean")} initialValue={true} />);
+    cleanup();
+    render(<StatefulEditor configuration={field("boolean")} initialValue={true} />);
     expect(screen.getByText("Yes", { exact: true })).toBeInTheDocument();
   });
 
