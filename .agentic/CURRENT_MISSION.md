@@ -2,11 +2,13 @@
 
 ## Active bounded work
 
-None. [Issue #275](https://github.com/DidacLL/AAAAT/issues/275) and [PR #276](https://github.com/DidacLL/AAAAT/pull/276) are complete.
+None. [Issue #277](https://github.com/DidacLL/AAAAT/issues/277) and [PR #278](https://github.com/DidacLL/AAAAT/pull/278) are complete.
 
 No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
 
 ## Recently completed outcomes
+
+[Issue #277](https://github.com/DidacLL/AAAAT/issues/277) and [PR #278](https://github.com/DidacLL/AAAAT/pull/278) are complete. Populated candidature Information is now read-first: retained values render as ordinary readable content, including human-readable choice labels and yes/no values, and mutation begins only through a deliberate local Edit action that reuses the existing Save, Clear and Source-discovery authority. Missing information still uses the existing Add information flow, advanced field/presentation/privacy controls remain secondary and unchanged, and dirty retained-value drafts are protected when leaving Information. Packaged Linux evidence covers read → Edit → Save at exact `720×600`. No schema, service, preload/main authority, AI behavior, dependency, new preference model, routing/state framework or unrelated candidature redesign was introduced.
 
 [Issue #275](https://github.com/DidacLL/AAAAT/issues/275) and [PR #276](https://github.com/DidacLL/AAAAT/pull/276) are complete. Retained exact application artifacts are now inspectable from their candidature through a bounded ID-only desktop capability: the renderer/preload supplies only a validated artifact UUID, trusted main-process code resolves the current workspace and authoritative retained artifact row/path, verifies the retained PDF, and opens that exact file through Electron's platform shell operation. Working-document output remains a distinct mutable document action, and retained-artifact opening performs no persistence or activity mutation. ADR 0026 records the trusted boundary, and packaged Linux evidence covers the candidature journey at exact `720×600`. No generic filesystem/path opener, schema/migration, artifact mutation/export, AI behavior, global routing/state, dependency, or mutable-document fallback was introduced.
 

@@ -150,7 +150,10 @@ describe("candidature AI Settings fallback", () => {
 
     await user.click(await screen.findByRole("tab", { name: "Information" }));
     const information = screen.getByRole("region", { name: "Candidature information" });
-    await user.click(within(information).getByRole("button", { name: "Discover from Sources" }));
+    const role = within(information).getByRole("heading", { name: "Role" }).closest("article");
+    if (!role) throw new Error("Retained Role information missing");
+    await user.click(within(role).getByRole("button", { name: "Edit" }));
+    await user.click(within(role).getByRole("button", { name: "Discover from Sources" }));
 
     const discovery = await screen.findByRole("dialog", { name: "Historical Source discovery" });
     const send = within(discovery).getByRole("button", { name: "Send selected Sources to AI" });

@@ -326,6 +326,9 @@ export function CandidaturesWorkspace({
   const confirmDiscard = () =>
     !hasUnsavedChanges || window.confirm("Discard unsaved candidature edits?");
   const confirmSectionDiscard = () => {
+    if (section === "information" && valueEditorDirty.size > 0) {
+      return window.confirm("Discard unsaved information value edits?");
+    }
     if (section === "sources" && sourceDirty) {
       return window.confirm("Discard unsaved Source edits?");
     }
