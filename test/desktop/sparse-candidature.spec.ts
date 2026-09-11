@@ -344,11 +344,15 @@ test("packaged first-use candidature loop remains information-first at normal an
     await expectNoHorizontalOverflow(running.page, 720, 600);
 
     const availability = information.locator(".retained-information-card").filter({ hasText: "Availability" });
+    await expect(availability).toContainText("October or November");
+    await expect(availability.locator("input[type='text']")).toHaveCount(0);
+    await availability.getByRole("button", { name: "Edit", exact: true }).click();
     const availabilityInput = availability.locator("input[type='text']");
     await expect(availabilityInput).toBeVisible();
     await availabilityInput.fill("October through December");
     await availability.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(availabilityInput).toHaveValue("October through December");
+    await expect(availability.locator("input[type='text']")).toHaveCount(0);
+    await expect(availability).toContainText("October through December");
     await expectNoHorizontalOverflow(running.page, 720, 600);
 
     await selectSection(running.page, "Focus");
