@@ -10,6 +10,7 @@ import {
 import { withWorkspaceDatabase } from "./workspace";
 
 interface PreferenceRow {
+  readonly itemId: string;
   readonly aiContextMode: string;
 }
 
@@ -31,17 +32,21 @@ function transact(database: DatabaseSync, action: () => void): void {
   }
 }
 
+function preference(row: PreferenceRow): ProfileAiContextPreference {
+  return profileAiContextPreferenceSchema.parse(row);
+}
+
 function readPreference(
   database: DatabaseSync,
   itemId: string,
 ): ProfileAiContextPreference {
   const row = database
-    .prepare("SELECT ai_context_mode AS aiContextMode FROM profile_items WHERE id = ?")
+    .prepare("SELECT id AS itemId, ai_context_mode AS aiContextMode FROM profile_items WHERE id = ?")
     .get(itemId) as unknown as PreferenceRow | undefined;
   if (!row) {
     throw new ProfileAiContextServiceError("The professional-information item no longer exists.");
   }
-  return profileAiContextPreferenceSchema.parse({ itemId, aiContextMode: row.aiContextMode });
+  return preference(row);
 }
 
 export function getProfileItemAiContextPreference(
@@ -52,11 +57,17 @@ export function getProfileItemAiContextPreference(
   return withWorkspaceDatabase(rootPath, (database) => readPreference(database, id));
 }
 
-export function getProfileItemAiContextMode(
+export function listProfileItemAiContextPreferences(
   rootPath: string,
-  itemId: string,
-): ProfileAiContextPreference["aiContextMode"] {
-  return getProfileItemAiContextPreference(rootPath, itemId).aiContextMode;
+): ProfileAiContextPreference[] {
+  return withWorkspaceDatabase(rootPath, (database) => {
+    const rows = database
+      .prepare(
+        "SELECT id AS itemId, ai_context_mode AS aiContextMode FROM profile_items ORDER BY sort_order, id",
+      )
+      .all() as unknown as PreferenceRow[];
+    return rows.map(preference);
+  });
 }
 
 export function updateProfileItemAiContextPreference(
