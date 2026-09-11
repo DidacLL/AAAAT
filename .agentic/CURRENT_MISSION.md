@@ -2,9 +2,11 @@
 
 ## Active bounded work
 
-None. [Issue #269](https://github.com/DidacLL/AAAAT/issues/269) and [PR #270](https://github.com/DidacLL/AAAAT/pull/270) are complete.
+[Issue #271](https://github.com/DidacLL/AAAAT/issues/271) is the sole active bounded product outcome on branch `product/source-read-first`.
 
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+The outcome is to make candidature Sources read-first: keep the existing compact Source overview, add a deliberate full-content reading state, and make mutation a separate deliberate action from that Source context. Reuse the existing Source model/services, section navigation and dirty-state boundary rather than introducing a new data model or routing system.
+
+Treat this as Class B renderer interaction/composition while service, persistence, preload/main authority and durable semantics remain unchanged. Do not expand it into Source fetching/cleaning, extraction or AI work, search changes, schema/migrations, global navigation/state infrastructure, dependencies, or unrelated candidature redesign. Escalate only if implementation genuinely crosses an existing technical authority boundary.
 
 ## Recently completed outcomes
 
