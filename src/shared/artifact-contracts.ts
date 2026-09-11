@@ -3,6 +3,7 @@ import { z } from "zod";
 export const artifactChannels = Object.freeze({
   list: "aaaat:artifact-list",
   capture: "aaaat:artifact-capture",
+  open: "aaaat:artifact-open",
 } as const);
 
 export const applicationArtifactCaptureSchema = z
@@ -29,9 +30,13 @@ export const applicationArtifactRecordSchema = z
 export type ApplicationArtifactRecord = z.infer<typeof applicationArtifactRecordSchema>;
 export const applicationArtifactListSchema = z.array(applicationArtifactRecordSchema);
 
+export const applicationArtifactOpenResultSchema = z.object({ opened: z.literal(true) }).strict();
+export type ApplicationArtifactOpenResult = z.infer<typeof applicationArtifactOpenResultSchema>;
+
 export interface ArtifactDesktopApi {
   readonly artifacts: {
     readonly list: (candidatureId: string) => Promise<ApplicationArtifactRecord[]>;
     readonly capture: (input: ApplicationArtifactCapture) => Promise<ApplicationArtifactRecord>;
+    readonly open: (artifactId: string) => Promise<ApplicationArtifactOpenResult>;
   };
 }
