@@ -36,7 +36,7 @@ const sectionLabels: readonly { key: CandidatureSection; label: string }[] = [
   { key: "documents", label: "Application material" },
 ];
 
-const emptyConcept: ConceptInput = { name: "", definition: "", aliases: [] };
+const emptyConcept: ConceptInput = { name: "", definition: "", notes: "", aliases: [] };
 
 function aliasesFromText(value: string): string[] {
   return value
@@ -50,7 +50,12 @@ function sameIds(left: readonly string[], right: readonly string[]): boolean {
 }
 
 function conceptInput(concept: ConceptRecord): ConceptInput {
-  return { name: concept.name, definition: concept.definition, aliases: concept.aliases };
+  return {
+    name: concept.name,
+    definition: concept.definition,
+    notes: concept.notes ?? "",
+    aliases: concept.aliases,
+  };
 }
 
 function fieldUpdate(field: CandidatureFieldConfiguration): CandidatureFieldUpdate {
@@ -1083,6 +1088,7 @@ export function CandidaturesWorkspace({
                       <label>Name<input value={conceptDraft.name} onChange={(event) => setConceptDraft({ ...conceptDraft, name: event.target.value })} /></label>
                       <label>Aliases<input value={aliasesText} onChange={(event) => setAliasesText(event.target.value)} /></label>
                       <label>Definition<textarea rows={4} value={conceptDraft.definition} onChange={(event) => setConceptDraft({ ...conceptDraft, definition: event.target.value })} /></label>
+                      <label>Notes<textarea rows={4} value={conceptDraft.notes ?? ""} onChange={(event) => setConceptDraft({ ...conceptDraft, notes: event.target.value })} /></label>
                       <div className="button-row">
                         <button type="button" disabled={!conceptEditorDirty} onClick={() => void saveConcept()}>{editingConceptId ? "Save concept" : "Create concept"}</button>
                         <button type="button" className="compact-secondary" onClick={cancelConceptEditor}>Cancel</button>

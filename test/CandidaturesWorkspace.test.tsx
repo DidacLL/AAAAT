@@ -82,6 +82,7 @@ const conceptA: ConceptRecord = {
   id: "00000000-0000-4000-8000-000000000508",
   name: "Platform",
   definition: "Platform engineering",
+  notes: "Remember the ownership boundaries.",
   aliases: [],
 };
 const conceptB: ConceptRecord = {
@@ -126,6 +127,7 @@ const listFields = vi.fn();
 const listConcepts = vi.fn();
 const createField = vi.fn();
 const setFieldValue = vi.fn();
+const updateConcept = vi.fn();
 const filter = vi.fn();
 
 function installApi(initial: CandidatureRecord) {
@@ -154,6 +156,7 @@ function installApi(initial: CandidatureRecord) {
       },
     ]),
   );
+  updateConcept.mockImplementation(async (input) => input);
   filter.mockResolvedValue([candidatureId]);
 
   const api = {
@@ -176,7 +179,7 @@ function installApi(initial: CandidatureRecord) {
       setDocuments: vi.fn(),
       listConcepts,
       createConcept: vi.fn(),
-      updateConcept: vi.fn(),
+      updateConcept,
       setConcepts: vi.fn(),
     },
     documents: { list: vi.fn().mockResolvedValue([]) },
@@ -340,7 +343,30 @@ describe("candidature progressive information workspace", () => {
     expect(within(management).getByLabelText("Name")).toHaveValue("Unsaved organisation label");
   });
 
-  it("keeps a concept draft when switching or cancelling the concept editor is declined", async () => {
+  it("loads and saves existing shared Concept notes through normal maintenance", async () => {
+    listConcepts.mockResolvedValueOnce([conceptA]);
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+    await screen.findByRole("region", { name: "Candidature Focus" });
+    await user.click(screen.getByText("Concepts", { selector: "summary" }));
+    await user.click(screen.getByRole("button", { name: "Edit concept" }));
+
+    const notes = screen.getByLabelText("Notes");
+    expect(notes).toHaveValue("Remember the ownership boundaries.");
+    await user.clear(notes);
+    await user.type(notes, "Ask how platform ownership is divided.");
+    await user.click(screen.getByRole("button", { name: "Save concept" }));
+
+    expect(updateConcept).toHaveBeenCalledWith({
+      id: conceptA.id,
+      name: conceptA.name,
+      definition: conceptA.definition,
+      notes: "Ask how platform ownership is divided.",
+      aliases: conceptA.aliases,
+    });
+  });
+
+  it("keeps an unsaved concept-note draft when switching or cancelling the concept editor is declined", async () => {
     listConcepts.mockResolvedValueOnce([conceptA, conceptB]);
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
@@ -353,16 +379,16 @@ describe("candidature progressive information workspace", () => {
     const secondConcept = editConcepts[1];
     if (!firstConcept || !secondConcept) throw new Error("Concept edit controls missing");
     await user.click(firstConcept);
-    const conceptName = screen.getByLabelText("Name");
-    await user.clear(conceptName);
-    await user.type(conceptName, "Unsaved platform concept");
+    const notes = screen.getByLabelText("Notes");
+    await user.clear(notes);
+    await user.type(notes, "Unsaved ownership note");
     await user.click(secondConcept);
 
     expect(confirm).toHaveBeenCalledWith("Discard unsaved concept edits?");
-    expect(screen.getByLabelText("Name")).toHaveValue("Unsaved platform concept");
+    expect(screen.getByLabelText("Notes")).toHaveValue("Unsaved ownership note");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(confirm).toHaveBeenCalledTimes(2);
-    expect(screen.getByLabelText("Name")).toHaveValue("Unsaved platform concept");
+    expect(screen.getByLabelText("Notes")).toHaveValue("Unsaved ownership note");
   });
 
   it("delegates field filtering by stable runtime field ID and operator", async () => {
