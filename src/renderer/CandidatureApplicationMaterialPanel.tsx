@@ -57,7 +57,7 @@ export function CandidatureApplicationMaterialPanel({
     return () => {
       active = false;
     };
-  }, [candidature.id]);
+  }, [candidature.id, documents]);
 
   const currentArtifactState =
     artifactState.candidatureId === candidature.id
