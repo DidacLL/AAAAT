@@ -319,7 +319,7 @@ async function assertSelectedCandidatureHierarchy(page: Page, width: number, hei
   await expect(local.getByRole("tab", { name: "Application material" })).toBeVisible();
   await expect(local.getByRole("tab", { name: "Concepts" })).toHaveCount(0);
   await expect(local.getByRole("tab", { name: "Documents" })).toHaveCount(0);
-  await expect(page.getByText("Concepts", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Customize Focus", { exact: true })).toBeVisible();
 
   const geometry = await local.evaluate((element) => ({
     clientWidth: element.clientWidth,
