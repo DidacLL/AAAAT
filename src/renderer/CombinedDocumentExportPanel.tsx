@@ -15,7 +15,15 @@ export function CombinedDocumentExportPanel({
   readonly onNotice: (message: string | null) => void;
 }) {
   const { documentHandoff } = useContextualHandoffs();
-  const [candidature, setCandidature] = useState<CandidatureRecord | null>(null);
+  const candidatureId = documentHandoff?.candidatureId ?? null;
+  const [candidatureState, setCandidatureState] = useState<{
+    readonly candidatureId: string;
+    readonly record: CandidatureRecord | null;
+  } | null>(null);
+  const candidature =
+    candidatureId && candidatureState?.candidatureId === candidatureId
+      ? candidatureState.record
+      : null;
   const cvs = useMemo(
     () => documents.filter((document) => document.kind === "cv"),
     [documents],
@@ -45,17 +53,16 @@ export function CombinedDocumentExportPanel({
   );
 
   useEffect(() => {
-    const candidatureId = documentHandoff?.candidatureId;
-    if (!candidatureId) {
-      setCandidature(null);
-      return;
-    }
+    if (!candidatureId) return;
     let active = true;
     void window.aaaat.candidatures
       .list()
       .then((records) => {
         if (!active) return;
-        setCandidature(records.find((record) => record.id === candidatureId) ?? null);
+        setCandidatureState({
+          candidatureId,
+          record: records.find((record) => record.id === candidatureId) ?? null,
+        });
       })
       .catch(() => {
         if (active) onError("AAAAT could not load candidature context for combined application material.");
@@ -63,7 +70,7 @@ export function CombinedDocumentExportPanel({
     return () => {
       active = false;
     };
-  }, [documentHandoff?.candidatureId, onError]);
+  }, [candidatureId, onError]);
 
   const exportPacket = async () => {
     if (!selectedCvDocumentId || !selectedCoverLetterDocumentId) return;
