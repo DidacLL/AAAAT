@@ -249,9 +249,20 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     await expect(focus).toContainText("1500");
 
     await selectSection(running.page, "Sources");
-    await expect(
-      running.page.getByRole("region", { name: "Sources" }).getByText("Pilot vacancy", { exact: true }),
-    ).toBeVisible();
+    const sources = running.page.getByRole("region", { name: "Sources" });
+    await expect(sources.getByText("Pilot vacancy", { exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(running.page, 1200, 800);
+
+    await sources.getByRole("button", { name: "Read source" }).click();
+    const sourceReader = sources.getByRole("article", { name: "Source content" });
+    await expect(sourceReader).toContainText("Regional Air requires at least 1,500 total flight hours.");
+    await expect(sourceReader.getByText("https://example.invalid/pilot", { exact: true })).toBeVisible();
+    await expect(sources.getByRole("textbox", { name: "Source material" })).toHaveCount(0);
+    await expectNoHorizontalOverflow(running.page, 1200, 800);
+    await expectNoHorizontalOverflow(running.page, 720, 600);
+
+    await sources.getByRole("button", { name: "Back to Sources" }).click();
+    await expect(sources.getByText("Pilot vacancy", { exact: true })).toBeVisible();
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
