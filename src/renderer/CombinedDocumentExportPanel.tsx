@@ -1,23 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import type { ApplicationArtifactRecord } from "../shared/artifact-contracts";
 import type { CandidatureRecord, DocumentRecord } from "../shared/contracts";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 export function CombinedDocumentExportPanel({
   documents,
   disabled,
-  candidature,
-  onArtifactRetained,
   onError,
   onNotice,
 }: {
   readonly documents: readonly DocumentRecord[];
   readonly disabled: boolean;
-  readonly candidature?: CandidatureRecord | null;
-  readonly onArtifactRetained?: (artifact: ApplicationArtifactRecord) => void;
   readonly onError: (message: string | null) => void;
   readonly onNotice: (message: string | null) => void;
 }) {
+  const { documentHandoff } = useContextualHandoffs();
+  const [candidature, setCandidature] = useState<CandidatureRecord | null>(null);
   const cvs = useMemo(
     () => documents.filter((document) => document.kind === "cv"),
     [documents],
@@ -45,6 +43,27 @@ export function CombinedDocumentExportPanel({
       candidature.documentIds.includes(selectedCvDocumentId) &&
       candidature.documentIds.includes(selectedCoverLetterDocumentId),
   );
+
+  useEffect(() => {
+    const candidatureId = documentHandoff?.candidatureId;
+    if (!candidatureId) {
+      setCandidature(null);
+      return;
+    }
+    let active = true;
+    void window.aaaat.candidatures
+      .list()
+      .then((records) => {
+        if (!active) return;
+        setCandidature(records.find((record) => record.id === candidatureId) ?? null);
+      })
+      .catch(() => {
+        if (active) onError("AAAAT could not load candidature context for combined application material.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [documentHandoff?.candidatureId, onError]);
 
   const exportPacket = async () => {
     if (!selectedCvDocumentId || !selectedCoverLetterDocumentId) return;
@@ -87,7 +106,6 @@ export function CombinedDocumentExportPanel({
         cvDocumentId: selectedCvDocumentId,
         coverLetterDocumentId: selectedCoverLetterDocumentId,
       });
-      onArtifactRetained?.(artifact);
       onNotice(`Retained combined application artifact: ${artifact.artifactPath}`);
     } catch (reason) {
       onError(
