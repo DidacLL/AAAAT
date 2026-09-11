@@ -71,7 +71,8 @@ const candidature: CandidatureRecord = {
 const retainedArtifact: ApplicationArtifactRecord = {
   id: "00000000-0000-4000-8000-000000000105",
   candidatureId: candidature.id,
-  documentId: record().id,
+  cvDocumentId: record().id,
+  coverLetterDocumentId: null,
   kind: "cv",
   title: "Platform CV",
   capturedAt: "2026-09-06T12:30:00.000Z",
