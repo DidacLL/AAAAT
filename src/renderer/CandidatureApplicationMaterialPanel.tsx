@@ -34,6 +34,7 @@ export function CandidatureApplicationMaterialPanel({
     readonly error: string | null;
     readonly loaded: boolean;
   }>(() => ({ candidatureId: candidature.id, artifacts: [], error: null, loaded: false }));
+  const [artifactOpenError, setArtifactOpenError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -70,6 +71,17 @@ export function CandidatureApplicationMaterialPanel({
     [candidature.documentIds, documents],
   );
   const hasMaterial = associatedDocuments.length > 0 || currentArtifactState.artifacts.length > 0;
+
+  const openArtifact = async (artifactId: string) => {
+    setArtifactOpenError(null);
+    try {
+      await window.aaaat.artifacts.open(artifactId);
+    } catch (reason) {
+      setArtifactOpenError(
+        reason instanceof Error ? reason.message : "AAAAT could not open the retained application PDF.",
+      );
+    }
+  };
 
   return (
     <section className="candidature-documents section-surface" aria-label="Application material">
@@ -118,6 +130,7 @@ export function CandidatureApplicationMaterialPanel({
       {currentArtifactState.error ? (
         <p className="error-message" role="alert">{currentArtifactState.error}</p>
       ) : null}
+      {artifactOpenError ? <p className="error-message" role="alert">{artifactOpenError}</p> : null}
       {currentArtifactState.artifacts.length > 0 ? (
         <section aria-label="Retained application artifacts">
           <h4>Retained exact artifacts</h4>
@@ -129,6 +142,13 @@ export function CandidatureApplicationMaterialPanel({
                   <h4>{artifact.title}</h4>
                   <p>Captured {new Date(artifact.capturedAt).toLocaleString()}</p>
                 </div>
+                <button
+                  type="button"
+                  className="compact-secondary"
+                  onClick={() => void openArtifact(artifact.id)}
+                >
+                  Open retained PDF
+                </button>
               </article>
             ))}
           </div>
