@@ -1,29 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { CandidatureRecord, DocumentRecord } from "../shared/contracts";
-import { useContextualHandoffs } from "./contextual-handoffs";
 
 export function CombinedDocumentExportPanel({
   documents,
   disabled,
+  candidature,
   onError,
   onNotice,
 }: {
   readonly documents: readonly DocumentRecord[];
   readonly disabled: boolean;
+  readonly candidature?: CandidatureRecord | null;
   readonly onError: (message: string | null) => void;
   readonly onNotice: (message: string | null) => void;
 }) {
-  const { documentHandoff } = useContextualHandoffs();
-  const candidatureId = documentHandoff?.candidatureId ?? null;
-  const [candidatureState, setCandidatureState] = useState<{
-    readonly candidatureId: string;
-    readonly record: CandidatureRecord | null;
-  } | null>(null);
-  const candidature =
-    candidatureId && candidatureState?.candidatureId === candidatureId
-      ? candidatureState.record
-      : null;
   const cvs = useMemo(
     () => documents.filter((document) => document.kind === "cv"),
     [documents],
@@ -51,26 +42,6 @@ export function CombinedDocumentExportPanel({
       candidature.documentIds.includes(selectedCvDocumentId) &&
       candidature.documentIds.includes(selectedCoverLetterDocumentId),
   );
-
-  useEffect(() => {
-    if (!candidatureId) return;
-    let active = true;
-    void window.aaaat.candidatures
-      .list()
-      .then((records) => {
-        if (!active) return;
-        setCandidatureState({
-          candidatureId,
-          record: records.find((record) => record.id === candidatureId) ?? null,
-        });
-      })
-      .catch(() => {
-        if (active) onError("AAAAT could not load candidature context for combined application material.");
-      });
-    return () => {
-      active = false;
-    };
-  }, [candidatureId, onError]);
 
   const exportPacket = async () => {
     if (!selectedCvDocumentId || !selectedCoverLetterDocumentId) return;
