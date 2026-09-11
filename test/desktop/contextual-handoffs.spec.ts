@@ -215,7 +215,7 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await expect(returnedWorking.getByText("Working CV")).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 600, "returned-application-material");
 
-    await returnedMaterial.getByText("Manage existing document associations", { selector: "summary" }).click();
+    await returnedMaterial.getByText("Manage existing document associations", { exact: true }).click();
     const firstAssociation = returnedMaterial.getByRole("checkbox", { name: "Handoff CV (CV)" });
     await expect(firstAssociation).toBeChecked();
     await firstAssociation.uncheck();
@@ -229,7 +229,7 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await secondDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
 
     const reconciledMaterial = running.page.getByRole("region", { name: "Application material" });
-    await reconciledMaterial.getByText("Manage existing document associations", { selector: "summary" }).click();
+    await reconciledMaterial.getByText("Manage existing document associations", { exact: true }).click();
     await expect(
       reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)", exact: true }),
     ).not.toBeChecked();
