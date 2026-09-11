@@ -203,7 +203,6 @@ export function CandidatureFocusPanel({
     associatedConcepts[0] ??
     null;
   const visibleSources = sources.slice(0, maximumFocusSources);
-  const fallbackSource = materialPreferences.sources ? sources[0] ?? null : null;
 
   return (
     <section className="focus-panel" aria-label="Candidature Focus">
@@ -233,11 +232,6 @@ export function CandidatureFocusPanel({
             );
           })}
         </div>
-      ) : fallbackSource ? (
-        <article className="focus-block focus-recognition-clue" aria-label="Recognition clue">
-          <h4>{sourceLabel(fallbackSource)}</h4>
-          <p>{sourcePreview(fallbackSource) || fallbackSource.url || sourceType(fallbackSource)}</p>
-        </article>
       ) : null}
 
       {materialPreferences.sources && sources.length > 0 ? (
@@ -249,10 +243,14 @@ export function CandidatureFocusPanel({
             </button>
           </div>
           <div className="source-card-list focus-source-list">
-            {visibleSources.map((source) => {
+            {visibleSources.map((source, index) => {
               const preview = sourcePreview(source);
               return (
-                <article className="source-card focus-source-cue" key={source.id}>
+                <article
+                  className="source-card focus-source-cue"
+                  key={source.id}
+                  aria-label={focusFields.length === 0 && index === 0 ? "Recognition clue" : undefined}
+                >
                   <div>
                     <strong>{sourceLabel(source)}</strong>
                     <span>{sourceType(source)}</span>
