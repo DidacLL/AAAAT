@@ -43,13 +43,26 @@ const candidature: CandidatureRecord = {
 const artifact: ApplicationArtifactRecord = {
   id: "00000000-0000-4000-8000-000000000804",
   candidatureId,
-  documentId: workingDocument.id,
+  cvDocumentId: workingDocument.id,
+  coverLetterDocumentId: null,
   kind: "cv",
   title: "Platform CV submitted",
   capturedAt: "2026-09-10T14:30:00.000Z",
   projectPath: "/workspace/artifacts/platform-cv",
   sourcePath: "/workspace/artifacts/platform-cv/main.tex",
   artifactPath: "/workspace/artifacts/platform-cv/main.pdf",
+};
+const combinedArtifact: ApplicationArtifactRecord = {
+  id: "00000000-0000-4000-8000-000000000806",
+  candidatureId,
+  cvDocumentId: workingDocument.id,
+  coverLetterDocumentId: otherDocument.id,
+  kind: "combined",
+  title: "Combined: General letter + Platform CV",
+  capturedAt: "2026-09-10T15:30:00.000Z",
+  projectPath: "/workspace/artifacts/combined",
+  sourcePath: "/workspace/artifacts/combined/main.tex",
+  artifactPath: "/workspace/artifacts/combined/build/main.pdf",
 };
 
 const listArtifacts = vi.fn<ArtifactDesktopApi["artifacts"]["list"]>();
@@ -58,7 +71,14 @@ const openArtifact = vi.fn<ArtifactDesktopApi["artifacts"]["open"]>();
 function installApi() {
   Object.defineProperty(window, "aaaat", {
     configurable: true,
-    value: { artifacts: { list: listArtifacts, capture: vi.fn(), open: openArtifact } },
+    value: {
+      artifacts: {
+        list: listArtifacts,
+        capture: vi.fn(),
+        captureCombined: vi.fn(),
+        open: openArtifact,
+      },
+    },
   });
 }
 
@@ -122,31 +142,17 @@ describe("task-first candidature application material", () => {
     expect(screen.getByRole("checkbox", { name: "General letter (cover letter)" })).toBeVisible();
   });
 
-  it("refreshes retained artifacts when document return refreshes the document projection", async () => {
-    listArtifacts.mockResolvedValueOnce([]).mockResolvedValueOnce([artifact]);
-    const documents = [workingDocument, otherDocument];
-    const { rerender, onDocumentSelectionChange, onSaveDocuments, onOpenDocument } = renderPanel({
-      documents,
-    });
-
-    await screen.findByRole("region", { name: "Working application documents" });
-    expect(screen.queryByRole("region", { name: "Retained application artifacts" })).not.toBeInTheDocument();
-
-    rerender(
-      <CandidatureApplicationMaterialPanel
-        candidature={candidature}
-        documents={[...documents]}
-        selectedDocumentIds={[workingDocument.id]}
-        documentSelectionDirty={false}
-        onDocumentSelectionChange={onDocumentSelectionChange}
-        onSaveDocuments={onSaveDocuments}
-        onOpenDocument={onOpenDocument}
-      />,
-    );
+  it("identifies a retained combined packet as one exact artifact", async () => {
+    listArtifacts.mockResolvedValue([combinedArtifact]);
+    renderPanel();
 
     const retained = await screen.findByRole("region", { name: "Retained application artifacts" });
-    expect(within(retained).getByRole("heading", { name: "Platform CV submitted" })).toBeInTheDocument();
-    expect(listArtifacts).toHaveBeenCalledTimes(2);
+    expect(
+      within(retained).getByText("Retained exact combined CV + cover letter artifact"),
+    ).toBeInTheDocument();
+    expect(
+      within(retained).getByRole("heading", { name: "Combined: General letter + Platform CV" }),
+    ).toBeInTheDocument();
   });
 
   it("reports retained artifact open failures without mutating document associations", async () => {

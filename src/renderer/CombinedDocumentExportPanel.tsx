@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
 
-import type { DocumentRecord } from "../shared/contracts";
+import type { CandidatureRecord, DocumentRecord } from "../shared/contracts";
 
 export function CombinedDocumentExportPanel({
+  candidature,
   documents,
   disabled,
   onError,
   onNotice,
 }: {
+  readonly candidature: CandidatureRecord | null;
   readonly documents: readonly DocumentRecord[];
   readonly disabled: boolean;
   readonly onError: (message: string | null) => void;
@@ -24,6 +26,7 @@ export function CombinedDocumentExportPanel({
   const [cvDocumentId, setCvDocumentId] = useState("");
   const [coverLetterDocumentId, setCoverLetterDocumentId] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [retaining, setRetaining] = useState(false);
   const selectedCvDocumentId = cvs.some((document) => document.id === cvDocumentId)
     ? cvDocumentId
     : (cvs[0]?.id ?? "");
@@ -32,6 +35,13 @@ export function CombinedDocumentExportPanel({
   )
     ? coverLetterDocumentId
     : (coverLetters[0]?.id ?? "");
+  const canRetain = Boolean(
+    candidature &&
+      selectedCvDocumentId &&
+      selectedCoverLetterDocumentId &&
+      candidature.documentIds.includes(selectedCvDocumentId) &&
+      candidature.documentIds.includes(selectedCoverLetterDocumentId),
+  );
 
   const exportPacket = async () => {
     if (!selectedCvDocumentId || !selectedCoverLetterDocumentId) return;
@@ -52,6 +62,37 @@ export function CombinedDocumentExportPanel({
       onError("AAAAT could not export the combined CV and cover-letter packet.");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const retainPacket = async () => {
+    if (!candidature || !selectedCvDocumentId || !selectedCoverLetterDocumentId) return;
+    if (disabled) {
+      onError("Save document changes before retaining combined application material.");
+      return;
+    }
+    if (!canRetain) {
+      onError("Associate both working documents with this candidature before retaining the combined packet.");
+      return;
+    }
+    setRetaining(true);
+    onError(null);
+    onNotice(null);
+    try {
+      const artifact = await window.aaaat.artifacts.captureCombined({
+        candidatureId: candidature.id,
+        cvDocumentId: selectedCvDocumentId,
+        coverLetterDocumentId: selectedCoverLetterDocumentId,
+      });
+      onNotice(`Retained combined application artifact: ${artifact.artifactPath}`);
+    } catch (reason) {
+      onError(
+        reason instanceof Error
+          ? reason.message
+          : "AAAAT could not retain the combined application artifact.",
+      );
+    } finally {
+      setRetaining(false);
     }
   };
 
@@ -84,9 +125,23 @@ export function CombinedDocumentExportPanel({
               ))}
             </select>
           </label>
-          <button type="button" disabled={disabled || exporting} onClick={() => void exportPacket()}>
-            {exporting ? "Exporting…" : "Export combined packet"}
-          </button>
+          <div className="button-row">
+            <button type="button" disabled={disabled || exporting} onClick={() => void exportPacket()}>
+              {exporting ? "Exporting…" : "Export combined packet"}
+            </button>
+            {candidature ? (
+              <button
+                type="button"
+                disabled={disabled || retaining || !canRetain}
+                onClick={() => void retainPacket()}
+              >
+                {retaining ? "Retaining…" : "Retain combined application artifact"}
+              </button>
+            ) : null}
+          </div>
+          {candidature && !canRetain ? (
+            <p>Associate both selected working documents with this candidature before retaining the combined packet.</p>
+          ) : null}
         </>
       )}
     </section>

@@ -2,11 +2,11 @@
 
 ## Active bounded work
 
-None. [Issue #277](https://github.com/DidacLL/AAAAT/issues/277) and [PR #278](https://github.com/DidacLL/AAAAT/pull/278) are complete.
-
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+None.
 
 ## Recently completed outcomes
+
+[Issue #279](https://github.com/DidacLL/AAAAT/issues/279) and [PR #280](https://github.com/DidacLL/AAAAT/pull/280) are complete. Candidature-linked CVs & letters can now retain one exact combined CV + cover-letter packet while preserving the explicit contributing CV and cover-letter document IDs. Combined retention reuses the existing combined production path, requires both contributors to already belong to the candidature, remains atomic across production and database-commit failure, and renders as distinct retained evidence through the existing ID-only artifact-opening authority. Migration 011 performs the minimal forward artifact representation change while preserving legacy single-document artifacts and migrations 001–010. Standalone combined export, manual/no-AI document work and single-document artifact behavior remain valid; no third combined working-document kind, generic contributor graph, second PDF combiner, new dependency, generic filesystem authority or routing/state framework was introduced. Exact-head verification includes successful fast verification and packaged Linux combined-retention/return evidence at `720×600` with no horizontal overflow.
 
 [Issue #277](https://github.com/DidacLL/AAAAT/issues/277) and [PR #278](https://github.com/DidacLL/AAAAT/pull/278) are complete. Populated candidature Information is now read-first: retained values render as ordinary readable content, including human-readable choice labels and yes/no values, and mutation begins only through a deliberate local Edit action that reuses the existing Save, Clear and Source-discovery authority. Missing information still uses the existing Add information flow, advanced field/presentation/privacy controls remain secondary and unchanged, and dirty retained-value drafts are protected when leaving Information. Packaged Linux evidence covers read → Edit → Save at exact `720×600`. No schema, service, preload/main authority, AI behavior, dependency, new preference model, routing/state framework or unrelated candidature redesign was introduced.
 

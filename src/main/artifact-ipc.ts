@@ -3,14 +3,18 @@ import path from "node:path";
 import { app, ipcMain, shell, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
 
 import {
+  applicationArtifactCandidatureIdSchema,
   applicationArtifactCaptureSchema,
+  applicationArtifactIdSchema,
   applicationArtifactListSchema,
   applicationArtifactOpenResultSchema,
   applicationArtifactRecordSchema,
   artifactChannels,
+  combinedApplicationArtifactCaptureSchema,
 } from "../shared/artifact-contracts";
 import {
   captureApplicationArtifact,
+  captureCombinedApplicationArtifact,
   listApplicationArtifacts,
   openApplicationArtifact,
 } from "./artifact-service";
@@ -38,7 +42,7 @@ function registerArtifactIpc(mainWindow: BrowserWindow): void {
     return applicationArtifactListSchema.parse(
       listApplicationArtifacts(
         requireWorkspaceRoot(),
-        applicationArtifactCaptureSchema.shape.candidatureId.parse(candidatureId),
+        applicationArtifactCandidatureIdSchema.parse(candidatureId),
       ),
     );
   });
@@ -51,12 +55,21 @@ function registerArtifactIpc(mainWindow: BrowserWindow): void {
       ),
     );
   });
+  ipcMain.handle(artifactChannels.captureCombined, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return applicationArtifactRecordSchema.parse(
+      await captureCombinedApplicationArtifact(
+        requireWorkspaceRoot(),
+        combinedApplicationArtifactCaptureSchema.parse(input),
+      ),
+    );
+  });
   ipcMain.handle(artifactChannels.open, async (event, artifactId: unknown) => {
     assertTrustedSender(event, mainWindow);
     return applicationArtifactOpenResultSchema.parse(
       await openApplicationArtifact(
         requireWorkspaceRoot(),
-        applicationArtifactRecordSchema.shape.id.parse(artifactId),
+        applicationArtifactIdSchema.parse(artifactId),
         (artifactPath) => shell.openPath(artifactPath),
       ),
     );

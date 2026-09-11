@@ -265,7 +265,9 @@ export function DocumentsWorkspace({
           current.map((candidate) => (candidate.id === linked.id ? linked : candidate)),
         );
       }
+      setNewKind("cv");
       setNewTitle("");
+      setNewVariantId("");
       setAssistanceDirty(false);
       await acceptSavedDocument(created);
       setDocumentView("content");
@@ -899,6 +901,7 @@ export function DocumentsWorkspace({
           <details className="document-advanced">
             <summary>Combined CV + cover letter</summary>
             <CombinedDocumentExportPanel
+              candidature={contextCandidature}
               documents={documents}
               disabled={editorDirty}
               onError={setError}

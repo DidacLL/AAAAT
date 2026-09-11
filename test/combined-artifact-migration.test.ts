@@ -7,25 +7,27 @@ import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "vitest";
 
+import { createCandidature } from "../src/main/candidature-service";
 import { createOrOpenWorkspace, openWorkspace } from "../src/main/workspace";
 
-const candidatureMigration004Sha256 =
-  "cd99bdafdfb0bf4f4203221715be57ec9015fd4a8d1184e18bf20e71a1c7f87d";
+const legacyArtifactId = "00000000-0000-4000-8000-000000000991";
+const legacyDocumentId = "00000000-0000-4000-8000-000000000992";
 
-describe("opportunity research migration", () => {
-  it("keeps migration 010 immutable while a reconstructed v9 workspace upgrades through later migrations", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "aaaat-opportunity-research-migration-"));
+describe("combined application artifact migration", () => {
+  it("appends migration 011 and upgrades a legacy single-document artifact without rewriting v10", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "aaaat-combined-artifact-migration-"));
     const databasePath = path.join(root, "workspace.sqlite");
     try {
       createOrOpenWorkspace(root);
+      const candidature = createCandidature(root, { values: [] });
       const database = new DatabaseSync(databasePath);
       try {
         expect(
-          database.prepare("SELECT sha256 FROM schema_migrations WHERE version = 4").get(),
-        ).toEqual({ sha256: candidatureMigration004Sha256 });
-        expect(
           database.prepare("SELECT version, name FROM schema_migrations WHERE version = 10").get(),
         ).toEqual({ version: 10, name: "opportunity-research-access" });
+        expect(
+          database.prepare("SELECT version, name FROM schema_migrations WHERE version = 11").get(),
+        ).toEqual({ version: 11, name: "combined-application-artifacts" });
 
         database.exec("DROP TABLE application_artifacts;");
         database.exec(`
@@ -40,13 +42,14 @@ describe("opportunity research migration", () => {
           CREATE INDEX application_artifacts_candidature_idx
             ON application_artifacts(candidature_id, captured_at);
         `);
+        database
+          .prepare(
+            `INSERT INTO application_artifacts(
+               id, candidature_id, document_id, kind, title, captured_at
+             ) VALUES (?, ?, ?, 'cv', 'Legacy CV', '2026-09-10T12:00:00.000Z')`,
+          )
+          .run(legacyArtifactId, candidature.id, legacyDocumentId);
         database.prepare("DELETE FROM schema_migrations WHERE version = 11").run();
-
-        database.exec("DROP TRIGGER candidatures_opportunity_research_active_insert;");
-        database.exec("DROP TRIGGER candidatures_opportunity_research_active_update;");
-        database.exec("DROP INDEX candidatures_one_opportunity_research_selected;");
-        database.exec("ALTER TABLE candidatures DROP COLUMN opportunity_research_selected;");
-        database.prepare("DELETE FROM schema_migrations WHERE version = 10").run();
       } finally {
         database.close();
       }
@@ -55,19 +58,27 @@ describe("opportunity research migration", () => {
       const upgraded = new DatabaseSync(databasePath, { readOnly: true });
       try {
         expect(
-          upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 10").get(),
-        ).toEqual({ version: 10, name: "opportunity-research-access" });
-        expect(
           upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 11").get(),
         ).toEqual({ version: 11, name: "combined-application-artifacts" });
         expect(
           upgraded
-            .prepare("SELECT opportunity_research_selected AS selected FROM candidatures LIMIT 1")
-            .all(),
-        ).toEqual([]);
+            .prepare(
+              `SELECT cv_document_id AS cvDocumentId,
+                      cover_letter_document_id AS coverLetterDocumentId,
+                      kind, title
+                 FROM application_artifacts
+                WHERE id = ?`,
+            )
+            .get(legacyArtifactId),
+        ).toEqual({
+          cvDocumentId: legacyDocumentId,
+          coverLetterDocumentId: null,
+          kind: "cv",
+          title: "Legacy CV",
+        });
         expect(
-          upgraded.prepare("SELECT sha256 FROM schema_migrations WHERE version = 4").get(),
-        ).toEqual({ sha256: candidatureMigration004Sha256 });
+          upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 10").get(),
+        ).toEqual({ version: 10, name: "opportunity-research-access" });
       } finally {
         upgraded.close();
       }

@@ -1,9 +1,12 @@
 import {
+  applicationArtifactCandidatureIdSchema,
   applicationArtifactCaptureSchema,
+  applicationArtifactIdSchema,
   applicationArtifactListSchema,
   applicationArtifactOpenResultSchema,
   applicationArtifactRecordSchema,
   artifactChannels,
+  combinedApplicationArtifactCaptureSchema,
   type ArtifactDesktopApi,
 } from "../shared/artifact-contracts";
 
@@ -15,16 +18,25 @@ export function createArtifactDesktopApi(invoke: Invoke): ArtifactDesktopApi {
       applicationArtifactListSchema.parse(
         await invoke(
           artifactChannels.list,
-          applicationArtifactCaptureSchema.shape.candidatureId.parse(candidatureId),
+          applicationArtifactCandidatureIdSchema.parse(candidatureId),
         ),
       ),
     capture: async (input: Parameters<ArtifactDesktopApi["artifacts"]["capture"]>[0]) =>
       applicationArtifactRecordSchema.parse(
         await invoke(artifactChannels.capture, applicationArtifactCaptureSchema.parse(input)),
       ),
+    captureCombined: async (
+      input: Parameters<ArtifactDesktopApi["artifacts"]["captureCombined"]>[0],
+    ) =>
+      applicationArtifactRecordSchema.parse(
+        await invoke(
+          artifactChannels.captureCombined,
+          combinedApplicationArtifactCaptureSchema.parse(input),
+        ),
+      ),
     open: async (artifactId: string) =>
       applicationArtifactOpenResultSchema.parse(
-        await invoke(artifactChannels.open, applicationArtifactRecordSchema.shape.id.parse(artifactId)),
+        await invoke(artifactChannels.open, applicationArtifactIdSchema.parse(artifactId)),
       ),
   });
 
