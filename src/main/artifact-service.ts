@@ -1,25 +1,31 @@
 import { randomUUID } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, renameSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
+  applicationArtifactCandidatureIdSchema,
   applicationArtifactCaptureSchema,
+  applicationArtifactIdSchema,
   applicationArtifactListSchema,
   applicationArtifactOpenResultSchema,
   applicationArtifactRecordSchema,
+  combinedApplicationArtifactCaptureSchema,
   type ApplicationArtifactCapture,
   type ApplicationArtifactOpenResult,
   type ApplicationArtifactRecord,
+  type CombinedApplicationArtifactCapture,
 } from "../shared/artifact-contracts";
+import { exportCombinedDocumentProject } from "./combined-document-service";
 import { getDocument, renderDocument } from "./document-service";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface ArtifactRow {
   readonly id: string;
   readonly candidatureId: string;
-  readonly documentId: string;
-  readonly kind: "cv" | "cover_letter";
+  readonly cvDocumentId: string | null;
+  readonly coverLetterDocumentId: string | null;
+  readonly kind: "cv" | "cover_letter" | "combined";
   readonly title: string;
   readonly capturedAt: string;
 }
@@ -63,7 +69,9 @@ function toRecord(rootPath: string, row: ArtifactRow): ApplicationArtifactRecord
 function artifactRowById(database: DatabaseSync, artifactId: string): ArtifactRow | undefined {
   return database
     .prepare(
-      `SELECT id, candidature_id AS candidatureId, document_id AS documentId,
+      `SELECT id, candidature_id AS candidatureId,
+              cv_document_id AS cvDocumentId,
+              cover_letter_document_id AS coverLetterDocumentId,
               kind, title, captured_at AS capturedAt
          FROM application_artifacts
         WHERE id = ?`,
@@ -91,6 +99,14 @@ function assertCaptureRelation(
   }
 }
 
+function assertCombinedCaptureRelations(
+  database: DatabaseSync,
+  input: CombinedApplicationArtifactCapture,
+): void {
+  assertCaptureRelation(database, input.candidatureId, input.cvDocumentId);
+  assertCaptureRelation(database, input.candidatureId, input.coverLetterDocumentId);
+}
+
 function listFromDatabase(
   database: DatabaseSync,
   rootPath: string,
@@ -98,7 +114,9 @@ function listFromDatabase(
 ): ApplicationArtifactRecord[] {
   const rows = database
     .prepare(
-      `SELECT id, candidature_id AS candidatureId, document_id AS documentId,
+      `SELECT id, candidature_id AS candidatureId,
+              cv_document_id AS cvDocumentId,
+              cover_letter_document_id AS coverLetterDocumentId,
               kind, title, captured_at AS capturedAt
          FROM application_artifacts
         WHERE candidature_id = ?
@@ -112,7 +130,7 @@ export function listApplicationArtifacts(
   rootPath: string,
   candidatureId: string,
 ): ApplicationArtifactRecord[] {
-  const id = applicationArtifactCaptureSchema.shape.candidatureId.parse(candidatureId);
+  const id = applicationArtifactCandidatureIdSchema.parse(candidatureId);
   return withWorkspaceDatabase(rootPath, (database) => listFromDatabase(database, rootPath, id));
 }
 
@@ -121,7 +139,7 @@ export async function openApplicationArtifact(
   rawArtifactId: string,
   openPath: OpenPath,
 ): Promise<ApplicationArtifactOpenResult> {
-  const artifactId = applicationArtifactRecordSchema.shape.id.parse(rawArtifactId);
+  const artifactId = applicationArtifactIdSchema.parse(rawArtifactId);
   const artifact = withWorkspaceDatabase(rootPath, (database) => {
     const row = artifactRowById(database, artifactId);
     if (!row) throw new ArtifactServiceError("The retained application artifact no longer exists.");
@@ -174,10 +192,18 @@ export async function captureApplicationArtifact(
         database
           .prepare(
             `INSERT INTO application_artifacts(
-               id, candidature_id, document_id, kind, title, captured_at
-             ) VALUES (?, ?, ?, ?, ?, ?)`,
+               id, candidature_id, cv_document_id, cover_letter_document_id, kind, title, captured_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(id, input.candidatureId, input.documentId, document.kind, document.title, capturedAt);
+          .run(
+            id,
+            input.candidatureId,
+            document.kind === "cv" ? input.documentId : null,
+            document.kind === "cover_letter" ? input.documentId : null,
+            document.kind,
+            document.title,
+            capturedAt,
+          );
         database
           .prepare(
             `INSERT INTO candidature_activity(occurred_at, candidature_id, action)
@@ -194,10 +220,91 @@ export async function captureApplicationArtifact(
   return applicationArtifactRecordSchema.parse({
     id,
     candidatureId: input.candidatureId,
-    documentId: input.documentId,
+    cvDocumentId: document.kind === "cv" ? input.documentId : null,
+    coverLetterDocumentId: document.kind === "cover_letter" ? input.documentId : null,
     kind: document.kind,
     title: document.title,
     capturedAt,
     ...destination,
   });
+}
+
+export async function captureCombinedApplicationArtifact(
+  rootPath: string,
+  rawInput: CombinedApplicationArtifactCapture,
+): Promise<ApplicationArtifactRecord> {
+  const input = combinedApplicationArtifactCaptureSchema.parse(rawInput);
+  withWorkspaceDatabase(rootPath, (database) => assertCombinedCaptureRelations(database, input));
+
+  const cv = getDocument(rootPath, input.cvDocumentId);
+  const coverLetter = getDocument(rootPath, input.coverLetterDocumentId);
+  if (cv.kind !== "cv" || coverLetter.kind !== "cover_letter") {
+    throw new ArtifactServiceError("Choose one CV and one cover letter for combined application material.");
+  }
+
+  const id = randomUUID();
+  const capturedAt = new Date().toISOString();
+  const destination = pathsForArtifact(rootPath, id);
+  const artifactsRoot = path.dirname(destination.projectPath);
+  const stageParent = path.join(artifactsRoot, `.aaaat-combined-artifact-${id}`);
+  mkdirSync(stageParent, { recursive: true });
+
+  try {
+    const producedProjectPath = await exportCombinedDocumentProject(
+      rootPath,
+      {
+        cvDocumentId: input.cvDocumentId,
+        coverLetterDocumentId: input.coverLetterDocumentId,
+      },
+      stageParent,
+    );
+    renameSync(producedProjectPath, destination.projectPath);
+    rmSync(stageParent, { recursive: true, force: true });
+
+    if (!existsSync(destination.sourcePath) || !existsSync(destination.artifactPath)) {
+      throw new ArtifactServiceError("AAAAT could not retain a complete combined application artifact.");
+    }
+
+    const title = `Combined: ${coverLetter.title} + ${cv.title}`;
+    withWorkspaceDatabase(rootPath, (database) => {
+      transact(database, () => {
+        assertCombinedCaptureRelations(database, input);
+        database
+          .prepare(
+            `INSERT INTO application_artifacts(
+               id, candidature_id, cv_document_id, cover_letter_document_id, kind, title, captured_at
+             ) VALUES (?, ?, ?, ?, 'combined', ?, ?)`,
+          )
+          .run(
+            id,
+            input.candidatureId,
+            input.cvDocumentId,
+            input.coverLetterDocumentId,
+            title,
+            capturedAt,
+          );
+        database
+          .prepare(
+            `INSERT INTO candidature_activity(occurred_at, candidature_id, action)
+             VALUES (?, ?, 'candidature.artifact.capture')`,
+          )
+          .run(capturedAt, input.candidatureId);
+      });
+    });
+
+    return applicationArtifactRecordSchema.parse({
+      id,
+      candidatureId: input.candidatureId,
+      cvDocumentId: input.cvDocumentId,
+      coverLetterDocumentId: input.coverLetterDocumentId,
+      kind: "combined",
+      title,
+      capturedAt,
+      ...destination,
+    });
+  } catch (error) {
+    rmSync(stageParent, { recursive: true, force: true });
+    rmSync(destination.projectPath, { recursive: true, force: true });
+    throw error;
+  }
 }
