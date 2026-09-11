@@ -2,9 +2,11 @@
 
 ## Active bounded work
 
-None. [Issue #273](https://github.com/DidacLL/AAAAT/issues/273) and [PR #274](https://github.com/DidacLL/AAAAT/pull/274) are complete.
+[Issue #275](https://github.com/DidacLL/AAAAT/issues/275) is the sole active bounded product outcome on branch `product/retained-artifact-inspection`.
 
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+The outcome is to make retained exact application artifacts genuinely inspectable from their candidature by opening the retained PDF through a bounded ID-only trusted desktop capability. The renderer supplies only an artifact ID; trusted main-process code resolves the current workspace and authoritative retained artifact path, validates the retained PDF, and opens it. Keep mutable working-document output and retained exact artifacts semantically and technically distinct.
+
+Treat this as Class C because it extends the preload/main trusted capability boundary. Require independent Reviewer and Skeptical Simplifier assessment, a short ADR for the ID-only boundary, focused contract/service/renderer tests, and packaged Linux evidence including exact `720×600`. Do not expand it into generic filesystem/path opening, reveal/open infrastructure, artifact mutation/deletion/export, submission workflow, schema/persistence changes, AI behavior, global routing/state, or dependencies.
 
 ## Recently completed outcomes
 
