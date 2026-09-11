@@ -2,9 +2,11 @@
 
 ## Active bounded work
 
-None. [Issue #271](https://github.com/DidacLL/AAAAT/issues/271) and [PR #272](https://github.com/DidacLL/AAAAT/pull/272) are complete.
+[Issue #273](https://github.com/DidacLL/AAAAT/issues/273) is the sole active bounded product outcome on branch `product/application-material-task-first`.
 
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+The outcome is to make candidature Application material task-first: show the working CVs/cover letters and retained exact application artifacts that already belong to the selected candidature before workspace-wide association administration, keep create/open document handoffs primary, and retain explicit existing-document association as secondary management. Reuse the existing document-association and artifact-list APIs rather than introducing new durable semantics or file authority.
+
+Treat this as Class B renderer interaction/composition while document/artifact services, persistence, preload/main authority and durable semantics remain unchanged. Do not expand it into artifact capture redesign, file opening, render/export behavior, AI work, schema/migrations, global navigation/state infrastructure, dependencies, or unrelated candidature/document redesign. Escalate only if implementation genuinely crosses an existing technical authority boundary.
 
 ## Recently completed outcomes
 
