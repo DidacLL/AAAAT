@@ -102,10 +102,8 @@ function prepareLinuxChooserHome(workspacePath: string): string {
   const homePath = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-home-"));
   const configPath = path.join(homePath, ".config");
   const binPath = path.join(homePath, "bin");
-  const applicationsPath = path.join(homePath, ".local", "share", "applications");
   mkdirSync(configPath, { recursive: true });
   mkdirSync(binPath, { recursive: true });
-  mkdirSync(applicationsPath, { recursive: true });
 
   const escaped = workspacePath.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
   writeFileSync(path.join(configPath, "user-dirs.dirs"), `XDG_DOWNLOAD_DIR="${escaped}"\n`, "utf8");
@@ -124,30 +122,13 @@ function prepareLinuxChooserHome(workspacePath: string): string {
   );
   chmodSync(latexmk, 0o755);
 
-  const pdfViewer = path.join(binPath, "aaaat-test-pdf-viewer");
+  const xdgOpen = path.join(binPath, "xdg-open");
   writeFileSync(
-    pdfViewer,
+    xdgOpen,
     '#!/bin/sh\nprintf "%s\\n" "$1" > "$HOME/retained-opened.txt"\n',
     "utf8",
   );
-  chmodSync(pdfViewer, 0o755);
-  writeFileSync(
-    path.join(applicationsPath, "aaaat-test-pdf.desktop"),
-    [
-      "[Desktop Entry]",
-      "Type=Application",
-      "Name=AAAAT Test PDF Viewer",
-      `Exec=${pdfViewer} %f`,
-      "MimeType=application/pdf;",
-      "NoDisplay=true",
-    ].join("\n"),
-    "utf8",
-  );
-  writeFileSync(
-    path.join(configPath, "mimeapps.list"),
-    "[Default Applications]\napplication/pdf=aaaat-test-pdf.desktop\n",
-    "utf8",
-  );
+  chmodSync(xdgOpen, 0o755);
 
   return homePath;
 }
