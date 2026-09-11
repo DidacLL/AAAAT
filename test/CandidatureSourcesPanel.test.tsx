@@ -89,7 +89,7 @@ describe("Candidature Sources read-first interaction", () => {
     await user.click(screen.getByRole("button", { name: "Back to Sources" }));
 
     expect(screen.queryByRole("article", { name: "Source content" })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Source list" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Source list")).toBeInTheDocument();
     expect(addSource).not.toHaveBeenCalled();
     expect(updateSource).not.toHaveBeenCalled();
     expect(removeSource).not.toHaveBeenCalled();
@@ -123,6 +123,6 @@ describe("Candidature Sources read-first interaction", () => {
     });
     expect(onSourcesChanged).toHaveBeenCalledWith([updated]);
     expect(screen.queryByRole("textbox", { name: "Source material" })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Source list" })).toHaveTextContent("Updated retained material");
+    expect(screen.getByLabelText("Source list")).toHaveTextContent("Updated retained material");
   });
 });
