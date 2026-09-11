@@ -10,6 +10,7 @@ import type {
 } from "../shared/contracts";
 import type { FocusMaterialPreferences } from "../shared/focus-contracts";
 import type { TodoRecord } from "../shared/todo-contracts";
+import { CandidatureActivityPanel } from "./CandidatureActivityPanel";
 
 export type FocusDestination = "information" | "sources" | "documents";
 
@@ -411,6 +412,8 @@ export function CandidatureFocusPanel({
           </button>
         </div>
       </details>
+
+      <CandidatureActivityPanel key={record.id} candidatureId={record.id} />
     </section>
   );
 }
