@@ -64,10 +64,6 @@ function documentType(document: DocumentRecord): string {
   return document.kind === "cv" ? "CV" : "Cover letter";
 }
 
-function documentMode(document: DocumentRecord): string {
-  return document.mode === "manual" ? "manual source" : "managed content";
-}
-
 export function CandidatureFocusPanel({
   record,
   fields,
@@ -340,14 +336,13 @@ export function CandidatureFocusPanel({
               </button>
               {todos.map((todo) => (
                 <div className="button-row" key={todo.id}>
-                  <span>{todo.body}</span>
                   <button
                     type="button"
                     className="compact-secondary"
                     aria-label={`Edit ${todo.body}`}
                     onClick={() => void editReminder(todo)}
                   >
-                    Edit
+                    Edit “{todo.body}”
                   </button>
                   <button
                     type="button"
@@ -376,7 +371,7 @@ export function CandidatureFocusPanel({
             {associatedDocuments.map((document) => (
               <li key={document.id}>
                 <strong>{document.title}</strong>
-                <span>{documentType(document)} · {documentMode(document)}</span>
+                <span>{documentType(document)} · working document</span>
               </li>
             ))}
           </ul>
