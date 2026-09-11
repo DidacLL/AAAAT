@@ -901,6 +901,7 @@ export function DocumentsWorkspace({
           <details className="document-advanced">
             <summary>Combined CV + cover letter</summary>
             <CombinedDocumentExportPanel
+              candidature={contextCandidature}
               documents={documents}
               disabled={editorDirty}
               onError={setError}
