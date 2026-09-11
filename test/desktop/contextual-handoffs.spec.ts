@@ -324,7 +324,8 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await expectNoHorizontalOverflow(running.page, 720, 600, "reopened-document-context");
 
     await reopenedDocuments
-      .getByText("Application artifact for Handoff opportunity", { selector: "summary" })
+      .locator("summary")
+      .filter({ hasText: "Application artifact for Handoff opportunity" })
       .click();
     await reopenedDocuments.getByRole("button", { name: "Retain application artifact" }).click();
     await expect(reopenedDocuments.getByText(/Retained application artifact:/)).toBeVisible();
@@ -341,7 +342,7 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await expect.poll(() => existsSync(openedMarker)).toBe(true);
     const openedPath = readFileSync(openedMarker, "utf8").trim();
     expect(openedPath).toContain(`${path.sep}artifacts${path.sep}`);
-    expect(openedPath).toEndWith(path.join("build", "main.pdf"));
+    expect(openedPath.endsWith(path.join("build", "main.pdf"))).toBe(true);
     expect(openedPath).not.toContain(`${path.sep}documents${path.sep}`);
   } finally {
     if (running) await stopPackagedApp(running);
