@@ -34,7 +34,10 @@ export function CandidatureApplicationMaterialPanel({
     readonly error: string | null;
     readonly loaded: boolean;
   }>(() => ({ candidatureId: candidature.id, artifacts: [], error: null, loaded: false }));
-  const [artifactOpenError, setArtifactOpenError] = useState<string | null>(null);
+  const [artifactOpenFailure, setArtifactOpenFailure] = useState<{
+    readonly candidatureId: string;
+    readonly error: string;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -63,6 +66,8 @@ export function CandidatureApplicationMaterialPanel({
     artifactState.candidatureId === candidature.id
       ? artifactState
       : { candidatureId: candidature.id, artifacts: [], error: null, loaded: false };
+  const artifactOpenError =
+    artifactOpenFailure?.candidatureId === candidature.id ? artifactOpenFailure.error : null;
   const associatedDocuments = useMemo(
     () =>
       candidature.documentIds
@@ -73,13 +78,15 @@ export function CandidatureApplicationMaterialPanel({
   const hasMaterial = associatedDocuments.length > 0 || currentArtifactState.artifacts.length > 0;
 
   const openArtifact = async (artifactId: string) => {
-    setArtifactOpenError(null);
+    setArtifactOpenFailure(null);
     try {
       await window.aaaat.artifacts.open(artifactId);
     } catch (reason) {
-      setArtifactOpenError(
-        reason instanceof Error ? reason.message : "AAAAT could not open the retained application PDF.",
-      );
+      setArtifactOpenFailure({
+        candidatureId: candidature.id,
+        error:
+          reason instanceof Error ? reason.message : "AAAAT could not open the retained application PDF.",
+      });
     }
   };
 
