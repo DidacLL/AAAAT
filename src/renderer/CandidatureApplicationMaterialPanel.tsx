@@ -32,14 +32,17 @@ export function CandidatureApplicationMaterialPanel({
     readonly candidatureId: string;
     readonly artifacts: ApplicationArtifactRecord[];
     readonly error: string | null;
-  }>(() => ({ candidatureId: candidature.id, artifacts: [], error: null }));
+    readonly loaded: boolean;
+  }>(() => ({ candidatureId: candidature.id, artifacts: [], error: null, loaded: false }));
 
   useEffect(() => {
     let active = true;
     void window.aaaat.artifacts
       .list(candidature.id)
       .then((artifacts) => {
-        if (active) setArtifactState({ candidatureId: candidature.id, artifacts, error: null });
+        if (active) {
+          setArtifactState({ candidatureId: candidature.id, artifacts, error: null, loaded: true });
+        }
       })
       .catch(() => {
         if (!active) return;
@@ -47,6 +50,7 @@ export function CandidatureApplicationMaterialPanel({
           candidatureId: candidature.id,
           artifacts: [],
           error: "AAAAT could not load retained application artifacts.",
+          loaded: true,
         });
       });
     return () => {
@@ -54,10 +58,10 @@ export function CandidatureApplicationMaterialPanel({
     };
   }, [candidature.id]);
 
-  const artifacts =
-    artifactState.candidatureId === candidature.id ? artifactState.artifacts : [];
-  const artifactError =
-    artifactState.candidatureId === candidature.id ? artifactState.error : null;
+  const currentArtifactState =
+    artifactState.candidatureId === candidature.id
+      ? artifactState
+      : { candidatureId: candidature.id, artifacts: [], error: null, loaded: false };
   const associatedDocuments = useMemo(
     () =>
       candidature.documentIds
@@ -65,7 +69,7 @@ export function CandidatureApplicationMaterialPanel({
         .filter((document): document is DocumentRecord => document !== undefined),
     [candidature.documentIds, documents],
   );
-  const hasMaterial = associatedDocuments.length > 0 || artifacts.length > 0;
+  const hasMaterial = associatedDocuments.length > 0 || currentArtifactState.artifacts.length > 0;
 
   return (
     <section className="candidature-documents section-surface" aria-label="Application material">
@@ -80,7 +84,7 @@ export function CandidatureApplicationMaterialPanel({
         </button>
       </div>
 
-      {!hasMaterial && !artifactError ? (
+      {currentArtifactState.loaded && !hasMaterial && !currentArtifactState.error ? (
         <p className="compact-empty">
           No application material belongs to this candidature yet. Create a CV or cover letter, or
           associate an existing working document if useful.
@@ -111,12 +115,14 @@ export function CandidatureApplicationMaterialPanel({
         </section>
       ) : null}
 
-      {artifactError ? <p className="error-message" role="alert">{artifactError}</p> : null}
-      {artifacts.length > 0 ? (
+      {currentArtifactState.error ? (
+        <p className="error-message" role="alert">{currentArtifactState.error}</p>
+      ) : null}
+      {currentArtifactState.artifacts.length > 0 ? (
         <section aria-label="Retained application artifacts">
           <h4>Retained exact artifacts</h4>
           <div className="document-association-list">
-            {artifacts.map((artifact) => (
+            {currentArtifactState.artifacts.map((artifact) => (
               <article className="retained-information-card" key={artifact.id}>
                 <div>
                   <p className="eyebrow">Retained exact {artifactKind(artifact)} artifact</p>
