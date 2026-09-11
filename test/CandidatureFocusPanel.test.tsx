@@ -164,7 +164,10 @@ describe("Candidature Focus rapid recall", () => {
     expect(within(reminders).queryByText("Reminder from another candidature")).not.toBeInTheDocument();
 
     const customize = screen.getByText("Customize Focus");
-    expect(sourceLabels[0].compareDocumentPosition(customize) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const firstSourceLabel = sourceLabels[0];
+    expect(firstSourceLabel).toBeDefined();
+    if (!firstSourceLabel) return;
+    expect(firstSourceLabel.compareDocumentPosition(customize) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByRole("group", { name: "Focus material" })).not.toBeInTheDocument();
 
     await user.click(customize);
