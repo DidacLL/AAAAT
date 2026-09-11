@@ -53,11 +53,12 @@ const artifact: ApplicationArtifactRecord = {
 };
 
 const listArtifacts = vi.fn<ArtifactDesktopApi["artifacts"]["list"]>();
+const openArtifact = vi.fn<ArtifactDesktopApi["artifacts"]["open"]>();
 
 function installApi() {
   Object.defineProperty(window, "aaaat", {
     configurable: true,
-    value: { artifacts: { list: listArtifacts, capture: vi.fn() } },
+    value: { artifacts: { list: listArtifacts, capture: vi.fn(), open: openArtifact } },
   });
 }
 
@@ -87,13 +88,14 @@ function renderPanel(options: {
 beforeEach(() => {
   vi.clearAllMocks();
   listArtifacts.mockResolvedValue([artifact]);
+  openArtifact.mockResolvedValue({ opened: true });
   installApi();
 });
 
 afterEach(() => cleanup());
 
 describe("task-first candidature application material", () => {
-  it("shows owned working material and retained exact artifacts before association administration", async () => {
+  it("shows owned working material and opens retained exact artifacts through the artifact API", async () => {
     const user = userEvent.setup();
     const { onOpenDocument } = renderPanel();
 
@@ -105,6 +107,8 @@ describe("task-first candidature application material", () => {
     const retained = await screen.findByRole("region", { name: "Retained application artifacts" });
     expect(within(retained).getByRole("heading", { name: "Platform CV submitted" })).toBeInTheDocument();
     expect(within(retained).getByText("Retained exact CV artifact")).toBeInTheDocument();
+    await user.click(within(retained).getByRole("button", { name: "Open retained PDF" }));
+    expect(openArtifact).toHaveBeenCalledWith(artifact.id);
 
     const management = screen.getByText("Manage existing document associations", { selector: "summary" });
     expect(screen.getByRole("checkbox", { name: "General letter (cover letter)" })).not.toBeVisible();
@@ -116,6 +120,18 @@ describe("task-first candidature application material", () => {
 
     await user.click(management);
     expect(screen.getByRole("checkbox", { name: "General letter (cover letter)" })).toBeVisible();
+  });
+
+  it("reports retained artifact open failures without mutating document associations", async () => {
+    const user = userEvent.setup();
+    openArtifact.mockRejectedValue(new Error("The retained application PDF is missing."));
+    const { onDocumentSelectionChange, onSaveDocuments } = renderPanel();
+
+    const retained = await screen.findByRole("region", { name: "Retained application artifacts" });
+    await user.click(within(retained).getByRole("button", { name: "Open retained PDF" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The retained application PDF is missing.");
+    expect(onDocumentSelectionChange).not.toHaveBeenCalled();
+    expect(onSaveDocuments).not.toHaveBeenCalled();
   });
 
   it("preserves explicit association changes and save as secondary management", async () => {
