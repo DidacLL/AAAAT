@@ -328,6 +328,59 @@ test("packaged candidature document handoff preserves dirty associations and exa
     expect(openedPath).toContain(`${path.sep}artifacts${path.sep}`);
     expect(openedPath.endsWith(path.join("build", "main.pdf"))).toBe(true);
     expect(openedPath).not.toContain(`${path.sep}documents${path.sep}`);
+
+    await retainedMaterial.getByRole("button", { name: "Create CV or letter for this candidature" }).click();
+    const packetDocuments = running.page.getByRole("region", { name: "CVs & letters" });
+    const createForm = packetDocuments.locator(".document-create");
+    await createForm.getByLabel("Type").selectOption("cover_letter");
+    await createForm.getByLabel("Title").fill("Handoff letter");
+    await packetDocuments.getByRole("button", { name: "Create cover letter" }).click();
+    await expect(packetDocuments.getByRole("heading", { name: "Handoff letter" })).toBeVisible();
+
+    const packetOutputTab = packetDocuments.getByRole("tab", { name: "Output", exact: true });
+    await packetOutputTab.click();
+    await packetDocuments.locator("summary").filter({ hasText: "Combined CV + cover letter" }).click();
+    const combined = packetDocuments.getByRole("region", { name: "Combined CV and cover letter" });
+    await combined.getByLabel("Combined CV").selectOption({ label: "Second Handoff CV" });
+    await expect(
+      combined.getByRole("button", { name: "Retain combined application artifact" }),
+    ).toBeEnabled();
+    await combined.getByRole("button", { name: "Retain combined application artifact" }).click();
+    await expect(packetDocuments.getByText(/Retained combined application artifact:/)).toBeVisible();
+    await expectNoHorizontalOverflow(running.page, 720, 600, "combined-artifact-retention");
+
+    const combinedEvidence = await running.page.evaluate(async () => {
+      const records = await window.aaaat.candidatures.list();
+      const documentRecords = await window.aaaat.documents.list();
+      const candidature = records.find((record) => record.label === "Handoff opportunity");
+      if (!candidature) return null;
+      const second = documentRecords.find((record) => record.title === "Second Handoff CV");
+      const letter = documentRecords.find((record) => record.title === "Handoff letter");
+      const artifacts = await window.aaaat.artifacts.list(candidature.id);
+      const artifact = artifacts.find((candidate) => candidate.kind === "combined");
+      return {
+        cvDocumentId: artifact?.cvDocumentId ?? null,
+        coverLetterDocumentId: artifact?.coverLetterDocumentId ?? null,
+        secondId: second?.id ?? null,
+        letterId: letter?.id ?? null,
+      };
+    });
+    expect(combinedEvidence).toEqual({
+      cvDocumentId: combinedEvidence?.secondId,
+      coverLetterDocumentId: combinedEvidence?.letterId,
+      secondId: combinedEvidence?.secondId,
+      letterId: combinedEvidence?.letterId,
+    });
+
+    await packetDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
+    const combinedMaterial = running.page.getByRole("region", { name: "Application material" });
+    const combinedArtifacts = combinedMaterial.getByRole("region", { name: "Retained application artifacts" });
+    const combinedCard = combinedArtifacts
+      .getByRole("heading", { name: "Combined: Handoff letter + Second Handoff CV" })
+      .locator("..")
+      .locator("..");
+    await expect(combinedCard.getByText("Retained exact combined CV + cover letter artifact")).toBeVisible();
+    await expectNoHorizontalOverflow(running.page, 720, 600, "combined-artifact-inspection");
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
