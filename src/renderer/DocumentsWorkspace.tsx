@@ -265,7 +265,9 @@ export function DocumentsWorkspace({
           current.map((candidate) => (candidate.id === linked.id ? linked : candidate)),
         );
       }
+      setNewKind("cv");
       setNewTitle("");
+      setNewVariantId("");
       setAssistanceDirty(false);
       await acceptSavedDocument(created);
       setDocumentView("content");
