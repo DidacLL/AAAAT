@@ -3,8 +3,10 @@
 import {
   appendFileSync,
   chmodSync,
+  existsSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   unlinkSync,
   writeFileSync,
@@ -16,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   captureApplicationArtifact,
+  captureCombinedApplicationArtifact,
   listApplicationArtifacts,
   openApplicationArtifact,
 } from "../src/main/artifact-service";
@@ -49,7 +52,7 @@ function installFakeLatexmk(): void {
   const script = path.join(root, "fake-latex.js");
   writeFileSync(
     script,
-    `const fs = require("node:fs");\nconst path = require("node:path");\nfs.mkdirSync(path.join(process.cwd(), "build"), { recursive: true });\nfs.writeFileSync(path.join(process.cwd(), "build", "main.pdf"), process.env.AAAAT_TEST_PDF || "pdf-one");\n`,
+    `const fs = require("node:fs");\nconst path = require("node:path");\nif (process.env.AAAAT_TEST_FAIL_COMBINED === "1" && process.cwd().includes(".aaaat-combined-stage-")) process.exit(1);\nfs.mkdirSync(path.join(process.cwd(), "build"), { recursive: true });\nfs.writeFileSync(path.join(process.cwd(), "build", "main.pdf"), process.env.AAAAT_TEST_PDF || "pdf-one");\n`,
     "utf8",
   );
   const executable = path.join(root, "latexmk");
@@ -62,6 +65,7 @@ function installFakeLatexmk(): void {
 afterEach(() => {
   process.env.PATH = originalPath;
   delete process.env.AAAAT_TEST_PDF;
+  delete process.env.AAAAT_TEST_FAIL_COMBINED;
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
@@ -109,6 +113,12 @@ describe("application artifact service", () => {
       documentId: document.id,
     });
     const retainedData = readFileSync(path.join(retained.projectPath, "data.tex"), "utf8");
+    expect(retained).toMatchObject({
+      candidatureId: candidature.id,
+      kind: "cv",
+      cvDocumentId: document.id,
+      coverLetterDocumentId: null,
+    });
     expect(readFileSync(path.join(retained.projectPath, "main.tex"), "utf8")).toContain(
       "% submitted blueprint edit",
     );
@@ -147,7 +157,8 @@ describe("application artifact service", () => {
       expect.objectContaining({
         id: retained.id,
         title: "Submitted CV",
-        documentId: document.id,
+        cvDocumentId: document.id,
+        coverLetterDocumentId: null,
         projectPath: retained.projectPath,
         sourcePath: retained.sourcePath,
         artifactPath: retained.artifactPath,
@@ -159,5 +170,109 @@ describe("application artifact service", () => {
     await expect(openApplicationArtifact(root, retained.id, openPath)).rejects.toThrow(
       "The retained application PDF is missing.",
     );
+  });
+
+  it("retains one exact combined packet with both associated contributors", async () => {
+    const root = workspace();
+    installFakeLatexmk();
+    addProfileItem(root, {
+      kind: "summary",
+      title: "Profile",
+      description: "Combined packet profile.",
+    });
+    const cv = createDocument(root, {
+      kind: "cv",
+      title: "Platform CV",
+      variantId: null,
+      engine: "pdflatex",
+      bodyParagraphs: [],
+    });
+    const coverLetter = createDocument(root, {
+      kind: "cover_letter",
+      title: "Platform letter",
+      variantId: null,
+      engine: "pdflatex",
+      recipient: "Hiring team",
+      subject: "Application",
+      bodyParagraphs: ["Hello"],
+      closing: "Regards",
+    });
+    const candidature = createCandidature(root, { values: [] });
+    setCandidatureDocuments(root, {
+      candidatureId: candidature.id,
+      documentIds: [cv.id, coverLetter.id],
+    });
+
+    process.env.AAAAT_TEST_PDF = "combined-pdf";
+    const retained = await captureCombinedApplicationArtifact(root, {
+      candidatureId: candidature.id,
+      cvDocumentId: cv.id,
+      coverLetterDocumentId: coverLetter.id,
+    });
+
+    expect(retained).toMatchObject({
+      candidatureId: candidature.id,
+      kind: "combined",
+      cvDocumentId: cv.id,
+      coverLetterDocumentId: coverLetter.id,
+      title: "Combined: Platform letter + Platform CV",
+    });
+    expect(readFileSync(retained.artifactPath, "utf8")).toBe("combined-pdf");
+    expect(existsSync(path.join(retained.projectPath, "cover-letter", "build", "main.pdf"))).toBe(true);
+    expect(existsSync(path.join(retained.projectPath, "cv", "build", "main.pdf"))).toBe(true);
+    const combinedSource = readFileSync(retained.sourcePath, "utf8");
+    expect(combinedSource.indexOf("cover-letter/build/main.pdf")).toBeLessThan(
+      combinedSource.indexOf("cv/build/main.pdf"),
+    );
+    expect(listApplicationArtifacts(root, candidature.id)).toEqual([retained]);
+  });
+
+  it("requires both combined contributors to belong to the candidature and cleans failed production", async () => {
+    const root = workspace();
+    installFakeLatexmk();
+    const cv = createDocument(root, {
+      kind: "cv",
+      title: "CV",
+      variantId: null,
+      engine: "pdflatex",
+      bodyParagraphs: [],
+    });
+    const coverLetter = createDocument(root, {
+      kind: "cover_letter",
+      title: "Letter",
+      variantId: null,
+      engine: "pdflatex",
+      bodyParagraphs: ["Hello"],
+    });
+    const candidature = createCandidature(root, { values: [] });
+    setCandidatureDocuments(root, {
+      candidatureId: candidature.id,
+      documentIds: [cv.id],
+    });
+
+    await expect(
+      captureCombinedApplicationArtifact(root, {
+        candidatureId: candidature.id,
+        cvDocumentId: cv.id,
+        coverLetterDocumentId: coverLetter.id,
+      }),
+    ).rejects.toThrow("Associate the working document with this candidature before retaining it.");
+    expect(listApplicationArtifacts(root, candidature.id)).toEqual([]);
+
+    setCandidatureDocuments(root, {
+      candidatureId: candidature.id,
+      documentIds: [cv.id, coverLetter.id],
+    });
+    process.env.AAAAT_TEST_FAIL_COMBINED = "1";
+    await expect(
+      captureCombinedApplicationArtifact(root, {
+        candidatureId: candidature.id,
+        cvDocumentId: cv.id,
+        coverLetterDocumentId: coverLetter.id,
+      }),
+    ).rejects.toThrow("AAAAT could not render the combined application packet.");
+    expect(listApplicationArtifacts(root, candidature.id)).toEqual([]);
+    const artifactsRoot = path.join(root, "artifacts");
+    expect(existsSync(artifactsRoot) ? readdirSync(artifactsRoot) : []).toEqual([]);
   });
 });
