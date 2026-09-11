@@ -2,13 +2,13 @@
 
 ## Active bounded work
 
-[Issue #275](https://github.com/DidacLL/AAAAT/issues/275) is the sole active bounded product outcome on branch `product/retained-artifact-inspection`.
+None. [Issue #275](https://github.com/DidacLL/AAAAT/issues/275) and [PR #276](https://github.com/DidacLL/AAAAT/pull/276) are complete.
 
-The outcome is to make retained exact application artifacts genuinely inspectable from their candidature by opening the retained PDF through a bounded ID-only trusted desktop capability. The renderer supplies only an artifact ID; trusted main-process code resolves the current workspace and authoritative retained artifact path, validates the retained PDF, and opens it. Keep mutable working-document output and retained exact artifacts semantically and technically distinct.
-
-Treat this as Class C because it extends the preload/main trusted capability boundary. Require independent Reviewer and Skeptical Simplifier assessment, a short ADR for the ID-only boundary, focused contract/service/renderer tests, and packaged Linux evidence including exact `720×600`. Do not expand it into generic filesystem/path opening, reveal/open infrastructure, artifact mutation/deletion/export, submission workflow, schema/persistence changes, AI behavior, global routing/state, or dependencies.
+No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
 
 ## Recently completed outcomes
+
+[Issue #275](https://github.com/DidacLL/AAAAT/issues/275) and [PR #276](https://github.com/DidacLL/AAAAT/pull/276) are complete. Retained exact application artifacts are now inspectable from their candidature through a bounded ID-only desktop capability: the renderer/preload supplies only a validated artifact UUID, trusted main-process code resolves the current workspace and authoritative retained artifact row/path, verifies the retained PDF, and opens that exact file through Electron's platform shell operation. Working-document output remains a distinct mutable document action, and retained-artifact opening performs no persistence or activity mutation. ADR 0026 records the trusted boundary, and packaged Linux evidence covers the candidature journey at exact `720×600`. No generic filesystem/path opener, schema/migration, artifact mutation/export, AI behavior, global routing/state, dependency, or mutable-document fallback was introduced.
 
 [Issue #273](https://github.com/DidacLL/AAAAT/issues/273) and [PR #274](https://github.com/DidacLL/AAAAT/pull/274) are complete. Candidature Application material is now task-first: associated working CVs/cover letters are visible before administration and open through the existing contextual document handoff, retained exact application artifacts are shown separately through the existing artifact-list authority so mutable working documents are not mistaken for retained evidence, and creating new candidature-scoped document work remains primary. Existing-document association remains explicit under secondary management with its existing save and dirty-state semantics, including contextual handoff reconciliation. Manual/no-AI operation, automatic contextual association, artifact capture authority and document mutation semantics are unchanged; no schema, document/artifact service, preload/main authority, file-opening capability, AI behavior, render/export semantics, dependency or new routing/state model was introduced.
 
