@@ -66,6 +66,7 @@ function installApi() {
     },
     candidatureSearch: { search: vi.fn().mockResolvedValue([]) },
     documents: { list: vi.fn().mockResolvedValue([document]) },
+    artifacts: { list: vi.fn().mockResolvedValue([]), capture: vi.fn() },
     todos: { list: vi.fn().mockResolvedValue([]) },
     focus: {
       current: vi.fn().mockResolvedValue({
@@ -131,13 +132,18 @@ describe("selected candidature local hierarchy", () => {
     );
     const applicationMaterial = screen.getByRole("region", { name: "Application material" });
     expect(applicationMaterial).toBeInTheDocument();
-    expect(within(applicationMaterial).getByText("Application CV (CV)")).toBeInTheDocument();
+    const working = within(applicationMaterial).getByRole("region", { name: "Working application documents" });
+    expect(within(working).getByRole("heading", { name: "Application CV" })).toBeInTheDocument();
+    expect(within(working).getByText("Working CV")).toBeInTheDocument();
     expect(
       within(applicationMaterial).getByRole("button", { name: "Create CV or letter for this candidature" }),
     ).toBeInTheDocument();
     expect(
       within(applicationMaterial).getByRole("button", { name: "Open in CVs & letters" }),
     ).toBeInTheDocument();
+    expect(
+      within(applicationMaterial).getByRole("checkbox", { name: "Application CV (CV)" }),
+    ).not.toBeVisible();
     expect(within(concepts).getByLabelText("Name")).toHaveValue("Unsaved platform concept");
 
     await user.click(within(concepts).getByRole("button", { name: "Save concept associations" }));
