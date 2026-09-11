@@ -129,7 +129,7 @@ describe("task-first candidature application material", () => {
       documents,
     });
 
-    await screen.findByText(/No application material belongs to this candidature yet|Working documents/);
+    await screen.findByRole("region", { name: "Working application documents" });
     expect(screen.queryByRole("region", { name: "Retained application artifacts" })).not.toBeInTheDocument();
 
     rerender(
