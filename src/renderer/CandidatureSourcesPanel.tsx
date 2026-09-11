@@ -38,6 +38,7 @@ export function CandidatureSourcesPanel({
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [sources, setSources] = useState<CandidatureSource[]>([]);
+  const [readingId, setReadingId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CandidatureSourceInput>(() => emptySource(candidatureId));
@@ -48,6 +49,9 @@ export function CandidatureSourcesPanel({
     () => editorOpen && JSON.stringify(draft) !== JSON.stringify(persistedDraft),
     [draft, editorOpen, persistedDraft],
   );
+  const readingSource = readingId
+    ? sources.find((source) => source.id === readingId) ?? null
+    : null;
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -64,6 +68,7 @@ export function CandidatureSourcesPanel({
   const startNew = () => {
     if (dirty && !window.confirm("Discard unsaved source edits?")) return;
     const next = emptySource(candidatureId);
+    setReadingId(null);
     setEditorOpen(true);
     setEditingId(null);
     setDraft(next);
@@ -80,6 +85,7 @@ export function CandidatureSourcesPanel({
       url: source.url,
       sourceText: source.sourceText,
     };
+    setReadingId(null);
     setEditorOpen(true);
     setEditingId(source.id);
     setDraft(next);
@@ -98,6 +104,7 @@ export function CandidatureSourcesPanel({
       .then((next) => {
         if (!active) return;
         setSources(next);
+        setReadingId(null);
         const empty = emptySource(candidatureId);
         setEditorOpen(false);
         setEditingId(null);
@@ -155,7 +162,11 @@ export function CandidatureSourcesPanel({
           <h3>Sources</h3>
           <p>Add only the material you actually have.</p>
         </div>
-        {!editorOpen ? (
+        {readingSource ? (
+          <button type="button" className="compact-secondary" onClick={() => setReadingId(null)}>
+            Back to Sources
+          </button>
+        ) : !editorOpen ? (
           <button type="button" className="compact-secondary" onClick={startNew}>
             Add source
           </button>
@@ -164,7 +175,25 @@ export function CandidatureSourcesPanel({
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
-      {sources.length === 0 ? (
+      {readingSource ? (
+        <article className="source-reader-panel" aria-label="Source content">
+          <div className="source-reader-heading">
+            <div>
+              <p className="eyebrow">{kindLabel(readingSource.kind)}</p>
+              <h4>{sourceLabel(readingSource)}</h4>
+            </div>
+            <button type="button" className="compact-secondary" onClick={() => edit(readingSource)}>
+              Edit source
+            </button>
+          </div>
+          {readingSource.url ? <p className="source-reference">{readingSource.url}</p> : null}
+          {readingSource.sourceText ? (
+            <p className="source-reader-content">{readingSource.sourceText}</p>
+          ) : (
+            <p className="compact-empty">This Source has no retained text.</p>
+          )}
+        </article>
+      ) : sources.length === 0 ? (
         <p className="compact-empty">No source material yet. The opportunity can remain incomplete.</p>
       ) : (
         <div className="source-card-list" aria-label="Source list">
@@ -177,8 +206,8 @@ export function CandidatureSourcesPanel({
                     <strong>{sourceLabel(source)}</strong>
                     <span>{kindLabel(source.kind)}</span>
                   </div>
-                  <button type="button" className="compact-secondary" onClick={() => edit(source)}>
-                    Edit source
+                  <button type="button" className="compact-secondary" onClick={() => setReadingId(source.id)}>
+                    Read source
                   </button>
                 </div>
                 {source.url ? <p className="source-reference">{source.url}</p> : null}
