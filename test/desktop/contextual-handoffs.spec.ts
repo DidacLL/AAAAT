@@ -375,11 +375,12 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await packetDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
     const combinedMaterial = running.page.getByRole("region", { name: "Application material" });
     const combinedArtifacts = combinedMaterial.getByRole("region", { name: "Retained application artifacts" });
-    const combinedCard = combinedArtifacts
-      .getByRole("heading", { name: "Combined: Handoff letter + Second Handoff CV" })
-      .locator("..")
-      .locator("..");
-    await expect(combinedCard.getByText("Retained exact combined CV + cover letter artifact")).toBeVisible();
+    await expect(
+      combinedArtifacts.getByRole("heading", { name: "Combined: Handoff letter + Second Handoff CV" }),
+    ).toBeVisible();
+    await expect(
+      combinedArtifacts.getByText("Retained exact combined CV + cover letter artifact"),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 600, "combined-artifact-inspection");
   } finally {
     if (running) await stopPackagedApp(running);
