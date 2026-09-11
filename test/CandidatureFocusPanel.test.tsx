@@ -292,7 +292,7 @@ describe("Candidature Focus rapid recall", () => {
 
     const material = await screen.findByRole("region", { name: "Application material" });
     expect(within(material).getByText("Platform CV")).toBeInTheDocument();
-    expect(within(material).getByText("CV · managed content")).toBeInTheDocument();
+    expect(within(material).getByText("CV · working document")).toBeInTheDocument();
 
     await user.click(within(material).getByRole("button", { name: "Open application material" }));
     expect(onNavigate).toHaveBeenCalledWith("documents");
