@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { ApplicationArtifactRecord } from "../shared/artifact-contracts";
 import type { CandidatureRecord, DocumentRecord } from "../shared/contracts";
-import { useContextualHandoffs } from "./contextual-handoffs";
 
 function documentKind(document: DocumentRecord): string {
   return document.kind === "cv" ? "CV" : "Cover letter";
@@ -17,87 +16,6 @@ function artifactKind(artifact: ApplicationArtifactRecord): string {
     case "combined":
       return "combined CV + cover letter";
   }
-}
-
-function RetainedArtifactProjection({
-  candidatureId,
-  hasAssociatedDocuments,
-}: {
-  readonly candidatureId: string;
-  readonly hasAssociatedDocuments: boolean;
-}) {
-  const [artifacts, setArtifacts] = useState<ApplicationArtifactRecord[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [openError, setOpenError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void window.aaaat.artifacts
-      .list(candidatureId)
-      .then((nextArtifacts) => {
-        if (!active) return;
-        setArtifacts(nextArtifacts);
-        setLoadError(null);
-        setLoaded(true);
-      })
-      .catch(() => {
-        if (!active) return;
-        setArtifacts([]);
-        setLoadError("AAAAT could not load retained application artifacts.");
-        setLoaded(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, [candidatureId]);
-
-  const openArtifact = async (artifactId: string) => {
-    setOpenError(null);
-    try {
-      await window.aaaat.artifacts.open(artifactId);
-    } catch (reason) {
-      setOpenError(
-        reason instanceof Error ? reason.message : "AAAAT could not open the retained application PDF.",
-      );
-    }
-  };
-
-  return (
-    <>
-      {loaded && !hasAssociatedDocuments && artifacts.length === 0 && !loadError ? (
-        <p className="compact-empty">
-          No application material belongs to this candidature yet. Create a CV or cover letter, or
-          associate an existing working document if useful.
-        </p>
-      ) : null}
-      {loadError ? <p className="error-message" role="alert">{loadError}</p> : null}
-      {openError ? <p className="error-message" role="alert">{openError}</p> : null}
-      {artifacts.length > 0 ? (
-        <section aria-label="Retained application artifacts">
-          <h4>Retained exact artifacts</h4>
-          <div className="document-association-list">
-            {artifacts.map((artifact) => (
-              <article className="retained-information-card" key={artifact.id}>
-                <div>
-                  <p className="eyebrow">Retained exact {artifactKind(artifact)} artifact</p>
-                  <h4>{artifact.title}</h4>
-                  <p>Captured {new Date(artifact.capturedAt).toLocaleString()}</p>
-                </div>
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  onClick={() => void openArtifact(artifact.id)}
-                >
-                  Open retained PDF
-                </button>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-    </>
-  );
 }
 
 export function CandidatureApplicationMaterialPanel({
@@ -117,8 +35,46 @@ export function CandidatureApplicationMaterialPanel({
   readonly onSaveDocuments: () => void;
   readonly onOpenDocument: (documentId?: string) => void;
 }) {
-  const { documentHandoff } = useContextualHandoffs();
-  const contextualDocumentActive = documentHandoff?.candidatureId === candidature.id;
+  const [artifactState, setArtifactState] = useState<{
+    readonly candidatureId: string;
+    readonly artifacts: ApplicationArtifactRecord[];
+    readonly error: string | null;
+    readonly loaded: boolean;
+  }>(() => ({ candidatureId: candidature.id, artifacts: [], error: null, loaded: false }));
+  const [artifactOpenFailure, setArtifactOpenFailure] = useState<{
+    readonly candidatureId: string;
+    readonly error: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void window.aaaat.artifacts
+      .list(candidature.id)
+      .then((artifacts) => {
+        if (active) {
+          setArtifactState({ candidatureId: candidature.id, artifacts, error: null, loaded: true });
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setArtifactState({
+          candidatureId: candidature.id,
+          artifacts: [],
+          error: "AAAAT could not load retained application artifacts.",
+          loaded: true,
+        });
+      });
+    return () => {
+      active = false;
+    };
+  }, [candidature.id, documents]);
+
+  const currentArtifactState =
+    artifactState.candidatureId === candidature.id
+      ? artifactState
+      : { candidatureId: candidature.id, artifacts: [], error: null, loaded: false };
+  const artifactOpenError =
+    artifactOpenFailure?.candidatureId === candidature.id ? artifactOpenFailure.error : null;
   const associatedDocuments = useMemo(
     () =>
       candidature.documentIds
@@ -126,7 +82,20 @@ export function CandidatureApplicationMaterialPanel({
         .filter((document): document is DocumentRecord => document !== undefined),
     [candidature.documentIds, documents],
   );
-  const artifactProjectionKey = `${candidature.id}:${contextualDocumentActive ? "handoff" : "candidature"}`;
+  const hasMaterial = associatedDocuments.length > 0 || currentArtifactState.artifacts.length > 0;
+
+  const openArtifact = async (artifactId: string) => {
+    setArtifactOpenFailure(null);
+    try {
+      await window.aaaat.artifacts.open(artifactId);
+    } catch (reason) {
+      setArtifactOpenFailure({
+        candidatureId: candidature.id,
+        error:
+          reason instanceof Error ? reason.message : "AAAAT could not open the retained application PDF.",
+      });
+    }
+  };
 
   return (
     <section className="candidature-documents section-surface" aria-label="Application material">
@@ -140,6 +109,13 @@ export function CandidatureApplicationMaterialPanel({
           Create CV or letter for this candidature
         </button>
       </div>
+
+      {currentArtifactState.loaded && !hasMaterial && !currentArtifactState.error ? (
+        <p className="compact-empty">
+          No application material belongs to this candidature yet. Create a CV or cover letter, or
+          associate an existing working document if useful.
+        </p>
+      ) : null}
 
       {associatedDocuments.length > 0 ? (
         <section aria-label="Working application documents">
@@ -165,11 +141,33 @@ export function CandidatureApplicationMaterialPanel({
         </section>
       ) : null}
 
-      <RetainedArtifactProjection
-        key={artifactProjectionKey}
-        candidatureId={candidature.id}
-        hasAssociatedDocuments={associatedDocuments.length > 0}
-      />
+      {currentArtifactState.error ? (
+        <p className="error-message" role="alert">{currentArtifactState.error}</p>
+      ) : null}
+      {artifactOpenError ? <p className="error-message" role="alert">{artifactOpenError}</p> : null}
+      {currentArtifactState.artifacts.length > 0 ? (
+        <section aria-label="Retained application artifacts">
+          <h4>Retained exact artifacts</h4>
+          <div className="document-association-list">
+            {currentArtifactState.artifacts.map((artifact) => (
+              <article className="retained-information-card" key={artifact.id}>
+                <div>
+                  <p className="eyebrow">Retained exact {artifactKind(artifact)} artifact</p>
+                  <h4>{artifact.title}</h4>
+                  <p>Captured {new Date(artifact.capturedAt).toLocaleString()}</p>
+                </div>
+                <button
+                  type="button"
+                  className="compact-secondary"
+                  onClick={() => void openArtifact(artifact.id)}
+                >
+                  Open retained PDF
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <details className="application-material-associations">
         <summary>Manage existing document associations</summary>
