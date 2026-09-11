@@ -7,7 +7,8 @@
 .candidature-toolbar,
 .candidature-editor-heading,
 .focus-heading,
-.source-card-heading {
+.source-card-heading,
+.source-reader-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -22,7 +23,8 @@
 .focus-heading h3,
 .focus-panel h4,
 .candidature-working-brief h3,
-.candidature-sources h3 {
+.candidature-sources h3,
+.source-reader-heading h4 {
   margin: 0;
 }
 
@@ -373,6 +375,7 @@
 }
 
 .source-card,
+.source-reader-panel,
 .concept-association-card {
   display: grid;
   gap: 8px;
@@ -382,7 +385,8 @@
   background: #fffdf9;
 }
 
-.source-card-heading > div {
+.source-card-heading > div,
+.source-reader-heading > div {
   display: grid;
   gap: 2px;
 }
@@ -396,6 +400,14 @@
 
 .source-reference {
   overflow-wrap: anywhere;
+}
+
+.candidature-sources .source-reader-content {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .source-editor-panel,
@@ -485,7 +497,8 @@
   .candidature-toolbar,
   .candidature-editor-heading,
   .focus-heading,
-  .source-card-heading {
+  .source-card-heading,
+  .source-reader-heading {
     align-items: flex-start;
     flex-direction: column;
   }
