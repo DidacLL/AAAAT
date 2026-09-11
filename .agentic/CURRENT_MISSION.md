@@ -2,13 +2,13 @@
 
 ## Active bounded work
 
-[Issue #271](https://github.com/DidacLL/AAAAT/issues/271) is the sole active bounded product outcome on branch `product/source-read-first`.
+None. [Issue #271](https://github.com/DidacLL/AAAAT/issues/271) and [PR #272](https://github.com/DidacLL/AAAAT/pull/272) are complete.
 
-The outcome is to make candidature Sources read-first: keep the existing compact Source overview, add a deliberate full-content reading state, and make mutation a separate deliberate action from that Source context. Reuse the existing Source model/services, section navigation and dirty-state boundary rather than introducing a new data model or routing system.
-
-Treat this as Class B renderer interaction/composition while service, persistence, preload/main authority and durable semantics remain unchanged. Do not expand it into Source fetching/cleaning, extraction or AI work, search changes, schema/migrations, global navigation/state infrastructure, dependencies, or unrelated candidature redesign. Escalate only if implementation genuinely crosses an existing technical authority boundary.
+No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
 
 ## Recently completed outcomes
+
+[Issue #271](https://github.com/DidacLL/AAAAT/issues/271) and [PR #272](https://github.com/DidacLL/AAAAT/pull/272) are complete. Candidature Sources are now read-first: the overview keeps bounded recognizable Source summaries, each Source opens into a deliberate read-only full-content context with its identity/reference retained, and mutation is entered separately through the existing Source editor/API. Long retained text wraps without horizontal overflow at normal desktop size and exact `720×600`; returning to the overview does not mutate data. Existing Source persistence/search semantics, sparse capture, Focus Source cues, manual/no-AI operation, and candidature dirty-state protections remain unchanged. No schema, service/preload/main authority, AI/extraction behavior, dependency or new routing/state model was introduced.
 
 [Issue #269](https://github.com/DidacLL/AAAAT/issues/269) and [PR #270](https://github.com/DidacLL/AAAAT/pull/270) are complete. Candidature Focus now composes retained information and material for rapid recall before configuration: existing Focus field visibility/order/prominence remain authoritative, Sources are bounded to short recognition cues with a handoff to the existing Sources section, Concepts are read-first with deeper maintenance kept in the existing contextual Concept surface, reminder reading/check state remains primary while add/edit/delete stay deliberately secondary, and associated CV/cover-letter material hands off to the existing application-material surface. Existing Focus material preferences, reminder authority, dirty-state navigation safeguards, manual/no-AI behavior and privacy semantics are preserved; no schema, persistence, preload/main authority, AI behavior, document service, dependency or new view model was introduced.
 
