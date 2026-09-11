@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { ApplicationArtifactRecord } from "../shared/artifact-contracts";
 import type { CandidatureRecord, DocumentRecord } from "../shared/contracts";
+import { useContextualHandoffs } from "./contextual-handoffs";
 
 function documentKind(document: DocumentRecord): string {
   return document.kind === "cv" ? "CV" : "Cover letter";
@@ -35,6 +36,8 @@ export function CandidatureApplicationMaterialPanel({
   readonly onSaveDocuments: () => void;
   readonly onOpenDocument: (documentId?: string) => void;
 }) {
+  const { documentHandoff } = useContextualHandoffs();
+  const contextualDocumentActive = documentHandoff?.candidatureId === candidature.id;
   const [artifactState, setArtifactState] = useState<{
     readonly candidatureId: string;
     readonly artifacts: ApplicationArtifactRecord[];
@@ -67,7 +70,7 @@ export function CandidatureApplicationMaterialPanel({
     return () => {
       active = false;
     };
-  }, [candidature.id, documents]);
+  }, [candidature.id, contextualDocumentActive, documents]);
 
   const currentArtifactState =
     artifactState.candidatureId === candidature.id
