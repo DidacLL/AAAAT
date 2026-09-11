@@ -11,7 +11,7 @@ import type {
 import type { FocusMaterialPreferences } from "../shared/focus-contracts";
 import type { TodoRecord } from "../shared/todo-contracts";
 
-export type FocusDestination = "information";
+export type FocusDestination = "information" | "sources" | "documents";
 
 interface Props {
   readonly record: CandidatureRecord;
@@ -29,6 +29,8 @@ const defaultMaterialPreferences: FocusMaterialPreferences = {
   todos: true,
   documents: true,
 };
+
+const maximumFocusSources = 3;
 
 function displayValue(
   field: CandidatureFieldConfiguration,
@@ -48,10 +50,18 @@ function sourceLabel(source: CandidatureSource): string {
   return source.title.trim() || source.kind.replaceAll("_", " ");
 }
 
+function sourceType(source: CandidatureSource): string {
+  return source.kind.replaceAll("_", " ");
+}
+
 function sourcePreview(source: CandidatureSource): string {
   const normalized = source.sourceText.trim().replaceAll(/\s+/g, " ");
   if (!normalized) return "";
-  return normalized.length > 320 ? `${normalized.slice(0, 317)}…` : normalized;
+  return normalized.length > 140 ? `${normalized.slice(0, 137)}…` : normalized;
+}
+
+function documentType(document: DocumentRecord): string {
+  return document.kind === "cv" ? "CV" : "Cover letter";
 }
 
 export function CandidatureFocusPanel({
@@ -68,7 +78,6 @@ export function CandidatureFocusPanel({
   const [sources, setSources] = useState<CandidatureSource[]>([]);
   const [todos, setTodos] = useState<TodoRecord[]>([]);
   const [focusConcepts, setFocusConcepts] = useState<ConceptRecord[]>([...concepts]);
-  const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
   const [materialError, setMaterialError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -164,6 +173,13 @@ export function CandidatureFocusPanel({
     }
   };
 
+  const openConceptMaintenance = () => {
+    const details = document.querySelector<HTMLDetailsElement>(".candidature-concepts-support");
+    if (!details) return;
+    details.open = true;
+    details.scrollIntoView?.({ block: "nearest" });
+  };
+
   const values = new Map(record.values.map((value) => [value.fieldId, value.value]));
   const focusFields = fields
     .filter(
@@ -186,29 +202,7 @@ export function CandidatureFocusPanel({
     associatedConcepts.find((concept) => concept.id === selectedConceptId) ??
     associatedConcepts[0] ??
     null;
-  const notesDraft = selectedConcept
-    ? (notesDrafts[selectedConcept.id] ?? selectedConcept.notes ?? "")
-    : "";
-
-  const saveConceptNotes = async () => {
-    if (!selectedConcept) return;
-    setMaterialError(null);
-    try {
-      const updated = await window.aaaat.candidatures.updateConcept({
-        id: selectedConcept.id,
-        name: selectedConcept.name,
-        definition: selectedConcept.definition,
-        aliases: selectedConcept.aliases,
-        notes: notesDraft,
-      });
-      setFocusConcepts((current) =>
-        current.map((concept) => (concept.id === updated.id ? updated : concept)),
-      );
-      setNotesDrafts((current) => ({ ...current, [updated.id]: updated.notes ?? "" }));
-    } catch {
-      setMaterialError("AAAAT could not save these concept notes.");
-    }
-  };
+  const visibleSources = sources.slice(0, maximumFocusSources);
 
   return (
     <section className="focus-panel" aria-label="Candidature Focus">
@@ -216,47 +210,13 @@ export function CandidatureFocusPanel({
         <div>
           <p className="eyebrow">Focus</p>
           <h3>{record.label}</h3>
-          <p>Only retained information and material you configured for Focus appears here.</p>
+          <p>Useful retained context for quick recognition and recall.</p>
         </div>
-        <button
-          type="button"
-          className="compact-secondary"
-          onClick={() => onNavigate("information")}
-        >
-          Configure Focus information
-        </button>
       </div>
 
-      <fieldset className="editor-card" aria-label="Focus material">
-        <legend>Focus material</legend>
-        {(
-          [
-            ["sources", "Sources"],
-            ["concepts", "Concepts"],
-            ["todos", "Reminders"],
-            ["documents", "Application material"],
-          ] as const
-        ).map(([key, label]) => (
-          <label key={key}>
-            <input
-              type="checkbox"
-              checked={materialPreferences[key]}
-              onChange={(event) => void setMaterialVisible(key, event.target.checked)}
-            />
-            {label}
-          </label>
-        ))}
-      </fieldset>
       {materialError ? <p className="error-message" role="alert">{materialError}</p> : null}
 
-      {focusFields.length === 0 ? (
-        <div className="compact-empty">
-          <p>No retained candidature information is currently shown in Focus.</p>
-          <button type="button" onClick={() => onNavigate("information")}>
-            Choose Focus information
-          </button>
-        </div>
-      ) : (
+      {focusFields.length > 0 ? (
         <div className="focus-grid">
           {focusFields.map((field) => {
             const value = values.get(field.definition.id);
@@ -272,29 +232,51 @@ export function CandidatureFocusPanel({
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {materialPreferences.sources && sources.length > 0 ? (
-        <section className="focus-documents">
-          <h4>Sources</h4>
-          <div className="source-card-list">
-            {sources.map((source) => {
+        <section className="focus-documents" aria-label="Sources">
+          <div className="focus-section-heading">
+            <h4>Sources</h4>
+            <button type="button" className="compact-secondary" onClick={() => onNavigate("sources")}>
+              Open Sources
+            </button>
+          </div>
+          <div className="source-card-list focus-source-list">
+            {visibleSources.map((source, index) => {
               const preview = sourcePreview(source);
               return (
-                <article className="source-card" key={source.id}>
-                  <strong>{sourceLabel(source)}</strong>
+                <article
+                  className="source-card focus-source-cue"
+                  key={source.id}
+                  aria-label={focusFields.length === 0 && index === 0 ? "Recognition clue" : undefined}
+                >
+                  <div>
+                    <strong>{sourceLabel(source)}</strong>
+                    <span>{sourceType(source)}</span>
+                  </div>
                   {source.url ? <p className="source-reference">{source.url}</p> : null}
                   {preview ? <p>{preview}</p> : null}
                 </article>
               );
             })}
           </div>
+          {sources.length > maximumFocusSources ? (
+            <p className="compact-help">
+              {sources.length - maximumFocusSources} more {sources.length - maximumFocusSources === 1 ? "Source" : "Sources"} available.
+            </p>
+          ) : null}
         </section>
       ) : null}
 
       {materialPreferences.concepts && associatedConcepts.length > 0 ? (
         <section className="focus-concepts">
-          <h4>Concepts &amp; keywords</h4>
+          <div className="focus-section-heading">
+            <h4>Concepts &amp; keywords</h4>
+            <button type="button" className="compact-secondary" onClick={openConceptMaintenance}>
+              Manage concepts
+            </button>
+          </div>
           <div className="concept-chip-row">
             {associatedConcepts.map((concept) => (
               <button
@@ -319,27 +301,6 @@ export function CandidatureFocusPanel({
                 <p><strong>Aliases:</strong> {selectedConcept.aliases.join(", ")}</p>
               ) : null}
               {selectedConcept.notes ? <p><strong>Notes:</strong> {selectedConcept.notes}</p> : null}
-              <label>
-                Concept notes
-                <textarea
-                  rows={3}
-                  value={notesDraft}
-                  onChange={(event) =>
-                    setNotesDrafts((current) => ({
-                      ...current,
-                      [selectedConcept.id]: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <button
-                type="button"
-                className="compact-secondary"
-                disabled={notesDraft === (selectedConcept.notes ?? "")}
-                onClick={() => void saveConceptNotes()}
-              >
-                Save concept notes
-              </button>
             </article>
           ) : null}
         </section>
@@ -347,14 +308,9 @@ export function CandidatureFocusPanel({
 
       {materialPreferences.todos ? (
         <section className="focus-documents" aria-label="Reminders">
-          <div className="button-row">
-            <h4>Reminders</h4>
-            <button type="button" className="compact-secondary" onClick={() => void addReminder()}>
-              Add reminder
-            </button>
-          </div>
+          <h4>Reminders</h4>
           {todos.length === 0 ? <p className="compact-empty">No reminders for this candidature.</p> : (
-            <ul>
+            <ul className="focus-reminder-list">
               {todos.map((todo) => (
                 <li key={todo.id}>
                   <label>
@@ -365,32 +321,96 @@ export function CandidatureFocusPanel({
                       aria-label={`Mark ${todo.body} ${todo.done ? "not done" : "done"}`}
                     />{" "}
                     <span>{todo.body}</span>
-                  </label>{" "}
-                  <button type="button" className="compact-secondary" onClick={() => void editReminder(todo)}>
-                    Edit
-                  </button>{" "}
-                  <button type="button" className="compact-secondary" onClick={() => void removeReminder(todo)}>
-                    Delete
-                  </button>
+                  </label>
                 </li>
               ))}
             </ul>
           )}
+          <details className="focus-secondary-actions">
+            <summary>Manage reminders</summary>
+            <div className="focus-reminder-actions">
+              <button type="button" className="compact-secondary" onClick={() => void addReminder()}>
+                Add reminder
+              </button>
+              {todos.map((todo) => (
+                <div className="button-row" key={todo.id}>
+                  <button
+                    type="button"
+                    className="compact-secondary"
+                    aria-label={`Edit ${todo.body}`}
+                    onClick={() => void editReminder(todo)}
+                  >
+                    Edit “{todo.body}”
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-secondary"
+                    aria-label={`Delete ${todo.body}`}
+                    onClick={() => void removeReminder(todo)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </details>
         </section>
       ) : null}
 
       {materialPreferences.documents && associatedDocuments.length > 0 ? (
-        <section className="focus-documents">
-          <h4>Application material</h4>
-          <ul>
+        <section className="focus-documents" aria-label="Application material">
+          <div className="focus-section-heading">
+            <h4>Application material</h4>
+            <button type="button" className="compact-secondary" onClick={() => onNavigate("documents")}>
+              Open application material
+            </button>
+          </div>
+          <ul className="focus-document-list">
             {associatedDocuments.map((document) => (
               <li key={document.id}>
-                {document.title} · {document.kind === "cv" ? "CV" : "cover letter"}
+                <strong>{document.title}</strong>
+                <span>{documentType(document)} · working document</span>
               </li>
             ))}
           </ul>
         </section>
       ) : null}
+
+      <details className="focus-customization">
+        <summary>Customize Focus</summary>
+        <div className="focus-customization-content">
+          {focusFields.length === 0 ? (
+            <p className="compact-help">No retained candidature information is currently configured for Focus.</p>
+          ) : null}
+          <fieldset className="editor-card" aria-label="Focus material">
+            <legend>Focus material</legend>
+            {(
+              [
+                ["sources", "Sources"],
+                ["concepts", "Concepts"],
+                ["todos", "Reminders"],
+                ["documents", "Application material"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key}>
+                <input
+                  type="checkbox"
+                  checked={materialPreferences[key]}
+                  onChange={(event) => void setMaterialVisible(key, event.target.checked)}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+          <button
+            type="button"
+            className="compact-secondary"
+            onClick={() => onNavigate("information")}
+          >
+            Configure Focus information
+          </button>
+        </div>
+      </details>
     </section>
   );
 }

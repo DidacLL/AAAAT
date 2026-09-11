@@ -226,8 +226,12 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await secondDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
 
     const reconciledMaterial = running.page.getByRole("region", { name: "Application material" });
-    await expect(reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)" })).not.toBeChecked();
-    await expect(reconciledMaterial.getByRole("checkbox", { name: "Second Handoff CV (CV)" })).toBeChecked();
+    await expect(
+      reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)", exact: true }),
+    ).not.toBeChecked();
+    await expect(
+      reconciledMaterial.getByRole("checkbox", { name: "Second Handoff CV (CV)", exact: true }),
+    ).toBeChecked();
     await reconciledMaterial.getByRole("button", { name: "Save document associations" }).click();
 
     const association = await running.page.evaluate(async () => {

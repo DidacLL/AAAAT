@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CandidatureFocusPanel } from "../src/renderer/CandidatureFocusPanel";
-import type { CandidatureRecord, CandidatureSource, ConceptRecord } from "../src/shared/contracts";
+import type {
+  CandidatureRecord,
+  CandidatureSource,
+  ConceptRecord,
+  DocumentRecord,
+} from "../src/shared/contracts";
 import type { FocusDesktopApi } from "../src/shared/focus-contracts";
 import type { TodoDesktopApi, TodoRecord } from "../src/shared/todo-contracts";
 
@@ -38,6 +43,21 @@ const concept: ConceptRecord = {
   aliases: ["IR"],
 };
 
+const documentRecord: DocumentRecord = {
+  id: "00000000-0000-4000-8000-000000000601",
+  kind: "cv",
+  title: "Platform CV",
+  variantId: null,
+  language: "en",
+  engine: "pdflatex",
+  bodyParagraphs: [],
+  mode: "managed",
+  rules: [],
+  projectPath: "/workspace/documents/platform-cv",
+  sourcePath: "/workspace/documents/platform-cv/main.tex",
+  artifactPath: "/workspace/documents/platform-cv/main.pdf",
+};
+
 const todo: TodoRecord = {
   id: "00000000-0000-4000-8000-000000000401",
   body: "Prepare incident response example",
@@ -56,8 +76,8 @@ const otherTodo: TodoRecord = {
 
 const current = vi.fn<FocusDesktopApi["focus"]["current"]>();
 const update = vi.fn<FocusDesktopApi["focus"]["update"]>();
+const listSources = vi.fn();
 const listConcepts = vi.fn();
-const updateConcept = vi.fn();
 const listTodos = vi.fn<TodoDesktopApi["todos"]["list"]>();
 const createTodo = vi.fn<TodoDesktopApi["todos"]["create"]>();
 const updateTodo = vi.fn<TodoDesktopApi["todos"]["update"]>();
@@ -69,9 +89,8 @@ function installApi() {
     configurable: true,
     value: {
       candidatures: {
-        listSources: async () => [source],
+        listSources,
         listConcepts,
-        updateConcept,
       },
       todos: {
         list: listTodos,
@@ -85,27 +104,38 @@ function installApi() {
   });
 }
 
-function renderFocus(record: CandidatureRecord = candidature) {
-  return render(
-    <CandidatureFocusPanel
-      record={record}
-      fields={[]}
-      concepts={record.conceptIds.includes(concept.id) ? [concept] : []}
-      documents={[]}
-      selectedConceptId={record.conceptIds.includes(concept.id) ? concept.id : null}
-      onSelectConcept={vi.fn()}
-      onNavigate={vi.fn()}
-    />,
+function renderFocus(
+  record: CandidatureRecord = candidature,
+  documents: readonly DocumentRecord[] = [],
+) {
+  const onNavigate = vi.fn();
+  const onSelectConcept = vi.fn();
+  const rendered = render(
+    <>
+      <CandidatureFocusPanel
+        record={record}
+        fields={[]}
+        concepts={record.conceptIds.includes(concept.id) ? [concept] : []}
+        documents={documents}
+        selectedConceptId={record.conceptIds.includes(concept.id) ? concept.id : null}
+        onSelectConcept={onSelectConcept}
+        onNavigate={onNavigate}
+      />
+      <details className="candidature-concepts-support">
+        <summary>Concept maintenance host</summary>
+      </details>
+    </>,
   );
+  return { ...rendered, onNavigate, onSelectConcept };
 }
 
-describe("Candidature Focus structural retrieval", () => {
+describe("Candidature Focus rapid recall", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     current.mockResolvedValue({ sources: true, concepts: true, todos: true, documents: true });
     update.mockImplementation(async (preferences) => preferences);
+    listSources.mockResolvedValue([source]);
     listConcepts.mockResolvedValue([]);
-    updateConcept.mockImplementation(async (input) => input);
     listTodos.mockResolvedValue([todo, otherTodo]);
     createTodo.mockImplementation(async (input) => ({
       ...todo,
@@ -124,21 +154,49 @@ describe("Candidature Focus structural retrieval", () => {
     cleanup();
   });
 
-  it("shows retained Source context and only reminders related to this candidature", async () => {
-    renderFocus();
+  it("leads with retained recall content while customization stays secondary", async () => {
+    const user = userEvent.setup();
+    const { onNavigate } = renderFocus();
 
-    expect(await screen.findByText("Recruiter note")).toBeInTheDocument();
-    expect(screen.getByText(/distributed systems experience/)).toBeInTheDocument();
+    const sourceLabels = await screen.findAllByText("Recruiter note");
     const reminders = screen.getByRole("region", { name: "Reminders" });
     expect(within(reminders).getByText("Prepare incident response example")).toBeInTheDocument();
     expect(within(reminders).queryByText("Reminder from another candidature")).not.toBeInTheDocument();
+
+    const customize = screen.getByText("Customize Focus");
+    const firstSourceLabel = sourceLabels[0];
+    expect(firstSourceLabel).toBeDefined();
+    if (!firstSourceLabel) return;
+    expect(firstSourceLabel.compareDocumentPosition(customize) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Focus material" })).not.toBeVisible();
+
+    await user.click(customize);
+    expect(screen.getByRole("group", { name: "Focus material" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Configure Focus information" }));
+    expect(onNavigate).toHaveBeenCalledWith("information");
   });
 
-  it("persists an independent structural material choice and hides that section", async () => {
+  it("uses a compact Source clue and provides the existing Sources handoff", async () => {
+    const user = userEvent.setup();
+    const longText = `${"Distributed systems and incident response. ".repeat(10)}Full detail belongs in Sources.`;
+    listSources.mockResolvedValue([{ ...source, sourceText: longText }]);
+    const { onNavigate } = renderFocus();
+
+    await screen.findAllByText("Recruiter note");
+    expect(screen.queryByText(longText)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Distributed systems and incident response/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("article", { name: "Recognition clue" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Open Sources" }));
+    expect(onNavigate).toHaveBeenCalledWith("sources");
+  });
+
+  it("persists an independent structural material choice from the secondary disclosure", async () => {
     const user = userEvent.setup();
     renderFocus();
 
-    await screen.findByText("Recruiter note");
+    await screen.findAllByText("Recruiter note");
+    await user.click(screen.getByText("Customize Focus"));
     const material = screen.getByRole("group", { name: "Focus material" });
     await user.click(within(material).getByRole("checkbox", { name: "Sources" }));
 
@@ -148,7 +206,7 @@ describe("Candidature Focus structural retrieval", () => {
       todos: true,
       documents: true,
     });
-    expect(screen.queryByText("Recruiter note")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Sources" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Reminders" })).toBeInTheDocument();
   });
 
@@ -156,8 +214,9 @@ describe("Candidature Focus structural retrieval", () => {
     const user = userEvent.setup();
     renderFocus();
 
-    const material = await screen.findByRole("group", { name: "Focus material" });
-    expect(screen.getByRole("region", { name: "Reminders" })).toBeInTheDocument();
+    await screen.findByRole("region", { name: "Reminders" });
+    await user.click(screen.getByText("Customize Focus"));
+    const material = screen.getByRole("group", { name: "Focus material" });
     await user.click(within(material).getByRole("checkbox", { name: "Reminders" }));
 
     expect(update).toHaveBeenCalledWith({
@@ -170,14 +229,22 @@ describe("Candidature Focus structural retrieval", () => {
     expect(removeTodo).not.toHaveBeenCalled();
   });
 
-  it("adds, checks, edits and removes reminders for the current candidature", async () => {
+  it("keeps reminder reading/check state primary while preserving add, edit and delete", async () => {
     const user = userEvent.setup();
     const prompt = vi.spyOn(window, "prompt");
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     renderFocus();
 
     const reminders = await screen.findByRole("region", { name: "Reminders" });
+    expect(within(reminders).getByRole("button", { name: "Add reminder" })).not.toBeVisible();
 
+    const originalCheckbox = within(reminders).getByRole("checkbox", {
+      name: "Mark Prepare incident response example done",
+    });
+    await user.click(originalCheckbox);
+    expect(toggleTodo).toHaveBeenCalledWith({ id: todo.id, done: true });
+
+    await user.click(within(reminders).getByText("Manage reminders"));
     prompt.mockReturnValueOnce("Ask about remote policy");
     await user.click(within(reminders).getByRole("button", { name: "Add reminder" }));
     expect(createTodo).toHaveBeenCalledWith({
@@ -186,62 +253,49 @@ describe("Candidature Focus structural retrieval", () => {
     });
     expect(within(reminders).getByText("Ask about remote policy")).toBeInTheDocument();
 
-    const originalRow = within(reminders)
-      .getByText("Prepare incident response example")
-      .closest("li");
-    expect(originalRow).not.toBeNull();
-    if (!originalRow) return;
-
-    await user.click(
-      within(originalRow).getByRole("checkbox", { name: "Mark Prepare incident response example done" }),
-    );
-    expect(toggleTodo).toHaveBeenCalledWith({ id: todo.id, done: true });
-
     prompt.mockReturnValueOnce("Prepare database failover example");
-    await user.click(within(originalRow).getByRole("button", { name: "Edit" }));
+    await user.click(within(reminders).getByRole("button", { name: `Edit ${todo.body}` }));
     expect(updateTodo).toHaveBeenCalledWith({
       id: todo.id,
       body: "Prepare database failover example",
       candidatureId: candidature.id,
     });
 
-    const editedRow = within(reminders)
-      .getByText("Prepare database failover example")
-      .closest("li");
-    expect(editedRow).not.toBeNull();
-    if (!editedRow) return;
-    await user.click(within(editedRow).getByRole("button", { name: "Delete" }));
+    await user.click(
+      within(reminders).getByRole("button", { name: "Delete Prepare database failover example" }),
+    );
     expect(confirm).toHaveBeenCalledWith("Delete reminder “Prepare database failover example”?");
     expect(removeTodo).toHaveBeenCalledWith(todo.id);
     expect(within(reminders).queryByText("Prepare database failover example")).not.toBeInTheDocument();
   });
 
-  it("shows and edits notes for a concept associated with the selected candidature", async () => {
+  it("shows Concept recall without an inline editor and opens existing Concept maintenance", async () => {
     const user = userEvent.setup();
     const record = { ...candidature, conceptIds: [concept.id] };
     listConcepts.mockResolvedValue([concept]);
-    updateConcept.mockImplementation(async (input) => ({ ...concept, ...input }));
 
     renderFocus(record);
 
-    const editor = await screen.findByLabelText("Concept notes");
-    expect(editor).toHaveValue("Use the payment outage example.");
-    await user.clear(editor);
-    await user.type(editor, "Use the database failover example instead.");
-    await user.click(screen.getByRole("button", { name: "Save concept notes" }));
+    expect(await screen.findByText(concept.definition)).toBeInTheDocument();
+    expect(screen.getByText("Notes:").parentElement).toHaveTextContent(concept.notes ?? "");
+    expect(screen.queryByLabelText("Concept notes")).not.toBeInTheDocument();
 
-    expect(updateConcept).toHaveBeenCalledWith({
-      id: concept.id,
-      name: concept.name,
-      definition: concept.definition,
-      aliases: concept.aliases,
-      notes: "Use the database failover example instead.",
-    });
-    expect(screen.getByText("Notes:").parentElement).toHaveTextContent(
-      "Use the database failover example instead.",
-    );
-    expect(screen.getByLabelText("Concept notes")).toHaveValue(
-      "Use the database failover example instead.",
-    );
+    const maintenance = screen.getByText("Concept maintenance host").closest("details");
+    expect(maintenance).not.toHaveAttribute("open");
+    await user.click(screen.getByRole("button", { name: "Manage concepts" }));
+    expect(maintenance).toHaveAttribute("open");
+  });
+
+  it("summarizes associated application material and hands off to the existing material surface", async () => {
+    const user = userEvent.setup();
+    const record = { ...candidature, documentIds: [documentRecord.id] };
+    const { onNavigate } = renderFocus(record, [documentRecord]);
+
+    const material = await screen.findByRole("region", { name: "Application material" });
+    expect(within(material).getByText("Platform CV")).toBeInTheDocument();
+    expect(within(material).getByText("CV · working document")).toBeInTheDocument();
+
+    await user.click(within(material).getByRole("button", { name: "Open application material" }));
+    expect(onNavigate).toHaveBeenCalledWith("documents");
   });
 });

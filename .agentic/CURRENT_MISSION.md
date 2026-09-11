@@ -2,11 +2,13 @@
 
 ## Active bounded work
 
-None. [Issue #266](https://github.com/DidacLL/AAAAT/issues/266) and [PR #267](https://github.com/DidacLL/AAAAT/pull/267) are complete.
+None. [Issue #269](https://github.com/DidacLL/AAAAT/issues/269) and [PR #270](https://github.com/DidacLL/AAAAT/pull/270) are complete.
 
 No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
 
 ## Recently completed outcomes
+
+[Issue #269](https://github.com/DidacLL/AAAAT/issues/269) and [PR #270](https://github.com/DidacLL/AAAAT/pull/270) are complete. Candidature Focus now composes retained information and material for rapid recall before configuration: existing Focus field visibility/order/prominence remain authoritative, Sources are bounded to short recognition cues with a handoff to the existing Sources section, Concepts are read-first with deeper maintenance kept in the existing contextual Concept surface, reminder reading/check state remains primary while add/edit/delete stay deliberately secondary, and associated CV/cover-letter material hands off to the existing application-material surface. Existing Focus material preferences, reminder authority, dirty-state navigation safeguards, manual/no-AI behavior and privacy semantics are preserved; no schema, persistence, preload/main authority, AI behavior, document service, dependency or new view model was introduced.
 
 [Issue #266](https://github.com/DidacLL/AAAAT/issues/266) and [PR #267](https://github.com/DidacLL/AAAAT/pull/267) are complete. Candidature-scoped lightweight reminders are now directly manageable in Focus through the existing persisted Todo model and bounded Todo API: users can add a reminder already associated to the current candidature, check/uncheck it, edit its text, and remove it deliberately. Focus continues to filter out other candidatures' reminders and its existing material preference can hide the reminder surface without deleting data. The contextual UI uses “Reminders” language and does not restore ToDos as a primary product destination. No schema, migration, IPC/main privilege, durable model, AI, scheduling, workflow, navigation, or dependency boundary changed.
 
