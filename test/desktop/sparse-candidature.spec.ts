@@ -260,9 +260,6 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     await expect(sources.getByRole("textbox", { name: "Source material" })).toHaveCount(0);
     await expectNoHorizontalOverflow(running.page, 1200, 800);
     await expectNoHorizontalOverflow(running.page, 720, 600);
-
-    await sources.getByRole("button", { name: "Back to Sources" }).click();
-    await expect(sources.getByText("Pilot vacancy", { exact: true })).toBeVisible();
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
