@@ -323,6 +323,9 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await expect(reopenedDocuments.getByRole("button", { name: "Return to Handoff opportunity" })).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 600, "reopened-document-context");
 
+    const outputTab = reopenedDocuments.getByRole("tab", { name: "Output", exact: true });
+    await outputTab.click();
+    await expect(outputTab).toHaveAttribute("aria-selected", "true");
     await reopenedDocuments
       .locator("summary")
       .filter({ hasText: "Application artifact for Handoff opportunity" })
