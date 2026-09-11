@@ -3,10 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CombinedDocumentExportPanel } from "../src/renderer/CombinedDocumentExportPanel";
-import {
-  ContextualHandoffContext,
-  type ContextualHandoffApi,
-} from "../src/renderer/contextual-handoffs";
 import type { ArtifactDesktopApi } from "../src/shared/artifact-contracts";
 import type { CombinedDocumentDesktopApi } from "../src/shared/combined-document-contracts";
 import type { CandidatureRecord, DocumentRecord } from "../src/shared/contracts";
@@ -59,26 +55,11 @@ const combinedArtifact = {
 const exportPacket = vi.fn<CombinedDocumentDesktopApi["combinedDocuments"]["exportPacket"]>();
 const captureCombined = vi.fn<ArtifactDesktopApi["artifacts"]["captureCombined"]>();
 
-function handoffs(candidatureId?: string): ContextualHandoffApi {
-  return {
-    documentHandoff: candidatureId ? { candidatureId } : null,
-    professionalInformationHandoff: null,
-    settingsHandoff: null,
-    openDocumentFromCandidature: vi.fn(),
-    returnToCandidature: vi.fn(),
-    openProfessionalInformationItem: vi.fn(),
-    returnToDocument: vi.fn(),
-    openSettingsFor: vi.fn(),
-    returnFromSettings: vi.fn(),
-  };
-}
-
-function installApi(records: readonly CandidatureRecord[] = []) {
+function installApi() {
   Object.defineProperty(window, "aaaat", {
     configurable: true,
     value: {
       combinedDocuments: { exportPacket },
-      candidatures: { list: vi.fn().mockResolvedValue(records) },
       artifacts: { captureCombined },
     },
   });
@@ -100,6 +81,7 @@ describe("combined document export panel", () => {
     const onNotice = vi.fn();
     render(
       <CombinedDocumentExportPanel
+        candidature={null}
         documents={[cv, coverLetter]}
         disabled={false}
         onError={onError}
@@ -121,21 +103,19 @@ describe("combined document export panel", () => {
   });
 
   it("retains the selected pair only when both belong to the candidature context", async () => {
-    installApi([candidature]);
     const user = userEvent.setup();
     const onNotice = vi.fn();
     render(
-      <ContextualHandoffContext.Provider value={handoffs(candidature.id)}>
-        <CombinedDocumentExportPanel
-          documents={[cv, coverLetter]}
-          disabled={false}
-          onError={vi.fn()}
-          onNotice={onNotice}
-        />
-      </ContextualHandoffContext.Provider>,
+      <CombinedDocumentExportPanel
+        candidature={candidature}
+        documents={[cv, coverLetter]}
+        disabled={false}
+        onError={vi.fn()}
+        onNotice={onNotice}
+      />,
     );
 
-    const retain = await screen.findByRole("button", {
+    const retain = screen.getByRole("button", {
       name: "Retain combined application artifact",
     });
     expect(retain).toBeEnabled();
@@ -151,20 +131,18 @@ describe("combined document export panel", () => {
     );
   });
 
-  it("does not offer retention for an unassociated selected pair", async () => {
-    installApi([{ ...candidature, documentIds: [cv.id] }]);
+  it("does not offer retention for an unassociated selected pair", () => {
     render(
-      <ContextualHandoffContext.Provider value={handoffs(candidature.id)}>
-        <CombinedDocumentExportPanel
-          documents={[cv, coverLetter]}
-          disabled={false}
-          onError={vi.fn()}
-          onNotice={vi.fn()}
-        />
-      </ContextualHandoffContext.Provider>,
+      <CombinedDocumentExportPanel
+        candidature={{ ...candidature, documentIds: [cv.id] }}
+        documents={[cv, coverLetter]}
+        disabled={false}
+        onError={vi.fn()}
+        onNotice={vi.fn()}
+      />,
     );
 
-    const retain = await screen.findByRole("button", {
+    const retain = screen.getByRole("button", {
       name: "Retain combined application artifact",
     });
     expect(retain).toBeDisabled();
@@ -174,6 +152,7 @@ describe("combined document export panel", () => {
   it("requires both working-document kinds", () => {
     render(
       <CombinedDocumentExportPanel
+        candidature={null}
         documents={[cv]}
         disabled={false}
         onError={vi.fn()}
