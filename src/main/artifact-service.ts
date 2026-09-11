@@ -26,7 +26,7 @@ interface ArtifactRow {
 
 type OpenPath = (artifactPath: string) => Promise<string>;
 
-export class ArtifactServiceError extends Error {
+class ArtifactServiceError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ArtifactServiceError";
