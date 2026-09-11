@@ -33,8 +33,6 @@ export function CandidatureApplicationMaterialPanel({
 
   useEffect(() => {
     let active = true;
-    setArtifacts([]);
-    setArtifactError(null);
     void window.aaaat.artifacts
       .list(candidature.id)
       .then((next) => {
