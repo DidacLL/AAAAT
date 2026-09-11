@@ -2,9 +2,11 @@
 
 ## Active bounded work
 
-None. [Issue #266](https://github.com/DidacLL/AAAAT/issues/266) and [PR #267](https://github.com/DidacLL/AAAAT/pull/267) are complete.
+[Issue #269](https://github.com/DidacLL/AAAAT/issues/269) is the sole active bounded product outcome on branch `product/focus-rapid-recall`.
 
-No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
+The outcome is to make Candidature Focus match its defining rapid-recall purpose: useful retained context is read-first, stable and scannable under divided attention, while customization and deeper editing remain deliberately secondary. The work reuses existing Focus preferences, candidature information, Sources, Concepts, reminders and application-material authority rather than creating a new view/data model.
+
+Treat this as Class B renderer interaction/composition while service, persistence, preload/main authority and durable semantics remain unchanged. Do not expand it into User View, dashboard/layout infrastructure, new reminder semantics, Source summarization, AI operations, schema/migrations, document redesign or unrelated candidature work. Escalate only if implementation genuinely crosses an existing technical authority boundary.
 
 ## Recently completed outcomes
 
