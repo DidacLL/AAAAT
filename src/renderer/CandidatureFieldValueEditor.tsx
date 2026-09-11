@@ -67,7 +67,7 @@ export function CandidatureFieldValueEditor({
     setText(textFor(value));
     setChoices(choicesFor(field, value));
     setError(null);
-  }, [field.definition.id, field.definition.valueType, value]);
+  }, [field, value]);
 
   const dirty =
     editing &&
