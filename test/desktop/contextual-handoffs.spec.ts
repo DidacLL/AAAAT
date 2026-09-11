@@ -4,7 +4,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { chromium, expect, test, type Browser, type Page } from "@playwright/test";
+import { chromium, expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 
 test.skip(process.platform !== "linux", "The packaged contextual-handoff journey runs once on Linux");
 
@@ -171,6 +171,14 @@ async function selectApplicationMaterial(page: Page): Promise<void> {
   await expect(tab).toHaveAttribute("aria-selected", "true");
 }
 
+async function openAssociationManagement(material: Locator): Promise<void> {
+  const details = material.locator("details.application-material-associations");
+  if ((await details.getAttribute("open")) === null) {
+    await details.locator(":scope > summary").click();
+  }
+  await expect(details).toHaveAttribute("open", "");
+}
+
 test("packaged candidature document handoff preserves dirty associations and exact return context", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-workspace-"));
@@ -210,9 +218,12 @@ test("packaged candidature document handoff preserves dirty associations and exa
     const applicationTab = running.page.getByRole("tab", { name: "Application material", exact: true });
     await expect(applicationTab).toHaveAttribute("aria-selected", "true");
     const returnedMaterial = running.page.getByRole("region", { name: "Application material" });
-    await expect(returnedMaterial).toContainText("Handoff CV (CV)");
+    const returnedWorking = returnedMaterial.getByRole("region", { name: "Working application documents" });
+    await expect(returnedWorking.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
+    await expect(returnedWorking.getByText("Working CV")).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 600, "returned-application-material");
 
+    await openAssociationManagement(returnedMaterial);
     const firstAssociation = returnedMaterial.getByRole("checkbox", { name: "Handoff CV (CV)" });
     await expect(firstAssociation).toBeChecked();
     await firstAssociation.uncheck();
@@ -226,6 +237,7 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await secondDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
 
     const reconciledMaterial = running.page.getByRole("region", { name: "Application material" });
+    await openAssociationManagement(reconciledMaterial);
     await expect(
       reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)", exact: true }),
     ).not.toBeChecked();

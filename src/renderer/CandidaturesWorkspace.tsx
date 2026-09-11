@@ -12,6 +12,7 @@ import type {
   DocumentRecord,
 } from "../shared/contracts";
 import { OpportunityReviewPanel } from "./OpportunityReviewPanel";
+import { CandidatureApplicationMaterialPanel } from "./CandidatureApplicationMaterialPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel, type FocusDestination } from "./CandidatureFocusPanel";
 import { CandidatureOpportunityResearchAccessPanel } from "./CandidatureOpportunityResearchAccessPanel";
@@ -1039,40 +1040,15 @@ export function CandidaturesWorkspace({
                 ) : null}
 
                 {section === "documents" ? (
-                  <section className="candidature-documents section-surface" aria-label="Application material">
-                    <div className="candidature-editor-heading">
-                      <div><p className="eyebrow">Application material</p><h3>Application material</h3></div>
-                      <button
-                        type="button"
-                        className="compact-secondary"
-                        onClick={() => openDocumentFromCandidature(selected.id)}
-                      >
-                        Create CV or letter for this candidature
-                      </button>
-                    </div>
-                    {documents.length === 0 ? <p className="compact-empty">No documents are available yet.</p> : (
-                      <div className="document-association-list">
-                        {documents.map((document) => (
-                          <div className="button-row" key={document.id}>
-                            <label>
-                              <input type="checkbox" checked={selectedDocumentIds.includes(document.id)} onChange={(event) => setSelectedDocumentIds((current) => event.target.checked ? [...current.filter((id) => id !== document.id), document.id] : current.filter((id) => id !== document.id))} />
-                              {document.title} ({document.kind === "cv" ? "CV" : "cover letter"})
-                            </label>
-                            {selected.documentIds.includes(document.id) ? (
-                              <button
-                                type="button"
-                                className="compact-secondary"
-                                onClick={() => openDocumentFromCandidature(selected.id, document.id)}
-                              >
-                                Open in CVs &amp; letters
-                              </button>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <button type="button" disabled={!documentSelectionDirty} onClick={() => void saveDocuments()}>Save document associations</button>
-                  </section>
+                  <CandidatureApplicationMaterialPanel
+                    candidature={selected}
+                    documents={documents}
+                    selectedDocumentIds={selectedDocumentIds}
+                    documentSelectionDirty={documentSelectionDirty}
+                    onDocumentSelectionChange={setSelectedDocumentIds}
+                    onSaveDocuments={() => void saveDocuments()}
+                    onOpenDocument={(documentId) => openDocumentFromCandidature(selected.id, documentId)}
+                  />
                 ) : null}
               </div>
 

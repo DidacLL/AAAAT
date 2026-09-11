@@ -2,11 +2,13 @@
 
 ## Active bounded work
 
-None. [Issue #271](https://github.com/DidacLL/AAAAT/issues/271) and [PR #272](https://github.com/DidacLL/AAAAT/pull/272) are complete.
+None. [Issue #273](https://github.com/DidacLL/AAAAT/issues/273) and [PR #274](https://github.com/DidacLL/AAAAT/pull/274) are complete.
 
 No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
 
 ## Recently completed outcomes
+
+[Issue #273](https://github.com/DidacLL/AAAAT/issues/273) and [PR #274](https://github.com/DidacLL/AAAAT/pull/274) are complete. Candidature Application material is now task-first: associated working CVs/cover letters are visible before administration and open through the existing contextual document handoff, retained exact application artifacts are shown separately through the existing artifact-list authority so mutable working documents are not mistaken for retained evidence, and creating new candidature-scoped document work remains primary. Existing-document association remains explicit under secondary management with its existing save and dirty-state semantics, including contextual handoff reconciliation. Manual/no-AI operation, automatic contextual association, artifact capture authority and document mutation semantics are unchanged; no schema, document/artifact service, preload/main authority, file-opening capability, AI behavior, render/export semantics, dependency or new routing/state model was introduced.
 
 [Issue #271](https://github.com/DidacLL/AAAAT/issues/271) and [PR #272](https://github.com/DidacLL/AAAAT/pull/272) are complete. Candidature Sources are now read-first: the overview keeps bounded recognizable Source summaries, each Source opens into a deliberate read-only full-content context with its identity/reference retained, and mutation is entered separately through the existing Source editor/API. Long retained text wraps without horizontal overflow at normal desktop size and exact `720×600`; returning to the overview does not mutate data. Existing Source persistence/search semantics, sparse capture, Focus Source cues, manual/no-AI operation, and candidature dirty-state protections remain unchanged. No schema, service/preload/main authority, AI/extraction behavior, dependency or new routing/state model was introduced.
 
