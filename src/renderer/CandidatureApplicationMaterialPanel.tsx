@@ -8,7 +8,14 @@ function documentKind(document: DocumentRecord): string {
 }
 
 function artifactKind(artifact: ApplicationArtifactRecord): string {
-  return artifact.kind === "cv" ? "CV" : "Cover letter";
+  switch (artifact.kind) {
+    case "cv":
+      return "CV";
+    case "cover_letter":
+      return "Cover letter";
+    case "combined":
+      return "combined CV + cover letter";
+  }
 }
 
 export function CandidatureApplicationMaterialPanel({
