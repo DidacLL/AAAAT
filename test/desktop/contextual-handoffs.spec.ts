@@ -1,5 +1,13 @@
 import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -46,6 +54,8 @@ async function startPackagedApp(userData: string, linuxHome: string): Promise<Ru
         GTK_USE_PORTAL: "0",
         HOME: linuxHome,
         XDG_CONFIG_HOME: path.join(linuxHome, ".config"),
+        XDG_DATA_HOME: path.join(linuxHome, ".local", "share"),
+        PATH: `${path.join(linuxHome, "bin")}${path.delimiter}${process.env.PATH ?? ""}`,
       },
       stdio: ["ignore", "ignore", "pipe"],
     },
@@ -91,9 +101,35 @@ async function stopPackagedApp(running: RunningApp): Promise<void> {
 function prepareLinuxChooserHome(workspacePath: string): string {
   const homePath = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-home-"));
   const configPath = path.join(homePath, ".config");
+  const binPath = path.join(homePath, "bin");
   mkdirSync(configPath, { recursive: true });
+  mkdirSync(binPath, { recursive: true });
+
   const escaped = workspacePath.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
   writeFileSync(path.join(configPath, "user-dirs.dirs"), `XDG_DOWNLOAD_DIR="${escaped}"\n`, "utf8");
+
+  const latexmk = path.join(binPath, "latexmk");
+  writeFileSync(
+    latexmk,
+    [
+      "#!/usr/bin/env node",
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      'fs.mkdirSync(path.join(process.cwd(), "build"), { recursive: true });',
+      'fs.writeFileSync(path.join(process.cwd(), "build", "main.pdf"), "packaged-retained-pdf");',
+    ].join("\n"),
+    "utf8",
+  );
+  chmodSync(latexmk, 0o755);
+
+  const xdgOpen = path.join(binPath, "xdg-open");
+  writeFileSync(
+    xdgOpen,
+    '#!/bin/sh\nprintf "%s\\n" "$1" > "$HOME/retained-opened.txt"\n',
+    "utf8",
+  );
+  chmodSync(xdgOpen, 0o755);
+
   return homePath;
 }
 
@@ -267,6 +303,31 @@ test("packaged candidature document handoff preserves dirty associations and exa
     await expect(reopenedDocuments.getByRole("heading", { name: "Second Handoff CV" })).toBeVisible();
     await expect(reopenedDocuments.getByRole("button", { name: "Return to Handoff opportunity" })).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 600, "reopened-document-context");
+
+    const outputTab = reopenedDocuments.getByRole("tab", { name: "Output", exact: true });
+    await outputTab.click();
+    await expect(outputTab).toHaveAttribute("aria-selected", "true");
+    await reopenedDocuments
+      .locator("summary")
+      .filter({ hasText: "Application artifact for Handoff opportunity" })
+      .click();
+    await reopenedDocuments.getByRole("button", { name: "Retain application artifact" }).click();
+    await expect(reopenedDocuments.getByText(/Retained application artifact:/)).toBeVisible();
+    await reopenedDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
+
+    const retainedMaterial = running.page.getByRole("region", { name: "Application material" });
+    const retainedArtifacts = retainedMaterial.getByRole("region", { name: "Retained application artifacts" });
+    await expect(retainedArtifacts.getByRole("heading", { name: "Second Handoff CV" })).toBeVisible();
+    await expect(retainedArtifacts.getByText("Retained exact CV artifact")).toBeVisible();
+    await expectNoHorizontalOverflow(running.page, 720, 600, "retained-artifact-inspection");
+    await retainedArtifacts.getByRole("button", { name: "Open retained PDF" }).click();
+
+    const openedMarker = path.join(linuxHome, "retained-opened.txt");
+    await expect.poll(() => existsSync(openedMarker)).toBe(true);
+    const openedPath = readFileSync(openedMarker, "utf8").trim();
+    expect(openedPath).toContain(`${path.sep}artifacts${path.sep}`);
+    expect(openedPath.endsWith(path.join("build", "main.pdf"))).toBe(true);
+    expect(openedPath).not.toContain(`${path.sep}documents${path.sep}`);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

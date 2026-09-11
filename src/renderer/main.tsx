@@ -136,6 +136,7 @@ function createPreviewApi(): DesktopApi &
     artifacts: Object.freeze({
       list: async () => [],
       capture: previewUnavailable,
+      open: previewUnavailable,
     }),
     todos: Object.freeze({
       list: async () => [],

@@ -1,6 +1,7 @@
 import {
   applicationArtifactCaptureSchema,
   applicationArtifactListSchema,
+  applicationArtifactOpenResultSchema,
   applicationArtifactRecordSchema,
   artifactChannels,
   type ArtifactDesktopApi,
@@ -20,6 +21,10 @@ export function createArtifactDesktopApi(invoke: Invoke): ArtifactDesktopApi {
     capture: async (input: Parameters<ArtifactDesktopApi["artifacts"]["capture"]>[0]) =>
       applicationArtifactRecordSchema.parse(
         await invoke(artifactChannels.capture, applicationArtifactCaptureSchema.parse(input)),
+      ),
+    open: async (artifactId: string) =>
+      applicationArtifactOpenResultSchema.parse(
+        await invoke(artifactChannels.open, applicationArtifactRecordSchema.shape.id.parse(artifactId)),
       ),
   });
 

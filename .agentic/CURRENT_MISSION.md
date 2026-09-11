@@ -2,11 +2,13 @@
 
 ## Active bounded work
 
-None. [Issue #273](https://github.com/DidacLL/AAAAT/issues/273) and [PR #274](https://github.com/DidacLL/AAAAT/pull/274) are complete.
+None. [Issue #275](https://github.com/DidacLL/AAAAT/issues/275) and [PR #276](https://github.com/DidacLL/AAAAT/pull/276) are complete.
 
 No successor Mission or implementation Issue is selected here. The next step is project-level reevaluation by the primary orchestrator against the current Product Definition and live `main` state.
 
 ## Recently completed outcomes
+
+[Issue #275](https://github.com/DidacLL/AAAAT/issues/275) and [PR #276](https://github.com/DidacLL/AAAAT/pull/276) are complete. Retained exact application artifacts are now inspectable from their candidature through a bounded ID-only desktop capability: the renderer/preload supplies only a validated artifact UUID, trusted main-process code resolves the current workspace and authoritative retained artifact row/path, verifies the retained PDF, and opens that exact file through Electron's platform shell operation. Working-document output remains a distinct mutable document action, and retained-artifact opening performs no persistence or activity mutation. ADR 0026 records the trusted boundary, and packaged Linux evidence covers the candidature journey at exact `720×600`. No generic filesystem/path opener, schema/migration, artifact mutation/export, AI behavior, global routing/state, dependency, or mutable-document fallback was introduced.
 
 [Issue #273](https://github.com/DidacLL/AAAAT/issues/273) and [PR #274](https://github.com/DidacLL/AAAAT/pull/274) are complete. Candidature Application material is now task-first: associated working CVs/cover letters are visible before administration and open through the existing contextual document handoff, retained exact application artifacts are shown separately through the existing artifact-list authority so mutable working documents are not mistaken for retained evidence, and creating new candidature-scoped document work remains primary. Existing-document association remains explicit under secondary management with its existing save and dirty-state semantics, including contextual handoff reconciliation. Manual/no-AI operation, automatic contextual association, artifact capture authority and document mutation semantics are unchanged; no schema, document/artifact service, preload/main authority, file-opening capability, AI behavior, render/export semantics, dependency or new routing/state model was introduced.
 

@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
   applicationArtifactCaptureSchema,
   applicationArtifactListSchema,
+  applicationArtifactOpenResultSchema,
   applicationArtifactRecordSchema,
   type ApplicationArtifactCapture,
+  type ApplicationArtifactOpenResult,
   type ApplicationArtifactRecord,
 } from "../shared/artifact-contracts";
 import { getDocument, renderDocument } from "./document-service";
@@ -21,6 +23,8 @@ interface ArtifactRow {
   readonly title: string;
   readonly capturedAt: string;
 }
+
+type OpenPath = (artifactPath: string) => Promise<string>;
 
 class ArtifactServiceError extends Error {
   constructor(message: string) {
@@ -54,6 +58,17 @@ function toRecord(rootPath: string, row: ArtifactRow): ApplicationArtifactRecord
     ...row,
     ...pathsForArtifact(rootPath, row.id),
   });
+}
+
+function artifactRowById(database: DatabaseSync, artifactId: string): ArtifactRow | undefined {
+  return database
+    .prepare(
+      `SELECT id, candidature_id AS candidatureId, document_id AS documentId,
+              kind, title, captured_at AS capturedAt
+         FROM application_artifacts
+        WHERE id = ?`,
+    )
+    .get(artifactId) as ArtifactRow | undefined;
 }
 
 function assertCaptureRelation(
@@ -99,6 +114,29 @@ export function listApplicationArtifacts(
 ): ApplicationArtifactRecord[] {
   const id = applicationArtifactCaptureSchema.shape.candidatureId.parse(candidatureId);
   return withWorkspaceDatabase(rootPath, (database) => listFromDatabase(database, rootPath, id));
+}
+
+export async function openApplicationArtifact(
+  rootPath: string,
+  rawArtifactId: string,
+  openPath: OpenPath,
+): Promise<ApplicationArtifactOpenResult> {
+  const artifactId = applicationArtifactRecordSchema.shape.id.parse(rawArtifactId);
+  const artifact = withWorkspaceDatabase(rootPath, (database) => {
+    const row = artifactRowById(database, artifactId);
+    if (!row) throw new ArtifactServiceError("The retained application artifact no longer exists.");
+    return toRecord(rootPath, row);
+  });
+
+  try {
+    if (!statSync(artifact.artifactPath).isFile()) throw new Error("not a file");
+  } catch {
+    throw new ArtifactServiceError("The retained application PDF is missing.");
+  }
+
+  const error = await openPath(artifact.artifactPath);
+  if (error) throw new ArtifactServiceError("AAAAT could not open the retained application PDF.");
+  return applicationArtifactOpenResultSchema.parse({ opened: true });
 }
 
 export async function captureApplicationArtifact(

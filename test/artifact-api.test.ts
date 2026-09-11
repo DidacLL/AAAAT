@@ -7,8 +7,9 @@ import { artifactChannels } from "../src/shared/artifact-contracts";
 
 const candidatureId = "00000000-0000-4000-8000-000000000601";
 const documentId = "00000000-0000-4000-8000-000000000602";
+const artifactId = "00000000-0000-4000-8000-000000000603";
 const record = {
-  id: "00000000-0000-4000-8000-000000000603",
+  id: artifactId,
   candidatureId,
   documentId,
   kind: "cv" as const,
@@ -20,18 +21,22 @@ const record = {
 };
 
 describe("application artifact preload API", () => {
-  it("uses only named artifact channels with validated inputs", async () => {
-    const invoke = vi.fn(async (channel: string) =>
-      channel === artifactChannels.list ? [record] : record,
-    );
+  it("uses only named artifact channels with validated IDs and inputs", async () => {
+    const invoke = vi.fn(async (channel: string) => {
+      if (channel === artifactChannels.list) return [record];
+      if (channel === artifactChannels.open) return { opened: true as const };
+      return record;
+    });
     const api = createArtifactDesktopApi(invoke);
 
     await expect(api.artifacts.list(candidatureId)).resolves.toEqual([record]);
     await expect(api.artifacts.capture({ candidatureId, documentId })).resolves.toEqual(record);
+    await expect(api.artifacts.open(artifactId)).resolves.toEqual({ opened: true });
 
-    expect(invoke.mock.calls.map(([channel]) => channel)).toEqual([
-      artifactChannels.list,
-      artifactChannels.capture,
+    expect(invoke.mock.calls).toEqual([
+      [artifactChannels.list, candidatureId],
+      [artifactChannels.capture, { candidatureId, documentId }],
+      [artifactChannels.open, artifactId],
     ]);
   });
 
@@ -40,6 +45,7 @@ describe("application artifact preload API", () => {
     const api = createArtifactDesktopApi(invoke);
 
     await expect(api.artifacts.capture({ candidatureId: "not-an-id", documentId })).rejects.toThrow();
+    await expect(api.artifacts.open("not-an-id")).rejects.toThrow();
     expect(invoke).not.toHaveBeenCalled();
   });
 });
