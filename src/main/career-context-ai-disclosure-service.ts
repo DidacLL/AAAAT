@@ -4,7 +4,6 @@ import {
   careerContextAiDisclosureSchema,
   careerContextAiDisclosureUpdateSchema,
   type CareerContextAiDisclosure,
-  type CareerContextAiDisclosureKey,
   type CareerContextAiDisclosureUpdate,
 } from "../shared/career-context-ai-disclosure-contracts";
 import { withWorkspaceDatabase } from "./workspace";
@@ -18,16 +17,6 @@ interface DisclosureRow {
   readonly workPreferences: number;
   readonly applicationWritingPreferences: number;
 }
-
-const columns: Readonly<Record<CareerContextAiDisclosureKey, string>> = Object.freeze({
-  careerDirection: "career_direction_external_ai_visible",
-  objectives: "objectives_external_ai_visible",
-  constraints: "constraints_external_ai_visible",
-  targetRoles: "target_roles_external_ai_visible",
-  targetMarketsLocations: "target_markets_locations_external_ai_visible",
-  workPreferences: "work_preferences_external_ai_visible",
-  applicationWritingPreferences: "application_writing_preferences_external_ai_visible",
-});
 
 function readDisclosure(database: DatabaseSync): CareerContextAiDisclosure {
   const row = database
@@ -66,14 +55,34 @@ export function updateCareerContextAiDisclosure(
   const update = careerContextAiDisclosureUpdateSchema.parse(rawUpdate);
   return withWorkspaceDatabase(rootPath, (database) => {
     const current = readDisclosure(database);
-    if (current[update.key] === update.share) return current;
+    if (JSON.stringify(current) === JSON.stringify(update)) return current;
 
     const occurredAt = new Date().toISOString();
     database.exec("BEGIN IMMEDIATE");
     try {
       database
-        .prepare(`UPDATE career_context SET ${columns[update.key]} = ?, updated_at = ? WHERE id = 1`)
-        .run(update.share ? 1 : 0, occurredAt);
+        .prepare(
+          `UPDATE career_context
+           SET career_direction_external_ai_visible = ?,
+               objectives_external_ai_visible = ?,
+               constraints_external_ai_visible = ?,
+               target_roles_external_ai_visible = ?,
+               target_markets_locations_external_ai_visible = ?,
+               work_preferences_external_ai_visible = ?,
+               application_writing_preferences_external_ai_visible = ?,
+               updated_at = ?
+           WHERE id = 1`,
+        )
+        .run(
+          update.careerDirection ? 1 : 0,
+          update.objectives ? 1 : 0,
+          update.constraints ? 1 : 0,
+          update.targetRoles ? 1 : 0,
+          update.targetMarketsLocations ? 1 : 0,
+          update.workPreferences ? 1 : 0,
+          update.applicationWritingPreferences ? 1 : 0,
+          occurredAt,
+        );
       database
         .prepare(
           `INSERT INTO career_context_activity(occurred_at, action)
