@@ -60,11 +60,11 @@ describe("CareerContextPanel", () => {
       await screen.findByRole("heading", { name: "Career preferences" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Add only preferences or constraints/)).toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "Career direction" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /^Career direction/ })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add career preferences" }));
-    expect(screen.getByRole("textbox", { name: "Career direction" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Constraints" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /^Career direction/ })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /^Constraints/ })).toBeInTheDocument();
   });
 
   it("saves fictional current context and returns to a non-empty summary", async () => {
@@ -74,12 +74,12 @@ describe("CareerContextPanel", () => {
 
     await user.click(screen.getByRole("button", { name: "Add career preferences" }));
     await user.type(
-      screen.getByRole("textbox", { name: "Career direction" }),
+      screen.getByRole("textbox", { name: /^Career direction/ }),
       "Move toward staff-level platform work",
     );
-    await user.type(screen.getByRole("textbox", { name: "Constraints" }), "No relocation");
+    await user.type(screen.getByRole("textbox", { name: /^Constraints/ }), "No relocation");
     await user.type(
-      screen.getByRole("textbox", { name: "Target markets / locations" }),
+      screen.getByRole("textbox", { name: /^Target markets \/ locations/ }),
       "Spain / EU remote or hybrid",
     );
     await user.click(screen.getByRole("button", { name: "Save career preferences" }));
