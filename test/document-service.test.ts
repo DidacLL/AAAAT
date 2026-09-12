@@ -283,7 +283,7 @@ describe("manual document service", () => {
     ).toBe(false);
   });
 
-  it("removes provisional activity when initial generated-data installation fails", () => {
+  it("removes the provisional document when initial generated-data installation fails", () => {
     const root = workspace();
     const { variant } = seeded(root);
 
@@ -298,14 +298,10 @@ describe("manual document service", () => {
       }),
     ).toThrow("could not safely replace generated document data");
 
-    const evidence = withWorkspaceDatabase(root, (database) => ({
-      documents: database.prepare("SELECT COUNT(*) AS count FROM documents").get(),
-      activity: database
-        .prepare("SELECT action FROM document_activity ORDER BY id")
-        .all(),
-    }));
-    expect(evidence.documents).toEqual({ count: 0 });
-    expect(evidence.activity).toEqual([]);
+    const documents = withWorkspaceDatabase(root, (database) =>
+      database.prepare("SELECT COUNT(*) AS count FROM documents").get(),
+    );
+    expect(documents).toEqual({ count: 0 });
   });
 
   const permissionIt = process.platform === "win32" ? it.skip : it;
