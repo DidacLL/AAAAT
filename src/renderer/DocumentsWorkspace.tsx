@@ -413,6 +413,18 @@ export function DocumentsWorkspace({
     }
   };
 
+  const openSourceProject = async () => {
+    if (!selected) return;
+    setError(null);
+    setNotice(null);
+    try {
+      await window.aaaat.documentOutput.openProject(selected.id);
+      setNotice("Opened the live document source project.");
+    } catch {
+      setError("AAAAT could not open the live document source project.");
+    }
+  };
+
   const exportProject = async () => {
     if (!selected) return;
     if (editorDirty) {
@@ -867,6 +879,7 @@ export function DocumentsWorkspace({
                   <p><span>PDF</span><code>{selected.artifactPath}</code></p>
                 </div>
                 <div className="document-actions document-advanced-actions">
+                  <button type="button" onClick={() => void openSourceProject()}>Open source project</button>
                   <button type="button" onClick={() => void remove()}>Remove document</button>
                 </div>
               </details>
