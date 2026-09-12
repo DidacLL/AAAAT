@@ -85,7 +85,7 @@ async function importPortableAiSetup(mainWindow: BrowserWindow) {
   };
 }
 
-function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
+export function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(aiConnectionManagementChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(aiConnectionManagementChannels.list, (event) => {
@@ -144,7 +144,3 @@ function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
     return portableAiSetupImportResultSchema.parse(await importPortableAiSetup(mainWindow));
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) =>
-  registerAiConnectionManagementIpc(mainWindow),
-);
