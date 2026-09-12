@@ -4,6 +4,7 @@ import type { AiContextMode } from "../shared/contracts";
 
 interface Props {
   readonly itemId: string;
+  readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
 const labels: Readonly<Record<AiContextMode, string>> = {
@@ -12,12 +13,13 @@ const labels: Readonly<Record<AiContextMode, string>> = {
   omit: "Do not share",
 };
 
-export function ProfileItemAiDisclosureControl({ itemId }: Props) {
+export function ProfileItemAiDisclosureControl({ itemId, onDirtyChange }: Props) {
   const [savedMode, setSavedMode] = useState<AiContextMode | null>(null);
   const [draftMode, setDraftMode] = useState<AiContextMode>("expose");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dirty = savedMode !== null && draftMode !== savedMode;
 
   useEffect(() => {
     let active = true;
@@ -38,6 +40,11 @@ export function ProfileItemAiDisclosureControl({ itemId }: Props) {
       active = false;
     };
   }, [itemId]);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
 
   const save = async () => {
     setSaving(true);
@@ -80,7 +87,7 @@ export function ProfileItemAiDisclosureControl({ itemId }: Props) {
             <button
               className="compact-secondary"
               type="button"
-              disabled={saving || draftMode === savedMode}
+              disabled={saving || !dirty}
               onClick={() => void save()}
             >
               {saving ? "Saving…" : "Save AI disclosure"}
