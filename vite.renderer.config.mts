@@ -12,7 +12,7 @@ function developmentCsp(): Plugin {
         )
         .replace(
           "connect-src 'self'",
-          "connect-src 'self' ws://localhost:*",
+          "connect-src 'self' ws://127.0.0.1:* ws://localhost:*",
         );
     },
   };
@@ -20,4 +20,5 @@ function developmentCsp(): Plugin {
 
 export default defineConfig(({ command }) => ({
   plugins: [react(), ...(command === "serve" ? [developmentCsp()] : [])],
+  server: command === "serve" ? { host: "127.0.0.1" } : undefined,
 }));
