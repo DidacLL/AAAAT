@@ -24,7 +24,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerCombinedDocumentIpc(mainWindow: BrowserWindow): void {
+export function registerCombinedDocumentIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(combinedDocumentChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(combinedDocumentChannels.exportPacket, async (event, input: unknown) => {
@@ -47,7 +47,3 @@ function registerCombinedDocumentIpc(mainWindow: BrowserWindow): void {
     });
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) =>
-  registerCombinedDocumentIpc(mainWindow),
-);
