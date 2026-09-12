@@ -1,10 +1,10 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
-export const developmentServer = Object.freeze({
+export const developmentServer = {
   host: "127.0.0.1",
   port: 0,
-});
+};
 
 function developmentCsp(): Plugin {
   return {
