@@ -115,10 +115,7 @@ function assertProjectIdle(rootPath: string, documentId: string): void {
 function parseBody(value: string): string[] {
   try {
     const parsed = JSON.parse(value) as unknown;
-    if (
-      !Array.isArray(parsed) ||
-      !parsed.every((item) => typeof item === "string")
-    ) {
+    if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === "string")) {
       throw new Error("invalid body");
     }
     return parsed;
@@ -128,9 +125,7 @@ function parseBody(value: string): string[] {
 }
 
 function parsePatch(value: string | null): ProfileItemContentPatch | null {
-  if (value === null) {
-    return null;
-  }
+  if (value === null) return null;
   try {
     return profileItemContentPatchSchema.parse(JSON.parse(value));
   } catch {
@@ -138,21 +133,14 @@ function parsePatch(value: string | null): ProfileItemContentPatch | null {
   }
 }
 
-function readRuleRows(
-  database: DatabaseSync,
-  documentId?: string,
-): RuleRow[] {
+function readRuleRows(database: DatabaseSync, documentId?: string): RuleRow[] {
   const sql = `SELECT document_id AS documentId, item_id AS itemId,
                       excluded, content_patch_json AS contentPatchJson,
                       order_rank AS orderRank
                  FROM document_item_rules`;
   return (documentId
-    ? database
-        .prepare(sql + " WHERE document_id = ? ORDER BY item_id")
-        .all(documentId)
-    : database
-        .prepare(sql + " ORDER BY document_id, item_id")
-        .all()) as unknown as RuleRow[];
+    ? database.prepare(sql + " WHERE document_id = ? ORDER BY item_id").all(documentId)
+    : database.prepare(sql + " ORDER BY document_id, item_id").all()) as unknown as RuleRow[];
 }
 
 function toRule(row: RuleRow): DocumentItemRule {
@@ -176,10 +164,7 @@ function selectDocumentRows(database: DatabaseSync): DocumentRow[] {
     .all() as unknown as DocumentRow[];
 }
 
-function requireDocumentRow(
-  database: DatabaseSync,
-  documentId: string,
-): DocumentRow {
+function requireDocumentRow(database: DatabaseSync, documentId: string): DocumentRow {
   const row = database
     .prepare(
       `SELECT id, kind, title, variant_id AS variantId, language, engine,
@@ -188,9 +173,7 @@ function requireDocumentRow(
          FROM documents WHERE id = ?`,
     )
     .get(documentId) as unknown as DocumentRow | undefined;
-  if (!row) {
-    throw new DocumentServiceError("The document no longer exists.");
-  }
+  if (!row) throw new DocumentServiceError("The document no longer exists.");
   return row;
 }
 
@@ -231,22 +214,7 @@ function readDocument(
   );
 }
 
-function recordActivity(
-  database: DatabaseSync,
-  documentId: string,
-  action: string,
-): void {
-  database
-    .prepare(
-      "INSERT INTO document_activity(occurred_at, document_id, action) VALUES (?, ?, ?)",
-    )
-    .run(new Date().toISOString(), documentId, action);
-}
-
-function applyPatch(
-  item: ProfileItem,
-  patch: ProfileItemContentPatch | null,
-): ProfileItem {
+function applyPatch(item: ProfileItem, patch: ProfileItemContentPatch | null): ProfileItem {
   return patch ? { ...item, ...patch } : item;
 }
 
@@ -254,19 +222,13 @@ function normalizedPatch(
   base: ProfileItem,
   patch: ProfileItemContentPatch | null | undefined,
 ): ProfileItemContentPatch | null {
-  if (!patch) {
-    return null;
-  }
+  if (!patch) return null;
   const parsed = profileItemContentPatchSchema.parse(patch);
   const kept: Record<string, string> = {};
   for (const [key, value] of Object.entries(parsed)) {
-    if (value !== base[key as keyof ProfileItem]) {
-      kept[key] = value;
-    }
+    if (value !== base[key as keyof ProfileItem]) kept[key] = value;
   }
-  return Object.keys(kept).length === 0
-    ? null
-    : profileItemContentPatchSchema.parse(kept);
+  return Object.keys(kept).length === 0 ? null : profileItemContentPatchSchema.parse(kept);
 }
 
 function defaultCoverParagraphs(items: readonly ProfileItem[]): string[] {
@@ -290,19 +252,12 @@ export function listDocuments(rootPath: string): DocumentRecord[] {
   return withWorkspaceDatabase(rootPath, (database) => {
     const rows = selectDocumentRows(database);
     const rules = readRuleRows(database);
-    return documentListSchema.parse(
-      rows.map((row) => toDocument(rootPath, row, rules)),
-    );
+    return documentListSchema.parse(rows.map((row) => toDocument(rootPath, row, rules)));
   });
 }
 
-export function getDocument(
-  rootPath: string,
-  documentId: string,
-): DocumentRecord {
-  return withWorkspaceDatabase(rootPath, (database) =>
-    readDocument(database, rootPath, documentId),
-  );
+export function getDocument(rootPath: string, documentId: string): DocumentRecord {
+  return withWorkspaceDatabase(rootPath, (database) => readDocument(database, rootPath, documentId));
 }
 
 function baseItemsForDocument(rootPath: string, document: DocumentRecord): ProfileItem[] {
@@ -311,40 +266,34 @@ function baseItemsForDocument(rootPath: string, document: DocumentRecord): Profi
     : resolveProfileVariant(rootPath, document.variantId).items;
 }
 
-export function createDocument(
-  rootPath: string,
-  rawInput: DocumentInput,
-): DocumentRecord {
+export function createDocument(rootPath: string, rawInput: DocumentInput): DocumentRecord {
   const input = documentInputSchema.parse(rawInput);
   if (input.variantId !== null) resolveProfileVariant(rootPath, input.variantId);
   const id = randomUUID();
   const now = new Date().toISOString();
 
   withWorkspaceDatabase(rootPath, (database) => {
-    transact(database, () => {
-      database
-        .prepare(
-          `INSERT INTO documents(
-             id, kind, title, variant_id, language, engine, recipient, subject,
-             body_json, closing, mode, source_hash, created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'managed', NULL, ?, ?)`,
-        )
-        .run(
-          id,
-          input.kind,
-          input.title,
-          input.variantId,
-          nullable(input.language),
-          input.engine,
-          nullable(input.recipient),
-          nullable(input.subject),
-          JSON.stringify(input.bodyParagraphs),
-          nullable(input.closing),
-          now,
-          now,
-        );
-      recordActivity(database, id, "document.create");
-    });
+    database
+      .prepare(
+        `INSERT INTO documents(
+           id, kind, title, variant_id, language, engine, recipient, subject,
+           body_json, closing, mode, source_hash, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'managed', NULL, ?, ?)`,
+      )
+      .run(
+        id,
+        input.kind,
+        input.title,
+        input.variantId,
+        nullable(input.language),
+        input.engine,
+        nullable(input.recipient),
+        nullable(input.subject),
+        JSON.stringify(input.bodyParagraphs),
+        nullable(input.closing),
+        now,
+        now,
+      );
   });
 
   try {
@@ -352,57 +301,40 @@ export function createDocument(
     return regenerateDocument(rootPath, id);
   } catch (error) {
     withWorkspaceDatabase(rootPath, (database) => {
-      transact(database, () => {
-        database
-          .prepare("DELETE FROM document_activity WHERE document_id = ?")
-          .run(id);
-        database.prepare("DELETE FROM documents WHERE id = ?").run(id);
-      });
+      database.prepare("DELETE FROM documents WHERE id = ?").run(id);
     });
-    rmSync(projectPaths(rootPath, id).projectPath, {
-      recursive: true,
-      force: true,
-    });
+    rmSync(projectPaths(rootPath, id).projectPath, { recursive: true, force: true });
     throw error;
   }
 }
 
-export function updateDocument(
-  rootPath: string,
-  rawUpdate: DocumentUpdate,
-): DocumentRecord {
+export function updateDocument(rootPath: string, rawUpdate: DocumentUpdate): DocumentRecord {
   const update = documentUpdateSchema.parse(rawUpdate);
   return withWorkspaceDatabase(rootPath, (database) => {
     requireDocumentRow(database, update.id);
-    transact(database, () => {
-      database
-        .prepare(
-          `UPDATE documents
-              SET title = ?, language = ?, engine = ?, recipient = ?, subject = ?,
-                  body_json = ?, closing = ?, updated_at = ?
-            WHERE id = ?`,
-        )
-        .run(
-          update.title,
-          nullable(update.language),
-          update.engine,
-          nullable(update.recipient),
-          nullable(update.subject),
-          JSON.stringify(update.bodyParagraphs),
-          nullable(update.closing),
-          new Date().toISOString(),
-          update.id,
-        );
-      recordActivity(database, update.id, "document.update");
-    });
+    database
+      .prepare(
+        `UPDATE documents
+            SET title = ?, language = ?, engine = ?, recipient = ?, subject = ?,
+                body_json = ?, closing = ?, updated_at = ?
+          WHERE id = ?`,
+      )
+      .run(
+        update.title,
+        nullable(update.language),
+        update.engine,
+        nullable(update.recipient),
+        nullable(update.subject),
+        JSON.stringify(update.bodyParagraphs),
+        nullable(update.closing),
+        new Date().toISOString(),
+        update.id,
+      );
     return readDocument(database, rootPath, update.id);
   });
 }
 
-export function removeDocument(
-  rootPath: string,
-  documentId: string,
-): DocumentRecord[] {
+export function removeDocument(rootPath: string, documentId: string): DocumentRecord[] {
   assertProjectIdle(rootPath, documentId);
   const paths = projectPaths(rootPath, documentId);
   const stagedPath = path.join(
@@ -419,15 +351,10 @@ export function removeDocument(
   try {
     withWorkspaceDatabase(rootPath, (database) => {
       requireDocumentRow(database, documentId);
-      transact(database, () => {
-        recordActivity(database, documentId, "document.remove");
-        database.prepare("DELETE FROM documents WHERE id = ?").run(documentId);
-      });
+      database.prepare("DELETE FROM documents WHERE id = ?").run(documentId);
     });
   } catch (error) {
-    if (staged && existsSync(stagedPath)) {
-      renameSync(stagedPath, paths.projectPath);
-    }
+    if (staged && existsSync(stagedPath)) renameSync(stagedPath, paths.projectPath);
     throw error;
   }
 
@@ -449,9 +376,7 @@ export function configureDocumentItem(
   const document = getDocument(rootPath, rule.documentId);
   const base = baseItemsForDocument(rootPath, document).find((item) => item.id === rule.itemId);
   if (!base) {
-    throw new DocumentServiceError(
-      "The document profile basis does not contain that profile item.",
-    );
+    throw new DocumentServiceError("The document profile basis does not contain that profile item.");
   }
   const patch = normalizedPatch(base, rule.contentPatch);
 
@@ -460,41 +385,33 @@ export function configureDocumentItem(
       (item) => item.itemId === rule.itemId,
     );
     const orderRank = existing?.orderRank ?? null;
-    transact(database, () => {
-      if (rule.included && patch === null && orderRank === null) {
-        database
-          .prepare(
-            "DELETE FROM document_item_rules WHERE document_id = ? AND item_id = ?",
-          )
-          .run(rule.documentId, rule.itemId);
-      } else {
-        database
-          .prepare(
-            `INSERT INTO document_item_rules(document_id, item_id, excluded, content_patch_json, order_rank)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(document_id, item_id) DO UPDATE SET
-               excluded = excluded.excluded,
-               content_patch_json = excluded.content_patch_json,
-               order_rank = excluded.order_rank`,
-          )
-          .run(
-            rule.documentId,
-            rule.itemId,
-            rule.included ? 0 : 1,
-            patch ? JSON.stringify(patch) : null,
-            orderRank,
-          );
-      }
-      recordActivity(database, rule.documentId, "document.item.configure");
-    });
+    if (rule.included && patch === null && orderRank === null) {
+      database
+        .prepare("DELETE FROM document_item_rules WHERE document_id = ? AND item_id = ?")
+        .run(rule.documentId, rule.itemId);
+    } else {
+      database
+        .prepare(
+          `INSERT INTO document_item_rules(document_id, item_id, excluded, content_patch_json, order_rank)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(document_id, item_id) DO UPDATE SET
+             excluded = excluded.excluded,
+             content_patch_json = excluded.content_patch_json,
+             order_rank = excluded.order_rank`,
+        )
+        .run(
+          rule.documentId,
+          rule.itemId,
+          rule.included ? 0 : 1,
+          patch ? JSON.stringify(patch) : null,
+          orderRank,
+        );
+    }
     return readDocument(database, rootPath, rule.documentId);
   });
 }
 
-export function reorderDocument(
-  rootPath: string,
-  rawReorder: DocumentReorder,
-): DocumentRecord {
+export function reorderDocument(rootPath: string, rawReorder: DocumentReorder): DocumentRecord {
   const reorder = documentReorderSchema.parse(rawReorder);
   const document = getDocument(rootPath, reorder.documentId);
   const baseIds = baseItemsForDocument(rootPath, document).map((item) => item.id);
@@ -510,10 +427,7 @@ export function reorderDocument(
 
   return withWorkspaceDatabase(rootPath, (database) => {
     const existing = new Map(
-      readRuleRows(database, reorder.documentId).map((rule) => [
-        rule.itemId,
-        rule,
-      ]),
+      readRuleRows(database, reorder.documentId).map((rule) => [rule.itemId, rule]),
     );
     transact(database, () => {
       reorder.itemIds.forEach((itemId, rank) => {
@@ -522,15 +436,9 @@ export function reorderDocument(
         const orderRank = rank === baseRank ? null : rank;
         const excluded = row?.excluded ?? 0;
         const contentPatchJson = row?.contentPatchJson ?? null;
-        if (
-          excluded === 0 &&
-          contentPatchJson === null &&
-          orderRank === null
-        ) {
+        if (excluded === 0 && contentPatchJson === null && orderRank === null) {
           database
-            .prepare(
-              "DELETE FROM document_item_rules WHERE document_id = ? AND item_id = ?",
-            )
+            .prepare("DELETE FROM document_item_rules WHERE document_id = ? AND item_id = ?")
             .run(reorder.documentId, itemId);
         } else {
           database
@@ -539,39 +447,25 @@ export function reorderDocument(
                VALUES (?, ?, ?, ?, ?)
                ON CONFLICT(document_id, item_id) DO UPDATE SET order_rank = excluded.order_rank`,
             )
-            .run(
-              reorder.documentId,
-              itemId,
-              excluded,
-              contentPatchJson,
-              orderRank,
-            );
+            .run(reorder.documentId, itemId, excluded, contentPatchJson, orderRank);
         }
       });
-      recordActivity(database, reorder.documentId, "document.reorder");
     });
     return readDocument(database, rootPath, reorder.documentId);
   });
 }
 
-export function resolveDocument(
-  rootPath: string,
-  documentId: string,
-): ResolvedDocument {
+export function resolveDocument(rootPath: string, documentId: string): ResolvedDocument {
   const document = getDocument(rootPath, documentId);
   const base = baseItemsForDocument(rootPath, document);
   const rules = new Map(document.rules.map((rule) => [rule.itemId, rule]));
   const baseRank = new Map(base.map((item, index) => [item.id, index]));
   const items = base
     .filter((item) => !rules.get(item.id)?.excluded)
-    .map((item) =>
-      applyPatch(item, rules.get(item.id)?.contentPatch ?? null),
-    )
+    .map((item) => applyPatch(item, rules.get(item.id)?.contentPatch ?? null))
     .sort((left, right) => {
-      const leftRank =
-        rules.get(left.id)?.orderRank ?? baseRank.get(left.id) ?? 0;
-      const rightRank =
-        rules.get(right.id)?.orderRank ?? baseRank.get(right.id) ?? 0;
+      const leftRank = rules.get(left.id)?.orderRank ?? baseRank.get(left.id) ?? 0;
+      const rightRank = rules.get(right.id)?.orderRank ?? baseRank.get(right.id) ?? 0;
       return leftRank - rightRank;
     });
   return resolvedDocumentSchema.parse({ document, items });
@@ -597,13 +491,9 @@ function escapeLatex(value: string): string {
 }
 
 function cvContent(resolved: ResolvedDocument): string {
-  const lines = [
-    `\\AAAATDocumentTitle{${escapeLatex(resolved.document.title)}}`,
-  ];
+  const lines = [`\\AAAATDocumentTitle{${escapeLatex(resolved.document.title)}}`];
   if (resolved.document.language) {
-    lines.push(
-      `\\AAAATMeta{Language: ${escapeLatex(resolved.document.language)}}`,
-    );
+    lines.push(`\\AAAATMeta{Language: ${escapeLatex(resolved.document.language)}}`);
   }
   for (const item of resolved.items) {
     const details = [
@@ -624,29 +514,19 @@ function cvContent(resolved: ResolvedDocument): string {
 function coverLetterContent(resolved: ResolvedDocument): string {
   const document = resolved.document;
   const lines = [`\\AAAATDocumentTitle{${escapeLatex(document.title)}}`];
-  if (document.recipient) {
-    lines.push(`\\AAAATMeta{To: ${escapeLatex(document.recipient)}}`);
-  }
-  if (document.subject) {
-    lines.push(`\\AAAATMeta{Subject: ${escapeLatex(document.subject)}}`);
-  }
+  if (document.recipient) lines.push(`\\AAAATMeta{To: ${escapeLatex(document.recipient)}}`);
+  if (document.subject) lines.push(`\\AAAATMeta{Subject: ${escapeLatex(document.subject)}}`);
   const paragraphs =
     document.bodyParagraphs.length > 0
       ? document.bodyParagraphs
       : defaultCoverParagraphs(resolved.items);
-  for (const paragraph of paragraphs) {
-    lines.push(`\\AAAATParagraph{${escapeLatex(paragraph)}}`);
-  }
-  if (document.closing) {
-    lines.push(`\\AAAATParagraph{${escapeLatex(document.closing)}}`);
-  }
+  for (const paragraph of paragraphs) lines.push(`\\AAAATParagraph{${escapeLatex(paragraph)}}`);
+  if (document.closing) lines.push(`\\AAAATParagraph{${escapeLatex(document.closing)}}`);
   return lines.join("\n") + "\n";
 }
 
 function sourceHash(paths: ReturnType<typeof projectPaths>): string | null {
-  if (!existsSync(paths.dataPath)) {
-    return null;
-  }
+  if (!existsSync(paths.dataPath)) return null;
   const hash = createHash("sha256");
   hash.update("data.tex");
   hash.update(readFileSync(paths.dataPath));
@@ -671,9 +551,7 @@ function initializeUserOwnedProject(rootPath: string, documentId: string): void 
       "utf8",
     );
   }
-  if (!existsSync(paths.stylePath)) {
-    writeFileSync(paths.stylePath, aaatStyle, "utf8");
-  }
+  if (!existsSync(paths.stylePath)) writeFileSync(paths.stylePath, aaatStyle, "utf8");
 }
 
 function requireBlueprint(paths: ReturnType<typeof projectPaths>): void {
@@ -688,10 +566,7 @@ function writeManagedProject(rootPath: string, documentId: string): string {
   requireBlueprint(paths);
   mkdirSync(paths.projectPath, { recursive: true });
 
-  const generated =
-    resolved.document.kind === "cv"
-      ? cvContent(resolved)
-      : coverLetterContent(resolved);
+  const generated = resolved.document.kind === "cv" ? cvContent(resolved) : coverLetterContent(resolved);
   const hash = generatedDataHash(generated);
   const stagePath = path.join(paths.projectPath, `.data.stage-${randomUUID()}.tex`);
   const backupPath = path.join(paths.projectPath, `.data.backup-${randomUUID()}.tex`);
@@ -749,71 +624,39 @@ function setSourceState(
   documentId: string,
   mode: "managed" | "manual",
   hash: string | null,
-  action: string,
 ): DocumentRecord {
   return withWorkspaceDatabase(rootPath, (database) => {
     requireDocumentRow(database, documentId);
-    transact(database, () => {
-      database
-        .prepare(
-          "UPDATE documents SET mode = ?, source_hash = ?, updated_at = ? WHERE id = ?",
-        )
-        .run(mode, hash, new Date().toISOString(), documentId);
-      recordActivity(database, documentId, action);
-    });
+    database
+      .prepare("UPDATE documents SET mode = ?, source_hash = ?, updated_at = ? WHERE id = ?")
+      .run(mode, hash, new Date().toISOString(), documentId);
     return readDocument(database, rootPath, documentId);
   });
 }
 
-function prepareProject(
-  rootPath: string,
-  documentId: string,
-): DocumentRecord {
+function prepareProject(rootPath: string, documentId: string): DocumentRecord {
   const document = getDocument(rootPath, documentId);
-  const row = withWorkspaceDatabase(rootPath, (database) =>
-    requireDocumentRow(database, documentId),
-  );
+  const row = withWorkspaceDatabase(rootPath, (database) => requireDocumentRow(database, documentId));
   const paths = projectPaths(rootPath, documentId);
   requireBlueprint(paths);
   if (document.mode === "managed" && row.sourceHash) {
     const current = sourceHash(paths);
     if (current !== row.sourceHash) {
-      return setSourceState(
-        rootPath,
-        documentId,
-        "manual",
-        row.sourceHash,
-        "document.source.manual",
-      );
+      return setSourceState(rootPath, documentId, "manual", row.sourceHash);
     }
   }
   if (document.mode === "managed") {
     const hash = writeManagedProject(rootPath, documentId);
-    return setSourceState(
-      rootPath,
-      documentId,
-      "managed",
-      hash,
-      "document.source.sync",
-    );
+    return setSourceState(rootPath, documentId, "managed", hash);
   }
   return document;
 }
 
-export function regenerateDocument(
-  rootPath: string,
-  documentId: string,
-): DocumentRecord {
+export function regenerateDocument(rootPath: string, documentId: string): DocumentRecord {
   assertProjectIdle(rootPath, documentId);
   getDocument(rootPath, documentId);
   const hash = writeManagedProject(rootPath, documentId);
-  return setSourceState(
-    rootPath,
-    documentId,
-    "managed",
-    hash,
-    "document.source.regenerate",
-  );
+  return setSourceState(rootPath, documentId, "managed", hash);
 }
 
 export async function renderDocument(
@@ -842,14 +685,9 @@ export async function renderDocument(
     }
     if (!existsSync(paths.artifactPath)) {
       throw new DocumentServiceError(
-        `TeX rendering failed. Check that latexmk and pdflatex are installed and compatible.`,
+        "TeX rendering failed. Check that latexmk and pdflatex are installed and compatible.",
       );
     }
-    withWorkspaceDatabase(rootPath, (database) => {
-      transact(database, () =>
-        recordActivity(database, documentId, "document.render"),
-      );
-    });
     return getDocument(rootPath, documentId);
   } finally {
     activeRenders.delete(paths.projectPath);
@@ -874,14 +712,10 @@ export function exportDocumentProject(
   assertProjectIdle(rootPath, documentId);
   const document = prepareProject(rootPath, documentId);
   try {
-    if (!statSync(targetParent).isDirectory()) {
-      throw new Error("not directory");
-    }
+    if (!statSync(targetParent).isDirectory()) throw new Error("not directory");
     accessSync(targetParent, constants.R_OK | constants.W_OK);
   } catch {
-    throw new DocumentServiceError(
-      "The selected export folder is not writable.",
-    );
+    throw new DocumentServiceError("The selected export folder is not writable.");
   }
   const destination = path.join(targetParent, safeProjectName(document));
   if (existsSync(destination)) {
@@ -889,14 +723,6 @@ export function exportDocumentProject(
       "A document export with that name already exists in the selected folder.",
     );
   }
-  cpSync(document.projectPath, destination, {
-    recursive: true,
-    errorOnExist: true,
-  });
-  withWorkspaceDatabase(rootPath, (database) => {
-    transact(database, () =>
-      recordActivity(database, documentId, "document.export"),
-    );
-  });
+  cpSync(document.projectPath, destination, { recursive: true, errorOnExist: true });
   return destination;
 }
