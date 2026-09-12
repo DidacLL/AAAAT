@@ -27,6 +27,18 @@ describe("opportunity research migration", () => {
           database.prepare("SELECT version, name FROM schema_migrations WHERE version = 10").get(),
         ).toEqual({ version: 10, name: "opportunity-research-access" });
 
+        for (const column of [
+          "career_direction_external_ai_visible",
+          "objectives_external_ai_visible",
+          "constraints_external_ai_visible",
+          "target_roles_external_ai_visible",
+          "target_markets_locations_external_ai_visible",
+          "work_preferences_external_ai_visible",
+          "application_writing_preferences_external_ai_visible",
+        ]) {
+          database.exec(`ALTER TABLE career_context DROP COLUMN ${column};`);
+        }
+        database.prepare("DELETE FROM schema_migrations WHERE version = 13").run();
         database.exec("ALTER TABLE profile_items DROP COLUMN ai_context_mode;");
         database.prepare("DELETE FROM schema_migrations WHERE version = 12").run();
 
@@ -67,6 +79,9 @@ describe("opportunity research migration", () => {
           upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 12").get(),
         ).toEqual({ version: 12, name: "profile-ai-context" });
         expect(
+          upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 13").get(),
+        ).toEqual({ version: 13, name: "career-context-ai-disclosure" });
+        expect(
           upgraded
             .prepare("SELECT opportunity_research_selected AS selected FROM candidatures LIMIT 1")
             .all(),
@@ -74,6 +89,15 @@ describe("opportunity research migration", () => {
         expect(
           upgraded.prepare("SELECT sha256 FROM schema_migrations WHERE version = 4").get(),
         ).toEqual({ sha256: candidatureMigration004Sha256 });
+        expect(
+          upgraded
+            .prepare(
+              `SELECT career_direction_external_ai_visible AS careerDirection,
+                      application_writing_preferences_external_ai_visible AS writing
+                 FROM career_context WHERE id = 1`,
+            )
+            .get(),
+        ).toEqual({ careerDirection: 1, writing: 1 });
       } finally {
         upgraded.close();
       }
