@@ -3,22 +3,37 @@
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
-import { createServer, type ViteDevServer } from "vite";
-
-import { developmentServer } from "../vite.renderer.config.mts";
+import {
+  createServer,
+  loadConfigFromFile,
+  type ViteDevServer,
+} from "vite";
 
 let server: ViteDevServer | undefined;
 
 afterEach(async () => {
   await server?.close();
   server = undefined;
-  developmentServer.port = 0;
 });
 
 describe("development renderer server", () => {
-  it("keeps the configured port mutable for Electron Forge's resolved-port handoff", () => {
-    developmentServer.port = 31810;
-    expect(developmentServer.port).toBe(31810);
+  it("keeps the configured port mutable for Electron Forge's resolved-port handoff", async () => {
+    const loaded = await loadConfigFromFile(
+      { command: "serve", mode: "development" },
+      path.resolve("vite.renderer.config.mts"),
+    );
+
+    expect(loaded).not.toBeNull();
+    const serverConfig = loaded?.config.server;
+    if (!serverConfig) {
+      throw new Error("Vite development server config was not loaded.");
+    }
+
+    expect(serverConfig.host).toBe("127.0.0.1");
+    expect(serverConfig.port).toBe(0);
+
+    serverConfig.port = 31810;
+    expect(serverConfig.port).toBe(31810);
   });
 
   it("binds loopback on an OS-assigned available port", async () => {
