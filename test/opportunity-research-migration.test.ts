@@ -27,6 +27,9 @@ describe("opportunity research migration", () => {
           database.prepare("SELECT version, name FROM schema_migrations WHERE version = 10").get(),
         ).toEqual({ version: 10, name: "opportunity-research-access" });
 
+        database.exec("ALTER TABLE profile_items DROP COLUMN ai_context_mode;");
+        database.prepare("DELETE FROM schema_migrations WHERE version = 12").run();
+
         database.exec("DROP TABLE application_artifacts;");
         database.exec(`
           CREATE TABLE application_artifacts (
@@ -60,6 +63,9 @@ describe("opportunity research migration", () => {
         expect(
           upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 11").get(),
         ).toEqual({ version: 11, name: "combined-application-artifacts" });
+        expect(
+          upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 12").get(),
+        ).toEqual({ version: 12, name: "profile-ai-context" });
         expect(
           upgraded
             .prepare("SELECT opportunity_research_selected AS selected FROM candidatures LIMIT 1")
