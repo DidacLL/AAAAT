@@ -10,6 +10,7 @@ import type {
   ResolvedProfile,
 } from "../shared/contracts";
 import { useContextualHandoffs } from "./contextual-handoffs";
+import { ProfileItemAiDisclosureControl } from "./ProfileItemAiDisclosureControl";
 
 const itemKinds: readonly ProfileItemKind[] = [
   "identity",
@@ -550,6 +551,9 @@ export function ProfileWorkspace({
               <button className="compact-secondary" type="button" onClick={cancelItemEdit}>Cancel</button>
             </div>
           </form>
+          {editingItemId ? (
+            <ProfileItemAiDisclosureControl key={editingItemId} itemId={editingItemId} />
+          ) : null}
         </div>
       ) : null}
 
