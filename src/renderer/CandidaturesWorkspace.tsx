@@ -570,7 +570,13 @@ export function CandidaturesWorkspace({
         candidatureId: selected.id,
         conceptIds: selectedConceptIds,
       });
-      storeRecord(saved);
+      setRecords((current) => {
+        const present = current.some((candidate) => candidate.id === saved.id);
+        return present
+          ? current.map((candidate) => (candidate.id === saved.id ? saved : candidate))
+          : [saved, ...current];
+      });
+      setSelectedConceptIds(saved.conceptIds);
       if (selectedConceptId && !saved.conceptIds.includes(selectedConceptId)) {
         setSelectedConceptId(saved.conceptIds[0] ?? null);
       }
