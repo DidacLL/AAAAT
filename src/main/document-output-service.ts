@@ -33,3 +33,22 @@ export async function openDocumentOutput(
   }
   return documentOutputOpenResultSchema.parse({ opened: true });
 }
+
+export async function openDocumentProject(
+  rootPath: string,
+  documentId: string,
+  openPath: OpenPath,
+): Promise<DocumentOutputOpenResult> {
+  const projectPath = getDocument(rootPath, documentId).projectPath;
+  try {
+    if (!statSync(projectPath).isDirectory()) throw new Error("not a directory");
+  } catch {
+    throw new DocumentOutputServiceError("The live document source project is unavailable.");
+  }
+
+  const error = await openPath(projectPath);
+  if (error) {
+    throw new DocumentOutputServiceError("AAAAT could not open the document source project.");
+  }
+  return documentOutputOpenResultSchema.parse({ opened: true });
+}
