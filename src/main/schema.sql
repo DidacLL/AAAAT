@@ -39,14 +39,6 @@ CREATE TABLE profile_variant_item_rules (
   CHECK (excluded = 1 OR content_patch_json IS NOT NULL OR order_rank IS NOT NULL)
 ) STRICT;
 
-CREATE TABLE profile_activity (
-  id INTEGER PRIMARY KEY,
-  occurred_at TEXT NOT NULL,
-  action TEXT NOT NULL,
-  entity_type TEXT NOT NULL,
-  entity_id TEXT NOT NULL
-) STRICT;
-
 CREATE TABLE documents (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL CHECK (kind IN ('cv', 'cover_letter')),
@@ -82,13 +74,6 @@ CREATE TABLE document_item_rules (
   order_rank INTEGER CHECK (order_rank IS NULL OR order_rank >= 0),
   PRIMARY KEY (document_id, item_id),
   CHECK (excluded = 1 OR content_patch_json IS NOT NULL OR order_rank IS NOT NULL)
-) STRICT;
-
-CREATE TABLE document_activity (
-  id INTEGER PRIMARY KEY,
-  occurred_at TEXT NOT NULL,
-  document_id TEXT NOT NULL,
-  action TEXT NOT NULL
 ) STRICT;
 
 CREATE TABLE candidatures (
@@ -146,13 +131,6 @@ CREATE TABLE candidature_concepts (
   PRIMARY KEY (candidature_id, concept_id)
 ) STRICT;
 
-CREATE TABLE concept_activity (
-  id INTEGER PRIMARY KEY,
-  occurred_at TEXT NOT NULL,
-  concept_id TEXT NOT NULL,
-  action TEXT NOT NULL
-) STRICT;
-
 CREATE TABLE career_context (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   career_direction TEXT NOT NULL DEFAULT '',
@@ -173,12 +151,6 @@ CREATE TABLE career_context (
 ) STRICT;
 
 INSERT INTO career_context(id) VALUES (1);
-
-CREATE TABLE career_context_activity (
-  id INTEGER PRIMARY KEY,
-  occurred_at TEXT NOT NULL,
-  action TEXT NOT NULL
-) STRICT;
 
 CREATE TABLE candidature_sources (
   id TEXT PRIMARY KEY,
