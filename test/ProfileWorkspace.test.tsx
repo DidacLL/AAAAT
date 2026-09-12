@@ -98,7 +98,7 @@ describe("professional information workspace", () => {
 
     await user.click(screen.getByRole("button", { name: "Add information" }));
     expect(screen.getByRole("heading", { name: "Add information" })).toBeInTheDocument();
-    const category = screen.getByLabelText("Category");
+    const category = screen.getByLabelText(/Category/);
     await user.clear(category);
     await user.type(category, "publication");
     await user.type(screen.getByLabelText("Title"), "Distributed systems paper");
@@ -235,7 +235,7 @@ describe("professional information workspace", () => {
     await user.click(screen.getByRole("button", { name: "Back to professional information" }));
     expect(confirm).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Add information" }));
-    const category = screen.getByLabelText("Category");
+    const category = screen.getByLabelText(/Category/);
     await user.clear(category);
     await user.type(category, "skill");
     await user.type(screen.getByLabelText("Title"), "TypeScript");
