@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/renderer/App";
 import type { AiConnectionDesktopApi } from "../src/shared/ai-connection-contracts";
+import type { CareerContextAiDisclosureDesktopApi } from "../src/shared/career-context-ai-disclosure-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot, WorkspaceInfo } from "../src/shared/contracts";
 import type { SetupEnvironmentDesktopApi } from "../src/shared/setup-environment-contracts";
 import type { TodoDesktopApi } from "../src/shared/todo-contracts";
@@ -20,6 +21,15 @@ const emptyCareerContext: CareerContext = {
   targetMarketsLocations: "",
   workPreferences: "",
   applicationWritingPreferences: "",
+};
+const allCareerContextAiDisclosure = {
+  careerDirection: true,
+  objectives: true,
+  constraints: true,
+  targetRoles: true,
+  targetMarketsLocations: true,
+  workPreferences: true,
+  applicationWritingPreferences: true,
 };
 const readyEnvironment = {
   workspaceReady: true,
@@ -55,7 +65,8 @@ const desktopApi: DesktopApi &
   WorkspaceRecoveryDesktopApi &
   SetupEnvironmentDesktopApi &
   AiConnectionDesktopApi &
-  TodoDesktopApi = {
+  TodoDesktopApi &
+  CareerContextAiDisclosureDesktopApi = {
   system: {
     info: async () => ({ appVersion: "2.0.0", electronVersion: "44.1.1", nodeVersion: "24.19.0" }),
   },
@@ -96,6 +107,10 @@ const desktopApi: DesktopApi &
   },
   careerContext: {
     current: async () => emptyCareerContext,
+    update: async (update) => update,
+  },
+  careerContextAiDisclosure: {
+    current: async () => allCareerContextAiDisclosure,
     update: async (update) => update,
   },
   documents: {
