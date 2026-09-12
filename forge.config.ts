@@ -1,7 +1,38 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
+
+function ensureWindowsPowerShellOnPath(): void {
+  if (process.platform !== "win32") return;
+
+  const systemRoot = process.env.SystemRoot ?? process.env.WINDIR;
+  if (!systemRoot) return;
+
+  const powershellDirectory = path.join(
+    systemRoot,
+    "System32",
+    "WindowsPowerShell",
+    "v1.0",
+  );
+  if (!existsSync(path.join(powershellDirectory, "powershell.exe"))) return;
+
+  const currentPath = process.env.PATH ?? "";
+  const normalizedDirectory = powershellDirectory.toLowerCase();
+  const alreadyPresent = currentPath
+    .split(path.delimiter)
+    .some((entry) => entry.toLowerCase() === normalizedDirectory);
+  if (!alreadyPresent) {
+    process.env.PATH = currentPath
+      ? `${powershellDirectory}${path.delimiter}${currentPath}`
+      : powershellDirectory;
+  }
+}
+
+ensureWindowsPowerShellOnPath();
 
 const config: ForgeConfig = {
   packagerConfig: {
