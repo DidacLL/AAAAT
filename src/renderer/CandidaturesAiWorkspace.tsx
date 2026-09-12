@@ -20,6 +20,7 @@ export function CandidaturesAiWorkspace({
   const [captureSaving, setCaptureSaving] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [compactDetailOpen, setCompactDetailOpen] = useState(false);
+  const [postSaveSelectionId, setPostSaveSelectionId] = useState<string | undefined>();
   const [savedSource, setSavedSource] = useState<{
     candidatureId: string;
     source: JobExtractionRequest;
@@ -80,6 +81,7 @@ export function CandidaturesAiWorkspace({
           sourceText,
         },
       });
+      setPostSaveSelectionId(created.id);
       setRevision((current) => current + 1);
       setCompactDetailOpen(true);
     } catch (reason) {
@@ -200,7 +202,11 @@ export function CandidaturesAiWorkspace({
         </div>
       )}
 
-      <CandidaturesWorkspace key={revision} onDirtyChange={setCandidatureDirty} />
+      <CandidaturesWorkspace
+        key={revision}
+        initialSelectedId={postSaveSelectionId}
+        onDirtyChange={setCandidatureDirty}
+      />
       {savedSource !== null ? (
         <JobExtractionPanel
           candidatureId={savedSource.candidatureId}
