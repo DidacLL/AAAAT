@@ -33,6 +33,10 @@ function searchableText(
   concepts: readonly ConceptRecord[],
 ): string {
   const fieldMap = new Map(fields.map((field) => [field.definition.id, field]));
+  const retainedInformationText = record.values.flatMap((value) => {
+    const field = fieldMap.get(value.fieldId);
+    return [field?.definition.label ?? "", displayValue(field, value.value)];
+  });
   const associatedConceptText = concepts
     .filter((concept) => record.conceptIds.includes(concept.id))
     .flatMap((concept) => [concept.name, ...concept.aliases])
@@ -40,7 +44,7 @@ function searchableText(
   return [
     record.label,
     record.sourceSearchText,
-    ...record.values.map((value) => displayValue(fieldMap.get(value.fieldId), value.value)),
+    ...retainedInformationText,
     associatedConceptText,
   ]
     .join(" ")
