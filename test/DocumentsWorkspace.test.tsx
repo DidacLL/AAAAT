@@ -224,6 +224,9 @@ describe("manual CVs and letters workspace", () => {
     expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).not.toBeVisible();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).not.toBeVisible();
     expect(screen.getByRole("button", { name: "Open source project" })).not.toBeVisible();
+    expect(screen.getByText("main.tex", { exact: true })).not.toBeVisible();
+    expect(screen.getByText("aaaat.sty", { exact: true })).not.toBeVisible();
+    expect(screen.getByText("data.tex", { exact: true })).not.toBeVisible();
     expect(screen.getByRole("heading", { name: "AI-visible CV description" })).not.toBeVisible();
     expect(screen.getByRole("heading", { name: "External CV content access" })).not.toBeVisible();
     expect(screen.queryByRole("heading", { name: "Retained application artifacts" })).not.toBeInTheDocument();
@@ -236,6 +239,12 @@ describe("manual CVs and letters workspace", () => {
     expect(await screen.findByText("Opened the rendered PDF.")).toBeVisible();
 
     await user.click(screen.getByText("Source & advanced ownership"));
+    expect(screen.getByText("main.tex", { exact: true })).toBeVisible();
+    expect(screen.getByText("aaaat.sty", { exact: true })).toBeVisible();
+    expect(screen.getByText("data.tex", { exact: true })).toBeVisible();
+    expect(screen.getByText(/main\.tex.*editable document blueprint/i)).toBeVisible();
+    expect(screen.getByText(/aaaat\.sty.*editable package\/style source/i)).toBeVisible();
+    expect(screen.getByText(/data\.tex.*generated from saved AAAAT document information/i)).toBeVisible();
     expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).toBeVisible();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Open source project" }));
