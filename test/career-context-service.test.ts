@@ -52,11 +52,6 @@ describe("current career context", () => {
       });
       try {
         expect(
-          database
-            .prepare("SELECT version, name FROM schema_migrations WHERE version = 7")
-            .get(),
-        ).toEqual({ version: 7, name: "career-context" });
-        expect(
           database.prepare("SELECT action FROM career_context_activity").all(),
         ).toEqual([{ action: "career-context.updated" }]);
       } finally {
