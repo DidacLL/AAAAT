@@ -92,6 +92,7 @@ const listCandidatures = vi.fn<DesktopApi["candidatures"]["list"]>();
 const listArtifacts = vi.fn<ArtifactDesktopApi["artifacts"]["list"]>();
 const captureArtifact = vi.fn<ArtifactDesktopApi["artifacts"]["capture"]>();
 const openDocumentOutput = vi.fn<DocumentOutputDesktopApi["documentOutput"]["open"]>();
+const openDocumentProject = vi.fn<DocumentOutputDesktopApi["documentOutput"]["openProject"]>();
 const currentCvContentAccess = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["current"]>();
 const updateCvContentAccess = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["update"]>();
 const updateCvRenderAccess = vi.fn<CvContentAccessDesktopApi["cvContentAccess"]["updateRender"]>();
@@ -116,7 +117,7 @@ function installApi(currentProfile: ProfileSnapshot = profile) {
       regenerate,
       exportProject,
     },
-    documentOutput: { open: openDocumentOutput },
+    documentOutput: { open: openDocumentOutput, openProject: openDocumentProject },
     cvContentAccess: {
       current: currentCvContentAccess,
       update: updateCvContentAccess,
@@ -163,6 +164,7 @@ describe("manual CVs and letters workspace", () => {
     listArtifacts.mockResolvedValue([]);
     captureArtifact.mockResolvedValue(retainedArtifact);
     openDocumentOutput.mockResolvedValue({ opened: true });
+    openDocumentProject.mockResolvedValue({ opened: true });
     create.mockResolvedValue(record({ variantId: null }));
     update.mockImplementation(async (value) => record({ ...value }));
     resolve.mockResolvedValue({ document: record(), items: [item] });
@@ -221,6 +223,7 @@ describe("manual CVs and letters workspace", () => {
     expect(screen.queryByRole("button", { name: "Open PDF" })).not.toBeInTheDocument();
     expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).not.toBeVisible();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).not.toBeVisible();
+    expect(screen.getByRole("button", { name: "Open source project" })).not.toBeVisible();
     expect(screen.getByRole("heading", { name: "AI-visible CV description" })).not.toBeVisible();
     expect(screen.getByRole("heading", { name: "External CV content access" })).not.toBeVisible();
     expect(screen.queryByRole("heading", { name: "Retained application artifacts" })).not.toBeInTheDocument();
@@ -235,6 +238,9 @@ describe("manual CVs and letters workspace", () => {
     await user.click(screen.getByText("Source & advanced ownership"));
     expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).toBeVisible();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Open source project" }));
+    expect(openDocumentProject).toHaveBeenCalledWith(record().id);
+    expect(await screen.findByText("Opened the live document source project.")).toBeVisible();
     await user.click(screen.getByText("External assistant privacy & integration"));
     expect(await screen.findByRole("heading", { name: "AI-visible CV description" })).toBeVisible();
     expect(await screen.findByRole("heading", { name: "External CV content access" })).toBeVisible();

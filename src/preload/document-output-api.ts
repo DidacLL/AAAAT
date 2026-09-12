@@ -17,6 +17,13 @@ export function createDocumentOutputDesktopApi(invoke: Invoke): DocumentOutputDe
             documentOutputDocumentIdSchema.parse(documentId),
           ),
         ),
+      openProject: async (documentId: string) =>
+        documentOutputOpenResultSchema.parse(
+          await invoke(
+            documentOutputChannels.openProject,
+            documentOutputDocumentIdSchema.parse(documentId),
+          ),
+        ),
     }),
   });
 }

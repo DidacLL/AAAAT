@@ -7,7 +7,7 @@ import {
   documentOutputDocumentIdSchema,
   documentOutputOpenResultSchema,
 } from "../shared/document-output-contracts";
-import { openDocumentOutput } from "./document-output-service";
+import { openDocumentOutput, openDocumentProject } from "./document-output-service";
 import { readLastWorkspacePath } from "./workspace";
 
 function assertTrustedSender(event: IpcMainInvokeEvent, mainWindow: BrowserWindow): void {
@@ -34,6 +34,17 @@ function registerDocumentOutputIpc(mainWindow: BrowserWindow): void {
         requireWorkspaceRoot(),
         documentOutputDocumentIdSchema.parse(documentId),
         (outputPath) => shell.openPath(outputPath),
+      ),
+    );
+  });
+
+  ipcMain.handle(documentOutputChannels.openProject, async (event, documentId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return documentOutputOpenResultSchema.parse(
+      await openDocumentProject(
+        requireWorkspaceRoot(),
+        documentOutputDocumentIdSchema.parse(documentId),
+        (projectPath) => shell.openPath(projectPath),
       ),
     );
   });
