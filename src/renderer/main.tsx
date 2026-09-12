@@ -102,10 +102,7 @@ function createPreviewApi(): DesktopApi &
     careerContextAiDisclosure: Object.freeze({
       current: async () => careerContextAiDisclosure,
       update: async (input: CareerContextAiDisclosureUpdate) => {
-        careerContextAiDisclosure = {
-          ...careerContextAiDisclosure,
-          [input.key]: input.share,
-        };
+        careerContextAiDisclosure = input;
         return careerContextAiDisclosure;
       },
     }),
