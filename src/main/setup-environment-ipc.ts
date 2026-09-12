@@ -55,7 +55,7 @@ async function connectVscodeProject(mainWindow: BrowserWindow) {
   }
 }
 
-function registerSetupEnvironmentIpc(mainWindow: BrowserWindow): void {
+export function registerSetupEnvironmentIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(setupEnvironmentChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(setupEnvironmentChannels.current, async (event) => {
@@ -70,7 +70,3 @@ function registerSetupEnvironmentIpc(mainWindow: BrowserWindow): void {
     return vscodeConnectionResultSchema.parse(await connectVscodeProject(mainWindow));
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) =>
-  registerSetupEnvironmentIpc(mainWindow),
-);
