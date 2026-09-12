@@ -87,7 +87,7 @@ export function CareerContextAiDisclosureControl({
                     setDraft({ ...draft, [key]: event.target.checked })
                   }
                 />
-                {labels[key]}
+                Share {labels[key]}
               </label>
             ))}
           </fieldset>
