@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -163,7 +163,7 @@ describe("professional information workspace", () => {
 
     await user.click(screen.getByRole("button", { name: "Save AI disclosure" }));
     expect(updateAiContext).toHaveBeenCalledWith({ itemId: itemA.id, aiContextMode: "omit" });
-    expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: "Back to professional information" }));
     expect(confirm).toHaveBeenCalledTimes(1);
