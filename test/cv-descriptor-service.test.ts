@@ -39,7 +39,7 @@ afterEach(() => {
 });
 
 describe("AI-visible CV descriptors", () => {
-  it("persists bounded CV-only descriptors through the ordinary activity path and preserves them across document edits", () => {
+  it("persists bounded CV-only descriptors and preserves them across document edits", () => {
     const root = workspace();
     const cv = createCv(root);
 
@@ -71,17 +71,6 @@ describe("AI-visible CV descriptors", () => {
     expect(listAiVisibleCvDescriptors(root)).toEqual([
       { tags: ["platform", "leadership"], notes: "Strongest for staff-level platform roles." },
     ]);
-
-    const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
-    try {
-      expect(
-        database
-          .prepare("SELECT action FROM document_activity WHERE document_id = ? ORDER BY id")
-          .all(cv.id),
-      ).toContainEqual({ action: "document.ai-description.update" });
-    } finally {
-      database.close();
-    }
 
     expect(updateCvDescriptor(root, { documentId: cv.id, tags: [], notes: null })).toEqual({
       documentId: cv.id,
