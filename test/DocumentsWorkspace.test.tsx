@@ -381,8 +381,8 @@ describe("manual CVs and letters workspace", () => {
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
 
-    const content = screen.getByRole("tabpanel", { name: "Document content" });
-    expect(await within(content).findByText(/Direct source edits were detected/)).toBeInTheDocument();
+    const content = await screen.findByRole("tabpanel", { name: "Document content" });
+    expect(within(content).getByText(/Direct source edits were detected/)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Output" }));
     await user.click(screen.getByRole("button", { name: "Replace manual source from structured data" }));
     expect(regenerate).toHaveBeenCalledWith(manual.id);
