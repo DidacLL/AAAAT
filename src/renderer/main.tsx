@@ -11,7 +11,10 @@ import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-cont
 import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
 import type { DocumentOutputDesktopApi } from "../shared/document-output-contracts";
 import type { FocusDesktopApi, FocusMaterialPreferences } from "../shared/focus-contracts";
-import type { ProfileAiContextDesktopApi } from "../shared/profile-ai-context-contracts";
+import type {
+  ProfileAiContextDesktopApi,
+  ProfileAiContextUpdate,
+} from "../shared/profile-ai-context-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { TodoDesktopApi } from "../shared/todo-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-contracts";
@@ -74,7 +77,7 @@ function createPreviewApi(): DesktopApi &
     }),
     profileAiContext: Object.freeze({
       current: async (itemId: string) => ({ itemId, aiContextMode: "expose" as const }),
-      update: async (input) => input,
+      update: async (input: ProfileAiContextUpdate) => input,
     }),
     careerContext: Object.freeze({
       current: async () => emptyCareerContext,
