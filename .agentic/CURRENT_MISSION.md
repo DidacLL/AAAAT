@@ -2,67 +2,55 @@
 
 ## Active bounded work
 
-**Issue #313 — Product recovery: re-establish AAAAT interaction authority before further implementation**
+**Issue #314 — Rebuild Candidatures around two-state Focus, raw capture, direct editing and Tags**
 
-Branch: `product/recover-aaaat-authority`
+Branch: `product/rebuild-candidatures`
 
-Exact base: `main` at `0c5e647c96a5e734957544c3c3cebc71bfeb1a50`
+Exact base: `main` at `5adf115d2b020914afe02ec336cc48a95b09ea71` (PR #315, recovered product/UX authority).
 
-Pre-recovery active work is retired. Issue #304 is closed as superseded and PR #312 is closed unmerged. Do not reuse that branch/tranche as implementation authority.
+Pre-recovery work is retired. Issue #304 is closed and PR #312 is closed unmerged. Do not reuse their branches or treat their implementation as authority.
 
-## Recovered product authority
+## Product outcome
 
-Current authority now defines AAAAT as a local user-owned candidature/professional-information/application-document workspace with multiple direct intentions rather than one workflow.
+Replace the current selected-record-first candidature UI with the recovered AAAAT candidature model:
 
-Key recovered constraints:
+- **Corpus Focus** starts with no forced selection and shows multiple recognizable candidatures using only a small configured/default set of Focus fields/signals.
+- Selecting one candidature transitions to **selected-candidature Focus** using the available screen rather than expanding a cramped card or preserving a permanent list/detail split.
+- Selected Focus is read-first but directly editable for displayed fields.
+- Tags are contextual shared glossary/wiki knowledge and replace the competing `Concepts` product/domain vocabulary.
+- Complete candidature work is independently reachable and exposes all information/Sources/Tags/application material through progressive disclosure.
+- New candidature capture is raw-material-first: retain whatever the user has without requiring dedicated title/URL/source-kind/lifecycle fields.
+- Saving capture must not force one universal next journey.
+- Reminders, Sources, documents and Activity do not become default Focus clutter.
+- No lifecycle/status/priority/next-action/completeness machinery is introduced.
 
-- Focus is one two-state rapid-retrieval experience: corpus recognition first, then selected-candidature recall using the available screen.
-- Focus shows a deliberately selected subset of information and is editable for displayed fields; it is not a dump of Sources/documents/reminders/activity.
-- Complete candidature editing is independently reachable and is not a mandatory continuation of Focus.
-- Capture is raw-material-first and classification-light.
-- Common fields are shipped defaults, not a closed ontology; the model remains compatible with user-maintainable/custom fields.
-- Use `Tags` consistently for the shared reusable keyword/glossary/wiki object. Historical `Concepts` terminology is implementation drift to remove.
-- No forced candidature lifecycle, priority, next-action or completeness machinery.
-- Notes/checkable reminders are secondary candidature-attached conveniences only.
-- VCVGenerator remains independently core and uses the same document system standalone or in candidature context.
-- AAAAT owns no AI/inference; AI is optional bounded contextual assistance. External AI may be another entrance without redefining AAAAT around agent tooling.
-- Local storage, Focus presentation and AI disclosure are separate concerns.
+## Preserve where independently justified
 
-## Recovery audit result
+- local authoritative workspace and manual/no-AI operation;
+- flexible candidature field/value model and future user-maintainable field direction;
+- first-class Sources and full Source readability;
+- useful candidature search semantics;
+- candidature ↔ VCVGenerator handoffs and application-material relationships;
+- archive as secondary corpus organization;
+- dirty-state protection;
+- bounded optional AI extraction/field assistance;
+- narrow renderer/preload/main mutation boundaries.
 
-Preserve where independently justified:
+## Excluded
 
-- top-level Candidatures / CVs & letters / Professional information with secondary Settings;
-- local workspace ownership and first-run create/open;
-- flexible candidature values and first-class Sources;
-- useful search semantics;
-- VCVGenerator independence and candidature handoffs;
-- bounded contextual AI/manual-no-AI behavior;
-- dirty-state protection and narrow privileged boundaries.
+- professional-information taxonomy redesign;
+- VCVGenerator redesign;
+- provider/integration redesign;
+- job discovery;
+- lifecycle/status/priority/next-action features;
+- reminder/task-management expansion;
+- generic dashboard/framework work;
+- compatibility with development-only workspace schemas.
 
-Highest-risk redesign:
+## Review / evidence
 
-- current Candidatures auto-selects a record and places Focus inside that selected record;
-- corpus is reduced to a permanent sidebar;
-- first-sight field filtering exposes implementation machinery;
-- current Focus defaults Sources, `Concepts`, reminders, documents and Activity into the recall surface and lacks direct field editing;
-- capture still exposes dedicated title/URL assumptions and forces a post-save selected-detail path;
-- `Concept` survives throughout schema/contracts/services/renderer/tests;
-- Reminders retain more shell/Focus prominence than the product justifies.
+Treat #314 as Class C. Require independent Reviewer and Skeptical Simplifier assessment after implementation.
 
-Known later drift, not yet activated as another work item:
+Verification must protect behavior rather than the new component arrangement. Packaged `720×600` evidence must cover corpus Focus → selected Focus → inline edit → back, plus direct complete-candidature entry.
 
-- professional information still uses a closed ten-value `ProfileItemKind` taxonomy;
-- pre-user migration/compatibility machinery still needs re-evaluation independently of retired #304/#312.
-
-## Next bounded implementation
-
-**Issue #314 — Rebuild Candidatures around two-state Focus, raw capture, direct editing and Tags.**
-
-Do not start #314 until the product-recovery authority change from #313 is merged into `main`. Then start from that exact resulting `main`; do not reuse a pre-recovery branch.
-
-No renderer/schema implementation belongs on `product/recover-aaaat-authority`.
-
-## Completion criterion for #313
-
-The recovery tranche is complete when its authority changes are merged and a fresh implementation agent can read current Product Definition, Product Context, UX Definition, Current Mission and Issue #314 and correctly understand the candidature redesign without reconstructing old prompts/conversations.
+Do not activate a successor until #314 is complete and reconciled against the recovered product authority.
