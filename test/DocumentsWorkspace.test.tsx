@@ -224,6 +224,9 @@ describe("manual CVs and letters workspace", () => {
     expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).not.toBeVisible();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).not.toBeVisible();
     expect(screen.getByRole("button", { name: "Open source project" })).not.toBeVisible();
+    expect(screen.getByText("main.tex", { exact: true })).not.toBeVisible();
+    expect(screen.getByText("aaaat.sty", { exact: true })).not.toBeVisible();
+    expect(screen.getByText("data.tex", { exact: true })).not.toBeVisible();
     expect(screen.getByRole("heading", { name: "AI-visible CV description" })).not.toBeVisible();
     expect(screen.getByRole("heading", { name: "External CV content access" })).not.toBeVisible();
     expect(screen.queryByRole("heading", { name: "Retained application artifacts" })).not.toBeInTheDocument();
@@ -236,6 +239,14 @@ describe("manual CVs and letters workspace", () => {
     expect(await screen.findByText("Opened the rendered PDF.")).toBeVisible();
 
     await user.click(screen.getByText("Source & advanced ownership"));
+    expect(screen.getByText("main.tex", { exact: true })).toBeVisible();
+    expect(screen.getByText("aaaat.sty", { exact: true })).toBeVisible();
+    expect(screen.getByText("data.tex", { exact: true })).toBeVisible();
+    const ownership = screen.getByLabelText("Live source ownership");
+    expect(ownership).toBeVisible();
+    expect(ownership).toHaveTextContent("main.tex is your editable document blueprint. AAAAT preserves it.");
+    expect(ownership).toHaveTextContent("aaaat.sty is your editable package/style source. AAAAT preserves it.");
+    expect(ownership).toHaveTextContent("data.tex is generated from saved AAAAT document information. Explicit regeneration replaces this generated file.");
     expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).toBeVisible();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Open source project" }));
@@ -370,7 +381,8 @@ describe("manual CVs and letters workspace", () => {
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
 
-    expect(await screen.findByText(/Direct source edits were detected/)).toBeInTheDocument();
+    const content = await screen.findByRole("tabpanel", { name: "Document content" });
+    expect(within(content).getByText(/Direct source edits were detected/)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Output" }));
     await user.click(screen.getByRole("button", { name: "Replace manual source from structured data" }));
     expect(regenerate).toHaveBeenCalledWith(manual.id);
