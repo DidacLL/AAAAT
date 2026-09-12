@@ -1,6 +1,11 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
+export const developmentServer = Object.freeze({
+  host: "127.0.0.1",
+  port: 0,
+});
+
 function developmentCsp(): Plugin {
   return {
     name: "aaaat-development-csp",
@@ -20,5 +25,5 @@ function developmentCsp(): Plugin {
 
 export default defineConfig(({ command }) => ({
   plugins: [react(), ...(command === "serve" ? [developmentCsp()] : [])],
-  server: command === "serve" ? { host: "127.0.0.1" } : undefined,
+  server: command === "serve" ? developmentServer : undefined,
 }));
