@@ -24,7 +24,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerDocumentOutputIpc(mainWindow: BrowserWindow): void {
+export function registerDocumentOutputIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(documentOutputChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(documentOutputChannels.open, async (event, documentId: unknown) => {
@@ -49,5 +49,3 @@ function registerDocumentOutputIpc(mainWindow: BrowserWindow): void {
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) => registerDocumentOutputIpc(mainWindow));
