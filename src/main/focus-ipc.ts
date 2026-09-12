@@ -26,7 +26,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerFocusIpc(mainWindow: BrowserWindow): void {
+export function registerFocusIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(focusChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(focusChannels.current, (event) => {
@@ -43,5 +43,3 @@ function registerFocusIpc(mainWindow: BrowserWindow): void {
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) => registerFocusIpc(mainWindow));
