@@ -27,7 +27,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerCareerContextAiDisclosureIpc(mainWindow: BrowserWindow): void {
+export function registerCareerContextAiDisclosureIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(careerContextAiDisclosureChannels)) {
     ipcMain.removeHandler(channel);
   }
@@ -49,7 +49,3 @@ function registerCareerContextAiDisclosureIpc(mainWindow: BrowserWindow): void {
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) =>
-  registerCareerContextAiDisclosureIpc(mainWindow),
-);
