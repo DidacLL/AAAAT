@@ -138,6 +138,7 @@ export function ProfileWorkspace({
   const [variantState, setVariantState] = useState<VariantFormState>(emptyVariant);
   const [view, setView] = useState<ProfessionalInformationView>("overview");
   const [error, setError] = useState<string | null>(null);
+  const [aiDisclosureDirty, setAiDisclosureDirty] = useState(false);
   const handledInitialItemId = useRef<string | null>(null);
 
   const selectedVariant = useMemo(
@@ -157,18 +158,21 @@ export function ProfileWorkspace({
     ? snapshot?.items.find((item) => item.id === editingItemId) ?? null
     : null;
   const itemDirty = JSON.stringify(itemState) !== JSON.stringify(editedItem ? itemForm(editedItem) : emptyItem);
+  const itemEditorDirty = itemDirty || aiDisclosureDirty;
 
   useEffect(() => {
-    onDirtyChange?.(variantDirty || itemDirty);
+    onDirtyChange?.(variantDirty || itemEditorDirty);
     return () => onDirtyChange?.(false);
-  }, [itemDirty, onDirtyChange, variantDirty]);
+  }, [itemEditorDirty, onDirtyChange, variantDirty]);
 
-  const confirmItemDiscard = () => !itemDirty || window.confirm("Discard unsaved information edits?");
+  const confirmItemDiscard = () =>
+    !itemEditorDirty || window.confirm("Discard unsaved information edits?");
 
   const startNewItem = () => {
     if (!confirmItemDiscard()) return;
     setEditingItemId(null);
     setItemState(emptyItem);
+    setAiDisclosureDirty(false);
     setError(null);
     setView("item");
   };
@@ -177,6 +181,7 @@ export function ProfileWorkspace({
     if (item.id !== editingItemId && !confirmItemDiscard()) return;
     setEditingItemId(item.id);
     setItemState(itemForm(item));
+    setAiDisclosureDirty(false);
     setError(null);
     setView("item");
   };
@@ -185,6 +190,7 @@ export function ProfileWorkspace({
     if (!confirmItemDiscard()) return;
     setEditingItemId(null);
     setItemState(emptyItem);
+    setAiDisclosureDirty(false);
     setError(null);
     setView("overview");
     if (professionalInformationHandoff) returnToDocument();
@@ -271,6 +277,7 @@ export function ProfileWorkspace({
         setSnapshot(current);
         setEditingItemId(item.id);
         setItemState(itemForm(item));
+        setAiDisclosureDirty(false);
         setError(null);
         setView("item");
       })
@@ -284,6 +291,10 @@ export function ProfileWorkspace({
 
   const submitItem = async (event: FormEvent) => {
     event.preventDefault();
+    if (aiDisclosureDirty) {
+      setError("Save or revert the AI disclosure change before saving information.");
+      return;
+    }
     setError(null);
     try {
       const next = editingItemId
@@ -291,6 +302,7 @@ export function ProfileWorkspace({
         : await window.aaaat.profile.addItem(itemInput(itemState));
       setEditingItemId(null);
       setItemState(emptyItem);
+      setAiDisclosureDirty(false);
       await acceptSnapshot(next, selectedVariantId, true);
       setView("overview");
       if (professionalInformationHandoff) returnToDocument();
@@ -307,6 +319,7 @@ export function ProfileWorkspace({
       if (editingItemId === itemId) {
         setEditingItemId(null);
         setItemState(emptyItem);
+        setAiDisclosureDirty(false);
         setView("overview");
       }
     } catch {
@@ -508,7 +521,7 @@ export function ProfileWorkspace({
               <p className="eyebrow">Reusable information</p>
               <h2>{editingItemId ? "Edit information" : "Add information"}</h2>
             </div>
-            {itemDirty ? <span>Unsaved changes</span> : null}
+            {itemEditorDirty ? <span>Unsaved changes</span> : null}
           </div>
           <form className="editor-card" onSubmit={(event) => void submitItem(event)}>
             <label>
@@ -552,7 +565,11 @@ export function ProfileWorkspace({
             </div>
           </form>
           {editingItemId ? (
-            <ProfileItemAiDisclosureControl key={editingItemId} itemId={editingItemId} />
+            <ProfileItemAiDisclosureControl
+              key={editingItemId}
+              itemId={editingItemId}
+              onDirtyChange={setAiDisclosureDirty}
+            />
           ) : null}
         </div>
       ) : null}
