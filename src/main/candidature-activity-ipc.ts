@@ -24,7 +24,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerCandidatureActivityIpc(mainWindow: BrowserWindow): void {
+export function registerCandidatureActivityIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(candidatureActivityChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(candidatureActivityChannels.list, (event, candidatureId: unknown) => {
@@ -37,7 +37,3 @@ function registerCandidatureActivityIpc(mainWindow: BrowserWindow): void {
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) =>
-  registerCandidatureActivityIpc(mainWindow),
-);
