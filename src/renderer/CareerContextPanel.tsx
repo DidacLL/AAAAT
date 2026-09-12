@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import type { CareerContext } from "../shared/contracts";
+import { CareerContextAiDisclosureControl } from "./CareerContextAiDisclosureControl";
 
 const emptyContext: CareerContext = {
   careerDirection: "",
@@ -62,6 +63,7 @@ export function CareerContextPanel({
   const [context, setContext] = useState<CareerContext | null>(null);
   const [draft, setDraft] = useState<CareerContext>(emptyContext);
   const [editing, setEditing] = useState(false);
+  const [disclosureDirty, setDisclosureDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -92,9 +94,9 @@ export function CareerContextPanel({
   const dirty = context ? JSON.stringify(draft) !== JSON.stringify(context) : false;
 
   useEffect(() => {
-    onDirtyChange?.(editing && dirty);
+    onDirtyChange?.((editing && dirty) || disclosureDirty);
     return () => onDirtyChange?.(false);
-  }, [dirty, editing, onDirtyChange]);
+  }, [dirty, disclosureDirty, editing, onDirtyChange]);
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -187,6 +189,10 @@ export function CareerContextPanel({
           ))}
         </dl>
       )}
+
+      {context ? (
+        <CareerContextAiDisclosureControl onDirtyChange={setDisclosureDirty} />
+      ) : null}
     </section>
   );
 }
