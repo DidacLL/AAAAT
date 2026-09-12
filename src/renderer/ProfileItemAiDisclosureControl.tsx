@@ -43,8 +43,9 @@ export function ProfileItemAiDisclosureControl({ itemId, onDirtyChange }: Props)
 
   useEffect(() => {
     onDirtyChange?.(dirty);
-    return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
+
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const save = async () => {
     setSaving(true);
