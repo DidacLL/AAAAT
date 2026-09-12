@@ -50,44 +50,29 @@ export function updateCareerContext(
 ): CareerContext {
   const update = careerContextUpdateSchema.parse(rawUpdate);
   return withWorkspaceDatabase(rootPath, (database) => {
-    const occurredAt = new Date().toISOString();
-    database.exec("BEGIN IMMEDIATE");
-    try {
-      database
-        .prepare(
-          `UPDATE career_context
-           SET career_direction = ?,
-               objectives = ?,
-               constraints_text = ?,
-               target_roles = ?,
-               target_markets_locations = ?,
-               work_preferences = ?,
-               application_writing_preferences = ?,
-               updated_at = ?
-           WHERE id = 1`,
-        )
-        .run(
-          update.careerDirection,
-          update.objectives,
-          update.constraints,
-          update.targetRoles,
-          update.targetMarketsLocations,
-          update.workPreferences,
-          update.applicationWritingPreferences,
-          occurredAt,
-        );
-      database
-        .prepare(
-          `INSERT INTO career_context_activity(occurred_at, action)
-           VALUES (?, ?)`,
-        )
-        .run(occurredAt, "career-context.updated");
-      const result = readCareerContext(database);
-      database.exec("COMMIT");
-      return result;
-    } catch (error) {
-      database.exec("ROLLBACK");
-      throw error;
-    }
+    database
+      .prepare(
+        `UPDATE career_context
+         SET career_direction = ?,
+             objectives = ?,
+             constraints_text = ?,
+             target_roles = ?,
+             target_markets_locations = ?,
+             work_preferences = ?,
+             application_writing_preferences = ?,
+             updated_at = ?
+         WHERE id = 1`,
+      )
+      .run(
+        update.careerDirection,
+        update.objectives,
+        update.constraints,
+        update.targetRoles,
+        update.targetMarketsLocations,
+        update.workPreferences,
+        update.applicationWritingPreferences,
+        new Date().toISOString(),
+      );
+    return readCareerContext(database);
   });
 }
