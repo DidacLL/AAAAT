@@ -26,6 +26,14 @@ const document: DocumentRecord = {
   sourcePath: "/workspace/documents/cv/main.tex",
   artifactPath: "/workspace/documents/cv/build/main.pdf",
 };
+const alternateDocument: DocumentRecord = {
+  ...document,
+  id: "00000000-0000-4000-8000-000000000704",
+  title: "Alternative CV",
+  projectPath: "/workspace/documents/cv-alt",
+  sourcePath: "/workspace/documents/cv-alt/main.tex",
+  artifactPath: "/workspace/documents/cv-alt/build/main.pdf",
+};
 const candidature: CandidatureRecord = {
   id: candidatureId,
   archived: false,
@@ -39,9 +47,11 @@ const candidature: CandidatureRecord = {
 };
 
 const setConcepts = vi.fn();
+const setDocuments = vi.fn();
 
 function installApi() {
   setConcepts.mockImplementation(async ({ conceptIds }) => ({ ...candidature, conceptIds }));
+  setDocuments.mockImplementation(async ({ documentIds }) => ({ ...candidature, documentIds }));
   const api = {
     candidatures: {
       list: vi.fn().mockResolvedValue([candidature]),
@@ -58,14 +68,14 @@ function installApi() {
       addSource: vi.fn(),
       updateSource: vi.fn(),
       removeSource: vi.fn(),
-      setDocuments: vi.fn(),
+      setDocuments,
       listConcepts: vi.fn().mockResolvedValue([concept]),
       createConcept: vi.fn(),
       updateConcept: vi.fn(),
       setConcepts,
     },
     candidatureSearch: { search: vi.fn().mockResolvedValue([]) },
-    documents: { list: vi.fn().mockResolvedValue([document]) },
+    documents: { list: vi.fn().mockResolvedValue([document, alternateDocument]) },
     artifacts: { list: vi.fn().mockResolvedValue([]), capture: vi.fn() },
     todos: { list: vi.fn().mockResolvedValue([]) },
     focus: {
@@ -148,5 +158,57 @@ describe("selected candidature local hierarchy", () => {
 
     await user.click(within(concepts).getByRole("button", { name: "Save concept associations" }));
     expect(setConcepts).toHaveBeenCalledWith({ candidatureId, conceptIds: [concept.id] });
+  });
+
+  it("preserves an unsaved document-association draft when Concept associations are saved", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    await screen.findByRole("region", { name: "Candidature Focus" });
+    await user.click(screen.getByRole("tab", { name: "Application material" }));
+    const applicationMaterial = screen.getByRole("region", { name: "Application material" });
+    await user.click(within(applicationMaterial).getByText("Manage existing document associations", { selector: "summary" }));
+    const alternate = within(applicationMaterial).getByRole("checkbox", { name: "Alternative CV (CV)" });
+    await user.click(alternate);
+    expect(alternate).toBeChecked();
+
+    await user.click(screen.getByText("Concepts", { selector: "summary" }));
+    const concepts = screen.getByRole("region", { name: "Concepts" });
+    await user.click(within(concepts).getByRole("checkbox", { name: "Platform" }));
+    await user.click(within(concepts).getByRole("button", { name: "Save concept associations" }));
+
+    expect(setConcepts).toHaveBeenCalledWith({ candidatureId, conceptIds: [concept.id] });
+    expect(alternate).toBeChecked();
+    const saveDocuments = within(applicationMaterial).getByRole("button", { name: "Save document associations" });
+    expect(saveDocuments).toBeEnabled();
+    await user.click(saveDocuments);
+    expect(setDocuments).toHaveBeenCalledWith({
+      candidatureId,
+      documentIds: [document.id, alternateDocument.id],
+    });
+  });
+
+  it("keeps an unsaved Source dirty after Concept associations are saved", async () => {
+    installApi();
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<CandidaturesWorkspace />);
+
+    await screen.findByRole("region", { name: "Candidature Focus" });
+    await user.click(screen.getByRole("tab", { name: "Sources" }));
+    const sources = screen.getByRole("region", { name: "Sources" });
+    await user.click(within(sources).getByRole("button", { name: "Add source" }));
+    await user.type(within(sources).getByLabelText("Title"), "Unsaved recruiter note");
+
+    await user.click(screen.getByText("Concepts", { selector: "summary" }));
+    const concepts = screen.getByRole("region", { name: "Concepts" });
+    await user.click(within(concepts).getByRole("checkbox", { name: "Platform" }));
+    await user.click(within(concepts).getByRole("button", { name: "Save concept associations" }));
+
+    await user.click(screen.getByRole("tab", { name: "Application material" }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved Source edits?");
+    expect(screen.getByRole("tab", { name: "Sources" })).toHaveAttribute("aria-selected", "true");
+    expect(within(sources).getByLabelText("Title")).toHaveValue("Unsaved recruiter note");
   });
 });
