@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -32,43 +31,14 @@ function initializeCurrentWorkspace(root: string): string {
   const database = new DatabaseSync(path.join(root, "workspace.sqlite"));
   const now = "2026-09-03T00:00:00.000Z";
   const candidatureId = "packaged-recovery-candidature";
-  const migrations = readdirSync(path.resolve("src/main/migrations"))
-    .map((file) => {
-      const match = /^(\d+)_(.+)\.sql$/.exec(file);
-      const version = match?.[1];
-      const name = match?.[2];
-      if (!version || !name) return null;
-      return {
-        version: Number(version),
-        name: name.replaceAll("_", "-"),
-        sql: readFileSync(path.resolve("src/main/migrations", file), "utf8"),
-      };
-    })
-    .filter((migration): migration is { version: number; name: string; sql: string } => migration !== null)
-    .sort((left, right) => left.version - right.version);
 
   try {
-    database.exec(
-      "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;",
-    );
+    database.exec(readFileSync(path.resolve("src/main/schema.sql"), "utf8"));
     database.exec("BEGIN IMMEDIATE");
     try {
-      for (const migration of migrations) {
-        database.exec(migration.sql);
-        database
-          .prepare(
-            "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
-          )
-          .run(
-            migration.version,
-            migration.name,
-            createHash("sha256").update(migration.sql).digest("hex"),
-            now,
-          );
-      }
-      database
-        .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
-        .run("workspace.initialized_at", now);
+      const metadata = database.prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)");
+      metadata.run("workspace.product", "AAAAT");
+      metadata.run("workspace.initialized_at", now);
       database
         .prepare(
           "INSERT INTO candidatures(id, archived, created_at, updated_at) VALUES (?, 0, ?, ?)",
@@ -140,6 +110,7 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
 
     const manifestText = readFileSync(path.join(backup, "manifest.json"), "utf8");
     expect(manifestText).not.toContain(root);
+    expect(manifestText).not.toContain("schema_migrations");
     expect(manifestText).toContain("ai-connection.json");
     expect(readFileSync(path.join(backup, "files", "documents", "cv.tex"), "utf8")).toBe(
       "portable cv",
@@ -184,15 +155,12 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
           .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
           .get(candidatureId),
       ).toEqual({ action: "candidature.created" });
-      const migrations = database
-        .prepare("SELECT version, name, sha256 FROM schema_migrations ORDER BY version")
-        .all() as Array<{ version: number; name: string; sha256: string }>;
-      expect(migrations).not.toHaveLength(0);
-      for (const migration of migrations) {
-        expect(migration.version).toEqual(expect.any(Number));
-        expect(migration.name).toEqual(expect.any(String));
-        expect(migration.sha256).toMatch(/^[a-f0-9]{64}$/);
-      }
+      expect(
+        database.prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.product'").get(),
+      ).toEqual({ value: "AAAAT" });
+      expect(
+        database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'").get(),
+      ).toBeUndefined();
     } finally {
       database.close();
     }
