@@ -6,6 +6,11 @@ import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
 import type { CandidatureActivityDesktopApi } from "../shared/candidature-activity-contracts";
 import type { CandidatureOpportunityResearchAccessDesktopApi } from "../shared/candidature-opportunity-research-access-contracts";
 import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
+import type {
+  CareerContextAiDisclosure,
+  CareerContextAiDisclosureDesktopApi,
+  CareerContextAiDisclosureUpdate,
+} from "../shared/career-context-ai-disclosure-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
 import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-contracts";
 import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
@@ -33,6 +38,15 @@ const emptyCareerContext: CareerContext = {
   workPreferences: "",
   applicationWritingPreferences: "",
 };
+const defaultCareerContextAiDisclosure: CareerContextAiDisclosure = {
+  careerDirection: true,
+  objectives: true,
+  constraints: true,
+  targetRoles: true,
+  targetMarketsLocations: true,
+  workPreferences: true,
+  applicationWritingPreferences: true,
+};
 const previewUnavailable = async (): Promise<never> => {
   throw new Error("Create preview data in the desktop app for this operation.");
 };
@@ -43,6 +57,7 @@ function createPreviewApi(): DesktopApi &
   CandidatureActivityDesktopApi &
   CandidatureOpportunityResearchAccessDesktopApi &
   CandidatureSearchDesktopApi &
+  CareerContextAiDisclosureDesktopApi &
   CvContentAccessDesktopApi &
   CvDescriptorDesktopApi &
   DocumentOutputDesktopApi &
@@ -51,6 +66,7 @@ function createPreviewApi(): DesktopApi &
   FocusDesktopApi &
   SetupEnvironmentDesktopApi &
   WorkspaceRecoveryDesktopApi {
+  let careerContextAiDisclosure = defaultCareerContextAiDisclosure;
   return Object.freeze({
     system: Object.freeze({
       info: async () => ({
@@ -82,6 +98,13 @@ function createPreviewApi(): DesktopApi &
     careerContext: Object.freeze({
       current: async () => emptyCareerContext,
       update: async (update: CareerContext) => update,
+    }),
+    careerContextAiDisclosure: Object.freeze({
+      current: async () => careerContextAiDisclosure,
+      update: async (input: CareerContextAiDisclosureUpdate) => {
+        careerContextAiDisclosure = input;
+        return careerContextAiDisclosure;
+      },
     }),
     documents: Object.freeze({
       list: async () => [],

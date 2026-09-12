@@ -43,6 +43,7 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     import("./candidature-activity-ipc"),
     import("./candidature-opportunity-research-access-ipc"),
     import("./candidature-search-ipc"),
+    import("./career-context-ai-disclosure-ipc"),
     import("./combined-document-ipc"),
     import("./cv-content-access-ipc"),
     import("./cv-descriptor-ipc"),

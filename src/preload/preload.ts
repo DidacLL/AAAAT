@@ -5,6 +5,7 @@ import { createArtifactDesktopApi } from "./artifact-api";
 import { createCandidatureActivityDesktopApi } from "./candidature-activity-api";
 import { createCandidatureOpportunityResearchAccessDesktopApi } from "./candidature-opportunity-research-access-api";
 import { createCandidatureSearchDesktopApi } from "./candidature-search-api";
+import { createCareerContextAiDisclosureDesktopApi } from "./career-context-ai-disclosure-api";
 import { createDesktopApi } from "./api";
 import { createCombinedDocumentDesktopApi } from "./combined-document-api";
 import { createCvContentAccessDesktopApi } from "./cv-content-access-api";
@@ -27,6 +28,7 @@ contextBridge.exposeInMainWorld(
     ...createCandidatureActivityDesktopApi(invoke),
     ...createCandidatureOpportunityResearchAccessDesktopApi(invoke),
     ...createCandidatureSearchDesktopApi(invoke),
+    ...createCareerContextAiDisclosureDesktopApi(invoke),
     ...createCombinedDocumentDesktopApi(invoke),
     ...createCvContentAccessDesktopApi(invoke),
     ...createCvDescriptorDesktopApi(invoke),

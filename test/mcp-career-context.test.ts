@@ -9,6 +9,7 @@ import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { describe, expect, it } from "vitest";
 
 import { createCandidature } from "../src/main/candidature-service";
+import { updateCareerContextAiDisclosure } from "../src/main/career-context-ai-disclosure-service";
 import { updateCareerContext } from "../src/main/career-context-service";
 import {
   careerContextReadToolName,
@@ -50,16 +51,25 @@ function textResult(content: readonly unknown[]): string {
 }
 
 describe("external career-context MCP operation", () => {
-  it("returns only non-empty user-written Career Context without local metadata or mutation", async () => {
+  it("returns only non-empty locally permitted Career preferences without local metadata or mutation", async () => {
     const root = temporaryWorkspace();
     updateCareerContext(root, {
       careerDirection: "Move toward staff-level platform engineering.",
       objectives: "",
-      constraints: "No relocation outside Spain.",
+      constraints: "MCP-PRIVATE-CONSTRAINT",
       targetRoles: "Staff Platform Engineer",
-      targetMarketsLocations: "Madrid; remote EU",
+      targetMarketsLocations: "MCP-PRIVATE-LOCATION",
       workPreferences: "   ",
       applicationWritingPreferences: "Concise, evidence-led applications.",
+    });
+    updateCareerContextAiDisclosure(root, {
+      careerDirection: true,
+      objectives: true,
+      constraints: false,
+      targetRoles: true,
+      targetMarketsLocations: false,
+      workPreferences: true,
+      applicationWritingPreferences: true,
     });
     createCandidature(root, {
       source: {
@@ -90,11 +100,11 @@ describe("external career-context MCP operation", () => {
       const text = textResult(result.content);
       expect(externalCareerContextSchema.parse(JSON.parse(text))).toEqual({
         careerDirection: "Move toward staff-level platform engineering.",
-        constraints: "No relocation outside Spain.",
         targetRoles: "Staff Platform Engineer",
-        targetMarketsLocations: "Madrid; remote EU",
         applicationWritingPreferences: "Concise, evidence-led applications.",
       });
+      expect(text).not.toContain("MCP-PRIVATE-CONSTRAINT");
+      expect(text).not.toContain("MCP-PRIVATE-LOCATION");
       expect(text).not.toContain(root);
       expect(text).not.toContain("workspace.sqlite");
       expect(text).not.toContain("MCP-PRIVATE-CANDIDATURE");
