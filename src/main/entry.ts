@@ -37,20 +37,5 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     () => app.exit(2),
   );
 } else {
-  void Promise.all([
-    import("./ai-connection-ipc"),
-    import("./artifact-ipc"),
-    import("./candidature-activity-ipc"),
-    import("./candidature-opportunity-research-access-ipc"),
-    import("./candidature-search-ipc"),
-    import("./career-context-ai-disclosure-ipc"),
-    import("./combined-document-ipc"),
-    import("./cv-content-access-ipc"),
-    import("./cv-descriptor-ipc"),
-    import("./document-output-ipc"),
-    import("./profile-ai-context-ipc"),
-    import("./todo-ipc"),
-    import("./focus-ipc"),
-    import("./setup-environment-ipc"),
-  ]).then(() => import("./main"));
+  void import("./main");
 }
