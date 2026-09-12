@@ -92,7 +92,7 @@ describe("candidature renderer projection", () => {
     ]);
   });
 
-  it("explains retained-information matches without duplicating a visible label match", () => {
+  it("explains retained-information matches from either the field label or retained value without duplicating a visible candidature-label match", () => {
     const candidate = {
       ...record("00000000-0000-4000-8000-000000000414"),
       label: "Nimbus Labs",
@@ -107,6 +107,10 @@ describe("candidature renderer projection", () => {
       ],
     };
 
+    expect(candidatureSearchMatchCue(candidate, [locationField], [], "Location")).toEqual({
+      label: "Location",
+      value: "Barcelona hybrid",
+    });
     expect(candidatureSearchMatchCue(candidate, [locationField], [], "hybrid")).toEqual({
       label: "Location",
       value: "Barcelona hybrid",
