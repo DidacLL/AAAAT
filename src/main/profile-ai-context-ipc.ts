@@ -28,7 +28,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerProfileAiContextIpc(mainWindow: BrowserWindow): void {
+export function registerProfileAiContextIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(profileAiContextChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(profileAiContextChannels.current, (event, itemId: unknown) => {
@@ -51,7 +51,3 @@ function registerProfileAiContextIpc(mainWindow: BrowserWindow): void {
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) =>
-  registerProfileAiContextIpc(mainWindow),
-);
