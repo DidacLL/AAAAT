@@ -85,6 +85,9 @@ export function candidatureSearchMatchCue(
     const field = fieldById.get(retained.fieldId);
     if (!field) continue;
     const value = displayValue(field, retained.value);
+    if (matchingExcerpt(field.definition.label, normalizedQuery) !== null) {
+      return { label: field.definition.label, value };
+    }
     const excerpt = matchingExcerpt(value, normalizedQuery, 96);
     if (excerpt) return { label: field.definition.label, value: excerpt };
   }
