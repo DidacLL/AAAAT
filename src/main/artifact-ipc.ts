@@ -34,7 +34,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerArtifactIpc(mainWindow: BrowserWindow): void {
+export function registerArtifactIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(artifactChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(artifactChannels.list, (event, candidatureId: unknown) => {
@@ -75,5 +75,3 @@ function registerArtifactIpc(mainWindow: BrowserWindow): void {
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) => registerArtifactIpc(mainWindow));
