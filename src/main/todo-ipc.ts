@@ -27,7 +27,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerTodoIpc(mainWindow: BrowserWindow): void {
+export function registerTodoIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(todoChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(todoChannels.list, (event) => {
@@ -53,5 +53,3 @@ function registerTodoIpc(mainWindow: BrowserWindow): void {
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) => registerTodoIpc(mainWindow));
