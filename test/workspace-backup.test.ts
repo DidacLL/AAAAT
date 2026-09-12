@@ -154,9 +154,12 @@ describe("workspace backup and restore", () => {
     const database = new DatabaseSync(databasePath);
     try {
       database.prepare("UPDATE workspace_metadata SET value = ? WHERE key = 'workspace.product'").run("not-aaaat");
+      database.exec("PRAGMA wal_checkpoint(TRUNCATE)");
     } finally {
       database.close();
     }
+    rmSync(`${databasePath}-wal`, { force: true });
+    rmSync(`${databasePath}-shm`, { force: true });
     refreshDatabaseIntegrityMetadata(third.backup);
     expect(() => restoreWorkspaceBackup(third.backup, third.restore)).toThrow(/current AAAAT workspace/);
     expectEmpty(third.restore);
