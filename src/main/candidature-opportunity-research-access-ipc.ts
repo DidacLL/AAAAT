@@ -27,7 +27,9 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerCandidatureOpportunityResearchAccessIpc(mainWindow: BrowserWindow): void {
+export function registerCandidatureOpportunityResearchAccessIpc(
+  mainWindow: BrowserWindow,
+): void {
   for (const channel of Object.values(candidatureOpportunityResearchAccessChannels)) {
     ipcMain.removeHandler(channel);
   }
@@ -54,7 +56,3 @@ function registerCandidatureOpportunityResearchAccessIpc(mainWindow: BrowserWind
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) =>
-  registerCandidatureOpportunityResearchAccessIpc(mainWindow),
-);
