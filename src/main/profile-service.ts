@@ -113,10 +113,7 @@ function readItems(database: DatabaseSync): ProfileItem[] {
 }
 
 function parsePatch(value: string | null): ProfileItemContentPatch | null {
-  if (value === null) {
-    return null;
-  }
-
+  if (value === null) return null;
   try {
     return profileItemContentPatchSchema.parse(JSON.parse(value));
   } catch {
@@ -124,10 +121,7 @@ function parsePatch(value: string | null): ProfileItemContentPatch | null {
   }
 }
 
-function readRuleRows(
-  database: DatabaseSync,
-  variantId?: string,
-): ProfileVariantRuleRow[] {
+function readRuleRows(database: DatabaseSync, variantId?: string): ProfileVariantRuleRow[] {
   const statement = variantId
     ? database.prepare(
         `SELECT variant_id AS variantId, item_id AS itemId,
@@ -144,7 +138,6 @@ function readRuleRows(
            FROM profile_variant_item_rules
           ORDER BY variant_id, item_id`,
       );
-
   return (variantId ? statement.all(variantId) : statement.all()) as unknown as ProfileVariantRuleRow[];
 }
 
@@ -202,11 +195,7 @@ function requireItem(database: DatabaseSync, itemId: string): ProfileItem {
         WHERE id = ?`,
     )
     .get(itemId) as unknown as ProfileItemRow | undefined;
-
-  if (!row) {
-    throw new ProfileServiceError("The profile item no longer exists.");
-  }
-
+  if (!row) throw new ProfileServiceError("The profile item no longer exists.");
   return toItem(row);
 }
 
@@ -214,57 +203,27 @@ function requireVariant(database: DatabaseSync, variantId: string): void {
   const row = database
     .prepare("SELECT 1 AS present FROM profile_variants WHERE id = ?")
     .get(variantId);
-  if (!row) {
-    throw new ProfileServiceError("The profile variant no longer exists.");
-  }
-}
-
-function recordActivity(
-  database: DatabaseSync,
-  action: string,
-  entityType: "item" | "variant",
-  entityId: string,
-  occurredAt: string,
-): void {
-  database
-    .prepare(
-      `INSERT INTO profile_activity(occurred_at, action, entity_type, entity_id)
-       VALUES (?, ?, ?, ?)`,
-    )
-    .run(occurredAt, action, entityType, entityId);
+  if (!row) throw new ProfileServiceError("The profile variant no longer exists.");
 }
 
 function nextSortOrder(database: DatabaseSync): number {
   const row = database
-    .prepare(
-      "SELECT COALESCE(MAX(sort_order), -1) + 1 AS nextOrder FROM profile_items",
-    )
+    .prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS nextOrder FROM profile_items")
     .get() as unknown as NextOrderRow;
   return row.nextOrder;
 }
 
-const patchKeys = [
-  "title",
-  "subtitle",
-  "description",
-  "startDate",
-  "endDate",
-  "url",
-] as const;
+const patchKeys = ["title", "subtitle", "description", "startDate", "endDate", "url"] as const;
 
 function normalizePatch(
   item: ProfileItem,
   patch: ProfileItemContentPatch,
 ): ProfileItemContentPatch | null {
   const normalized: Record<string, string> = {};
-
   for (const key of patchKeys) {
     const patchedValue = patch[key];
-    if (patchedValue !== undefined && patchedValue !== item[key]) {
-      normalized[key] = patchedValue;
-    }
+    if (patchedValue !== undefined && patchedValue !== item[key]) normalized[key] = patchedValue;
   }
-
   return Object.keys(normalized).length === 0
     ? null
     : profileItemContentPatchSchema.parse(normalized);
@@ -284,8 +243,7 @@ function readRule(
            FROM profile_variant_item_rules
           WHERE variant_id = ? AND item_id = ?`,
       )
-      .get(variantId, itemId) as unknown as ProfileVariantRuleRow | undefined) ??
-    null
+      .get(variantId, itemId) as unknown as ProfileVariantRuleRow | undefined) ?? null
   );
 }
 
@@ -299,9 +257,7 @@ function persistRule(
 ): void {
   if (!excluded && contentPatch === null && orderRank === null) {
     database
-      .prepare(
-        "DELETE FROM profile_variant_item_rules WHERE variant_id = ? AND item_id = ?",
-      )
+      .prepare("DELETE FROM profile_variant_item_rules WHERE variant_id = ? AND item_id = ?")
       .run(variantId, itemId);
     return;
   }
@@ -333,9 +289,7 @@ function orderedItemsForVariant(
   requireVariant(database, variantId);
   const items = readItems(database);
   const canonicalRank = new Map(items.map((item, index) => [item.id, index]));
-  const rules = new Map(
-    readRuleRows(database, variantId).map((rule) => [rule.itemId, rule]),
-  );
+  const rules = new Map(readRuleRows(database, variantId).map((rule) => [rule.itemId, rule]));
 
   return items
     .filter((item) => includeExcluded || rules.get(item.id)?.excluded !== 1)
@@ -360,7 +314,6 @@ function persistVariantOrder(
 ): void {
   const items = readItems(database);
   const canonicalIds = items.map((item) => item.id);
-
   if (
     itemIds.length !== canonicalIds.length ||
     new Set(itemIds).size !== itemIds.length ||
@@ -389,53 +342,39 @@ export function getProfile(rootPath: string): ProfileSnapshot {
   return withWorkspaceDatabase(rootPath, readSnapshot);
 }
 
-export function addProfileItem(
-  rootPath: string,
-  input: ProfileItemInput,
-): ProfileSnapshot {
+export function addProfileItem(rootPath: string, input: ProfileItemInput): ProfileSnapshot {
   const item = profileItemInputSchema.parse(input);
-
   return withWorkspaceDatabase(rootPath, (database) => {
     const id = randomUUID();
     const now = new Date().toISOString();
-
-    transact(database, () => {
-      database
-        .prepare(
-          `INSERT INTO profile_items(
-             id, kind, title, subtitle, description, start_date, end_date,
-             url, sort_order, created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          id,
-          item.kind,
-          item.title,
-          nullable(item.subtitle),
-          nullable(item.description),
-          nullable(item.startDate),
-          nullable(item.endDate),
-          nullable(item.url),
-          nextSortOrder(database),
-          now,
-          now,
-        );
-      recordActivity(database, "item.added", "item", id, now);
-    });
-
+    database
+      .prepare(
+        `INSERT INTO profile_items(
+           id, kind, title, subtitle, description, start_date, end_date,
+           url, sort_order, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        item.kind,
+        item.title,
+        nullable(item.subtitle),
+        nullable(item.description),
+        nullable(item.startDate),
+        nullable(item.endDate),
+        nullable(item.url),
+        nextSortOrder(database),
+        now,
+        now,
+      );
     return readSnapshot(database);
   });
 }
 
-export function updateProfileItem(
-  rootPath: string,
-  input: ProfileItemUpdate,
-): ProfileSnapshot {
+export function updateProfileItem(rootPath: string, input: ProfileItemUpdate): ProfileSnapshot {
   const update = profileItemUpdateSchema.parse(input);
-
   return withWorkspaceDatabase(rootPath, (database) => {
     const now = new Date().toISOString();
-
     transact(database, () => {
       requireItem(database, update.id);
       database
@@ -458,9 +397,7 @@ export function updateProfileItem(
         );
 
       const updatedItem = requireItem(database, update.id);
-      for (const rule of readRuleRows(database).filter(
-        (candidate) => candidate.itemId === update.id,
-      )) {
+      for (const rule of readRuleRows(database).filter((candidate) => candidate.itemId === update.id)) {
         const patch = parsePatch(rule.contentPatchJson);
         persistRule(
           database,
@@ -471,49 +408,31 @@ export function updateProfileItem(
           rule.orderRank,
         );
       }
-
-      recordActivity(database, "item.updated", "item", update.id, now);
     });
-
     return readSnapshot(database);
   });
 }
 
-export function removeProfileItem(
-  rootPath: string,
-  itemId: string,
-): ProfileSnapshot {
+export function removeProfileItem(rootPath: string, itemId: string): ProfileSnapshot {
   const validatedId = profileItemSchema.shape.id.parse(itemId);
-
   return withWorkspaceDatabase(rootPath, (database) => {
-    const now = new Date().toISOString();
-
     transact(database, () => {
       requireItem(database, validatedId);
       const variants = readVariants(database);
       const previousOrders = new Map(
         variants.map((variant) => [
           variant.id,
-          orderedItemsForVariant(database, variant.id, true).map(
-            (item) => item.id,
-          ),
+          orderedItemsForVariant(database, variant.id, true).map((item) => item.id),
         ]),
       );
-
       database.prepare("DELETE FROM profile_items WHERE id = ?").run(validatedId);
-
       for (const variant of variants) {
         const remainingOrder = (previousOrders.get(variant.id) ?? []).filter(
           (id) => id !== validatedId,
         );
-        if (remainingOrder.length > 0) {
-          persistVariantOrder(database, variant.id, remainingOrder);
-        }
+        if (remainingOrder.length > 0) persistVariantOrder(database, variant.id, remainingOrder);
       }
-
-      recordActivity(database, "item.removed", "item", validatedId, now);
     });
-
     return readSnapshot(database);
   });
 }
@@ -525,17 +444,10 @@ function assertVariantNameAvailable(
 ): void {
   const row = excludingId
     ? database
-        .prepare(
-          "SELECT id FROM profile_variants WHERE name = ? COLLATE NOCASE AND id <> ?",
-        )
+        .prepare("SELECT id FROM profile_variants WHERE name = ? COLLATE NOCASE AND id <> ?")
         .get(name, excludingId)
-    : database
-        .prepare("SELECT id FROM profile_variants WHERE name = ? COLLATE NOCASE")
-        .get(name);
-
-  if (row) {
-    throw new ProfileServiceError("A profile variant already uses that name.");
-  }
+    : database.prepare("SELECT id FROM profile_variants WHERE name = ? COLLATE NOCASE").get(name);
+  if (row) throw new ProfileServiceError("A profile variant already uses that name.");
 }
 
 export function createProfileVariant(
@@ -543,32 +455,25 @@ export function createProfileVariant(
   input: ProfileVariantInput,
 ): ProfileSnapshot {
   const variant = profileVariantInputSchema.parse(input);
-
   return withWorkspaceDatabase(rootPath, (database) => {
     const id = randomUUID();
     const now = new Date().toISOString();
-
-    transact(database, () => {
-      assertVariantNameAvailable(database, variant.name);
-      database
-        .prepare(
-          `INSERT INTO profile_variants(
-             id, name, focus, target_tags_json, preferred_language,
-             created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          id,
-          variant.name,
-          variant.focus,
-          JSON.stringify([...new Set(variant.targetTags)]),
-          nullable(variant.preferredLanguage),
-          now,
-          now,
-        );
-      recordActivity(database, "variant.created", "variant", id, now);
-    });
-
+    assertVariantNameAvailable(database, variant.name);
+    database
+      .prepare(
+        `INSERT INTO profile_variants(
+           id, name, focus, target_tags_json, preferred_language, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        variant.name,
+        variant.focus,
+        JSON.stringify([...new Set(variant.targetTags)]),
+        nullable(variant.preferredLanguage),
+        now,
+        now,
+      );
     return readSnapshot(database);
   });
 }
@@ -578,50 +483,32 @@ export function updateProfileVariant(
   input: ProfileVariantUpdate,
 ): ProfileSnapshot {
   const variant = profileVariantUpdateSchema.parse(input);
-
   return withWorkspaceDatabase(rootPath, (database) => {
-    const now = new Date().toISOString();
-
-    transact(database, () => {
-      requireVariant(database, variant.id);
-      assertVariantNameAvailable(database, variant.name, variant.id);
-      database
-        .prepare(
-          `UPDATE profile_variants
-              SET name = ?, focus = ?, target_tags_json = ?,
-                  preferred_language = ?, updated_at = ?
-            WHERE id = ?`,
-        )
-        .run(
-          variant.name,
-          variant.focus,
-          JSON.stringify([...new Set(variant.targetTags)]),
-          nullable(variant.preferredLanguage),
-          now,
-          variant.id,
-        );
-      recordActivity(database, "variant.updated", "variant", variant.id, now);
-    });
-
+    requireVariant(database, variant.id);
+    assertVariantNameAvailable(database, variant.name, variant.id);
+    database
+      .prepare(
+        `UPDATE profile_variants
+            SET name = ?, focus = ?, target_tags_json = ?, preferred_language = ?, updated_at = ?
+          WHERE id = ?`,
+      )
+      .run(
+        variant.name,
+        variant.focus,
+        JSON.stringify([...new Set(variant.targetTags)]),
+        nullable(variant.preferredLanguage),
+        new Date().toISOString(),
+        variant.id,
+      );
     return readSnapshot(database);
   });
 }
 
-export function removeProfileVariant(
-  rootPath: string,
-  variantId: string,
-): ProfileSnapshot {
+export function removeProfileVariant(rootPath: string, variantId: string): ProfileSnapshot {
   const validatedId = profileVariantSchema.shape.id.parse(variantId);
-
   return withWorkspaceDatabase(rootPath, (database) => {
-    const now = new Date().toISOString();
-
-    transact(database, () => {
-      requireVariant(database, validatedId);
-      database.prepare("DELETE FROM profile_variants WHERE id = ?").run(validatedId);
-      recordActivity(database, "variant.removed", "variant", validatedId, now);
-    });
-
+    requireVariant(database, validatedId);
+    database.prepare("DELETE FROM profile_variants WHERE id = ?").run(validatedId);
     return readSnapshot(database);
   });
 }
@@ -631,10 +518,7 @@ export function configureProfileVariantItem(
   input: ProfileVariantItemRuleInput,
 ): ProfileSnapshot {
   const rule = profileVariantItemRuleInputSchema.parse(input);
-
   return withWorkspaceDatabase(rootPath, (database) => {
-    const now = new Date().toISOString();
-
     transact(database, () => {
       requireVariant(database, rule.variantId);
       const item = requireItem(database, rule.itemId);
@@ -646,7 +530,6 @@ export function configureProfileVariantItem(
           : rule.contentPatch === null
             ? null
             : normalizePatch(item, rule.contentPatch);
-
       persistRule(
         database,
         rule.variantId,
@@ -655,15 +538,7 @@ export function configureProfileVariantItem(
         nextPatch,
         existing?.orderRank ?? null,
       );
-      recordActivity(
-        database,
-        "variant.item-configured",
-        "variant",
-        rule.variantId,
-        now,
-      );
     });
-
     return readSnapshot(database);
   });
 }
@@ -673,40 +548,20 @@ export function reorderProfileVariant(
   input: ProfileVariantReorder,
 ): ProfileSnapshot {
   const reorder = profileVariantReorderSchema.parse(input);
-
   return withWorkspaceDatabase(rootPath, (database) => {
-    const now = new Date().toISOString();
-
     transact(database, () => {
       requireVariant(database, reorder.variantId);
       persistVariantOrder(database, reorder.variantId, reorder.itemIds);
-      recordActivity(
-        database,
-        "variant.reordered",
-        "variant",
-        reorder.variantId,
-        now,
-      );
     });
-
     return readSnapshot(database);
   });
 }
 
-export function resolveProfileVariant(
-  rootPath: string,
-  variantId: string,
-): ResolvedProfile {
+export function resolveProfileVariant(rootPath: string, variantId: string): ResolvedProfile {
   const validatedId = profileVariantSchema.shape.id.parse(variantId);
-
   return withWorkspaceDatabase(rootPath, (database) => {
-    const variant = readVariants(database).find(
-      (candidate) => candidate.id === validatedId,
-    );
-    if (!variant) {
-      throw new ProfileServiceError("The profile variant no longer exists.");
-    }
-
+    const variant = readVariants(database).find((candidate) => candidate.id === validatedId);
+    if (!variant) throw new ProfileServiceError("The profile variant no longer exists.");
     return resolvedProfileSchema.parse({
       variant,
       items: orderedItemsForVariant(database, validatedId, false),
