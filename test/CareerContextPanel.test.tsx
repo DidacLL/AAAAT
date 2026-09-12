@@ -60,11 +60,11 @@ describe("CareerContextPanel", () => {
       await screen.findByRole("heading", { name: "Career preferences" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Add only preferences or constraints/)).toBeInTheDocument();
-    expect(screen.queryByLabelText("Career direction")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Career direction" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add career preferences" }));
-    expect(screen.getByLabelText(/Career direction/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Constraints/)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Career direction" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Constraints" })).toBeInTheDocument();
   });
 
   it("saves fictional current context and returns to a non-empty summary", async () => {
@@ -74,12 +74,12 @@ describe("CareerContextPanel", () => {
 
     await user.click(screen.getByRole("button", { name: "Add career preferences" }));
     await user.type(
-      screen.getByLabelText(/Career direction/),
+      screen.getByRole("textbox", { name: "Career direction" }),
       "Move toward staff-level platform work",
     );
-    await user.type(screen.getByLabelText(/Constraints/), "No relocation");
+    await user.type(screen.getByRole("textbox", { name: "Constraints" }), "No relocation");
     await user.type(
-      screen.getByLabelText(/Target markets \/ locations/),
+      screen.getByRole("textbox", { name: "Target markets / locations" }),
       "Spain / EU remote or hybrid",
     );
     await user.click(screen.getByRole("button", { name: "Save career preferences" }));
@@ -107,11 +107,14 @@ describe("CareerContextPanel", () => {
     render(<CareerContextPanel onDirtyChange={onDirtyChange} />);
 
     expect(await screen.findByText("Private local constraint")).toBeInTheDocument();
-    expect(screen.getByText("External AI disclosure")).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Constraints" })).not.toBeInTheDocument();
+    const disclosureSummary = screen.getByText("External AI disclosure");
+    const disclosureDetails = disclosureSummary.closest("details");
+    expect(disclosureDetails).not.toBeNull();
+    expect(disclosureDetails).not.toHaveAttribute("open");
 
-    await user.click(screen.getByText("External AI disclosure"));
-    const constraints = await screen.findByRole("checkbox", { name: "Constraints" });
+    await user.click(disclosureSummary);
+    expect(disclosureDetails).toHaveAttribute("open");
+    const constraints = await screen.findByRole("checkbox", { name: "Share Constraints" });
     expect(constraints).toBeChecked();
     await user.click(constraints);
 
