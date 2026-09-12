@@ -29,15 +29,8 @@ export const careerContextAiDisclosureSchema = z
   .strict();
 export type CareerContextAiDisclosure = z.infer<typeof careerContextAiDisclosureSchema>;
 
-export const careerContextAiDisclosureUpdateSchema = z
-  .object({
-    key: careerContextAiDisclosureKeySchema,
-    share: z.boolean(),
-  })
-  .strict();
-export type CareerContextAiDisclosureUpdate = z.infer<
-  typeof careerContextAiDisclosureUpdateSchema
->;
+export const careerContextAiDisclosureUpdateSchema = careerContextAiDisclosureSchema;
+export type CareerContextAiDisclosureUpdate = CareerContextAiDisclosure;
 
 export interface CareerContextAiDisclosureDesktopApi {
   readonly careerContextAiDisclosure: {
