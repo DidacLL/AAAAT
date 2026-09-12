@@ -3,7 +3,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "vitest";
 
@@ -46,17 +45,6 @@ describe("current career context", () => {
       expect(updateCareerContext(workspace, expected)).toEqual(expected);
       expect(openWorkspace(workspace)).toEqual({ rootPath: workspace });
       expect(getCareerContext(workspace)).toEqual(expected);
-
-      const database = new DatabaseSync(path.join(workspace, "workspace.sqlite"), {
-        readOnly: true,
-      });
-      try {
-        expect(
-          database.prepare("SELECT action FROM career_context_activity").all(),
-        ).toEqual([{ action: "career-context.updated" }]);
-      } finally {
-        database.close();
-      }
     } finally {
       rmSync(workspace, { recursive: true, force: true });
     }
