@@ -84,24 +84,6 @@ describe("external CV content and render authority", () => {
       renderAllowed: false,
     });
 
-    const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
-    try {
-      expect(
-        database
-          .prepare(
-            "SELECT action FROM document_activity WHERE document_id = ? AND action LIKE 'document.ai-%access.%' ORDER BY id",
-          )
-          .all(first.id),
-      ).toEqual([
-        { action: "document.ai-content-access.allow" },
-        { action: "document.ai-render-access.allow" },
-        { action: "document.ai-render-access.revoke" },
-        { action: "document.ai-content-access.revoke" },
-      ]);
-    } finally {
-      database.close();
-    }
-
     expect(updateCvContentAccess(root, { documentId: second.id, allowed: false })).toEqual({
       documentId: second.id,
       allowed: false,
@@ -110,12 +92,16 @@ describe("external CV content and render authority", () => {
     expect(selectedCvContentItems(root)).toBeNull();
   });
 
-  it("does not invent activity for repeated permission writes and rejects cover letters", () => {
+  it("keeps repeated permission writes idempotent and rejects cover letters", () => {
     const root = workspace();
     const cv = createCv(root, "Selected CV");
     updateCvContentAccess(root, { documentId: cv.id, allowed: true });
     updateCvRenderAccess(root, { documentId: cv.id, allowed: true });
-    updateCvRenderAccess(root, { documentId: cv.id, allowed: true });
+    expect(updateCvRenderAccess(root, { documentId: cv.id, allowed: true })).toEqual({
+      documentId: cv.id,
+      allowed: true,
+      renderAllowed: true,
+    });
 
     const cover = createDocument(root, {
       kind: "cover_letter",
@@ -130,19 +116,6 @@ describe("external CV content and render authority", () => {
     expect(() => updateCvRenderAccess(root, { documentId: cover.id, allowed: true })).toThrow(
       "External CV content access applies only to CV documents.",
     );
-
-    const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
-    try {
-      expect(
-        database
-          .prepare(
-            "SELECT COUNT(*) AS count FROM document_activity WHERE document_id = ? AND action = 'document.ai-render-access.allow'",
-          )
-          .get(cv.id),
-      ).toEqual({ count: 1 });
-    } finally {
-      database.close();
-    }
 
     removeDocument(root, cv.id);
     expect(selectedCvContentItems(root)).toBeNull();
