@@ -867,13 +867,18 @@ export function DocumentsWorkspace({
                 {selected.mode === "manual" ? (
                   <div className="manual-source-warning">
                     <p>
-                      Direct source edits are preserved. Replacing them from structured information is deliberate and may overwrite those edits.
+                      Direct source edits were detected. AAAAT will preserve them and will not silently replace the source.
                     </p>
                     <button type="button" disabled={editorDirty} onClick={() => void regenerate()}>
                       Replace manual source from structured data
                     </button>
                   </div>
                 ) : null}
+                <div className="document-section-intro" aria-label="Live source ownership">
+                  <p><code>main.tex</code> is your editable document blueprint. AAAAT preserves it.</p>
+                  <p><code>aaaat.sty</code> is your editable package/style source. AAAAT preserves it.</p>
+                  <p><code>data.tex</code> is generated from saved AAAAT document information. Explicit regeneration replaces this generated file.</p>
+                </div>
                 <div className="document-paths">
                   <p><span>Source</span><code>{selected.sourcePath}</code></p>
                   <p><span>PDF</span><code>{selected.artifactPath}</code></p>
