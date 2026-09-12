@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProfileWorkspace } from "../src/renderer/ProfileWorkspace";
 import type { DesktopApi, ProfileSnapshot, ProfileVariant } from "../src/shared/contracts";
+import type { ProfileAiContextDesktopApi } from "../src/shared/profile-ai-context-contracts";
 
 const itemA = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -40,6 +41,8 @@ const removeVariant = vi.fn<DesktopApi["profile"]["removeVariant"]>();
 const configureVariantItem = vi.fn<DesktopApi["profile"]["configureVariantItem"]>();
 const reorderVariant = vi.fn<DesktopApi["profile"]["reorderVariant"]>();
 const resolveVariant = vi.fn<DesktopApi["profile"]["resolveVariant"]>();
+const currentAiContext = vi.fn<ProfileAiContextDesktopApi["profileAiContext"]["current"]>();
+const updateAiContext = vi.fn<ProfileAiContextDesktopApi["profileAiContext"]["update"]>();
 
 function installApi() {
   const api = {
@@ -55,7 +58,11 @@ function installApi() {
       reorderVariant,
       resolveVariant,
     },
-  } as unknown as DesktopApi;
+    profileAiContext: {
+      current: currentAiContext,
+      update: updateAiContext,
+    },
+  } as unknown as DesktopApi & ProfileAiContextDesktopApi;
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
 }
 
@@ -72,6 +79,8 @@ describe("professional information workspace", () => {
     configureVariantItem.mockResolvedValue(variedProfile);
     reorderVariant.mockResolvedValue(variedProfile);
     resolveVariant.mockResolvedValue({ variant, items: [itemA, itemB] });
+    currentAiContext.mockImplementation(async (itemId) => ({ itemId, aiContextMode: "expose" }));
+    updateAiContext.mockImplementation(async (input) => input);
     installApi();
   });
 
@@ -91,6 +100,7 @@ describe("professional information workspace", () => {
     expect(screen.getByRole("heading", { name: "Add information" })).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Type"), "skill");
     await user.type(screen.getByLabelText("Title"), "TypeScript");
+    expect(screen.queryByText("AI disclosure")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add information" }));
 
     expect(addItem).toHaveBeenCalledWith({
@@ -103,6 +113,31 @@ describe("professional information workspace", () => {
       url: undefined,
     });
     expect(await screen.findByRole("heading", { name: "Professional information" })).toBeInTheDocument();
+  });
+
+  it("keeps AI disclosure secondary and independent from local reusable content", async () => {
+    current.mockResolvedValueOnce(baseProfile);
+    const user = userEvent.setup();
+    render(<ProfileWorkspace />);
+
+    const list = await screen.findByRole("region", { name: "Professional information" });
+    const firstItem = within(list).getByText("Professional summary").closest("article");
+    if (!firstItem) throw new Error("Expected professional information item");
+    await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
+
+    expect(await screen.findByText("AI disclosure")).toBeInTheDocument();
+    expect(screen.getByLabelText("Title")).toHaveValue("Professional summary");
+    await user.click(screen.getByText("AI disclosure"));
+    expect(await screen.findByText(/does not hide or delete local information/i)).toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByLabelText("When AI uses this professional information"),
+      "omit",
+    );
+    await user.click(screen.getByRole("button", { name: "Save AI disclosure" }));
+
+    expect(updateAiContext).toHaveBeenCalledWith({ itemId: itemA.id, aiContextMode: "omit" });
+    expect(updateItem).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Title")).toHaveValue("Professional summary");
   });
 
   it("keeps saved variations optional and applies differences in ordinary terms", async () => {
