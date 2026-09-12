@@ -29,7 +29,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerCvContentAccessIpc(mainWindow: BrowserWindow): void {
+export function registerCvContentAccessIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(cvContentAccessChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(cvContentAccessChannels.current, (event, documentId: unknown) => {
@@ -51,5 +51,3 @@ function registerCvContentAccessIpc(mainWindow: BrowserWindow): void {
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) => registerCvContentAccessIpc(mainWindow));
