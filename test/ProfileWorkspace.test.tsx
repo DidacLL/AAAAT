@@ -86,7 +86,7 @@ describe("professional information workspace", () => {
 
   afterEach(() => cleanup());
 
-  it("starts read-first and adds reusable information deliberately", async () => {
+  it("starts read-first and adds reusable information with a user-maintained category", async () => {
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
 
@@ -98,14 +98,16 @@ describe("professional information workspace", () => {
 
     await user.click(screen.getByRole("button", { name: "Add information" }));
     expect(screen.getByRole("heading", { name: "Add information" })).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText("Type"), "skill");
-    await user.type(screen.getByLabelText("Title"), "TypeScript");
+    const category = screen.getByLabelText("Category");
+    await user.clear(category);
+    await user.type(category, "publication");
+    await user.type(screen.getByLabelText("Title"), "Distributed systems paper");
     expect(screen.queryByText("AI disclosure")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add information" }));
 
     expect(addItem).toHaveBeenCalledWith({
-      kind: "skill",
-      title: "TypeScript",
+      kind: "publication",
+      title: "Distributed systems paper",
       subtitle: undefined,
       description: undefined,
       startDate: undefined,
@@ -233,7 +235,9 @@ describe("professional information workspace", () => {
     await user.click(screen.getByRole("button", { name: "Back to professional information" }));
     expect(confirm).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Add information" }));
-    await user.selectOptions(screen.getByLabelText("Type"), "skill");
+    const category = screen.getByLabelText("Category");
+    await user.clear(category);
+    await user.type(category, "skill");
     await user.type(screen.getByLabelText("Title"), "TypeScript");
     await user.click(screen.getByRole("button", { name: "Add information" }));
 
@@ -257,7 +261,6 @@ describe("professional information workspace", () => {
     const title = screen.getByLabelText("Title");
     await user.clear(title);
     await user.type(title, "Unsaved professional edit");
-
     await user.click(screen.getByRole("button", { name: "Back to professional information" }));
     expect(confirm).toHaveBeenCalledWith("Discard unsaved information edits?");
     expect(screen.getByLabelText("Title")).toHaveValue("Unsaved professional edit");
