@@ -14,6 +14,7 @@ import {
   isWorkspaceRestoreInvocation,
   runWorkspaceRecoveryProcess,
 } from "./workspace-backup";
+import { registerWindowIpc } from "./window-ipc";
 
 if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(process.argv)) {
   void runWorkspaceRecoveryProcess(process.argv, process.stdout).then(
@@ -37,5 +38,6 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     () => app.exit(2),
   );
 } else {
+  app.on("browser-window-created", (_event, mainWindow) => registerWindowIpc(mainWindow));
   void import("./main");
 }
