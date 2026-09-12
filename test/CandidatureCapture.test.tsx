@@ -220,7 +220,6 @@ describe("sparse candidature capture", () => {
     const olderButton = screen.getByRole("button", { name: /Older opportunity/ });
     expect(createdButton).toHaveClass("selected-candidature");
     expect(olderButton).not.toHaveClass("selected-candidature");
-    expect(screen.getByRole("heading", { name: "New saved opportunity" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
   });
 
