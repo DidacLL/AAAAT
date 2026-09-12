@@ -21,8 +21,6 @@ export function ProfileItemAiDisclosureControl({ itemId }: Props) {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    setError(null);
     void window.aaaat.profileAiContext
       .current(itemId)
       .then((preference) => {
