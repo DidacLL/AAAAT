@@ -200,7 +200,11 @@ export function CandidaturesAiWorkspace({
         </div>
       )}
 
-      <CandidaturesWorkspace key={revision} onDirtyChange={setCandidatureDirty} />
+      <CandidaturesWorkspace
+        key={revision}
+        initialSelectedId={savedSource?.candidatureId}
+        onDirtyChange={setCandidatureDirty}
+      />
       {savedSource !== null ? (
         <JobExtractionPanel
           candidatureId={savedSource.candidatureId}
