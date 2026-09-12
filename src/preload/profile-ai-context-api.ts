@@ -4,6 +4,7 @@ import {
   profileAiContextPreferenceSchema,
   profileAiContextUpdateSchema,
   type ProfileAiContextDesktopApi,
+  type ProfileAiContextUpdate,
 } from "../shared/profile-ai-context-contracts";
 
 type Invoke = (channel: string, ...args: readonly unknown[]) => Promise<unknown>;
@@ -15,7 +16,7 @@ export function createProfileAiContextDesktopApi(invoke: Invoke): ProfileAiConte
         profileAiContextPreferenceSchema.parse(
           await invoke(profileAiContextChannels.current, profileAiContextItemIdSchema.parse(itemId)),
         ),
-      update: async (input) => {
+      update: async (input: ProfileAiContextUpdate) => {
         const update = profileAiContextUpdateSchema.parse(input);
         return profileAiContextPreferenceSchema.parse(
           await invoke(profileAiContextChannels.update, update),
