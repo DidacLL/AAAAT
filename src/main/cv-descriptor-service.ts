@@ -28,18 +28,6 @@ class CvDescriptorServiceError extends Error {
   }
 }
 
-function transact<T>(database: DatabaseSync, action: () => T): T {
-  database.exec("BEGIN IMMEDIATE");
-  try {
-    const result = action();
-    database.exec("COMMIT");
-    return result;
-  } catch (error) {
-    database.exec("ROLLBACK");
-    throw error;
-  }
-}
-
 function requireRow(database: DatabaseSync, documentId: string): CvDescriptorRow {
   const row = database
     .prepare(
@@ -87,26 +75,18 @@ export function updateCvDescriptor(
   rawUpdate: CvDescriptorUpdate,
 ): CvDescriptor {
   const update = cvDescriptorUpdateSchema.parse(rawUpdate);
-  return withWorkspaceDatabase(rootPath, (database) =>
-    transact(database, () => {
-      const current = requireRow(database, update.documentId);
-      requireCv(current);
-      const occurredAt = new Date().toISOString();
-      database
-        .prepare(
-          `UPDATE documents
-              SET ai_tags_json = ?, ai_notes = ?, updated_at = ?
-            WHERE id = ?`,
-        )
-        .run(JSON.stringify(update.tags), update.notes, occurredAt, update.documentId);
-      database
-        .prepare(
-          "INSERT INTO document_activity(occurred_at, document_id, action) VALUES (?, ?, ?)",
-        )
-        .run(occurredAt, update.documentId, "document.ai-description.update");
-      return toDescriptor(requireRow(database, update.documentId));
-    }),
-  );
+  return withWorkspaceDatabase(rootPath, (database) => {
+    const current = requireRow(database, update.documentId);
+    requireCv(current);
+    database
+      .prepare(
+        `UPDATE documents
+            SET ai_tags_json = ?, ai_notes = ?, updated_at = ?
+          WHERE id = ?`,
+      )
+      .run(JSON.stringify(update.tags), update.notes, new Date().toISOString(), update.documentId);
+    return toDescriptor(requireRow(database, update.documentId));
+  });
 }
 
 export function listAiVisibleCvDescriptors(rootPath: string): AiVisibleCvDescriptor[] {
