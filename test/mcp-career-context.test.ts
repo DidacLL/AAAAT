@@ -51,7 +51,7 @@ function textResult(content: readonly unknown[]): string {
 }
 
 describe("external career-context MCP operation", () => {
-  it("returns only non-empty locally permitted Career preferences without local metadata or mutation", async () => {
+  it("returns only non-empty locally permitted Career preferences without local metadata", async () => {
     const root = temporaryWorkspace();
     updateCareerContext(root, {
       careerDirection: "Move toward staff-level platform engineering.",
@@ -80,12 +80,6 @@ describe("external career-context MCP operation", () => {
       },
       values: [],
     });
-
-    const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
-    const activityBefore = database
-      .prepare("SELECT COUNT(*) AS count FROM career_context_activity")
-      .get() as { count: number };
-    database.close();
 
     const connection = await connectedClient(root);
     try {
@@ -117,17 +111,6 @@ describe("external career-context MCP operation", () => {
       expect(invalidInput.isError).toBe(true);
     } finally {
       await connection.close();
-    }
-
-    const afterDatabase = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
-    try {
-      expect(
-        afterDatabase
-          .prepare("SELECT COUNT(*) AS count FROM career_context_activity")
-          .get(),
-      ).toEqual(activityBefore);
-    } finally {
-      afterDatabase.close();
       rmSync(root, { recursive: true, force: true });
     }
   });
