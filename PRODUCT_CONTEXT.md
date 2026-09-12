@@ -2,227 +2,167 @@
 
 **Status: explanatory Product Owner context. Non-normative.**
 
-This document preserves rationale, examples, historical product learning, deferred ideas and semantic clarifications that help interpret `PRODUCT_DEFINITION.md`.
+`PRODUCT_DEFINITION.md` is the product authority below current explicit Product Owner instruction. This document preserves rationale, examples and historical interpretation so later agents do not flatten the product into familiar patterns.
 
-It does not independently create requirements.
+## The central optimization is friction reduction
 
-If an idea here conflicts with `PRODUCT_DEFINITION.md`, the Product Definition governs. If an apparent contradiction remains unresolved after consulting owner-source material, ask the Product Owner rather than inventing a reconciliation.
+AAAAT grew from repeated practical work around applications: retaining offer material, remembering what an opportunity was, reusing professional information, adapting CVs/letters, and moving information between local work and external AI tools.
 
-## Convenience is the underlying motivation
+The recurring owner preference is not more automation for its own sake. It is fewer clicks, less typing, less repeated organization, less searching, less forced maintenance and less learning of implementation vocabulary.
 
-AAAAT began from the practical friction of job searching: information is repeatedly copied between job websites, notes, recruiters, AI chats, CVs, letters and applications.
+A technically elegant workflow that asks the user to maintain status, stages, priorities, schemas or AI configuration without a concrete need is product regression.
 
-The owner consistently optimizes for less typing, fewer clicks, less repeated organization, less searching and less learning of tool-specific UI.
+## There is no privileged starting point
 
-Architectural elegance that increases those costs is contrary to the product even when technically clean.
+A user may arrive because:
 
-## Raw job material is a natural starting point
+- a recruiter is calling and one candidature must be found immediately;
+- the user has just found an opportunity elsewhere and wants to retain raw material;
+- the user wants to inspect or correct one candidature;
+- the user wants to create or revise a CV or letter with no candidature involved;
+- the user is maintaining reusable professional information;
+- AAAAT is invoking a configured AI for one bounded task;
+- an external AI/tool is already doing broader work and calls into AAAAT;
+- the user needs setup, backup, rendering or integration administration.
 
-A central expected journey is:
+These are peers. The product must not compress them into one canonical journey.
 
-```text
-find job
-→ copy job material
-→ paste into AAAAT
-→ keep it immediately
-```
+## Job discovery is outside AAAAT's required core
 
-If suitable intelligence exists, extraction should happen as an implementation of that AAAAT action rather than requiring the user to formulate an AI request.
+The user may discover opportunities manually, through job sites, recruiters, social contacts, another AI system or another tool. AAAAT does not need to become the job-discovery engine in order to support those scenarios.
 
-If there is no AI, retaining the raw material remains useful.
+Conversely, an external AI may legitimately perform job search/research and then use AAAAT's bounded capabilities. The boundary is ownership of AAAAT data/operations, not a rule about what must happen first in time.
 
-Future deterministic cleanup of copied website content may reduce clutter before extraction or manual use.
+## Raw material is already useful
 
-## AI inside AAAAT is not conversational
+The owner repeatedly described low-friction capture as retaining whatever exists now. A pasted offer, recruiter message, URL-containing text, form content or fragment is useful before it is structured.
 
-The user normally interacts with the AAAAT domain, not a model.
+This is why capture must not begin with a large conventional application form or source-classification ceremony.
 
-“Extract company and salary from this offer” describes what software may do internally. It is generally not intended to be a prompt the user must write.
+AI extraction can reduce effort after retention, but absence of AI does not make capture incomplete.
 
-Intelligence should disappear behind understandable product actions where reliability permits.
+## Focus solves a specific time-pressure problem
 
-## External AI is different
-
-An external AI application may already be the user's working interface.
-
-In that direction, AAAAT should expose bounded useful capabilities through whatever integration mechanism is appropriate for the external host.
-
-MCP, skills, plugins, commands, APIs and similar transports are mechanisms rather than product meaning.
-
-Copy/paste is an acceptable fallback, not the desired integration experience.
-
-## Candidature overview is about recognition
-
-The owner has long wanted a high-information overview of multiple candidatures.
-
-The important use case is frequently retrieval rather than judgment.
-
-Example:
+The recurring example is an unexpected recruiter/interview call:
 
 ```text
-recruiter calls
-→ says company / role
-→ user sees candidature corpus
-→ recognizes the relevant candidature in seconds
+company/role is mentioned
+→ user must identify the relevant candidature in seconds
+→ user must recover the useful context while listening/speaking
 ```
 
-This may eventually be represented as cards, list, grid, table or another composition.
+That need has two distinct perceptual states:
 
-The old wx Smart View provided useful evidence for this need, but its widget implementation is not a requirement.
+1. **Corpus Focus** for rapid recognition across multiple candidatures.
+2. **Selected-candidature Focus** for richer recall once the correct candidature is selected.
 
-## Focus is fast-recall information design
+The old wx/Smart View implementations attempted this need but were rejected as cluttered, slow and hard to understand. Their cards, pane ratios, click-to-expand mechanics, call cockpit and other layout decisions are not product requirements.
 
-Once a candidature is identified, Focus supports divided attention.
+The surviving requirement is two-speed retrieval with scarce screen space used for the current need.
 
-Its content should help the user recover whatever they personally need while speaking to a recruiter or preparing for an interaction.
+## Focus is deliberately selective
 
-The owner has historically valued dense, stable, quickly scannable presentation.
+A flexible field system does not imply showing everything in Focus.
 
-Focus must not become a fixed recruiter script or AI coaching workflow.
+The owner wants a small chosen set of fields/signals in corpus Focus and a richer but still curated set in selected Focus. AAAAT can ship default Focus selections, but the user decides which available fields are useful there.
 
-## “Cross-candidature” does not mean pairwise comparison
+Focus succeeds when the right information is visible at a glance, not when it proves that every domain object can technically be rendered.
 
-The user should be able to browse, search, filter, recognize, summarize where useful and retrieve across the candidature corpus.
+## Focus editing is part of friction reduction
 
-Historical wording such as “cross-candidature analysis” was later transformed into a 2–5 candidature AI comparison feature. That interpretation was drift.
+Readability is primary during recall, but read-first must not become read-only.
 
-AAAAT is not intended to rank or advise between the user's candidatures.
+During a live call the user may learn that a salary changed, a recruiter name was wrong, or a new fact matters. If that field is visible in selected Focus, a lightweight edit affordance should allow correction/addition immediately.
 
-## Flexible information does not imply visible field administration
+The complete candidature editor exists for deliberate maintenance, but the user should not be forced into it for every tiny correction.
 
-The owner requires AAAAT to retain unanticipated information.
+## Full candidature work is independent
 
-The flexible field architecture came from a legitimate need: different professions and opportunities have different useful information.
+A user may deliberately open a candidature to inspect or maintain everything without entering through Focus. That view can expose all structured information, Sources, Tags, application material, privacy controls and secondary supporting data.
 
-The user's mental model, however, is information rather than schema.
+This is a different intention from rapid recall, not a required second half of the Focus flow.
 
-A visible Field-management experience that requires understanding field definitions, types or configuration is implementation leakage unless deliberately opened as advanced configuration.
+## Shipped fields are examples, not ontology
 
-## User View
+Company, role, salary, location, recruiter and similar fields are sensible defaults. They must not become a permanent developer-controlled taxonomy.
 
-A configurable modular User View was an early legitimate product idea.
+The product has always needed to retain unforeseen information because useful facts differ dramatically between professions and opportunities.
 
-Its intention was an optional user-controlled workspace whose visible modules/layout could be configured and persisted.
+The ordinary user should not think in schema-administration terms. Advanced field-definition management may exist, but it is not the mental model of normal information editing.
 
-It later became confused with user/profile navigation and was abandoned in that form.
+## Tags are the lightweight shared wiki/glossary
 
-The original modular idea remains potentially useful, but it is deferred. AAAAT should first have a coherent working product.
+Earlier owner material used Keywords/Tags. Later generated implementation introduced `Concepts` for roughly the same semantic object.
 
-The architecture should not deliberately make such a view impossible, but no dashboard-builder framework is currently required.
+The intended product idea is simple: a reusable term such as `Spring Boot` can have aliases, a definition and notes, can be associated with relevant candidatures, and can be inspected while reviewing one of those candidatures. Improving the shared definition helps everywhere.
 
-## Historical view names are not stable product meaning
+This is not AI learning and not a knowledge-management product. The product/domain language should remain **Tags** unless an explicit future distinction is introduced.
 
-Terms such as Smart View, Detailed View and User View changed meaning during prior development.
+## No lifecycle product
 
-Recover the user job beneath the name.
+AAAAT does not need the user to keep candidature stages, priorities or next actions current. Historical implementations repeatedly imported those conventions because they are common in applicant trackers.
 
-Durable needs include multi-candidature recognition and retrieval, Focus for rapid recall, complete candidature inspection/editing, and potentially a later user-configurable modular workspace.
+That is not the product. If the user chooses to retain a fact about an application situation, it is ordinary information; AAAAT does not build a lifecycle machine around it.
 
-Do not preserve a historical view simply because the name appears in old requirements or code.
+The same applies to lightweight notes/checkable reminders: useful when attached to a candidature, but not navigation, planning or workflow authority.
+
+## VCVGenerator is a parallel core journey
+
+AAAAT was never only a candidature tracker. One complete session may be nothing more than opening a CV or cover letter, editing it, rendering/exporting it and leaving.
+
+Candidature context should make relevant CVs/letters/artifacts easy to reach, but the document system remains the same independently usable VCVGenerator system.
 
 ## Professional information is about reuse
 
-The user wants to maintain professional material once and reuse it.
+Reusable professional information exists so the user does not repeatedly reconstruct experience, skills, education, projects, identity/contact data and other career material.
 
-Variants, canonical profile representations and override rules are mechanisms that may support this.
+Variations and document-specific differences are reuse mechanisms, not user-facing identity architecture.
 
-The ordinary concept remains “my reusable professional information”. A particular CV may deliberately differ from it.
+Common categories are shipped conveniences, not a closed taxonomy.
 
-## VCVGenerator has always been independently useful
+## AI is optional infrastructure behind domain actions
 
-One valid AAAAT session is simply:
+Inside AAAAT, the user should normally think “help with this Source/field/CV/letter”, not “go operate an AI workspace”. AAAAT chooses the bounded context and invokes a configured intelligence route when useful.
+
+AAAAT owns no inference model. It should not pretend to own provider policy, the external AI's reasoning, account authentication or generic orchestration.
+
+An external AI/tool is also a valid entry surface. It may have done research, job discovery or broader reasoning before using AAAAT. The AAAAT side remains bounded capabilities and local ownership.
+
+## Privacy has separate dimensions
+
+The owner repeatedly distinguishes:
 
 ```text
-open AAAAT
-→ edit CV
-→ edit/write letter
-→ render
-→ leave
+stored locally
+shown in Focus
+shared with this AI operation
 ```
 
-No candidature and no AI are necessary.
+These choices must not be collapsed. Focus visibility is presentation. AI disclosure is external exposure. Local storage is ownership.
 
-At the same time, candidature-specific documents should naturally remain connected to their candidature.
+## Setup is secondary administration
 
-## Shared Concepts came from reuse, not knowledge management
+First run should get the user into a usable local workspace. TeX, AI connections, external-host setup and recovery appear when relevant rather than becoming the product's first impression.
 
-Keywords and definitions encountered in one candidature may be useful in another.
+Users should not need to understand MCP, IPC, ports, schemas, provider routes or migration history to perform ordinary work.
 
-The intention is to avoid relearning/recreating relevant job-search concepts and to make them useful during Focus/search.
+## Historical evidence must be interpreted, not copied
 
-It is not a generic personal knowledge base.
+Most preserved project history is LLM-generated. It can contain real owner intent, wrong assumptions, or later corrections of earlier drift.
 
-## Research is optional enrichment
+Do not treat a formal Issue/PR/test as owner authority merely because it exists. Reconstruct the chronology: what user problem was being preserved, what implementation assumptions were attached, whether later evidence identified them as drift, and what requirement survived.
 
-The owner has contemplated useful external information such as company legitimacy, company context or relevant recent information.
+In particular:
 
-That does not establish a dedicated AAAAT research workflow.
+- old Smart/Detailed/User View implementations are not reusable UI designs;
+- `Concepts` is not automatically a valid product rename of Tags/Keywords;
+- reminder-heavy Focus is not product authority;
+- status/priority/next-action/lifecycle conventions are not product authority;
+- migration-era compatibility assumptions are not product authority before a real baseline exists;
+- current implementation consistency is not evidence that the underlying product model is correct.
 
-It may come from the user's external AI application, another configured service, manual research, or eventually a native capability if justified.
+## Product evaluation
 
-At this stage, the mechanism is secondary.
+Owner attention is for product judgment, not routine QA. Engineering verification should establish correctness before asking for evaluation.
 
-## AI opinion is permitted but not foundational
-
-A user may deliberately ask an AI what it thinks about one opportunity.
-
-That does not make AAAAT an adviser and does not justify opportunity ranking, automatic next-step recommendations or a decision-support workflow.
-
-## Deterministic processing should be used where appropriate
-
-AI should not be used merely because it exists.
-
-Cleaning copied website text, identifying conventional metadata or normalizing source content may eventually be better handled deterministically.
-
-The product objective is effort reduction, not AI usage.
-
-## Setup and installer.ai
-
-The owner introduced `installer.ai` because configuring local tools, LaTeX and AI environments can exceed what a traditional installer handles comfortably.
-
-The deeper idea is a shared body of setup knowledge usable by either the graphical application or a chosen AI assistant.
-
-Users should not need to learn technical integration concepts merely to configure AAAAT.
-
-## No real-user v2 data exists yet
-
-Development workspaces, fake fixtures and test databases are disposable.
-
-Schema/migration machinery may still be technically useful, but it does not justify compatibility work for nonexistent users.
-
-A real compatibility obligation begins only after actual user data is deliberately treated as persistent.
-
-## First-run experience
-
-First run should primarily establish a usable workspace.
-
-Create/open are normal actions.
-
-Recovery is secondary and should be discoverable without visually competing with the primary path.
-
-The owner explicitly rejected an oversized recovery presentation and first-run layout that requires excessive scrolling or looks like an undismissable notification.
-
-The distinction is:
-
-- Open existing workspace: use an existing live AAAAT workspace.
-- Restore backup: recover/copy a backup into a usable workspace location.
-
-Recovery should not dominate onboarding.
-
-## Product evaluation is not owner QA
-
-Interactive owner evaluation is useful for product judgment.
-
-It should not become the project's mechanism for finding routine engineering defects.
-
-Automated and engineering verification should establish technical correctness before owner attention is requested.
-
-## Source quality and historical interpretation
-
-Not all preserved documents have equal evidentiary weight.
-
-Highest-confidence material includes direct Product Owner statements and owner-authored notes.
-
-AI-generated requirements, Issues, PRs, tests and implementation may preserve real ideas but can also contain semantic drift.
-
-When historical sources conflict, recover the underlying user intention instead of choosing whichever derived document looks most formal.
+When implementation and product authority conflict, correct the implementation—even if that means deleting substantial prior work.
