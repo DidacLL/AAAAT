@@ -12,7 +12,7 @@ import type {
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { ProfileItemAiDisclosureControl } from "./ProfileItemAiDisclosureControl";
 
-const itemKinds: readonly ProfileItemKind[] = [
+const suggestedItemKinds: readonly ProfileItemKind[] = [
   "identity",
   "contact",
   "summary",
@@ -68,7 +68,7 @@ function optional(value: string): string | undefined {
 
 function itemInput(form: ItemFormState): ProfileItemInput {
   return {
-    kind: form.kind,
+    kind: form.kind.trim(),
     title: form.title.trim(),
     subtitle: optional(form.subtitle),
     description: optional(form.description),
@@ -529,13 +529,17 @@ export function ProfileWorkspace({
           </div>
           <form className="editor-card" onSubmit={(event) => void submitItem(event)}>
             <label>
-              Type
-              <select
+              Category
+              <span className="field-hint">Choose a familiar category or type any reusable professional-information category.</span>
+              <input
+                required
+                list="professional-information-categories"
                 value={itemState.kind}
-                onChange={(event) => setItemState({ ...itemState, kind: event.target.value as ProfileItemKind })}
-              >
-                {itemKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
-              </select>
+                onChange={(event) => setItemState({ ...itemState, kind: event.target.value })}
+              />
+              <datalist id="professional-information-categories">
+                {suggestedItemKinds.map((kind) => <option key={kind} value={kind} />)}
+              </datalist>
             </label>
             <label>
               Title
