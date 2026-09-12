@@ -26,6 +26,7 @@ import {
   selectedOpportunityResearchContext,
 } from "./candidature-opportunity-research-access-service";
 import { createCandidature } from "./candidature-service";
+import { getCareerContextAiDisclosure } from "./career-context-ai-disclosure-service";
 import { getCareerContext } from "./career-context-service";
 import {
   renderExternallyAuthorizedCv,
@@ -50,16 +51,27 @@ function exactlyOne(values: readonly string[], value: string): boolean {
 
 function projectCareerContext(rootPath: string): ExternalCareerContext {
   const context = getCareerContext(rootPath);
+  const disclosure = getCareerContextAiDisclosure(rootPath);
   return externalCareerContextSchema.parse({
-    ...(context.careerDirection.trim() ? { careerDirection: context.careerDirection } : {}),
-    ...(context.objectives.trim() ? { objectives: context.objectives } : {}),
-    ...(context.constraints.trim() ? { constraints: context.constraints } : {}),
-    ...(context.targetRoles.trim() ? { targetRoles: context.targetRoles } : {}),
-    ...(context.targetMarketsLocations.trim()
+    ...(disclosure.careerDirection && context.careerDirection.trim()
+      ? { careerDirection: context.careerDirection }
+      : {}),
+    ...(disclosure.objectives && context.objectives.trim()
+      ? { objectives: context.objectives }
+      : {}),
+    ...(disclosure.constraints && context.constraints.trim()
+      ? { constraints: context.constraints }
+      : {}),
+    ...(disclosure.targetRoles && context.targetRoles.trim()
+      ? { targetRoles: context.targetRoles }
+      : {}),
+    ...(disclosure.targetMarketsLocations && context.targetMarketsLocations.trim()
       ? { targetMarketsLocations: context.targetMarketsLocations }
       : {}),
-    ...(context.workPreferences.trim() ? { workPreferences: context.workPreferences } : {}),
-    ...(context.applicationWritingPreferences.trim()
+    ...(disclosure.workPreferences && context.workPreferences.trim()
+      ? { workPreferences: context.workPreferences }
+      : {}),
+    ...(disclosure.applicationWritingPreferences && context.applicationWritingPreferences.trim()
       ? { applicationWritingPreferences: context.applicationWritingPreferences }
       : {}),
   });
@@ -186,7 +198,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
     careerContextReadToolName,
     {
       description:
-        "Read only the non-empty user-written AAAAT Career preferences permitted for external career assistance. Does not expose candidatures, professional information, documents, local IDs, or workspace paths.",
+        "Read only the non-empty user-written AAAAT Career preferences locally permitted for external career assistance. Does not expose hidden Career preferences, candidatures, professional information, documents, local IDs, or workspace paths.",
       inputSchema: externalCareerContextRequestSchema,
     },
     async (input) => {
