@@ -24,7 +24,7 @@ function requireWorkspaceRoot(): string {
   return rootPath;
 }
 
-function registerCvDescriptorIpc(mainWindow: BrowserWindow): void {
+export function registerCvDescriptorIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(cvDescriptorChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(cvDescriptorChannels.current, (event, documentId: unknown) => {
@@ -40,5 +40,3 @@ function registerCvDescriptorIpc(mainWindow: BrowserWindow): void {
     );
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) => registerCvDescriptorIpc(mainWindow));
