@@ -242,9 +242,11 @@ describe("manual CVs and letters workspace", () => {
     expect(screen.getByText("main.tex", { exact: true })).toBeVisible();
     expect(screen.getByText("aaaat.sty", { exact: true })).toBeVisible();
     expect(screen.getByText("data.tex", { exact: true })).toBeVisible();
-    expect(screen.getByText(/main\.tex.*editable document blueprint/i)).toBeVisible();
-    expect(screen.getByText(/aaaat\.sty.*editable package\/style source/i)).toBeVisible();
-    expect(screen.getByText(/data\.tex.*generated from saved AAAAT document information/i)).toBeVisible();
+    const ownership = screen.getByLabelText("Live source ownership");
+    expect(ownership).toBeVisible();
+    expect(ownership).toHaveTextContent("main.tex is your editable document blueprint. AAAAT preserves it.");
+    expect(ownership).toHaveTextContent("aaaat.sty is your editable package/style source. AAAAT preserves it.");
+    expect(ownership).toHaveTextContent("data.tex is generated from saved AAAAT document information. Explicit regeneration replaces this generated file.");
     expect(screen.getByText("/tmp/workspace/documents/doc/main.tex")).toBeVisible();
     expect(screen.getByText("/tmp/workspace/documents/doc/build/main.pdf")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Open source project" }));
