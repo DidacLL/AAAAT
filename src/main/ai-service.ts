@@ -72,6 +72,7 @@ import {
   listCandidatureSources,
 } from "./candidature-service";
 import { listDocuments, resolveDocument } from "./document-service";
+import { listProfileItemAiContextPreferences } from "./profile-ai-context-service";
 import { getProfile, resolveProfileVariant } from "./profile-service";
 import { withWorkspaceDatabase } from "./workspace";
 
@@ -104,6 +105,25 @@ export function saveAiConnection(
 interface Projection<T> {
   readonly context: T;
   readonly tokenMap: ReadonlyMap<string, string>;
+}
+
+const privacyRank: Readonly<Record<PrivacyMode, number>> = {
+  expose: 0,
+  token: 1,
+  omit: 2,
+};
+
+function morePrivate(left: PrivacyMode, right: PrivacyMode): PrivacyMode {
+  return privacyRank[left] >= privacyRank[right] ? left : right;
+}
+
+function profilePrivacyModes(rootPath: string): ReadonlyMap<string, PrivacyMode> {
+  return new Map(
+    listProfileItemAiContextPreferences(rootPath).map((preference) => [
+      preference.itemId,
+      preference.aiContextMode,
+    ]),
+  );
 }
 
 function runtimeStrings(value: CandidatureRuntimeValue): string[] {
@@ -254,6 +274,7 @@ function projectOpportunityReviewContext(
   request: OpportunityReviewRequest,
 ): Projection<z.infer<typeof opportunityReviewProjectedContextSchema>> {
   const profile = getProfile(rootPath).items;
+  const modes = profilePrivacyModes(rootPath);
   const profileCorpus = profileItemStrings(profile);
   const candidatureProjection = projectCandidature(
     rootPath,
@@ -263,12 +284,13 @@ function projectOpportunityReviewContext(
   const tokenMap = new Map(candidatureProjection.tokenMap);
   const token = tokenFactory(tokenMap, [JSON.stringify(candidatureProjection.context), ...profileCorpus]);
   const profileItems = profile.flatMap((item) => {
-    const mode =
+    const requestedMode: PrivacyMode =
       item.kind === "identity"
         ? request.identityPrivacy
         : item.kind === "contact"
           ? request.contactPrivacy
           : "expose";
+    const mode = morePrivate(modes.get(item.id) ?? "expose", requestedMode);
     const projected = projectedItem(item, mode, token);
     return projected ? [projected] : [];
   });
@@ -561,23 +583,42 @@ function documentBaseItems(rootPath: string, document: DocumentRecord): ProfileI
     : resolveProfileVariant(rootPath, document.variantId).items;
 }
 
-function documentContext(
-  candidature: AiProjectedCandidature,
+function projectDocumentContext(
+  rootPath: string,
+  candidatureProjection: Projection<AiProjectedCandidature>,
   items: readonly ProfileItem[],
-) {
-  const evidence = items
-    .filter((item) => documentEvidenceKinds.has(item.kind))
-    .map((item) => ({
-      id: item.id,
-      kind: item.kind,
-      title: item.title,
-      ...(item.subtitle ? { subtitle: item.subtitle } : {}),
-      ...(item.description ? { description: item.description } : {}),
-    }));
+): Projection<z.infer<typeof documentAiContextSchema>> {
+  const modes = profilePrivacyModes(rootPath);
+  const tokenMap = new Map(candidatureProjection.tokenMap);
+  const corpus = profileItemStrings(items);
+  const token = tokenFactory(tokenMap, [
+    JSON.stringify(candidatureProjection.context),
+    ...corpus,
+  ]);
+  const evidence = items.flatMap((item) => {
+    if (!documentEvidenceKinds.has(item.kind)) return [];
+    const projected = projectedItem(item, modes.get(item.id) ?? "expose", token);
+    if (!projected) return [];
+    return [
+      {
+        id: item.id,
+        kind: projected.kind,
+        title: projected.title,
+        ...(projected.subtitle ? { subtitle: projected.subtitle } : {}),
+        ...(projected.description ? { description: projected.description } : {}),
+      },
+    ];
+  });
   if (evidence.length === 0) {
-    throw new AiServiceError("Add non-sensitive career evidence before requesting document assistance.");
+    throw new AiServiceError("Add AI-shareable career evidence before requesting document assistance.");
   }
-  return documentAiContextSchema.parse({ candidature, items: evidence });
+  return {
+    context: documentAiContextSchema.parse({
+      candidature: candidatureProjection.context,
+      items: evidence,
+    }),
+    tokenMap,
+  };
 }
 
 function providerDocumentContext(
@@ -630,13 +671,13 @@ export async function tailorCv(
   const document = requireDocument(rootPath, request.documentId);
   if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
   const items = documentBaseItems(rootPath, document);
-  const projection = projectCandidature(
+  const candidatureProjection = projectCandidature(
     rootPath,
     request.candidatureId,
     profileItemStrings(items),
   );
-  const context = documentContext(projection.context, items);
-  const providerContext = providerDocumentContext(rootPath, context, "cv");
+  const projection = projectDocumentContext(rootPath, candidatureProjection, items);
+  const providerContext = providerDocumentContext(rootPath, projection.context, "cv");
   const result = providerCvTailoringResultSchema.parse(
     await provider.tailorCv(statusFor(stored), providerContext.context),
   );
@@ -665,13 +706,13 @@ export async function draftCoverLetter(
     throw new AiServiceError("Choose a cover-letter document for cover-letter drafting.");
   }
   const items = resolveDocument(rootPath, document.id).items;
-  const projection = projectCandidature(
+  const candidatureProjection = projectCandidature(
     rootPath,
     request.candidatureId,
     profileItemStrings(items),
   );
-  const context = documentContext(projection.context, items);
-  const providerContext = providerDocumentContext(rootPath, context, "cover-letter");
+  const projection = projectDocumentContext(rootPath, candidatureProjection, items);
+  const providerContext = providerDocumentContext(rootPath, projection.context, "cover-letter");
   const result = coverLetterDraftSchema.parse(
     await provider.draftCoverLetter(statusFor(stored), providerContext.context),
   );

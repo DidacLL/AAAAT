@@ -25,6 +25,7 @@ import candidatureInformationMigrationSql from "./migrations/008_candidature_inf
 import todoMigrationSql from "./migrations/009_todos.sql?raw";
 import opportunityResearchAccessMigrationSql from "./migrations/010_opportunity_research_access.sql?raw";
 import combinedApplicationArtifactsMigrationSql from "./migrations/011_combined_application_artifacts.sql?raw";
+import profileAiContextMigrationSql from "./migrations/012_profile_ai_context.sql?raw";
 
 export interface WorkspaceMigrationRow {
   readonly version: number;
@@ -74,6 +75,7 @@ const migrations = Object.freeze([
   migration(9, "todos", todoMigrationSql),
   migration(10, "opportunity-research-access", opportunityResearchAccessMigrationSql),
   migration(11, "combined-application-artifacts", combinedApplicationArtifactsMigrationSql),
+  migration(12, "profile-ai-context", profileAiContextMigrationSql),
 ]);
 
 class WorkspaceError extends Error {

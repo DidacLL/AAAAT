@@ -14,7 +14,7 @@ const legacyArtifactId = "00000000-0000-4000-8000-000000000991";
 const legacyDocumentId = "00000000-0000-4000-8000-000000000992";
 
 describe("combined application artifact migration", () => {
-  it("appends migration 011 and upgrades a legacy single-document artifact without rewriting v10", () => {
+  it("keeps migration 011 immutable while a reconstructed v10 workspace upgrades through later migrations", () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-combined-artifact-migration-"));
     const databasePath = path.join(root, "workspace.sqlite");
     try {
@@ -28,6 +28,9 @@ describe("combined application artifact migration", () => {
         expect(
           database.prepare("SELECT version, name FROM schema_migrations WHERE version = 11").get(),
         ).toEqual({ version: 11, name: "combined-application-artifacts" });
+
+        database.exec("ALTER TABLE profile_items DROP COLUMN ai_context_mode;");
+        database.prepare("DELETE FROM schema_migrations WHERE version = 12").run();
 
         database.exec("DROP TABLE application_artifacts;");
         database.exec(`
@@ -61,6 +64,9 @@ describe("combined application artifact migration", () => {
           upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 11").get(),
         ).toEqual({ version: 11, name: "combined-application-artifacts" });
         expect(
+          upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 12").get(),
+        ).toEqual({ version: 12, name: "profile-ai-context" });
+        expect(
           upgraded
             .prepare(
               `SELECT cv_document_id AS cvDocumentId,
@@ -79,6 +85,9 @@ describe("combined application artifact migration", () => {
         expect(
           upgraded.prepare("SELECT version, name FROM schema_migrations WHERE version = 10").get(),
         ).toEqual({ version: 10, name: "opportunity-research-access" });
+        expect(
+          upgraded.prepare("SELECT ai_context_mode AS aiContextMode FROM profile_items LIMIT 1").all(),
+        ).toEqual([]);
       } finally {
         upgraded.close();
       }
