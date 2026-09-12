@@ -114,8 +114,10 @@ function operatorLabel(operator: CandidatureFilterOperator): string {
 }
 
 export function CandidaturesWorkspace({
+  initialSelectedId,
   onDirtyChange,
 }: {
+  readonly initialSelectedId?: string;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
@@ -235,7 +237,10 @@ export function CandidaturesWorkspace({
         setFields(nextFields);
         setDocuments(nextDocuments);
         setConcepts(nextConcepts);
-        const first = nextRecords.find((record) => !record.archived) ?? nextRecords[0];
+        const preferred = initialSelectedId
+          ? nextRecords.find((record) => record.id === initialSelectedId)
+          : undefined;
+        const first = preferred ?? nextRecords.find((record) => !record.archived) ?? nextRecords[0];
         if (first) hydrate(first);
       })
       .catch(() => {
@@ -244,7 +249,7 @@ export function CandidaturesWorkspace({
     return () => {
       active = false;
     };
-  }, [hydrate]);
+  }, [hydrate, initialSelectedId]);
 
   useEffect(() => {
     const previous = previousDocumentHandoff.current;
