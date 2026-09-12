@@ -40,7 +40,10 @@ function searchableText(
   return [
     record.label,
     record.sourceSearchText,
-    ...record.values.map((value) => displayValue(fieldMap.get(value.fieldId), value.value)),
+    ...record.values.flatMap((retained) => {
+      const field = fieldMap.get(retained.fieldId);
+      return [field?.definition.label ?? "", displayValue(field, retained.value)];
+    }),
     associatedConceptText,
   ]
     .join(" ")

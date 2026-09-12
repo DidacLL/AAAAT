@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCandidatureField,
   setCandidatureFieldValue,
+  updateCandidatureField,
 } from "../src/main/candidature-field-service";
 import { searchCandidatures } from "../src/main/candidature-search-service";
 import {
@@ -27,7 +28,7 @@ function temporaryWorkspace(): string {
 }
 
 describe("local candidature corpus search", () => {
-  it("matches retained Sources, normal field display values, and associated concept aliases", () => {
+  it("matches retained field labels and values, Sources, and associated concept aliases", () => {
     const root = temporaryWorkspace();
     try {
       const first = createCandidature(root, {
@@ -69,8 +70,20 @@ describe("local candidature corpus search", () => {
       });
 
       expect(searchCandidatures(root, { query: "regional air" })).toEqual([first.id]);
+      expect(searchCandidatures(root, { query: "WORK MODE" })).toEqual([first.id]);
       expect(searchCandidatures(root, { query: "REMOTE FIRST" })).toEqual([first.id]);
       expect(searchCandidatures(root, { query: "unique-sre-alias" })).toEqual([second.id]);
+
+      updateCandidatureField(root, {
+        id: workMode.definition.id,
+        label: workMode.definition.label,
+        description: workMode.definition.description,
+        valueType: workMode.definition.valueType,
+        cardinality: workMode.definition.cardinality,
+        choices: workMode.definition.choices,
+        enabled: false,
+      });
+      expect(searchCandidatures(root, { query: "work mode" })).toEqual([first.id]);
 
       const [source] = addCandidatureSource(root, {
         candidatureId: second.id,
