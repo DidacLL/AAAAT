@@ -80,18 +80,7 @@ export type CareerContext = z.infer<typeof careerContextSchema>;
 export const careerContextUpdateSchema = careerContextSchema;
 export type CareerContextUpdate = z.infer<typeof careerContextUpdateSchema>;
 
-export const profileItemKindSchema = z.enum([
-  "identity",
-  "contact",
-  "summary",
-  "experience",
-  "education",
-  "project",
-  "skill",
-  "certification",
-  "language",
-  "link",
-]);
+export const profileItemKindSchema = z.string().trim().min(1).max(120);
 export type ProfileItemKind = z.infer<typeof profileItemKindSchema>;
 
 const optionalShortText = z.string().max(300).optional();
