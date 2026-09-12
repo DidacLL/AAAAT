@@ -311,12 +311,16 @@ export function ProfileWorkspace({
     }
   };
 
-  const removeItem = async (itemId: string) => {
-    if (itemId === editingItemId && !confirmItemDiscard()) return;
+  const removeItem = async (item: ProfileItem) => {
+    if (item.id === editingItemId && !confirmItemDiscard()) return;
+    const confirmed = window.confirm(
+      `Remove “${item.title}” from reusable professional information? Saved variations and documents that use it may change.`,
+    );
+    if (!confirmed) return;
     setError(null);
     try {
-      await acceptSnapshot(await window.aaaat.profile.removeItem(itemId), selectedVariantId, true);
-      if (editingItemId === itemId) {
+      await acceptSnapshot(await window.aaaat.profile.removeItem(item.id), selectedVariantId, true);
+      if (editingItemId === item.id) {
         setEditingItemId(null);
         setItemState(emptyItem);
         setAiDisclosureDirty(false);
@@ -487,7 +491,7 @@ export function ProfileWorkspace({
                   </div>
                   <div className="row-actions">
                     <button type="button" onClick={() => startItemEdit(item)}>Edit</button>
-                    <button type="button" onClick={() => void removeItem(item.id)}>Remove</button>
+                    <button type="button" onClick={() => void removeItem(item)}>Remove</button>
                   </div>
                 </article>
               ))}
