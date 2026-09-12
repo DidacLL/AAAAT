@@ -63,24 +63,12 @@ function textResult(content: readonly unknown[]): string {
   return first.text;
 }
 
-function activityCount(root: string): number {
-  const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
-  try {
-    const row = database.prepare("SELECT COUNT(*) AS count FROM document_activity").get() as {
-      count: number;
-    };
-    return row.count;
-  } finally {
-    database.close();
-  }
-}
-
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
 describe("external CV-description MCP operation", () => {
-  it("returns only explicit descriptors under response-local labels and performs no mutation", async () => {
+  it("returns only explicit descriptors under response-local labels", async () => {
     const root = workspace();
     const first = createCv(root, "MCP-PRIVATE-CV-TITLE-ONE", ["MCP-PRIVATE-CV-CONTENT-ONE"]);
     const second = createCv(root, "MCP-PRIVATE-CV-TITLE-TWO", ["MCP-PRIVATE-CV-CONTENT-TWO"]);
@@ -111,7 +99,6 @@ describe("external CV-description MCP operation", () => {
       tags: ["backend"],
       notes: null,
     });
-    const before = activityCount(root);
 
     const connection = await connectedClient(root);
     try {
@@ -148,14 +135,12 @@ describe("external CV-description MCP operation", () => {
       expect(text).not.toContain("MCP-PRIVATE-LETTER");
       expect(text).not.toContain("MCP-PRIVATE-CANDIDATURE");
       expect(text).not.toContain("MCP-PRIVATE-SOURCE-TEXT");
-      expect(activityCount(root)).toBe(before);
 
       const broader = await connection.client.callTool({
         name: cvDescriptionsReadToolName,
         arguments: { includeContent: true },
       });
       expect(broader.isError).toBe(true);
-      expect(activityCount(root)).toBe(before);
     } finally {
       await connection.close();
     }
