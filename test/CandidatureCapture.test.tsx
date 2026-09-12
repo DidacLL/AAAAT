@@ -22,6 +22,7 @@ import type {
 const candidatureId = "00000000-0000-4000-8000-000000000701";
 const sourceId = "00000000-0000-4000-8000-000000000702";
 const fieldId = "00000000-0000-4000-8000-000000000703";
+const olderCandidatureId = "00000000-0000-4000-8000-000000000704";
 const now = "2026-09-07T00:00:00.000Z";
 const phrase = "Recruiter asks whether I can start in October.";
 
@@ -193,6 +194,34 @@ describe("sparse candidature capture", () => {
     expect(await within(focus).findByText(phrase)).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Back to candidatures" })).toBeInTheDocument();
+  });
+
+  it("selects the candidature returned by Save even when another active candidature is listed first", async () => {
+    const older = {
+      ...candidature([], "Older opportunity"),
+      id: olderCandidatureId,
+      sourceSearchText: "Older retained source",
+    };
+    installApi([older]);
+    create.mockImplementationOnce(async () => {
+      const created = candidature([], "New saved opportunity");
+      persisted = [older, created];
+      return created;
+    });
+    const user = userEvent.setup();
+    render(<CandidaturesAiWorkspace />);
+
+    await screen.findByRole("heading", { name: "Candidatures" });
+    await user.click(screen.getByTestId("new-candidature-capture"));
+    await user.type(screen.getByLabelText("What you have"), phrase);
+    await user.click(screen.getByRole("button", { name: "Save candidature" }));
+
+    const createdButton = await screen.findByRole("button", { name: /New saved opportunity/ });
+    const olderButton = screen.getByRole("button", { name: /Older opportunity/ });
+    expect(createdButton).toHaveClass("selected-candidature");
+    expect(olderButton).not.toHaveClass("selected-candidature");
+    expect(screen.getByRole("heading", { name: "New saved opportunity" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("preserves collection search and archive state across selected candidature navigation", async () => {
