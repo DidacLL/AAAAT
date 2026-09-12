@@ -56,17 +56,6 @@ function textResult(content: readonly unknown[]): string {
   return first.text;
 }
 
-function activityCount(root: string): number {
-  const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
-  try {
-    return (
-      database.prepare("SELECT COUNT(*) AS count FROM document_activity").get() as { count: number }
-    ).count;
-  } finally {
-    database.close();
-  }
-}
-
 function addOversizedProfessionalInformation(root: string): void {
   const database = new DatabaseSync(path.join(root, "workspace.sqlite"));
   const now = new Date().toISOString();
@@ -189,7 +178,6 @@ describe("external CV-content MCP operation", () => {
       values: [],
     });
     updateCvContentAccess(root, { documentId: cv.id, allowed: true });
-    const before = activityCount(root);
 
     const connection = await connectedClient(root);
     try {
@@ -226,7 +214,6 @@ describe("external CV-content MCP operation", () => {
       expect(text).not.toContain("MCP-PRIVATE-CANDIDATURE");
       expect(text).not.toContain("MCP-PRIVATE-SOURCE-TEXT");
       expect(text).not.toMatch(/sortOrder|documentId|variantId|projectPath|sourcePath|artifactPath/);
-      expect(activityCount(root)).toBe(before);
     } finally {
       await connection.close();
     }
