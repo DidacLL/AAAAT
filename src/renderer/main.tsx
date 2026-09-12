@@ -120,6 +120,7 @@ function createPreviewApi(): DesktopApi &
     }),
     documentOutput: Object.freeze({
       open: previewUnavailable,
+      openProject: previewUnavailable,
     }),
     cvContentAccess: Object.freeze({
       current: previewUnavailable,
