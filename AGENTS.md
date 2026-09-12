@@ -32,6 +32,27 @@ SPEC → accepted ADRs → contracts → Issue → tests → implementation
 
 If the Product Definition does not resolve a consequential product question, state the concrete uncertainty and ask the Product Owner once. Do not ask the owner to repeat meaning already preserved in this repository.
 
+## Non-negotiable pre-user constraints
+
+AAAAT is currently a single-developer personal side project with no users and no real-use compatibility baseline. Do not import production, enterprise, multi-user, release-management, authentication, compatibility, or extensibility ceremony merely because it is conventional elsewhere.
+
+Until the Product Owner explicitly establishes a real user-data baseline and asks for compatibility:
+
+- do not preserve development-era database schemas, migration numbers, migration hashes, fixtures, fake workspaces, wire shapes, or implementation history;
+- do not create or retain schema-migration machinery for hypothetical future upgrades;
+- do not add a new numbered migration to correct a development schema;
+- edit the current schema and dependent code/tests directly to match current product meaning;
+- use Git history as the history of discarded development representations;
+- delete or rewrite tests and ADR claims that turn obsolete development states into compatibility requirements.
+
+An earlier implementation is a hypothesis, not a constraint. When later product work exposes a gap in an earlier model, investigate and correct the model instead of adding compatibility layers around it. Sunk implementation cost does not justify preserving a wrong concept.
+
+AAAAT is not an AI platform. AI is an optional external information-processing resource. MCP, plugins, commands or other bridges are transports, not product identity. Do not make AAAAT responsible for an external AI/provider's reasoning, policy, model security, account authentication, credential system, compatibility guarantees or generic agent orchestration unless a concrete AAAAT feature actually owns that responsibility. Protect the local data, process and mutation boundaries AAAAT does own; do not manufacture generic AI-platform security architecture.
+
+Professional information must remain user-flexible. Common career categories are useful defaults, not a permanent closed taxonomy. The implementation must not require a code/schema change merely because the user has legitimate reusable career information outside the developer's initial category list.
+
+When auditing or extending the application, derive the desired product/domain model from owner authority before looking at the current schema or tests. Existing tests may prove only that a poisoned assumption is internally consistent.
+
 ## Work autonomously and proportionally
 
 Take the smallest coherent step that advances a real product outcome. Routine implementation, review, testing, and integration proceed without owner approval once their product trace is clear. Escalate only genuine unresolved meaning or a consequential trade-off that cannot be resolved from the authority record.
@@ -40,7 +61,7 @@ Tests protect user-visible behavior, domain and security boundaries, local owner
 
 Keep proven technical boundaries where they remain useful: a local authoritative workspace, typed/domain validation, normal application-service mutation paths, a sandboxed unprivileged renderer, optional bounded AI operations, and user-owned portable document output. Do not add a framework, generic CRUD/query surface, policy engine, workflow/agent platform, requirements database, or compatibility machinery without demonstrated need.
 
-AAAAT has no established real-use v2 compatibility baseline. Until the Product Owner explicitly establishes one for actual user data, development databases, fixtures, and development-era schema can be corrected directly when current product meaning requires it. A dormant audit record is not a request to establish a baseline.
+AAAAT has no established real-use v2 compatibility baseline. Development databases, fixtures, and development-era schema are disposable and must be corrected directly when current product meaning requires it. A dormant audit record is not a request to establish a baseline.
 
 ## Execution and evidence
 
