@@ -19,12 +19,6 @@ interface AccessRow {
   readonly renderAllowed: number;
 }
 
-type AccessActivity =
-  | "document.ai-content-access.allow"
-  | "document.ai-content-access.revoke"
-  | "document.ai-render-access.allow"
-  | "document.ai-render-access.revoke";
-
 class CvContentAccessServiceError extends Error {
   constructor(message: string) {
     super(message);
@@ -70,29 +64,12 @@ function toAccess(row: AccessRow): CvContentAccess {
   });
 }
 
-function recordActivity(
-  database: DatabaseSync,
-  documentId: string,
-  action: AccessActivity,
-  occurredAt: string,
-): void {
-  database
-    .prepare(
-      "INSERT INTO document_activity(occurred_at, document_id, action) VALUES (?, ?, ?)",
-    )
-    .run(occurredAt, documentId, action);
-}
-
-function revokeAccess(database: DatabaseSync, row: AccessRow, occurredAt: string): void {
-  if (row.renderAllowed === 1) {
-    recordActivity(database, row.id, "document.ai-render-access.revoke", occurredAt);
-  }
+function revokeAccess(database: DatabaseSync, row: AccessRow, updatedAt: string): void {
   database
     .prepare(
       "UPDATE documents SET ai_content_visible = 0, ai_render_allowed = 0, updated_at = ? WHERE id = ?",
     )
-    .run(occurredAt, row.id);
-  recordActivity(database, row.id, "document.ai-content-access.revoke", occurredAt);
+    .run(updatedAt, row.id);
 }
 
 export function getCvContentAccess(rootPath: string, documentId: string): CvContentAccess {
@@ -129,7 +106,6 @@ export function updateCvContentAccess(
             "UPDATE documents SET ai_content_visible = 1, updated_at = ? WHERE id = ?",
           )
           .run(now, update.documentId);
-        recordActivity(database, update.documentId, "document.ai-content-access.allow", now);
       } else {
         revokeAccess(database, current, now);
       }
@@ -155,16 +131,9 @@ export function updateCvRenderAccess(
       const currentlyAllowed = current.renderAllowed === 1;
       if (currentlyAllowed === update.allowed) return toAccess(current);
 
-      const now = new Date().toISOString();
       database
         .prepare("UPDATE documents SET ai_render_allowed = ?, updated_at = ? WHERE id = ?")
-        .run(update.allowed ? 1 : 0, now, update.documentId);
-      recordActivity(
-        database,
-        update.documentId,
-        update.allowed ? "document.ai-render-access.allow" : "document.ai-render-access.revoke",
-        now,
-      );
+        .run(update.allowed ? 1 : 0, new Date().toISOString(), update.documentId);
       return toAccess(requireRow(database, update.documentId));
     }),
   );
