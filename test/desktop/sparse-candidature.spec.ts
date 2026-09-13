@@ -233,7 +233,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     await expect(focusEntry).toContainText("Minimum flight hours");
     await focusEntry.click();
 
-    const selectedFocus = running.page.getByRole("region", { name: "Selected candidature Focus", exact: true });
+    const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
     await expect(selectedFocus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
     await expect(selectedFocus).toContainText("1500");
     await running.page.getByRole("button", { name: "Edit full candidature" }).click();
@@ -304,7 +304,7 @@ test("packaged raw capture, complete editing and selected Focus stay usable at 7
 
     await complete.getByRole("button", { name: "Back to candidatures" }).click();
     await card.locator("button.candidature-focus-entry").click();
-    const selectedFocus = running.page.getByRole("region", { name: "Selected candidature Focus", exact: true });
+    const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
     const availability = selectedFocus.locator(".focus-block").filter({ hasText: "Availability" });
     await expect(availability).toContainText("October or November");
     await availability.getByRole("button", { name: "Edit", exact: true }).click();
