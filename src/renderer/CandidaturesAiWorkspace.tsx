@@ -63,7 +63,11 @@ export function CandidaturesAiWorkspace({
       .then((connections) => {
         if (!active) return;
         setAiExtractionAvailable(
-          connections.some((connection) => connection.validatedOperations.includes("job_extraction")),
+          connections.some(
+            (connection) =>
+              connection.validatedOperations.includes("job_extraction") &&
+              (connection.defaultForOperations.includes("job_extraction") || connection.isDefault),
+          ),
         );
       })
       .catch(() => {
