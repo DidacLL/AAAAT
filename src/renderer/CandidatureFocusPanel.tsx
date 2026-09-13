@@ -42,7 +42,7 @@ export function CandidatureFocusPanel({
   const selectedTag = associatedTags.find((tag) => tag.id === selectedTagId) ?? associatedTags[0] ?? null;
 
   return (
-    <section className="focus-panel" aria-label="Focus information">
+    <section className="focus-panel" aria-label="Selected candidature Focus">
       <div className="focus-heading">
         <div>
           <p className="eyebrow">Focus</p>
