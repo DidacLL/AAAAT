@@ -23,7 +23,7 @@ async function reservePort(): Promise<number> {
         reject(new Error("Could not reserve a packaged acceptance port"));
         return;
       }
-      server.close((error) => (error ? reject(error) : resolve(address.port));
+      server.close((error) => (error ? reject(error) : resolve(address.port)));
     });
   });
 }
