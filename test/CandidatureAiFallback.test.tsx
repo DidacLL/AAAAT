@@ -120,6 +120,7 @@ function installApi() {
       setTags: vi.fn(),
     },
     documents: { list: vi.fn().mockResolvedValue([]) },
+    artifacts: { list: vi.fn().mockResolvedValue([]) },
     candidatureSearch: { search: vi.fn().mockResolvedValue([]) },
     ai: { discoverField },
     setupEnvironment: {
