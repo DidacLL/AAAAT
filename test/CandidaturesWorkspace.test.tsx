@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -94,6 +94,7 @@ const list = vi.fn();
 const listFields = vi.fn();
 const setFieldValue = vi.fn();
 const createField = vi.fn();
+const updateFieldPreferences = vi.fn();
 const updateTag = vi.fn();
 
 function installApi() {
@@ -118,6 +119,13 @@ function installApi() {
   createField.mockImplementation(async (input) =>
     field("00000000-0000-4000-8000-000000000507", input.label, "text", false),
   );
+  updateFieldPreferences.mockImplementation(async (input) => {
+    const current = input.fieldId === organisationId ? organisation : hours;
+    return {
+      ...current,
+      preferences: { ...current.preferences, ...input },
+    };
+  });
   updateTag.mockImplementation(async (input) => input);
 
   const api = {
@@ -133,7 +141,7 @@ function installApi() {
       createField,
       updateField: vi.fn(),
       deleteField: vi.fn(),
-      updateFieldPreferences: vi.fn(),
+      updateFieldPreferences,
       setFieldValue,
       clearFieldValue: vi.fn(),
       listSources: vi.fn().mockResolvedValue([]),
@@ -269,5 +277,62 @@ describe("rebuilt candidature workspace", () => {
       aliases: platformTag.aliases,
     });
     expect(screen.queryByText(/Concept/i)).not.toBeInTheDocument();
+  });
+
+  it("does not discard an unsaved Tag association when another field is saved", async () => {
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+    await user.click((await screen.findAllByRole("button", { name: "Edit candidature" }))[0]!);
+
+    const tags = screen.getByRole("region", { name: "Tags" });
+    const platform = within(tags).getByRole("checkbox", { name: /Platform/ });
+    expect(platform).toBeChecked();
+    await user.click(platform);
+    expect(platform).not.toBeChecked();
+
+    const information = screen.getByRole("region", { name: "Candidature information" });
+    await user.click(within(information).getByRole("button", { name: "Edit" }));
+    const value = within(information).getByRole("textbox");
+    await user.clear(value);
+    await user.type(value, "Regional Air Europe");
+    await user.click(within(information).getByRole("button", { name: /^Save$/ }));
+
+    expect(within(tags).getByRole("checkbox", { name: /Platform/ })).not.toBeChecked();
+    expect(within(tags).getByRole("button", { name: "Save Tag associations" })).toBeInTheDocument();
+  });
+
+  it("updates Focus visibility immediately while persistence is pending", async () => {
+    const user = userEvent.setup();
+    let resolvePreference!: (value: CandidatureFieldConfiguration) => void;
+    updateFieldPreferences.mockImplementationOnce(
+      () => new Promise<CandidatureFieldConfiguration>((resolve) => {
+        resolvePreference = resolve;
+      }),
+    );
+
+    render(<CandidaturesWorkspace />);
+    await user.click((await screen.findAllByRole("button", { name: "Edit candidature" }))[0]!);
+    await user.click(screen.getByText("Focus and AI visibility", { selector: "summary" }));
+
+    const fieldCard = screen.getByText("Minimum flight hours", { selector: "strong" }).closest("article");
+    if (!fieldCard) throw new Error("Field preference card missing");
+    const focusVisible = within(fieldCard).getByRole("checkbox", { name: "Show in Focus when retained" });
+    expect(focusVisible).not.toBeChecked();
+
+    await user.click(focusVisible);
+    expect(focusVisible).toBeChecked();
+    expect(updateFieldPreferences).toHaveBeenCalledWith({
+      ...hours.preferences,
+      focusVisible: true,
+      fieldId: hoursId,
+    });
+
+    await act(async () => {
+      resolvePreference({
+        ...hours,
+        preferences: { ...hours.preferences, focusVisible: true },
+      });
+    });
+    await waitFor(() => expect(focusVisible).toBeChecked());
   });
 });
