@@ -39,8 +39,7 @@ export function CandidatureFocusPanel({
     });
 
   const associatedTags = tags.filter((tag) => record.tagIds.includes(tag.id));
-  const selectedTag =
-    associatedTags.find((tag) => tag.id === selectedTagId) ?? associatedTags[0] ?? null;
+  const selectedTag = associatedTags.find((tag) => tag.id === selectedTagId) ?? associatedTags[0] ?? null;
 
   return (
     <section className="focus-panel" aria-label="Selected candidature Focus">
@@ -84,12 +83,12 @@ export function CandidatureFocusPanel({
       {associatedTags.length > 0 ? (
         <section className="focus-tags" aria-label="Tags">
           <h3>Tags</h3>
-          <div className="concept-chip-row">
+          <div className="tag-chip-row">
             {associatedTags.map((tag) => (
               <button
                 type="button"
                 key={tag.id}
-                className={tag.id === selectedTag?.id ? "concept-chip selected-concept-chip" : "concept-chip"}
+                className={tag.id === selectedTag?.id ? "tag-chip selected-tag-chip" : "tag-chip"}
                 onClick={() => onSelectTag(tag.id)}
               >
                 {tag.name}
@@ -97,7 +96,7 @@ export function CandidatureFocusPanel({
             ))}
           </div>
           {selectedTag ? (
-            <article className="selected-concept-definition">
+            <article className="selected-tag-definition">
               <strong>{selectedTag.name}</strong>
               {selectedTag.definition ? <p>{selectedTag.definition}</p> : null}
               {selectedTag.aliases.length > 0 ? (
