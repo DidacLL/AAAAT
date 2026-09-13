@@ -2,7 +2,7 @@ import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
   CandidatureRuntimeValue,
-  ConceptRecord,
+  TagRecord,
 } from "../shared/contracts";
 
 export type ArchiveFilter = "active" | "archived" | "all";
@@ -72,7 +72,7 @@ function matchingExcerpt(text: string, query: string, limit = 112): string | nul
 export function candidatureSearchMatchCue(
   record: CandidatureRecord,
   fields: readonly CandidatureFieldConfiguration[],
-  concepts: readonly ConceptRecord[],
+  tags: readonly TagRecord[],
   query: string,
 ): CandidatureRecognitionCue | null {
   const normalizedQuery = query.trim();
@@ -95,11 +95,11 @@ export function candidatureSearchMatchCue(
   const sourceExcerpt = matchingExcerpt(record.sourceSearchText, normalizedQuery);
   if (sourceExcerpt) return { label: "Source match", value: sourceExcerpt };
 
-  for (const concept of concepts) {
-    if (!record.conceptIds.includes(concept.id)) continue;
-    const candidates = [concept.name, ...concept.aliases, concept.definition, concept.notes ?? ""];
+  for (const tag of tags) {
+    if (!record.tagIds.includes(tag.id)) continue;
+    const candidates = [tag.name, ...tag.aliases, tag.definition, tag.notes ?? ""];
     if (candidates.some((candidate) => matchingExcerpt(candidate, normalizedQuery) !== null)) {
-      return { label: "Concept match", value: concept.name };
+      return { label: "Tag match", value: tag.name };
     }
   }
 
