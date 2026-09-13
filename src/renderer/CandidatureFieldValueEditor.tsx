@@ -63,15 +63,16 @@ export function CandidatureFieldValueEditor({
     onDirtyChangeRef.current = onDirtyChange;
   }, [onDirtyChange]);
 
-  useEffect(() => {
-    setText(textFor(value));
-    setChoices(choicesFor(field, value));
-    setError(null);
-  }, [field, value]);
-
   const dirty =
     editing &&
     (text !== textFor(value) || JSON.stringify(choices) !== JSON.stringify(choicesFor(field, value)));
+
+  useEffect(() => {
+    if (dirty) return;
+    setText(textFor(value));
+    setChoices(choicesFor(field, value));
+    setError(null);
+  }, [dirty, field, value]);
 
   useEffect(() => {
     onDirtyChangeRef.current?.(dirty);
