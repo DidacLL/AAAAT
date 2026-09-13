@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   mkdirSync,
@@ -27,41 +26,22 @@ function packagedExecutable(): string {
   return path.join(packageRoot, process.platform === "win32" ? "aaaat.exe" : "aaaat");
 }
 
-const migrationFiles = [
-  [1, "workspace", "001_workspace.sql"],
-  [2, "profile", "002_profile.sql"],
-  [3, "documents", "003_documents.sql"],
-  [4, "candidatures", "004_candidatures.sql"],
-  [5, "tags", "005_tags.sql"],
-  [6, "activity", "006_activity.sql"],
-] as const;
-
 function initializeWorkspaceFixture(root: string): void {
   const database = new DatabaseSync(path.join(root, "workspace.sqlite"));
   const now = "2026-09-03T00:00:00.000Z";
+  const schemaSql = readFileSync(path.resolve("src/main/schema.sql"), "utf8");
   try {
-    database.exec(
-      "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;",
-    );
-    for (const [version, name, file] of migrationFiles) {
-      const sql = readFileSync(path.resolve("src/main/migrations", file), "utf8");
-      database.exec("BEGIN IMMEDIATE");
-      try {
-        database.exec(sql);
-        database
-          .prepare(
-            "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
-          )
-          .run(version, name, createHash("sha256").update(sql).digest("hex"), now);
-        database.exec("COMMIT");
-      } catch (error) {
-        database.exec("ROLLBACK");
-        throw error;
-      }
+    database.exec("PRAGMA foreign_keys = ON; BEGIN IMMEDIATE");
+    try {
+      database.exec(schemaSql);
+      database
+        .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
+        .run("workspace.initialized_at", now);
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      throw error;
     }
-    database
-      .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
-      .run("workspace.initialized_at", now);
   } finally {
     database.close();
   }
@@ -148,6 +128,15 @@ test("packaged setup proposes, validates live MCP, and configures VS Code withou
     expect(manifestText).not.toContain(workspace);
     expect(manifestText).not.toContain(project);
     expect(manifestText).not.toContain(executable);
+
+    const database = new DatabaseSync(path.join(workspace, "workspace.sqlite"), { readOnly: true });
+    try {
+      expect(
+        database.prepare("SELECT name FROM sqlite_schema WHERE name = 'schema_migrations'").get(),
+      ).toBeUndefined();
+    } finally {
+      database.close();
+    }
 
     const activated = runSetup(executable, workspace, project, true);
     expect(activated.error).toBeUndefined();
