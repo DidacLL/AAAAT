@@ -168,7 +168,7 @@ export function CandidaturesAiWorkspace({
           <div>
             <p className="eyebrow">New candidature</p>
             <h2>Paste whatever you have.</h2>
-            <p>Raw offer text, a recruiter message, a URL, fragments, or notes are enough.</p>
+            <p>Any raw candidature material is enough. AAAAT keeps it as provided.</p>
           </div>
           <label className="candidature-capture-material">
             Candidature material
