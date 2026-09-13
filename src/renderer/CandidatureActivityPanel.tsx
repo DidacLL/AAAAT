@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
   CandidatureActivityKind,
@@ -32,47 +32,40 @@ function displayedTime(occurredAt: string): string {
 
 export function CandidatureActivityPanel({ candidatureId }: Props) {
   const [activity, setActivity] = useState<CandidatureActivityRecord[] | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
-    if (loading || activity !== null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      setActivity(await window.aaaat.candidatureActivity.list(candidatureId));
-    } catch {
-      setError("AAAAT could not load candidature Activity.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    let active = true;
+    void window.aaaat.candidatureActivity
+      .list(candidatureId)
+      .then((next) => {
+        if (active) setActivity(next);
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not load candidature Activity.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [candidatureId]);
 
   return (
-    <details
-      className="focus-secondary-actions"
-      onToggle={(event) => {
-        if (event.currentTarget.open) void load();
-      }}
-    >
-      <summary>Activity</summary>
-      <div className="focus-secondary-content" aria-label="Candidature Activity">
-        {loading ? <p className="compact-help">Loading Activity…</p> : null}
-        {error ? <p className="error-message" role="alert">{error}</p> : null}
-        {!loading && !error && activity?.length === 0 ? (
-          <p className="compact-empty">No retained Activity yet.</p>
-        ) : null}
-        {activity && activity.length > 0 ? (
-          <ol className="candidature-activity-list">
-            {activity.map((entry, index) => (
-              <li key={`${entry.occurredAt}-${entry.kind}-${index}`}>
-                <strong>{labels[entry.kind]}</strong>
-                <time dateTime={entry.occurredAt}>{displayedTime(entry.occurredAt)}</time>
-              </li>
-            ))}
-          </ol>
-        ) : null}
-      </div>
-    </details>
+    <div className="focus-secondary-content" aria-label="Candidature Activity">
+      {!activity && !error ? <p className="compact-help">Loading Activity…</p> : null}
+      {error ? <p className="error-message" role="alert">{error}</p> : null}
+      {!error && activity?.length === 0 ? (
+        <p className="compact-empty">No retained Activity yet.</p>
+      ) : null}
+      {activity && activity.length > 0 ? (
+        <ol className="candidature-activity-list">
+          {activity.map((entry, index) => (
+            <li key={`${entry.occurredAt}-${entry.kind}-${index}`}>
+              <strong>{labels[entry.kind]}</strong>
+              <time dateTime={entry.occurredAt}>{displayedTime(entry.occurredAt)}</time>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </div>
   );
 }
