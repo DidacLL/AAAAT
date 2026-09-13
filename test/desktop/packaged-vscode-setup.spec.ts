@@ -32,7 +32,7 @@ const migrationFiles = [
   [2, "profile", "002_profile.sql"],
   [3, "documents", "003_documents.sql"],
   [4, "candidatures", "004_candidatures.sql"],
-  [5, "concepts", "005_concepts.sql"],
+  [5, "tags", "005_tags.sql"],
   [6, "activity", "006_activity.sql"],
 ] as const;
 

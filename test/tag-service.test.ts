@@ -9,24 +9,24 @@ import { describe, expect, it } from "vitest";
 import {
   createCandidature,
   listCandidatures,
-  setCandidatureConcepts,
+  setCandidatureTags,
 } from "../src/main/candidature-service";
-import { createConcept, listConcepts, updateConcept } from "../src/main/concept-service";
+import { createTag, listTags, updateTag } from "../src/main/tag-service";
 import { createOrOpenWorkspace, openWorkspace } from "../src/main/workspace";
 
 function temporaryWorkspace(): string {
-  const root = mkdtempSync(path.join(tmpdir(), "aaaat-concept-"));
+  const root = mkdtempSync(path.join(tmpdir(), "aaaat-tag-"));
   createOrOpenWorkspace(root);
   return root;
 }
 
-describe("shared candidature concepts", () => {
-  it("persists editable concept notes without erasing them during ordinary concept edits", () => {
+describe("shared candidature tags", () => {
+  it("persists editable tag notes without erasing them during ordinary tag edits", () => {
     const root = temporaryWorkspace();
     try {
       const first = createCandidature(root, { values: [] });
       const second = createCandidature(root, { values: [] });
-      const created = createConcept(root, {
+      const created = createTag(root, {
         name: "TypeScript",
         definition: "Typed JavaScript",
         notes: "Mention migration ownership from the platform project.",
@@ -34,19 +34,19 @@ describe("shared candidature concepts", () => {
       });
 
       expect(
-        setCandidatureConcepts(root, {
+        setCandidatureTags(root, {
           candidatureId: first.id,
-          conceptIds: [created.id],
-        }).conceptIds,
+          tagIds: [created.id],
+        }).tagIds,
       ).toEqual([created.id]);
       expect(
-        setCandidatureConcepts(root, {
+        setCandidatureTags(root, {
           candidatureId: second.id,
-          conceptIds: [created.id],
-        }).conceptIds,
+          tagIds: [created.id],
+        }).tagIds,
       ).toEqual([created.id]);
 
-      const updated = updateConcept(root, {
+      const updated = updateTag(root, {
         id: created.id,
         name: "TypeScript",
         definition: "Typed superset of JavaScript",
@@ -55,8 +55,8 @@ describe("shared candidature concepts", () => {
       openWorkspace(root);
 
       expect(updated.notes).toBe("Mention migration ownership from the platform project.");
-      expect(listConcepts(root)).toEqual([updated]);
-      expect(listCandidatures(root).map((record) => record.conceptIds)).toEqual([
+      expect(listTags(root)).toEqual([updated]);
+      expect(listCandidatures(root).map((record) => record.tagIds)).toEqual([
         [created.id],
         [created.id],
       ]);
@@ -65,27 +65,27 @@ describe("shared candidature concepts", () => {
     }
   });
 
-  it("rejects missing concept associations without replacing existing ones", () => {
+  it("rejects missing tag associations without replacing existing ones", () => {
     const root = temporaryWorkspace();
     try {
       const candidature = createCandidature(root, { values: [] });
-      const concept = createConcept(root, {
+      const tag = createTag(root, {
         name: "PostgreSQL",
         definition: "Relational database",
         aliases: ["Postgres"],
       });
-      setCandidatureConcepts(root, {
+      setCandidatureTags(root, {
         candidatureId: candidature.id,
-        conceptIds: [concept.id],
+        tagIds: [tag.id],
       });
 
       expect(() =>
-        setCandidatureConcepts(root, {
+        setCandidatureTags(root, {
           candidatureId: candidature.id,
-          conceptIds: ["00000000-0000-4000-8000-000000009999"],
+          tagIds: ["00000000-0000-4000-8000-000000009999"],
         }),
-      ).toThrow("An associated concept no longer exists.");
-      expect(listCandidatures(root)[0]?.conceptIds).toEqual([concept.id]);
+      ).toThrow("An associated tag no longer exists.");
+      expect(listCandidatures(root)[0]?.tagIds).toEqual([tag.id]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

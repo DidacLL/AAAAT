@@ -65,7 +65,7 @@ const candidature: CandidatureRecord = {
   sourceSearchText: "",
   values: [],
   documentIds: [record().id],
-  conceptIds: [],
+  tagIds: [],
 };
 
 const retainedArtifact: ApplicationArtifactRecord = {

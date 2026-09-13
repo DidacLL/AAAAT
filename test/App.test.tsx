@@ -142,10 +142,10 @@ const desktopApi: DesktopApi &
     updateSource: unavailable,
     removeSource: unavailable,
     setDocuments: unavailable,
-    listConcepts: async () => [],
-    createConcept: unavailable,
-    updateConcept: unavailable,
-    setConcepts: unavailable,
+    listTags: async () => [],
+    createTag: unavailable,
+    updateTag: unavailable,
+    setTags: unavailable,
   },
 };
 
@@ -185,6 +185,7 @@ describe("AAAAT workspace state", () => {
     ]);
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "ToDos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reminders" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "AI assist" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Profile" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Documents" })).not.toBeInTheDocument();
@@ -226,16 +227,7 @@ describe("AAAAT workspace state", () => {
     expect(await screen.findByText(readyWorkspace.rootPath)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Switch workspace" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
-  });
-
-  it("keeps reminders contextual under Candidatures", async () => {
-    current.mockResolvedValueOnce(readyWorkspace);
-    const user = userEvent.setup();
-    render(<App />);
-    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "ToDos" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Reminders" }));
-    expect(await screen.findByRole("heading", { name: "ToDos" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reminders" })).not.toBeInTheDocument();
   });
 
   it("keeps document AI contextual instead of adding destination-level AI chrome", async () => {

@@ -8,7 +8,7 @@ import {
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
-  ConceptRecord,
+  TagRecord,
 } from "../src/shared/contracts";
 
 function record(id: string, archived = false): CandidatureRecord {
@@ -21,7 +21,7 @@ function record(id: string, archived = false): CandidatureRecord {
     sourceSearchText: "",
     values: [],
     documentIds: [],
-    conceptIds: [],
+    tagIds: [],
   };
 }
 
@@ -49,7 +49,7 @@ const locationField: CandidatureFieldConfiguration = {
   },
 };
 
-const reliabilityConcept: ConceptRecord = {
+const reliabilityTag: TagRecord = {
   id: "00000000-0000-4000-8000-000000000421",
   name: "Reliability engineering",
   definition: "Operating dependable production systems",
@@ -133,18 +133,18 @@ describe("candidature renderer projection", () => {
     expect(cue?.value.endsWith("…")).toBe(true);
   });
 
-  it("identifies an associated Concept match and otherwise leaves generic recognition as fallback", () => {
+  it("identifies an associated Tag match and otherwise leaves generic recognition as fallback", () => {
     const candidate = {
       ...record("00000000-0000-4000-8000-000000000416"),
-      conceptIds: [reliabilityConcept.id],
+      tagIds: [reliabilityTag.id],
       sourceSearchText: "Platform role",
     };
 
-    expect(candidatureSearchMatchCue(candidate, [], [reliabilityConcept], "incident")).toEqual({
-      label: "Concept match",
+    expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "incident")).toEqual({
+      label: "Tag match",
       value: "Reliability engineering",
     });
-    expect(candidatureSearchMatchCue(candidate, [], [reliabilityConcept], "unavailable phrase")).toBeNull();
+    expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "unavailable phrase")).toBeNull();
     expect(candidatureRecognitionCues(candidate, [])).toEqual([
       { label: "Source", value: "Platform role" },
     ]);

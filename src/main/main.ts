@@ -14,19 +14,18 @@ import {
   coverLetterDraftSchema,
   cvTailoringResultSchema,
   documentAiRequestSchema,
-  opportunityReviewPreviewSchema,
-  opportunityReviewRequestSchema,
-  opportunityReviewResultSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
+  opportunityReviewPreviewSchema,
+  opportunityReviewRequestSchema,
+  opportunityReviewResultSchema,
   optionalAiConnectionStatusSchema,
   variantRecommendationRequestSchema,
   variantRecommendationResultSchema,
 } from "../shared/ai-contracts";
 import {
-  candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
   candidatureFieldCreateSchema,
   candidatureFieldDefinitionSchema,
@@ -44,14 +43,11 @@ import {
   candidatureSourceListSchema,
   candidatureSourceRemoveSchema,
   candidatureSourceUpdateSchema,
+  candidatureTagSelectionSchema,
   candidatureUpdateSchema,
   careerContextSchema,
   careerContextUpdateSchema,
   channels,
-  conceptInputSchema,
-  conceptListSchema,
-  conceptRecordSchema,
-  conceptUpdateSchema,
   documentExportResultSchema,
   documentInputSchema,
   documentItemRuleInputSchema,
@@ -72,6 +68,10 @@ import {
   resolvedDocumentSchema,
   resolvedProfileSchema,
   systemInfoSchema,
+  tagInputSchema,
+  tagListSchema,
+  tagRecordSchema,
+  tagUpdateSchema,
   workspaceChoiceSchema,
   type WorkspaceInfo,
 } from "../shared/contracts";
@@ -107,13 +107,12 @@ import {
   listCandidatureSources,
   listCandidatures,
   removeCandidatureSource,
-  setCandidatureConcepts,
   setCandidatureDocuments,
+  setCandidatureTags,
   updateCandidature,
   updateCandidatureSource,
 } from "./candidature-service";
 import { getCareerContext, updateCareerContext } from "./career-context-service";
-import { createConcept, listConcepts, updateConcept } from "./concept-service";
 import {
   configureDocumentItem,
   createDocument,
@@ -138,6 +137,7 @@ import {
   updateProfileItem,
   updateProfileVariant,
 } from "./profile-service";
+import { createTag, listTags, updateTag } from "./tag-service";
 import { createWindowOptions } from "./window-options";
 import { createWorkspaceBackup, restoreWorkspaceBackup } from "./workspace-backup";
 import {
@@ -520,28 +520,28 @@ function registerIpc(mainWindow: BrowserWindow): void {
       ),
     );
   });
-  ipcMain.handle(channels.candidatureListConcepts, (event) => {
+  ipcMain.handle(channels.candidatureListTags, (event) => {
     assertTrustedSender(event, mainWindow);
-    return conceptListSchema.parse(listConcepts(requireWorkspaceRoot()));
+    return tagListSchema.parse(listTags(requireWorkspaceRoot()));
   });
-  ipcMain.handle(channels.candidatureCreateConcept, (event, input: unknown) => {
+  ipcMain.handle(channels.candidatureCreateTag, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return conceptRecordSchema.parse(
-      createConcept(requireWorkspaceRoot(), conceptInputSchema.parse(input)),
+    return tagRecordSchema.parse(
+      createTag(requireWorkspaceRoot(), tagInputSchema.parse(input)),
     );
   });
-  ipcMain.handle(channels.candidatureUpdateConcept, (event, input: unknown) => {
+  ipcMain.handle(channels.candidatureUpdateTag, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return conceptRecordSchema.parse(
-      updateConcept(requireWorkspaceRoot(), conceptUpdateSchema.parse(input)),
+    return tagRecordSchema.parse(
+      updateTag(requireWorkspaceRoot(), tagUpdateSchema.parse(input)),
     );
   });
-  ipcMain.handle(channels.candidatureSetConcepts, (event, input: unknown) => {
+  ipcMain.handle(channels.candidatureSetTags, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return candidatureRecordSchema.parse(
-      setCandidatureConcepts(
+      setCandidatureTags(
         requireWorkspaceRoot(),
-        candidatureConceptSelectionSchema.parse(input),
+        candidatureTagSelectionSchema.parse(input),
       ),
     );
   });

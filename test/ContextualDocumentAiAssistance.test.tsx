@@ -23,7 +23,7 @@ const candidature: CandidatureRecord = {
   sourceSearchText: "",
   values: [],
   documentIds: [cvId, coverId],
-  conceptIds: [],
+  tagIds: [],
 };
 
 const cv: DocumentRecord = {

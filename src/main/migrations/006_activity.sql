@@ -12,9 +12,9 @@ FROM document_activity;
 DROP TABLE document_activity;
 ALTER TABLE document_activity_next RENAME TO document_activity;
 
-CREATE TABLE concept_activity (
+CREATE TABLE tag_activity (
   id INTEGER PRIMARY KEY,
   occurred_at TEXT NOT NULL,
-  concept_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
   action TEXT NOT NULL
 ) STRICT;

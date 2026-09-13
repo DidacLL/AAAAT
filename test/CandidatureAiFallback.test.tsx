@@ -43,7 +43,7 @@ const candidature: CandidatureRecord = {
     },
   ],
   documentIds: [],
-  conceptIds: [],
+  tagIds: [],
 };
 
 const field: CandidatureFieldConfiguration = {
@@ -93,7 +93,7 @@ function installApi() {
     candidatures: {
       list: vi.fn().mockResolvedValue([candidature]),
       listFields: vi.fn().mockResolvedValue([field]),
-      listConcepts: vi.fn().mockResolvedValue([]),
+      listTags: vi.fn().mockResolvedValue([]),
       listSources: vi.fn().mockResolvedValue([
         {
           id: sourceId,
@@ -115,9 +115,9 @@ function installApi() {
       setFieldValue: vi.fn(),
       clearFieldValue: vi.fn(),
       setDocuments: vi.fn(),
-      createConcept: vi.fn(),
-      updateConcept: vi.fn(),
-      setConcepts: vi.fn(),
+      createTag: vi.fn(),
+      updateTag: vi.fn(),
+      setTags: vi.fn(),
     },
     documents: { list: vi.fn().mockResolvedValue([]) },
     candidatureSearch: { search: vi.fn().mockResolvedValue([]) },
@@ -148,7 +148,9 @@ describe("candidature AI Settings fallback", () => {
       </ContextualHandoffContext.Provider>,
     );
 
-    await user.click(await screen.findByRole("tab", { name: "Information" }));
+    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Edit candidature" }));
+
     const information = screen.getByRole("region", { name: "Candidature information" });
     const role = within(information).getByRole("heading", { name: "Role" }).closest("article");
     if (!role) throw new Error("Retained Role information missing");

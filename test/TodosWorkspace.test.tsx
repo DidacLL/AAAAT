@@ -15,7 +15,7 @@ const candidature: CandidatureRecord = {
   sourceSearchText: "",
   values: [],
   documentIds: [],
-  conceptIds: [],
+  tagIds: [],
 };
 
 function todo(overrides: Partial<TodoRecord> = {}): TodoRecord {

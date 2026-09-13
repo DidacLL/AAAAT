@@ -2,17 +2,17 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
-  conceptInputSchema,
-  conceptListSchema,
-  conceptRecordSchema,
-  conceptUpdateSchema,
-  type ConceptInput,
-  type ConceptRecord,
-  type ConceptUpdate,
+  tagInputSchema,
+  tagListSchema,
+  tagRecordSchema,
+  tagUpdateSchema,
+  type TagInput,
+  type TagRecord,
+  type TagUpdate,
 } from "../shared/contracts";
 import { withWorkspaceDatabase } from "./workspace";
 
-interface ConceptRow {
+interface TagRow {
   readonly id: string;
   readonly name: string;
   readonly definition: string;
@@ -20,10 +20,10 @@ interface ConceptRow {
   readonly aliasesJson: string;
 }
 
-class ConceptServiceError extends Error {
+class TagServiceError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "ConceptServiceError";
+    this.name = "TagServiceError";
   }
 }
 
@@ -40,26 +40,26 @@ function transact(database: DatabaseSync, action: () => void): void {
 
 function recordActivity(
   database: DatabaseSync,
-  conceptId: string,
+  tagId: string,
   action: string,
   occurredAt: string,
 ): void {
   database
     .prepare(
-      `INSERT INTO concept_activity(occurred_at, concept_id, action)
+      `INSERT INTO tag_activity(occurred_at, tag_id, action)
        VALUES (?, ?, ?)`,
     )
-    .run(occurredAt, conceptId, action);
+    .run(occurredAt, tagId, action);
 }
 
-function toRecord(row: ConceptRow): ConceptRecord {
+function toRecord(row: TagRow): TagRecord {
   let aliases: unknown;
   try {
     aliases = JSON.parse(row.aliasesJson);
   } catch {
-    throw new ConceptServiceError("Stored concept aliases are invalid.");
+    throw new TagServiceError("Stored tag aliases are invalid.");
   }
-  return conceptRecordSchema.parse({
+  return tagRecordSchema.parse({
     id: row.id,
     name: row.name,
     definition: row.definition,
@@ -68,74 +68,58 @@ function toRecord(row: ConceptRow): ConceptRecord {
   });
 }
 
-function readConcept(database: DatabaseSync, conceptId: string): ConceptRecord {
+function readTag(database: DatabaseSync, tagId: string): TagRecord {
   const row = database
     .prepare(
       `SELECT id, name, definition, notes, aliases_json AS aliasesJson
-         FROM concepts
+         FROM tags
         WHERE id = ?`,
     )
-    .get(conceptId) as unknown as ConceptRow | undefined;
-  if (!row) {
-    throw new ConceptServiceError("The concept no longer exists.");
-  }
+    .get(tagId) as unknown as TagRow | undefined;
+  if (!row) throw new TagServiceError("The tag no longer exists.");
   return toRecord(row);
 }
 
-export function listConcepts(rootPath: string): ConceptRecord[] {
+export function listTags(rootPath: string): TagRecord[] {
   return withWorkspaceDatabase(rootPath, (database) => {
     const rows = database
       .prepare(
         `SELECT id, name, definition, notes, aliases_json AS aliasesJson
-           FROM concepts
+           FROM tags
           ORDER BY name COLLATE NOCASE, id`,
       )
-      .all() as unknown as ConceptRow[];
-    return conceptListSchema.parse(rows.map(toRecord));
+      .all() as unknown as TagRow[];
+    return tagListSchema.parse(rows.map(toRecord));
   });
 }
 
-export function createConcept(
-  rootPath: string,
-  input: ConceptInput,
-): ConceptRecord {
-  const concept = conceptInputSchema.parse(input);
+export function createTag(rootPath: string, input: TagInput): TagRecord {
+  const tag = tagInputSchema.parse(input);
   return withWorkspaceDatabase(rootPath, (database) => {
     const id = randomUUID();
     const now = new Date().toISOString();
     transact(database, () => {
       database
         .prepare(
-          `INSERT INTO concepts(id, name, definition, notes, aliases_json, created_at, updated_at)
+          `INSERT INTO tags(id, name, definition, notes, aliases_json, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(
-          id,
-          concept.name,
-          concept.definition,
-          concept.notes ?? "",
-          JSON.stringify(concept.aliases),
-          now,
-          now,
-        );
-      recordActivity(database, id, "concept.created", now);
+        .run(id, tag.name, tag.definition, tag.notes ?? "", JSON.stringify(tag.aliases), now, now);
+      recordActivity(database, id, "tag.created", now);
     });
-    return readConcept(database, id);
+    return readTag(database, id);
   });
 }
 
-export function updateConcept(
-  rootPath: string,
-  input: ConceptUpdate,
-): ConceptRecord {
-  const update = conceptUpdateSchema.parse(input);
+export function updateTag(rootPath: string, input: TagUpdate): TagRecord {
+  const update = tagUpdateSchema.parse(input);
   return withWorkspaceDatabase(rootPath, (database) => {
     const now = new Date().toISOString();
     transact(database, () => {
-      const current = readConcept(database, update.id);
+      const current = readTag(database, update.id);
       database
         .prepare(
-          `UPDATE concepts
+          `UPDATE tags
               SET name = ?, definition = ?, notes = ?, aliases_json = ?, updated_at = ?
             WHERE id = ?`,
         )
@@ -147,8 +131,8 @@ export function updateConcept(
           now,
           update.id,
         );
-      recordActivity(database, update.id, "concept.updated", now);
+      recordActivity(database, update.id, "tag.updated", now);
     });
-    return readConcept(database, update.id);
+    return readTag(database, update.id);
   });
 }

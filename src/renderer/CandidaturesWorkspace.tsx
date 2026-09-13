@@ -2,41 +2,35 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
-  CandidatureFieldPreferencesUpdate,
-  CandidatureFieldUpdate,
-  CandidatureFilterOperator,
   CandidatureRecord,
   CandidatureRuntimeValue,
-  ConceptInput,
-  ConceptRecord,
   DocumentRecord,
+  TagInput,
+  TagRecord,
 } from "../shared/contracts";
-import { OpportunityReviewPanel } from "./OpportunityReviewPanel";
+import { CandidatureActivityPanel } from "./CandidatureActivityPanel";
 import { CandidatureApplicationMaterialPanel } from "./CandidatureApplicationMaterialPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
-import { CandidatureFocusPanel, type FocusDestination } from "./CandidatureFocusPanel";
-import { CandidatureOpportunityResearchAccessPanel } from "./CandidatureOpportunityResearchAccessPanel";
+import { CandidatureFocusPanel } from "./CandidatureFocusPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { HistoricalFieldDiscoveryPanel } from "./HistoricalFieldDiscoveryPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
-import { VariantRecommendationPanel } from "./VariantRecommendationPanel";
 import {
   candidatureRecognitionCues,
   candidatureSearchMatchCue,
   filterCandidatures,
   type ArchiveFilter,
 } from "./candidature-projections";
+import "./candidatures.css";
+import "./candidature-recovery.css";
 
-type CandidatureSection = "focus" | "information" | "sources" | "documents";
+type CandidatureMode = "corpus" | "focus" | "detail";
 
-const sectionLabels: readonly { key: CandidatureSection; label: string }[] = [
-  { key: "focus", label: "Focus" },
-  { key: "information", label: "Information" },
-  { key: "sources", label: "Sources" },
-  { key: "documents", label: "Application material" },
-];
+const emptyTag: TagInput = { name: "", definition: "", notes: "", aliases: [] };
 
-const emptyConcept: ConceptInput = { name: "", definition: "", notes: "", aliases: [] };
+function sameIds(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id) => right.includes(id));
+}
 
 function aliasesFromText(value: string): string[] {
   return value
@@ -45,79 +39,18 @@ function aliasesFromText(value: string): string[] {
     .filter(Boolean);
 }
 
-function sameIds(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((id) => right.includes(id));
-}
-
-function conceptInput(concept: ConceptRecord): ConceptInput {
+function tagDraft(tag: TagRecord): TagInput {
   return {
-    name: concept.name,
-    definition: concept.definition,
-    notes: concept.notes ?? "",
-    aliases: concept.aliases,
+    name: tag.name,
+    definition: tag.definition,
+    notes: tag.notes ?? "",
+    aliases: tag.aliases,
   };
-}
-
-function fieldUpdate(field: CandidatureFieldConfiguration): CandidatureFieldUpdate {
-  return {
-    id: field.definition.id,
-    label: field.definition.label,
-    description: field.definition.description,
-    valueType: field.definition.valueType,
-    cardinality: field.definition.cardinality,
-    choices: field.definition.choices,
-    enabled: field.definition.enabled,
-  };
-}
-
-function preferenceUpdate(
-  field: CandidatureFieldConfiguration,
-): CandidatureFieldPreferencesUpdate {
-  return { ...field.preferences };
-}
-
-function operatorsFor(field: CandidatureFieldConfiguration | undefined): CandidatureFilterOperator[] {
-  if (!field) return [];
-  switch (field.definition.valueType) {
-    case "text":
-    case "long_text":
-    case "url":
-      return ["contains", "equals", "is_set", "is_not_set"];
-    case "number":
-      return [
-        "equals",
-        "less_than",
-        "less_than_or_equal",
-        "greater_than",
-        "greater_than_or_equal",
-        "is_set",
-        "is_not_set",
-      ];
-    case "date":
-      return ["equals", "before", "after", "is_set", "is_not_set"];
-    case "boolean":
-      return ["equals", "is_set", "is_not_set"];
-    case "choice":
-      return [
-        "equals",
-        ...(field.definition.cardinality === "many"
-          ? (["contains_any", "contains_all"] as const)
-          : []),
-        "is_set",
-        "is_not_set",
-      ];
-  }
-}
-
-function operatorLabel(operator: CandidatureFilterOperator): string {
-  return operator.replaceAll("_", " ");
 }
 
 export function CandidaturesWorkspace({
-  initialSelectedId,
   onDirtyChange,
 }: {
-  readonly initialSelectedId?: string;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
@@ -125,102 +58,80 @@ export function CandidaturesWorkspace({
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
-  const [concepts, setConcepts] = useState<ConceptRecord[]>([]);
+  const [tags, setTags] = useState<TagRecord[]>([]);
+  const [mode, setMode] = useState<CandidatureMode>("corpus");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [section, setSection] = useState<CandidatureSection>("focus");
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
-  const [selectedConceptIds, setSelectedConceptIds] = useState<string[]>([]);
-  const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{
     readonly query: string;
     readonly ids: ReadonlySet<string>;
   } | null>(null);
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [sourceDirty, setSourceDirty] = useState(false);
-  const [conceptEditorOpen, setConceptEditorOpen] = useState(false);
-  const [editingConceptId, setEditingConceptId] = useState<string | null>(null);
-  const [conceptDraft, setConceptDraft] = useState<ConceptInput>(emptyConcept);
-  const [aliasesText, setAliasesText] = useState("");
-  const [addFieldId, setAddFieldId] = useState("");
-  const [newFieldLabel, setNewFieldLabel] = useState("");
-  const [newFieldDescription, setNewFieldDescription] = useState("");
-  const [newFieldType, setNewFieldType] = useState<CandidatureFieldUpdate["valueType"]>("text");
-  const [newFieldCardinality, setNewFieldCardinality] =
-    useState<CandidatureFieldUpdate["cardinality"]>("one");
-  const [newChoiceLabels, setNewChoiceLabels] = useState("");
-  const [fieldEditorId, setFieldEditorId] = useState("");
-  const [fieldDraft, setFieldDraft] = useState<CandidatureFieldUpdate | null>(null);
-  const [preferencesDraft, setPreferencesDraft] =
-    useState<CandidatureFieldPreferencesUpdate | null>(null);
-  const [filterFieldId, setFilterFieldId] = useState("");
-  const [filterOperator, setFilterOperator] = useState<CandidatureFilterOperator>("is_set");
-  const [filterValue, setFilterValue] = useState("");
-  const [filterChoiceValues, setFilterChoiceValues] = useState<string[]>([]);
-  const [fieldMatches, setFieldMatches] = useState<ReadonlySet<string> | null>(null);
   const [valueEditorDirty, setValueEditorDirty] = useState<ReadonlySet<string>>(new Set());
   const [discoveryFieldId, setDiscoveryFieldId] = useState<string | null>(null);
+  const [addFieldId, setAddFieldId] = useState("");
+  const [newFieldLabel, setNewFieldLabel] = useState("");
+  const [tagEditorOpen, setTagEditorOpen] = useState(false);
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [tagEditorDraft, setTagEditorDraft] = useState<TagInput>(emptyTag);
+  const [tagAliasesText, setTagAliasesText] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const selected = records.find((record) => record.id === selectedId) ?? null;
   const documentSelectionDirty = selected
     ? !sameIds(selected.documentIds, selectedDocumentIds)
     : false;
-  const conceptSelectionDirty = selected
-    ? !sameIds(selected.conceptIds, selectedConceptIds)
+  const tagSelectionDirty = selected ? !sameIds(selected.tagIds, selectedTagIds) : false;
+  const persistedTag = editingTagId ? tags.find((tag) => tag.id === editingTagId) ?? null : null;
+  const tagEditorDirty = tagEditorOpen
+    ? JSON.stringify({ ...tagEditorDraft, aliases: aliasesFromText(tagAliasesText) }) !==
+      JSON.stringify(persistedTag ? tagDraft(persistedTag) : emptyTag)
     : false;
-  const persistedConcept = editingConceptId
-    ? concepts.find((concept) => concept.id === editingConceptId) ?? null
-    : null;
-  const conceptEditorDirty = conceptEditorOpen
-    ? JSON.stringify({ ...conceptDraft, aliases: aliasesFromText(aliasesText) }) !==
-      JSON.stringify(persistedConcept ? conceptInput(persistedConcept) : emptyConcept)
-    : false;
-  const newFieldDirty =
-    newFieldLabel.length > 0 ||
-    newFieldDescription.length > 0 ||
-    newFieldType !== "text" ||
-    newFieldCardinality !== "one" ||
-    newChoiceLabels.length > 0;
-  const editedField = fields.find((field) => field.definition.id === fieldEditorId);
-  const fieldDefinitionDirty =
-    editedField !== undefined &&
-    fieldDraft !== null &&
-    JSON.stringify(fieldDraft) !== JSON.stringify(fieldUpdate(editedField));
-  const fieldPreferencesDirty =
-    editedField !== undefined &&
-    preferencesDraft !== null &&
-    JSON.stringify(preferencesDraft) !== JSON.stringify(preferenceUpdate(editedField));
-  const taskContextDirty =
-    fieldDefinitionDirty || fieldPreferencesDirty || valueEditorDirty.size > 0;
   const hasUnsavedChanges =
     sourceDirty ||
-    conceptSelectionDirty ||
-    conceptEditorDirty ||
     documentSelectionDirty ||
-    newFieldDirty ||
-    fieldDefinitionDirty ||
-    fieldPreferencesDirty ||
-    valueEditorDirty.size > 0;
+    tagSelectionDirty ||
+    tagEditorDirty ||
+    valueEditorDirty.size > 0 ||
+    newFieldLabel.trim().length > 0;
 
   useEffect(() => {
     onDirtyChange?.(hasUnsavedChanges);
     return () => onDirtyChange?.(false);
   }, [hasUnsavedChanges, onDirtyChange]);
 
-  const loadRecords = useCallback(async () => {
-    const nextRecords = await window.aaaat.candidatures.list();
-    setRecords(nextRecords);
-    return nextRecords;
-  }, []);
-
   const hydrate = useCallback((record: CandidatureRecord) => {
     setSelectedId(record.id);
     setSelectedDocumentIds(record.documentIds);
-    setSelectedConceptIds(record.conceptIds);
-    setSelectedConceptId(record.conceptIds[0] ?? null);
+    setSelectedTagIds(record.tagIds);
+    setSelectedTagId(record.tagIds[0] ?? null);
     setSourceDirty(false);
+    setValueEditorDirty(new Set());
     setDiscoveryFieldId(null);
+    setAddFieldId("");
+    setNewFieldLabel("");
+    setTagEditorOpen(false);
+    setEditingTagId(null);
+    setTagEditorDraft(emptyTag);
+    setTagAliasesText("");
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    const [nextRecords, nextFields, nextDocuments, nextTags] = await Promise.all([
+      window.aaaat.candidatures.list(),
+      window.aaaat.candidatures.listFields(),
+      window.aaaat.documents.list(),
+      window.aaaat.candidatures.listTags(),
+    ]);
+    setRecords(nextRecords);
+    setFields(nextFields);
+    setDocuments(nextDocuments);
+    setTags(nextTags);
+    return nextRecords;
   }, []);
 
   useEffect(() => {
@@ -229,19 +140,16 @@ export function CandidaturesWorkspace({
       window.aaaat.candidatures.list(),
       window.aaaat.candidatures.listFields(),
       window.aaaat.documents.list(),
-      window.aaaat.candidatures.listConcepts(),
+      window.aaaat.candidatures.listTags(),
     ])
-      .then(([nextRecords, nextFields, nextDocuments, nextConcepts]) => {
+      .then(([nextRecords, nextFields, nextDocuments, nextTags]) => {
         if (!active) return;
         setRecords(nextRecords);
         setFields(nextFields);
         setDocuments(nextDocuments);
-        setConcepts(nextConcepts);
-        const preferred = initialSelectedId
-          ? nextRecords.find((record) => record.id === initialSelectedId)
-          : undefined;
-        const first = preferred ?? nextRecords.find((record) => !record.archived) ?? nextRecords[0];
-        if (first) hydrate(first);
+        setTags(nextTags);
+        setMode("corpus");
+        setSelectedId(null);
       })
       .catch(() => {
         if (active) setError("AAAAT could not load candidatures.");
@@ -249,46 +157,39 @@ export function CandidaturesWorkspace({
     return () => {
       active = false;
     };
-  }, [hydrate, initialSelectedId]);
+  }, []);
 
   useEffect(() => {
     const previous = previousDocumentHandoff.current;
     previousDocumentHandoff.current = documentHandoff;
     if (!previous?.candidatureId || documentHandoff !== null) return;
 
-    const baseline = records.find((record) => record.id === previous.candidatureId) ?? null;
     let active = true;
     void Promise.all([window.aaaat.candidatures.list(), window.aaaat.documents.list()])
       .then(([nextRecords, nextDocuments]) => {
         if (!active) return;
-        const refreshed = nextRecords.find((record) => record.id === previous.candidatureId);
         setRecords(nextRecords);
         setDocuments(nextDocuments);
-        if (!refreshed) return;
-        if (!hasUnsavedChanges) {
+        const refreshed = nextRecords.find((record) => record.id === previous.candidatureId);
+        if (refreshed) {
           hydrate(refreshed);
-          return;
-        }
-        const baselineIds = new Set(baseline?.documentIds ?? []);
-        const newlyAuthoritativeIds = refreshed.documentIds.filter((id) => !baselineIds.has(id));
-        if (newlyAuthoritativeIds.length > 0) {
-          setSelectedDocumentIds((current) => [
-            ...current,
-            ...newlyAuthoritativeIds.filter((id) => !current.includes(id)),
-          ]);
+          setMode("detail");
         }
       })
       .catch(() => {
-        if (active) setError("AAAAT could not refresh application material after returning.");
+        if (active) setError("AAAAT could not refresh this candidature after returning.");
       });
     return () => {
       active = false;
     };
-  }, [documentHandoff, hasUnsavedChanges, hydrate, records]);
+  }, [documentHandoff, hydrate]);
 
   const normalizedQuery = query.trim();
   useEffect(() => {
-    if (!normalizedQuery) return;
+    if (!normalizedQuery) {
+      setSearchResult(null);
+      return;
+    }
     let active = true;
     void window.aaaat.candidatureSearch
       .search({ query: normalizedQuery })
@@ -303,63 +204,43 @@ export function CandidaturesWorkspace({
     return () => {
       active = false;
     };
-  }, [normalizedQuery, records, fields, concepts]);
+  }, [normalizedQuery, records, fields, tags]);
 
-  const currentFilterField = fields.find((field) => field.definition.id === filterFieldId);
-  const availableOperators = operatorsFor(currentFilterField);
   const textMatches = useMemo<ReadonlySet<string> | null>(() => {
     if (!normalizedQuery) return null;
     return searchResult?.query === normalizedQuery ? searchResult.ids : new Set();
   }, [normalizedQuery, searchResult]);
   const visibleRecords = useMemo(
-    () => filterCandidatures(records, archiveFilter, fieldMatches, textMatches),
-    [records, archiveFilter, fieldMatches, textMatches],
+    () => filterCandidatures(records, archiveFilter, null, textMatches),
+    [records, archiveFilter, textMatches],
   );
-
-  const storeRecord = (record: CandidatureRecord) => {
-    setRecords((current) => {
-      const present = current.some((candidate) => candidate.id === record.id);
-      return present
-        ? current.map((candidate) => (candidate.id === record.id ? record : candidate))
-        : [record, ...current];
-    });
-    if (record.id === selectedId) hydrate(record);
-  };
-
-  const resetConceptEditor = () => {
-    setConceptEditorOpen(false);
-    setEditingConceptId(null);
-    setConceptDraft(emptyConcept);
-    setAliasesText("");
-  };
 
   const confirmDiscard = () =>
     !hasUnsavedChanges || window.confirm("Discard unsaved candidature edits?");
-  const confirmSectionDiscard = () => {
-    if (section === "information" && valueEditorDirty.size > 0) {
-      return window.confirm("Discard unsaved information value edits?");
-    }
-    if (section === "sources" && sourceDirty) {
-      return window.confirm("Discard unsaved Source edits?");
-    }
-    if (section === "documents" && documentSelectionDirty) {
-      return window.confirm("Discard unsaved application material associations?");
-    }
-    return true;
+
+  const storeRecord = (record: CandidatureRecord) => {
+    setRecords((current) =>
+      current.map((candidate) => (candidate.id === record.id ? record : candidate)),
+    );
+    if (record.id === selectedId) hydrate(record);
   };
-  const confirmConceptEditorDiscard = () =>
-    !conceptEditorDirty || window.confirm("Discard unsaved concept edits?");
-  const confirmFieldEditorDiscard = () =>
-    (!fieldDefinitionDirty && !fieldPreferencesDirty) ||
-    window.confirm("Discard unsaved information settings?");
-  const confirmAddValueDiscard = () =>
-    !addFieldId ||
-    !valueEditorDirty.has(addFieldId) ||
-    window.confirm("Discard unsaved information value edits?");
+
+  const openRecord = (record: CandidatureRecord, nextMode: Exclude<CandidatureMode, "corpus">) => {
+    if (!confirmDiscard()) return;
+    hydrate(record);
+    setMode(nextMode);
+  };
+
+  const returnToCorpus = () => {
+    if (!confirmDiscard()) return;
+    setMode("corpus");
+    setSelectedId(null);
+    setSourceDirty(false);
+    setValueEditorDirty(new Set());
+  };
 
   const setEditorDirty = (fieldId: string, dirty: boolean) => {
     setValueEditorDirty((current) => {
-      if (current.has(fieldId) === dirty) return current;
       const next = new Set(current);
       if (dirty) next.add(fieldId);
       else next.delete(fieldId);
@@ -367,27 +248,29 @@ export function CandidaturesWorkspace({
     });
   };
 
-  const selectAddField = (fieldId: string) => {
-    if (fieldId === addFieldId) return;
-    if (!confirmAddValueDiscard()) return;
-    setAddFieldId(fieldId);
+  const setValue = async (fieldId: string, value: CandidatureRuntimeValue) => {
+    if (!selected) return;
+    const updated = await window.aaaat.candidatures.setFieldValue({
+      candidatureId: selected.id,
+      fieldId,
+      value,
+    });
+    storeRecord(updated);
+    setEditorDirty(fieldId, false);
   };
 
-  const switchSection = (next: CandidatureSection) => {
-    if (next === section) return;
-    if (!confirmSectionDiscard()) return;
-    if (section === "documents" && selected) setSelectedDocumentIds(selected.documentIds);
-    if (section === "sources") setSourceDirty(false);
-    if (section === "information") setDiscoveryFieldId(null);
-    setSection(next);
+  const clearValue = async (fieldId: string) => {
+    if (!selected) return;
+    const updated = await window.aaaat.candidatures.clearFieldValue({
+      candidatureId: selected.id,
+      fieldId,
+    });
+    storeRecord(updated);
+    setEditorDirty(fieldId, false);
   };
-
-  const focusNavigate = (destination: FocusDestination) => switchSection(destination);
 
   const setArchived = async (archived: boolean) => {
-    if (!selected) return;
-    if (!confirmDiscard()) return;
-    setError(null);
+    if (!selected || !confirmDiscard()) return;
     try {
       storeRecord(await window.aaaat.candidatures.update({ id: selected.id, archived }));
     } catch (reason) {
@@ -395,158 +278,49 @@ export function CandidaturesWorkspace({
     }
   };
 
-  const setValue = async (fieldId: string, value: CandidatureRuntimeValue) => {
-    if (!selected) return;
-    storeRecord(
-      await window.aaaat.candidatures.setFieldValue({
-        candidatureId: selected.id,
-        fieldId,
-        value,
-      }),
-    );
-  };
-
-  const clearValue = async (fieldId: string) => {
-    if (!selected) return;
-    storeRecord(
-      await window.aaaat.candidatures.clearFieldValue({
-        candidatureId: selected.id,
-        fieldId,
-      }),
-    );
-  };
-
-  const discoverValue = async (fieldId: string) => {
-    setDiscoveryFieldId(fieldId);
-  };
-
-  const createField = async () => {
-    if (!newFieldLabel.trim()) return;
-    if (!confirmAddValueDiscard() || !confirmFieldEditorDiscard()) return;
-    setError(null);
+  const createCustomField = async () => {
+    const label = newFieldLabel.trim();
+    if (!label) return;
     try {
-      const choices =
-        newFieldType === "choice"
-          ? newChoiceLabels
-              .split("\n")
-              .map((label) => label.trim())
-              .filter(Boolean)
-              .map((label) => ({ id: crypto.randomUUID(), label }))
-          : [];
       const created = await window.aaaat.candidatures.createField({
-        label: newFieldLabel,
-        description: newFieldDescription,
-        valueType: newFieldType,
-        cardinality: newFieldCardinality,
-        choices,
+        label,
+        description: "",
+        valueType: "text",
+        cardinality: "one",
+        choices: [],
         enabled: true,
       });
       setFields((current) => [...current, created]);
       setAddFieldId(created.definition.id);
-      setFieldEditorId(created.definition.id);
-      setFieldDraft(fieldUpdate(created));
-      setPreferencesDraft(preferenceUpdate(created));
       setNewFieldLabel("");
-      setNewFieldDescription("");
-      setNewFieldType("text");
-      setNewFieldCardinality("one");
-      setNewChoiceLabels("");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not create this information.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not add this kind of information.");
     }
   };
 
-  const chooseFieldEditor = (fieldId: string) => {
-    if (fieldId === fieldEditorId) return;
-    if (!confirmFieldEditorDiscard()) return;
-    setFieldEditorId(fieldId);
-    const field = fields.find((candidate) => candidate.definition.id === fieldId);
-    setFieldDraft(field ? fieldUpdate(field) : null);
-    setPreferencesDraft(field ? preferenceUpdate(field) : null);
-  };
-
-  const replaceField = (next: CandidatureFieldConfiguration) => {
+  const replaceField = (updated: CandidatureFieldConfiguration) => {
     setFields((current) =>
-      current.map((field) => (field.definition.id === next.definition.id ? next : field)),
+      current.map((field) =>
+        field.definition.id === updated.definition.id ? updated : field,
+      ),
     );
-    setFieldDraft(fieldUpdate(next));
-    setPreferencesDraft(preferenceUpdate(next));
   };
 
-  const saveFieldDefinition = async () => {
-    if (!fieldDraft) return;
-    setError(null);
+  const updateFieldPreference = async (
+    field: CandidatureFieldConfiguration,
+    patch: Partial<CandidatureFieldConfiguration["preferences"]>,
+  ) => {
     try {
-      replaceField(await window.aaaat.candidatures.updateField(fieldDraft));
-      await loadRecords();
+      replaceField(
+        await window.aaaat.candidatures.updateFieldPreferences({
+          ...field.preferences,
+          ...patch,
+          fieldId: field.definition.id,
+        }),
+      );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not update this information.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save information settings.");
     }
-  };
-
-  const saveFieldPreferences = async () => {
-    if (!preferencesDraft) return;
-    setError(null);
-    try {
-      replaceField(await window.aaaat.candidatures.updateFieldPreferences(preferencesDraft));
-      await loadRecords();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not update information settings.");
-    }
-  };
-
-  const deleteField = async () => {
-    if (!fieldDraft || !window.confirm(`Delete unused information “${fieldDraft.label}”?`)) return;
-    setError(null);
-    try {
-      const nextFields = await window.aaaat.candidatures.deleteField(fieldDraft.id);
-      setFields(nextFields);
-      setFieldEditorId("");
-      setFieldDraft(null);
-      setPreferencesDraft(null);
-      setAddFieldId("");
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not delete this information.");
-    }
-  };
-
-  const applyFieldFilter = async () => {
-    if (!filterFieldId) {
-      setFieldMatches(null);
-      return;
-    }
-    const field = fields.find((candidate) => candidate.definition.id === filterFieldId);
-    if (!field) return;
-    setError(null);
-    try {
-      let value: CandidatureRuntimeValue | undefined;
-      if (filterOperator !== "is_set" && filterOperator !== "is_not_set") {
-        if (field.definition.valueType === "number") value = Number(filterValue);
-        else if (field.definition.valueType === "boolean") value = filterValue === "true";
-        else if (
-          field.definition.valueType === "choice" &&
-          (filterOperator === "contains_any" || filterOperator === "contains_all")
-        ) {
-          value = filterChoiceValues;
-        } else value = filterValue;
-      }
-      const ids = await window.aaaat.candidatures.filter({
-        fieldId: filterFieldId,
-        operator: filterOperator,
-        ...(value !== undefined ? { value } : {}),
-      });
-      setFieldMatches(new Set(ids));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not apply this filter.");
-    }
-  };
-
-  const clearFieldFilter = () => {
-    setFilterFieldId("");
-    setFilterOperator("is_set");
-    setFilterValue("");
-    setFilterChoiceValues([]);
-    setFieldMatches(null);
   };
 
   const saveDocuments = async () => {
@@ -563,81 +337,69 @@ export function CandidaturesWorkspace({
     }
   };
 
-  const saveConceptAssociations = async () => {
+  const saveTagAssociations = async () => {
     if (!selected) return;
     try {
-      const saved = await window.aaaat.candidatures.setConcepts({
-        candidatureId: selected.id,
-        conceptIds: selectedConceptIds,
-      });
-      setRecords((current) => {
-        const present = current.some((candidate) => candidate.id === saved.id);
-        return present
-          ? current.map((candidate) => (candidate.id === saved.id ? saved : candidate))
-          : [saved, ...current];
-      });
-      setSelectedConceptIds(saved.conceptIds);
-      if (selectedConceptId && !saved.conceptIds.includes(selectedConceptId)) {
-        setSelectedConceptId(saved.conceptIds[0] ?? null);
-      }
+      storeRecord(
+        await window.aaaat.candidatures.setTags({
+          candidatureId: selected.id,
+          tagIds: selectedTagIds,
+        }),
+      );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not save concept associations.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save Tag associations.");
     }
   };
 
-  const saveConcept = async () => {
-    const input = { ...conceptDraft, aliases: aliasesFromText(aliasesText) };
+  const startNewTag = () => {
+    if (tagEditorDirty && !window.confirm("Discard unsaved Tag edits?")) return;
+    setTagEditorOpen(true);
+    setEditingTagId(null);
+    setTagEditorDraft(emptyTag);
+    setTagAliasesText("");
+  };
+
+  const editTag = (tag: TagRecord) => {
+    if (tagEditorDirty && !window.confirm("Discard unsaved Tag edits?")) return;
+    setTagEditorOpen(true);
+    setEditingTagId(tag.id);
+    setTagEditorDraft(tagDraft(tag));
+    setTagAliasesText(tag.aliases.join(", "));
+  };
+
+  const saveTag = async () => {
+    const input = { ...tagEditorDraft, aliases: aliasesFromText(tagAliasesText) };
+    if (!input.name.trim()) return;
     try {
-      const saved = editingConceptId
-        ? await window.aaaat.candidatures.updateConcept({ id: editingConceptId, ...input })
-        : await window.aaaat.candidatures.createConcept(input);
-      setConcepts((current) => {
-        const present = current.some((concept) => concept.id === saved.id);
-        return present
-          ? current.map((concept) => (concept.id === saved.id ? saved : concept))
-          : [...current, saved].sort((left, right) => left.name.localeCompare(right.name));
+      const saved = editingTagId
+        ? await window.aaaat.candidatures.updateTag({ id: editingTagId, ...input })
+        : await window.aaaat.candidatures.createTag(input);
+      setTags((current) => {
+        const found = current.some((tag) => tag.id === saved.id);
+        return (found
+          ? current.map((tag) => (tag.id === saved.id ? saved : tag))
+          : [...current, saved]
+        ).sort((left, right) => left.name.localeCompare(right.name));
       });
-      setEditingConceptId(saved.id);
-      setConceptDraft(conceptInput(saved));
-      setAliasesText(saved.aliases.join(", "));
-      setSelectedConceptId(saved.id);
+      setEditingTagId(saved.id);
+      setTagEditorDraft(tagDraft(saved));
+      setTagAliasesText(saved.aliases.join(", "));
+      setSelectedTagId(saved.id);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not save this concept.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save this Tag.");
     }
-  };
-
-  const startNewConcept = () => {
-    if (!confirmConceptEditorDiscard()) return;
-    setConceptEditorOpen(true);
-    setEditingConceptId(null);
-    setConceptDraft(emptyConcept);
-    setAliasesText("");
-  };
-
-  const chooseConceptForEdit = (conceptId: string) => {
-    if (conceptId === editingConceptId) return;
-    if (!confirmConceptEditorDiscard()) return;
-    const concept = concepts.find((candidate) => candidate.id === conceptId);
-    if (!concept) return;
-    setConceptEditorOpen(true);
-    setEditingConceptId(concept.id);
-    setConceptDraft(conceptInput(concept));
-    setAliasesText(concept.aliases.join(", "));
-  };
-
-  const cancelConceptEditor = () => {
-    if (!confirmConceptEditorDiscard()) return;
-    resetConceptEditor();
   };
 
   const handleSourcesChanged = useCallback(async () => {
     try {
       const nextRecords = await window.aaaat.candidatures.list();
       setRecords(nextRecords);
+      const current = selectedId ? nextRecords.find((record) => record.id === selectedId) : null;
+      if (current) hydrate(current);
     } catch {
       setError("AAAAT could not refresh the candidature after the Source changed.");
     }
-  }, []);
+  }, [hydrate, selectedId]);
 
   const enabledMissingFields = selected
     ? fields.filter(
@@ -647,489 +409,442 @@ export function CandidaturesWorkspace({
       )
     : [];
   const addField = fields.find((field) => field.definition.id === addFieldId);
-  const editorField = fields.find((field) => field.definition.id === fieldEditorId);
   const discoveryField = fields.find((field) => field.definition.id === discoveryFieldId);
 
-  return (
-    <section className="candidatures-workspace" aria-label="Candidatures">
-      <div className="candidature-toolbar">
-        <div>
-          <p className="eyebrow">Sparse opportunity information</p>
-          <h2>Candidatures</h2>
-        </div>
-      </div>
+  if (mode === "corpus") {
+    return (
+      <section className="candidatures-workspace candidature-corpus" aria-label="Candidatures">
+        <header className="candidature-toolbar">
+          <div>
+            <p className="eyebrow">Focus</p>
+            <h2>Candidatures</h2>
+            <p>Find the candidature you need in seconds.</p>
+          </div>
+        </header>
 
-      <div className="candidature-filters" aria-label="Candidature filters">
-        <label>
-          Search retained information
-          <input
-            type="search"
-            value={query}
-            maxLength={200}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Organisation, role, kind of information, concept…"
-          />
-        </label>
-        <label>
-          Information kind
-          <select
-            value={filterFieldId}
-            onChange={(event) => {
-              const id = event.target.value;
-              setFilterFieldId(id);
-              const nextField = fields.find((field) => field.definition.id === id);
-              setFilterOperator(operatorsFor(nextField)[0] ?? "is_set");
-              setFilterValue("");
-              setFilterChoiceValues([]);
-            }}
-          >
-            <option value="">No information filter</option>
-            {fields.filter((field) => field.definition.enabled).map((field) => (
-              <option key={field.definition.id} value={field.definition.id}>
-                {field.definition.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {currentFilterField ? (
+        <div className="candidature-corpus-tools">
           <label>
-            Operator
+            Search candidatures
+            <input
+              type="search"
+              value={query}
+              maxLength={200}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Company, role, Source text, Tag…"
+            />
+          </label>
+          <label>
+            Show
             <select
-              value={filterOperator}
-              onChange={(event) => {
-                setFilterOperator(event.target.value as CandidatureFilterOperator);
-                setFilterValue("");
-                setFilterChoiceValues([]);
-              }}
+              value={archiveFilter}
+              onChange={(event) => setArchiveFilter(event.target.value as ArchiveFilter)}
             >
-              {availableOperators.map((operator) => (
-                <option key={operator} value={operator}>{operatorLabel(operator)}</option>
-              ))}
+              <option value="active">Current</option>
+              <option value="archived">Archived</option>
+              <option value="all">All</option>
             </select>
           </label>
-        ) : null}
-        {currentFilterField && filterOperator !== "is_set" && filterOperator !== "is_not_set" ? (
-          currentFilterField.definition.valueType === "choice" &&
-          (filterOperator === "contains_any" || filterOperator === "contains_all") ? (
-            <fieldset className="choice-filter-values">
-              <legend>Values</legend>
-              {currentFilterField.definition.choices.map((choice) => (
-                <label key={choice.id}>
-                  <input
-                    type="checkbox"
-                    checked={filterChoiceValues.includes(choice.id)}
-                    onChange={(event) =>
-                      setFilterChoiceValues((current) =>
-                        event.target.checked
-                          ? [...current.filter((id) => id !== choice.id), choice.id]
-                          : current.filter((id) => id !== choice.id),
-                      )
-                    }
-                  />
-                  {choice.label}
-                </label>
-              ))}
-            </fieldset>
-          ) : (
-            <label>
-              Value
-              {currentFilterField.definition.valueType === "choice" ? (
-                <select value={filterValue} onChange={(event) => setFilterValue(event.target.value)}>
-                  <option value="">Choose…</option>
-                  {currentFilterField.definition.choices.map((choice) => (
-                    <option key={choice.id} value={choice.id}>{choice.label}</option>
-                  ))}
-                </select>
-              ) : currentFilterField.definition.valueType === "boolean" ? (
-                <select value={filterValue} onChange={(event) => setFilterValue(event.target.value)}>
-                  <option value="true">Yes</option>
-                  <option value="false">No</option>
-                </select>
-              ) : (
-                <input
-                  type={
-                    currentFilterField.definition.valueType === "number"
-                      ? "number"
-                      : currentFilterField.definition.valueType === "date"
-                        ? "date"
-                        : "text"
-                  }
-                  value={filterValue}
-                  onChange={(event) => setFilterValue(event.target.value)}
-                />
-              )}
-            </label>
-          )
-        ) : null}
-        <div className="button-row">
-          <button type="button" onClick={() => void applyFieldFilter()}>Apply information filter</button>
-          {fieldMatches ? (
-            <button type="button" className="compact-secondary" onClick={clearFieldFilter}>
-              Clear information filter
-            </button>
-          ) : null}
         </div>
-        <label>
-          Archive
-          <select value={archiveFilter} onChange={(event) => setArchiveFilter(event.target.value as ArchiveFilter)}>
-            <option value="active">Active</option>
-            <option value="archived">Archived</option>
-            <option value="all">All</option>
-          </select>
-        </label>
+
+        {error ? <p className="error-message" role="alert">{error}</p> : null}
+
+        {records.length === 0 ? (
+          <p className="compact-empty">No candidatures yet. Raw material alone is enough to create one.</p>
+        ) : visibleRecords.length === 0 ? (
+          <p className="compact-empty">No candidatures match this search.</p>
+        ) : (
+          <div className="candidature-corpus-grid" aria-label="Candidature corpus Focus">
+            {visibleRecords.map((record) => {
+              const searchMatchCue =
+                normalizedQuery && textMatches?.has(record.id)
+                  ? candidatureSearchMatchCue(record, fields, tags, normalizedQuery)
+                  : null;
+              const recognitionCues = searchMatchCue
+                ? [searchMatchCue]
+                : candidatureRecognitionCues(record, fields, 3);
+              return (
+                <article className="candidature-corpus-card" key={record.id}>
+                  <button
+                    type="button"
+                    className="candidature-focus-entry"
+                    onClick={() => openRecord(record, "focus")}
+                  >
+                    <strong>{record.label}</strong>
+                    {recognitionCues.length > 0 ? (
+                      <span className="candidature-recognition-cues">
+                        {recognitionCues.map((cue, index) => (
+                          <span className="candidature-recognition-cue" key={`${cue.label}-${index}`}>
+                            <span>{cue.label}</span>
+                            <span>{cue.value}</span>
+                          </span>
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="compact-help">Sparse candidature</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-secondary candidature-direct-edit"
+                    onClick={() => openRecord(record, "detail")}
+                  >
+                    Edit candidature
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  if (!selected) {
+    return (
+      <section className="candidatures-workspace">
+        <p className="error-message">The selected candidature is no longer available.</p>
+        <button type="button" onClick={returnToCorpus}>Back to candidatures</button>
+      </section>
+    );
+  }
+
+  if (mode === "focus") {
+    return (
+      <section className="candidatures-workspace candidature-selected-focus" aria-label="Candidature Focus">
+        <div className="candidature-context-actions">
+          <button type="button" className="compact-secondary" onClick={returnToCorpus}>
+            Back to candidatures
+          </button>
+          <button type="button" className="compact-secondary" onClick={() => setMode("detail")}>
+            Edit full candidature
+          </button>
+        </div>
+        {error ? <p className="error-message" role="alert">{error}</p> : null}
+        <CandidatureFocusPanel
+          record={selected}
+          fields={fields}
+          tags={tags}
+          selectedTagId={selectedTagId}
+          onSelectTag={setSelectedTagId}
+          onSaveValue={setValue}
+          onClearValue={clearValue}
+          onDiscoverValue={setDiscoveryFieldId}
+          onDirtyChange={setEditorDirty}
+        />
+        {discoveryField ? (
+          <HistoricalFieldDiscoveryPanel
+            candidatureId={selected.id}
+            field={discoveryField}
+            onAccept={(value) => setValue(discoveryField.definition.id, value)}
+            onClose={() => setDiscoveryFieldId(null)}
+          />
+        ) : null}
+      </section>
+    );
+  }
+
+  return (
+    <section className="candidatures-workspace candidature-detail" aria-label="Complete candidature">
+      <div className="candidature-editor-heading">
+        <div>
+          <p className="eyebrow">Candidature</p>
+          <h2>{selected.label}</h2>
+          <p>Everything AAAAT retains about this candidature.</p>
+        </div>
+        <div className="button-row">
+          <button type="button" className="compact-secondary" onClick={returnToCorpus}>
+            Back to candidatures
+          </button>
+          <button type="button" className="compact-secondary" onClick={() => setMode("focus")}>
+            Open Focus
+          </button>
+          <button type="button" className="compact-secondary" onClick={() => void setArchived(!selected.archived)}>
+            {selected.archived ? "Restore candidature" : "Archive candidature"}
+          </button>
+        </div>
       </div>
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
-      <div className="candidature-layout">
-        <aside className="candidature-list" aria-label="Candidature list">
-          {records.length === 0 ? (
-            <p>No candidatures yet. A completely sparse or Source-only candidature is valid.</p>
-          ) : visibleRecords.length === 0 ? (
-            <p>No candidatures match these filters.</p>
-          ) : (
-            visibleRecords.map((record) => {
-              const searchMatchCue =
-                normalizedQuery && textMatches?.has(record.id)
-                  ? candidatureSearchMatchCue(record, fields, concepts, normalizedQuery)
-                  : null;
-              const recognitionCues = searchMatchCue
-                ? [searchMatchCue]
-                : candidatureRecognitionCues(record, fields);
-              return (
-                <button
-                  type="button"
-                  key={record.id}
-                  className={record.id === selectedId ? "selected-candidature" : ""}
-                  onClick={() => {
-                    if (!confirmDiscard()) return;
-                    hydrate(record);
-                  }}
-                >
-                  <strong>{record.label}</strong>
-                  {recognitionCues.length > 0 ? (
-                    <span className="candidature-recognition-cues">
-                      {recognitionCues.map((cue, index) => (
-                        <span className="candidature-recognition-cue" key={`${cue.label}-${index}`}>
-                          <span>{cue.label}</span>
-                          <span>{cue.value}</span>
-                        </span>
-                      ))}
-                    </span>
-                  ) : null}
-                  <small>
-                    {record.values.length} retained {record.values.length === 1 ? "item of information" : "items of information"}
-                    {record.archived ? " · archived" : ""}
-                  </small>
-                </button>
-              );
-            })
-          )}
-        </aside>
-
-        <div className="candidature-editor">
-          {selected ? (
-            <>
-              <div className="candidature-editor-heading">
-                <div>
-                  <p className="eyebrow">Candidature</p>
-                  <h3>{selected.label}</h3>
-                </div>
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  onClick={() => void setArchived(!selected.archived)}
-                >
-                  {selected.archived ? "Restore from archive" : "Archive candidature"}
-                </button>
-              </div>
-
-              <nav className="candidature-section-nav" aria-label="Candidature sections" role="tablist">
-                {sectionLabels.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={section === item.key}
-                    className={section === item.key ? "selected-section" : "compact-secondary"}
-                    onClick={() => switchSection(item.key)}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </nav>
-
-              <div className="candidature-section-panel" role="tabpanel">
-                {section === "focus" ? (
-                  <CandidatureFocusPanel
-                    record={selected}
-                    fields={fields}
-                    concepts={concepts}
-                    documents={documents}
-                    selectedConceptId={selectedConceptId}
-                    onSelectConcept={setSelectedConceptId}
-                    onNavigate={focusNavigate}
-                  />
-                ) : null}
-
-                {section === "information" ? (
-                  <section className="section-surface" aria-label="Candidature information">
-                    <div>
-                      <p className="eyebrow">Retained information</p>
-                      <h3>Information</h3>
-                      <p>Missing information stays absent. Add only information that is useful to retain.</p>
-                    </div>
-
-                    {selected.values.length === 0 ? (
-                      <p className="compact-empty">No additional information is retained yet.</p>
-                    ) : (
-                      <div className="retained-information-list">
-                        {selected.values.map((retained) => {
-                          const field = fields.find((candidate) => candidate.definition.id === retained.fieldId);
-                          if (!field) return null;
-                          return (
-                            <article key={retained.fieldId} className="retained-information-card">
-                              <div>
-                                <h4>{field.definition.label}</h4>
-                                {field.definition.description ? <p>{field.definition.description}</p> : null}
-                              </div>
-                              <CandidatureFieldValueEditor
-                                field={field}
-                                value={retained.value}
-                                onSave={(value) => setValue(field.definition.id, value)}
-                                onClear={() => clearValue(field.definition.id)}
-                                onDiscover={() => discoverValue(field.definition.id)}
-                                onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
-                              />
-                            </article>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {discoveryField ? (
-                      <HistoricalFieldDiscoveryPanel
-                        candidatureId={selected.id}
-                        field={discoveryField}
-                        onAccept={(value) => setValue(discoveryField.definition.id, value)}
-                        onClose={() => setDiscoveryFieldId(null)}
-                      />
-                    ) : null}
-
-                    <details className="add-information-panel">
-                      <summary>+ Add information</summary>
-                      {enabledMissingFields.length > 0 ? (
-                        <label>
-                          Choose information to add
-                          <select value={addFieldId} onChange={(event) => selectAddField(event.target.value)}>
-                            <option value="">Choose information…</option>
-                            {enabledMissingFields.map((field) => (
-                              <option key={field.definition.id} value={field.definition.id}>
-                                {field.definition.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      ) : (
-                        <p>All available information already has a retained value.</p>
-                      )}
-                      {addField ? (
-                        <CandidatureFieldValueEditor
-                          key={`add-${addField.definition.id}`}
-                          field={addField}
-                          onSave={async (value) => {
-                            await setValue(addField.definition.id, value);
-                            setAddFieldId("");
-                          }}
-                          onClear={async () => setAddFieldId("")}
-                          onDiscover={() => discoverValue(addField.definition.id)}
-                          onDirtyChange={(dirty) => setEditorDirty(addField.definition.id, dirty)}
-                        />
-                      ) : null}
-
-                      <details>
-                        <summary>+ Add something not listed</summary>
-                        <label>
-                          What is it?
-                          <input
-                            value={newFieldLabel}
-                            onChange={(event) => setNewFieldLabel(event.target.value)}
-                            placeholder="Minimum flight hours"
-                          />
-                        </label>
-                        <p className="compact-help">AAAAT will start this as simple text. Other formats and behavior remain available under Advanced information settings.</p>
-                        <button type="button" disabled={!newFieldLabel.trim()} onClick={() => void createField()}>
-                          Continue
-                        </button>
-                      </details>
-                    </details>
-
-                    <details className="field-management">
-                      <summary>Advanced information settings</summary>
-                      <label>
-                        Kind of information
-                        <select value={fieldEditorId} onChange={(event) => chooseFieldEditor(event.target.value)}>
-                          <option value="">Choose information…</option>
-                          {fields.map((field) => (
-                            <option key={field.definition.id} value={field.definition.id}>
-                              {field.definition.label}{field.definition.enabled ? "" : " · unavailable"}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      {editorField && fieldDraft && preferencesDraft ? (
-                        <div className="field-editor">
-                          <h4>Display and format</h4>
-                          <label>Name<input value={fieldDraft.label} onChange={(event) => setFieldDraft({ ...fieldDraft, label: event.target.value })} /></label>
-                          <label>Description<textarea rows={3} value={fieldDraft.description} onChange={(event) => setFieldDraft({ ...fieldDraft, description: event.target.value })} /></label>
-                          <label>
-                            Format
-                            <select value={fieldDraft.valueType} onChange={(event) => setFieldDraft({ ...fieldDraft, valueType: event.target.value as CandidatureFieldUpdate["valueType"], choices: event.target.value === "choice" ? fieldDraft.choices : [] })}>
-                              <option value="text">Text</option><option value="long_text">Long text</option><option value="number">Number</option><option value="boolean">Yes / no</option><option value="date">Date</option><option value="url">URL</option><option value="choice">Choice</option>
-                            </select>
-                          </label>
-                          <label>
-                            Values
-                            <select value={fieldDraft.cardinality} onChange={(event) => setFieldDraft({ ...fieldDraft, cardinality: event.target.value as CandidatureFieldUpdate["cardinality"] })}>
-                              <option value="one">Single value</option><option value="many">Multiple values</option>
-                            </select>
-                          </label>
-                          {fieldDraft.valueType === "choice" ? (
-                            <div className="choice-definition-list">
-                              {fieldDraft.choices.map((choice, index) => (
-                                <div key={choice.id} className="button-row">
-                                  <input
-                                    value={choice.label}
-                                    onChange={(event) => setFieldDraft({
-                                      ...fieldDraft,
-                                      choices: fieldDraft.choices.map((candidate, choiceIndex) =>
-                                        choiceIndex === index ? { ...candidate, label: event.target.value } : candidate,
-                                      ),
-                                    })}
-                                  />
-                                  <button type="button" className="compact-secondary" onClick={() => setFieldDraft({ ...fieldDraft, choices: fieldDraft.choices.filter((candidate) => candidate.id !== choice.id) })}>
-                                    Remove
-                                  </button>
-                                </div>
-                              ))}
-                              <button type="button" className="compact-secondary" onClick={() => setFieldDraft({ ...fieldDraft, choices: [...fieldDraft.choices, { id: crypto.randomUUID(), label: "New choice" }] })}>
-                                Add choice
-                              </button>
-                            </div>
-                          ) : null}
-                          <label><input type="checkbox" checked={fieldDraft.enabled} onChange={(event) => setFieldDraft({ ...fieldDraft, enabled: event.target.checked })} /> Available for adding</label>
-                          <button type="button" onClick={() => void saveFieldDefinition()}>Save display and format</button>
-
-                          <h4>Focus, recognition and AI</h4>
-                          <label><input type="checkbox" checked={preferencesDraft.focusVisible} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, focusVisible: event.target.checked })} /> Show in Focus when retained</label>
-                          <label>Focus order<input type="number" min="0" value={preferencesDraft.focusOrder ?? ""} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, focusOrder: event.target.value ? Number(event.target.value) : null })} /></label>
-                          <label>
-                            Focus prominence
-                            <select value={preferencesDraft.focusProminence} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, focusProminence: event.target.value as CandidatureFieldPreferencesUpdate["focusProminence"] })}>
-                              <option value="compact">Compact</option><option value="normal">Normal</option><option value="wide">Wide</option>
-                            </select>
-                          </label>
-                          <label>Recognition priority<input type="number" min="0" value={preferencesDraft.identityOrder ?? ""} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, identityOrder: event.target.value ? Number(event.target.value) : null })} /></label>
-                          <label><input type="checkbox" checked={preferencesDraft.aiDiscovery} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, aiDiscovery: event.target.checked })} /> AI may suggest this information from Sources</label>
-                          <label>
-                            When AI uses candidature context
-                            <select value={preferencesDraft.aiContextMode} onChange={(event) => setPreferencesDraft({ ...preferencesDraft, aiContextMode: event.target.value as CandidatureFieldPreferencesUpdate["aiContextMode"] })}>
-                              <option value="omit">Do not share</option><option value="expose">Share value</option><option value="token">Use local placeholder</option>
-                            </select>
-                          </label>
-                          <button type="button" onClick={() => void saveFieldPreferences()}>Save information settings</button>
-                          {editorField.definition.systemKey === null ? (
-                            <button type="button" className="compact-secondary" onClick={() => void deleteField()}>
-                              Delete unused information kind
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </details>
-                  </section>
-                ) : null}
-
-                {section === "sources" ? (
-                  <CandidatureSourcesPanel
-                    candidatureId={selected.id}
-                    onSourcesChanged={() => void handleSourcesChanged()}
-                    onDirtyChange={setSourceDirty}
-                  />
-                ) : null}
-
-                {section === "documents" ? (
-                  <CandidatureApplicationMaterialPanel
-                    candidature={selected}
-                    documents={documents}
-                    selectedDocumentIds={selectedDocumentIds}
-                    documentSelectionDirty={documentSelectionDirty}
-                    onDocumentSelectionChange={setSelectedDocumentIds}
-                    onSaveDocuments={() => void saveDocuments()}
-                    onOpenDocument={(documentId) => openDocumentFromCandidature(selected.id, documentId)}
-                  />
-                ) : null}
-              </div>
-
-              <details className="candidature-concepts-support">
-                <summary>Concepts</summary>
-                <section className="candidature-concepts section-surface" aria-label="Concepts">
-                  <div className="candidature-editor-heading">
-                    <div><p className="eyebrow">Contextual knowledge</p><h3>Concepts</h3></div>
-                    <button type="button" className="compact-secondary" onClick={startNewConcept}>Add concept</button>
-                  </div>
-                  {concepts.length === 0 ? <p className="compact-empty">No shared concepts yet.</p> : (
-                    <div className="concept-association-list">
-                      {concepts.map((concept) => (
-                        <article key={concept.id} className="concept-association-card">
-                          <label>
-                            <input type="checkbox" checked={selectedConceptIds.includes(concept.id)} onChange={(event) => setSelectedConceptIds((current) => event.target.checked ? [...current.filter((id) => id !== concept.id), concept.id] : current.filter((id) => id !== concept.id))} />
-                            <span><strong>{concept.name}</strong>{concept.aliases.length > 0 ? <small>{concept.aliases.join(", ")}</small> : null}</span>
-                          </label>
-                          {concept.definition ? <p>{concept.definition}</p> : null}
-                          <button type="button" className="compact-secondary" onClick={() => chooseConceptForEdit(concept.id)}>Edit concept</button>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                  <button type="button" disabled={!conceptSelectionDirty} onClick={() => void saveConceptAssociations()}>Save concept associations</button>
-                  {conceptEditorOpen ? (
-                    <div className="concept-editor" aria-label="Concept editor">
-                      <h3>{editingConceptId ? "Edit concept" : "New concept"}</h3>
-                      <label>Name<input value={conceptDraft.name} onChange={(event) => setConceptDraft({ ...conceptDraft, name: event.target.value })} /></label>
-                      <label>Aliases<input value={aliasesText} onChange={(event) => setAliasesText(event.target.value)} /></label>
-                      <label>Definition<textarea rows={4} value={conceptDraft.definition} onChange={(event) => setConceptDraft({ ...conceptDraft, definition: event.target.value })} /></label>
-                      <label>Notes<textarea rows={4} value={conceptDraft.notes ?? ""} onChange={(event) => setConceptDraft({ ...conceptDraft, notes: event.target.value })} /></label>
-                      <div className="button-row">
-                        <button type="button" disabled={!conceptEditorDirty} onClick={() => void saveConcept()}>{editingConceptId ? "Save concept" : "Create concept"}</button>
-                        <button type="button" className="compact-secondary" onClick={cancelConceptEditor}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : null}
-                </section>
-              </details>
-
-              <details className="optional-ai-assistance">
-                <summary>Optional AI assistance</summary>
-                <div className="optional-ai-content">
-                  <OpportunityReviewPanel key={`review-${selected.id}`} record={selected} />
-                  <VariantRecommendationPanel key={`variant-${selected.id}`} record={selected} />
-                  <CandidatureOpportunityResearchAccessPanel
-                    key={`external-research-${selected.id}`}
-                    candidatureId={selected.id}
-                    contextDirty={taskContextDirty}
-                  />
-                </div>
-              </details>
-            </>
-          ) : (
-            <div className="candidature-empty-detail">
-              <h3>Select or create a candidature.</h3>
-              <p>A Source-only candidature and a completely sparse candidature are valid.</p>
-            </div>
-          )}
+      <section className="section-surface" aria-label="Candidature information">
+        <div>
+          <p className="eyebrow">Information</p>
+          <h3>Information</h3>
+          <p>Keep only information that is useful. Missing information is normal.</p>
         </div>
-      </div>
+
+        {selected.values.length === 0 ? (
+          <p className="compact-empty">No structured information is retained yet.</p>
+        ) : (
+          <div className="retained-information-list">
+            {selected.values.map((retained) => {
+              const field = fields.find((candidate) => candidate.definition.id === retained.fieldId);
+              if (!field) return null;
+              return (
+                <article key={retained.fieldId} className="retained-information-card">
+                  <div>
+                    <h4>{field.definition.label}</h4>
+                    {field.definition.description ? <p>{field.definition.description}</p> : null}
+                  </div>
+                  <CandidatureFieldValueEditor
+                    field={field}
+                    value={retained.value}
+                    onSave={(value) => setValue(field.definition.id, value)}
+                    onClear={() => clearValue(field.definition.id)}
+                    onDiscover={() => setDiscoveryFieldId(field.definition.id)}
+                    onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
+                  />
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        {discoveryField ? (
+          <HistoricalFieldDiscoveryPanel
+            candidatureId={selected.id}
+            field={discoveryField}
+            onAccept={(value) => setValue(discoveryField.definition.id, value)}
+            onClose={() => setDiscoveryFieldId(null)}
+          />
+        ) : null}
+
+        <details className="add-information-panel">
+          <summary>+ Add information</summary>
+          {enabledMissingFields.length > 0 ? (
+            <label>
+              Information to add
+              <select value={addFieldId} onChange={(event) => setAddFieldId(event.target.value)}>
+                <option value="">Choose…</option>
+                {enabledMissingFields.map((field) => (
+                  <option key={field.definition.id} value={field.definition.id}>
+                    {field.definition.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className="compact-help">All available information already has a value.</p>
+          )}
+          {addField ? (
+            <CandidatureFieldValueEditor
+              key={`add-${addField.definition.id}`}
+              field={addField}
+              onSave={async (value) => {
+                await setValue(addField.definition.id, value);
+                setAddFieldId("");
+              }}
+              onClear={async () => setAddFieldId("")}
+              onDiscover={() => setDiscoveryFieldId(addField.definition.id)}
+              onDirtyChange={(dirty) => setEditorDirty(addField.definition.id, dirty)}
+            />
+          ) : null}
+
+          <details>
+            <summary>Add something not listed</summary>
+            <label>
+              Name
+              <input
+                value={newFieldLabel}
+                onChange={(event) => setNewFieldLabel(event.target.value)}
+                placeholder="Minimum flight hours"
+              />
+            </label>
+            <button type="button" disabled={!newFieldLabel.trim()} onClick={() => void createCustomField()}>
+              Add information kind
+            </button>
+          </details>
+        </details>
+
+        <details className="field-management">
+          <summary>Focus and AI visibility</summary>
+          <div className="field-preference-list">
+            {fields.map((field) => (
+              <article className="editor-card" key={field.definition.id}>
+                <strong>{field.definition.label}</strong>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={field.preferences.focusVisible}
+                    onChange={(event) =>
+                      void updateFieldPreference(field, { focusVisible: event.target.checked })
+                    }
+                  />
+                  Show in Focus when retained
+                </label>
+                <label>
+                  Focus prominence
+                  <select
+                    value={field.preferences.focusProminence}
+                    onChange={(event) =>
+                      void updateFieldPreference(field, {
+                        focusProminence: event.target.value as CandidatureFieldConfiguration["preferences"]["focusProminence"],
+                      })
+                    }
+                  >
+                    <option value="compact">Compact</option>
+                    <option value="normal">Normal</option>
+                    <option value="wide">Wide</option>
+                  </select>
+                </label>
+                <label>
+                  Focus order
+                  <input
+                    type="number"
+                    min="0"
+                    defaultValue={field.preferences.focusOrder ?? ""}
+                    onBlur={(event) =>
+                      void updateFieldPreference(field, {
+                        focusOrder: event.target.value ? Number(event.target.value) : null,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  When AI uses candidature context
+                  <select
+                    value={field.preferences.aiContextMode}
+                    onChange={(event) =>
+                      void updateFieldPreference(field, {
+                        aiContextMode: event.target.value as CandidatureFieldConfiguration["preferences"]["aiContextMode"],
+                      })
+                    }
+                  >
+                    <option value="omit">Do not share</option>
+                    <option value="expose">Share value</option>
+                    <option value="token">Use local placeholder</option>
+                  </select>
+                </label>
+              </article>
+            ))}
+          </div>
+        </details>
+      </section>
+
+      <CandidatureSourcesPanel
+        candidatureId={selected.id}
+        onSourcesChanged={() => void handleSourcesChanged()}
+        onDirtyChange={setSourceDirty}
+      />
+
+      <section className="section-surface" aria-label="Tags">
+        <div className="candidature-editor-heading">
+          <div>
+            <p className="eyebrow">Shared glossary</p>
+            <h3>Tags</h3>
+            <p>Reusable terms, aliases, definitions and notes linked to this candidature.</p>
+          </div>
+          <button type="button" className="compact-secondary" onClick={startNewTag}>
+            Add Tag
+          </button>
+        </div>
+
+        {tags.length === 0 ? (
+          <p className="compact-empty">No Tags yet.</p>
+        ) : (
+          <div className="tag-association-list">
+            {tags.map((tag) => (
+              <article className="retained-information-card" key={tag.id}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selectedTagIds.includes(tag.id)}
+                    onChange={(event) =>
+                      setSelectedTagIds((current) =>
+                        event.target.checked
+                          ? [...current.filter((id) => id !== tag.id), tag.id]
+                          : current.filter((id) => id !== tag.id),
+                      )
+                    }
+                  />
+                  <strong>{tag.name}</strong>
+                </label>
+                {tag.definition ? <p>{tag.definition}</p> : null}
+                {tag.aliases.length > 0 ? <small>{tag.aliases.join(", ")}</small> : null}
+                <button type="button" className="compact-secondary" onClick={() => editTag(tag)}>
+                  Edit Tag
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {tagSelectionDirty ? (
+          <button type="button" onClick={() => void saveTagAssociations()}>
+            Save Tag associations
+          </button>
+        ) : null}
+
+        {tagEditorOpen ? (
+          <div className="editor-card tag-editor">
+            <h4>{editingTagId ? "Edit Tag" : "New Tag"}</h4>
+            <label>
+              Name
+              <input
+                value={tagEditorDraft.name}
+                onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, name: event.target.value })}
+              />
+            </label>
+            <label>
+              Aliases
+              <input
+                value={tagAliasesText}
+                onChange={(event) => setTagAliasesText(event.target.value)}
+                placeholder="Comma separated"
+              />
+            </label>
+            <label>
+              Definition
+              <textarea
+                rows={4}
+                value={tagEditorDraft.definition}
+                onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, definition: event.target.value })}
+              />
+            </label>
+            <label>
+              Notes
+              <textarea
+                rows={4}
+                value={tagEditorDraft.notes ?? ""}
+                onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, notes: event.target.value })}
+              />
+            </label>
+            <div className="button-row">
+              <button type="button" disabled={!tagEditorDraft.name.trim()} onClick={() => void saveTag()}>
+                Save Tag
+              </button>
+              <button
+                type="button"
+                className="compact-secondary"
+                onClick={() => {
+                  if (tagEditorDirty && !window.confirm("Discard unsaved Tag edits?")) return;
+                  setTagEditorOpen(false);
+                  setEditingTagId(null);
+                  setTagEditorDraft(emptyTag);
+                  setTagAliasesText("");
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      <CandidatureApplicationMaterialPanel
+        candidature={selected}
+        documents={documents}
+        selectedDocumentIds={selectedDocumentIds}
+        documentSelectionDirty={documentSelectionDirty}
+        onDocumentSelectionChange={setSelectedDocumentIds}
+        onSaveDocuments={() => void saveDocuments()}
+        onOpenDocument={(documentId) => openDocumentFromCandidature(selected.id, documentId)}
+      />
+
+      <details className="secondary-candidature-detail">
+        <summary>Activity</summary>
+        <CandidatureActivityPanel candidatureId={selected.id} />
+      </details>
     </section>
   );
 }

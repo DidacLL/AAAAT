@@ -15,10 +15,10 @@ import { searchCandidatures } from "../src/main/candidature-search-service";
 import {
   addCandidatureSource,
   createCandidature,
-  setCandidatureConcepts,
+  setCandidatureTags,
   updateCandidatureSource,
 } from "../src/main/candidature-service";
-import { createConcept } from "../src/main/concept-service";
+import { createTag } from "../src/main/tag-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 function temporaryWorkspace(): string {
@@ -28,7 +28,7 @@ function temporaryWorkspace(): string {
 }
 
 describe("local candidature corpus search", () => {
-  it("matches retained field labels and values, Sources, and associated concept aliases", () => {
+  it("matches retained field labels and values, Sources, and associated Tag aliases", () => {
     const root = temporaryWorkspace();
     try {
       const first = createCandidature(root, {
@@ -59,14 +59,14 @@ describe("local candidature corpus search", () => {
         fieldId: workMode.definition.id,
         value: remoteId,
       });
-      const concept = createConcept(root, {
+      const tag = createTag(root, {
         name: "Reliability engineering",
         definition: "Reliable systems.",
         aliases: ["unique-sre-alias"],
       });
-      setCandidatureConcepts(root, {
+      setCandidatureTags(root, {
         candidatureId: second.id,
-        conceptIds: [concept.id],
+        tagIds: [tag.id],
       });
 
       expect(searchCandidatures(root, { query: "regional air" })).toEqual([first.id]);
