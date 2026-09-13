@@ -19,12 +19,13 @@ Focus, Sources, Tags, reminders, AI and artifacts are capabilities/context insid
 
 ## 2. Candidatures supports multiple entry intentions
 
-Opening Candidatures must support at least four common intentions without forcing one through another:
+Opening Candidatures must support common intentions without forcing one through another:
 
 1. **Recall quickly** — use Focus to find the right candidature and recover useful context.
-2. **Capture** — add whatever raw/new material exists with minimal friction.
-3. **Maintain deliberately** — directly open a candidature for complete inspection/editing.
-4. **Work on application material** — reach/create relevant CVs, letters and retained application artifacts in candidature context.
+2. **Create by fields** — start a candidature by filling the useful fields directly.
+3. **Capture raw material** — retain whatever source material exists with minimal friction and structure it afterward if desired.
+4. **Maintain deliberately** — directly open a candidature for complete inspection/editing.
+5. **Work on application material** — reach/create relevant CVs, letters and retained application artifacts in candidature context.
 
 No status, priority, next-action or lifecycle maintenance is required to use any of these paths.
 
@@ -85,29 +86,52 @@ It must provide progressive access to:
 - candidature-linked working CVs/letters and retained artifacts;
 - privacy/presentation controls where relevant;
 - secondary notes/checkable reminders if used;
-- secondary provenance/activity only where it has genuine user value.
+- secondary provenance/activity only where it has genuine user value;
+- field-definition management for the user's candidature information model.
 
-Do not turn complete access into one enormous static form. Populated information is primarily readable. Edit/add controls live close to the information. Advanced field-definition/privacy/presentation detail is progressively disclosed.
+Do not turn complete access into one enormous static form. Populated information is primarily readable. Edit/add controls live close to the information. Field-definition/privacy/presentation detail is progressively disclosed rather than removed.
 
-## 5. Capture is intentionally tiny
+## 5. New candidature has two direct creation approaches
 
-The normal capture interaction is conceptually:
+The entry surface must make both approaches clear. Do not hide them behind one generic wizard.
+
+### A. Fill fields directly
+
+This is for users who prefer conventional field-by-field entry or already know the relevant facts.
+
+It should take the user directly to the candidature information fields without requiring raw material, AI, Focus, status or lifecycle metadata.
+
+### B. Paste raw material
+
+This path is intentionally tiny:
 
 ```text
-New candidature
-→ paste/provide whatever exists
-→ save
+Paste raw material
+→ retain it as a Source
 ```
 
-Do not require the user to decide whether the material is a recruiter message, job advertisement, URL or another Source type before saving.
+Do not require the user to decide whether the material is a recruiter message, job advertisement, URL or another Source type before retaining it.
 
-A raw-only candidature is already valid. After save, the user may leave, continue editing, request extraction, create documents or do something else. Do not mechanically redirect every capture into Focus.
+After the material is retained, the same post-paste view presents **both continuations clearly at the same time**:
 
-If a suitable AI route is configured, offer extraction as an optional effort-reduction action using the retained material. Without AI, manual use remains complete.
+- **Send to AI** — send the retained material through a suitable configured extraction connection so it can propose values for the current candidature fields.
+- **Fill candidature yourself** — open a manual side-by-side surface with the retained raw Source visible on one side and the candidature fields on the other, so the user can copy/enter values without repeatedly switching context.
+
+Do not insert a generic intermediate action such as “Structure this candidature” that hides which path uses AI and which path is manual.
+
+The manual side-by-side path is a first-class no-AI workflow, not a fallback shown only when AI is unavailable. At constrained width it may stack/scroll rather than remain literally two columns, but both the Source and editable fields must remain readily available in the same task surface.
+
+A raw-only candidature is already valid. The user may also simply leave after retaining the material.
+
+Future deterministic or embedded extraction of obvious values such as company, role or salary may reduce effort further. Do not invent that machinery merely to satisfy the current flow, and do not make it a prerequisite for manual or AI-assisted use.
 
 ## 6. Information and field UX
 
 Common shipped fields such as company, role, salary and location are defaults, not permanent ontology.
+
+The candidature field set is user-maintainable. This is required product behavior, not only a future compatibility direction, because different professions and searches require materially different information and configured AI extraction works against the available fields.
+
+Examples deliberately span professions: a pilot may want flight hours, licences, aircraft type or domestic/international operation; a software engineer may want technology stack or remote policy; a script writer may want format, genre, production context or rights.
 
 Normal UI presents **information**, not schema administration.
 
@@ -116,11 +140,13 @@ For ordinary fields:
 - populated values are readable;
 - editing is local and deliberate;
 - missing values may have small Add affordances;
-- custom/user-maintained fields remain an intended capability even if full field-definition editing is deferred;
+- users can add and edit field definitions, including meaningful type/choice behavior, through progressively disclosed controls;
+- shipped field definitions are editable product defaults where safe rather than a developer-owned ontology;
 - Focus participation is presentation configuration, separate from storage and AI disclosure;
+- AI extraction/population targets the current configured fields rather than a hidden fixed schema;
 - AI assistance may be offered only where meaningful and only when a suitable configured route exists.
 
-Advanced field-definition/type/detail should never dominate ordinary candidature work.
+Advanced field-definition/type/detail should never dominate ordinary candidature work, but hiding or deleting that capability is also incorrect.
 
 ## 7. Tags are contextual glossary knowledge
 
@@ -191,6 +217,8 @@ A good action communicates:
 - what local information will actually change;
 - that the result remains editable.
 
+The raw-capture path is an important example: **Send to AI** is an explicit peer of the manual **Fill candidature yourself** action after paste. It is not an automatically displayed continuation that makes AI look like the normal next stage.
+
 If no valid route exists, the manual action remains available.
 
 Provider/connection administration belongs in Settings.
@@ -231,6 +259,7 @@ At constrained sizes:
 
 - give the current intention most of the screen;
 - transition between corpus and selected-candidature Focus rather than compressing both indefinitely;
+- the raw-material manual-fill surface may stack its Source and fields vertically when necessary, but must preserve easy same-task access to both;
 - stack/scroll rather than clip;
 - preserve readable labels and controls;
 - avoid persistent multi-pane dashboards that leave no useful working area.
@@ -269,11 +298,14 @@ Do not regress into:
 - expand-in-place Smart View cards as the selected Focus experience;
 - showing all values/objects because they technically can participate in Focus;
 - hardcoded field ontology disguised as defaults;
+- removing field-definition editing because schema administration should not dominate;
 - schema-administration-first editing;
 - required status/priority/next-action/lifecycle maintenance;
 - reminder/task-manager prominence;
 - `Concepts` as a parallel product vocabulary for Tags;
 - a recruiter-message/URL-specific capture form instead of raw-material-first capture;
+- hiding manual versus AI post-paste choices behind a generic structuring action;
+- presenting AI extraction as the automatic/default next step after raw capture;
 - AI as navigation or adviser authority;
 - generic document warehouse navigation;
 - old desktop/Smart View layouts treated as UX authority;
