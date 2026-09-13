@@ -52,13 +52,17 @@ describe("current career context", () => {
       });
       try {
         expect(
-          database
-            .prepare("SELECT version, name FROM schema_migrations WHERE version = 7")
-            .get(),
-        ).toEqual({ version: 7, name: "career-context" });
-        expect(
           database.prepare("SELECT action FROM career_context_activity").all(),
         ).toEqual([{ action: "career-context.updated" }]);
+        expect(
+          database
+            .prepare(
+              `SELECT career_direction_external_ai_visible AS careerDirection,
+                      constraints_external_ai_visible AS constraints
+                 FROM career_context WHERE id = 1`,
+            )
+            .get(),
+        ).toEqual({ careerDirection: 1, constraints: 1 });
       } finally {
         database.close();
       }
