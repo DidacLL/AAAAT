@@ -87,7 +87,10 @@ export function CandidaturesAiWorkspace({
   };
 
   const openCreation = (mode: Exclude<CreationMode, "idle">) => {
-    if (candidatureDirty && !window.confirm("Discard unsaved candidature edits and start a new candidature?")) {
+    if (
+      (candidatureDirty || fieldDefinitionsDirty) &&
+      !window.confirm("Discard unsaved candidature edits and start a new candidature?")
+    ) {
       return;
     }
     setSavedSource(null);
