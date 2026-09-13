@@ -194,7 +194,9 @@ test("packaged candidature document handoff returns to complete candidature with
     const firstAssociation = returnedMaterial.getByRole("checkbox", { name: "Handoff CV (CV)", exact: true });
     await expect(firstAssociation).toBeChecked();
     await firstAssociation.uncheck();
-    await expect(returnedMaterial.getByRole("button", { name: "Save document associations" })).toBeEnabled();
+    const saveAssociations = returnedMaterial.getByRole("button", { name: "Save document associations" });
+    await expect(saveAssociations).toBeEnabled();
+    await saveAssociations.click();
 
     await returnedMaterial.getByRole("button", { name: "Create CV or letter for this candidature" }).click();
     const secondDocuments = running.page.getByRole("region", { name: "CVs & letters" });
