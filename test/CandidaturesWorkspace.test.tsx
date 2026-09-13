@@ -178,7 +178,7 @@ describe("rebuilt candidature workspace", () => {
     expect(screen.getByText("Regional Air", { selector: "strong" })).toBeInTheDocument();
     expect(screen.getByText("Nimbus Labs", { selector: "strong" })).toBeInTheDocument();
     expect(screen.getByText("Remote platform role in Barcelona")).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Candidature Focus" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Candidature Focus", exact: true })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Complete candidature" })).not.toBeInTheDocument();
   });
 
@@ -189,7 +189,7 @@ describe("rebuilt candidature workspace", () => {
     const regionalEntry = await screen.findByRole("button", { name: /Regional Air/ });
     await user.click(regionalEntry);
 
-    const selected = screen.getByRole("region", { name: "Candidature Focus" });
+    const selected = screen.getByRole("region", { name: "Candidature Focus", exact: true });
     const focus = within(selected).getByRole("region", { name: "Selected candidature Focus" });
     expect(within(focus).getByRole("heading", { name: "Organisation" })).toBeInTheDocument();
     expect(within(focus).queryByRole("heading", { name: "Minimum flight hours" })).not.toBeInTheDocument();
@@ -230,11 +230,14 @@ describe("rebuilt candidature workspace", () => {
     render(<CandidaturesWorkspace />);
     await user.click((await screen.findAllByRole("button", { name: "Edit candidature" }))[0]!);
 
-    await user.click(screen.getByText("+ Add information", { selector: "summary" }));
-    await user.selectOptions(screen.getByLabelText("Information to add"), hoursId);
-    const input = screen.getByRole("spinbutton");
+    const addInformationSummary = screen.getByText("+ Add information", { selector: "summary" });
+    await user.click(addInformationSummary);
+    const addInformation = addInformationSummary.closest("details");
+    if (!addInformation) throw new Error("Add information disclosure missing");
+    await user.selectOptions(within(addInformation).getByLabelText("Information to add"), hoursId);
+    const input = within(addInformation).getByRole("spinbutton");
     await user.type(input, "1500");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(within(addInformation).getByRole("button", { name: "Save", exact: true }));
 
     expect(setFieldValue).toHaveBeenCalledWith({
       candidatureId: regionalId,
