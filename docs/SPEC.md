@@ -24,13 +24,13 @@ The repository uses the committed Node/npm toolchain, Vite and Electron Forge fo
 
 ## Domain and information architecture
 
-Keep structurally meaningful concepts explicit: candidatures, Sources, Concepts, lightweight ToDos, professional information and variants, documents and artifacts, and AI connections. Do not collapse them into generic records, arbitrary CRUD, a generic content repository, or a generic workflow model.
+Keep structurally meaningful domain objects explicit: candidatures, Sources, Tags, professional information and variants, documents and artifacts, optional AI connections, and secondary candidature-attached notes/checkables where useful. Do not collapse them into generic records, arbitrary CRUD, a generic content repository, or a generic workflow model.
 
 Normal user-facing information shares repeated behavior where real cases demonstrate it: editing, clearing/removal where domain semantics permit it, retrieval, AI disclosure control, and Focus presentation. The technical field/value representation is an implementation aid. It must not force ordinary users to manage schemas, identifiers, field types, cardinality, or database-like configuration.
 
 Existing explicit v2 fields may adapt incrementally. Do not introduce generic EAV persistence, a new framework, or broad persistence unification without demonstrated user-facing duplication and a bounded technical reason.
 
-Sources remain explicit retained records. Original material is not replaced by extraction or enrichment, and local source search must reach useful retained title, URL, and text. Concepts and ToDos retain their narrow domain meanings; neither becomes a generic knowledge system, scheduler, or AI-task subsystem.
+Sources remain explicit retained records. Original material is not replaced by extraction or enrichment, and local source search must reach useful retained title, URL, and text. Tags retain their narrow shared glossary/retrieval meaning. Secondary candidature-attached notes/checkables remain conveniences; they do not become a scheduler, generic task system, or AI-task subsystem.
 
 ## Document architecture
 
