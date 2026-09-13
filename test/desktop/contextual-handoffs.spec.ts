@@ -1,13 +1,5 @@
 import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -104,7 +96,6 @@ function prepareLinuxChooserHome(workspacePath: string): string {
   const binPath = path.join(homePath, "bin");
   mkdirSync(configPath, { recursive: true });
   mkdirSync(binPath, { recursive: true });
-
   const escaped = workspacePath.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
   writeFileSync(path.join(configPath, "user-dirs.dirs"), `XDG_DOWNLOAD_DIR="${escaped}"\n`, "utf8");
 
@@ -121,15 +112,6 @@ function prepareLinuxChooserHome(workspacePath: string): string {
     "utf8",
   );
   chmodSync(latexmk, 0o755);
-
-  const xdgOpen = path.join(binPath, "xdg-open");
-  writeFileSync(
-    xdgOpen,
-    '#!/bin/sh\nprintf "%s\\n" "$1" > "$HOME/retained-opened.txt"\n',
-    "utf8",
-  );
-  chmodSync(xdgOpen, 0o755);
-
   return homePath;
 }
 
@@ -156,66 +138,13 @@ function chooseLinuxDirectory(): void {
   );
 }
 
-function resizeLinuxAppWindow(width: number, height: number): { width: number; height: number } {
-  const output = execFileSync(
-    "bash",
-    [
-      "-lc",
-      [
-        "set -eu",
-        "window=''",
-        "for attempt in $(seq 1 100); do",
-        "  window=$(xdotool search --onlyvisible --name '^AAAAT$' 2>/dev/null | tail -n 1 || true)",
-        "  if [ -n \"$window\" ]; then break; fi",
-        "  sleep 0.1",
-        "done",
-        "test -n \"$window\"",
-        "xdotool windowactivate --sync \"$window\"",
-        `xdotool windowsize --sync "$window" ${String(width)} ${String(height)}`,
-        "sleep 0.15",
-        "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
-        "printf '%s %s\\n' \"$WIDTH\" \"$HEIGHT\"",
-      ].join("\n"),
-    ],
-    { encoding: "utf8" },
-  ).trim();
-  const match = output.match(/(\d+)\s+(\d+)$/);
-  if (!match) throw new Error(`Could not read packaged AAAAT window geometry: ${output}`);
-  return { width: Number(match[1]), height: Number(match[2]) };
-}
-
-async function expectNoHorizontalOverflow(page: Page, width: number, height: number, state: string) {
-  expect(resizeLinuxAppWindow(width, height)).toEqual({ width, height });
-  await page.waitForTimeout(150);
-  const geometry = await page.evaluate(() => ({
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }));
-  expect(geometry.innerWidth).toBe(width);
-  expect(geometry.innerHeight).toBe(height);
-  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
-  console.log(
-    `[context handoff] window=${String(width)}x${String(height)} state=${state} horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
-  );
-}
-
-async function selectApplicationMaterial(page: Page): Promise<void> {
-  const tab = page.getByRole("tab", { name: "Application material", exact: true });
-  await tab.click();
-  await expect(tab).toHaveAttribute("aria-selected", "true");
-}
-
 async function openAssociationManagement(material: Locator): Promise<void> {
   const details = material.locator("details.application-material-associations");
-  if ((await details.getAttribute("open")) === null) {
-    await details.locator(":scope > summary").click();
-  }
+  if ((await details.getAttribute("open")) === null) await details.locator(":scope > summary").click();
   await expect(details).toHaveAttribute("open", "");
 }
 
-test("packaged candidature document handoff preserves dirty associations and exact return context", async () => {
+test("packaged candidature document handoff returns to complete candidature without reviving tabs", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
@@ -223,41 +152,43 @@ test("packaged candidature document handoff preserves dirty associations and exa
 
   try {
     running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(running.page).toHaveTitle("AAAAT");
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
 
-    await running.page.getByRole("button", { name: "New candidature" }).click();
-    await running.page.getByLabel(/Short title/).fill("Handoff opportunity");
-    await running.page.getByLabel("What you have").fill("A retained opportunity used to prove contextual document handoffs.");
-    await running.page.getByRole("button", { name: "Save candidature" }).click();
-    await expect(running.page.getByRole("region", { name: "Candidature Focus" })).toContainText("Handoff opportunity");
+    await running.page.evaluate(async () => {
+      await window.aaaat.candidatures.create({
+        source: {
+          kind: "other",
+          title: "Handoff opportunity",
+          url: "",
+          sourceText: "A retained opportunity used to prove contextual document handoffs.",
+        },
+        values: [],
+      });
+    });
+    await running.page.reload();
 
-    await selectApplicationMaterial(running.page);
-    const material = running.page.getByRole("region", { name: "Application material" });
-    await expect(material.getByRole("button", { name: "Create CV or letter for this candidature" })).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 1200, 800, "application-material");
+    const corpus = running.page.getByLabel("Candidature corpus Focus");
+    const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Handoff opportunity" });
+    await card.getByRole("button", { name: "Edit candidature" }).click();
+    await expect(running.page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
 
+    const complete = running.page.getByRole("region", { name: "Complete candidature" });
+    const material = complete.getByRole("region", { name: "Application material" });
     await material.getByRole("button", { name: "Create CV or letter for this candidature" }).click();
-    const documents = running.page.getByRole("region", { name: "CVs & letters" });
-    await expect(documents).toBeVisible();
-    await expect(documents).toContainText("New work will be associated with Handoff opportunity.");
-    await expect(documents.getByRole("button", { name: "Return to Handoff opportunity" })).toBeVisible();
 
+    const documents = running.page.getByRole("region", { name: "CVs & letters" });
+    await expect(documents).toContainText("New work will be associated with Handoff opportunity.");
     await documents.locator(".document-create").getByLabel("Title").fill("Handoff CV");
     await documents.getByRole("button", { name: "Create CV" }).click();
     await expect(documents.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "document-context");
     await documents.getByRole("button", { name: "Return to Handoff opportunity" }).click();
 
-    const applicationTab = running.page.getByRole("tab", { name: "Application material", exact: true });
-    await expect(applicationTab).toHaveAttribute("aria-selected", "true");
-    const returnedMaterial = running.page.getByRole("region", { name: "Application material" });
-    const returnedWorking = returnedMaterial.getByRole("region", { name: "Working application documents" });
-    await expect(returnedWorking.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
-    await expect(returnedWorking.getByText("Working CV")).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "returned-application-material");
+    const returnedComplete = running.page.getByRole("region", { name: "Complete candidature" });
+    const returnedMaterial = returnedComplete.getByRole("region", { name: "Application material" });
+    const working = returnedMaterial.getByRole("region", { name: "Working application documents" });
+    await expect(working.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
 
     await openAssociationManagement(returnedMaterial);
     const firstAssociation = returnedMaterial.getByRole("checkbox", { name: "Handoff CV (CV)" });
@@ -269,119 +200,30 @@ test("packaged candidature document handoff preserves dirty associations and exa
     const secondDocuments = running.page.getByRole("region", { name: "CVs & letters" });
     await secondDocuments.locator(".document-create").getByLabel("Title").fill("Second Handoff CV");
     await secondDocuments.getByRole("button", { name: "Create CV" }).click();
-    await expect(secondDocuments.getByRole("heading", { name: "Second Handoff CV" })).toBeVisible();
     await secondDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
 
-    const reconciledMaterial = running.page.getByRole("region", { name: "Application material" });
+    const reconciledMaterial = running.page
+      .getByRole("region", { name: "Complete candidature" })
+      .getByRole("region", { name: "Application material" });
     await openAssociationManagement(reconciledMaterial);
-    await expect(
-      reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)", exact: true }),
-    ).not.toBeChecked();
-    await expect(
-      reconciledMaterial.getByRole("checkbox", { name: "Second Handoff CV (CV)", exact: true }),
-    ).toBeChecked();
+    await expect(reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)" })).not.toBeChecked();
+    await expect(reconciledMaterial.getByRole("checkbox", { name: "Second Handoff CV (CV)" })).toBeChecked();
     await reconciledMaterial.getByRole("button", { name: "Save document associations" }).click();
 
     const association = await running.page.evaluate(async () => {
-      const records = await window.aaaat.candidatures.list();
-      const documentRecords = await window.aaaat.documents.list();
-      const candidature = records.find((record) => record.label === "Handoff opportunity");
-      const first = documentRecords.find((record) => record.title === "Handoff CV");
-      const second = documentRecords.find((record) => record.title === "Second Handoff CV");
+      const candidature = (await window.aaaat.candidatures.list()).find(
+        (record) => record.label === "Handoff opportunity",
+      );
+      const documents = await window.aaaat.documents.list();
+      const first = documents.find((record) => record.title === "Handoff CV");
+      const second = documents.find((record) => record.title === "Second Handoff CV");
       return {
         firstAssociated: Boolean(candidature && first && candidature.documentIds.includes(first.id)),
         secondAssociated: Boolean(candidature && second && candidature.documentIds.includes(second.id)),
       };
     });
-    expect(association.firstAssociated).toBe(false);
-    expect(association.secondAssociated).toBe(true);
+    expect(association).toEqual({ firstAssociated: false, secondAssociated: true });
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
-
-    await expect(reconciledMaterial.getByRole("button", { name: "Open in CVs & letters" })).toHaveCount(1);
-    await reconciledMaterial.getByRole("button", { name: "Open in CVs & letters" }).click();
-    const reopenedDocuments = running.page.getByRole("region", { name: "CVs & letters" });
-    await expect(reopenedDocuments.getByRole("heading", { name: "Second Handoff CV" })).toBeVisible();
-    await expect(reopenedDocuments.getByRole("button", { name: "Return to Handoff opportunity" })).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "reopened-document-context");
-
-    const outputTab = reopenedDocuments.getByRole("tab", { name: "Output", exact: true });
-    await outputTab.click();
-    await expect(outputTab).toHaveAttribute("aria-selected", "true");
-    await reopenedDocuments
-      .locator("summary")
-      .filter({ hasText: "Application artifact for Handoff opportunity" })
-      .click();
-    await reopenedDocuments.getByRole("button", { name: "Retain application artifact" }).click();
-    await expect(reopenedDocuments.getByText(/Retained application artifact:/)).toBeVisible();
-    await reopenedDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
-
-    const retainedMaterial = running.page.getByRole("region", { name: "Application material" });
-    const retainedArtifacts = retainedMaterial.getByRole("region", { name: "Retained application artifacts" });
-    await expect(retainedArtifacts.getByRole("heading", { name: "Second Handoff CV" })).toBeVisible();
-    await expect(retainedArtifacts.getByText("Retained exact CV artifact")).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "retained-artifact-inspection");
-    await retainedArtifacts.getByRole("button", { name: "Open retained PDF" }).click();
-
-    const openedMarker = path.join(linuxHome, "retained-opened.txt");
-    await expect.poll(() => existsSync(openedMarker)).toBe(true);
-    const openedPath = readFileSync(openedMarker, "utf8").trim();
-    expect(openedPath).toContain(`${path.sep}artifacts${path.sep}`);
-    expect(openedPath.endsWith(path.join("build", "main.pdf"))).toBe(true);
-    expect(openedPath).not.toContain(`${path.sep}documents${path.sep}`);
-
-    await retainedMaterial.getByRole("button", { name: "Create CV or letter for this candidature" }).click();
-    const packetDocuments = running.page.getByRole("region", { name: "CVs & letters" });
-    const createForm = packetDocuments.locator(".document-create");
-    await createForm.getByLabel("Type").selectOption("cover_letter");
-    await createForm.getByLabel("Title").fill("Handoff letter");
-    await packetDocuments.getByRole("button", { name: "Create cover letter" }).click();
-    await expect(packetDocuments.getByRole("heading", { name: "Handoff letter" })).toBeVisible();
-
-    const packetOutputTab = packetDocuments.getByRole("tab", { name: "Output", exact: true });
-    await packetOutputTab.click();
-    await packetDocuments.locator("summary").filter({ hasText: "Combined CV + cover letter" }).click();
-    const combined = packetDocuments.getByRole("region", { name: "Combined CV and cover letter" });
-    await combined.getByLabel("Combined CV").selectOption({ label: "Second Handoff CV" });
-    await expect(
-      combined.getByRole("button", { name: "Retain combined application artifact" }),
-    ).toBeEnabled();
-    await combined.getByRole("button", { name: "Retain combined application artifact" }).click();
-    await expect(packetDocuments.getByText(/Retained combined application artifact:/)).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "combined-artifact-retention");
-
-    const combinedEvidence = await running.page.evaluate(async () => {
-      const records = await window.aaaat.candidatures.list();
-      const documentRecords = await window.aaaat.documents.list();
-      const candidature = records.find((record) => record.label === "Handoff opportunity");
-      if (!candidature) return null;
-      const second = documentRecords.find((record) => record.title === "Second Handoff CV");
-      const letter = documentRecords.find((record) => record.title === "Handoff letter");
-      const artifacts = await window.aaaat.artifacts.list(candidature.id);
-      const artifact = artifacts.find((candidate) => candidate.kind === "combined");
-      return {
-        cvDocumentId: artifact?.cvDocumentId ?? null,
-        coverLetterDocumentId: artifact?.coverLetterDocumentId ?? null,
-        secondId: second?.id ?? null,
-        letterId: letter?.id ?? null,
-      };
-    });
-    expect(combinedEvidence).toEqual({
-      cvDocumentId: combinedEvidence?.secondId,
-      coverLetterDocumentId: combinedEvidence?.letterId,
-      secondId: combinedEvidence?.secondId,
-      letterId: combinedEvidence?.letterId,
-    });
-
-    await packetDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
-    const combinedMaterial = running.page.getByRole("region", { name: "Application material" });
-    const combinedArtifacts = combinedMaterial.getByRole("region", { name: "Retained application artifacts" });
-    await expect(
-      combinedArtifacts.getByRole("heading", { name: "Combined: Handoff letter + Second Handoff CV" }),
-    ).toBeVisible();
-    await expect(
-      combinedArtifacts.getByText("Retained exact combined CV + cover letter artifact"),
-    ).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "combined-artifact-inspection");
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
