@@ -19,21 +19,23 @@ Replace the current selected-record-first candidature UI with the recovered AAAA
 - Selected Focus is read-first but directly editable for displayed fields.
 - Tags are contextual shared glossary/wiki knowledge and replace the competing `Concepts` product/domain vocabulary.
 - Complete candidature work is independently reachable and exposes all information/Sources/Tags/application material through progressive disclosure.
-- New candidature capture is raw-material-first: retain whatever the user has without requiring dedicated title/URL/source-kind/lifecycle fields.
-- Saving capture must not force one universal next journey.
+- The candidature field set is user-maintainable product data. Shipped fields are defaults, not a fixed ontology; users can add/edit meaningful field definitions for different professions, and configured AI extraction targets the current enabled/discoverable field set.
+- **New candidature has two peer direct approaches:** fill useful fields directly, or paste raw material with minimal friction.
+- Raw capture retains the material first as a Source. The post-paste surface then exposes **Send to AI** and **Fill candidature yourself** as explicit peer choices; the manual path keeps the retained Source and editable fields together and remains complete with no AI.
+- Retaining raw material alone is already a valid successful outcome; neither AI nor manual structuring is mandatory afterward.
 - Reminders, Sources, documents and Activity do not become default Focus clutter.
 - No lifecycle/status/priority/next-action/completeness machinery is introduced.
 
 ## Preserve where independently justified
 
-- local authoritative workspace and manual/no-AI operation;
-- flexible candidature field/value model and future user-maintainable field direction;
+- local authoritative workspace and complete manual/no-AI operation;
+- flexible user-maintainable candidature field/value model;
 - first-class Sources and full Source readability;
 - useful candidature search semantics;
 - candidature ↔ VCVGenerator handoffs and application-material relationships;
 - archive as secondary corpus organization;
-- dirty-state protection;
-- bounded optional AI extraction/field assistance;
+- dirty-state protection across field, Tag, Source and document work;
+- bounded optional AI extraction/field assistance against user-configured fields;
 - narrow renderer/preload/main mutation boundaries.
 
 ## Excluded
@@ -41,16 +43,17 @@ Replace the current selected-record-first candidature UI with the recovered AAAA
 - professional-information taxonomy redesign;
 - VCVGenerator redesign;
 - provider/integration redesign;
-- job discovery;
+- job discovery inside AAAAT;
 - lifecycle/status/priority/next-action features;
 - reminder/task-management expansion;
 - generic dashboard/framework work;
+- deterministic/embedded extraction heuristics for company/role/salary in this Issue;
 - compatibility with development-only workspace schemas.
 
 ## Review / evidence
 
 Treat #314 as Class C. Require independent Reviewer and Skeptical Simplifier assessment after implementation.
 
-Verification must protect behavior rather than the new component arrangement. Packaged `720×600` evidence must cover corpus Focus → selected Focus → inline edit → back, plus direct complete-candidature entry.
+Verification must protect behavior rather than the new component arrangement. Packaged `720×600` evidence must cover corpus Focus → selected Focus → inline edit → back, direct complete-candidature entry, and raw Source → explicit AI/manual choices → manual Source-to-fields work without AI.
 
 Do not activate a successor until #314 is complete and reconciled against the recovered product authority.
