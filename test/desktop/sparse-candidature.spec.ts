@@ -257,68 +257,66 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
   }
 });
 
-test("packaged raw capture, complete editing and selected Focus stay usable at 720x600", async () => {
+test("packaged raw capture exposes explicit AI/manual choices and manual Source-to-fields work at 720x600", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-capture-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-capture-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
   const rawMaterial =
-    "Recruiter asks whether I can start in October and mentions a Madrid-based role.";
+    "Aster Aviation seeks a captain in Madrid. Salary 120000. International routes.";
   let running: RunningApp | undefined;
 
   try {
     running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expectNoHorizontalOverflow(running.page, 720, 600);
     await createWorkspace(running);
+    await expectNoHorizontalOverflow(running.page, 720, 600);
 
-    await running.page.getByTestId("new-candidature-capture").click();
+    await expect(
+      running.page.getByRole("button", { name: "New candidature — fill fields" }),
+    ).toBeVisible();
+    await expect(
+      running.page.getByRole("button", { name: "New candidature — paste raw material" }),
+    ).toBeVisible();
+
+    await running.page.getByRole("button", { name: "New candidature — paste raw material" }).click();
     await expect(running.page.getByRole("heading", { name: "Paste whatever you have." })).toBeVisible();
     await running.page.getByLabel("Candidature material").fill(rawMaterial);
     expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(0);
-    await running.page.getByRole("button", { name: "Save candidature" }).click();
+    await running.page.getByRole("button", { name: "Keep raw material" }).click();
 
-    const corpus = running.page.getByLabel("Candidature corpus Focus");
-    await expect(corpus).toBeVisible();
-    await expect(running.page.getByRole("region", { name: "Candidature Focus", exact: true })).toHaveCount(0);
-    await expect(corpus).toContainText(rawMaterial);
-
-    const card = corpus.locator(".candidature-corpus-card").first();
-    await card.getByRole("button", { name: "Edit candidature" }).click();
-    const complete = running.page.getByRole("region", { name: "Complete candidature" });
-    const information = complete.getByRole("region", { name: "Candidature information" });
-
-    await information.getByText("+ Add information", { exact: true }).click();
-    await information.getByText("Add something not listed", { exact: true }).click();
-    await information.getByLabel("Name").fill("Availability");
-    await information.getByRole("button", { name: "Add information kind" }).click();
-    const addInformation = information.locator(".add-information-panel");
-    const valueInput = addInformation.locator(".candidature-value-editor input[type='text']");
-    await expect(valueInput).toBeVisible();
-    await valueInput.fill("October or November");
-    await addInformation.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(information.getByRole("heading", { name: "Availability" })).toBeVisible();
-
-    await information.getByText("Focus and AI visibility", { exact: true }).click();
-    const availabilityPreference = information.locator(".field-preference-list .editor-card").filter({ hasText: "Availability" });
-    const focusCheckbox = availabilityPreference.getByRole("checkbox", { name: "Show in Focus when retained" });
-    if (!(await focusCheckbox.isChecked())) await focusCheckbox.check();
-
-    await complete.getByRole("button", { name: "Back to candidatures" }).click();
-    await card.locator("button.candidature-focus-entry").click();
-    const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
-    const availability = selectedFocus.locator(".focus-block").filter({ hasText: "Availability" });
-    await expect(availability).toContainText("October or November");
-    await availability.getByRole("button", { name: "Edit", exact: true }).click();
-    const availabilityInput = availability.locator("input[type='text']");
-    await availabilityInput.fill("October through December");
-    await availability.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(availability).toContainText("October through December");
+    const saved = running.page.getByRole("region", { name: "Raw candidature saved" });
+    await expect(saved).toBeVisible();
+    await expect(saved.getByRole("button", { name: "Send to AI" })).toBeDisabled();
+    await expect(saved.getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
+    await expect(saved).toContainText(rawMaterial);
     await expectNoHorizontalOverflow(running.page, 720, 600);
 
-    await running.page.getByTestId("new-candidature-capture").click();
-    await running.page.getByLabel("Candidature material").fill("Unsaved narrow-window capture");
-    running.page.once("dialog", (dialog) => void dialog.accept());
-    await running.page.getByRole("button", { name: "Cancel" }).click();
-    await expect(selectedFocus).toBeVisible();
+    await saved.getByRole("button", { name: "Fill candidature yourself" }).click();
+    const manual = running.page.getByRole("region", { name: "Fill candidature yourself" });
+    await expect(manual.getByRole("region", { name: "Raw candidature material" })).toContainText(rawMaterial);
+    const fields = manual.getByRole("region", { name: "Candidature fields" });
+    const roleCard = fields.locator(".retained-information-card").filter({ hasText: "Role" });
+    const roleInput = roleCard.getByRole("textbox");
+    await roleInput.fill("Captain");
+    await roleCard.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(roleCard).toContainText("Captain");
+    await expectNoHorizontalOverflow(running.page, 720, 600);
+
+    await manual.getByRole("button", { name: "Done" }).click();
+    const corpus = running.page.getByLabel("Candidature corpus Focus");
+    await expect(corpus).toBeVisible();
+    const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
+    await expect(card).toBeVisible();
+    await card.locator("button.candidature-focus-entry").click();
+
+    const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
+    const roleBlock = selectedFocus.locator(".focus-block").filter({ hasText: "Role" });
+    await expect(roleBlock).toContainText("Captain");
+    await roleBlock.getByRole("button", { name: "Edit", exact: true }).click();
+    await roleBlock.getByRole("textbox").fill("Senior Captain");
+    await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(roleBlock).toContainText("Senior Captain");
+    await expectNoHorizontalOverflow(running.page, 720, 600);
+
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {
     if (running) await stopPackagedApp(running);
