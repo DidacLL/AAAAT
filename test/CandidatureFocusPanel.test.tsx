@@ -136,8 +136,11 @@ describe("selected candidature Focus", () => {
     const tags = screen.getByRole("region", { name: "Tags" });
     expect(within(tags).getByRole("button", { name: "Incident response" })).toBeInTheDocument();
     expect(within(tags).getByText(tag.definition)).toBeInTheDocument();
-    expect(within(tags).getByText(/Aliases:/)).toHaveTextContent("IR");
-    expect(within(tags).getByText(/Notes:/)).toHaveTextContent(tag.notes ?? "");
+    const aliasesLine = within(tags).getByText("Aliases:").parentElement;
+    const notesLine = within(tags).getByText("Notes:").parentElement;
+    if (!aliasesLine || !notesLine) throw new Error("Tag detail lines missing");
+    expect(aliasesLine).toHaveTextContent("IR");
+    expect(notesLine).toHaveTextContent(tag.notes ?? "");
     expect(screen.queryByText(/Concept/i)).not.toBeInTheDocument();
 
     await userEvent.setup().click(within(tags).getByRole("button", { name: "Incident response" }));
