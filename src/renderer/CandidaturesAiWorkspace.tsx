@@ -53,10 +53,7 @@ export function CandidaturesAiWorkspace({
   ]);
 
   useEffect(() => {
-    if (!savedSource) {
-      setAiExtractionAvailable(null);
-      return;
-    }
+    if (!savedSource) return;
     let active = true;
     void window.aaaat.aiConnections
       .list()
@@ -94,6 +91,7 @@ export function CandidaturesAiWorkspace({
       return;
     }
     setSavedSource(null);
+    setAiExtractionAvailable(null);
     setPostPasteMode("choose");
     setCreationMode(mode);
     setCaptureError(null);
@@ -117,6 +115,7 @@ export function CandidaturesAiWorkspace({
       });
       setCaptureText("");
       setCreationMode("idle");
+      setAiExtractionAvailable(null);
       setSavedSource({
         candidatureId: created.id,
         source: {
@@ -138,6 +137,7 @@ export function CandidaturesAiWorkspace({
 
   const finishPostPaste = () => {
     setSavedSource(null);
+    setAiExtractionAvailable(null);
     setPostPasteMode("choose");
     setExtractionDirty(false);
     setManualEntryDirty(false);
