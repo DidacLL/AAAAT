@@ -120,7 +120,11 @@ function installApi(aiAvailable = false) {
     aiConnections: {
       list: vi.fn().mockResolvedValue(
         aiAvailable
-          ? [{ validatedOperations: ["job_extraction"] }]
+          ? [{
+              validatedOperations: ["job_extraction"],
+              defaultForOperations: ["job_extraction"],
+              isDefault: false,
+            }]
           : [],
       ),
     },
