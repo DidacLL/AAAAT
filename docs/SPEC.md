@@ -26,9 +26,13 @@ The repository uses the committed Node/npm toolchain, Vite and Electron Forge fo
 
 Keep structurally meaningful domain objects explicit: candidatures, Sources, Tags, professional information and variants, documents and artifacts, optional AI connections, and secondary candidature-attached notes/checkables where useful. Do not collapse them into generic records, arbitrary CRUD, a generic content repository, or a generic workflow model.
 
-Normal user-facing information shares repeated behavior where real cases demonstrate it: editing, clearing/removal where domain semantics permit it, retrieval, AI disclosure control, and Focus presentation. The technical field/value representation is an implementation aid. It must not force ordinary users to manage schemas, identifiers, field types, cardinality, or database-like configuration.
+Normal user-facing information shares repeated behavior where real cases demonstrate it: editing, clearing/removal where domain semantics permit it, retrieval, AI disclosure control, and Focus presentation. The technical field/value representation is an implementation aid. Ordinary value entry must not force users to think in schemas, identifiers, field types, cardinality, or database-like configuration.
 
-Existing explicit v2 fields may adapt incrementally. Do not introduce generic EAV persistence, a new framework, or broad persistence unification without demonstrated user-facing duplication and a bounded technical reason.
+The candidature field set is nevertheless user-maintainable product data. Shipped definitions are defaults rather than a closed developer-owned ontology. Users can add or adapt field definitions—including meaningful type, cardinality and choice behavior—through progressively disclosed controls when their profession or search requires information the defaults do not cover. This ownership must not be removed merely to keep ordinary editing simple.
+
+Configured candidature extraction/discovery operates against the current field definitions and their explicit AI-discovery preferences. It must not silently use a hidden fixed ontology that users cannot shape. Focus visibility and AI disclosure remain independent from field existence and local storage.
+
+Do not introduce a second generic EAV abstraction, a new framework, or broad persistence unification around this field model. Preserve the bounded candidature field/value services already justified by the product.
 
 Sources remain explicit retained records. Original material is not replaced by extraction or enrichment, and local source search must reach useful retained title, URL, and text. Tags retain their narrow shared glossary/retrieval meaning. Secondary candidature-attached notes/checkables remain conveniences; they do not become a scheduler, generic task system, or AI-task subsystem.
 
@@ -79,7 +83,7 @@ Implement capabilities through small coherent slices that make the product more 
 
 | Technical destination | Required technical outcome |
 | --- | --- |
-| Reliable local information and retrieval | Raw Sources, sparse information, editing, search, Focus projections, and draft protection work through normal local domain services. |
+| Reliable local information and retrieval | Raw Sources, sparse user-maintainable information, editing, search, Focus projections, and draft protection work through normal local domain services. |
 | Context and operation boundaries | Wire contracts remain distinct from local state; context is deliberate and bounded; invalid or conflicting results cannot silently corrupt authoritative edits. |
 | Reusable documents | Independent document work, candidature-associated application material, portable source/output, and local rendering preserve user ownership. |
 | Accessible setup and recovery | Capabilities are described honestly; working software can be detected/reused; configuration and workspace recovery remain usable through normal product access. |
