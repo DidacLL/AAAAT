@@ -308,67 +308,64 @@ async function proveAcceptedShellAtWindowSize(
   );
 }
 
-async function assertSelectedCandidatureHierarchy(page: Page, width: number, height: number) {
-  const local = page.getByRole("tablist", { name: "Candidature sections" });
-  await expect(local).toBeVisible();
-  const tabs = local.getByRole("tab");
-  await expect(tabs).toHaveCount(4);
-  await expect(local.getByRole("tab", { name: "Focus" })).toBeVisible();
-  await expect(local.getByRole("tab", { name: "Information" })).toBeVisible();
-  await expect(local.getByRole("tab", { name: "Sources" })).toBeVisible();
-  await expect(local.getByRole("tab", { name: "Application material" })).toBeVisible();
-  await expect(local.getByRole("tab", { name: "Concepts" })).toHaveCount(0);
-  await expect(local.getByRole("tab", { name: "Documents" })).toHaveCount(0);
-  await expect(page.getByText("Customize Focus", { exact: true })).toBeVisible();
-
-  const geometry = await local.evaluate((element) => ({
-    clientWidth: element.clientWidth,
-    scrollWidth: element.scrollWidth,
-  }));
-  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
-  const pageGeometry = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }));
-  expect(pageGeometry.scrollWidth).toBeLessThanOrEqual(pageGeometry.clientWidth);
-  console.log(
-    `[packaged candidature] window=${String(width)}x${String(height)} state=selected local-nav-overflow=${String(geometry.scrollWidth - geometry.clientWidth)} horizontal-overflow=${String(pageGeometry.scrollWidth - pageGeometry.clientWidth)}`,
-  );
-}
-
-async function proveCandidatureHierarchyAtWindowSize(
+async function proveCandidatureFlowAtWindowSize(
   page: Page,
   width: number,
   height: number,
 ): Promise<void> {
   await proveAcceptedShellAtWindowSize(page, width, height);
 
-  if (width <= 820) {
-    const collection = page.getByRole("complementary", { name: "Candidature list" });
-    const local = page.getByRole("tablist", { name: "Candidature sections" });
-    const search = page.getByLabel("Search retained information");
-    const archive = page.getByLabel("Archive");
+  await expect(page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+  const search = page.getByRole("searchbox", { name: "Search candidatures" });
+  const show = page.getByLabel("Show");
+  const corpus = page.locator('[aria-label="Candidature corpus Focus"]');
+  await expect(search).toBeVisible();
+  await expect(show).toBeVisible();
+  await expect(corpus).toBeVisible();
+  await expect(page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
 
-    await expect(collection).toBeVisible();
-    await expect(local).not.toBeVisible();
-    await search.fill("packaged smoke");
-    await archive.selectOption("all");
-    await page.getByRole("button", { name: /packaged smoke/ }).click();
-    await expect(page.getByRole("button", { name: "Back to candidatures" })).toBeVisible();
-    await assertSelectedCandidatureHierarchy(page, width, height);
+  await search.fill("packaged smoke");
+  await show.selectOption("all");
+  const focusEntry = corpus.getByRole("button", { name: /packaged smoke/i }).first();
+  await expect(focusEntry).toBeVisible();
+  await focusEntry.click();
 
-    await page.getByRole("button", { name: "Back to candidatures" }).click();
-    await expect(collection).toBeVisible();
-    await expect(local).not.toBeVisible();
-    await expect(search).toHaveValue("packaged smoke");
-    await expect(archive).toHaveValue("all");
-    console.log(
-      `[packaged candidature] window=${String(width)}x${String(height)} state=collection query-preserved=true archive-preserved=true`,
-    );
-    return;
-  }
+  const selected = page.getByRole("region", { name: "Candidature Focus" });
+  await expect(selected).toBeVisible();
+  await expect(selected.getByRole("button", { name: "Back to candidatures" })).toBeVisible();
+  await expect(selected.getByRole("button", { name: "Edit full candidature" })).toBeVisible();
+  await expect(selected.getByRole("region", { name: "Selected candidature Focus" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Sources" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Application material" })).toHaveCount(0);
+  await expect(page.getByText("Activity", { selector: "summary" })).toHaveCount(0);
+  await expect(page.getByText(/Concept/i)).toHaveCount(0);
 
-  await assertSelectedCandidatureHierarchy(page, width, height);
+  await selected.getByRole("button", { name: "Back to candidatures" }).click();
+  await expect(search).toHaveValue("packaged smoke");
+  await expect(show).toHaveValue("all");
+  await expect(corpus).toBeVisible();
+
+  await page.getByRole("button", { name: "Edit candidature" }).click();
+  const complete = page.getByRole("region", { name: "Complete candidature" });
+  await expect(complete).toBeVisible();
+  await expect(complete.getByRole("region", { name: "Candidature information" })).toBeVisible();
+  await expect(complete.getByRole("region", { name: "Sources" })).toBeVisible();
+  await expect(complete.getByRole("region", { name: "Tags" })).toBeVisible();
+  await expect(complete.getByRole("region", { name: "Application material" })).toBeVisible();
+  await expect(page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
+  await expect(page.getByText(/Concept/i)).toHaveCount(0);
+  await complete.getByRole("button", { name: "Back to candidatures" }).click();
+
+  await expect(search).toHaveValue("packaged smoke");
+  await expect(show).toHaveValue("all");
+  const geometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+  console.log(
+    `[packaged candidature] window=${String(width)}x${String(height)} corpus-focus=true selected-focus=true direct-complete-edit=true state-preserved=true horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
+  );
 }
 
 function packagedDocumentId(workspacePath: string): string {
@@ -545,7 +542,7 @@ test("packaged desktop preserves security gates and required bounded capabilitie
       candidatureFieldSet: typeof window.aaaat.candidatures.setFieldValue,
       candidatureSources: typeof window.aaaat.candidatures.listSources,
       candidatureDocuments: typeof window.aaaat.candidatures.setDocuments,
-      candidatureConcepts: typeof window.aaaat.candidatures.setConcepts,
+      candidatureTags: typeof window.aaaat.candidatures.setTags,
       aiConnection: typeof window.aaaat.ai.connection,
       aiExtract: typeof window.aaaat.ai.extractJob,
       aiDiscoverField: typeof window.aaaat.ai.discoverField,
@@ -659,8 +656,8 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     running = await startPackagedApp(isolatedUserData, linuxHome, linuxDocumentTools);
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
-    await proveCandidatureHierarchyAtWindowSize(running.page, 1200, 800);
-    await proveCandidatureHierarchyAtWindowSize(running.page, 720, 600);
+    await proveCandidatureFlowAtWindowSize(running.page, 1200, 800);
+    await proveCandidatureFlowAtWindowSize(running.page, 720, 600);
     if (!linuxDocumentTools) throw new Error("Linux document tools are required for packaged evidence");
     await proveDocumentWorkspace(running.page, ownedWorkspace, linuxDocumentTools.openLogPath);
   } finally {
