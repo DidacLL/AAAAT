@@ -7,7 +7,6 @@ import type { AiConnectionDesktopApi } from "../src/shared/ai-connection-contrac
 import type { CareerContextAiDisclosureDesktopApi } from "../src/shared/career-context-ai-disclosure-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot, WorkspaceInfo } from "../src/shared/contracts";
 import type { SetupEnvironmentDesktopApi } from "../src/shared/setup-environment-contracts";
-import type { TodoDesktopApi } from "../src/shared/todo-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../src/shared/workspace-recovery-contracts";
 
 const readyWorkspace: WorkspaceInfo = { rootPath: "/tmp/aaaat-workspace" };
@@ -65,7 +64,6 @@ const desktopApi: DesktopApi &
   WorkspaceRecoveryDesktopApi &
   SetupEnvironmentDesktopApi &
   AiConnectionDesktopApi &
-  TodoDesktopApi &
   CareerContextAiDisclosureDesktopApi = {
   system: {
     info: async () => ({ appVersion: "2.0.0", electronVersion: "44.1.1", nodeVersion: "24.19.0" }),
@@ -85,13 +83,6 @@ const desktopApi: DesktopApi &
     setOperationDefault: async () => [],
     exportPortable: async () => "cancelled",
     importPortable: async () => ({ status: "cancelled", connections: [] }),
-  },
-  todos: {
-    list: async () => [],
-    create: unavailable,
-    update: unavailable,
-    toggle: unavailable,
-    remove: async () => [],
   },
   profile: {
     current: async () => emptyProfile,
