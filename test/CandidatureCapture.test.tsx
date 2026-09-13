@@ -223,4 +223,24 @@ describe("candidature creation", () => {
 
     expect(create).toHaveBeenCalledWith({ values: [{ fieldId, value: "Captain" }] });
   });
+
+  it("does not start creation over unsaved field-definition edits without confirmation", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<CandidaturesAiWorkspace />);
+
+    await screen.findByRole("heading", { name: "Candidatures" });
+    await user.click(screen.getByText("Manage candidature fields", { selector: "summary" }));
+    const editor = screen.getByRole("region", { name: "Edit candidature field" });
+    await user.selectOptions(within(editor).getByLabelText("Field"), fieldId);
+    const name = within(editor).getByLabelText("Name");
+    await user.clear(name);
+    await user.type(name, "Position title");
+
+    await user.click(screen.getByRole("button", { name: "New candidature — paste raw material" }));
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits and start a new candidature?");
+    expect(screen.queryByRole("region", { name: "New candidature raw capture" })).not.toBeInTheDocument();
+    expect(name).toHaveValue("Position title");
+  });
 });
