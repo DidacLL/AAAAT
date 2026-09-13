@@ -125,9 +125,9 @@ describe("sparse candidature capture", () => {
       values: [],
     });
 
-    expect(await screen.findByRole("region", { name: "Candidature corpus Focus" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("Candidature corpus Focus")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /Recruiter message/ })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Candidature Focus" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Candidature Focus", exact: true })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Back to candidatures" })).not.toBeInTheDocument();
   });
 
@@ -149,7 +149,7 @@ describe("sparse candidature capture", () => {
 
     expect(await screen.findByRole("button", { name: /New saved opportunity/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Older opportunity/ })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Candidature Focus" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Candidature Focus", exact: true })).not.toBeInTheDocument();
   });
 
   it("preserves corpus search and archive state across Focus navigation", async () => {
@@ -157,12 +157,12 @@ describe("sparse candidature capture", () => {
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
 
-    await screen.findByRole("region", { name: "Candidature corpus Focus" });
+    await screen.findByLabelText("Candidature corpus Focus");
     await user.type(screen.getByLabelText("Search candidatures"), "October");
     await user.selectOptions(screen.getByLabelText("Show"), "all");
 
     await user.click(await screen.findByRole("button", { name: /Recruiter message/ }));
-    expect(await screen.findByRole("region", { name: "Candidature Focus" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Candidature Focus", exact: true })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Back to candidatures" }));
 
     expect(screen.getByLabelText("Search candidatures")).toHaveValue("October");
