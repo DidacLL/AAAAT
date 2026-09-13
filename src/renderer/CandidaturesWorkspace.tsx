@@ -539,7 +539,7 @@ export function CandidaturesWorkspace({
           <button type="button" className="compact-secondary" onClick={returnToCorpus}>
             Back to candidatures
           </button>
-          <button type="button" className="compact-secondary" onClick={() => setMode("detail")}>
+          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "detail")}>
             Edit full candidature
           </button>
         </div>
@@ -579,7 +579,7 @@ export function CandidaturesWorkspace({
           <button type="button" className="compact-secondary" onClick={returnToCorpus}>
             Back to candidatures
           </button>
-          <button type="button" className="compact-secondary" onClick={() => setMode("focus")}>
+          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "focus")}>
             Open Focus
           </button>
           <button type="button" className="compact-secondary" onClick={() => void setArchived(!selected.archived)}>
