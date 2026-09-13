@@ -291,11 +291,15 @@ describe("rebuilt candidature workspace", () => {
     expect(platform).not.toBeChecked();
 
     const information = screen.getByRole("region", { name: "Candidature information" });
-    await user.click(within(information).getByRole("button", { name: "Edit" }));
-    const value = within(information).getByRole("textbox");
+    const organisationCard = within(information)
+      .getByRole("heading", { name: "Organisation" })
+      .closest("article");
+    if (!organisationCard) throw new Error("Organisation information card missing");
+    await user.click(within(organisationCard).getByRole("button", { name: "Edit" }));
+    const value = within(organisationCard).getByRole("textbox");
     await user.clear(value);
     await user.type(value, "Regional Air Europe");
-    await user.click(within(information).getByRole("button", { name: /^Save$/ }));
+    await user.click(within(organisationCard).getByRole("button", { name: /^Save$/ }));
 
     expect(within(tags).getByRole("checkbox", { name: /Platform/ })).not.toBeChecked();
     expect(within(tags).getByRole("button", { name: "Save Tag associations" })).toBeInTheDocument();
