@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useState } from "react";
 
 import type { JobExtractionRequest } from "../shared/ai-contracts";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
@@ -14,22 +14,16 @@ export function CandidaturesAiWorkspace({
   const [candidatureDirty, setCandidatureDirty] = useState(false);
   const [extractionDirty, setExtractionDirty] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
-  const [captureTitle, setCaptureTitle] = useState("");
-  const [captureUrl, setCaptureUrl] = useState("");
   const [captureText, setCaptureText] = useState("");
   const [captureSaving, setCaptureSaving] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
-  const [compactDetailOpen, setCompactDetailOpen] = useState(false);
-  const [postSaveSelectionId, setPostSaveSelectionId] = useState<string | undefined>();
   const [savedSource, setSavedSource] = useState<{
     candidatureId: string;
     source: JobExtractionRequest;
   } | null>(null);
 
-  const captureDirty =
-    captureOpen &&
-    (captureTitle.length > 0 || captureUrl.length > 0 || captureText.length > 0);
-  const canSaveCapture = captureUrl.trim().length > 0 || captureText.trim().length > 0;
+  const captureDirty = captureOpen && captureText.length > 0;
+  const canSaveCapture = captureText.trim().length > 0;
 
   useEffect(() => {
     onDirtyChange?.(candidatureDirty || extractionDirty || captureDirty);
@@ -38,8 +32,6 @@ export function CandidaturesAiWorkspace({
 
   const resetCapture = () => {
     setCaptureOpen(false);
-    setCaptureTitle("");
-    setCaptureUrl("");
     setCaptureText("");
     setCaptureError(null);
   };
@@ -60,14 +52,13 @@ export function CandidaturesAiWorkspace({
 
     setCaptureSaving(true);
     setCaptureError(null);
-    const url = captureUrl.trim();
     const sourceText = captureText.trim();
     try {
       const created = await window.aaaat.candidatures.create({
         source: {
-          kind: url && !sourceText ? "link" : "other",
-          title: captureTitle.trim(),
-          url,
+          kind: "other",
+          title: "",
+          url: "",
           sourceText,
         },
         values: [],
@@ -76,14 +67,12 @@ export function CandidaturesAiWorkspace({
       setSavedSource({
         candidatureId: created.id,
         source: {
-          sourceTitle: captureTitle.trim(),
-          sourceUrl: url,
+          sourceTitle: "",
+          sourceUrl: "",
           sourceText,
         },
       });
-      setPostSaveSelectionId(created.id);
       setRevision((current) => current + 1);
-      setCompactDetailOpen(true);
     } catch (reason) {
       setCaptureError(
         reason instanceof Error ? reason.message : "AAAAT could not save this candidature.",
@@ -93,81 +82,27 @@ export function CandidaturesAiWorkspace({
     }
   };
 
-  const openCompactDetail = (event: MouseEvent<HTMLDivElement>) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const candidatureButton = target.closest(".candidature-list > button");
-    if (!candidatureButton) return;
-
-    setCompactDetailOpen(true);
-    if (candidatureDirty && candidatureButton.classList.contains("selected-candidature")) {
-      event.stopPropagation();
-    }
-  };
-
-  const ownerClassName = [
-    "candidature-capture-owner",
-    captureOpen ? "candidature-capture-active" : "",
-    compactDetailOpen ? "compact-candidature-detail" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
   return (
-    <div className={ownerClassName} onClickCapture={openCompactDetail}>
-      {compactDetailOpen && !captureOpen ? (
-        <button
-          type="button"
-          className="compact-secondary compact-candidature-back"
-          onClick={() => setCompactDetailOpen(false)}
-        >
-          Back to candidatures
-        </button>
-      ) : null}
-
+    <div className={captureOpen ? "candidature-capture-owner candidature-capture-active" : "candidature-capture-owner"}>
       {captureOpen ? (
         <section className="candidature-capture-panel" aria-label="New candidature capture">
           <div>
             <p className="eyebrow">New candidature</p>
-            <h2>Paste or add whatever you have.</h2>
-            <p>
-              A recruiter message, raw offer, or URL is enough. You can add structured information later.
-            </p>
+            <h2>Paste whatever you have.</h2>
+            <p>Raw offer text, a recruiter message, a URL, fragments, or notes are enough.</p>
           </div>
-          <div className="candidature-capture-fields">
-            <label>
-              Short title <span>optional</span>
-              <input
-                value={captureTitle}
-                maxLength={200}
-                disabled={captureSaving}
-                onChange={(event) => setCaptureTitle(event.target.value)}
-                placeholder="Recruiter message"
-              />
-            </label>
-            <label>
-              URL
-              <input
-                type="url"
-                value={captureUrl}
-                maxLength={2048}
-                disabled={captureSaving}
-                onChange={(event) => setCaptureUrl(event.target.value)}
-                placeholder="https://…"
-              />
-            </label>
-            <label className="candidature-capture-material">
-              What you have
-              <textarea
-                rows={8}
-                value={captureText}
-                maxLength={50000}
-                disabled={captureSaving}
-                onChange={(event) => setCaptureText(event.target.value)}
-                placeholder="Paste the recruiter message, job offer, application text, or other material here."
-              />
-            </label>
-          </div>
+          <label className="candidature-capture-material">
+            Candidature material
+            <textarea
+              autoFocus
+              rows={10}
+              value={captureText}
+              maxLength={50000}
+              disabled={captureSaving}
+              onChange={(event) => setCaptureText(event.target.value)}
+              placeholder="Paste the material here. You can structure or enrich it later."
+            />
+          </label>
           <div className="button-row">
             <button
               type="button"
@@ -202,11 +137,8 @@ export function CandidaturesAiWorkspace({
         </div>
       )}
 
-      <CandidaturesWorkspace
-        key={revision}
-        initialSelectedId={postSaveSelectionId}
-        onDirtyChange={setCandidatureDirty}
-      />
+      <CandidaturesWorkspace key={revision} onDirtyChange={setCandidatureDirty} />
+
       {savedSource !== null ? (
         <JobExtractionPanel
           candidatureId={savedSource.candidatureId}
