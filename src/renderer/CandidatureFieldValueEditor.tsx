@@ -10,7 +10,7 @@ interface Props {
   readonly value?: CandidatureRuntimeValue;
   readonly onSave: (value: CandidatureRuntimeValue) => Promise<void>;
   readonly onClear: () => Promise<void>;
-  readonly onDiscover: () => void | Promise<void>;
+  readonly onDiscover?: () => void | Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -159,6 +159,7 @@ export function CandidatureFieldValueEditor({
   };
 
   const discover = async () => {
+    if (!onDiscover) return;
     setBusy(true);
     setError(null);
     try {
@@ -283,9 +284,11 @@ export function CandidatureFieldValueEditor({
             </button>
           </>
         ) : null}
-        <button type="button" className="compact-secondary" disabled={busy} onClick={() => void discover()}>
-          Discover from Sources
-        </button>
+        {onDiscover ? (
+          <button type="button" className="compact-secondary" disabled={busy} onClick={() => void discover()}>
+            Discover from Sources
+          </button>
+        ) : null}
       </div>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
     </div>
