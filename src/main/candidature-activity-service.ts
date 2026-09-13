@@ -38,8 +38,8 @@ function activityKind(action: string): CandidatureActivityKind {
       return "information_cleared";
     case "candidature.documents-updated":
       return "documents_updated";
-    case "candidature.concepts-updated":
-      return "concepts_updated";
+    case "candidature.tags-updated":
+      return "tags_updated";
     case "candidature.artifact.capture":
       return "artifact_retained";
     case "candidature.opportunity-research-access.allow":
