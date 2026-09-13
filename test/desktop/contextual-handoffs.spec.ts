@@ -194,6 +194,27 @@ test("packaged candidature document handoff returns to complete candidature with
       return Boolean(candidature && document && candidature.documentIds.includes(document.id));
     });
     expect(association).toBe(true);
+
+    const associationDetails = returnedMaterial.locator("details.application-material-associations");
+    await associationDetails.locator("summary").click();
+    const associationDraft = associationDetails.getByRole("checkbox", { name: "Handoff CV (CV)" });
+    await associationDraft.uncheck();
+    await expect(associationDetails.getByRole("button", { name: "Save document associations" })).toBeEnabled();
+
+    await working.getByRole("button", { name: "Open in CVs & letters" }).click();
+    await expect(documents.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
+    await documents.getByRole("button", { name: "Return to Handoff opportunity" }).click();
+
+    const roundTripMaterial = running.page
+      .getByRole("region", { name: "Complete candidature" })
+      .getByRole("region", { name: "Application material" });
+    const roundTripAssociations = roundTripMaterial.locator("details.application-material-associations");
+    if ((await roundTripAssociations.getAttribute("open")) === null) {
+      await roundTripAssociations.locator("summary").click();
+    }
+    await expect(roundTripAssociations.getByRole("checkbox", { name: "Handoff CV (CV)" })).not.toBeChecked();
+    await expect(roundTripAssociations.getByRole("button", { name: "Save document associations" })).toBeEnabled();
+
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {
     if (running) await stopPackagedApp(running);
