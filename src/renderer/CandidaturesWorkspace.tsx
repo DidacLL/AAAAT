@@ -120,20 +120,6 @@ export function CandidaturesWorkspace({
     setTagAliasesText("");
   }, []);
 
-  const loadAll = useCallback(async () => {
-    const [nextRecords, nextFields, nextDocuments, nextTags] = await Promise.all([
-      window.aaaat.candidatures.list(),
-      window.aaaat.candidatures.listFields(),
-      window.aaaat.documents.list(),
-      window.aaaat.candidatures.listTags(),
-    ]);
-    setRecords(nextRecords);
-    setFields(nextFields);
-    setDocuments(nextDocuments);
-    setTags(nextTags);
-    return nextRecords;
-  }, []);
-
   useEffect(() => {
     let active = true;
     void Promise.all([
@@ -148,8 +134,6 @@ export function CandidaturesWorkspace({
         setFields(nextFields);
         setDocuments(nextDocuments);
         setTags(nextTags);
-        setMode("corpus");
-        setSelectedId(null);
       })
       .catch(() => {
         if (active) setError("AAAAT could not load candidatures.");
@@ -186,10 +170,7 @@ export function CandidaturesWorkspace({
 
   const normalizedQuery = query.trim();
   useEffect(() => {
-    if (!normalizedQuery) {
-      setSearchResult(null);
-      return;
-    }
+    if (!normalizedQuery) return;
     let active = true;
     void window.aaaat.candidatureSearch
       .search({ query: normalizedQuery })
@@ -429,7 +410,10 @@ export function CandidaturesWorkspace({
               type="search"
               value={query}
               maxLength={200}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                if (!event.target.value.trim()) setSearchResult(null);
+              }}
               placeholder="Company, role, Source text, Tag…"
             />
           </label>
