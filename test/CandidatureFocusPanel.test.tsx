@@ -120,7 +120,7 @@ describe("selected candidature Focus", () => {
     const user = userEvent.setup();
     renderFocus();
 
-    const focus = screen.getByRole("region", { name: "Selected candidature Focus" });
+    const focus = screen.getByRole("region", { name: "Focus information" });
     expect(within(focus).getByRole("heading", { name: "Platform engineer" })).toBeInTheDocument();
     expect(within(focus).getByRole("heading", { name: "Role" })).toBeInTheDocument();
     expect(within(focus).getByText("Staff Platform Engineer")).toBeInTheDocument();
