@@ -330,7 +330,7 @@ async function proveCandidatureFlowAtWindowSize(
   await expect(focusEntry).toBeVisible();
   await focusEntry.click();
 
-  const selected = page.getByRole("region", { name: "Candidature Focus" });
+  const selected = page.getByRole("region", { name: "Candidature Focus", exact: true });
   await expect(selected).toBeVisible();
   await expect(selected.getByRole("button", { name: "Back to candidatures" })).toBeVisible();
   await expect(selected.getByRole("button", { name: "Edit full candidature" })).toBeVisible();
