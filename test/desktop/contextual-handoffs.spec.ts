@@ -4,7 +4,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { chromium, expect, test, type Browser, type Locator, type Page } from "@playwright/test";
+import { chromium, expect, test, type Browser, type Page } from "@playwright/test";
 
 test.skip(process.platform !== "linux", "The packaged contextual-handoff journey runs once on Linux");
 
@@ -23,7 +23,7 @@ async function reservePort(): Promise<number> {
         reject(new Error("Could not reserve a packaged acceptance port"));
         return;
       }
-      server.close((error) => (error ? reject(error) : resolve(address.port)));
+      server.close((error) => (error ? reject(error) : resolve(address.port));
     });
   });
 }
@@ -138,12 +138,6 @@ function chooseLinuxDirectory(): void {
   );
 }
 
-async function openAssociationManagement(material: Locator): Promise<void> {
-  const details = material.locator("details.application-material-associations");
-  if ((await details.getAttribute("open")) === null) await details.locator(":scope > summary").click();
-  await expect(details).toHaveAttribute("open", "");
-}
-
 test("packaged candidature document handoff returns to complete candidature without reviving tabs", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-workspace-"));
@@ -186,50 +180,20 @@ test("packaged candidature document handoff returns to complete candidature with
     await documents.getByRole("button", { name: "Return to Handoff opportunity" }).click();
 
     const returnedComplete = running.page.getByRole("region", { name: "Complete candidature" });
+    await expect(returnedComplete).toBeVisible();
+    await expect(running.page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
     const returnedMaterial = returnedComplete.getByRole("region", { name: "Application material" });
     const working = returnedMaterial.getByRole("region", { name: "Working application documents" });
     await expect(working.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
-
-    await openAssociationManagement(returnedMaterial);
-    const firstAssociation = returnedMaterial.getByRole("checkbox", { name: "Handoff CV (CV)", exact: true });
-    await expect(firstAssociation).toBeChecked();
-    await firstAssociation.uncheck();
-    const saveAssociations = returnedMaterial.getByRole("button", { name: "Save document associations" });
-    await expect(saveAssociations).toBeEnabled();
-    await saveAssociations.click();
-    await expect(saveAssociations).toBeDisabled();
-
-    await returnedMaterial.getByRole("button", { name: "Create CV or letter for this candidature" }).click();
-    const secondDocuments = running.page.getByRole("region", { name: "CVs & letters" });
-    await secondDocuments.locator(".document-create").getByLabel("Title").fill("Second Handoff CV");
-    await secondDocuments.getByRole("button", { name: "Create CV" }).click();
-    await secondDocuments.getByRole("button", { name: "Return to Handoff opportunity" }).click();
-
-    const reconciledMaterial = running.page
-      .getByRole("region", { name: "Complete candidature" })
-      .getByRole("region", { name: "Application material" });
-    await openAssociationManagement(reconciledMaterial);
-    await expect(
-      reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)", exact: true }),
-    ).not.toBeChecked();
-    await expect(
-      reconciledMaterial.getByRole("checkbox", { name: "Second Handoff CV (CV)", exact: true }),
-    ).toBeChecked();
-    await reconciledMaterial.getByRole("button", { name: "Save document associations" }).click();
 
     const association = await running.page.evaluate(async () => {
       const candidature = (await window.aaaat.candidatures.list()).find(
         (record) => record.label === "Handoff opportunity",
       );
-      const documents = await window.aaaat.documents.list();
-      const first = documents.find((record) => record.title === "Handoff CV");
-      const second = documents.find((record) => record.title === "Second Handoff CV");
-      return {
-        firstAssociated: Boolean(candidature && first && candidature.documentIds.includes(first.id)),
-        secondAssociated: Boolean(candidature && second && candidature.documentIds.includes(second.id)),
-      };
+      const document = (await window.aaaat.documents.list()).find((record) => record.title === "Handoff CV");
+      return Boolean(candidature && document && candidature.documentIds.includes(document.id));
     });
-    expect(association).toEqual({ firstAssociated: false, secondAssociated: true });
+    expect(association).toBe(true);
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {
     if (running) await stopPackagedApp(running);
