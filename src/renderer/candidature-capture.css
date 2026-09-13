@@ -4,16 +4,19 @@
   gap: 16px;
 }
 
-.candidature-capture-action {
-  display: flex;
-  justify-content: flex-end;
+.candidature-capture-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.compact-candidature-back {
-  display: none;
+.candidature-capture-actions > button {
+  min-height: 44px;
 }
 
-.candidature-capture-panel {
+.candidature-capture-panel,
+.post-paste-choice,
+.candidature-manual-entry {
   display: grid;
   min-width: 0;
   gap: 16px;
@@ -23,22 +26,19 @@
   background: white;
 }
 
-.candidature-capture-panel h2 {
+.candidature-capture-panel h2,
+.post-paste-choice h2,
+.candidature-manual-entry h2 {
   margin: 0;
 }
 
-.candidature-capture-panel > div > p:not(.eyebrow) {
+.candidature-capture-panel > div > p:not(.eyebrow),
+.post-paste-choice > div > p:not(.eyebrow) {
   margin: 6px 0 0;
   color: var(--muted-ink);
 }
 
-.candidature-capture-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.candidature-capture-fields label {
+.candidature-capture-material {
   display: grid;
   min-width: 0;
   gap: 6px;
@@ -46,12 +46,7 @@
   font-size: 0.9rem;
 }
 
-.candidature-capture-fields label > span {
-  font-size: 0.78rem;
-}
-
-.candidature-capture-fields input,
-.candidature-capture-fields textarea {
+.candidature-capture-material textarea {
   width: 100%;
   min-width: 0;
   padding: 9px 10px;
@@ -59,47 +54,102 @@
   border-radius: 7px;
   background: white;
   color: var(--ink);
-}
-
-.candidature-capture-fields textarea {
   resize: vertical;
 }
 
-.candidature-capture-material {
-  grid-column: 1 / -1;
+.post-paste-source-preview,
+.manual-source-pane pre {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft-surface, #f7f7f5);
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+
+.post-paste-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.post-paste-actions > button {
+  min-height: 48px;
+}
+
+.manual-entry-layout {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+
+.manual-entry-layout.with-source {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.manual-source-pane,
+.manual-fields-pane {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.manual-source-pane h3,
+.manual-fields-pane h3 {
+  margin: 0;
+}
+
+.manual-field-list,
+.field-definitions-content,
+.field-definition-form {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.field-definitions-panel {
+  min-width: 0;
+}
+
+.field-definitions-panel > summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.field-definitions-content {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+}
+
+.field-definition-form label,
+.field-definitions-content > .editor-card > label {
+  display: grid;
+  gap: 6px;
 }
 
 @media (max-width: 820px) {
-  .candidature-capture-action {
-    justify-content: stretch;
-  }
-
-  .candidature-capture-action > button {
-    width: 100%;
-  }
-
-  .candidature-capture-fields {
+  .candidature-capture-actions,
+  .post-paste-actions,
+  .manual-entry-layout.with-source {
     grid-template-columns: 1fr;
   }
 
-  .candidature-capture-material {
-    grid-column: auto;
+  .candidature-capture-actions > button,
+  .post-paste-actions > button {
+    width: 100%;
   }
 
-  .compact-candidature-back {
-    display: inline-flex;
-    width: fit-content;
-  }
-
-  .candidature-capture-active > .candidatures-workspace,
-  .compact-candidature-detail > .candidatures-workspace > .candidature-toolbar,
-  .compact-candidature-detail > .candidatures-workspace > .candidature-filters,
-  .compact-candidature-detail .candidature-list,
-  .candidature-capture-owner:not(.compact-candidature-detail) .candidature-editor {
-    display: none;
-  }
-
-  .compact-candidature-detail .candidature-layout {
-    display: block;
+  .post-paste-source-preview,
+  .manual-source-pane pre {
+    max-height: 240px;
   }
 }
