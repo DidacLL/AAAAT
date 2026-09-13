@@ -18,6 +18,7 @@ A user may arrive because:
 
 - a recruiter is calling and one candidature must be found immediately;
 - the user has just found an opportunity elsewhere and wants to retain raw material;
+- the user wants to create a candidature directly from fields they already know;
 - the user wants to inspect or correct one candidature;
 - the user wants to create or revise a CV or letter with no candidature involved;
 - the user is maintaining reusable professional information;
@@ -33,13 +34,17 @@ The user may discover opportunities manually, through job sites, recruiters, soc
 
 Conversely, an external AI may legitimately perform job search/research and then use AAAAT's bounded capabilities. The boundary is ownership of AAAAT data/operations, not a rule about what must happen first in time.
 
-## Raw material is already useful
+## Raw material is already useful, and manual structuring must stay easy
 
 The owner repeatedly described low-friction capture as retaining whatever exists now. A pasted offer, recruiter message, URL-containing text, form content or fragment is useful before it is structured.
 
 This is why capture must not begin with a large conventional application form or source-classification ceremony.
 
-AI extraction can reduce effort after retention, but absence of AI does not make capture incomplete.
+But raw capture is not synonymous with AI capture. A complete no-AI path is: retain the raw text, keep it visible, put the candidature fields beside it, and let the user copy or enter values without repeatedly switching screens. On a narrow desktop the two areas may stack, but they remain one task surface.
+
+AI extraction is a peer option after raw capture, not the normal next stage. The user should see clearly whether an action sends retained material to an AI or keeps the work manual. A generic intermediate “structure this candidature” action would hide that important distinction.
+
+Future deterministic or embedded extraction of obvious values such as company, role or salary may reduce effort further. That would be another convenience mechanism, not a prerequisite and not a reason to weaken the manual path.
 
 ## Focus solves a specific time-pressure problem
 
@@ -86,9 +91,13 @@ This is a different intention from rapid recall, not a required second half of t
 
 Company, role, salary, location, recruiter and similar fields are sensible defaults. They must not become a permanent developer-controlled taxonomy.
 
-The product has always needed to retain unforeseen information because useful facts differ dramatically between professions and opportunities.
+The product has always needed to retain unforeseen information because useful facts differ dramatically between professions and opportunities. A pilot may care about flight hours, licences, aircraft type and domestic/international operation; a software engineer may care about stack or remote policy; a script writer may care about format, genre, production context or rights.
 
-The ordinary user should not think in schema-administration terms. Advanced field-definition management may exist, but it is not the mental model of normal information editing.
+Therefore field definitions are user-maintainable product data, not merely a future extension point. The user can add and adapt definitions while the UI keeps that machinery secondary to normal value editing.
+
+This is also an AI boundary. Optional extraction works against the currently configured candidature fields. If users cannot shape the field set, the AI feature silently hardcodes the developer's idea of what a candidature is.
+
+The ordinary user should still think “I want to keep this information,” not “I want to administer a schema.” Progressive disclosure reconciles those two requirements: full ownership without schema-first UX.
 
 ## Tags are the lightweight shared wiki/glossary
 
