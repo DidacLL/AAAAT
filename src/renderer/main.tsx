@@ -15,13 +15,11 @@ import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contr
 import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-contracts";
 import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
 import type { DocumentOutputDesktopApi } from "../shared/document-output-contracts";
-import type { FocusDesktopApi, FocusMaterialPreferences } from "../shared/focus-contracts";
 import type {
   ProfileAiContextDesktopApi,
   ProfileAiContextUpdate,
 } from "../shared/profile-ai-context-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
-import type { TodoDesktopApi } from "../shared/todo-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-contracts";
 import { App } from "./App";
 import "./styles.css";
@@ -62,8 +60,6 @@ function createPreviewApi(): DesktopApi &
   CvDescriptorDesktopApi &
   DocumentOutputDesktopApi &
   ProfileAiContextDesktopApi &
-  TodoDesktopApi &
-  FocusDesktopApi &
   SetupEnvironmentDesktopApi &
   WorkspaceRecoveryDesktopApi {
   let careerContextAiDisclosure = defaultCareerContextAiDisclosure;
@@ -174,17 +170,6 @@ function createPreviewApi(): DesktopApi &
       capture: previewUnavailable,
       captureCombined: previewUnavailable,
       open: previewUnavailable,
-    }),
-    todos: Object.freeze({
-      list: async () => [],
-      create: previewUnavailable,
-      update: previewUnavailable,
-      toggle: previewUnavailable,
-      remove: async () => [],
-    }),
-    focus: Object.freeze({
-      current: async () => ({ sources: true, concepts: true, todos: true, documents: true }),
-      update: async (preferences: FocusMaterialPreferences) => preferences,
     }),
     setupEnvironment: Object.freeze({
       current: previewUnavailable,
