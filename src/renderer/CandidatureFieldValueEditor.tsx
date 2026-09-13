@@ -10,7 +10,7 @@ interface Props {
   readonly value?: CandidatureRuntimeValue;
   readonly onSave: (value: CandidatureRuntimeValue) => Promise<void>;
   readonly onClear: () => Promise<void>;
-  readonly onDiscover: () => Promise<void>;
+  readonly onDiscover: () => void | Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
