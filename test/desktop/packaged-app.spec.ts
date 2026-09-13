@@ -337,7 +337,7 @@ async function proveCandidatureFlowAtWindowSize(
   await expect(selected.getByRole("region", { name: "Selected candidature Focus" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Sources" })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Application material" })).toHaveCount(0);
-  await expect(page.getByText("Activity", { selector: "summary" })).toHaveCount(0);
+  await expect(page.locator("summary").filter({ hasText: "Activity" })).toHaveCount(0);
   await expect(page.getByText(/Concept/i)).toHaveCount(0);
 
   await selected.getByRole("button", { name: "Back to candidatures" }).click();
