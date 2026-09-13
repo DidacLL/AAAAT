@@ -190,7 +190,7 @@ describe("rebuilt candidature workspace", () => {
     await user.click(regionalEntry);
 
     const selected = screen.getByRole("region", { name: /^Candidature Focus$/ });
-    const focus = within(selected).getByRole("region", { name: "Focus information" });
+    const focus = within(selected).getByRole("region", { name: "Selected candidature Focus" });
     expect(within(focus).getByRole("heading", { name: "Organisation" })).toBeInTheDocument();
     expect(within(focus).queryByRole("heading", { name: "Minimum flight hours" })).not.toBeInTheDocument();
     expect(within(focus).getByRole("region", { name: "Tags" })).toHaveTextContent("Platform");
