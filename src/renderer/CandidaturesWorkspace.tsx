@@ -55,6 +55,7 @@ export function CandidaturesWorkspace({
 }) {
   const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
   const previousDocumentHandoff = useRef(documentHandoff);
+  const handoffDocumentIds = useRef<ReadonlySet<string> | null>(null);
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -79,6 +80,7 @@ export function CandidaturesWorkspace({
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [tagEditorDraft, setTagEditorDraft] = useState<TagInput>(emptyTag);
   const [tagAliasesText, setTagAliasesText] = useState("");
+  const [activityOpen, setActivityOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selected = records.find((record) => record.id === selectedId) ?? null;
@@ -104,11 +106,10 @@ export function CandidaturesWorkspace({
     return () => onDirtyChange?.(false);
   }, [hasUnsavedChanges, onDirtyChange]);
 
-  const hydrate = useCallback((record: CandidatureRecord) => {
-    setSelectedId(record.id);
-    setSelectedDocumentIds(record.documentIds);
-    setSelectedTagIds(record.tagIds);
-    setSelectedTagId(record.tagIds[0] ?? null);
+  const resetEditorDrafts = useCallback((record?: CandidatureRecord) => {
+    setSelectedDocumentIds(record?.documentIds ?? []);
+    setSelectedTagIds(record?.tagIds ?? []);
+    setSelectedTagId(record?.tagIds[0] ?? null);
     setSourceDirty(false);
     setValueEditorDirty(new Set());
     setDiscoveryFieldId(null);
@@ -118,7 +119,17 @@ export function CandidaturesWorkspace({
     setEditingTagId(null);
     setTagEditorDraft(emptyTag);
     setTagAliasesText("");
+    setActivityOpen(false);
   }, []);
+
+  const hydrate = useCallback(
+    (record: CandidatureRecord) => {
+      setSelectedId(record.id);
+      resetEditorDrafts(record);
+      setError(null);
+    },
+    [resetEditorDrafts],
+  );
 
   useEffect(() => {
     let active = true;
@@ -156,9 +167,24 @@ export function CandidaturesWorkspace({
         setDocuments(nextDocuments);
         const refreshed = nextRecords.find((record) => record.id === previous.candidatureId);
         if (refreshed) {
-          hydrate(refreshed);
+          const beforeHandoff = handoffDocumentIds.current;
+          const availableDocumentIds = new Set(nextDocuments.map((document) => document.id));
+          const newlyAssociatedDocumentIds = beforeHandoff
+            ? refreshed.documentIds.filter((id) => !beforeHandoff.has(id))
+            : [];
+          setSelectedDocumentIds((current) => {
+            const preserved = current.filter((id) => availableDocumentIds.has(id));
+            return [
+              ...preserved,
+              ...newlyAssociatedDocumentIds.filter(
+                (id) => availableDocumentIds.has(id) && !preserved.includes(id),
+              ),
+            ];
+          });
+          setSelectedId(refreshed.id);
           setMode("detail");
         }
+        handoffDocumentIds.current = null;
       })
       .catch(() => {
         if (active) setError("AAAAT could not refresh this candidature after returning.");
@@ -166,7 +192,7 @@ export function CandidaturesWorkspace({
     return () => {
       active = false;
     };
-  }, [documentHandoff, hydrate]);
+  }, [documentHandoff]);
 
   const normalizedQuery = query.trim();
   useEffect(() => {
@@ -203,7 +229,6 @@ export function CandidaturesWorkspace({
     setRecords((current) =>
       current.map((candidate) => (candidate.id === record.id ? record : candidate)),
     );
-    if (record.id === selectedId) hydrate(record);
   };
 
   const openRecord = (record: CandidatureRecord, nextMode: Exclude<CandidatureMode, "corpus">) => {
@@ -216,8 +241,8 @@ export function CandidaturesWorkspace({
     if (!confirmDiscard()) return;
     setMode("corpus");
     setSelectedId(null);
-    setSourceDirty(false);
-    setValueEditorDirty(new Set());
+    handoffDocumentIds.current = null;
+    resetEditorDrafts();
   };
 
   const setEditorDirty = (fieldId: string, dirty: boolean) => {
@@ -253,7 +278,9 @@ export function CandidaturesWorkspace({
   const setArchived = async (archived: boolean) => {
     if (!selected || !confirmDiscard()) return;
     try {
-      storeRecord(await window.aaaat.candidatures.update({ id: selected.id, archived }));
+      const updated = await window.aaaat.candidatures.update({ id: selected.id, archived });
+      storeRecord(updated);
+      resetEditorDrafts(updated);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not change archive state.");
     }
@@ -291,15 +318,20 @@ export function CandidaturesWorkspace({
     field: CandidatureFieldConfiguration,
     patch: Partial<CandidatureFieldConfiguration["preferences"]>,
   ) => {
+    const optimistic = {
+      ...field,
+      preferences: { ...field.preferences, ...patch },
+    };
+    replaceField(optimistic);
     try {
       replaceField(
         await window.aaaat.candidatures.updateFieldPreferences({
-          ...field.preferences,
-          ...patch,
+          ...optimistic.preferences,
           fieldId: field.definition.id,
         }),
       );
     } catch (reason) {
+      replaceField(field);
       setError(reason instanceof Error ? reason.message : "AAAAT could not save information settings.");
     }
   };
@@ -307,12 +339,12 @@ export function CandidaturesWorkspace({
   const saveDocuments = async () => {
     if (!selected) return;
     try {
-      storeRecord(
-        await window.aaaat.candidatures.setDocuments({
-          candidatureId: selected.id,
-          documentIds: selectedDocumentIds,
-        }),
-      );
+      const updated = await window.aaaat.candidatures.setDocuments({
+        candidatureId: selected.id,
+        documentIds: selectedDocumentIds,
+      });
+      storeRecord(updated);
+      setSelectedDocumentIds(updated.documentIds);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save document associations.");
     }
@@ -321,11 +353,14 @@ export function CandidaturesWorkspace({
   const saveTagAssociations = async () => {
     if (!selected) return;
     try {
-      storeRecord(
-        await window.aaaat.candidatures.setTags({
-          candidatureId: selected.id,
-          tagIds: selectedTagIds,
-        }),
+      const updated = await window.aaaat.candidatures.setTags({
+        candidatureId: selected.id,
+        tagIds: selectedTagIds,
+      });
+      storeRecord(updated);
+      setSelectedTagIds(updated.tagIds);
+      setSelectedTagId((current) =>
+        current && updated.tagIds.includes(current) ? current : updated.tagIds[0] ?? null,
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save Tag associations.");
@@ -375,12 +410,17 @@ export function CandidaturesWorkspace({
     try {
       const nextRecords = await window.aaaat.candidatures.list();
       setRecords(nextRecords);
-      const current = selectedId ? nextRecords.find((record) => record.id === selectedId) : null;
-      if (current) hydrate(current);
+      setSourceDirty(false);
     } catch {
       setError("AAAAT could not refresh the candidature after the Source changed.");
     }
-  }, [hydrate, selectedId]);
+  }, []);
+
+  const openDocument = (documentId?: string) => {
+    if (!selected) return;
+    handoffDocumentIds.current = new Set(selected.documentIds);
+    openDocumentFromCandidature(selected.id, documentId);
+  };
 
   const enabledMissingFields = selected
     ? fields.filter(
@@ -822,12 +862,15 @@ export function CandidaturesWorkspace({
         documentSelectionDirty={documentSelectionDirty}
         onDocumentSelectionChange={setSelectedDocumentIds}
         onSaveDocuments={() => void saveDocuments()}
-        onOpenDocument={(documentId) => openDocumentFromCandidature(selected.id, documentId)}
+        onOpenDocument={(documentId) => openDocument(documentId)}
       />
 
-      <details className="secondary-candidature-detail">
+      <details
+        className="secondary-candidature-detail"
+        onToggle={(event) => setActivityOpen(event.currentTarget.open)}
+      >
         <summary>Activity</summary>
-        <CandidatureActivityPanel candidatureId={selected.id} />
+        {activityOpen ? <CandidatureActivityPanel candidatureId={selected.id} /> : null}
       </details>
     </section>
   );
