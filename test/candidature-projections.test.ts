@@ -49,6 +49,20 @@ const locationField: CandidatureFieldConfiguration = {
   },
 };
 
+const roleField: CandidatureFieldConfiguration = {
+  definition: {
+    ...locationField.definition,
+    id: "00000000-0000-4000-8000-000000000422",
+    label: "Role",
+  },
+  preferences: {
+    ...locationField.preferences,
+    fieldId: "00000000-0000-4000-8000-000000000422",
+    focusVisible: true,
+    focusOrder: 0,
+  },
+};
+
 const reliabilityTag: TagRecord = {
   id: "00000000-0000-4000-8000-000000000421",
   name: "Reliability engineering",
@@ -89,6 +103,34 @@ describe("candidature renderer projection", () => {
 
     expect(candidatureRecognitionCues(rawFirst, [])).toEqual([
       { label: "Source", value: sourceText.slice(80).trim() },
+    ]);
+  });
+
+  it("never leaks retained fields that the user hid from corpus Focus", () => {
+    const candidateId = "00000000-0000-4000-8000-000000000417";
+    const candidate = {
+      ...record(candidateId),
+      label: "Regional Air",
+      values: [
+        {
+          candidatureId: candidateId,
+          fieldId: locationField.definition.id,
+          value: "Madrid",
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+        {
+          candidatureId: candidateId,
+          fieldId: roleField.definition.id,
+          value: "Pilot",
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+      ],
+    };
+
+    expect(candidatureRecognitionCues(candidate, [locationField, roleField], 3)).toEqual([
+      { label: "Role", value: "Pilot" },
     ]);
   });
 
