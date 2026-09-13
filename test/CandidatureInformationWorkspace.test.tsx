@@ -107,7 +107,7 @@ describe("complete candidature information editing", () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    await screen.findByRole("region", { name: "Candidature corpus Focus" });
+    await screen.findByLabelText("Candidature corpus Focus");
     await user.click(screen.getByRole("button", { name: "Edit candidature" }));
 
     const complete = await screen.findByRole("region", { name: "Complete candidature" });
