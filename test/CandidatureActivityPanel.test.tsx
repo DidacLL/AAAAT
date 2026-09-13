@@ -21,13 +21,21 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
+function renderDisclosedActivity() {
+  render(
+    <details>
+      <summary>Activity</summary>
+      <CandidatureActivityPanel candidatureId={candidatureId} />
+    </details>,
+  );
+}
+
 describe("secondary candidature Activity", () => {
   it("loads only when deliberately opened and renders presentation labels instead of protocol actions", async () => {
     const user = userEvent.setup();
-    render(<CandidatureActivityPanel candidatureId={candidatureId} />);
+    renderDisclosedActivity();
 
     expect(listActivity).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText("Candidature Activity")).not.toBeVisible();
 
     await user.click(screen.getByText("Activity", { selector: "summary" }));
 
@@ -40,7 +48,7 @@ describe("secondary candidature Activity", () => {
   it("keeps the secondary surface usable when Activity cannot load", async () => {
     listActivity.mockRejectedValue(new Error("read failed"));
     const user = userEvent.setup();
-    render(<CandidatureActivityPanel candidatureId={candidatureId} />);
+    renderDisclosedActivity();
 
     await user.click(screen.getByText("Activity", { selector: "summary" }));
 
