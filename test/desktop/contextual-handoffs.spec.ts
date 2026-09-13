@@ -191,7 +191,7 @@ test("packaged candidature document handoff returns to complete candidature with
     await expect(working.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
 
     await openAssociationManagement(returnedMaterial);
-    const firstAssociation = returnedMaterial.getByRole("checkbox", { name: "Handoff CV (CV)" });
+    const firstAssociation = returnedMaterial.getByRole("checkbox", { name: "Handoff CV (CV)", exact: true });
     await expect(firstAssociation).toBeChecked();
     await firstAssociation.uncheck();
     await expect(returnedMaterial.getByRole("button", { name: "Save document associations" })).toBeEnabled();
@@ -206,8 +206,12 @@ test("packaged candidature document handoff returns to complete candidature with
       .getByRole("region", { name: "Complete candidature" })
       .getByRole("region", { name: "Application material" });
     await openAssociationManagement(reconciledMaterial);
-    await expect(reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)" })).not.toBeChecked();
-    await expect(reconciledMaterial.getByRole("checkbox", { name: "Second Handoff CV (CV)" })).toBeChecked();
+    await expect(
+      reconciledMaterial.getByRole("checkbox", { name: "Handoff CV (CV)", exact: true }),
+    ).not.toBeChecked();
+    await expect(
+      reconciledMaterial.getByRole("checkbox", { name: "Second Handoff CV (CV)", exact: true }),
+    ).toBeChecked();
     await reconciledMaterial.getByRole("button", { name: "Save document associations" }).click();
 
     const association = await running.page.evaluate(async () => {
