@@ -1,6 +1,6 @@
 CREATE TABLE tags (
   id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
+  name TEXT NOT NULL COLLATE NOCASE UNIQUE,
   definition TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
   aliases_json TEXT NOT NULL DEFAULT '[]',
