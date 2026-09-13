@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
   CandidatureActivityKind,
@@ -31,26 +31,38 @@ function displayedTime(occurredAt: string): string {
 }
 
 export function CandidatureActivityPanel({ candidatureId }: Props) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [activity, setActivity] = useState<CandidatureActivityRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    void window.aaaat.candidatureActivity
-      .list(candidatureId)
-      .then((next) => {
-        if (active) setActivity(next);
-      })
-      .catch(() => {
-        if (active) setError("AAAAT could not load candidature Activity.");
-      });
+    let started = false;
+    const parentDisclosure = rootRef.current?.closest("details") ?? null;
+
+    const load = () => {
+      if (started || (parentDisclosure && !parentDisclosure.open)) return;
+      started = true;
+      void window.aaaat.candidatureActivity
+        .list(candidatureId)
+        .then((next) => {
+          if (active) setActivity(next);
+        })
+        .catch(() => {
+          if (active) setError("AAAAT could not load candidature Activity.");
+        });
+    };
+
+    load();
+    parentDisclosure?.addEventListener("toggle", load);
     return () => {
       active = false;
+      parentDisclosure?.removeEventListener("toggle", load);
     };
   }, [candidatureId]);
 
   return (
-    <div className="focus-secondary-content" aria-label="Candidature Activity">
+    <div ref={rootRef} className="focus-secondary-content" aria-label="Candidature Activity">
       {!activity && !error ? <p className="compact-help">Loading Activity…</p> : null}
       {error ? <p className="error-message" role="alert">{error}</p> : null}
       {!error && activity?.length === 0 ? (
