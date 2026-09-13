@@ -2,6 +2,15 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../src/renderer/CandidatureSourcesPanel", () => ({ CandidatureSourcesPanel: () => null }));
+vi.mock("../src/renderer/CandidatureApplicationMaterialPanel", () => ({
+  CandidatureApplicationMaterialPanel: () => null,
+}));
+vi.mock("../src/renderer/CandidatureActivityPanel", () => ({ CandidatureActivityPanel: () => null }));
+vi.mock("../src/renderer/HistoricalFieldDiscoveryPanel", () => ({
+  HistoricalFieldDiscoveryPanel: () => null,
+}));
+
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
 import type {
   CandidatureFieldConfiguration,
@@ -53,7 +62,7 @@ const record: CandidatureRecord = {
   sourceSearchText: "",
   values: [retained],
   documentIds: [],
-  conceptIds: [],
+  tagIds: [],
 };
 
 function installApi() {
@@ -75,48 +84,34 @@ function installApi() {
       updateSource: vi.fn(),
       removeSource: vi.fn(),
       setDocuments: vi.fn(),
-      listConcepts: vi.fn().mockResolvedValue([]),
-      createConcept: vi.fn(),
-      updateConcept: vi.fn(),
-      setConcepts: vi.fn(),
+      listTags: vi.fn().mockResolvedValue([]),
+      createTag: vi.fn(),
+      updateTag: vi.fn(),
+      setTags: vi.fn(),
     },
+    candidatureSearch: { search: vi.fn().mockResolvedValue([candidatureId]) },
     documents: { list: vi.fn().mockResolvedValue([]) },
-    todos: { list: vi.fn().mockResolvedValue([]) },
-    focus: {
-      current: vi.fn().mockResolvedValue({
-        sources: true,
-        concepts: true,
-        todos: true,
-        documents: true,
-      }),
-      update: vi.fn(),
-    },
-    ai: {
-      discoverField: vi.fn(),
-      previewOpportunityReview: vi.fn(),
-      reviewOpportunity: vi.fn(),
-      recommendVariant: vi.fn(),
-    },
-    profile: { current: vi.fn().mockResolvedValue({ items: [], variants: [] }) },
   } as unknown as DesktopApi;
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
 }
 
-describe("candidature Information local editing", () => {
+describe("complete candidature information editing", () => {
   beforeEach(() => installApi());
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
   });
 
-  it("keeps populated information read-first and protects a dirty local edit when leaving Information", async () => {
+  it("opens complete editing directly from corpus, keeps values read-first, and protects dirty edits on return", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    await screen.findByRole("region", { name: "Candidature Focus" });
-    await user.click(screen.getByRole("tab", { name: "Information" }));
-    const informationRegion = screen.getByRole("region", { name: "Candidature information" });
+    await screen.findByRole("region", { name: "Candidature corpus Focus" });
+    await user.click(screen.getByRole("button", { name: "Edit candidature" }));
+
+    const complete = await screen.findByRole("region", { name: "Complete candidature" });
+    const informationRegion = within(complete).getByRole("region", { name: "Candidature information" });
     const heading = within(informationRegion).getByRole("heading", { name: "Availability" });
     const card = heading.closest("article");
     if (!card) throw new Error("Retained information card missing");
@@ -130,9 +125,9 @@ describe("candidature Information local editing", () => {
     await user.clear(input);
     await user.type(input, "October through December");
 
-    await user.click(screen.getByRole("tab", { name: "Sources" }));
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved information value edits?");
-    expect(screen.getByRole("tab", { name: "Information" })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("button", { name: "Back to candidatures" }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits?");
+    expect(screen.getByRole("region", { name: "Complete candidature" })).toBeInTheDocument();
     expect(input).toHaveValue("October through December");
   });
 });
