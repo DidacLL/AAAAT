@@ -335,6 +335,69 @@
   margin-top: 11px;
 }
 
+/* Keep the backend's two distinct CV authorization boundaries, but expose one ordinary access area. */
+.document-advanced:has(.external-assistant-access-controls) > summary {
+  font-size: 0;
+}
+
+.document-advanced:has(.external-assistant-access-controls) > summary::after {
+  color: var(--muted-ink);
+  content: "External assistant access";
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.external-assistant-access-controls,
+.external-assistant-description {
+  margin-top: 10px;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.external-assistant-access-controls {
+  display: grid;
+  gap: 7px;
+}
+
+.external-assistant-access-controls h3,
+.external-assistant-access-controls p {
+  margin: 0;
+}
+
+.external-assistant-primary-toggle,
+.external-assistant-advanced label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.external-assistant-primary-toggle input,
+.external-assistant-advanced input {
+  width: auto;
+}
+
+.external-assistant-description > summary,
+.external-assistant-advanced > summary {
+  width: fit-content;
+  color: var(--muted-ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.external-assistant-description[open] .document-fields,
+.external-assistant-advanced[open] p {
+  margin-top: 8px;
+}
+
+.external-assistant-advanced {
+  padding: 7px 0 0;
+  border-top: 1px dashed var(--line-soft);
+}
+
 .document-empty {
   display: grid;
   min-height: min(38vh, 300px);
