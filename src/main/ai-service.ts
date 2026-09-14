@@ -438,7 +438,7 @@ function validateDiscoveryResult(
     );
     return normalized === null ? [] : [{ fieldId, value: normalized }];
   });
-  return jobExtractionResultSchema.parse({ proposals });
+  return jobExtractionResultSchema.parse({ proposals, newFields: providerResult.newFields });
 }
 
 export async function extractJob(
