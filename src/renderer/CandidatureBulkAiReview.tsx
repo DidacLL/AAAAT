@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import type { JobExtractionResult } from "../shared/ai-contracts";
+import type { PartialJobExtractionResult } from "../shared/ai-proposal-outcomes";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
@@ -9,6 +9,7 @@ import type {
 import {
   clearAiTask,
   markAiTaskFieldApplied,
+  recordAiTaskFieldIssue,
   useAiTask,
 } from "./ai-task-store";
 
@@ -20,7 +21,7 @@ interface Props {
 }
 
 function pendingProposals(
-  task: ReturnType<typeof useAiTask<JobExtractionResult>>,
+  task: ReturnType<typeof useAiTask<PartialJobExtractionResult>>,
   candidature: CandidatureRecord,
   fields: readonly CandidatureFieldConfiguration[],
 ) {
@@ -49,10 +50,13 @@ export function CandidatureBulkAiReview({
   onRetry,
 }: Props) {
   const taskId = `candidature-inference:${candidature.id}:missing`;
-  const task = useAiTask<JobExtractionResult>(taskId);
+  const task = useAiTask<PartialJobExtractionResult>(taskId);
   const applyingFieldIds = useRef(new Set<string>());
   const { safeMissing, conflicts } = pendingProposals(task, candidature, fields);
   const appliedCount = task?.appliedFieldIds?.length ?? 0;
+  const issues = task?.result?.issues ?? [];
+  const needsReview = conflicts.length + issues.length;
+  const unplacedIssues = issues.filter((issue) => issue.fieldId === null);
 
   useEffect(() => {
     if (task?.status !== "completed") return;
@@ -61,9 +65,22 @@ export function CandidatureBulkAiReview({
     for (const proposal of currentMissing) {
       if (applyingFieldIds.current.has(proposal.fieldId)) continue;
       applyingFieldIds.current.add(proposal.fieldId);
+      const field = fields.find((candidate) => candidate.definition.id === proposal.fieldId);
       void onSaveValue(proposal.fieldId, proposal.value)
         .then(() => {
           markAiTaskFieldApplied(taskId, proposal.fieldId);
+        })
+        .catch((reason: unknown) => {
+          recordAiTaskFieldIssue(taskId, {
+            kind: "invalid",
+            fieldId: proposal.fieldId,
+            fieldLabel: field?.definition.label ?? "Information",
+            proposedValue: proposal.value,
+            reason:
+              reason instanceof Error
+                ? reason.message
+                : "AAAAT could not retain this AI proposal.",
+          });
         })
         .finally(() => {
           applyingFieldIds.current.delete(proposal.fieldId);
@@ -103,28 +120,35 @@ export function CandidatureBulkAiReview({
       </div>
     );
   }
-  if (conflicts.length === 0) {
-    if (appliedCount > 0) {
-      return (
-        <div className="candidature-bulk-ai-review" role="status">
-          <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
-          <span>AI filled {appliedCount} missing field{appliedCount === 1 ? "" : "s"}. New values are marked below.</span>
-        </div>
-      );
-    }
-    const reviewed = (task.handledFieldIds ?? []).length > 0;
-    return reviewed ? null : (
+  if (needsReview > 0) {
+    return (
       <div className="candidature-bulk-ai-review" role="status">
-        <span>AI finished but did not find usable missing information.</span>
-        <button type="button" className="compact-secondary" onClick={retry}>Try again</button>
+        <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
+        <span>
+          {appliedCount > 0 ? `${appliedCount} fields filled · ` : ""}
+          {needsReview} need{needsReview === 1 ? "s" : ""} review
+        </span>
+        {unplacedIssues.length > 0 ? (
+          <span className="compact-help">
+            {unplacedIssues.map((issue) => issue.reason).join(" ")}
+          </span>
+        ) : null}
       </div>
     );
   }
-
-  return (
+  if (appliedCount > 0) {
+    return (
+      <div className="candidature-bulk-ai-review" role="status">
+        <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
+        <span>{appliedCount} field{appliedCount === 1 ? "" : "s"} filled</span>
+      </div>
+    );
+  }
+  const reviewed = (task.handledFieldIds ?? []).length > 0;
+  return reviewed ? null : (
     <div className="candidature-bulk-ai-review" role="status">
-      <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
-      <span>{conflicts.length} AI suggestion{conflicts.length === 1 ? "" : "s"} need review because a value already exists.</span>
+      <span>AI finished but did not find usable missing information.</span>
+      <button type="button" className="compact-secondary" onClick={retry}>Try again</button>
     </div>
   );
 }
