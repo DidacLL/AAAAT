@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import type { JobExtractionRequest } from "../shared/ai-contracts";
-import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsPanel";
 import { CandidatureManualEntryPanel } from "./CandidatureManualEntryPanel";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import "./candidature-capture.css";
@@ -19,7 +18,6 @@ export function CandidaturesAiWorkspace({
   const [candidatureDirty, setCandidatureDirty] = useState(false);
   const [extractionDirty, setExtractionDirty] = useState(false);
   const [manualEntryDirty, setManualEntryDirty] = useState(false);
-  const [fieldDefinitionsDirty, setFieldDefinitionsDirty] = useState(false);
   const [creationMode, setCreationMode] = useState<CreationMode>("idle");
   const [captureText, setCaptureText] = useState("");
   const [captureSaving, setCaptureSaving] = useState(false);
@@ -36,21 +34,10 @@ export function CandidaturesAiWorkspace({
 
   useEffect(() => {
     onDirtyChange?.(
-      candidatureDirty ||
-        extractionDirty ||
-        manualEntryDirty ||
-        fieldDefinitionsDirty ||
-        captureDirty,
+      candidatureDirty || extractionDirty || manualEntryDirty || captureDirty,
     );
     return () => onDirtyChange?.(false);
-  }, [
-    candidatureDirty,
-    captureDirty,
-    extractionDirty,
-    fieldDefinitionsDirty,
-    manualEntryDirty,
-    onDirtyChange,
-  ]);
+  }, [candidatureDirty, captureDirty, extractionDirty, manualEntryDirty, onDirtyChange]);
 
   useEffect(() => {
     if (!savedSource) return;
@@ -88,7 +75,7 @@ export function CandidaturesAiWorkspace({
 
   const openCreation = (mode: Exclude<CreationMode, "idle">) => {
     if (
-      (candidatureDirty || fieldDefinitionsDirty) &&
+      candidatureDirty &&
       !window.confirm("Discard unsaved candidature edits and start a new candidature?")
     ) {
       return;
@@ -151,7 +138,7 @@ export function CandidaturesAiWorkspace({
     return (
       <div className="candidature-capture-owner candidature-capture-active">
         <CandidatureManualEntryPanel
-          title="Fill candidature fields"
+          title="Enter candidature details"
           onDone={() => {
             setCreationMode("idle");
             setManualEntryDirty(false);
@@ -170,11 +157,11 @@ export function CandidaturesAiWorkspace({
         <section className="candidature-capture-panel" aria-label="New candidature raw capture">
           <div>
             <p className="eyebrow">New candidature</p>
-            <h2>Paste whatever you have.</h2>
-            <p>Any raw candidature material is enough. AAAAT keeps it as provided.</p>
+            <h2>Paste an offer, message or notes</h2>
+            <p>Paste whatever you have. Saving it is enough; you can add details later.</p>
           </div>
           <label className="candidature-capture-material">
-            Candidature material
+            Pasted material
             <textarea
               autoFocus
               rows={12}
@@ -182,7 +169,7 @@ export function CandidaturesAiWorkspace({
               maxLength={50000}
               disabled={captureSaving}
               onChange={(event) => setCaptureText(event.target.value)}
-              placeholder="Paste the material here."
+              placeholder="Paste the offer, recruiter message, copied page or notes here."
             />
           </label>
           <div className="button-row">
@@ -191,7 +178,7 @@ export function CandidaturesAiWorkspace({
               disabled={!canSaveCapture || captureSaving}
               onClick={() => void saveCapture()}
             >
-              {captureSaving ? "Saving…" : "Keep raw material"}
+              {captureSaving ? "Saving…" : "Save candidature"}
             </button>
             <button
               type="button"
@@ -215,7 +202,7 @@ export function CandidaturesAiWorkspace({
           <CandidatureManualEntryPanel
             candidatureId={savedSource.candidatureId}
             sourceText={savedSource.source.sourceText}
-            title="Fill candidature yourself"
+            title="Add details from the pasted text"
             onDone={finishPostPaste}
             onChanged={() => setRevision((current) => current + 1)}
             onDirtyChange={setManualEntryDirty}
@@ -229,7 +216,7 @@ export function CandidaturesAiWorkspace({
         <div className="candidature-capture-owner candidature-capture-active">
           <div className="candidature-context-actions">
             <button type="button" className="compact-secondary" onClick={() => setPostPasteMode("choose")}>
-              Back to choices
+              Back
             </button>
           </div>
           <JobExtractionPanel
@@ -247,9 +234,9 @@ export function CandidaturesAiWorkspace({
       <div className="candidature-capture-owner candidature-capture-active">
         <section className="post-paste-choice" aria-label="Raw candidature saved">
           <div>
-            <p className="eyebrow">Raw material saved</p>
-            <h2>How do you want to fill the candidature?</h2>
-            <p>The original material is already retained. These are optional next actions.</p>
+            <p className="eyebrow">Saved</p>
+            <h2>Add details now?</h2>
+            <p>Your pasted material is already kept. You can also return to candidatures now.</p>
           </div>
           <pre className="post-paste-source-preview">{savedSource.source.sourceText}</pre>
           <div className="post-paste-actions">
@@ -261,13 +248,13 @@ export function CandidaturesAiWorkspace({
               Send to AI
             </button>
             <button type="button" onClick={() => setPostPasteMode("manual")}>
-              Fill candidature yourself
+              Add details myself
             </button>
           </div>
           {aiExtractionAvailable === false ? (
-            <p className="compact-help">No extraction-capable AI connection is configured. Manual filling remains fully available.</p>
+            <p className="compact-help">AI extraction is not configured. Manual entry remains available.</p>
           ) : aiExtractionAvailable === null ? (
-            <p className="compact-help">Checking configured AI connections…</p>
+            <p className="compact-help">Checking AI availability…</p>
           ) : null}
           <button type="button" className="compact-secondary" onClick={finishPostPaste}>
             Back to candidatures
@@ -279,19 +266,15 @@ export function CandidaturesAiWorkspace({
 
   return (
     <div className="candidature-capture-owner">
-      <div className="candidature-capture-actions" aria-label="New candidature options">
+      <div className="candidature-capture-actions" aria-label="Create candidature">
+        <span className="candidature-new-label">New candidature</span>
         <button type="button" onClick={() => openCreation("manual")}>
-          New candidature — fill fields
+          Enter details
         </button>
         <button type="button" onClick={() => openCreation("raw")}>
-          New candidature — paste raw material
+          Paste text
         </button>
       </div>
-
-      <CandidatureFieldDefinitionsPanel
-        onChanged={() => setRevision((current) => current + 1)}
-        onDirtyChange={setFieldDefinitionsDirty}
-      />
 
       <CandidaturesWorkspace key={revision} onDirtyChange={setCandidatureDirty} />
     </div>
