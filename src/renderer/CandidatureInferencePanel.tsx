@@ -67,7 +67,7 @@ function sourceContext(
   );
 
   if (retained.length > 0) {
-    parts.push(`Already retained AI-shareable candidature information:\n${retained.join("\n")}`);
+    parts.push(`Already retained information allowed for AI use:\n${retained.join("\n")}`);
   }
   return parts.join("\n\n---\n\n").slice(0, 50000).trim();
 }
@@ -117,12 +117,15 @@ export function CandidatureInferencePanel({
   const proposals = (task?.result?.proposals ?? []).filter(
     (proposal) => targetSet.has(proposal.fieldId) && !handledFieldIds.has(proposal.fieldId),
   );
+  const requestLabel = requestedFields.length === 1
+    ? `Ask AI to find ${requestedFields[0]?.definition.label ?? "this information"}`
+    : "Ask AI to find missing information";
 
   const start = () => {
     if (!context || requestedFields.length === 0) return;
     startAiTask<JobExtractionResult>(taskId, async (updateDetail) => {
       updateDetail(
-        `AI is reading retained candidature context for ${requestedFields.length === 1 ? requestedFields[0]?.definition.label ?? "this field" : `${requestedFields.length} missing fields`}. Slow local models can take several minutes.`,
+        `Looking through retained Sources and information for ${requestedFields.length === 1 ? requestedFields[0]?.definition.label ?? "this information" : `${requestedFields.length} missing items`}. Slow local models can take several minutes.`,
       );
       return window.aaaat.ai.extractJob({
         sourceTitle: "Retained AAAAT candidature context",
@@ -140,28 +143,28 @@ export function CandidatureInferencePanel({
     <section className="candidature-inference-panel" aria-label="Candidature AI suggestions">
       <div className="candidature-editor-heading">
         <div>
-          <p className="eyebrow">Optional AI assistance</p>
+          <p className="eyebrow">AI suggestions</p>
           <h4>{title}</h4>
           <p>
-            AAAAT sends retained Sources plus candidature information explicitly allowed for AI use. Suggestions remain proposals until you save them.
+            AAAAT can look through retained Sources and information you allow AI to use. Nothing changes until you accept a suggestion.
           </p>
         </div>
         <button type="button" className="compact-secondary" onClick={onClose}>Hide</button>
       </div>
 
       {requestedFields.length === 0 ? (
-        <p className="compact-help">No requested information kind is currently enabled for AI suggestions. Use “Manage information kinds” to change that reusable setting.</p>
+        <p className="compact-help">AI suggestions are turned off for this information. You can change that under the secondary information customization controls.</p>
       ) : sources === null || aiReady === null ? (
-        <p role="status">Checking retained context and AI readiness…</p>
+        <p role="status">Checking whether AI is ready for this request…</p>
       ) : !aiReady ? (
         <div className="ai-task-failure">
-          <p>AI suggestions are not ready yet. Validate AI capabilities in Settings; manual editing remains fully available.</p>
+          <p>AI is not ready for this action yet. Open AI settings to check the connection. Manual editing remains available.</p>
           <button type="button" className="compact-secondary" onClick={() => openSettingsFor("ai", "candidatures")}>
             Open AI settings
           </button>
         </div>
       ) : !context ? (
-        <p className="compact-help">Retain Source text or AI-shareable candidature information before asking for a suggestion.</p>
+        <p className="compact-help">Keep some Source text or information allowed for AI use before asking AI to find a value.</p>
       ) : (
         <>
           <details className="ai-disclosure-preview">
@@ -175,20 +178,20 @@ export function CandidatureInferencePanel({
             <p role="status" className="ai-task-state">{task.detail ?? "Working…"}</p>
           ) : task?.status === "failed" ? (
             <div className="ai-task-failure" role="alert">
-              <strong>AI suggestion failed</strong>
+              <strong>AI could not finish this request</strong>
               <p>{task.error}</p>
             </div>
           ) : null}
 
           {!task || task.status === "failed" ? (
             <button type="button" disabled={active} onClick={start}>
-              {task?.status === "failed" ? "Retry AI suggestion" : "Request AI suggestions"}
+              {task?.status === "failed" ? "Retry AI request" : requestLabel}
             </button>
           ) : null}
 
           {task?.status === "completed" && proposals.length === 0 ? (
             <div>
-              <p role="status">AI completed the request but found no supported value for the requested information.</p>
+              <p role="status">AI finished but did not find a usable value for this information.</p>
               <button type="button" className="compact-secondary" onClick={start}>Try again</button>
             </div>
           ) : null}
@@ -203,7 +206,7 @@ export function CandidatureInferencePanel({
                   <article key={proposal.fieldId} className="retained-information-card ai-proposal-card">
                     <div>
                       <strong>{field.definition.label}</strong>
-                      <p>{existing ? "Proposed replacement. The current value is unchanged until you save." : "Proposed value. Nothing is retained until you save."}</p>
+                      <p>{existing ? "Suggested replacement. The current value stays unchanged until you save." : "Suggested value. Nothing is retained until you save."}</p>
                     </div>
                     <CandidatureFieldValueEditor
                       field={field}
