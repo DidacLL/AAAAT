@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type { JobExtractionResult } from "../shared/ai-contracts";
 import type {
@@ -27,15 +27,12 @@ export function CandidatureBulkAiReview({
 }: Props) {
   const taskId = `candidature-inference:${candidature.id}:missing`;
   const task = useAiTask<JobExtractionResult>(taskId);
-  const [applying, setApplying] = useState(false);
+  const applyingFieldIds = useRef(new Set<string>());
   const enabled = useMemo(
     () => new Set(fields.filter((field) => field.definition.enabled).map((field) => field.definition.id)),
     [fields],
   );
-  const scoped = useMemo(
-    () => task?.scopeFieldIds ? new Set(task.scopeFieldIds) : null,
-    [task?.scopeFieldIds],
-  );
+  const scoped = task?.scopeFieldIds ? new Set(task.scopeFieldIds) : null;
   const retained = useMemo(
     () => new Set(candidature.values.map((value) => value.fieldId)),
     [candidature.values],
@@ -57,23 +54,26 @@ export function CandidatureBulkAiReview({
   const appliedCount = task?.appliedFieldIds?.length ?? 0;
 
   useEffect(() => {
-    if (task?.status !== "completed" || safeMissing.length === 0 || applying) return;
+    if (task?.status !== "completed" || safeMissing.length === 0) return;
     let active = true;
-    setApplying(true);
-    void (async () => {
-      for (const proposal of safeMissing) {
-        await onSaveValue(proposal.fieldId, proposal.value);
-        markAiTaskFieldApplied(taskId, proposal.fieldId);
-      }
-    })().finally(() => {
-      if (active) setApplying(false);
-    });
+    for (const proposal of safeMissing) {
+      if (applyingFieldIds.current.has(proposal.fieldId)) continue;
+      applyingFieldIds.current.add(proposal.fieldId);
+      void onSaveValue(proposal.fieldId, proposal.value)
+        .then(() => {
+          if (active) markAiTaskFieldApplied(taskId, proposal.fieldId);
+        })
+        .finally(() => {
+          applyingFieldIds.current.delete(proposal.fieldId);
+        });
+    }
     return () => {
       active = false;
     };
-  }, [applying, onSaveValue, safeMissing, task?.status, taskId]);
+  }, [onSaveValue, safeMissing, task?.status, taskId]);
 
   const retry = () => {
+    applyingFieldIds.current.clear();
     clearAiTask(taskId);
     onRetry();
   };
@@ -96,11 +96,11 @@ export function CandidatureBulkAiReview({
       </div>
     );
   }
-  if (applying) {
+  if (safeMissing.length > 0) {
     return (
       <div className="candidature-bulk-ai-review" role="status">
         <span className="candidature-state-lamp candidature-state-lamp-working" aria-hidden="true" />
-        <span>Saving AI-filled information…</span>
+        <span>Saving {safeMissing.length} AI-filled value{safeMissing.length === 1 ? "" : "s"}…</span>
       </div>
     );
   }
@@ -125,11 +125,7 @@ export function CandidatureBulkAiReview({
   return (
     <div className="candidature-bulk-ai-review" role="status">
       <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
-      <span>
-        {safeMissing.length > 0
-          ? `AI is applying ${safeMissing.length} safe missing value${safeMissing.length === 1 ? "" : "s"}.`
-          : `${conflicts.length} AI suggestion${conflicts.length === 1 ? "" : "s"} need review because a value already exists.`}
-      </span>
+      <span>{conflicts.length} AI suggestion{conflicts.length === 1 ? "" : "s"} need review because a value already exists.</span>
     </div>
   );
 }
