@@ -140,7 +140,7 @@ describe("saved Source extraction", () => {
     extractJob.mockReturnValueOnce(pending.promise);
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Extract useful information?" });
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
     expect(extractJob).not.toHaveBeenCalled();
     expect(screen.getByText("Remote review endpoint")).toBeInTheDocument();
     expect(screen.getByText("Remote HTTPS")).toBeInTheDocument();
@@ -149,8 +149,8 @@ describe("saved Source extraction", () => {
     expect(screen.getByText(source.sourceText)).toBeInTheDocument();
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
 
-    await user.click(screen.getByRole("button", { name: "Extract useful information" }));
-    expect(await screen.findByText(/Queued|AI is reading the saved Source/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ask AI to find information" }));
+    expect(await screen.findByText(/Queued|Looking through the saved Source/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Keep without AI" })).toBeEnabled();
     expect(extractJob).toHaveBeenCalledWith(source);
 
@@ -160,7 +160,7 @@ describe("saved Source extraction", () => {
         { fieldId: contactFieldId, value: "recruiter@example.test" },
       ],
     });
-    await screen.findByRole("heading", { name: "Proposed information" });
+    await screen.findByRole("heading", { name: "Suggested information" });
     expect(onDirtyChange).toHaveBeenLastCalledWith(true);
     await user.click(screen.getByRole("checkbox", { name: /Recruiter contact: recruiter@example/ }));
     await user.click(screen.getByRole("button", { name: "Keep selected information" }));
@@ -185,7 +185,7 @@ describe("saved Source extraction", () => {
     ]);
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Extract useful information?" });
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
     expect(screen.getByText("Laptop model")).toBeInTheDocument();
     expect(screen.getByText("Local on this computer")).toBeInTheDocument();
     expect(screen.queryByText("http://127.0.0.1:11434/v1")).not.toBeInTheDocument();
@@ -214,7 +214,7 @@ describe("saved Source extraction", () => {
     ]);
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Extract useful information?" });
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
     expect(screen.getByText("Selected general default")).toBeInTheDocument();
     expect(screen.queryByText("Validated alternative")).not.toBeInTheDocument();
   });
@@ -222,7 +222,7 @@ describe("saved Source extraction", () => {
   it("keeps the saved Source unchanged when dismissed and exposes extraction failure with retry", async () => {
     const user = userEvent.setup();
     renderPanel();
-    await screen.findByRole("heading", { name: "Extract useful information?" });
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
     await user.click(screen.getByRole("button", { name: "Keep without AI" }));
 
     expect(extractJob).not.toHaveBeenCalled();
@@ -234,11 +234,11 @@ describe("saved Source extraction", () => {
     clearAllAiTasks();
     extractJob.mockRejectedValueOnce(new Error("The configured endpoint did not respond."));
     renderPanel();
-    await screen.findByRole("heading", { name: "Extract useful information?" });
-    await user.click(screen.getByRole("button", { name: "Extract useful information" }));
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
+    await user.click(screen.getByRole("button", { name: "Ask AI to find information" }));
 
     expect(await screen.findByText("The configured endpoint did not respond.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry AI extraction" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Retry AI request" })).toBeEnabled();
     expect(setFieldValue).not.toHaveBeenCalled();
     expect(onAccepted).not.toHaveBeenCalled();
   });
@@ -252,7 +252,7 @@ describe("saved Source extraction", () => {
         onDismiss={onDismiss}
       />,
     );
-    expect(screen.queryByRole("heading", { name: "Extract useful information?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Ask AI to find useful information?" })).not.toBeInTheDocument();
   });
 
   it("shows the exact setup action when no validated route is usable", async () => {
@@ -279,7 +279,7 @@ describe("saved Source extraction", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await screen.findByRole("heading", { name: "AI suggestions are not ready yet" });
+    await screen.findByRole("heading", { name: "AI is not ready for this action yet" });
     await user.click(screen.getByRole("button", { name: "Open AI settings" }));
     expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
     expect(screen.getByRole("button", { name: "Keep without AI" })).toBeEnabled();
