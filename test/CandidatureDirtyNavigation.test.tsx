@@ -129,7 +129,7 @@ describe("candidature dirty navigation", () => {
     await user.click(await screen.findByRole("button", { name: /Regional Air/ }));
     const selectedFocus = screen.getByRole("region", { name: /^Candidature Focus$/ });
     const focus = within(selectedFocus).getByRole("region", { name: "Selected candidature Focus" });
-    await user.click(within(focus).getByRole("button", { name: "Edit" }));
+    await user.click(within(focus).getByRole("button", { name: "Edit value" }));
     const value = within(focus).getByRole("textbox");
     await user.clear(value);
     await user.type(value, "Unsaved Regional Air");
