@@ -10,6 +10,7 @@ export interface AiTaskSnapshot<T = unknown> {
   readonly result?: T;
   readonly error?: string;
   readonly handledFieldIds?: readonly string[];
+  readonly scopeFieldIds?: readonly string[];
 }
 
 type TaskRunner<T> = (updateDetail: (detail: string) => void) => Promise<T>;
@@ -35,14 +36,15 @@ function taskError(reason: unknown): string {
     : "AAAAT could not complete this AI task.";
 }
 
-function proposalFieldIds(result: unknown): string[] {
+function proposalFieldIds(result: unknown, scopeFieldIds?: readonly string[]): string[] {
   if (!result || typeof result !== "object" || !("proposals" in result)) return [];
   const proposals = (result as { proposals?: unknown }).proposals;
   if (!Array.isArray(proposals)) return [];
+  const scope = scopeFieldIds ? new Set(scopeFieldIds) : null;
   return proposals.flatMap((proposal) => {
     if (!proposal || typeof proposal !== "object" || !("fieldId" in proposal)) return [];
     const fieldId = (proposal as { fieldId?: unknown }).fieldId;
-    return typeof fieldId === "string" ? [fieldId] : [];
+    return typeof fieldId === "string" && (!scope || scope.has(fieldId)) ? [fieldId] : [];
   });
 }
 
@@ -71,11 +73,18 @@ export function startAiTask<T>(
   runner: TaskRunner<T>,
   label = "AI task",
   completionDetail?: CompletionDetail<T>,
+  scopeFieldIds?: readonly string[],
 ): void {
   const current = tasks.get(key);
   if (current?.status === "queued" || current?.status === "working") return;
 
-  tasks.set(key, { key, label, status: "queued", detail: "Queued" });
+  tasks.set(key, {
+    key,
+    label,
+    status: "queued",
+    detail: "Queued",
+    scopeFieldIds: scopeFieldIds ? [...scopeFieldIds] : undefined,
+  });
   emit();
 
   setTimeout(() => {
@@ -102,6 +111,7 @@ export function startAiTask<T>(
           detail: completionDetail?.(result) ?? "Completed",
           result,
           handledFieldIds: [],
+          scopeFieldIds: active?.scopeFieldIds ?? (scopeFieldIds ? [...scopeFieldIds] : undefined),
         });
         emit();
       })
@@ -113,6 +123,7 @@ export function startAiTask<T>(
           status: "failed",
           detail: "Failed",
           error: taskError(reason),
+          scopeFieldIds: active?.scopeFieldIds ?? (scopeFieldIds ? [...scopeFieldIds] : undefined),
         });
         emit();
       });
@@ -124,7 +135,7 @@ export function markAiTaskFieldHandled(key: string, fieldId: string): void {
   if (!current || current.status !== "completed") return;
   const handled = new Set(current.handledFieldIds ?? []);
   handled.add(fieldId);
-  const proposalIds = proposalFieldIds(current.result);
+  const proposalIds = proposalFieldIds(current.result, current.scopeFieldIds);
   const reviewed = proposalIds.length > 0 && proposalIds.every((id) => handled.has(id));
   tasks.set(key, {
     ...current,
