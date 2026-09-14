@@ -58,21 +58,17 @@ export function CandidatureBulkAiReview({
     if (task?.status !== "completed") return;
     const { safeMissing: currentMissing } = pendingProposals(task, candidature, fields);
     if (currentMissing.length === 0) return;
-    let active = true;
     for (const proposal of currentMissing) {
       if (applyingFieldIds.current.has(proposal.fieldId)) continue;
       applyingFieldIds.current.add(proposal.fieldId);
       void onSaveValue(proposal.fieldId, proposal.value)
         .then(() => {
-          if (active) markAiTaskFieldApplied(taskId, proposal.fieldId);
+          markAiTaskFieldApplied(taskId, proposal.fieldId);
         })
         .finally(() => {
           applyingFieldIds.current.delete(proposal.fieldId);
         });
     }
-    return () => {
-      active = false;
-    };
   }, [candidature, fields, onSaveValue, task, taskId]);
 
   const retry = () => {
