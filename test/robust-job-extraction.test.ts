@@ -204,12 +204,13 @@ describe("partial-safe job extraction", () => {
       ]),
     );
 
-    expect(result.exchange?.rawModelResponse).toContain('"Idiomas"'.replace("Idiomas", "English"));
+    expect(result.exchange?.rawModelResponse).toContain("English");
     expect(result.exchange?.systemInstruction).toContain("obey each field type and cardinality");
     expect(result.exchange?.userPayload).toContain("Idiomas");
     expect(result.exchange?.providerValidationError).not.toBe("");
 
-    const responseFormat = sentBody?.response_format as {
+    const capturedBody = sentBody as unknown as Record<string, unknown> | null;
+    const responseFormat = capturedBody?.response_format as {
       json_schema?: { schema?: { properties?: { proposals?: { items?: unknown } } } };
     };
     const items = responseFormat.json_schema?.schema?.properties?.proposals?.items as {
@@ -217,14 +218,23 @@ describe("partial-safe job extraction", () => {
         properties?: { fieldRef?: { const?: string }; value?: { type?: string; items?: unknown } };
       }>;
     };
-    const languageWireRef = JSON.parse(result.exchange?.userPayload ?? "{}").fields.find(
-      (candidate: { label: string }) => candidate.label === "Idiomas",
-    ).fieldRef as string;
-    const locationWireRef = JSON.parse(result.exchange?.userPayload ?? "{}").fields.find(
-      (candidate: { label: string }) => candidate.label === "Location",
-    ).fieldRef as string;
-    expect(items.anyOf?.find((candidate) => candidate.properties?.fieldRef?.const === languageWireRef)?.properties?.value?.type).toBe("array");
-    expect(items.anyOf?.find((candidate) => candidate.properties?.fieldRef?.const === locationWireRef)?.properties?.value?.type).toBe("string");
+    const parsedPayload = JSON.parse(result.exchange?.userPayload ?? "{}") as {
+      fields: Array<{ label: string; fieldRef: string }>;
+    };
+    const languageWireRef = parsedPayload.fields.find(
+      (candidate) => candidate.label === "Idiomas",
+    )?.fieldRef;
+    const locationWireRef = parsedPayload.fields.find(
+      (candidate) => candidate.label === "Location",
+    )?.fieldRef;
+    expect(
+      items.anyOf?.find((candidate) => candidate.properties?.fieldRef?.const === languageWireRef)
+        ?.properties?.value?.type,
+    ).toBe("array");
+    expect(
+      items.anyOf?.find((candidate) => candidate.properties?.fieldRef?.const === locationWireRef)
+        ?.properties?.value?.type,
+    ).toBe("string");
   });
 
   it("marks one-value multi-item arrays incompatible without discarding usable siblings", async () => {
@@ -246,26 +256,30 @@ describe("partial-safe job extraction", () => {
       enabled: true,
     });
 
-    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (_input, init) => {
-      const body = JSON.parse(String(init?.body)) as {
-        messages: Array<{ role: string; content: string }>;
-      };
-      const payload = JSON.parse(
-        body.messages.find((message) => message.role === "user")?.content ?? "{}",
-      ) as { fields: Array<{ fieldRef: string; label: string }> };
-      const ref = (label: string) => payload.fields.find((field) => field.label === label)?.fieldRef ?? "";
-      const result = {
-        proposals: [
-          { fieldRef: ref("Role"), value: ["Engineer", "Architect"] },
-          { fieldRef: ref("Location"), value: "Madrid" },
-        ],
-        newFields: [],
-      };
-      return new Response(
-        JSON.stringify({ choices: [{ message: { content: JSON.stringify(result) } }] }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_input, init) => {
+        const body = JSON.parse(String(init?.body)) as {
+          messages: Array<{ role: string; content: string }>;
+        };
+        const payload = JSON.parse(
+          body.messages.find((message) => message.role === "user")?.content ?? "{}",
+        ) as { fields: Array<{ fieldRef: string; label: string }> };
+        const ref = (label: string) =>
+          payload.fields.find((field) => field.label === label)?.fieldRef ?? "";
+        const modelResult = {
+          proposals: [
+            { fieldRef: ref("Role"), value: ["Engineer", "Architect"] },
+            { fieldRef: ref("Location"), value: "Madrid" },
+          ],
+          newFields: [],
+        };
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: JSON.stringify(modelResult) } }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }),
+    );
 
     const result = await extractJobWithPartialOutcomes(root, {
       sourceTitle: "",
