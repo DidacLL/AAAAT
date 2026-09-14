@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
+  CandidatureFieldUpdate,
   CandidatureRecord,
   CandidatureRuntimeValue,
   DocumentRecord,
@@ -10,6 +11,8 @@ import type {
 } from "../shared/contracts";
 import { CandidatureActivityPanel } from "./CandidatureActivityPanel";
 import { CandidatureApplicationMaterialPanel } from "./CandidatureApplicationMaterialPanel";
+import { CandidatureBulkAiReview } from "./CandidatureBulkAiReview";
+import { CandidatureFieldAiState } from "./CandidatureFieldAiState";
 import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel } from "./CandidatureFocusPanel";
@@ -78,7 +81,6 @@ export function CandidaturesWorkspace({
   const [fieldDefinitionsDirty, setFieldDefinitionsDirty] = useState(false);
   const [discoveryFieldId, setDiscoveryFieldId] = useState<string | null>(null);
   const [bulkInferenceOpen, setBulkInferenceOpen] = useState(false);
-  const [addFieldId, setAddFieldId] = useState("");
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [tagEditorDraft, setTagEditorDraft] = useState<TagInput>(emptyTag);
@@ -118,7 +120,6 @@ export function CandidaturesWorkspace({
     setFieldDefinitionsDirty(false);
     setDiscoveryFieldId(null);
     setBulkInferenceOpen(false);
-    setAddFieldId("");
     setTagEditorOpen(false);
     setEditingTagId(null);
     setTagEditorDraft(emptyTag);
@@ -298,13 +299,22 @@ export function CandidaturesWorkspace({
     );
   };
 
+  const updateFieldDefinition = async (update: CandidatureFieldUpdate) => {
+    try {
+      replaceField(await window.aaaat.candidatures.updateField(update));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not update this information.");
+      throw reason;
+    }
+  };
+
   const updateFieldPreference = async (
     field: CandidatureFieldConfiguration,
     patch: Partial<CandidatureFieldConfiguration["preferences"]>,
   ) => {
     const optimistic = {
       ...field,
-      preferences: { ...field.preferences, ...patch },
+      preferences: { ...field.preferences, aiDiscovery: true, ...patch },
     };
     replaceField(optimistic);
     try {
@@ -316,7 +326,8 @@ export function CandidaturesWorkspace({
       );
     } catch (reason) {
       replaceField(field);
-      setError(reason instanceof Error ? reason.message : "AAAAT could not save information settings.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save this information setting.");
+      throw reason;
     }
   };
 
@@ -324,7 +335,7 @@ export function CandidaturesWorkspace({
     try {
       setFields(await window.aaaat.candidatures.listFields());
     } catch {
-      setError("AAAAT could not refresh candidature information settings.");
+      setError("AAAAT could not refresh candidature information.");
     }
   };
 
@@ -400,8 +411,7 @@ export function CandidaturesWorkspace({
 
   const handleSourcesChanged = useCallback(async () => {
     try {
-      const nextRecords = await window.aaaat.candidatures.list();
-      setRecords(nextRecords);
+      setRecords(await window.aaaat.candidatures.list());
       setSourceDirty(false);
     } catch {
       setError("AAAAT could not refresh the candidature after the Source changed.");
@@ -414,17 +424,12 @@ export function CandidaturesWorkspace({
     openDocumentFromCandidature(selected.id, documentId);
   };
 
+  const enabledFields = fields.filter((field) => field.definition.enabled);
   const enabledMissingFields = selected
-    ? fields.filter(
-        (field) =>
-          field.definition.enabled &&
-          !selected.values.some((value) => value.fieldId === field.definition.id),
+    ? enabledFields.filter(
+        (field) => !selected.values.some((value) => value.fieldId === field.definition.id),
       )
     : [];
-  const discoverableMissingFields = enabledMissingFields.filter(
-    (field) => field.preferences.aiDiscovery,
-  );
-  const addField = fields.find((field) => field.definition.id === addFieldId);
   const discoveryField = fields.find((field) => field.definition.id === discoveryFieldId);
 
   if (mode === "corpus") {
@@ -470,7 +475,6 @@ export function CandidaturesWorkspace({
         {tags.length > 0 ? (
           <details className="corpus-tags-reference">
             <summary>Tags reference</summary>
-            <p className="compact-help">Quick glossary lookup. Tag editing stays in a candidature’s complete details.</p>
             <div className="corpus-tag-list">
               {tags.map((tag) => (
                 <article key={tag.id}>
@@ -551,12 +555,8 @@ export function CandidaturesWorkspace({
     return (
       <section className="candidatures-workspace candidature-selected-focus" aria-label="Candidature Focus">
         <div className="candidature-context-actions">
-          <button type="button" className="compact-secondary" onClick={returnToCorpus}>
-            Back
-          </button>
-          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "detail")}>
-            All details
-          </button>
+          <button type="button" className="compact-secondary" onClick={returnToCorpus}>Back</button>
+          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "detail")}>All details</button>
         </div>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
         <CandidatureFocusPanel
@@ -570,15 +570,13 @@ export function CandidaturesWorkspace({
           onDiscoverValue={setDiscoveryFieldId}
           onDirtyChange={setEditorDirty}
         />
-        {discoveryField?.preferences.aiDiscovery ? (
+        {discoveryField?.definition.enabled ? (
           <CandidatureInferencePanel
             candidature={selected}
             fields={fields}
             targetFieldIds={[discoveryField.definition.id]}
             taskId={`candidature-inference:${selected.id}:${discoveryField.definition.id}`}
-            title={`Suggest ${discoveryField.definition.label}`}
-            onSaveValue={setValue}
-            onClose={() => setDiscoveryFieldId(null)}
+            title={`Fill ${discoveryField.definition.label}`}
           />
         ) : null}
       </section>
@@ -594,12 +592,8 @@ export function CandidaturesWorkspace({
           <p>Everything you have kept for this candidature.</p>
         </div>
         <div className="button-row">
-          <button type="button" className="compact-secondary" onClick={returnToCorpus}>
-            Back
-          </button>
-          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "focus")}>
-            Focus
-          </button>
+          <button type="button" className="compact-secondary" onClick={returnToCorpus}>Back</button>
+          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "focus")}>Focus</button>
           <button type="button" className="compact-secondary" onClick={() => void setArchived(!selected.archived)}>
             {selected.archived ? "Restore" : "Archive"}
           </button>
@@ -608,44 +602,54 @@ export function CandidaturesWorkspace({
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
-      <section className="section-surface" aria-label="Candidature information">
-        <div className="candidature-editor-heading">
+      <section className="section-surface candidature-information-surface" aria-label="Candidature information">
+        <div className="candidature-editor-heading candidature-information-heading">
           <div>
             <p className="eyebrow">Information</p>
             <h3>Information</h3>
-            <p>See what is known, edit a value, or add useful information. Missing information is normal.</p>
           </div>
-          {discoverableMissingFields.length > 0 ? (
+          {enabledMissingFields.length > 0 ? (
             <button type="button" className="compact-secondary" onClick={() => setBulkInferenceOpen(true)}>
-              Suggest missing information with AI
+              Ask AI to fill missing information
             </button>
           ) : null}
         </div>
 
-        {selected.values.length === 0 ? (
-          <p className="compact-empty">No structured information is retained yet.</p>
+        <CandidatureBulkAiReview
+          candidature={selected}
+          fields={fields}
+          onSaveValue={setValue}
+          onRetry={() => setBulkInferenceOpen(true)}
+        />
+
+        {enabledFields.length === 0 ? (
+          <p className="compact-empty">No information fields are available yet. Add the first one below.</p>
         ) : (
-          <div className="retained-information-list">
-            {selected.values.map((retained) => {
-              const field = fields.find((candidate) => candidate.definition.id === retained.fieldId);
-              if (!field) return null;
+          <div className="retained-information-list candidature-information-grid">
+            {enabledFields.map((field) => {
+              const retained = selected.values.find((value) => value.fieldId === field.definition.id);
               return (
-                <article key={retained.fieldId} className="retained-information-card">
-                  <div>
+                <article key={field.definition.id} className="retained-information-card candidature-information-unit">
+                  <div className="candidature-information-unit-heading">
                     <h4>{field.definition.label}</h4>
                     {field.definition.description ? <p>{field.definition.description}</p> : null}
                   </div>
                   <CandidatureFieldValueEditor
                     field={field}
-                    value={retained.value}
+                    value={retained?.value}
                     onSave={(value) => setValue(field.definition.id, value)}
                     onClear={() => clearValue(field.definition.id)}
-                    onDiscover={
-                      field.preferences.aiDiscovery
-                        ? () => setDiscoveryFieldId(field.definition.id)
-                        : undefined
-                    }
+                    onDiscover={() => setDiscoveryFieldId(field.definition.id)}
+                    onUpdateField={updateFieldDefinition}
+                    onUpdatePreferences={(patch) => updateFieldPreference(field, patch)}
                     onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
+                  />
+                  <CandidatureFieldAiState
+                    candidatureId={selected.id}
+                    field={field}
+                    currentValue={retained?.value}
+                    onSaveValue={(value) => setValue(field.definition.id, value)}
+                    onRetry={() => setDiscoveryFieldId(field.definition.id)}
                   />
                 </article>
               );
@@ -653,136 +657,30 @@ export function CandidaturesWorkspace({
           </div>
         )}
 
-        {discoveryField?.preferences.aiDiscovery ? (
-          <CandidatureInferencePanel
-            candidature={selected}
-            fields={fields}
-            targetFieldIds={[discoveryField.definition.id]}
-            taskId={`candidature-inference:${selected.id}:${discoveryField.definition.id}`}
-            title={`Suggest ${discoveryField.definition.label}`}
-            onSaveValue={setValue}
-            onClose={() => setDiscoveryFieldId(null)}
-          />
-        ) : null}
-
-        {bulkInferenceOpen ? (
-          <CandidatureInferencePanel
-            candidature={selected}
-            fields={fields}
-            targetFieldIds={discoverableMissingFields.map((field) => field.definition.id)}
-            taskId={`candidature-inference:${selected.id}:missing`}
-            title="Suggest missing information"
-            onSaveValue={setValue}
-            onClose={() => setBulkInferenceOpen(false)}
-          />
-        ) : null}
-
-        <details className="add-information-panel">
-          <summary>+ Add information</summary>
-          <p className="compact-help">Add a value to this candidature. This does not change the reusable kinds of information AAAAT knows about.</p>
-          {enabledMissingFields.length > 0 ? (
-            <label>
-              Information to add
-              <select value={addFieldId} onChange={(event) => setAddFieldId(event.target.value)}>
-                <option value="">Choose…</option>
-                {enabledMissingFields.map((field) => (
-                  <option key={field.definition.id} value={field.definition.id}>
-                    {field.definition.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <p className="compact-help">All available information already has a value.</p>
-          )}
-          {addField ? (
-            <CandidatureFieldValueEditor
-              key={`add-${addField.definition.id}`}
-              field={addField}
-              onSave={async (value) => {
-                await setValue(addField.definition.id, value);
-                setAddFieldId("");
-              }}
-              onClear={async () => setAddFieldId("")}
-              onDiscover={
-                addField.preferences.aiDiscovery
-                  ? () => setDiscoveryFieldId(addField.definition.id)
-                  : undefined
-              }
-              onDirtyChange={(dirty) => setEditorDirty(addField.definition.id, dirty)}
-            />
-          ) : null}
-        </details>
-
         <CandidatureFieldDefinitionsPanel
           onChanged={() => void refreshFields()}
           onDirtyChange={setFieldDefinitionsDirty}
         />
 
-        <details className="field-management">
-          <summary>Information display &amp; AI settings</summary>
-          <p className="compact-help">Reusable behavior for information kinds across candidatures. These controls do not edit this candidature’s values.</p>
-          <div className="field-preference-list">
-            {fields.map((field) => (
-              <article className="editor-card" key={field.definition.id}>
-                <strong>{field.definition.label}</strong>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={field.preferences.focusVisible}
-                    onChange={(event) =>
-                      void updateFieldPreference(field, { focusVisible: event.target.checked })
-                    }
-                  />
-                  Show in Focus when retained
-                </label>
-                <label>
-                  Size in Focus
-                  <select
-                    value={field.preferences.focusProminence}
-                    onChange={(event) =>
-                      void updateFieldPreference(field, {
-                        focusProminence: event.target.value as CandidatureFieldConfiguration["preferences"]["focusProminence"],
-                      })
-                    }
-                  >
-                    <option value="compact">Compact</option>
-                    <option value="normal">Normal</option>
-                    <option value="wide">Wide</option>
-                  </select>
-                </label>
-                <label>
-                  Order in Focus
-                  <input
-                    type="number"
-                    min="0"
-                    defaultValue={field.preferences.focusOrder ?? ""}
-                    onBlur={(event) =>
-                      void updateFieldPreference(field, {
-                        focusOrder: event.target.value ? Number(event.target.value) : null,
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  AI use
-                  <select
-                    value={field.preferences.aiContextMode}
-                    onChange={(event) =>
-                      void updateFieldPreference(field, {
-                        aiContextMode: event.target.value as CandidatureFieldConfiguration["preferences"]["aiContextMode"],
-                      })
-                    }
-                  >
-                    <option value="omit">Do not use</option>
-                    <option value="expose">Use this value</option>
-                    <option value="token">Use a local placeholder</option>
-                  </select>
-                </label>
-              </article>
-            ))}
-          </div>
-        </details>
+        {discoveryField?.definition.enabled ? (
+          <CandidatureInferencePanel
+            candidature={selected}
+            fields={fields}
+            targetFieldIds={[discoveryField.definition.id]}
+            taskId={`candidature-inference:${selected.id}:${discoveryField.definition.id}`}
+            title={`Fill ${discoveryField.definition.label}`}
+          />
+        ) : null}
+
+        {bulkInferenceOpen && enabledMissingFields.length > 0 ? (
+          <CandidatureInferencePanel
+            candidature={selected}
+            fields={fields}
+            targetFieldIds={enabledMissingFields.map((field) => field.definition.id)}
+            taskId={`candidature-inference:${selected.id}:missing`}
+            title="Fill missing information"
+          />
+        ) : null}
       </section>
 
       <CandidatureSourcesPanel
@@ -796,11 +694,8 @@ export function CandidaturesWorkspace({
           <div>
             <p className="eyebrow">Shared glossary</p>
             <h3>Tags</h3>
-            <p>Reusable terms, aliases, definitions and notes linked to this candidature.</p>
           </div>
-          <button type="button" className="compact-secondary" onClick={startNewTag}>
-            Add Tag
-          </button>
+          <button type="button" className="compact-secondary" onClick={startNewTag}>Add Tag</button>
         </div>
 
         {tags.length === 0 ? (
@@ -825,18 +720,14 @@ export function CandidaturesWorkspace({
                 </label>
                 {tag.definition ? <p>{tag.definition}</p> : null}
                 {tag.aliases.length > 0 ? <small>{tag.aliases.join(", ")}</small> : null}
-                <button type="button" className="compact-secondary" onClick={() => editTag(tag)}>
-                  Edit Tag
-                </button>
+                <button type="button" className="compact-secondary" onClick={() => editTag(tag)}>Edit Tag</button>
               </article>
             ))}
           </div>
         )}
 
         {tagSelectionDirty ? (
-          <button type="button" onClick={() => void saveTagAssociations()}>
-            Save Tag associations
-          </button>
+          <button type="button" onClick={() => void saveTagAssociations()}>Save Tag associations</button>
         ) : null}
 
         {tagEditorOpen ? (
@@ -844,39 +735,22 @@ export function CandidaturesWorkspace({
             <h4>{editingTagId ? "Edit Tag" : "New Tag"}</h4>
             <label>
               Name
-              <input
-                value={tagEditorDraft.name}
-                onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, name: event.target.value })}
-              />
+              <input value={tagEditorDraft.name} onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, name: event.target.value })} />
             </label>
             <label>
               Aliases
-              <input
-                value={tagAliasesText}
-                onChange={(event) => setTagAliasesText(event.target.value)}
-                placeholder="Comma separated"
-              />
+              <input value={tagAliasesText} onChange={(event) => setTagAliasesText(event.target.value)} placeholder="Comma separated" />
             </label>
             <label>
               Definition
-              <textarea
-                rows={4}
-                value={tagEditorDraft.definition}
-                onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, definition: event.target.value })}
-              />
+              <textarea rows={4} value={tagEditorDraft.definition} onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, definition: event.target.value })} />
             </label>
             <label>
               Notes
-              <textarea
-                rows={4}
-                value={tagEditorDraft.notes ?? ""}
-                onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, notes: event.target.value })}
-              />
+              <textarea rows={4} value={tagEditorDraft.notes ?? ""} onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, notes: event.target.value })} />
             </label>
             <div className="button-row">
-              <button type="button" disabled={!tagEditorDraft.name.trim()} onClick={() => void saveTag()}>
-                Save Tag
-              </button>
+              <button type="button" disabled={!tagEditorDraft.name.trim()} onClick={() => void saveTag()}>Save Tag</button>
               <button
                 type="button"
                 className="compact-secondary"
@@ -905,10 +779,7 @@ export function CandidaturesWorkspace({
         onOpenDocument={(documentId) => openDocument(documentId)}
       />
 
-      <details
-        className="secondary-candidature-detail"
-        onToggle={(event) => setActivityOpen(event.currentTarget.open)}
-      >
+      <details className="secondary-candidature-detail" onToggle={(event) => setActivityOpen(event.currentTarget.open)}>
         <summary>Activity</summary>
         {activityOpen ? <CandidatureActivityPanel candidatureId={selected.id} /> : null}
       </details>
