@@ -32,6 +32,8 @@ const providerResponseSchema = z
   })
   .passthrough();
 
+export const AI_PROVIDER_SAFETY_CEILING_MS = 15 * 60 * 1000;
+
 export class AiProviderError extends Error {
   constructor(message: string) {
     super(message);
@@ -70,11 +72,16 @@ function chatCompletionsUrl(baseUrl: string): string {
   return url.toString();
 }
 
+function timeoutFailure(reason: unknown): boolean {
+  return reason instanceof DOMException && (reason.name === "TimeoutError" || reason.name === "AbortError");
+}
+
 async function requestContent(
   fetchImpl: typeof fetch,
   connection: AiConnectionStatus,
   instruction: string,
   context: unknown,
+  requestTimeoutMs: number,
 ): Promise<string> {
   let response: Response;
   try {
@@ -82,7 +89,7 @@ async function requestContent(
       method: "POST",
       headers: { "content-type": "application/json" },
       redirect: "error",
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(requestTimeoutMs),
       body: JSON.stringify({
         model: connection.model,
         temperature: 0,
@@ -92,11 +99,20 @@ async function requestContent(
         ],
       }),
     });
-  } catch {
-    throw new AiProviderError("AAAAT could not reach the configured AI provider.");
+  } catch (reason) {
+    if (timeoutFailure(reason)) {
+      throw new AiProviderError(
+        "The AI provider did not finish before AAAAT's 15-minute safety limit. The model may still be healthy; retry the task or inspect the local provider if it remains stuck.",
+      );
+    }
+    throw new AiProviderError(
+      "AAAAT could not reach the configured AI provider. Check that the endpoint is running and reachable, then retry.",
+    );
   }
   if (!response.ok) {
-    throw new AiProviderError("The configured AI provider rejected the request.");
+    throw new AiProviderError(
+      `The configured AI provider rejected the request (${response.status}). Check the model name and provider logs, then retry.`,
+    );
   }
 
   let payload: unknown;
@@ -127,6 +143,7 @@ function parseJson<T>(content: string, schema: z.ZodType<T>, message: string): T
 
 export function createOpenAiCompatibleProvider(
   fetchImpl: typeof fetch = fetch,
+  requestTimeoutMs: number = AI_PROVIDER_SAFETY_CEILING_MS,
 ): ModelProvider {
   return Object.freeze({
     async reviewOpportunity(
@@ -138,6 +155,7 @@ export function createOpenAiCompatibleProvider(
         connection,
         "Review one opportunity using only the supplied context. Return JSON only with keys summary, relevantEvidence, uncertainties, questions. Do not rate, score, rank, choose a winner, prescribe next actions, or define a career workflow. Missing candidature information is normal; do not invent facts.",
         context,
+        requestTimeoutMs,
       );
       return parseJson(
         content,
@@ -155,6 +173,7 @@ export function createOpenAiCompatibleProvider(
         connection,
         "Discover only facts supported by the supplied Source for the explicitly requested fields. Return JSON only as {\"proposals\":[{\"fieldRef\":\"...\",\"value\":...}]}. Use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for choice fields, omit unsupported values, and never propose or create new field definitions.",
         request,
+        requestTimeoutMs,
       );
       return parseJson(
         content,
@@ -172,6 +191,7 @@ export function createOpenAiCompatibleProvider(
         connection,
         "Choose exactly one supplied profile variant for the supplied candidature. Return JSON only with keys variantRef and rationale. Never invent a variantRef or propose creating a new variant.",
         context,
+        requestTimeoutMs,
       );
       return parseJson(
         content,
@@ -189,6 +209,7 @@ export function createOpenAiCompatibleProvider(
         connection,
         "Recommend the strongest supplied career items for this candidature. Return JSON only with key recommendations, an array of objects with itemRef and rationale. Use only itemRef values supplied in context. Do not rewrite or invent career facts.",
         context,
+        requestTimeoutMs,
       );
       return parseJson(
         content,
@@ -206,6 +227,7 @@ export function createOpenAiCompatibleProvider(
         connection,
         "Draft a concise cover letter using only the supplied opportunity and career evidence. Return JSON only with keys recipient, subject, bodyParagraphs, closing. Do not invent career facts or contact details; use empty strings when recipient or closing is unsupported.",
         context,
+        requestTimeoutMs,
       );
       return parseJson(
         content,
