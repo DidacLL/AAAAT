@@ -21,22 +21,16 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("professional-information AI disclosure control", () => {
-  it("keeps AI disclosure independent from local storage and document reuse", async () => {
+  it("keeps AI use independent from local storage and document reuse", async () => {
     const user = userEvent.setup();
     render(<ProfileItemAiDisclosureControl itemId={itemId} />);
 
-    await user.click(screen.getByText("AI disclosure", { selector: "summary" }));
-    expect(await screen.findByLabelText("When AI uses this professional information")).toHaveValue(
-      "expose",
-    );
-    expect(screen.getByText(/does not hide or delete local information/i)).toBeInTheDocument();
-    expect(screen.getByText(/does not change CV or letter inclusion/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Choose how AI may use this information" }));
+    const select = await screen.findByRole("combobox", { name: "AI may" });
+    expect(select).toHaveValue("expose");
+    expect(screen.getByText(/does not hide, remove or change your local information/i)).toBeInTheDocument();
 
-    await user.selectOptions(
-      screen.getByLabelText("When AI uses this professional information"),
-      "omit",
-    );
-    await user.click(screen.getByRole("button", { name: "Save AI disclosure" }));
+    await user.selectOptions(select, "omit");
 
     expect(update).toHaveBeenCalledWith({ itemId, aiContextMode: "omit" });
   });
@@ -46,10 +40,10 @@ describe("professional-information AI disclosure control", () => {
     const user = userEvent.setup();
     render(<ProfileItemAiDisclosureControl itemId={itemId} />);
 
-    await user.click(screen.getByText("AI disclosure", { selector: "summary" }));
+    await user.click(screen.getByRole("button", { name: "Choose how AI may use this information" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "AAAAT could not load this AI disclosure preference.",
+      "AAAAT could not load the AI-use setting.",
     );
-    expect(screen.getByText("AI disclosure", { selector: "summary" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Choose how AI may use this information" })).toBeVisible();
   });
 });
