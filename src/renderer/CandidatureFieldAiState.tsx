@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { JobExtractionResult } from "../shared/ai-contracts";
 import type {
@@ -46,7 +46,7 @@ export function CandidatureFieldAiState({
 }: Props) {
   const tasks = useAiTasks();
   const [editingProposal, setEditingProposal] = useState(false);
-  const [autoApplying, setAutoApplying] = useState(false);
+  const autoApplying = useRef(false);
   const exactKey = `candidature-inference:${candidatureId}:${field.definition.id}`;
   const bulkKey = `candidature-inference:${candidatureId}:missing`;
   const candidates = tasks.filter(
@@ -75,24 +75,23 @@ export function CandidatureFieldAiState({
       !proposalTask ||
       proposalTask.key !== exactKey ||
       currentValue !== undefined ||
-      autoApplying
+      autoApplying.current
     ) {
       return;
     }
     let active = true;
-    setAutoApplying(true);
+    autoApplying.current = true;
     void onSaveValue(proposal.value)
       .then(() => {
-        if (!active) return;
-        markAiTaskFieldApplied(proposalTask.key, field.definition.id);
+        if (active) markAiTaskFieldApplied(proposalTask.key, field.definition.id);
       })
       .finally(() => {
-        if (active) setAutoApplying(false);
+        autoApplying.current = false;
       });
     return () => {
       active = false;
     };
-  }, [autoApplying, currentValue, exactKey, field.definition.id, onSaveValue, proposal, proposalTask]);
+  }, [currentValue, exactKey, field.definition.id, onSaveValue, proposal, proposalTask]);
 
   const accept = async (value: CandidatureRuntimeValue) => {
     if (!proposalTask) return;
@@ -108,11 +107,12 @@ export function CandidatureFieldAiState({
   };
 
   const retry = (task: AiTaskSnapshot) => {
+    autoApplying.current = false;
     clearAiTask(task.key);
     onRetry();
   };
 
-  if (autoApplying && proposalTask?.key === exactKey && currentValue === undefined) {
+  if (proposal && proposalTask?.key === exactKey && currentValue === undefined) {
     return (
       <div className="candidature-field-ai-state candidature-field-ai-working" role="status">
         <span className="candidature-state-lamp candidature-state-lamp-working" aria-hidden="true" />
