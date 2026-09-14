@@ -148,8 +148,9 @@ export function CandidatureInferencePanel({
           ? `Completed · ${usable.length} proposal${usable.length === 1 ? "" : "s"} ready for review`
           : "Completed · no usable proposal";
       },
+      targetFieldIds,
     );
-  }, [aiReady, context, requestedFields, targetSet, task, taskId, title]);
+  }, [aiReady, context, requestedFields, targetFieldIds, targetSet, task, taskId, title]);
 
   if (requestedFields.length === 0) {
     return <p className="compact-help">There is no available information to fill here.</p>;
