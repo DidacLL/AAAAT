@@ -319,7 +319,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: AAAAT-ubuntu-latest-${{ runner.arch }}
-          path: out/AAAAT-linux-${{ runner.arch }}.tar.gz
+          path: AAAAT-linux-${{ runner.arch }}.tar.gz
           if-no-files-found: error
           compression-level: 0
 
