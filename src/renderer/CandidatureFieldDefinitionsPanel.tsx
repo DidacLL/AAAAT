@@ -230,19 +230,19 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
 
   return (
     <details className="field-definitions-panel">
-      <summary>Customize information</summary>
+      <summary>Manage information kinds</summary>
       <div className="field-definitions-content">
         <p>
-          Choose the kinds of information that are useful for your applications. The defaults are only a starting point.
+          This changes the reusable kinds of information AAAAT can store across candidatures. It does not edit the values of the candidature above.
         </p>
         <p className="compact-help">
           {enabledCount} available kind{enabledCount === 1 ? "" : "s"} of information
         </p>
 
         <section className="editor-card" aria-label="Change candidature information kind">
-          <h4>Change an information kind</h4>
+          <h4>Edit a reusable information kind</h4>
           <label>
-            Information
+            Information kind
             <select value={selectedId} onChange={(event) => selectField(event.target.value)}>
               <option value="">Choose…</option>
               {fields.map((field) => (
@@ -340,7 +340,7 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
         </section>
 
         <section className="editor-card" aria-label="Add candidature information kind">
-          <h4>Add a kind of information</h4>
+          <h4>Add a reusable information kind</h4>
           <label>
             Name
             <input
@@ -404,7 +404,7 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
             AI may suggest this information from retained Sources
           </label>
           <button type="button" disabled={!newDraft.label.trim()} onClick={() => void createField()}>
-            Add
+            Add information kind
           </button>
         </section>
 
