@@ -1,0 +1,126 @@
+.ai-validation-card,
+.candidature-inference-panel,
+.corpus-tags-reference {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+}
+
+.ai-validation-card,
+.candidature-inference-panel {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+}
+
+.ai-readiness-line {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 0.8rem;
+}
+
+.ai-readiness-line > * {
+  overflow-wrap: anywhere;
+}
+
+.ai-task-state,
+.ai-task-failure {
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  border-left: 3px solid var(--accent);
+  background: var(--paper-strong);
+  overflow-wrap: anywhere;
+}
+
+.ai-task-failure p {
+  margin-block: 0.3rem 0;
+}
+
+.ai-capability-list {
+  display: grid;
+  gap: 0.28rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.84rem;
+}
+
+.ai-routing-details {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ai-routing-details button {
+  margin: 0.25rem 0.25rem 0 0;
+}
+
+.candidature-inference-panel {
+  margin-block: 0.7rem;
+}
+
+.ai-disclosure-preview pre {
+  max-height: 220px;
+  margin: 0.5rem 0 0;
+  padding: 0.65rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--paper-strong);
+}
+
+.ai-proposal-list,
+.corpus-tag-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.ai-proposal-card {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.corpus-tags-reference {
+  margin-block: 0 0.75rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.corpus-tags-reference > summary {
+  color: var(--muted-ink);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.corpus-tag-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  margin-top: 0.55rem;
+}
+
+.corpus-tag-list article {
+  min-width: 0;
+  padding: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+.corpus-tag-list article > * {
+  display: block;
+  margin-block: 0 0.28rem;
+}
+
+.corpus-tag-list small {
+  color: var(--muted-ink);
+}
+
+@media (max-width: 760px) {
+  .ai-readiness-line {
+    display: grid;
+  }
+
+  .candidature-inference-panel .candidature-editor-heading {
+    align-items: start;
+  }
+}
