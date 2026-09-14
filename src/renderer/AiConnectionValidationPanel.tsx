@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   aiOperationLabels,
@@ -54,10 +54,9 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
   const allValidated = aiOperations.every((operation) =>
     connection.validatedOperations.includes(operation),
   );
-  const failures = task?.result?.failures ?? [];
-  const failuresByOperation = useMemo(
-    () => new Map(failures.map((failure) => [failure.operation, failure])),
-    [failures],
+  const failures = task?.result?.failures;
+  const failuresByOperation = new Map(
+    (failures ?? []).map((failure) => [failure.operation, failure]),
   );
 
   useEffect(() => {
@@ -102,7 +101,9 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
             });
             connections = await window.aaaat.aiConnections.list();
             current = connections.find((candidate) => candidate.id === connection.id);
-            if (!current) throw new Error("The AI connection no longer exists.");
+            if (!current) {
+              throw new Error("The AI connection no longer exists.", { cause: reason });
+            }
           }
         }
         return { connections, failures: nextFailures };
@@ -130,10 +131,11 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
   };
 
   const validatedCount = connection.validatedOperations.length;
-  const hasUnreachableFailure = failures.some(
+  const failureList = failures ?? [];
+  const hasUnreachableFailure = failureList.some(
     (failure) => failure.exchange?.failureKind === "connection_unreachable",
   );
-  const hasProviderFailure = failures.some(
+  const hasProviderFailure = failureList.some(
     (failure) =>
       failure.exchange?.failureKind === "provider_http_failure" ||
       failure.exchange?.failureKind === "provider_envelope_invalid",
@@ -142,7 +144,7 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
     ? "Checking"
     : hasUnreachableFailure
       ? "Unreachable / timed out"
-      : validatedCount > 0 || failures.length > 0
+      : validatedCount > 0 || failureList.length > 0
         ? hasProviderFailure
           ? "Connected · provider response needs attention"
           : "Connected"
@@ -177,7 +179,7 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
         <button type="button" disabled={active} onClick={validate}>
           {active
             ? "Validation running…"
-            : failures.length > 0
+            : failureList.length > 0
               ? "Retry failed validation"
               : validatedCount > 0
                 ? "Continue validation"
