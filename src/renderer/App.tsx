@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
+import { AiTaskStatus } from "./AiTaskStatus";
 import logo from "./assets/aaaat-logo-light.png";
 import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
 import { CareerContextPanel } from "./CareerContextPanel";
@@ -11,6 +12,7 @@ import {
   type SettingsHandoff,
 } from "./contextual-handoffs";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
+import "./owner-feedback-recovery.css";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 import { SettingsWorkspace } from "./SettingsWorkspace";
 import "./shell.css";
@@ -276,6 +278,7 @@ export function App() {
               <span className="workspace-chip" title={workspace.rootPath}>
                 <span>Workspace</span><code>{workspace.rootPath}</code>
               </span>
+              <AiTaskStatus />
               <button className="compact-secondary" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>
                 {choosing ? "Choosing…" : "Switch workspace"}
               </button>
