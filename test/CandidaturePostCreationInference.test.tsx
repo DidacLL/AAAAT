@@ -22,6 +22,12 @@ const roleId = "00000000-0000-4000-8000-000000000923";
 const locationId = "00000000-0000-4000-8000-000000000924";
 const sourceId = "00000000-0000-4000-8000-000000000925";
 
+type ExtractionRequest = {
+  readonly sourceTitle: string;
+  readonly sourceUrl: string;
+  readonly sourceText: string;
+};
+
 function field(id: string, label: string): CandidatureFieldConfiguration {
   return {
     definition: {
@@ -107,7 +113,7 @@ describe("post-creation candidature AI inference", () => {
       };
       return current;
     });
-    const extractJob = vi.fn(() => extraction.promise);
+    const extractJob = vi.fn((_request: ExtractionRequest) => extraction.promise);
 
     Object.defineProperty(window, "aaaat", {
       configurable: true,
@@ -254,7 +260,7 @@ describe("post-creation candidature AI inference", () => {
             defaultForOperations: ["job_extraction"],
           }]),
         },
-        ai: { extractJob: vi.fn(() => extraction.promise) },
+        ai: { extractJob: vi.fn((_request: ExtractionRequest) => extraction.promise) },
       },
     });
 
