@@ -5,6 +5,10 @@ import {
   aiExchangeDiagnosticSchema,
   type AiExchangeDiagnostic,
 } from "../shared/ai-diagnostics";
+import {
+  jobExtractionExchangeSchema,
+  type InspectableAiExchange,
+} from "../shared/ai-proposal-outcomes";
 
 export type AiTaskStatus = "queued" | "working" | "completed" | "failed" | "cancelled";
 
@@ -15,7 +19,7 @@ export interface AiTaskSnapshot<T = unknown> {
   readonly detail: string | null;
   readonly result?: T;
   readonly error?: string;
-  readonly exchange?: AiExchangeDiagnostic;
+  readonly exchange?: InspectableAiExchange;
   readonly handledFieldIds?: readonly string[];
   readonly appliedFieldIds?: readonly string[];
   readonly scopeFieldIds?: readonly string[];
@@ -104,6 +108,14 @@ function preAppliedFieldIds(result: unknown): string[] {
   return values.filter((value): value is string => typeof value === "string");
 }
 
+function completedExchange(result: unknown): InspectableAiExchange | undefined {
+  if (!result || typeof result !== "object" || !("exchange" in result)) return undefined;
+  const parsed = jobExtractionExchangeSchema.safeParse(
+    (result as { exchange?: unknown }).exchange,
+  );
+  return parsed.success ? parsed.data : undefined;
+}
+
 function completedScope(
   activeScope: readonly string[] | undefined,
   fallbackScope: readonly string[] | undefined,
@@ -180,6 +192,7 @@ export function startAiTask<T>(
           status: "completed",
           detail: completionDetail?.(result) ?? "Completed",
           result,
+          exchange: completedExchange(result),
           handledFieldIds: appliedFieldIds,
           appliedFieldIds,
           scopeFieldIds: completedScope(active.scopeFieldIds, scopeFieldIds, appliedFieldIds),
