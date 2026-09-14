@@ -165,6 +165,17 @@ async function expectNoHorizontalOverflow(page: Page, width: number, height: num
   );
 }
 
+async function expectRepresentativeResizeCoverage(page: Page, state: string) {
+  for (const [width, height] of [
+    [1280, 900],
+    [1180, 760],
+    [720, 760],
+    [1180, 600],
+  ] as const) {
+    await expectNoHorizontalOverflow(page, width, height, state);
+  }
+}
+
 test("packaged Professional information stays read-first across window samples", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-professional-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-professional-workspace-"));
@@ -194,13 +205,13 @@ test("packaged Professional information stays read-first across window samples",
     });
     expect(order).toBe(true);
 
-    await expectNoHorizontalOverflow(running.page, 1200, 800, "overview");
-    await expectNoHorizontalOverflow(running.page, 720, 600, "overview");
+    await expectRepresentativeResizeCoverage(running.page, "overview");
 
     await workspace.getByRole("button", { name: "Add information" }).click();
     await expect(workspace.getByRole("heading", { name: "Add information", exact: true })).toBeVisible();
     await expect(workspace.getByRole("button", { name: "Back to professional information" })).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "item-editor");
+    await expectNoHorizontalOverflow(running.page, 720, 760, "item-editor-narrow");
+    await expectNoHorizontalOverflow(running.page, 1180, 600, "item-editor-short");
     await workspace.getByRole("button", { name: "Back to professional information" }).click();
     await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
 
@@ -214,7 +225,8 @@ test("packaged Professional information stays read-first across window samples",
     ).toBeVisible();
     await expect(running.page.getByText("Difference-only", { exact: true })).toHaveCount(0);
     await expect(running.page.getByText("Override title", { exact: true })).toHaveCount(0);
-    await expectNoHorizontalOverflow(running.page, 720, 600, "saved-variations");
+    await expectNoHorizontalOverflow(running.page, 720, 760, "saved-variations-narrow");
+    await expectNoHorizontalOverflow(running.page, 1180, 600, "saved-variations-short");
 
     await workspace.getByRole("button", { name: "Back to professional information" }).click();
     await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
