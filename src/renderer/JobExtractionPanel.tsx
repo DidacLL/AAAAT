@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import type { JobExtractionRequest, JobExtractionResult } from "../shared/ai-contracts";
+import type { JobExtractionRequest } from "../shared/ai-contracts";
 import type { NamedAiConnection } from "../shared/ai-connection-contracts";
+import type { PartialJobExtractionResult } from "../shared/ai-proposal-outcomes";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
-import { startAiTask, useAiTask } from "./ai-task-store";
+import {
+  markAiTaskFieldApplied,
+  recordAiTaskFieldIssue,
+  startAiTask,
+  useAiTask,
+} from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
 interface JobExtractionPanelProps {
@@ -38,7 +44,7 @@ function isLocalConnection(endpoint: string): boolean {
 }
 
 function proposalLabel(
-  proposal: JobExtractionResult["proposals"][number],
+  proposal: PartialJobExtractionResult["proposals"][number],
   fields: CandidatureFieldConfiguration[],
 ) {
   const fieldLabel =
@@ -46,6 +52,14 @@ function proposalLabel(
     "Information";
   const value = Array.isArray(proposal.value) ? proposal.value.join(", ") : proposal.value;
   return value === "" ? fieldLabel : `${fieldLabel}: ${value}`;
+}
+
+function issueValue(value: unknown): string {
+  if (Array.isArray(value)) return value.map(String).join(", ");
+  if (value === undefined) return "(missing)";
+  if (value === null) return "null";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
 
 export function JobExtractionPanel({
@@ -62,7 +76,7 @@ export function JobExtractionPanel({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const taskKey = `initial-extraction:${candidatureId}`;
-  const task = useAiTask<JobExtractionResult>(taskKey);
+  const task = useAiTask<PartialJobExtractionResult>(taskKey);
   const proposal = task?.status === "completed" ? task.result ?? null : null;
   const taskActive = task?.status === "queued" || task?.status === "working";
 
@@ -96,13 +110,27 @@ export function JobExtractionPanel({
 
   const requestProposal = () => {
     setExcludedProposalIndexes([]);
-    startAiTask<JobExtractionResult>(
+    startAiTask<PartialJobExtractionResult>(
       taskKey,
-      async (updateDetail) => {
+      async (updateDetail, signal) => {
         updateDetail("Looking through the saved Source for useful information. Slow local models can take several minutes; you can continue using AAAAT.");
-        return window.aaaat.ai.extractJob(source);
+        const cancelProvider = () => {
+          void window.aaaat.aiTasks.cancelJobExtraction(taskKey).catch(() => undefined);
+        };
+        signal.addEventListener("abort", cancelProvider, { once: true });
+        try {
+          return await window.aaaat.aiTasks.extractJob(taskKey, source);
+        } finally {
+          signal.removeEventListener("abort", cancelProvider);
+        }
       },
       "Find candidature information",
+      (result) => {
+        const review = result.issues.length;
+        return review > 0
+          ? `Completed · ${result.proposals.length} value${result.proposals.length === 1 ? "" : "s"} found · ${review} needs review`
+          : `Completed · ${result.proposals.length} value${result.proposals.length === 1 ? "" : "s"} found`;
+      },
     );
   };
 
@@ -111,33 +139,57 @@ export function JobExtractionPanel({
 
     setSaving(true);
     setSaveError(null);
+    let saved = 0;
+    let failed = 0;
+
+    for (const [index, selected] of proposal.proposals.entries()) {
+      if (excludedProposalIndexes.includes(index)) continue;
+      const field = fields.find(
+        (candidate) => candidate.definition.id === selected.fieldId,
+      );
+      if (field === undefined) {
+        failed += 1;
+        recordAiTaskFieldIssue(taskKey, {
+          kind: "stale",
+          fieldId: selected.fieldId,
+          fieldLabel: null,
+          proposedValue: selected.value,
+          reason: "This information definition changed before the AI proposal could be kept.",
+        });
+        continue;
+      }
+
+      const value: CandidatureRuntimeValue = selected.value;
+      try {
+        await window.aaaat.candidatures.setFieldValue({
+          candidatureId,
+          fieldId: field.definition.id,
+          value,
+        });
+        saved += 1;
+        markAiTaskFieldApplied(taskKey, field.definition.id);
+      } catch (caughtError) {
+        failed += 1;
+        recordAiTaskFieldIssue(taskKey, {
+          kind: "invalid",
+          fieldId: field.definition.id,
+          fieldLabel: field.definition.label,
+          proposedValue: value,
+          reason:
+            caughtError instanceof Error
+              ? caughtError.message
+              : "AAAAT could not retain this AI proposal.",
+        });
+      }
+    }
 
     try {
-      await Promise.all(
-        proposal.proposals.map(async (selected, index) => {
-          if (excludedProposalIndexes.includes(index)) return;
-
-          const field = fields.find(
-            (candidate) => candidate.definition.id === selected.fieldId,
-          );
-          if (field === undefined) return;
-
-          const value: CandidatureRuntimeValue = selected.value;
-          await window.aaaat.candidatures.setFieldValue({
-            candidatureId,
-            fieldId: field.definition.id,
-            value,
-          });
-        }),
-      );
-      onAccepted();
-      onDismiss();
-    } catch (caughtError) {
-      setSaveError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "AAAAT could not retain the selected information.",
-      );
+      if (saved > 0) onAccepted();
+      if (failed > 0) {
+        setSaveError(`${saved} field${saved === 1 ? "" : "s"} kept · ${failed} need${failed === 1 ? "s" : ""} review. The other AI results were preserved.`);
+      } else {
+        onDismiss();
+      }
     } finally {
       setSaving(false);
     }
@@ -234,7 +286,7 @@ export function JobExtractionPanel({
         <div className="extraction-proposals">
           <h3>Suggested information</h3>
           {proposal.proposals.length === 0 ? (
-            <p>AI did not find useful information. Your saved Source has not changed.</p>
+            <p>AI did not find usable information. Your saved Source has not changed.</p>
           ) : (
             <fieldset>
               <legend>Select only the information you want to keep</legend>
@@ -250,6 +302,16 @@ export function JobExtractionPanel({
               ))}
             </fieldset>
           )}
+          {proposal.issues.length > 0 ? (
+            <div className="candidature-field-ai-error" role="status">
+              <strong>{proposal.issues.length} AI suggestion{proposal.issues.length === 1 ? "" : "s"} need review</strong>
+              {proposal.issues.map((issue, index) => (
+                <p key={`${issue.fieldId ?? issue.fieldLabel ?? "proposal"}-${index}`}>
+                  <strong>{issue.fieldLabel ?? "Unknown information"}:</strong> {issueValue(issue.proposedValue)} · {issue.reason}
+                </p>
+              ))}
+            </div>
+          ) : null}
           <div className="form-actions">
             <button
               type="button"
@@ -265,7 +327,7 @@ export function JobExtractionPanel({
         </div>
       )}
 
-      {saveError !== null ? <div className="inline-error" role="alert"><p>{saveError}</p></div> : null}
+      {saveError !== null ? <div className="inline-error" role="status"><p>{saveError}</p></div> : null}
     </section>
   );
 }
