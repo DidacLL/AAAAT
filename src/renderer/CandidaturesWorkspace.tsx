@@ -10,6 +10,7 @@ import type {
 } from "../shared/contracts";
 import { CandidatureActivityPanel } from "./CandidatureActivityPanel";
 import { CandidatureApplicationMaterialPanel } from "./CandidatureApplicationMaterialPanel";
+import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel } from "./CandidatureFocusPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
@@ -73,6 +74,7 @@ export function CandidaturesWorkspace({
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [sourceDirty, setSourceDirty] = useState(false);
   const [valueEditorDirty, setValueEditorDirty] = useState<ReadonlySet<string>>(new Set());
+  const [fieldDefinitionsDirty, setFieldDefinitionsDirty] = useState(false);
   const [discoveryFieldId, setDiscoveryFieldId] = useState<string | null>(null);
   const [addFieldId, setAddFieldId] = useState("");
   const [newFieldLabel, setNewFieldLabel] = useState("");
@@ -98,6 +100,7 @@ export function CandidaturesWorkspace({
     documentSelectionDirty ||
     tagSelectionDirty ||
     tagEditorDirty ||
+    fieldDefinitionsDirty ||
     valueEditorDirty.size > 0 ||
     newFieldLabel.trim().length > 0;
 
@@ -112,6 +115,7 @@ export function CandidaturesWorkspace({
     setSelectedTagId(record?.tagIds[0] ?? null);
     setSourceDirty(false);
     setValueEditorDirty(new Set());
+    setFieldDefinitionsDirty(false);
     setDiscoveryFieldId(null);
     setAddFieldId("");
     setNewFieldLabel("");
@@ -336,6 +340,14 @@ export function CandidaturesWorkspace({
     }
   };
 
+  const refreshFields = async () => {
+    try {
+      setFields(await window.aaaat.candidatures.listFields());
+    } catch {
+      setError("AAAAT could not refresh candidature information settings.");
+    }
+  };
+
   const saveDocuments = async () => {
     if (!selected) return;
     try {
@@ -445,7 +457,7 @@ export function CandidaturesWorkspace({
 
         <div className="candidature-corpus-tools">
           <label>
-            Search candidatures
+            Search
             <input
               type="search"
               value={query}
@@ -473,7 +485,10 @@ export function CandidaturesWorkspace({
         {error ? <p className="error-message" role="alert">{error}</p> : null}
 
         {records.length === 0 ? (
-          <p className="compact-empty">No candidatures yet. Raw material alone is enough to create one.</p>
+          <div className="candidature-empty-state">
+            <h3>No candidatures yet</h3>
+            <p>Enter a few details or paste whatever material you already have.</p>
+          </div>
         ) : visibleRecords.length === 0 ? (
           <p className="compact-empty">No candidatures match this search.</p>
         ) : (
@@ -512,7 +527,7 @@ export function CandidaturesWorkspace({
                     className="compact-secondary candidature-direct-edit"
                     onClick={() => openRecord(record, "detail")}
                   >
-                    Edit candidature
+                    All details
                   </button>
                 </article>
               );
@@ -537,10 +552,10 @@ export function CandidaturesWorkspace({
       <section className="candidatures-workspace candidature-selected-focus" aria-label="Candidature Focus">
         <div className="candidature-context-actions">
           <button type="button" className="compact-secondary" onClick={returnToCorpus}>
-            Back to candidatures
+            Back
           </button>
           <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "detail")}>
-            Edit full candidature
+            All details
           </button>
         </div>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
@@ -573,17 +588,17 @@ export function CandidaturesWorkspace({
         <div>
           <p className="eyebrow">Candidature</p>
           <h2>{selected.label}</h2>
-          <p>Everything AAAAT retains about this candidature.</p>
+          <p>Everything you have kept for this candidature.</p>
         </div>
         <div className="button-row">
           <button type="button" className="compact-secondary" onClick={returnToCorpus}>
-            Back to candidatures
+            Back
           </button>
           <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "focus")}>
-            Open Focus
+            Focus
           </button>
           <button type="button" className="compact-secondary" onClick={() => void setArchived(!selected.archived)}>
-            {selected.archived ? "Restore candidature" : "Archive candidature"}
+            {selected.archived ? "Restore" : "Archive"}
           </button>
         </div>
       </div>
@@ -594,7 +609,7 @@ export function CandidaturesWorkspace({
         <div>
           <p className="eyebrow">Information</p>
           <h3>Information</h3>
-          <p>Keep only information that is useful. Missing information is normal.</p>
+          <p>Keep only what is useful. Missing information is normal.</p>
         </div>
 
         {selected.values.length === 0 ? (
@@ -665,7 +680,7 @@ export function CandidaturesWorkspace({
           ) : null}
 
           <details>
-            <summary>Add something not listed</summary>
+            <summary>Something else…</summary>
             <label>
               Name
               <input
@@ -675,13 +690,19 @@ export function CandidaturesWorkspace({
               />
             </label>
             <button type="button" disabled={!newFieldLabel.trim()} onClick={() => void createCustomField()}>
-              Add information kind
+              Add
             </button>
           </details>
         </details>
 
+        <CandidatureFieldDefinitionsPanel
+          onChanged={() => void refreshFields()}
+          onDirtyChange={setFieldDefinitionsDirty}
+        />
+
         <details className="field-management">
-          <summary>Focus and AI visibility</summary>
+          <summary>Focus &amp; AI</summary>
+          <p className="compact-help">Choose what is useful for quick recall and what optional AI may receive.</p>
           <div className="field-preference-list">
             {fields.map((field) => (
               <article className="editor-card" key={field.definition.id}>
@@ -697,7 +718,7 @@ export function CandidaturesWorkspace({
                   Show in Focus when retained
                 </label>
                 <label>
-                  Focus prominence
+                  Size in Focus
                   <select
                     value={field.preferences.focusProminence}
                     onChange={(event) =>
@@ -712,7 +733,7 @@ export function CandidaturesWorkspace({
                   </select>
                 </label>
                 <label>
-                  Focus order
+                  Order in Focus
                   <input
                     type="number"
                     min="0"
@@ -725,7 +746,7 @@ export function CandidaturesWorkspace({
                   />
                 </label>
                 <label>
-                  When AI uses candidature context
+                  AI use
                   <select
                     value={field.preferences.aiContextMode}
                     onChange={(event) =>
@@ -734,9 +755,9 @@ export function CandidaturesWorkspace({
                       })
                     }
                   >
-                    <option value="omit">Do not share</option>
-                    <option value="expose">Share value</option>
-                    <option value="token">Use local placeholder</option>
+                    <option value="omit">Do not use</option>
+                    <option value="expose">Use this value</option>
+                    <option value="token">Use a local placeholder</option>
                   </select>
                 </label>
               </article>
