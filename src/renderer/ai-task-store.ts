@@ -8,7 +8,7 @@ import {
 import {
   jobExtractionExchangeSchema,
   jobExtractionProposalIssueSchema,
-  type InspectableAiExchange,
+  type JobExtractionExchange,
   type JobExtractionProposalIssue,
 } from "../shared/ai-proposal-outcomes";
 
@@ -21,7 +21,8 @@ export interface AiTaskSnapshot<T = unknown> {
   readonly detail: string | null;
   readonly result?: T;
   readonly error?: string;
-  readonly exchange?: InspectableAiExchange;
+  readonly exchange?: AiExchangeDiagnostic;
+  readonly completedExchange?: JobExtractionExchange;
   readonly handledFieldIds?: readonly string[];
   readonly appliedFieldIds?: readonly string[];
   readonly scopeFieldIds?: readonly string[];
@@ -110,7 +111,7 @@ function preAppliedFieldIds(result: unknown): string[] {
   return values.filter((value): value is string => typeof value === "string");
 }
 
-function completedExchange(result: unknown): InspectableAiExchange | undefined {
+function resultExchange(result: unknown): JobExtractionExchange | undefined {
   if (!result || typeof result !== "object" || !("exchange" in result)) return undefined;
   const parsed = jobExtractionExchangeSchema.safeParse(
     (result as { exchange?: unknown }).exchange,
@@ -194,7 +195,7 @@ export function startAiTask<T>(
           status: "completed",
           detail: completionDetail?.(result) ?? "Completed",
           result,
-          exchange: completedExchange(result),
+          completedExchange: resultExchange(result),
           handledFieldIds: appliedFieldIds,
           appliedFieldIds,
           scopeFieldIds: completedScope(active.scopeFieldIds, scopeFieldIds, appliedFieldIds),
@@ -232,6 +233,7 @@ export function cancelAiTask(key: string): void {
     detail: "Cancelled",
     error: undefined,
     exchange: undefined,
+    completedExchange: undefined,
     result: undefined,
   });
   emit();
