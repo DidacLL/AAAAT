@@ -7,9 +7,6 @@ vi.mock("../src/renderer/CandidatureApplicationMaterialPanel", () => ({
   CandidatureApplicationMaterialPanel: () => null,
 }));
 vi.mock("../src/renderer/CandidatureActivityPanel", () => ({ CandidatureActivityPanel: () => null }));
-vi.mock("../src/renderer/HistoricalFieldDiscoveryPanel", () => ({
-  HistoricalFieldDiscoveryPanel: () => null,
-}));
 
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
 import type {
@@ -120,7 +117,7 @@ describe("complete candidature information editing", () => {
     expect(within(card).queryByRole("textbox")).not.toBeInTheDocument();
     expect(within(card).queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
 
-    await user.click(within(card).getByRole("button", { name: "Edit" }));
+    await user.click(within(card).getByRole("button", { name: "Edit value" }));
     const input = within(card).getByRole("textbox");
     await user.clear(input);
     await user.type(input, "October through December");
