@@ -58,7 +58,7 @@ export function JobExtractionPanel({
   const { openSettingsFor } = useContextualHandoffs();
   const [connection, setConnection] = useState<NamedAiConnection | null | undefined>(undefined);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
-  const [selectedProposalIndexes, setSelectedProposalIndexes] = useState<number[]>([]);
+  const [excludedProposalIndexes, setExcludedProposalIndexes] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const taskKey = `initial-extraction:${candidatureId}`;
@@ -88,11 +88,6 @@ export function JobExtractionPanel({
   }, [task?.status]);
 
   useEffect(() => {
-    if (!proposal) return;
-    setSelectedProposalIndexes(proposal.proposals.map((_, index) => index));
-  }, [proposal]);
-
-  useEffect(() => {
     onDirtyChange?.(proposal !== null);
     return () => onDirtyChange?.(false);
   }, [onDirtyChange, proposal]);
@@ -100,6 +95,7 @@ export function JobExtractionPanel({
   if (source.sourceText.trim() === "") return null;
 
   const requestProposal = () => {
+    setExcludedProposalIndexes([]);
     startAiTask<JobExtractionResult>(
       taskKey,
       async (updateDetail) => {
@@ -118,9 +114,8 @@ export function JobExtractionPanel({
 
     try {
       await Promise.all(
-        selectedProposalIndexes.map(async (index) => {
-          const selected = proposal.proposals[index];
-          if (selected === undefined) return;
+        proposal.proposals.map(async (selected, index) => {
+          if (excludedProposalIndexes.includes(index)) return;
 
           const field = fields.find(
             (candidate) => candidate.definition.id === selected.fieldId,
@@ -149,10 +144,10 @@ export function JobExtractionPanel({
   };
 
   const toggleProposal = (index: number) => {
-    setSelectedProposalIndexes((selected) =>
-      selected.includes(index)
-        ? selected.filter((selectedIndex) => selectedIndex !== index)
-        : [...selected, index],
+    setExcludedProposalIndexes((excluded) =>
+      excluded.includes(index)
+        ? excluded.filter((excludedIndex) => excludedIndex !== index)
+        : [...excluded, index],
     );
   };
 
@@ -247,7 +242,7 @@ export function JobExtractionPanel({
                 <label key={`${item.fieldId}-${index}`} className="checkbox-row">
                   <input
                     type="checkbox"
-                    checked={selectedProposalIndexes.includes(index)}
+                    checked={!excludedProposalIndexes.includes(index)}
                     onChange={() => toggleProposal(index)}
                   />
                   {proposalLabel(item, fields)}
@@ -259,7 +254,7 @@ export function JobExtractionPanel({
             <button
               type="button"
               onClick={() => void acceptSelected()}
-              disabled={saving || selectedProposalIndexes.length === 0}
+              disabled={saving || proposal.proposals.length === excludedProposalIndexes.length}
             >
               {saving ? "Keeping information…" : "Keep selected information"}
             </button>
