@@ -113,7 +113,10 @@ describe("post-creation candidature AI inference", () => {
       };
       return current;
     });
-    const extractJob = vi.fn((_request: ExtractionRequest) => extraction.promise);
+    const extractJob = vi.fn((request: ExtractionRequest) => {
+      void request;
+      return extraction.promise;
+    });
 
     Object.defineProperty(window, "aaaat", {
       configurable: true,
@@ -260,7 +263,12 @@ describe("post-creation candidature AI inference", () => {
             defaultForOperations: ["job_extraction"],
           }]),
         },
-        ai: { extractJob: vi.fn((_request: ExtractionRequest) => extraction.promise) },
+        ai: {
+          extractJob: vi.fn((request: ExtractionRequest) => {
+            void request;
+            return extraction.promise;
+          }),
+        },
       },
     });
 
