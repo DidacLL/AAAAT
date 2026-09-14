@@ -6,6 +6,7 @@ import {
   getAiTask,
   startAiTask,
 } from "../src/renderer/ai-task-store";
+import { AI_EXCHANGE_DIAGNOSTIC_MARKER } from "../src/shared/ai-diagnostics";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -20,6 +21,24 @@ function deferred<T>() {
 async function flush(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
+}
+
+function diagnosticError(): Error {
+  const exchange = {
+    id: "00000000-0000-4000-8000-000000000d11",
+    operation: "opportunity_review",
+    endpoint: "http://localhost:8080/v1",
+    model: "small-local-model",
+    systemInstruction: "Return the requested JSON object.",
+    userPayload: "{\"role\":\"Validation Engineer\"}",
+    rawModelResponse: "I cannot return that schema.",
+    validationError: "Expected object, received string.",
+    failureKind: "operation_incompatible",
+    structuredOutputMode: "json_schema",
+  };
+  return new Error(
+    `Error invoking remote method 'aaaat:test': AiProviderError: The endpoint is reachable, but this operation is incompatible.\n${AI_EXCHANGE_DIAGNOSTIC_MARKER}${btoa(JSON.stringify(exchange))}`,
+  );
 }
 
 describe("renderer AI task state", () => {
@@ -123,6 +142,27 @@ describe("renderer AI task state", () => {
     expect(getAiTask("failed-local")).toMatchObject({
       status: "completed",
       result: "recovered",
+    });
+  });
+
+  it("separates the readable failure from the exact AI exchange diagnostic", async () => {
+    startAiTask("diagnostic", async () => {
+      throw diagnosticError();
+    });
+    await vi.runOnlyPendingTimersAsync();
+    await flush();
+
+    expect(getAiTask("diagnostic")).toMatchObject({
+      status: "failed",
+      error: "The endpoint is reachable, but this operation is incompatible.",
+      exchange: {
+        operation: "opportunity_review",
+        endpoint: "http://localhost:8080/v1",
+        model: "small-local-model",
+        rawModelResponse: "I cannot return that schema.",
+        validationError: "Expected object, received string.",
+        failureKind: "operation_incompatible",
+      },
     });
   });
 });
