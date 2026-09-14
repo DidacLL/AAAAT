@@ -57,6 +57,13 @@ function proposalFieldIds(result: unknown, scopeFieldIds?: readonly string[]): s
   });
 }
 
+function preAppliedFieldIds(result: unknown): string[] {
+  if (!result || typeof result !== "object" || !("appliedFieldIds" in result)) return [];
+  const values = (result as { appliedFieldIds?: unknown }).appliedFieldIds;
+  if (!Array.isArray(values)) return [];
+  return values.filter((value): value is string => typeof value === "string");
+}
+
 export function getAiTask<T>(key: string): AiTaskSnapshot<T> | null {
   return (tasks.get(key) as AiTaskSnapshot<T> | undefined) ?? null;
 }
@@ -116,14 +123,15 @@ export function startAiTask<T>(
       .then((result) => {
         const active = tasks.get(key);
         if (!active || active.status !== "working" || controller.signal.aborted) return;
+        const appliedFieldIds = preAppliedFieldIds(result);
         tasks.set(key, {
           key,
           label: active.label ?? label,
           status: "completed",
           detail: completionDetail?.(result) ?? "Completed",
           result,
-          handledFieldIds: [],
-          appliedFieldIds: [],
+          handledFieldIds: appliedFieldIds,
+          appliedFieldIds,
           scopeFieldIds: active.scopeFieldIds ?? (scopeFieldIds ? [...scopeFieldIds] : undefined),
         });
         controllers.delete(key);
