@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import type { JobExtractionResult } from "../shared/ai-contracts";
 import type {
@@ -19,6 +19,29 @@ interface Props {
   readonly onRetry: () => void;
 }
 
+function pendingProposals(
+  task: ReturnType<typeof useAiTask<JobExtractionResult>>,
+  candidature: CandidatureRecord,
+  fields: readonly CandidatureFieldConfiguration[],
+) {
+  if (!task) return { safeMissing: [], conflicts: [] };
+  const enabled = new Set(
+    fields.filter((field) => field.definition.enabled).map((field) => field.definition.id),
+  );
+  const scoped = task.scopeFieldIds ? new Set(task.scopeFieldIds) : null;
+  const retained = new Set(candidature.values.map((value) => value.fieldId));
+  const proposals = (task.result?.proposals ?? []).filter(
+    (proposal) =>
+      enabled.has(proposal.fieldId) &&
+      (!scoped || scoped.has(proposal.fieldId)) &&
+      !(task.handledFieldIds ?? []).includes(proposal.fieldId),
+  );
+  return {
+    safeMissing: proposals.filter((proposal) => !retained.has(proposal.fieldId)),
+    conflicts: proposals.filter((proposal) => retained.has(proposal.fieldId)),
+  };
+}
+
 export function CandidatureBulkAiReview({
   candidature,
   fields,
@@ -28,35 +51,15 @@ export function CandidatureBulkAiReview({
   const taskId = `candidature-inference:${candidature.id}:missing`;
   const task = useAiTask<JobExtractionResult>(taskId);
   const applyingFieldIds = useRef(new Set<string>());
-  const enabled = useMemo(
-    () => new Set(fields.filter((field) => field.definition.enabled).map((field) => field.definition.id)),
-    [fields],
-  );
-  const scoped = task?.scopeFieldIds ? new Set(task.scopeFieldIds) : null;
-  const retained = useMemo(
-    () => new Set(candidature.values.map((value) => value.fieldId)),
-    [candidature.values],
-  );
-  const proposals = useMemo(
-    () => (task?.result?.proposals ?? []).filter(
-      (proposal) =>
-        enabled.has(proposal.fieldId) &&
-        (!scoped || scoped.has(proposal.fieldId)) &&
-        !(task?.handledFieldIds ?? []).includes(proposal.fieldId),
-    ),
-    [enabled, scoped, task?.handledFieldIds, task?.result?.proposals],
-  );
-  const safeMissing = useMemo(
-    () => proposals.filter((proposal) => !retained.has(proposal.fieldId)),
-    [proposals, retained],
-  );
-  const conflicts = proposals.filter((proposal) => retained.has(proposal.fieldId));
+  const { safeMissing, conflicts } = pendingProposals(task, candidature, fields);
   const appliedCount = task?.appliedFieldIds?.length ?? 0;
 
   useEffect(() => {
-    if (task?.status !== "completed" || safeMissing.length === 0) return;
+    if (task?.status !== "completed") return;
+    const { safeMissing: currentMissing } = pendingProposals(task, candidature, fields);
+    if (currentMissing.length === 0) return;
     let active = true;
-    for (const proposal of safeMissing) {
+    for (const proposal of currentMissing) {
       if (applyingFieldIds.current.has(proposal.fieldId)) continue;
       applyingFieldIds.current.add(proposal.fieldId);
       void onSaveValue(proposal.fieldId, proposal.value)
@@ -70,7 +73,7 @@ export function CandidatureBulkAiReview({
     return () => {
       active = false;
     };
-  }, [onSaveValue, safeMissing, task?.status, taskId]);
+  }, [candidature, fields, onSaveValue, task, taskId]);
 
   const retry = () => {
     applyingFieldIds.current.clear();
@@ -104,7 +107,7 @@ export function CandidatureBulkAiReview({
       </div>
     );
   }
-  if (proposals.length === 0) {
+  if (conflicts.length === 0) {
     if (appliedCount > 0) {
       return (
         <div className="candidature-bulk-ai-review" role="status">
