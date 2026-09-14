@@ -315,7 +315,7 @@ async function proveCandidatureFlowAtWindowSize(
 ): Promise<void> {
   await proveAcceptedShellAtWindowSize(page, width, height);
 
-  await expect(page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
   const search = page.getByRole("searchbox", { name: "Search candidatures" });
   const show = page.getByLabel("Show");
   const corpus = page.locator('[aria-label="Candidature corpus Focus"]');
@@ -566,7 +566,7 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     await proveAcceptedShellAtWindowSize(running.page, 1200, 800);
     await proveAcceptedShellAtWindowSize(running.page, 720, 600);
@@ -657,7 +657,7 @@ test("packaged desktop preserves security gates and required bounded capabilitie
 
     running = await startPackagedApp(isolatedUserData, linuxHome, linuxDocumentTools);
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
     await proveCandidatureFlowAtWindowSize(running.page, 1200, 800);
     await proveCandidatureFlowAtWindowSize(running.page, 720, 600);
     if (!linuxDocumentTools) throw new Error("Linux document tools are required for packaged evidence");
