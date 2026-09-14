@@ -168,11 +168,21 @@ export function CandidatureInferencePanel({
             ? `Finding ${requestedFields[0]?.definition.label ?? "this information"}…`
             : `Finding ${requestedFields.length} missing values…`,
         );
-        const result = await window.aaaat.ai.extractJob({
-          sourceTitle: "Retained AAAAT candidature context",
-          sourceUrl: "",
-          sourceText: context,
-        });
+
+        const cancelProvider = () => {
+          void window.aaaat.aiTasks.cancelJobExtraction(taskId).catch(() => undefined);
+        };
+        signal.addEventListener("abort", cancelProvider, { once: true });
+        let result: JobExtractionResult;
+        try {
+          result = await window.aaaat.aiTasks.extractJob(taskId, {
+            sourceTitle: "Retained AAAAT candidature context",
+            sourceUrl: "",
+            sourceText: context,
+          });
+        } finally {
+          signal.removeEventListener("abort", cancelProvider);
+        }
         if (!allowNewFields || result.newFields.length === 0 || signal.aborted) return result;
 
         updateDetail("Adding useful information found in the offer…");
