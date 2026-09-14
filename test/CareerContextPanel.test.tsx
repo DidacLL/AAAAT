@@ -56,13 +56,12 @@ describe("CareerContextPanel", () => {
     const user = userEvent.setup();
     render(<CareerContextPanel />);
 
-    expect(
-      await screen.findByRole("heading", { name: "Career preferences" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Add only preferences or constraints/)).toBeInTheDocument();
+    const summary = await screen.findByText("Career preferences", { selector: "summary span:first-child" });
     expect(screen.queryByRole("textbox", { name: /^Career direction/ })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Add career preferences" }));
+    await user.click(summary);
+    expect(screen.getByText(/Add only preferences or constraints/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add preferences" }));
     expect(screen.getByRole("textbox", { name: /^Career direction/ })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /^Constraints/ })).toBeInTheDocument();
   });
@@ -70,9 +69,10 @@ describe("CareerContextPanel", () => {
   it("saves fictional current context and returns to a non-empty summary", async () => {
     const user = userEvent.setup();
     render(<CareerContextPanel />);
-    await screen.findByRole("button", { name: "Add career preferences" });
 
-    await user.click(screen.getByRole("button", { name: "Add career preferences" }));
+    const summary = await screen.findByText("Career preferences", { selector: "summary span:first-child" });
+    await user.click(summary);
+    await user.click(screen.getByRole("button", { name: "Add preferences" }));
     await user.type(
       screen.getByRole("textbox", { name: /^Career direction/ }),
       "Move toward staff-level platform work",
@@ -82,7 +82,7 @@ describe("CareerContextPanel", () => {
       screen.getByRole("textbox", { name: /^Target markets \/ locations/ }),
       "Spain / EU remote or hybrid",
     );
-    await user.click(screen.getByRole("button", { name: "Save career preferences" }));
+    await user.click(screen.getByRole("button", { name: "Save preferences" }));
 
     expect(update).toHaveBeenCalledWith({
       ...emptyContext,
@@ -90,7 +90,9 @@ describe("CareerContextPanel", () => {
       constraints: "No relocation",
       targetMarketsLocations: "Spain / EU remote or hybrid",
     });
-    expect(await screen.findByText("Move toward staff-level platform work")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Career preferences", { selector: "summary span:first-child" }));
+    expect(screen.getByText("Move toward staff-level platform work")).toBeInTheDocument();
     expect(screen.getByText("No relocation")).toBeInTheDocument();
     expect(screen.getByText("Spain / EU remote or hybrid")).toBeInTheDocument();
     expect(screen.queryByText("Objectives")).not.toBeInTheDocument();
@@ -105,16 +107,18 @@ describe("CareerContextPanel", () => {
     const user = userEvent.setup();
     render(<CareerContextPanel />);
 
-    expect(await screen.findByText("Private local constraint")).toBeInTheDocument();
-    const disclosure = screen.getByRole("button", { name: "Choose what AI may use" });
-    await user.click(disclosure);
+    const summary = await screen.findByText("Career preferences", { selector: "summary span:first-child" });
+    await user.click(summary);
+    expect(screen.getByText("Private local constraint")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Edit preferences" }));
+    await user.click(screen.getByRole("button", { name: "Choose what AI may use" }));
 
     const constraints = await screen.findByRole("checkbox", { name: "Constraints" });
     expect(constraints).toBeChecked();
     await user.click(constraints);
 
     expect(updateDisclosure).toHaveBeenCalledWith({ ...allShared, constraints: false });
-    expect(screen.getByText("Private local constraint")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /^Constraints/ })).toHaveValue("Private local constraint");
     expect(update).not.toHaveBeenCalled();
   });
 });
