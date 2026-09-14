@@ -8,93 +8,81 @@ interface Props {
 }
 
 const labels: Readonly<Record<AiContextMode, string>> = {
-  expose: "Share as written",
+  expose: "Use this information",
   token: "Use a local placeholder",
-  omit: "Do not share",
+  omit: "Do not use",
 };
 
 export function ProfileItemAiDisclosureControl({ itemId, onDirtyChange }: Props) {
-  const [savedMode, setSavedMode] = useState<AiContextMode | null>(null);
-  const [draftMode, setDraftMode] = useState<AiContextMode>("expose");
-  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<AiContextMode | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dirty = savedMode !== null && draftMode !== savedMode;
+
+  useEffect(() => {
+    onDirtyChange?.(false);
+    return () => onDirtyChange?.(false);
+  }, [onDirtyChange]);
 
   useEffect(() => {
     let active = true;
     void window.aaaat.profileAiContext
       .current(itemId)
       .then((preference) => {
-        if (!active) return;
-        setSavedMode(preference.aiContextMode);
-        setDraftMode(preference.aiContextMode);
+        if (active) setMode(preference.aiContextMode);
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load this AI disclosure preference.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (active) setError("AAAAT could not load the AI-use setting.");
       });
     return () => {
       active = false;
     };
   }, [itemId]);
 
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-  }, [dirty, onDirtyChange]);
-
-  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
-
-  const save = async () => {
+  const updateMode = async (nextMode: AiContextMode) => {
+    if (mode === null || saving || nextMode === mode) return;
+    const previous = mode;
+    setMode(nextMode);
     setSaving(true);
     setError(null);
     try {
       const preference = await window.aaaat.profileAiContext.update({
         itemId,
-        aiContextMode: draftMode,
+        aiContextMode: nextMode,
       });
-      setSavedMode(preference.aiContextMode);
-      setDraftMode(preference.aiContextMode);
+      setMode(preference.aiContextMode);
     } catch {
-      setError("AAAAT could not save this AI disclosure preference.");
+      setMode(previous);
+      setError("AAAAT could not save the AI-use setting.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <details className="profile-item-ai-disclosure">
-      <summary>AI disclosure</summary>
-      <div className="profile-item-ai-disclosure-content">
+    <details className="ai-visibility-control profile-item-ai-disclosure">
+      <summary aria-label="Choose how AI may use this information" title="Choose how AI may use this information">
+        AI
+      </summary>
+      <div className="ai-visibility-content">
         <p className="compact-help">
-          Controls this reusable item when AAAAT builds context for optional AI assistance. It does not hide or delete local information and does not change CV or letter inclusion.
+          This only affects optional AI help. It does not hide, remove or change your local information.
         </p>
-        {loading ? <p className="compact-help">Loading disclosure preference…</p> : null}
-        {!loading && savedMode !== null ? (
-          <>
-            <label>
-              When AI uses this professional information
-              <select
-                value={draftMode}
-                onChange={(event) => setDraftMode(event.target.value as AiContextMode)}
-              >
-                {(Object.keys(labels) as AiContextMode[]).map((mode) => (
-                  <option key={mode} value={mode}>{labels[mode]}</option>
-                ))}
-              </select>
-            </label>
-            <button
-              className="compact-secondary"
-              type="button"
-              disabled={saving || !dirty}
-              onClick={() => void save()}
+        {mode === null ? <p className="compact-help">Loading…</p> : null}
+        {mode !== null ? (
+          <label>
+            AI may
+            <select
+              value={mode}
+              disabled={saving}
+              onChange={(event) => void updateMode(event.target.value as AiContextMode)}
             >
-              {saving ? "Saving…" : "Save AI disclosure"}
-            </button>
-          </>
+              {(Object.keys(labels) as AiContextMode[]).map((value) => (
+                <option key={value} value={value}>{labels[value]}</option>
+              ))}
+            </select>
+          </label>
         ) : null}
+        {saving ? <span className="compact-help">Saving…</span> : null}
         {error ? <p className="error-message" role="alert">{error}</p> : null}
       </div>
     </details>
