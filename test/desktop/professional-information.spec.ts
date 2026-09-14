@@ -176,7 +176,7 @@ test("packaged Professional information stays read-first across window samples",
     await expect(running.page).toHaveTitle("AAAAT");
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
     await primary.getByRole("button", { name: "Professional information" }).click();
