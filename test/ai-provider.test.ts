@@ -1,8 +1,11 @@
 // @vitest-environment node
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createOpenAiCompatibleProvider } from "../src/main/ai-provider";
+import {
+  AI_PROVIDER_SAFETY_CEILING_MS,
+  createOpenAiCompatibleProvider,
+} from "../src/main/ai-provider";
 import type {
   AiConnectionStatus,
   ProviderOpportunityReviewContext,
@@ -39,6 +42,10 @@ function response(content: unknown): Response {
   );
 }
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("OpenAI-compatible provider", () => {
   it("sends one keyless opportunity review request and validates the neutral result", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
@@ -63,6 +70,37 @@ describe("OpenAI-compatible provider", () => {
     };
     expect(body.model).toBe("fixture-model");
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
+  });
+
+  it("allows a local-compatible response beyond the old 30-second threshold", async () => {
+    vi.useFakeTimers();
+    expect(AI_PROVIDER_SAFETY_CEILING_MS).toBeGreaterThan(30_000);
+
+    const request: ProviderJobExtractionRequest = {
+      sourceTitle: "Pilot vacancy",
+      sourceUrl: "",
+      sourceText: "Minimum 1,500 total hours.",
+      fields: [
+        {
+          fieldRef,
+          label: "Minimum flight hours",
+          description: "Minimum total flight hours requested.",
+          valueType: "number",
+          cardinality: "one",
+          choices: [],
+        },
+      ],
+    };
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+      await new Promise((resolve) => setTimeout(resolve, 31_000));
+      expect(init?.signal?.aborted).toBe(false);
+      return response({ proposals: [{ fieldRef, value: 1500 }] });
+    });
+    const provider = createOpenAiCompatibleProvider(fetchImpl);
+    const pending = provider.extractJob(connection, request);
+
+    await vi.advanceTimersByTimeAsync(31_000);
+    await expect(pending).resolves.toEqual({ proposals: [{ fieldRef, value: 1500 }] });
   });
 
   it("sends operation-scoped discovery references and reads typed proposals", async () => {
