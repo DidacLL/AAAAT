@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiSettingsWorkspace } from "../src/renderer/AiSettingsWorkspace";
 import { clearAllAiTasks } from "../src/renderer/ai-task-store";
 import { aiOperations, type AiOperation } from "../src/shared/ai-connection-contracts";
+import { AI_EXCHANGE_DIAGNOSTIC_MARKER } from "../src/shared/ai-diagnostics";
 
 const firstId = "00000000-0000-4000-8000-000000000a11";
 const secondId = "00000000-0000-4000-8000-000000000a12";
@@ -63,6 +64,24 @@ function deferred<T>() {
     reject = rejectPromise;
   });
   return { promise, resolve, reject };
+}
+
+function incompatibleValidationError(operation: AiOperation): Error {
+  const exchange = {
+    id: "00000000-0000-4000-8000-000000000a99",
+    operation,
+    endpoint: "http://localhost:11434/v1",
+    model: "fast-model",
+    systemInstruction: "Exact validation system instruction",
+    userPayload: "{\"synthetic\":\"validation context\"}",
+    rawModelResponse: "{\"summary\":42}",
+    validationError: "Capability validation failed: summary must be a string.",
+    failureKind: "operation_incompatible",
+    structuredOutputMode: "json_schema",
+  };
+  return new Error(
+    `Error invoking remote method 'aaaat:ai-connections-validate-operation': AiProviderError: The endpoint is reachable, but this model is incompatible with this AAAAT operation.\n${AI_EXCHANGE_DIAGNOSTIC_MARKER}${btoa(JSON.stringify(exchange))}`,
+  );
 }
 
 describe("AI settings workspace", () => {
@@ -159,24 +178,38 @@ describe("AI settings workspace", () => {
     }]);
 
     expect(await screen.findByText(/Validation completed/)).toBeInTheDocument();
-    expect(screen.getByText(`${aiOperations.length}/${aiOperations.length} validated`)).toBeInTheDocument();
+    expect(screen.getByText(`${aiOperations.length}/${aiOperations.length} ready`)).toBeInTheDocument();
     expect(validateOperation).toHaveBeenCalledTimes(aiOperations.length);
     expect(screen.getByText("AI ready.", { exact: false })).toBeInTheDocument();
   });
 
-  it("keeps a concrete validation failure visible and retryable", async () => {
+  it("keeps the connection connected when one operation is incompatible and preserves the exchange for retry", async () => {
     const user = userEvent.setup();
+    const incompatibleOperation = aiOperations[0];
+    if (!incompatibleOperation) throw new Error("Expected at least one AI operation");
     list.mockResolvedValue([first]);
-    validateOperation.mockRejectedValue(
-      new Error("The AI provider did not finish before AAAAT's 15-minute safety limit."),
-    );
+    let validated: AiOperation[] = [];
+    validateOperation.mockImplementation(async ({ operation }: { operation: AiOperation }) => {
+      if (operation === incompatibleOperation) throw incompatibleValidationError(operation);
+      validated = [...validated, operation];
+      return [{
+        ...first,
+        validatedOperations: [...validated],
+        defaultForOperations: [...validated],
+      }];
+    });
 
     render(<AiSettingsWorkspace />);
     await user.click(await screen.findByRole("button", { name: "Validate AI capabilities" }));
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("15-minute safety limit");
-    expect(screen.getByRole("button", { name: "Retry validation" })).toBeEnabled();
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+    expect(screen.getByText("Incompatible · failed validation")).toBeInTheDocument();
+    expect(screen.getByText(`${aiOperations.length - 1}/${aiOperations.length} ready`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry failed validation" })).toBeEnabled();
+    expect(screen.getByText("Inspect AI exchange")).toBeInTheDocument();
+    expect(screen.getByText("{\"summary\":42}")).toBeInTheDocument();
+    expect(screen.getByText(/summary must be a string/)).toBeInTheDocument();
+    expect(validateOperation).toHaveBeenCalledTimes(aiOperations.length);
   });
 
   it("edits an existing named connection by stable ID", async () => {
