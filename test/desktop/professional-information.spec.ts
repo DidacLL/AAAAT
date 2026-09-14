@@ -165,7 +165,7 @@ async function expectNoHorizontalOverflow(page: Page, width: number, height: num
   );
 }
 
-test("packaged Professional information is read-first and compact-task oriented", async () => {
+test("packaged Professional information stays read-first across window samples", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-professional-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-professional-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
@@ -218,7 +218,7 @@ test("packaged Professional information is read-first and compact-task oriented"
 
     await workspace.getByRole("button", { name: "Back to professional information" }).click();
     await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
-    await expect(running.page.getByRole("region", { name: "Career preferences" })).toBeVisible();
+    await expect(running.page.locator('details[aria-label="Career preferences"]')).toBeVisible();
     console.log("[packaged professional information] compact return=true career-context-reachable=true");
   } finally {
     if (running) await stopPackagedApp(running);
