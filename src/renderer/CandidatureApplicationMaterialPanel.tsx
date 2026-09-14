@@ -103,7 +103,7 @@ export function CandidatureApplicationMaterialPanel({
         <div>
           <p className="eyebrow">Documents</p>
           <h3>Documents</h3>
-          <p>CVs and letters are edited in CVs &amp; letters. This shows the documents linked to this candidature and PDFs you saved from them.</p>
+          <p>CVs and letters are edited in Documents. This shows the documents linked to this candidature and PDFs you saved from them.</p>
         </div>
         <button type="button" onClick={() => onOpenDocument()}>
           Create CV or letter
