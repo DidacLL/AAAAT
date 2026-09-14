@@ -239,7 +239,7 @@ export function CandidaturesAiWorkspace({
             <p>The original material is retained. AI and manual filling are optional peer continuations.</p>
           </div>
           <pre className="post-paste-source-preview">{savedSource.source.sourceText}</pre>
-          <div className="post-paste-actions" aria-label="Continue from saved Source">
+          <div className="post-paste-actions" role="group" aria-label="Continue from saved Source">
             <button
               type="button"
               disabled={aiExtractionAvailable !== true}
@@ -266,7 +266,7 @@ export function CandidaturesAiWorkspace({
 
   return (
     <div className="candidature-capture-owner">
-      <div className="candidature-capture-actions" aria-label="Create candidature">
+      <div className="candidature-capture-actions" role="group" aria-label="Create candidature">
         <div className="candidature-new-intro">
           <span className="candidature-new-label">New candidature</span>
           <span>Start with what you already have.</span>
