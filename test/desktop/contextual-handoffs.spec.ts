@@ -148,7 +148,7 @@ test("packaged candidature document handoff returns to complete candidature with
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     await running.page.evaluate(async () => {
       await window.aaaat.candidatures.create({
