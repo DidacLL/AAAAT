@@ -171,7 +171,7 @@ export function createOpenAiCompatibleProvider(
       const content = await requestContent(
         fetchImpl,
         connection,
-        "Discover only facts supported by the supplied Source for the explicitly requested fields. Return JSON only as {\"proposals\":[{\"fieldRef\":\"...\",\"value\":...}]}. Use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for choice fields, omit unsupported values, and never propose or create new field definitions.",
+        "Extract only facts supported by the supplied Source. Return JSON only as {\"proposals\":[{\"fieldRef\":\"...\",\"value\":...}],\"newFields\":[{\"label\":\"...\",\"description\":\"...\",\"valueType\":\"text|long_text|number|boolean|date|url|choice\",\"cardinality\":\"one|many\",\"choices\":[\"...\"],\"value\":...}]}. For proposals, use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for existing choice fields, and omit unsupported values. newFields is optional discovery for useful facts that clearly do not fit any supplied field: suggest at most 8 concise reusable candidature information kinds, never duplicate an existing field by meaning or name, use choices only for choice fields, and omit speculative or weakly supported facts. Return an empty array when there are no genuinely useful new fields.",
         request,
         requestTimeoutMs,
       );
