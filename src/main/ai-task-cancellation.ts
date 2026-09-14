@@ -1,6 +1,6 @@
-import type { JobExtractionRequest, JobExtractionResult } from "../shared/ai-contracts";
-import { createOpenAiCompatibleProvider } from "./ai-provider";
-import { extractJob } from "./ai-service";
+import type { JobExtractionRequest } from "../shared/ai-contracts";
+import type { PartialJobExtractionResult } from "../shared/ai-proposal-outcomes";
+import { extractJobWithPartialOutcomes } from "./robust-job-extraction";
 
 const activeExtractions = new Map<string, AbortController>();
 
@@ -8,21 +8,15 @@ export async function runCancellableJobExtraction(
   rootPath: string,
   taskId: string,
   request: JobExtractionRequest,
-): Promise<JobExtractionResult> {
+): Promise<PartialJobExtractionResult> {
   const previous = activeExtractions.get(taskId);
   previous?.abort();
 
   const controller = new AbortController();
   activeExtractions.set(taskId, controller);
-  const provider = createOpenAiCompatibleProvider();
-  const cancellableProvider = {
-    ...provider,
-    extractJob: (connection: Parameters<typeof provider.extractJob>[0], input: Parameters<typeof provider.extractJob>[1]) =>
-      provider.extractJob(connection, input, controller.signal),
-  };
 
   try {
-    return await extractJob(rootPath, request, cancellableProvider);
+    return await extractJobWithPartialOutcomes(rootPath, request, controller.signal);
   } finally {
     if (activeExtractions.get(taskId) === controller) activeExtractions.delete(taskId);
   }
