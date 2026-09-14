@@ -22,35 +22,38 @@ export function AiTaskStatus() {
     <details className={`shell-ai-task-status shell-ai-task-status-${overallStatus}`} open={active.length > 0 || failed.length > 0}>
       <summary>{summary}</summary>
       <div className="shell-ai-task-list">
-        {tasks.map((task) => (
-          <article key={task.key} className={`shell-ai-task shell-ai-task-${task.status}`}>
-            <div>
-              <strong>{task.label}</strong>
-              <span>
-                {task.status === "queued"
-                  ? "Queued"
-                  : task.status === "working"
-                    ? task.detail ?? "Working…"
-                    : task.status === "completed"
-                      ? task.detail ?? "Completed"
-                      : task.status === "cancelled"
-                        ? "Cancelled"
-                        : "Failed"}
-              </span>
-              {task.error ? <small>{task.error}</small> : null}
-              {task.exchange ? <AiExchangeInspector exchange={task.exchange} /> : null}
-            </div>
-            {task.status === "queued" || task.status === "working" ? (
-              <button type="button" className="compact-secondary" onClick={() => cancelAiTask(task.key)}>
-                Cancel
-              </button>
-            ) : (
-              <button type="button" className="compact-secondary" onClick={() => clearAiTask(task.key)}>
-                Dismiss
-              </button>
-            )}
-          </article>
-        ))}
+        {tasks.map((task) => {
+          const inspectableExchange = task.exchange ?? task.completedExchange;
+          return (
+            <article key={task.key} className={`shell-ai-task shell-ai-task-${task.status}`}>
+              <div>
+                <strong>{task.label}</strong>
+                <span>
+                  {task.status === "queued"
+                    ? "Queued"
+                    : task.status === "working"
+                      ? task.detail ?? "Working…"
+                      : task.status === "completed"
+                        ? task.detail ?? "Completed"
+                        : task.status === "cancelled"
+                          ? "Cancelled"
+                          : "Failed"}
+                </span>
+                {task.error ? <small>{task.error}</small> : null}
+                {inspectableExchange ? <AiExchangeInspector exchange={inspectableExchange} /> : null}
+              </div>
+              {task.status === "queued" || task.status === "working" ? (
+                <button type="button" className="compact-secondary" onClick={() => cancelAiTask(task.key)}>
+                  Cancel
+                </button>
+              ) : (
+                <button type="button" className="compact-secondary" onClick={() => clearAiTask(task.key)}>
+                  Dismiss
+                </button>
+              )}
+            </article>
+          );
+        })}
       </div>
     </details>
   );
