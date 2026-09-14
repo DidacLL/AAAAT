@@ -236,7 +236,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
     await expect(selectedFocus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
     await expect(selectedFocus).toContainText("1500");
-    await running.page.getByRole("button", { name: "Edit full candidature" }).click();
+    await running.page.getByRole("button", { name: "All details" }).click();
 
     const complete = running.page.getByRole("region", { name: "Complete candidature" });
     const sources = complete.getByRole("region", { name: "Sources" });

@@ -316,7 +316,7 @@ async function proveCandidatureFlowAtWindowSize(
   await proveAcceptedShellAtWindowSize(page, width, height);
 
   await expect(page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
-  const search = page.getByRole("searchbox", { name: "Search candidatures" });
+  const search = page.getByRole("searchbox", { name: "Search" });
   const show = page.getByLabel("Show");
   const corpus = page.locator('[aria-label="Candidature corpus Focus"]');
   await expect(search).toBeVisible();
@@ -332,20 +332,20 @@ async function proveCandidatureFlowAtWindowSize(
 
   const selected = page.getByRole("region", { name: "Candidature Focus", exact: true });
   await expect(selected).toBeVisible();
-  await expect(selected.getByRole("button", { name: "Back to candidatures" })).toBeVisible();
-  await expect(selected.getByRole("button", { name: "Edit full candidature" })).toBeVisible();
+  await expect(selected.getByRole("button", { name: "Back" })).toBeVisible();
+  await expect(selected.getByRole("button", { name: "All details" })).toBeVisible();
   await expect(selected.getByRole("region", { name: "Selected candidature Focus" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Sources" })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Application material" })).toHaveCount(0);
   await expect(page.locator("summary").filter({ hasText: "Activity" })).toHaveCount(0);
   await expect(page.getByText(/Concept/i)).toHaveCount(0);
 
-  await selected.getByRole("button", { name: "Back to candidatures" }).click();
+  await selected.getByRole("button", { name: "Back" }).click();
   await expect(search).toHaveValue("packaged smoke");
   await expect(show).toHaveValue("all");
   await expect(corpus).toBeVisible();
 
-  await page.getByRole("button", { name: "Edit candidature" }).click();
+  await page.getByRole("button", { name: "All details" }).click();
   const complete = page.getByRole("region", { name: "Complete candidature" });
   await expect(complete).toBeVisible();
   await expect(complete.getByRole("region", { name: "Candidature information" })).toBeVisible();
@@ -354,7 +354,7 @@ async function proveCandidatureFlowAtWindowSize(
   await expect(complete.getByRole("region", { name: "Application material" })).toBeVisible();
   await expect(page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
   await expect(page.getByText(/Concept/i)).toHaveCount(0);
-  await complete.getByRole("button", { name: "Back to candidatures" }).click();
+  await complete.getByRole("button", { name: "Back" }).click();
 
   await expect(search).toHaveValue("packaged smoke");
   await expect(show).toHaveValue("all");

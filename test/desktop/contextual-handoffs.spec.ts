@@ -165,7 +165,7 @@ test("packaged candidature document handoff returns to complete candidature with
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Handoff opportunity" });
-    await card.getByRole("button", { name: "Edit candidature" }).click();
+    await card.getByRole("button", { name: "All details" }).click();
     await expect(running.page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
 
     const complete = running.page.getByRole("region", { name: "Complete candidature" });
