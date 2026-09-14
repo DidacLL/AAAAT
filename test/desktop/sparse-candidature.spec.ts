@@ -178,7 +178,7 @@ async function expectNoHorizontalOverflow(page: Page, width: number, height: num
 async function createWorkspace(running: RunningApp): Promise<void> {
   await running.page.getByRole("button", { name: "Create workspace" }).click();
   chooseLinuxDirectory();
-  await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+  await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 }
 
 test("packaged sparse candidature accepts a runtime field and survives close/reopen", async () => {
@@ -226,7 +226,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
 
     await stopPackagedApp(running);
     running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     const focusEntry = corpus.locator("button.candidature-focus-entry").first();
