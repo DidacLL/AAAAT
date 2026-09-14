@@ -293,7 +293,7 @@ test("packaged raw capture stays usable across large, normal, narrow and short w
     const saved = running.page.getByRole("region", { name: "Raw candidature saved" });
     await expect(saved).toBeVisible();
     const continuations = saved.getByRole("group", { name: "Continue from saved Source" });
-    await expect(continuations.getByRole("button", { name: "Send to AI" })).toBeEnabled();
+    await expect(continuations.getByRole("button", { name: "Set up AI suggestions" })).toBeEnabled();
     await expect(continuations.getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
     await expect(saved).toContainText(rawMaterial);
     await expectNoHorizontalOverflow(running.page, 720, 760);
