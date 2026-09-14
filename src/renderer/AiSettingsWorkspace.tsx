@@ -102,7 +102,9 @@ export function AiSettingsWorkspace({
     setError(null);
     setPortabilityStatus(null);
     try {
-      const previous = editingId ? connections.find((connection) => connection.id === editingId) : null;
+      const previous = editingId
+        ? connections.find((connection) => connection.id === editingId) ?? null
+        : null;
       const saved = await window.aaaat.aiConnections.save({
         ...(editingId ? { id: editingId } : {}),
         ...draft,
@@ -220,11 +222,11 @@ export function AiSettingsWorkspace({
             <span>Optional</span>
           </div>
           <p>
-            AAAAT works without AI. Configure a connection only when you want contextual assistance.
-            Validation uses synthetic AAAAT data, not your candidature or professional information.
-            Slow local models are expected: validation is shown as queued/working and may take minutes.
-            HTTP is accepted only for a loopback endpoint. Remote endpoints must use HTTPS and have
-            authentication handled outside AAAAT; AAAAT does not collect, transmit, or store credentials.
+            Connect a local or remote OpenAI-compatible model when you want AI assistance. AAAAT works
+            fully without AI. Connection checks use synthetic test data, not your candidature or
+            professional information. Slow local models may take minutes; the check stays visible while
+            you continue working. HTTP is accepted only for a loopback endpoint. Remote endpoints must
+            use HTTPS and handle authentication outside AAAAT.
           </p>
           {error ? <p className="error-message" role="alert">{error}</p> : null}
 
@@ -251,7 +253,7 @@ export function AiSettingsWorkspace({
                 <input value={draft.model} onChange={(event) => setDraft({ ...draft, model: event.target.value })} placeholder="model-name" />
               </label>
               <label className="wide-field">
-                AI provider base URL
+                Connection address
                 <input
                   value={draft.endpoint}
                   onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })}
@@ -272,7 +274,7 @@ export function AiSettingsWorkspace({
       {showConnections ? (
         <div className="profile-column">
           <div className="section-heading">
-            <div><p className="eyebrow">Configured routes</p><h2>Configured connections</h2></div>
+            <div><p className="eyebrow">Connections</p><h2>Configured connections</h2></div>
             <span>{connections.length}/16</span>
           </div>
 
@@ -298,8 +300,8 @@ export function AiSettingsWorkspace({
             </div>
           )}
 
-          {connections.length > 0 && !defaultConnection ? <p className="error-message">No general default AI connection is selected. Choose one unless every capability has its own selected connection.</p> : null}
-          <p className="compact-help">Validation is bounded per AAAAT capability. One visible validation task runs the remaining checks in sequence and keeps its progress visible while you use the rest of the app.</p>
+          {connections.length > 0 && !defaultConnection ? <p className="error-message">No general default AI connection is selected. Choose one unless every AI action has its own selected connection.</p> : null}
+          <p className="compact-help">One visible check runs the remaining supported AI actions in sequence. Each action is still checked separately, and you can keep using AAAAT while it runs.</p>
         </div>
       ) : null}
 
