@@ -58,11 +58,17 @@ function installApi() {
     return fields.find((field) => field.definition.id === input.id)!;
   });
   createField.mockImplementation(async (input) => {
-    const created = configuredField(flightHoursId, input.label, null, input.valueType);
-    created.definition.description = input.description;
-    created.definition.cardinality = input.cardinality;
-    created.definition.choices = input.choices;
-    created.definition.enabled = input.enabled;
+    const base = configuredField(flightHoursId, input.label, null, input.valueType);
+    const created: CandidatureFieldConfiguration = {
+      ...base,
+      definition: {
+        ...base.definition,
+        description: input.description,
+        cardinality: input.cardinality,
+        choices: input.choices,
+        enabled: input.enabled,
+      },
+    };
     fields = [...fields, created];
     return created;
   });
