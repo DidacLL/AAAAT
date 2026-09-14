@@ -172,8 +172,8 @@ describe("post-creation candidature AI inference", () => {
 
     await user.click(screen.getByRole("button", { name: "Suggest missing information with AI" }));
     const inference = await screen.findByRole("region", { name: "Candidature AI suggestions" });
-    await user.click(within(inference).getByRole("button", { name: "Request AI suggestions" }));
-    expect(await within(inference).findByText(/Queued|AI is reading retained candidature context/)).toBeInTheDocument();
+    await user.click(within(inference).getByRole("button", { name: "Ask AI to find missing information" }));
+    expect(await within(inference).findByText(/Queued|Looking through retained Sources and information/)).toBeInTheDocument();
 
     const roleCard = screen.getByRole("heading", { name: "Role" }).closest("article");
     if (!roleCard) throw new Error("Role card missing");
@@ -272,10 +272,10 @@ describe("post-creation candidature AI inference", () => {
     await user.click(within(roleCard).getByRole("button", { name: "Suggest with AI" }));
 
     const inference = await screen.findByRole("region", { name: "Candidature AI suggestions" });
-    await user.click(within(inference).getByRole("button", { name: "Request AI suggestions" }));
+    await user.click(within(inference).getByRole("button", { name: "Ask AI to find Role" }));
     extraction.resolve({ proposals: [{ fieldId: roleId, value: "Senior Captain" }] });
 
-    expect(await within(inference).findByText(/Proposed replacement/)).toBeInTheDocument();
+    expect(await within(inference).findByText(/Suggested replacement/)).toBeInTheDocument();
     expect(setFieldValue).not.toHaveBeenCalled();
     await user.click(within(inference).getByRole("button", { name: "Use suggestion" }));
     expect(setFieldValue).toHaveBeenCalledWith({
