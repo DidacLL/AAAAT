@@ -5,6 +5,7 @@ import type {
   CandidatureFieldConfiguration,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
+import { startAiTask, useAiTask } from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
 interface JobExtractionPanelProps {
@@ -57,10 +58,13 @@ export function JobExtractionPanel({
   const { openSettingsFor } = useContextualHandoffs();
   const [connection, setConnection] = useState<NamedAiConnection | null | undefined>(undefined);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
-  const [proposal, setProposal] = useState<JobExtractionResult | null>(null);
   const [selectedProposalIndexes, setSelectedProposalIndexes] = useState<number[]>([]);
-  const [isWorking, setIsWorking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const taskKey = `initial-extraction:${candidatureId}`;
+  const task = useAiTask<JobExtractionResult>(taskKey);
+  const proposal = task?.status === "completed" ? task.result ?? null : null;
+  const taskActive = task?.status === "queued" || task?.status === "working";
 
   useEffect(() => {
     let active = true;
@@ -81,41 +85,36 @@ export function JobExtractionPanel({
     return () => {
       active = false;
     };
-  }, []);
+  }, [task?.status]);
+
+  useEffect(() => {
+    if (!proposal) return;
+    setSelectedProposalIndexes(proposal.proposals.map((_, index) => index));
+  }, [proposal]);
 
   useEffect(() => {
     onDirtyChange?.(proposal !== null);
     return () => onDirtyChange?.(false);
   }, [onDirtyChange, proposal]);
 
-  if (source.sourceText.trim() === "" || connection === undefined || connection === null) {
-    return null;
-  }
+  if (source.sourceText.trim() === "") return null;
 
-  const requestProposal = async () => {
-    setIsWorking(true);
-    setError(null);
-
-    try {
-      const result = await window.aaaat.ai.extractJob(source);
-      setProposal(result);
-      setSelectedProposalIndexes(result.proposals.map((_, index) => index));
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "AAAAT could not extract information from this Source.",
-      );
-    } finally {
-      setIsWorking(false);
-    }
+  const requestProposal = () => {
+    startAiTask<JobExtractionResult>(
+      taskKey,
+      async (updateDetail) => {
+        updateDetail("AI is reading the saved Source. Slow local models can take several minutes; you can continue using AAAAT.");
+        return window.aaaat.ai.extractJob(source);
+      },
+      "Suggest candidature information",
+    );
   };
 
   const acceptSelected = async () => {
     if (proposal === null) return;
 
-    setIsWorking(true);
-    setError(null);
+    setSaving(true);
+    setSaveError(null);
 
     try {
       await Promise.all(
@@ -139,13 +138,13 @@ export function JobExtractionPanel({
       onAccepted();
       onDismiss();
     } catch (caughtError) {
-      setError(
+      setSaveError(
         caughtError instanceof Error
           ? caughtError.message
           : "AAAAT could not retain the selected information.",
       );
     } finally {
-      setIsWorking(false);
+      setSaving(false);
     }
   };
 
@@ -156,6 +155,35 @@ export function JobExtractionPanel({
         : [...selected, index],
     );
   };
+
+  if (connection === undefined) {
+    return (
+      <section className="job-extraction-panel" aria-label="Saved candidature extraction">
+        <p role="status">Checking AI readiness…</p>
+        <button type="button" className="secondary-button" onClick={onDismiss}>Keep without AI</button>
+      </section>
+    );
+  }
+
+  if (connection === null) {
+    return (
+      <section className="job-extraction-panel" aria-label="Saved candidature extraction">
+        <div>
+          <p className="eyebrow">Candidature saved</p>
+          <h2>AI suggestions are not ready yet</h2>
+          <p>The Source is already retained. Validate AI capabilities in Settings if you want suggestions; manual candidature work remains complete.</p>
+        </div>
+        <div className="form-actions">
+          <button type="button" className="compact-secondary" onClick={() => openSettingsFor("ai", "candidatures")}>
+            Open AI settings
+          </button>
+          <button type="button" className="secondary-button" onClick={onDismiss}>
+            Keep without AI
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   const localConnection = isLocalConnection(connection.endpoint);
 
@@ -187,11 +215,21 @@ export function JobExtractionPanel({
                 <div><dt>Text</dt><dd><pre>{source.sourceText}</pre></dd></div>
               </dl>
             </details>
+            {task?.status === "queued" ? (
+              <p role="status" className="ai-task-state">Queued. You can leave this panel; AAAAT will keep the AI task running.</p>
+            ) : task?.status === "working" ? (
+              <p role="status" className="ai-task-state">{task.detail ?? "Working…"}</p>
+            ) : task?.status === "failed" ? (
+              <div className="ai-task-failure" role="alert">
+                <strong>AI extraction failed</strong>
+                <p>{task.error}</p>
+              </div>
+            ) : null}
             <div className="form-actions">
-              <button type="button" onClick={() => void requestProposal()} disabled={isWorking}>
-                {isWorking ? "Extracting information…" : "Extract useful information"}
+              <button type="button" onClick={requestProposal} disabled={taskActive}>
+                {taskActive ? "AI task running…" : task?.status === "failed" ? "Retry AI extraction" : "Extract useful information"}
               </button>
-              <button type="button" className="secondary-button" onClick={onDismiss} disabled={isWorking}>
+              <button type="button" className="secondary-button" onClick={onDismiss}>
                 Keep without AI
               </button>
             </div>
@@ -221,29 +259,18 @@ export function JobExtractionPanel({
             <button
               type="button"
               onClick={() => void acceptSelected()}
-              disabled={isWorking || selectedProposalIndexes.length === 0}
+              disabled={saving || selectedProposalIndexes.length === 0}
             >
-              {isWorking ? "Keeping information…" : "Keep selected information"}
+              {saving ? "Keeping information…" : "Keep selected information"}
             </button>
-            <button type="button" className="secondary-button" onClick={onDismiss} disabled={isWorking}>
+            <button type="button" className="secondary-button" onClick={onDismiss} disabled={saving}>
               Dismiss proposals
             </button>
           </div>
         </div>
       )}
 
-      {error !== null ? (
-        <div className="inline-error" role="alert">
-          <p>{error}</p>
-          <button
-            className="compact-secondary"
-            type="button"
-            onClick={() => openSettingsFor("ai", "candidatures")}
-          >
-            Open AI connections settings
-          </button>
-        </div>
-      ) : null}
+      {saveError !== null ? <div className="inline-error" role="alert"><p>{saveError}</p></div> : null}
     </section>
   );
 }
