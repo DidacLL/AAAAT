@@ -149,7 +149,7 @@ describe("candidature AI Settings fallback", () => {
     await user.click(within(role).getByRole("button", { name: "Suggest with AI" }));
 
     const suggestions = await screen.findByRole("region", { name: "Candidature AI suggestions" });
-    expect(within(suggestions).getByText(/AI suggestions are not ready yet/i)).toBeInTheDocument();
+    expect(within(suggestions).getByText(/AI is not ready for this action yet/i)).toBeInTheDocument();
     await user.click(within(suggestions).getByRole("button", { name: "Open AI settings" }));
 
     expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
