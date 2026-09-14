@@ -1,5 +1,6 @@
 import type { AiConnectionDesktopApi } from "../shared/ai-connection-contracts";
 import type { AiDesktopApi } from "../shared/ai-contracts";
+import type { AiTaskCancellationDesktopApi } from "../shared/ai-task-cancellation-contracts";
 import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
 import type { CandidatureActivityDesktopApi } from "../shared/candidature-activity-contracts";
 import type { CandidatureOpportunityResearchAccessDesktopApi } from "../shared/candidature-opportunity-research-access-contracts";
@@ -18,6 +19,7 @@ declare global {
   interface Window {
     readonly aaaat: DesktopApi &
       AiDesktopApi &
+      AiTaskCancellationDesktopApi &
       AiConnectionDesktopApi &
       ArtifactDesktopApi &
       CandidatureActivityDesktopApi &
