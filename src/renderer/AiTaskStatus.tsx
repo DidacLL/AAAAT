@@ -22,7 +22,15 @@ export function AiTaskStatus() {
           <article key={task.key} className={`shell-ai-task shell-ai-task-${task.status}`}>
             <div>
               <strong>{task.label}</strong>
-              <span>{task.status === "queued" ? "Queued" : task.status === "working" ? task.detail ?? "Working…" : task.status === "completed" ? "Completed" : "Failed"}</span>
+              <span>
+                {task.status === "queued"
+                  ? "Queued"
+                  : task.status === "working"
+                    ? task.detail ?? "Working…"
+                    : task.status === "completed"
+                      ? task.detail ?? "Completed"
+                      : "Failed"}
+              </span>
               {task.error ? <small>{task.error}</small> : null}
             </div>
             {task.status === "completed" || task.status === "failed" ? (
