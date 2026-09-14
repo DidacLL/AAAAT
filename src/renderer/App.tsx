@@ -212,7 +212,7 @@ export function App() {
       returnToDocument: () => {
         if (
           professionalInformationDirty &&
-          !window.confirm("Discard unsaved professional-information edits and return to document?")
+          !window.confirm("Discard unsaved My information edits and return to document?")
         ) {
           return;
         }
@@ -295,8 +295,8 @@ export function App() {
               <aside className="work-rail" aria-label="Workspace controls">
                 <nav className="primary-work-nav" aria-label="Primary work areas">
                   <button type="button" className={!settingsOpen && productView === "candidatures" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "candidatures" ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Candidatures</button>
-                  <button type="button" className={!settingsOpen && productView === "documents" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "documents" ? "page" : undefined} onClick={() => selectProductView("documents")}>CVs &amp; letters</button>
-                  <button type="button" className={!settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>Professional information</button>
+                  <button type="button" className={!settingsOpen && productView === "documents" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "documents" ? "page" : undefined} onClick={() => selectProductView("documents")}>Documents</button>
+                  <button type="button" className={!settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>My information</button>
                 </nav>
                 <AiTaskStatus />
               </aside>
@@ -348,7 +348,7 @@ export function App() {
                   <div hidden={settingsOpen || productView !== "professional-information"}>
                     {professionalInformationHandoff ? (
                       <div className="contextual-return-bar" role="status">
-                        <span>Editing professional information used by the current document.</span>
+                        <span>Editing My information used by this document.</span>
                         <button className="compact-secondary" type="button" onClick={handoffApi.returnToDocument}>
                           Return to document
                         </button>
