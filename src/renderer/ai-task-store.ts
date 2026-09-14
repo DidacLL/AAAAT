@@ -36,9 +36,13 @@ function subscribe(listener: () => void): () => void {
 }
 
 function taskError(reason: unknown): string {
-  return reason instanceof Error && reason.message.trim()
-    ? reason.message
-    : "AAAAT could not complete this AI task.";
+  if (!(reason instanceof Error) || !reason.message.trim()) {
+    return "AAAAT could not complete this AI task.";
+  }
+  return reason.message
+    .replace(/^Error invoking remote method '[^']+':\s*/i, "")
+    .replace(/^AiProviderError:\s*/i, "")
+    .trim();
 }
 
 function proposalFieldIds(result: unknown, scopeFieldIds?: readonly string[]): string[] {
