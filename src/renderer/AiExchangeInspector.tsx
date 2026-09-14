@@ -1,9 +1,10 @@
 import { aiOperationLabels } from "../shared/ai-connection-contracts";
 import type { AiExchangeDiagnostic } from "../shared/ai-diagnostics";
+import type { InspectableAiExchange } from "../shared/ai-proposal-outcomes";
 import "./ai-exchange-inspector.css";
 
 interface Props {
-  readonly exchange: AiExchangeDiagnostic;
+  readonly exchange: InspectableAiExchange;
 }
 
 function failureLabel(kind: AiExchangeDiagnostic["failureKind"]): string {
@@ -24,12 +25,14 @@ function failureLabel(kind: AiExchangeDiagnostic["failureKind"]): string {
 }
 
 export function AiExchangeInspector({ exchange }: Props) {
+  const failed = "failureKind" in exchange;
+  const validationDetail = failed ? exchange.validationError : exchange.providerValidationError;
   return (
     <details className="ai-exchange-inspector">
       <summary>Inspect AI exchange</summary>
       <div className="ai-exchange-inspector-body">
         <p><strong>Operation:</strong> {aiOperationLabels[exchange.operation]}</p>
-        <p><strong>Failure:</strong> {failureLabel(exchange.failureKind)}</p>
+        {failed ? <p><strong>Failure:</strong> {failureLabel(exchange.failureKind)}</p> : null}
         <p><strong>Model:</strong> {exchange.model}</p>
         <p><strong>Endpoint:</strong> {exchange.endpoint}</p>
         <p><strong>Structured output:</strong> {exchange.structuredOutputMode === "json_schema" ? "JSON schema constrained" : "Plain JSON fallback"}</p>
@@ -45,10 +48,12 @@ export function AiExchangeInspector({ exchange }: Props) {
           <strong>Raw model response</strong>
           <pre>{exchange.rawModelResponse || "(No model response was received.)"}</pre>
         </label>
-        <label>
-          <strong>Why AAAAT rejected it</strong>
-          <pre>{exchange.validationError}</pre>
-        </label>
+        {validationDetail ? (
+          <label>
+            <strong>{failed ? "Why AAAAT rejected it" : "Provider contract detail"}</strong>
+            <pre>{validationDetail}</pre>
+          </label>
+        ) : null}
       </div>
     </details>
   );
