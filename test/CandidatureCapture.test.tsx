@@ -149,8 +149,9 @@ describe("candidature creation", () => {
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    expect(screen.getByRole("button", { name: "Enter details" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Paste text" })).toBeVisible();
+    const creation = screen.getByRole("group", { name: "Create candidature" });
+    expect(within(creation).getByRole("button", { name: "Fill fields directly" })).toBeVisible();
+    expect(within(creation).getByRole("button", { name: "Paste raw material" })).toBeVisible();
   });
 
   it("keeps raw capture transient until raw material is explicitly retained", async () => {
@@ -159,12 +160,12 @@ describe("candidature creation", () => {
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "Paste text" }));
+    await user.click(screen.getByRole("button", { name: "Paste raw material" }));
 
     expect(create).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Save candidature" })).toBeDisabled();
-    await user.type(screen.getByLabelText("Pasted material"), phrase);
-    expect(screen.getByRole("button", { name: "Save candidature" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save Source" })).toBeDisabled();
+    await user.type(screen.getByLabelText("Raw material"), phrase);
+    expect(screen.getByRole("button", { name: "Save Source" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(confirm).toHaveBeenCalledWith("Discard this unsaved candidature capture?");
@@ -177,17 +178,18 @@ describe("candidature creation", () => {
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "Paste text" }));
-    await user.type(screen.getByLabelText("Pasted material"), phrase);
-    await user.click(screen.getByRole("button", { name: "Save candidature" }));
+    await user.click(screen.getByRole("button", { name: "Paste raw material" }));
+    await user.type(screen.getByLabelText("Raw material"), phrase);
+    await user.click(screen.getByRole("button", { name: "Save Source" }));
 
     expect(create).toHaveBeenCalledWith({
       source: { kind: "other", title: "", url: "", sourceText: phrase },
       values: [],
     });
     const choice = await screen.findByRole("region", { name: "Raw candidature saved" });
-    expect(within(choice).getByRole("button", { name: "Send to AI" })).toBeEnabled();
-    expect(within(choice).getByRole("button", { name: "Add details myself" })).toBeEnabled();
+    const continuations = within(choice).getByRole("group", { name: "Continue from saved Source" });
+    expect(within(continuations).getByRole("button", { name: "Send to AI" })).toBeEnabled();
+    expect(within(continuations).getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
     expect(within(choice).getByText(phrase)).toBeVisible();
   });
 
@@ -196,15 +198,15 @@ describe("candidature creation", () => {
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "Paste text" }));
-    await user.type(screen.getByLabelText("Pasted material"), phrase);
-    await user.click(screen.getByRole("button", { name: "Save candidature" }));
+    await user.click(screen.getByRole("button", { name: "Paste raw material" }));
+    await user.type(screen.getByLabelText("Raw material"), phrase);
+    await user.click(screen.getByRole("button", { name: "Save Source" }));
 
     const choice = await screen.findByRole("region", { name: "Raw candidature saved" });
     expect(within(choice).getByRole("button", { name: "Send to AI" })).toBeDisabled();
-    await user.click(within(choice).getByRole("button", { name: "Add details myself" }));
+    await user.click(within(choice).getByRole("button", { name: "Fill candidature yourself" }));
 
-    const manual = await screen.findByRole("region", { name: "Add details from the pasted text" });
+    const manual = await screen.findByRole("region", { name: "Fill candidature yourself" });
     expect(within(manual).getByRole("region", { name: "Pasted candidature material" })).toHaveTextContent(phrase);
     expect(within(manual).getByRole("form", { name: "Candidature information" })).toBeVisible();
   });
@@ -214,9 +216,9 @@ describe("candidature creation", () => {
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "Enter details" }));
+    await user.click(screen.getByRole("button", { name: "Fill fields directly" }));
 
-    const manual = await screen.findByRole("region", { name: "Enter candidature details" });
+    const manual = await screen.findByRole("region", { name: "Fill fields directly" });
     await user.type(within(manual).getByRole("textbox"), "Captain");
     await user.click(within(manual).getByRole("button", { name: "Save candidature" }));
 
