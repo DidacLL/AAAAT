@@ -103,10 +103,10 @@ export function JobExtractionPanel({
     startAiTask<JobExtractionResult>(
       taskKey,
       async (updateDetail) => {
-        updateDetail("AI is reading the saved Source. Slow local models can take several minutes; you can continue using AAAAT.");
+        updateDetail("Looking through the saved Source for useful information. Slow local models can take several minutes; you can continue using AAAAT.");
         return window.aaaat.ai.extractJob(source);
       },
-      "Suggest candidature information",
+      "Find candidature information",
     );
   };
 
@@ -159,7 +159,7 @@ export function JobExtractionPanel({
   if (connection === undefined) {
     return (
       <section className="job-extraction-panel" aria-label="Saved candidature extraction">
-        <p role="status">Checking AI readiness…</p>
+        <p role="status">Checking whether AI is ready…</p>
         <button type="button" className="secondary-button" onClick={onDismiss}>Keep without AI</button>
       </section>
     );
@@ -169,9 +169,9 @@ export function JobExtractionPanel({
     return (
       <section className="job-extraction-panel" aria-label="Saved candidature extraction">
         <div>
-          <p className="eyebrow">Candidature saved</p>
-          <h2>AI suggestions are not ready yet</h2>
-          <p>The Source is already retained. Validate AI capabilities in Settings if you want suggestions; manual candidature work remains complete.</p>
+          <p className="eyebrow">Source saved</p>
+          <h2>AI is not ready for this action yet</h2>
+          <p>The Source is already retained. Open AI settings to check the connection, or continue without AI.</p>
         </div>
         <div className="form-actions">
           <button type="button" className="compact-secondary" onClick={() => openSettingsFor("ai", "candidatures")}>
@@ -192,10 +192,10 @@ export function JobExtractionPanel({
       {proposal === null ? (
         <>
           <div>
-            <p className="eyebrow">Candidature saved</p>
-            <h2>Extract useful information?</h2>
+            <p className="eyebrow">Source saved</p>
+            <h2>Ask AI to find useful information?</h2>
             <p>
-              The original Source is already retained. AAAAT can use your configured extraction connection to suggest ordinary candidature information now, or you can keep working without AI.
+              The original Source is already retained. AI can suggest candidature information now, or you can keep working without it.
             </p>
           </div>
           <div className="ai-disclosure" aria-label="Extraction disclosure">
@@ -203,12 +203,12 @@ export function JobExtractionPanel({
             <p><strong>Connection type:</strong> {localConnection ? "Local on this computer" : "Remote HTTPS"}</p>
             <p>
               {localConnection
-                ? "AAAAT will send this saved Source material through the selected local connection."
-                : "AAAAT will send this saved Source material through the selected remote connection."}
-              {" "}No candidature information changes unless you retain a proposal.
+                ? "AAAAT will send this saved Source through the selected local connection."
+                : "AAAAT will send this saved Source through the selected remote connection."}
+              {" "}Nothing changes unless you choose to keep a suggestion.
             </p>
             <details open>
-              <summary>Source material to be disclosed</summary>
+              <summary>Source material to be sent</summary>
               <dl>
                 <div><dt>Title</dt><dd>{source.sourceTitle || "Not provided"}</dd></div>
                 <div><dt>Link</dt><dd>{source.sourceUrl || "Not provided"}</dd></div>
@@ -216,18 +216,18 @@ export function JobExtractionPanel({
               </dl>
             </details>
             {task?.status === "queued" ? (
-              <p role="status" className="ai-task-state">Queued. You can leave this panel; AAAAT will keep the AI task running.</p>
+              <p role="status" className="ai-task-state">Queued. You can leave this panel; AAAAT will keep the request running.</p>
             ) : task?.status === "working" ? (
               <p role="status" className="ai-task-state">{task.detail ?? "Working…"}</p>
             ) : task?.status === "failed" ? (
               <div className="ai-task-failure" role="alert">
-                <strong>AI extraction failed</strong>
+                <strong>AI could not finish this request</strong>
                 <p>{task.error}</p>
               </div>
             ) : null}
             <div className="form-actions">
               <button type="button" onClick={requestProposal} disabled={taskActive}>
-                {taskActive ? "AI task running…" : task?.status === "failed" ? "Retry AI extraction" : "Extract useful information"}
+                {taskActive ? "AI request running…" : task?.status === "failed" ? "Retry AI request" : "Ask AI to find information"}
               </button>
               <button type="button" className="secondary-button" onClick={onDismiss}>
                 Keep without AI
@@ -237,12 +237,12 @@ export function JobExtractionPanel({
         </>
       ) : (
         <div className="extraction-proposals">
-          <h3>Proposed information</h3>
+          <h3>Suggested information</h3>
           {proposal.proposals.length === 0 ? (
-            <p>No information was proposed. Your saved Source has not changed.</p>
+            <p>AI did not find useful information. Your saved Source has not changed.</p>
           ) : (
             <fieldset>
-              <legend>Select only the information you want to retain</legend>
+              <legend>Select only the information you want to keep</legend>
               {proposal.proposals.map((item, index) => (
                 <label key={`${item.fieldId}-${index}`} className="checkbox-row">
                   <input
@@ -264,7 +264,7 @@ export function JobExtractionPanel({
               {saving ? "Keeping information…" : "Keep selected information"}
             </button>
             <button type="button" className="secondary-button" onClick={onDismiss} disabled={saving}>
-              Dismiss proposals
+              Dismiss suggestions
             </button>
           </div>
         </div>
