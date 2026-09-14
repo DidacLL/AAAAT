@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   accessSync,
   constants,
@@ -14,71 +13,76 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import type { WorkspaceInfo } from "../shared/contracts";
-import workspaceMigrationSql from "./migrations/001_workspace.sql?raw";
-import profileMigrationSql from "./migrations/002_profile.sql?raw";
-import documentMigrationSql from "./migrations/003_documents.sql?raw";
-import candidatureMigrationSql from "./migrations/004_candidatures.sql?raw";
-import conceptMigrationSql from "./migrations/005_concepts.sql?raw";
-import activityMigrationSql from "./migrations/006_activity.sql?raw";
-import careerContextMigrationSql from "./migrations/007_career_context.sql?raw";
-import candidatureInformationMigrationSql from "./migrations/008_candidature_information.sql?raw";
-import todoMigrationSql from "./migrations/009_todos.sql?raw";
-import opportunityResearchAccessMigrationSql from "./migrations/010_opportunity_research_access.sql?raw";
-import combinedApplicationArtifactsMigrationSql from "./migrations/011_combined_application_artifacts.sql?raw";
-import profileAiContextMigrationSql from "./migrations/012_profile_ai_context.sql?raw";
-import careerContextAiDisclosureMigrationSql from "./migrations/013_career_context_ai_disclosure.sql?raw";
-
-export interface WorkspaceMigrationRow {
-  readonly version: number;
-  readonly name: string;
-  readonly sha256: string;
-}
+import currentSchemaSql from "./schema.sql?raw";
 
 interface InitializedRow {
   readonly initializedAt: string;
+}
+
+interface SchemaObjectRow {
+  readonly type: string;
+  readonly name: string;
+}
+
+interface TableColumnRow {
+  readonly name: string;
 }
 
 interface WorkspaceSettings {
   readonly lastWorkspacePath?: string;
 }
 
-interface MigrationDefinition {
-  readonly version: number;
-  readonly name: string;
-  readonly sql: string;
-  readonly sha256: string;
-}
-
 const workspaceDatabaseName = "workspace.sqlite";
 
-function migration(
-  version: number,
-  name: string,
-  sql: string,
-): MigrationDefinition {
-  return Object.freeze({
-    version,
-    name,
-    sql,
-    sha256: createHash("sha256").update(sql).digest("hex"),
-  });
-}
+const requiredSchemaObjects = Object.freeze([
+  ["table", "workspace_metadata"],
+  ["table", "profile_items"],
+  ["table", "profile_variants"],
+  ["table", "profile_variant_item_rules"],
+  ["table", "profile_activity"],
+  ["table", "documents"],
+  ["table", "document_item_rules"],
+  ["table", "document_activity"],
+  ["table", "candidatures"],
+  ["table", "candidature_documents"],
+  ["table", "candidature_activity"],
+  ["table", "tags"],
+  ["table", "candidature_tags"],
+  ["table", "tag_activity"],
+  ["table", "career_context"],
+  ["table", "career_context_activity"],
+  ["table", "candidature_sources"],
+  ["table", "candidature_fields"],
+  ["table", "candidature_field_preferences"],
+  ["table", "candidature_field_values"],
+  ["table", "application_artifacts"],
+  ["index", "documents_one_ai_content_visible_cv"],
+  ["index", "candidatures_one_opportunity_research_selected"],
+  ["index", "candidature_sources_candidature_idx"],
+  ["index", "candidature_field_values_by_field"],
+  ["index", "application_artifacts_candidature_idx"],
+  ["trigger", "candidatures_opportunity_research_active_insert"],
+  ["trigger", "candidatures_opportunity_research_active_update"],
+] as const);
 
-const migrations = Object.freeze([
-  migration(1, "workspace", workspaceMigrationSql),
-  migration(2, "profile", profileMigrationSql),
-  migration(3, "documents", documentMigrationSql),
-  migration(4, "candidatures", candidatureMigrationSql),
-  migration(5, "concepts", conceptMigrationSql),
-  migration(6, "activity", activityMigrationSql),
-  migration(7, "career-context", careerContextMigrationSql),
-  migration(8, "candidature-information", candidatureInformationMigrationSql),
-  migration(9, "todos", todoMigrationSql),
-  migration(10, "opportunity-research-access", opportunityResearchAccessMigrationSql),
-  migration(11, "combined-application-artifacts", combinedApplicationArtifactsMigrationSql),
-  migration(12, "profile-ai-context", profileAiContextMigrationSql),
-  migration(13, "career-context-ai-disclosure", careerContextAiDisclosureMigrationSql),
-]);
+const requiredColumns = Object.freeze({
+  profile_items: ["ai_context_mode"],
+  candidatures: ["opportunity_research_selected"],
+  career_context: [
+    "career_direction_external_ai_visible",
+    "objectives_external_ai_visible",
+    "constraints_external_ai_visible",
+    "target_roles_external_ai_visible",
+    "target_markets_locations_external_ai_visible",
+    "work_preferences_external_ai_visible",
+    "application_writing_preferences_external_ai_visible",
+  ],
+  application_artifacts: [
+    "cv_document_id",
+    "cover_letter_document_id",
+    "kind",
+  ],
+} as const);
 
 class WorkspaceError extends Error {
   constructor(message: string) {
@@ -93,12 +97,6 @@ function configureDatabase(database: DatabaseSync): void {
   );
 }
 
-function ensureMigrationTable(database: DatabaseSync): void {
-  database.exec(
-    "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;",
-  );
-}
-
 function transact(database: DatabaseSync, action: () => void): void {
   database.exec("BEGIN IMMEDIATE");
   try {
@@ -110,73 +108,56 @@ function transact(database: DatabaseSync, action: () => void): void {
   }
 }
 
-export function validateWorkspaceMigrationHistory(
-  rows: readonly WorkspaceMigrationRow[],
-): void {
-  if (rows.length === 0 || rows.length > migrations.length) {
-    throw new WorkspaceError("The workspace migration history is incompatible.");
+export function validateCurrentWorkspaceDatabase(database: DatabaseSync): void {
+  const integrity = database.prepare("PRAGMA quick_check").get() as
+    | Record<string, unknown>
+    | undefined;
+  if (!integrity || Object.values(integrity)[0] !== "ok") {
+    throw new WorkspaceError("The workspace database is invalid.");
   }
 
-  rows.forEach((row, index) => {
-    const expected = migrations[index];
-    if (
-      !expected ||
-      row.version !== expected.version ||
-      row.name !== expected.name ||
-      row.sha256 !== expected.sha256
-    ) {
-      throw new WorkspaceError("The workspace migration history is incompatible.");
+  const schemaRows = database
+    .prepare("SELECT type, name FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'")
+    .all() as unknown as SchemaObjectRow[];
+  const schemaObjects = new Set(schemaRows.map((row) => `${row.type}:${row.name}`));
+
+  for (const [type, name] of requiredSchemaObjects) {
+    if (!schemaObjects.has(`${type}:${name}`)) {
+      throw new WorkspaceError("The workspace schema is incompatible.");
     }
-  });
-}
+  }
 
-function appliedMigrations(database: DatabaseSync): WorkspaceMigrationRow[] {
-  return database
-    .prepare(
-      "SELECT version, name, sha256 FROM schema_migrations ORDER BY version",
-    )
-    .all() as unknown as WorkspaceMigrationRow[];
-}
+  for (const obsoleteName of ["schema_migrations", "todos"]) {
+    if (schemaRows.some((row) => row.name === obsoleteName)) {
+      throw new WorkspaceError("The workspace schema is incompatible.");
+    }
+  }
 
-function applyMigrations(database: DatabaseSync, now: string): void {
-  validateWorkspaceMigrationHistory(appliedMigrations(database));
-
-  for (const current of migrations) {
-    const applied = database
-      .prepare(
-        "SELECT version, name, sha256 FROM schema_migrations WHERE version = ?",
-      )
-      .get(current.version) as unknown as WorkspaceMigrationRow | undefined;
-
-    if (applied) {
-      if (
-        applied.name !== current.name ||
-        applied.sha256 !== current.sha256
-      ) {
-        throw new WorkspaceError(
-          "The workspace migration history is incompatible.",
-        );
+  for (const [tableName, columns] of Object.entries(requiredColumns)) {
+    const rows = database
+      .prepare(`PRAGMA table_info('${tableName}')`)
+      .all() as unknown as TableColumnRow[];
+    const present = new Set(rows.map((row) => row.name));
+    for (const column of columns) {
+      if (!present.has(column)) {
+        throw new WorkspaceError("The workspace schema is incompatible.");
       }
-      continue;
     }
-
-    transact(database, () => {
-      database.exec(current.sql);
-      database
-        .prepare(
-          "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
-        )
-        .run(current.version, current.name, current.sha256, now);
-    });
   }
 
-  transact(database, () => {
-    database
-      .prepare(
-        "INSERT OR IGNORE INTO workspace_metadata(key, value) VALUES (?, ?)",
-      )
-      .run("workspace.initialized_at", now);
-  });
+  const initialized = database
+    .prepare("SELECT value AS initializedAt FROM workspace_metadata WHERE key = ?")
+    .get("workspace.initialized_at") as InitializedRow | undefined;
+  if (!initialized) {
+    throw new WorkspaceError("The workspace metadata is incomplete.");
+  }
+
+  const careerContext = database
+    .prepare("SELECT id FROM career_context WHERE id = 1")
+    .get() as { id: number } | undefined;
+  if (!careerContext) {
+    throw new WorkspaceError("The workspace schema is incomplete.");
+  }
 }
 
 function canonicalizeWorkspaceRoot(rootPath: string): string {
@@ -214,19 +195,7 @@ function verifyExistingWorkspace(rootPath: string): void {
   let database: DatabaseSync | undefined;
   try {
     database = new DatabaseSync(databasePath, { readOnly: true });
-    const rows = appliedMigrations(database);
-    const initialized = database
-      .prepare(
-        "SELECT value AS initializedAt FROM workspace_metadata WHERE key = ?",
-      )
-      .get("workspace.initialized_at") as InitializedRow | undefined;
-
-    validateWorkspaceMigrationHistory(rows);
-    if (!initialized) {
-      throw new WorkspaceError(
-        "The selected folder is not a compatible AAAAT workspace.",
-      );
-    }
+    validateCurrentWorkspaceDatabase(database);
   } catch {
     throw new WorkspaceError(
       "The selected folder is not a compatible AAAAT workspace.",
@@ -236,31 +205,19 @@ function verifyExistingWorkspace(rootPath: string): void {
   }
 }
 
-function migrateDatabase(databasePath: string): void {
+function initializeDatabase(databasePath: string): void {
   const database = new DatabaseSync(databasePath);
   const now = new Date().toISOString();
 
   try {
     configureDatabase(database);
-    ensureMigrationTable(database);
-
-    const rows = appliedMigrations(database);
-    if (rows.length === 0) {
-      const first = migrations[0];
-      if (!first) {
-        throw new WorkspaceError("AAAAT has no workspace migration.");
-      }
-      transact(database, () => {
-        database.exec(first.sql);
-        database
-          .prepare(
-            "INSERT INTO schema_migrations(version, name, sha256, applied_at) VALUES (?, ?, ?, ?)",
-          )
-          .run(first.version, first.name, first.sha256, now);
-      });
-    }
-
-    applyMigrations(database, now);
+    transact(database, () => {
+      database.exec(currentSchemaSql);
+      database
+        .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
+        .run("workspace.initialized_at", now);
+    });
+    validateCurrentWorkspaceDatabase(database);
   } finally {
     database.close();
   }
@@ -276,7 +233,7 @@ function initializeNewWorkspace(rootPath: string): WorkspaceInfo {
   const databasePath = databasePathFor(rootPath);
 
   try {
-    migrateDatabase(databasePath);
+    initializeDatabase(databasePath);
     return { rootPath };
   } catch (error) {
     cleanFailedNewDatabase(databasePath);
@@ -308,17 +265,7 @@ export function createOrOpenWorkspace(rootPath: string): WorkspaceInfo {
 export function openWorkspace(rootPath: string): WorkspaceInfo {
   const canonicalPath = canonicalizeWorkspaceRoot(rootPath);
   verifyExistingWorkspace(canonicalPath);
-
-  try {
-    migrateDatabase(databasePathFor(canonicalPath));
-    return { rootPath: canonicalPath };
-  } catch (error) {
-    if (error instanceof WorkspaceError) {
-      throw error;
-    }
-
-    throw new WorkspaceError("AAAAT could not open this workspace.");
-  }
+  return { rootPath: canonicalPath };
 }
 
 export function withWorkspaceDatabase<T>(
@@ -327,10 +274,7 @@ export function withWorkspaceDatabase<T>(
 ): T {
   const canonicalPath = canonicalizeWorkspaceRoot(rootPath);
   verifyExistingWorkspace(canonicalPath);
-  const databasePath = databasePathFor(canonicalPath);
-  migrateDatabase(databasePath);
-
-  const database = new DatabaseSync(databasePath);
+  const database = new DatabaseSync(databasePathFor(canonicalPath));
   try {
     configureDatabase(database);
     return action(database);

@@ -17,11 +17,7 @@ import { backup, DatabaseSync } from "node:sqlite";
 
 import { z } from "zod";
 
-import {
-  openWorkspace,
-  validateWorkspaceMigrationHistory,
-  type WorkspaceMigrationRow,
-} from "./workspace";
+import { openWorkspace, validateCurrentWorkspaceDatabase } from "./workspace";
 
 const backupFlag = "--workspace-backup";
 const restoreFlag = "--workspace-restore";
@@ -38,14 +34,6 @@ const excludedNames = new Set([
   "workspace.sqlite-shm",
 ]);
 const secretSuffixes = [".pem", ".key", ".p12", ".pfx"] as const;
-
-const migrationSchema = z
-  .object({
-    version: z.number().int().positive(),
-    name: z.string().min(1),
-    sha256: z.string().regex(/^[a-f0-9]{64}$/),
-  })
-  .strict();
 
 const fileSchema = z
   .object({
@@ -65,7 +53,6 @@ const manifestSchema = z
         path: z.literal(databaseName),
         size: z.number().int().nonnegative(),
         sha256: z.string().regex(/^[a-f0-9]{64}$/),
-        migrations: z.array(migrationSchema).min(1),
       })
       .strict(),
     files: z.array(fileSchema),
@@ -208,12 +195,6 @@ function fileRecord(filePath: string, relativePath: string): FileManifest {
   };
 }
 
-function readMigrationRows(database: DatabaseSync): WorkspaceMigrationRow[] {
-  return database
-    .prepare("SELECT version, name, sha256 FROM schema_migrations ORDER BY version")
-    .all() as unknown as WorkspaceMigrationRow[];
-}
-
 function cleanDirectory(directoryPath: string): void {
   for (const entry of readdirSync(directoryPath)) {
     rmSync(path.join(directoryPath, entry), { recursive: true, force: true });
@@ -260,10 +241,8 @@ export async function createWorkspaceBackup(
     }
 
     const database = new DatabaseSync(databaseDestination, { readOnly: true });
-    let migrations: WorkspaceMigrationRow[];
     try {
-      migrations = readMigrationRows(database);
-      validateWorkspaceMigrationHistory(migrations);
+      validateCurrentWorkspaceDatabase(database);
     } finally {
       database.close();
     }
@@ -277,7 +256,6 @@ export async function createWorkspaceBackup(
         path: databaseName,
         size: statSync(databaseDestination).size,
         sha256: hashFile(databaseDestination),
-        migrations,
       },
       files,
       exclusions: [
@@ -338,11 +316,7 @@ function validateDatabaseBackup(backupPath: string, manifest: BackupManifest): v
   try {
     const integrity = database.prepare("PRAGMA integrity_check").get() as Record<string, unknown> | undefined;
     if (!integrity || Object.values(integrity)[0] !== "ok") throw new Error("Backup database integrity check failed.");
-    const migrations = readMigrationRows(database);
-    validateWorkspaceMigrationHistory(migrations);
-    if (JSON.stringify(migrations) !== JSON.stringify(manifest.database.migrations)) {
-      throw new Error("Backup database migration metadata does not match the manifest.");
-    }
+    validateCurrentWorkspaceDatabase(database);
   } finally {
     database.close();
     removeDatabaseSidecars(databasePath);

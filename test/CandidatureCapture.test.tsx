@@ -3,13 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/renderer/JobExtractionPanel", () => ({
-  JobExtractionPanel: () => null,
-}));
-vi.mock("../src/renderer/OpportunityReviewPanel", () => ({
-  OpportunityReviewPanel: () => null,
-}));
-vi.mock("../src/renderer/VariantRecommendationPanel", () => ({
-  VariantRecommendationPanel: () => null,
+  JobExtractionPanel: ({ onDismiss }: { readonly onDismiss: () => void }) => (
+    <section aria-label="AI extraction">
+      <button type="button" onClick={onDismiss}>Dismiss AI extraction</button>
+    </section>
+  ),
 }));
 
 import { CandidaturesAiWorkspace } from "../src/renderer/CandidaturesAiWorkspace";
@@ -20,18 +18,16 @@ import type {
 } from "../src/shared/contracts";
 
 const candidatureId = "00000000-0000-4000-8000-000000000701";
-const sourceId = "00000000-0000-4000-8000-000000000702";
-const fieldId = "00000000-0000-4000-8000-000000000703";
-const olderCandidatureId = "00000000-0000-4000-8000-000000000704";
+const fieldId = "00000000-0000-4000-8000-000000000702";
 const now = "2026-09-07T00:00:00.000Z";
-const phrase = "Recruiter asks whether I can start in October.";
+const phrase = "Aster Aviation seeks a captain. Salary 120000. International routes.";
 
-const organisationField: CandidatureFieldConfiguration = {
+const roleField: CandidatureFieldConfiguration = {
   definition: {
     id: fieldId,
-    systemKey: "organisation",
-    label: "Organisation",
-    description: "Organisation name",
+    systemKey: "role",
+    label: "Role",
+    description: "Role or position",
     valueType: "text",
     cardinality: "one",
     choices: [],
@@ -45,39 +41,57 @@ const organisationField: CandidatureFieldConfiguration = {
     focusOrder: 0,
     focusProminence: "normal",
     identityOrder: 0,
-    aiDiscovery: false,
-    aiContextMode: "omit",
+    aiDiscovery: true,
+    aiContextMode: "expose",
   },
 };
 
-function candidature(
-  values: CandidatureRecord["values"] = [],
-  label = "Recruiter message",
-): CandidatureRecord {
+function candidature(values: CandidatureRecord["values"] = []): CandidatureRecord {
   return {
     id: candidatureId,
     archived: false,
     createdAt: now,
     updatedAt: now,
-    label,
+    label: values.length > 0 ? "Captain" : "Raw candidature",
     sourceSearchText: phrase,
     values,
     documentIds: [],
-    conceptIds: [],
+    tagIds: [],
   };
 }
 
 const create = vi.fn();
 const list = vi.fn();
+const setFieldValue = vi.fn();
 let persisted: CandidatureRecord[] = [];
 
-function installApi(initial: CandidatureRecord[] = [], fields: CandidatureFieldConfiguration[] = []) {
-  persisted = [...initial];
+function installApi(aiAvailable = false) {
+  persisted = [];
   list.mockImplementation(async () => [...persisted]);
-  create.mockImplementation(async () => {
-    const created = candidature();
-    persisted = [created, ...persisted];
+  create.mockImplementation(async (input: { values?: Array<{ fieldId: string; value: unknown }> }) => {
+    const values = (input.values ?? []).map((value) => ({
+      candidatureId,
+      fieldId: value.fieldId,
+      value: value.value as string,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    const created = candidature(values);
+    persisted = [created];
     return created;
+  });
+  setFieldValue.mockImplementation(async ({ fieldId: savedFieldId, value }: { fieldId: string; value: unknown }) => {
+    const updated = candidature([
+      {
+        candidatureId,
+        fieldId: savedFieldId,
+        value: value as string,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    persisted = [updated];
+    return updated;
   });
 
   const api = {
@@ -86,58 +100,41 @@ function installApi(initial: CandidatureRecord[] = [], fields: CandidatureFieldC
       create,
       update: vi.fn(),
       filter: vi.fn().mockResolvedValue([]),
-      listFields: vi.fn().mockResolvedValue(fields),
+      listFields: vi.fn().mockResolvedValue([roleField]),
       createField: vi.fn(),
       updateField: vi.fn(),
       deleteField: vi.fn(),
       updateFieldPreferences: vi.fn(),
-      setFieldValue: vi.fn(),
+      setFieldValue,
       clearFieldValue: vi.fn(),
-      listSources: vi.fn().mockImplementation(async () =>
-        persisted.length > 0
-          ? [{
-              id: sourceId,
-              candidatureId,
-              kind: "other",
-              title: "",
-              url: "",
-              sourceText: phrase,
-              createdAt: now,
-              updatedAt: now,
-            }]
-          : [],
-      ),
+      listSources: vi.fn().mockResolvedValue([]),
       addSource: vi.fn(),
       updateSource: vi.fn(),
       removeSource: vi.fn(),
       setDocuments: vi.fn(),
-      listConcepts: vi.fn().mockResolvedValue([]),
-      createConcept: vi.fn(),
-      updateConcept: vi.fn(),
-      setConcepts: vi.fn(),
+      listTags: vi.fn().mockResolvedValue([]),
+      createTag: vi.fn(),
+      updateTag: vi.fn(),
+      setTags: vi.fn(),
     },
-    candidatureSearch: {
-      search: vi.fn().mockImplementation(async () =>
-        persisted.length > 0 ? persisted.map((record) => record.id) : [],
+    aiConnections: {
+      list: vi.fn().mockResolvedValue(
+        aiAvailable
+          ? [{
+              validatedOperations: ["job_extraction"],
+              defaultForOperations: ["job_extraction"],
+              isDefault: false,
+            }]
+          : [],
       ),
     },
+    candidatureSearch: { search: vi.fn().mockResolvedValue([]) },
     documents: { list: vi.fn().mockResolvedValue([]) },
-    todos: { list: vi.fn().mockResolvedValue([]) },
-    focus: {
-      current: vi.fn().mockResolvedValue({
-        sources: true,
-        concepts: true,
-        todos: true,
-        documents: true,
-      }),
-      update: vi.fn(),
-    },
-    ai: { discoverField: vi.fn() },
   } as unknown as DesktopApi;
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
 }
 
-describe("sparse candidature capture", () => {
+describe("candidature creation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     installApi();
@@ -148,164 +145,102 @@ describe("sparse candidature capture", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps capture transient until Save and cancels without creating a candidature", async () => {
+  it("offers field-by-field and raw-material creation as peer entrances", async () => {
+    render(<CandidaturesAiWorkspace />);
+
+    await screen.findByRole("heading", { name: "Candidatures" });
+    expect(screen.getByRole("button", { name: "New candidature — fill fields" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "New candidature — paste raw material" })).toBeVisible();
+  });
+
+  it("keeps raw capture transient until raw material is explicitly retained", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByTestId("new-candidature-capture"));
+    await user.click(screen.getByRole("button", { name: "New candidature — paste raw material" }));
 
     expect(create).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "Paste or add whatever you have." })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save candidature" })).toBeDisabled();
-
-    await user.type(screen.getByLabelText("What you have"), phrase);
-    expect(create).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Save candidature" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Keep raw material" })).toBeDisabled();
+    await user.type(screen.getByLabelText("Candidature material"), phrase);
+    expect(screen.getByRole("button", { name: "Keep raw material" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-
     expect(confirm).toHaveBeenCalledWith("Discard this unsaved candidature capture?");
     expect(create).not.toHaveBeenCalled();
-    expect(screen.queryByRole("heading", { name: "Paste or add whatever you have." })).not.toBeInTheDocument();
   });
 
-  it("saves raw material as the initial Source and reloads the new candidature into Focus", async () => {
+  it("retains raw material then shows explicit AI and manual continuations together", async () => {
+    installApi(true);
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByTestId("new-candidature-capture"));
-    await user.type(screen.getByLabelText("What you have"), phrase);
-    await user.click(screen.getByRole("button", { name: "Save candidature" }));
+    await user.click(screen.getByRole("button", { name: "New candidature — paste raw material" }));
+    await user.type(screen.getByLabelText("Candidature material"), phrase);
+    await user.click(screen.getByRole("button", { name: "Keep raw material" }));
 
     expect(create).toHaveBeenCalledWith({
-      source: {
-        kind: "other",
-        title: "",
-        url: "",
-        sourceText: phrase,
-      },
+      source: { kind: "other", title: "", url: "", sourceText: phrase },
       values: [],
     });
-
-    const focus = await screen.findByRole("region", { name: "Candidature Focus" });
-    expect(await within(focus).findByText(phrase)).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Back to candidatures" })).toBeInTheDocument();
+    const choice = await screen.findByRole("region", { name: "Raw candidature saved" });
+    expect(within(choice).getByRole("button", { name: "Send to AI" })).toBeEnabled();
+    expect(within(choice).getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
+    expect(within(choice).getByText(phrase)).toBeVisible();
   });
 
-  it("selects the candidature returned by Save even when another active candidature is listed first", async () => {
-    const older = {
-      ...candidature([], "Older opportunity"),
-      id: olderCandidatureId,
-      sourceSearchText: "Older retained source",
-    };
-    installApi([older]);
-    create.mockImplementationOnce(async () => {
-      const created = candidature([], "New saved opportunity");
-      persisted = [older, created];
-      return created;
-    });
+  it("keeps manual post-paste filling fully available without AI", async () => {
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByTestId("new-candidature-capture"));
-    await user.type(screen.getByLabelText("What you have"), phrase);
-    await user.click(screen.getByRole("button", { name: "Save candidature" }));
+    await user.click(screen.getByRole("button", { name: "New candidature — paste raw material" }));
+    await user.type(screen.getByLabelText("Candidature material"), phrase);
+    await user.click(screen.getByRole("button", { name: "Keep raw material" }));
 
-    const createdButton = await screen.findByRole("button", { name: /New saved opportunity/ });
-    const olderButton = screen.getByRole("button", { name: /Older opportunity/ });
-    expect(createdButton).toHaveClass("selected-candidature");
-    expect(olderButton).not.toHaveClass("selected-candidature");
-    expect(screen.getByRole("tab", { name: "Focus" })).toHaveAttribute("aria-selected", "true");
+    const choice = await screen.findByRole("region", { name: "Raw candidature saved" });
+    expect(within(choice).getByRole("button", { name: "Send to AI" })).toBeDisabled();
+    await user.click(within(choice).getByRole("button", { name: "Fill candidature yourself" }));
+
+    const manual = await screen.findByRole("region", { name: "Fill candidature yourself" });
+    expect(within(manual).getByRole("region", { name: "Raw candidature material" })).toHaveTextContent(phrase);
+    expect(within(manual).getByRole("region", { name: "Candidature fields" })).toBeVisible();
+    expect(within(manual).getByRole("heading", { name: "Role" })).toBeVisible();
   });
 
-  it("preserves collection search and archive state across selected candidature navigation", async () => {
-    installApi([candidature()]);
+  it("supports direct field-by-field creation without requiring a Source", async () => {
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
 
-    await screen.findByRole("region", { name: "Candidature Focus" });
-    const search = screen.getByLabelText("Search retained information");
-    const archive = screen.getByLabelText("Archive");
-    await user.type(search, "October");
-    await user.selectOptions(archive, "all");
+    await screen.findByRole("heading", { name: "Candidatures" });
+    await user.click(screen.getByRole("button", { name: "New candidature — fill fields" }));
 
-    await user.click(screen.getByRole("button", { name: /Recruiter message/ }));
-    expect(screen.getByRole("button", { name: "Back to candidatures" })).toBeInTheDocument();
+    const manual = await screen.findByRole("region", { name: "Fill candidature fields" });
+    await user.type(within(manual).getByRole("textbox"), "Captain");
+    await user.click(within(manual).getByRole("button", { name: "Save" }));
 
-    await user.click(screen.getByRole("button", { name: "Back to candidatures" }));
-    expect(screen.queryByRole("button", { name: "Back to candidatures" })).not.toBeInTheDocument();
-    expect(search).toHaveValue("October");
-    expect(archive).toHaveValue("all");
+    expect(create).toHaveBeenCalledWith({ values: [{ fieldId, value: "Captain" }] });
   });
 
-  it("preserves a dirty selected draft when returning to collection and reopening the same candidature", async () => {
-    const retained = {
-      candidatureId,
-      fieldId,
-      value: "Regional Air",
-      createdAt: now,
-      updatedAt: now,
-    } as const;
-    installApi([candidature([retained], "Regional Air")], [organisationField]);
+  it("does not start creation over unsaved field-definition edits without confirmation", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
 
-    await screen.findByRole("region", { name: "Candidature Focus" });
-    await user.click(screen.getByRole("button", { name: /Regional Air/ }));
-    await user.click(screen.getByRole("tab", { name: "Information" }));
-    const card = screen.getByRole("heading", { name: "Organisation" }).closest("article");
-    expect(card).not.toBeNull();
-    if (!card) return;
-    await user.click(within(card).getByRole("button", { name: "Edit" }));
-    const input = within(card).getByRole("textbox");
-    await user.type(input, " unsaved");
+    await screen.findByRole("heading", { name: "Candidatures" });
+    await user.click(screen.getByText("Manage candidature fields", { selector: "summary" }));
+    const editor = screen.getByRole("region", { name: "Edit candidature field" });
+    await user.selectOptions(within(editor).getByLabelText("Field"), fieldId);
+    const name = within(editor).getByLabelText("Name");
+    await user.clear(name);
+    await user.type(name, "Position title");
 
-    await user.click(screen.getByRole("button", { name: "Back to candidatures" }));
-    await user.click(screen.getByRole("button", { name: /Regional Air/ }));
+    await user.click(screen.getByRole("button", { name: "New candidature — paste raw material" }));
 
-    expect(confirm).not.toHaveBeenCalled();
-    expect(input).toHaveValue("Regional Air unsaved");
-    expect(screen.getByRole("button", { name: "Back to candidatures" })).toBeInTheDocument();
-  });
-
-  it("does not discard an existing candidature draft when capture starts or a replacement save is cancelled", async () => {
-    const retained = {
-      candidatureId,
-      fieldId,
-      value: "Regional Air",
-      createdAt: now,
-      updatedAt: now,
-    } as const;
-    installApi([candidature([retained], "Regional Air")], [organisationField]);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const user = userEvent.setup();
-    render(<CandidaturesAiWorkspace />);
-
-    await screen.findByRole("region", { name: "Candidature Focus" });
-    await user.click(screen.getByRole("tab", { name: "Information" }));
-    const card = screen.getByRole("heading", { name: "Organisation" }).closest("article");
-    expect(card).not.toBeNull();
-    if (!card) return;
-    await user.click(within(card).getByRole("button", { name: "Edit" }));
-    const input = within(card).getByRole("textbox");
-    await user.type(input, " unsaved");
-
-    await user.click(screen.getByTestId("new-candidature-capture"));
-    expect(input).toHaveValue("Regional Air unsaved");
-    await user.type(screen.getByLabelText("What you have"), "Another opportunity");
-    await user.click(screen.getByRole("button", { name: "Save candidature" }));
-
-    expect(confirm).toHaveBeenCalledWith(
-      "Discard unsaved candidature edits and save this new candidature?",
-    );
-    expect(create).not.toHaveBeenCalled();
-    expect(input).toHaveValue("Regional Air unsaved");
-    expect(screen.getByLabelText("What you have")).toHaveValue("Another opportunity");
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits and start a new candidature?");
+    expect(screen.queryByRole("region", { name: "New candidature raw capture" })).not.toBeInTheDocument();
+    expect(name).toHaveValue("Position title");
   });
 });

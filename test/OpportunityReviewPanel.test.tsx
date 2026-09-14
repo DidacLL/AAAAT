@@ -18,7 +18,7 @@ const record: CandidatureRecord = {
   sourceSearchText: "",
   values: [],
   documentIds: [],
-  conceptIds: [],
+  tagIds: [],
 };
 
 const projectedPrivateValue = "opaque local replacement";

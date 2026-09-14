@@ -10,7 +10,7 @@ interface Props {
   readonly value?: CandidatureRuntimeValue;
   readonly onSave: (value: CandidatureRuntimeValue) => Promise<void>;
   readonly onClear: () => Promise<void>;
-  readonly onDiscover: () => Promise<void>;
+  readonly onDiscover?: () => void | Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -63,15 +63,16 @@ export function CandidatureFieldValueEditor({
     onDirtyChangeRef.current = onDirtyChange;
   }, [onDirtyChange]);
 
-  useEffect(() => {
-    setText(textFor(value));
-    setChoices(choicesFor(field, value));
-    setError(null);
-  }, [field, value]);
-
   const dirty =
     editing &&
     (text !== textFor(value) || JSON.stringify(choices) !== JSON.stringify(choicesFor(field, value)));
+
+  useEffect(() => {
+    if (dirty) return;
+    setText(textFor(value));
+    setChoices(choicesFor(field, value));
+    setError(null);
+  }, [dirty, field, value]);
 
   useEffect(() => {
     onDirtyChangeRef.current?.(dirty);
@@ -159,6 +160,7 @@ export function CandidatureFieldValueEditor({
   };
 
   const discover = async () => {
+    if (!onDiscover) return;
     setBusy(true);
     setError(null);
     try {
@@ -283,9 +285,11 @@ export function CandidatureFieldValueEditor({
             </button>
           </>
         ) : null}
-        <button type="button" className="compact-secondary" disabled={busy} onClick={() => void discover()}>
-          Discover from Sources
-        </button>
+        {onDiscover ? (
+          <button type="button" className="compact-secondary" disabled={busy} onClick={() => void discover()}>
+            Discover from Sources
+          </button>
+        ) : null}
       </div>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
     </div>

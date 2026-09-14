@@ -8,11 +8,11 @@ import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
   CandidatureRuntimeValue,
-  ConceptRecord,
+  TagRecord,
 } from "../shared/contracts";
 import { listCandidatureFields } from "./candidature-field-service";
 import { listCandidatures } from "./candidature-service";
-import { listConcepts } from "./concept-service";
+import { listTags } from "./tag-service";
 
 function displayValue(
   field: CandidatureFieldConfiguration | undefined,
@@ -30,12 +30,12 @@ function displayValue(
 function searchableText(
   record: CandidatureRecord,
   fields: readonly CandidatureFieldConfiguration[],
-  concepts: readonly ConceptRecord[],
+  tags: readonly TagRecord[],
 ): string {
   const fieldMap = new Map(fields.map((field) => [field.definition.id, field]));
-  const associatedConceptText = concepts
-    .filter((concept) => record.conceptIds.includes(concept.id))
-    .flatMap((concept) => [concept.name, ...concept.aliases])
+  const associatedTagText = tags
+    .filter((tag) => record.tagIds.includes(tag.id))
+    .flatMap((tag) => [tag.name, ...tag.aliases])
     .join(" ");
   return [
     record.label,
@@ -44,7 +44,7 @@ function searchableText(
       const field = fieldMap.get(retained.fieldId);
       return [field?.definition.label ?? "", displayValue(field, retained.value)];
     }),
-    associatedConceptText,
+    associatedTagText,
   ]
     .join(" ")
     .toLocaleLowerCase();
@@ -57,10 +57,10 @@ export function searchCandidatures(
   const { query } = candidatureSearchInputSchema.parse(rawInput);
   const normalizedQuery = query.toLocaleLowerCase();
   const fields = listCandidatureFields(rootPath);
-  const concepts = listConcepts(rootPath);
+  const tags = listTags(rootPath);
   return candidatureSearchResultSchema.parse(
     listCandidatures(rootPath)
-      .filter((record) => searchableText(record, fields, concepts).includes(normalizedQuery))
+      .filter((record) => searchableText(record, fields, tags).includes(normalizedQuery))
       .map((record) => record.id),
   );
 }

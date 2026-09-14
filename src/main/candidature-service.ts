@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
-  candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
   candidatureInputSchema,
   candidatureListSchema,
@@ -12,8 +11,8 @@ import {
   candidatureSourceRemoveSchema,
   candidatureSourceSchema,
   candidatureSourceUpdateSchema,
+  candidatureTagSelectionSchema,
   candidatureUpdateSchema,
-  type CandidatureConceptSelection,
   type CandidatureDocumentSelection,
   type CandidatureInput,
   type CandidatureRecord,
@@ -21,6 +20,7 @@ import {
   type CandidatureSourceInput,
   type CandidatureSourceRemove,
   type CandidatureSourceUpdate,
+  type CandidatureTagSelection,
   type CandidatureUpdate,
 } from "../shared/contracts";
 import {
@@ -84,14 +84,14 @@ function readDocumentIds(database: DatabaseSync, candidatureId: string): string[
   ).map((row) => row.id);
 }
 
-function readConceptIds(database: DatabaseSync, candidatureId: string): string[] {
+function readTagIds(database: DatabaseSync, candidatureId: string): string[] {
   return (
     database
       .prepare(
-        `SELECT concept_id AS id
-           FROM candidature_concepts
+        `SELECT tag_id AS id
+           FROM candidature_tags
           WHERE candidature_id = ?
-          ORDER BY concept_id`,
+          ORDER BY tag_id`,
       )
       .all(candidatureId) as unknown as IdRow[]
   ).map((row) => row.id);
@@ -132,7 +132,7 @@ function toRecord(database: DatabaseSync, row: CandidatureRow): CandidatureRecor
     sourceSearchText: sourceSearchText(database, row.id),
     values: readCandidatureFieldValuesInDatabase(database, row.id),
     documentIds: readDocumentIds(database, row.id),
-    conceptIds: readConceptIds(database, row.id),
+    tagIds: readTagIds(database, row.id),
   });
 }
 
@@ -187,9 +187,9 @@ function requireDocument(database: DatabaseSync, documentId: string): void {
   }
 }
 
-function requireConcept(database: DatabaseSync, conceptId: string): void {
-  if (!database.prepare("SELECT 1 FROM concepts WHERE id = ?").get(conceptId)) {
-    throw new CandidatureServiceError("An associated concept no longer exists.");
+function requireTag(database: DatabaseSync, tagId: string): void {
+  if (!database.prepare("SELECT 1 FROM tags WHERE id = ?").get(tagId)) {
+    throw new CandidatureServiceError("An associated tag no longer exists.");
   }
 }
 
@@ -426,25 +426,25 @@ export function setCandidatureDocuments(
   });
 }
 
-export function setCandidatureConcepts(
+export function setCandidatureTags(
   rootPath: string,
-  rawInput: CandidatureConceptSelection,
+  rawInput: CandidatureTagSelection,
 ): CandidatureRecord {
-  const selection = candidatureConceptSelectionSchema.parse(rawInput);
+  const selection = candidatureTagSelectionSchema.parse(rawInput);
   return withWorkspaceDatabase(rootPath, (database) => {
     const now = new Date().toISOString();
     transact(database, () => {
       readCandidatureInDatabase(database, selection.candidatureId);
-      for (const conceptId of selection.conceptIds) requireConcept(database, conceptId);
+      for (const tagId of selection.tagIds) requireTag(database, tagId);
       database
-        .prepare("DELETE FROM candidature_concepts WHERE candidature_id = ?")
+        .prepare("DELETE FROM candidature_tags WHERE candidature_id = ?")
         .run(selection.candidatureId);
       const insert = database.prepare(
-        "INSERT INTO candidature_concepts(candidature_id, concept_id) VALUES (?, ?)",
+        "INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)",
       );
-      for (const conceptId of selection.conceptIds) insert.run(selection.candidatureId, conceptId);
+      for (const tagId of selection.tagIds) insert.run(selection.candidatureId, tagId);
       touch(database, selection.candidatureId, now);
-      recordActivity(database, selection.candidatureId, "candidature.concepts-updated", now);
+      recordActivity(database, selection.candidatureId, "candidature.tags-updated", now);
     });
     return readCandidatureInDatabase(database, selection.candidatureId);
   });

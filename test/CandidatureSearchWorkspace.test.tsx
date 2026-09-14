@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
@@ -17,7 +17,7 @@ function record(id: string, label: string): CandidatureRecord {
     sourceSearchText: "",
     values: [],
     documentIds: [],
-    conceptIds: [],
+    tagIds: [],
   };
 }
 
@@ -49,23 +49,13 @@ function installApi(search: (input: { query: string }) => Promise<string[]>) {
       updateSource: vi.fn(),
       removeSource: vi.fn(),
       setDocuments: vi.fn(),
-      listConcepts: vi.fn().mockResolvedValue([]),
-      createConcept: vi.fn(),
-      updateConcept: vi.fn(),
-      setConcepts: vi.fn(),
+      listTags: vi.fn().mockResolvedValue([]),
+      createTag: vi.fn(),
+      updateTag: vi.fn(),
+      setTags: vi.fn(),
     },
     candidatureSearch: { search: vi.fn(search) },
     documents: { list: vi.fn().mockResolvedValue([]) },
-    todos: { list: vi.fn().mockResolvedValue([]) },
-    focus: {
-      current: vi.fn().mockResolvedValue({
-        sources: true,
-        concepts: true,
-        todos: true,
-        documents: true,
-      }),
-      update: vi.fn(),
-    },
     ai: {
       discoverField: vi.fn(),
       previewOpportunityReview: vi.fn(),
@@ -92,7 +82,7 @@ describe("candidature local corpus search UI", () => {
 
     render(<CandidaturesWorkspace />);
     await screen.findByRole("heading", { name: "Candidatures" });
-    const input = screen.getByRole("searchbox", { name: "Search retained information" });
+    const input = screen.getByRole("searchbox", { name: "Search candidatures" });
 
     fireEvent.change(input, { target: { value: "first" } });
     await waitFor(() => expect(search).toHaveBeenCalledWith({ query: "first" }));
@@ -100,13 +90,12 @@ describe("candidature local corpus search UI", () => {
     await waitFor(() => expect(search).toHaveBeenCalledWith({ query: "second" }));
 
     newer.resolve([secondId]);
-    const list = screen.getByRole("complementary", { name: "Candidature list" });
-    await waitFor(() => expect(within(list).getByText("Second opportunity")).toBeInTheDocument());
-    expect(within(list).queryByText("First opportunity")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Second opportunity")).toBeInTheDocument());
+    expect(screen.queryByText("First opportunity")).not.toBeInTheDocument();
 
     older.resolve([firstId]);
     await Promise.resolve();
-    expect(within(list).getByText("Second opportunity")).toBeInTheDocument();
-    expect(within(list).queryByText("First opportunity")).not.toBeInTheDocument();
+    expect(screen.getByText("Second opportunity")).toBeInTheDocument();
+    expect(screen.queryByText("First opportunity")).not.toBeInTheDocument();
   });
 });

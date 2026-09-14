@@ -15,7 +15,7 @@ export const candidatureActivityKindSchema = z.enum([
   "information_set",
   "information_cleared",
   "documents_updated",
-  "concepts_updated",
+  "tags_updated",
   "artifact_retained",
   "external_research_allowed",
   "external_research_revoked",

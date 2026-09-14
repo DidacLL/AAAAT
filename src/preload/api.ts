@@ -16,7 +16,6 @@ import {
   type AiDesktopApi,
 } from "../shared/ai-contracts";
 import {
-  candidatureConceptSelectionSchema,
   candidatureDocumentSelectionSchema,
   candidatureFieldCreateSchema,
   candidatureFieldDefinitionSchema,
@@ -34,14 +33,11 @@ import {
   candidatureSourceListSchema,
   candidatureSourceRemoveSchema,
   candidatureSourceUpdateSchema,
+  candidatureTagSelectionSchema,
   candidatureUpdateSchema,
   careerContextSchema,
   careerContextUpdateSchema,
   channels,
-  conceptInputSchema,
-  conceptListSchema,
-  conceptRecordSchema,
-  conceptUpdateSchema,
   documentExportResultSchema,
   documentInputSchema,
   documentItemRuleInputSchema,
@@ -62,6 +58,10 @@ import {
   resolvedDocumentSchema,
   resolvedProfileSchema,
   systemInfoSchema,
+  tagInputSchema,
+  tagListSchema,
+  tagRecordSchema,
+  tagUpdateSchema,
   workspaceChoiceSchema,
   type DesktopApi,
 } from "../shared/contracts";
@@ -309,26 +309,26 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
           candidatureDocumentSelectionSchema.parse(selection),
         ),
       ),
-    listConcepts: async () => conceptListSchema.parse(await invoke(channels.candidatureListConcepts)),
-    createConcept: async (
-      input: Parameters<DesktopApi["candidatures"]["createConcept"]>[0],
+    listTags: async () => tagListSchema.parse(await invoke(channels.candidatureListTags)),
+    createTag: async (
+      input: Parameters<DesktopApi["candidatures"]["createTag"]>[0],
     ) =>
-      conceptRecordSchema.parse(
-        await invoke(channels.candidatureCreateConcept, conceptInputSchema.parse(input)),
+      tagRecordSchema.parse(
+        await invoke(channels.candidatureCreateTag, tagInputSchema.parse(input)),
       ),
-    updateConcept: async (
-      update: Parameters<DesktopApi["candidatures"]["updateConcept"]>[0],
+    updateTag: async (
+      update: Parameters<DesktopApi["candidatures"]["updateTag"]>[0],
     ) =>
-      conceptRecordSchema.parse(
-        await invoke(channels.candidatureUpdateConcept, conceptUpdateSchema.parse(update)),
+      tagRecordSchema.parse(
+        await invoke(channels.candidatureUpdateTag, tagUpdateSchema.parse(update)),
       ),
-    setConcepts: async (
-      selection: Parameters<DesktopApi["candidatures"]["setConcepts"]>[0],
+    setTags: async (
+      selection: Parameters<DesktopApi["candidatures"]["setTags"]>[0],
     ) =>
       candidatureRecordSchema.parse(
         await invoke(
-          channels.candidatureSetConcepts,
-          candidatureConceptSelectionSchema.parse(selection),
+          channels.candidatureSetTags,
+          candidatureTagSelectionSchema.parse(selection),
         ),
       ),
   });

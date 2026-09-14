@@ -14,7 +14,6 @@ import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 import { SettingsWorkspace } from "./SettingsWorkspace";
 import "./shell.css";
-import { TodosWorkspace } from "./TodosWorkspace";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
@@ -44,36 +43,9 @@ function ProfileArea({
 }
 
 function CandidaturesArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: boolean) => void }) {
-  const [candidatureDirty, setCandidatureDirty] = useState(false);
-  const [remindersOpen, setRemindersOpen] = useState(false);
-  const [remindersDirty, setRemindersDirty] = useState(false);
-
-  useEffect(() => {
-    onDirtyChange(candidatureDirty || (remindersOpen && remindersDirty));
-    return () => onDirtyChange(false);
-  }, [candidatureDirty, onDirtyChange, remindersDirty, remindersOpen]);
-
-  const toggleReminders = () => {
-    if (remindersOpen && remindersDirty) {
-      const discard = window.confirm("Discard unsaved reminder edits and close reminders?");
-      if (!discard) return;
-      setRemindersDirty(false);
-    }
-    setRemindersOpen((current) => !current);
-  };
-
   return (
     <div className="destination-area">
-      <CandidaturesAiWorkspace onDirtyChange={setCandidatureDirty} />
-      <section className="contextual-support" aria-label="Candidature supporting tools">
-        <button className="contextual-toggle" type="button" aria-expanded={remindersOpen} onClick={toggleReminders}>
-          Reminders
-        </button>
-        <span>Lightweight checkable notes stay secondary to candidature work.</span>
-      </section>
-      {remindersOpen ? (
-        <div className="contextual-surface"><TodosWorkspace onDirtyChange={setRemindersDirty} /></div>
-      ) : null}
+      <CandidaturesAiWorkspace onDirtyChange={onDirtyChange} />
     </div>
   );
 }
@@ -120,8 +92,7 @@ export function App() {
     return () => { active = false; };
   }, []);
 
-  const protectedWorkDirty =
-    candidatureDirty || documentDirty || professionalInformationDirty;
+  const protectedWorkDirty = candidatureDirty || documentDirty || professionalInformationDirty;
   const anyDirty = protectedWorkDirty || settingsDirty;
 
   const resetHandoffs = () => {
@@ -285,8 +256,7 @@ export function App() {
   const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
   const choosing = workspacePhase === "choosing";
   const loading = workspacePhase === "loading";
-  const keepCandidaturesMounted =
-    productView === "candidatures" || Boolean(documentHandoff?.candidatureId);
+  const keepCandidaturesMounted = productView === "candidatures" || Boolean(documentHandoff?.candidatureId);
   const keepDocumentsMounted =
     productView === "documents" ||
     professionalInformationHandoff !== null ||

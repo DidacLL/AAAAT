@@ -9,12 +9,14 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -33,7 +35,6 @@ interface MutableBackupManifest {
   database: {
     size: number;
     sha256: string;
-    migrations: [{ sha256: string }, ...Array<{ sha256: string }>];
   };
   files: [{ path: string }, ...Array<{ path: string }>];
 }
@@ -86,6 +87,14 @@ function writeManifest(backup: string, value: unknown): void {
   writeFileSync(path.join(backup, "manifest.json"), `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function refreshDatabaseManifest(backup: string): void {
+  const databasePath = path.join(backup, "workspace.sqlite");
+  const changed = manifest(backup);
+  changed.database.size = statSync(databasePath).size;
+  changed.database.sha256 = createHash("sha256").update(readFileSync(databasePath)).digest("hex");
+  writeManifest(backup, changed);
+}
+
 function expectEmpty(directory: string): void {
   expect(readdirSync(directory)).toEqual([]);
 }
@@ -95,7 +104,7 @@ afterEach(() => {
 });
 
 describe("workspace backup and restore", () => {
-  it("creates a portable consistent backup and restores user-owned data without secrets", async () => {
+  it("creates a portable consistent backup and restores user-owned data without secrets or migration ancestry", async () => {
     const { root, workspace, backup, restore, files } = fixture();
     const before = listCandidatures(workspace);
 
@@ -106,8 +115,10 @@ describe("workspace backup and restore", () => {
     );
 
     expect(created).toMatchObject({ format: "aaaat-workspace-backup", version: 1 });
+    expect(created.database).not.toHaveProperty("migrations");
     const text = readFileSync(path.join(backup, "manifest.json"), "utf8");
     expect(text).not.toContain(root);
+    expect(text).not.toContain("schema_migrations");
     expect(created.exclusions.join("\n")).toMatch(/ai-connection\.json/);
     expect(created.exclusions.join("\n")).toMatch(/\.env/);
     expect(created.files.map((file) => file.path).sort()).toEqual([...files.keys()].sort());
@@ -123,7 +134,7 @@ describe("workspace backup and restore", () => {
     }
   });
 
-  it("rejects corruption, traversal, incompatible migration metadata and occupied destinations before activation", async () => {
+  it("rejects corruption, traversal, obsolete workspace schema and occupied destinations before activation", async () => {
     const first = fixture();
     await createWorkspaceBackup(first.workspace, first.backup);
     writeFileSync(path.join(first.backup, "files", "documents", "cv.tex"), "tampered", "utf8");
@@ -140,10 +151,17 @@ describe("workspace backup and restore", () => {
 
     const third = fixture();
     await createWorkspaceBackup(third.workspace, third.backup);
-    const incompatible = manifest(third.backup);
-    incompatible.database.migrations[0].sha256 = "0".repeat(64);
-    writeManifest(third.backup, incompatible);
-    expect(() => restoreWorkspaceBackup(third.backup, third.restore)).toThrow(/migration metadata/);
+    const databasePath = path.join(third.backup, "workspace.sqlite");
+    const database = new DatabaseSync(databasePath);
+    try {
+      database.exec(
+        "CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;",
+      );
+    } finally {
+      database.close();
+    }
+    refreshDatabaseManifest(third.backup);
+    expect(() => restoreWorkspaceBackup(third.backup, third.restore)).toThrow(/workspace schema/i);
     expectEmpty(third.restore);
 
     const fourth = fixture();

@@ -8,7 +8,7 @@ import {
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
-  ConceptRecord,
+  TagRecord,
 } from "../src/shared/contracts";
 
 function record(id: string, archived = false): CandidatureRecord {
@@ -21,7 +21,7 @@ function record(id: string, archived = false): CandidatureRecord {
     sourceSearchText: "",
     values: [],
     documentIds: [],
-    conceptIds: [],
+    tagIds: [],
   };
 }
 
@@ -49,7 +49,21 @@ const locationField: CandidatureFieldConfiguration = {
   },
 };
 
-const reliabilityConcept: ConceptRecord = {
+const roleField: CandidatureFieldConfiguration = {
+  definition: {
+    ...locationField.definition,
+    id: "00000000-0000-4000-8000-000000000422",
+    label: "Role",
+  },
+  preferences: {
+    ...locationField.preferences,
+    fieldId: "00000000-0000-4000-8000-000000000422",
+    focusVisible: true,
+    focusOrder: 0,
+  },
+};
+
+const reliabilityTag: TagRecord = {
   id: "00000000-0000-4000-8000-000000000421",
   name: "Reliability engineering",
   definition: "Operating dependable production systems",
@@ -89,6 +103,34 @@ describe("candidature renderer projection", () => {
 
     expect(candidatureRecognitionCues(rawFirst, [])).toEqual([
       { label: "Source", value: sourceText.slice(80).trim() },
+    ]);
+  });
+
+  it("never leaks retained fields that the user hid from corpus Focus", () => {
+    const candidateId = "00000000-0000-4000-8000-000000000417";
+    const candidate = {
+      ...record(candidateId),
+      label: "Regional Air",
+      values: [
+        {
+          candidatureId: candidateId,
+          fieldId: locationField.definition.id,
+          value: "Madrid",
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+        {
+          candidatureId: candidateId,
+          fieldId: roleField.definition.id,
+          value: "Pilot",
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+      ],
+    };
+
+    expect(candidatureRecognitionCues(candidate, [locationField, roleField], 3)).toEqual([
+      { label: "Role", value: "Pilot" },
     ]);
   });
 
@@ -133,18 +175,18 @@ describe("candidature renderer projection", () => {
     expect(cue?.value.endsWith("…")).toBe(true);
   });
 
-  it("identifies an associated Concept match and otherwise leaves generic recognition as fallback", () => {
+  it("identifies an associated Tag match and otherwise leaves generic recognition as fallback", () => {
     const candidate = {
       ...record("00000000-0000-4000-8000-000000000416"),
-      conceptIds: [reliabilityConcept.id],
+      tagIds: [reliabilityTag.id],
       sourceSearchText: "Platform role",
     };
 
-    expect(candidatureSearchMatchCue(candidate, [], [reliabilityConcept], "incident")).toEqual({
-      label: "Concept match",
+    expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "incident")).toEqual({
+      label: "Tag match",
       value: "Reliability engineering",
     });
-    expect(candidatureSearchMatchCue(candidate, [], [reliabilityConcept], "unavailable phrase")).toBeNull();
+    expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "unavailable phrase")).toBeNull();
     expect(candidatureRecognitionCues(candidate, [])).toEqual([
       { label: "Source", value: "Platform role" },
     ]);

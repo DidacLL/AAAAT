@@ -1,6 +1,8 @@
 # AAAAT v2
 
-AAAAT is a private local job-search workspace and application-document tool. It reduces the effort of capturing, retrieving, reusing, and turning fragmented opportunity and reusable professional information into user-owned application material. It remains useful without AI; optional assistance is bounded to the work at hand rather than a separate product workflow.
+AAAAT is a private, local career/application information workspace and application-artifact generator. It reduces the effort of capturing, retrieving, reusing, and turning fragmented opportunity and reusable professional information into user-owned application material. It remains useful without AI; optional assistance is bounded to the work at hand rather than a separate product workflow.
+
+AAAAT is not defined as an in-app job-discovery/search engine. External AI or other tools may participate in broader job-search or research work and use AAAAT through bounded capabilities, while AAAAT remains authoritative for its local candidature, professional-information, document, and related product data.
 
 [PRODUCT_DEFINITION.md](PRODUCT_DEFINITION.md) is the authoritative product definition. [PRODUCT_CONTEXT.md](PRODUCT_CONTEXT.md) explains rationale without creating requirements. [OWNER_DEVELOPMENT_PRINCIPLES.md](OWNER_DEVELOPMENT_PRINCIPLES.md) governs development style. [AGENTS.md](AGENTS.md) is the development entry point; [docs/SPEC.md](docs/SPEC.md) is derived technical architecture; [.agentic/CURRENT_MISSION.md](.agentic/CURRENT_MISSION.md) identifies current execution only.
 

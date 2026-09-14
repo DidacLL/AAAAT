@@ -38,7 +38,7 @@ const candidature: CandidatureRecord = {
   sourceSearchText: "",
   values: [],
   documentIds: [workingDocument.id],
-  conceptIds: [],
+  tagIds: [],
 };
 const artifact: ApplicationArtifactRecord = {
   id: "00000000-0000-4000-8000-000000000804",

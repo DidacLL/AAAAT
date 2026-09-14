@@ -41,7 +41,7 @@ const record = {
   sourceSearchText: "",
   values: [],
   documentIds: [],
-  conceptIds: [],
+  tagIds: [],
 };
 
 describe("desktop preload API", () => {

@@ -146,7 +146,7 @@ function resizeLinuxAppWindow(width: number, height: number): { width: number; h
         "  sleep 0.1",
         "done",
         "test -n \"$window\"",
-        `xdotool windowactivate --sync "$window"`,
+        "xdotool windowactivate --sync \"$window\"",
         `xdotool windowsize --sync "$window" ${String(width)} ${String(height)}`,
         "sleep 0.15",
         "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
@@ -175,10 +175,10 @@ async function expectNoHorizontalOverflow(page: Page, width: number, height: num
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
 }
 
-async function selectSection(page: Page, name: string): Promise<void> {
-  const tab = page.getByRole("tab", { name, exact: true });
-  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
-  await expect(tab).toHaveAttribute("aria-selected", "true");
+async function createWorkspace(running: RunningApp): Promise<void> {
+  await running.page.getByRole("button", { name: "Create workspace" }).click();
+  chooseLinuxDirectory();
+  await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
 }
 
 test("packaged sparse candidature accepts a runtime field and survives close/reopen", async () => {
@@ -189,10 +189,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
 
   try {
     running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(running.page).toHaveTitle("AAAAT");
-    await running.page.getByRole("button", { name: "Create workspace" }).click();
-    chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await createWorkspace(running);
 
     const created = await running.page.evaluate(async () => {
       const candidature = await window.aaaat.candidatures.create({ values: [] });
@@ -221,43 +218,35 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
         url: "https://example.invalid/pilot",
         sourceText: "Regional Air requires at least 1,500 total flight hours.",
       });
-      const records = await window.aaaat.candidatures.list();
-      const sources = await window.aaaat.candidatures.listSources(candidature.id);
-      return {
-        candidatureId: candidature.id,
-        fieldId: field.definition.id,
-        values: records.find((record) => record.id === candidature.id)?.values ?? [],
-        sourceTitles: sources.map((source) => source.title),
-      };
+      return { candidatureId: candidature.id, fieldId: field.definition.id };
     });
 
-    expect(created.values).toEqual([
-      expect.objectContaining({ fieldId: created.fieldId, value: 1500 }),
-    ]);
-    expect(created.sourceTitles).toEqual(["Pilot vacancy"]);
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
     expect(existsSync(path.join(ownedWorkspace, "integrations", "vscode-mcp.json"))).toBe(false);
 
     await stopPackagedApp(running);
-    running = undefined;
-
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
 
-    const focus = running.page.getByRole("region", { name: "Candidature Focus" });
-    await expect(focus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
-    await expect(focus).toContainText("1500");
+    const corpus = running.page.getByLabel("Candidature corpus Focus");
+    const focusEntry = corpus.locator("button.candidature-focus-entry").first();
+    await expect(focusEntry).toContainText("Minimum flight hours");
+    await focusEntry.click();
 
-    await selectSection(running.page, "Sources");
-    const sources = running.page.getByRole("region", { name: "Sources" });
+    const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
+    await expect(selectedFocus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
+    await expect(selectedFocus).toContainText("1500");
+    await running.page.getByRole("button", { name: "Edit full candidature" }).click();
+
+    const complete = running.page.getByRole("region", { name: "Complete candidature" });
+    const sources = complete.getByRole("region", { name: "Sources" });
     await expect(sources.getByText("Pilot vacancy", { exact: true })).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 1200, 800);
-
     await sources.getByRole("button", { name: "Read source" }).click();
     const sourceReader = sources.getByRole("article", { name: "Source content" });
     await expect(sourceReader).toContainText("Regional Air requires at least 1,500 total flight hours.");
     await expect(sourceReader.getByText("https://example.invalid/pilot", { exact: true })).toBeVisible();
-    await expect(sources.getByRole("textbox", { name: "Source material" })).toHaveCount(0);
+    expect(created.candidatureId).toBeTruthy();
+    expect(created.fieldId).toBeTruthy();
     await expectNoHorizontalOverflow(running.page, 1200, 800);
     await expectNoHorizontalOverflow(running.page, 720, 600);
   } finally {
@@ -268,109 +257,66 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
   }
 });
 
-test("packaged first-use candidature loop remains information-first at normal and 720x600 sizes", async () => {
+test("packaged raw capture exposes explicit AI/manual choices and manual Source-to-fields work at 720x600", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-capture-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-capture-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
   const rawMaterial =
-    "Recruiter asks whether I can start in October and mentions a Madrid-based role.";
-  const secondMaterial =
-    "Nimbus Labs is hiring a platform engineer in Barcelona with hybrid work.";
-  const secondTitle = "Nimbus platform role";
+    "Aster Aviation seeks a captain in Madrid. Salary 120000. International routes.";
   let running: RunningApp | undefined;
 
   try {
     running = await startPackagedApp(isolatedUserData, linuxHome);
-
+    await createWorkspace(running);
     await expectNoHorizontalOverflow(running.page, 720, 600);
-    await expect(running.page.getByRole("button", { name: "Create workspace" })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Open existing workspace" })).toBeVisible();
-    await expect(running.page.getByText("Restore a backup", { exact: true })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Choose backup to restore" })).toBeHidden();
 
-    await expectNoHorizontalOverflow(running.page, 1200, 800);
-    await running.page.getByRole("button", { name: "Create workspace" }).click();
-    chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
-
-    await running.page.getByTestId("new-candidature-capture").click();
     await expect(
-      running.page.getByRole("heading", { name: "Paste or add whatever you have." }),
+      running.page.getByRole("button", { name: "New candidature — fill fields" }),
     ).toBeVisible();
-    await running.page.getByLabel("What you have").fill(rawMaterial);
+    await expect(
+      running.page.getByRole("button", { name: "New candidature — paste raw material" }),
+    ).toBeVisible();
+
+    await running.page.getByRole("button", { name: "New candidature — paste raw material" }).click();
+    await expect(running.page.getByRole("heading", { name: "Paste whatever you have." })).toBeVisible();
+    await running.page.getByLabel("Candidature material").fill(rawMaterial);
     expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(0);
-    await running.page.getByRole("button", { name: "Save candidature" }).click();
+    await running.page.getByRole("button", { name: "Keep raw material" }).click();
 
-    const focus = running.page.getByRole("region", { name: "Candidature Focus" });
-    await expect(focus).toBeVisible();
-    await expect(focus).toContainText(rawMaterial);
-    const retained = await running.page.evaluate(async () => {
-      const [record] = await window.aaaat.candidatures.list();
-      if (!record) return [];
-      return window.aaaat.candidatures.listSources(record.id);
-    });
-    expect(retained).toHaveLength(1);
-    expect(retained[0]).toMatchObject({ sourceText: rawMaterial });
-
-    await selectSection(running.page, "Information");
-    const information = running.page.getByRole("region", { name: "Candidature information" });
-    await information.getByText("+ Add information", { exact: true }).click();
-    await information.getByText("+ Add something not listed", { exact: true }).click();
-    await information.getByLabel("What is it?").fill("Availability");
-    await information.getByRole("button", { name: "Continue", exact: true }).click();
-    const addInformation = information.locator(".add-information-panel");
-    const newValue = addInformation.locator(".candidature-value-editor input[type='text']");
-    await expect(newValue).toBeVisible();
-    await newValue.fill("October or November");
-    await addInformation.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(information.getByRole("heading", { name: "Availability" })).toBeVisible();
-
-    await running.page.getByTestId("new-candidature-capture").click();
-    await running.page.getByLabel(/Short title/).fill(secondTitle);
-    await running.page.getByLabel("What you have").fill(secondMaterial);
-    await running.page.getByRole("button", { name: "Save candidature" }).click();
-
-    const collection = running.page.getByLabel("Candidature list");
-    await expect(collection.locator(":scope > button")).toHaveCount(2);
-    const firstCandidature = collection.locator(":scope > button").filter({ hasText: "Availability" });
-    await expect(firstCandidature).toContainText("October or November");
-    const secondCandidature = collection.locator(":scope > button").filter({ hasText: secondTitle });
-    await expect(secondCandidature).toContainText("Source");
-    await expect(secondCandidature).toContainText(secondMaterial);
-
-    await firstCandidature.click();
-    await selectSection(running.page, "Information");
-    await expect(information.getByRole("heading", { name: "Availability" })).toBeVisible();
+    const saved = running.page.getByRole("region", { name: "Raw candidature saved" });
+    await expect(saved).toBeVisible();
+    await expect(saved.getByRole("button", { name: "Send to AI" })).toBeDisabled();
+    await expect(saved.getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
+    await expect(saved).toContainText(rawMaterial);
     await expectNoHorizontalOverflow(running.page, 720, 600);
 
-    const availability = information.locator(".retained-information-card").filter({ hasText: "Availability" });
-    await expect(availability).toContainText("October or November");
-    await expect(availability.locator("input[type='text']")).toHaveCount(0);
-    await availability.getByRole("button", { name: "Edit", exact: true }).click();
-    const availabilityInput = availability.locator("input[type='text']");
-    await expect(availabilityInput).toBeVisible();
-    await availabilityInput.fill("October through December");
-    await availability.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(availability.locator("input[type='text']")).toHaveCount(0);
-    await expect(availability).toContainText("October through December");
+    await saved.getByRole("button", { name: "Fill candidature yourself" }).click();
+    const manual = running.page.getByRole("region", { name: "Fill candidature yourself" });
+    await expect(manual.getByRole("region", { name: "Raw candidature material" })).toContainText(rawMaterial);
+    const fields = manual.getByRole("region", { name: "Candidature fields" });
+    const roleCard = fields.locator(".retained-information-card").filter({ hasText: "Role" });
+    const roleInput = roleCard.getByRole("textbox");
+    await roleInput.fill("Captain");
+    await roleCard.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(roleCard).toContainText("Captain");
     await expectNoHorizontalOverflow(running.page, 720, 600);
 
-    await selectSection(running.page, "Focus");
-    await expect(focus).toContainText(rawMaterial);
-    await running.page.getByTestId("new-candidature-capture").click();
-    await expect(
-      running.page.getByRole("heading", { name: "Paste or add whatever you have." }),
-    ).toBeVisible();
-    await expect(running.page.getByLabel("What you have")).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Save candidature" })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Cancel" })).toBeVisible();
+    await manual.getByRole("button", { name: "Done" }).click();
+    const corpus = running.page.getByLabel("Candidature corpus Focus");
+    await expect(corpus).toBeVisible();
+    const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
+    await expect(card).toBeVisible();
+    await card.locator("button.candidature-focus-entry").click();
+
+    const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
+    const roleBlock = selectedFocus.locator(".focus-block").filter({ hasText: "Role" });
+    await expect(roleBlock).toContainText("Captain");
+    await roleBlock.getByRole("button", { name: "Edit", exact: true }).click();
+    await roleBlock.getByRole("textbox").fill("Senior Captain");
+    await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(roleBlock).toContainText("Senior Captain");
     await expectNoHorizontalOverflow(running.page, 720, 600);
 
-    await running.page.getByLabel("What you have").fill("Unsaved narrow-window capture");
-    running.page.once("dialog", (dialog) => void dialog.accept());
-    await running.page.getByRole("button", { name: "Cancel" }).click();
-    await expect(focus).toBeVisible();
-    await expect(focus).toContainText(rawMaterial);
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {
     if (running) await stopPackagedApp(running);

@@ -17,6 +17,7 @@ The user may find opportunities manually, through websites, recruiters, another 
 AAAAT supports several direct intentions. None is the mandatory entrance to the others:
 
 - find and recall a candidature quickly;
+- create a candidature by filling useful fields directly;
 - capture new/raw candidature material with minimal effort;
 - fully inspect or edit a candidature;
 - create/edit/render CVs or cover letters without a candidature;
@@ -36,19 +37,34 @@ A candidature may contain only raw text, only a URL, one note, one field, severa
 
 AAAAT must never require the user to maintain status, priority, next action, stage, completeness or another lifecycle concept for a candidature to remain useful.
 
-## Capture with almost no effort
+## Creating a candidature without forcing one style of work
 
-The normal low-friction capture can be as small as:
+`New candidature` must support two direct approaches because both are normal:
+
+1. **Fill fields directly** — for users who already know the useful information and prefer a conventional field-by-field entry surface.
+2. **Paste raw material** — for users who want to retain an offer, recruiter message, copied page, URL-containing text, notes or fragments first and structure it afterward.
+
+Neither approach is more authoritative than the other.
+
+The raw-material path can be as small as:
 
 ```text
-New candidature
-→ provide whatever material exists
-→ save
+Paste raw material
+→ retain it as a Source
 ```
 
-Raw offer text, recruiter text, copied web content, a URL embedded in text, form material, conversation material or fragments are all valid input. The user should not need to classify the material before saving.
+After that paste/retention step, the same view must make two continuations explicit at the same time:
 
-Structured information can be added manually, extracted with optional AI, derived deterministically where sensible, or never added at all. Retaining the raw material is already a successful operation.
+- **send the retained material to a configured AI** to propose values for the currently defined candidature fields; and
+- **fill the candidature manually**, opening the retained raw Source beside the candidature fields so the user can copy/enter information with minimal switching.
+
+There is no intermediate generic “structure this candidature” step hiding those choices. The user should be able to see that one action uses AI and the other is manual.
+
+If no AI is configured, the manual side-by-side path remains complete. Future deterministic or embedded extraction of obvious values such as company, role or salary may further reduce effort, but that is an optional enhancement rather than a prerequisite or a reason to remove the manual path.
+
+Raw offer text, recruiter text, copied web content, a URL embedded in text, form material, conversation material or fragments are all valid input. The user should not need to classify the material before retaining it.
+
+Retaining the raw material is already a successful operation even if the user does nothing else.
 
 ## Sources
 
@@ -64,7 +80,11 @@ AAAAT must retain useful information that was not predicted by the developer. Di
 
 AAAAT may ship common field definitions and labels such as company, role, salary, location, recruiter or similar values. These are useful defaults, not a permanent closed ontology.
 
-The field system must remain compatible with user-maintainable/custom fields even when a bounded implementation tranche does not yet expose full field-definition administration.
+The candidature field system is **user-maintainable product data**. The user must be able to add and edit field definitions rather than being restricted to developer-shipped fields or a text-only escape hatch. Field-definition controls can be progressively disclosed so ordinary value editing stays simple, but the capability itself is not optional product direction.
+
+This matters because useful fields can differ radically by profession or search. A pilot may care about flight hours, aircraft type, licences or domestic/international operation; a software engineer may care about stack, remote policy or architecture; a script writer may care about format, genre, production context or rights. AAAAT must not encode one profession's ontology as universal.
+
+Configured AI extraction also works against the user's current field set. Therefore users must be able to shape that field set: changing which fields exist changes what information AAAAT can sensibly ask an AI to extract or help populate.
 
 The ordinary mental model is:
 
@@ -74,7 +94,7 @@ Not:
 
 > I want to administer a schema.
 
-Database-style field IDs, cardinality, schema concepts and type machinery must remain secondary/advanced implementation detail.
+Database-style field IDs, cardinality, schema concepts and type machinery must remain secondary/advanced implementation detail even though the user can manage the resulting information definitions.
 
 ## Focus: rapid retrieval with two states
 
@@ -109,6 +129,8 @@ A shortcut to complete candidature management is useful, but complete editing is
 The user can directly open a candidature for deliberate maintenance without first going through Focus.
 
 Complete candidature work exposes everything the user owns for that candidature: all structured information, Sources/raw material, Tags, linked application material, retained artifacts, relevant privacy/presentation controls, and secondary notes/reminders or provenance where useful.
+
+It also provides progressively disclosed management of candidature field definitions because the user owns the information model used for this work. That includes adding and editing useful field definitions without making field-definition machinery dominate normal value entry.
 
 Complete access must not mean a giant permanent form. Populated information is primarily readable; editing/addition happens close to the value; deeper machinery is progressively disclosed.
 
@@ -167,7 +189,7 @@ Users own editable document content, generated source, rendered output and porta
 
 AAAAT owns no model and no inference. AI is optional intelligence supplied through configured connections.
 
-AI belongs beside the domain action it assists: extract information from this Source, help populate this field, explain/translate/rewrite this text, tailor this CV, draft this letter, perform genuine research when the chosen connection supports it, or similar bounded work.
+AI belongs beside the domain action it assists: extract information from this Source into the currently defined candidature fields, help populate this field, explain/translate/rewrite this text, tailor this CV, draft this letter, perform genuine research when the chosen connection supports it, or similar bounded work.
 
 AAAAT must not create an AI destination/chat product, opportunity-ranking system, adviser workflow, provider marketplace, policy framework or generic orchestration layer.
 

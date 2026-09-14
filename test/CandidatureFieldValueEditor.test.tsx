@@ -148,4 +148,55 @@ describe("read-first candidature information value", () => {
     await user.click(screen.getByRole("button", { name: "Clear" }));
     expect(clear).toHaveBeenCalledTimes(1);
   });
+
+  it("preserves an unsaved multi-value draft across fresh persisted props until save or cancel", async () => {
+    const user = userEvent.setup();
+    const configuration = field("text", "many");
+    const dirty = vi.fn();
+    const onSave = vi.fn(async () => undefined);
+    const onClear = vi.fn(async () => undefined);
+    const { rerender } = render(
+      <CandidatureFieldValueEditor
+        field={configuration}
+        value={["Madrid", "Paris"]}
+        onSave={onSave}
+        onClear={onClear}
+        onDirtyChange={dirty}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    const input = screen.getByRole("textbox");
+    await user.clear(input);
+    await user.type(input, "Madrid\nParis\nLisbon");
+    expect(input).toHaveValue("Madrid\nParis\nLisbon");
+    expect(dirty).toHaveBeenLastCalledWith(true);
+
+    rerender(
+      <CandidatureFieldValueEditor
+        field={configuration}
+        value={["Madrid", "Paris"]}
+        onSave={onSave}
+        onClear={onClear}
+        onDirtyChange={dirty}
+      />,
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("Madrid\nParis\nLisbon");
+
+    rerender(
+      <CandidatureFieldValueEditor
+        field={configuration}
+        value={["Madrid", "Paris", "Remote"]}
+        onSave={onSave}
+        onClear={onClear}
+        onDirtyChange={dirty}
+      />,
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("Madrid\nParis\nLisbon");
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByText("Madrid, Paris, Remote", { exact: true })).toBeInTheDocument();
+    expect(dirty).toHaveBeenLastCalledWith(false);
+  });
 });

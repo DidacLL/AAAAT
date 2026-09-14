@@ -16,7 +16,7 @@ const record: CandidatureRecord = {
   sourceSearchText: "",
   values: [],
   documentIds: [],
-  conceptIds: [],
+  tagIds: [],
 };
 
 describe("variant recommendation panel", () => {

@@ -6,9 +6,9 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { createConcept, listConcepts, updateConcept } from "../src/main/concept-service";
 import { createDocument, removeDocument } from "../src/main/document-service";
 import { createProfileVariant } from "../src/main/profile-service";
+import { createTag, listTags, updateTag } from "../src/main/tag-service";
 import { createOrOpenWorkspace, withWorkspaceDatabase } from "../src/main/workspace";
 
 function workspace(): string {
@@ -58,15 +58,15 @@ describe("meaningful durable activity", () => {
     }
   });
 
-  it("records concept creation and update activity", () => {
+  it("records Tag creation and update activity", () => {
     const root = workspace();
     try {
-      const created = createConcept(root, {
+      const created = createTag(root, {
         name: "TypeScript",
         definition: "Typed JavaScript",
         aliases: ["TS"],
       });
-      updateConcept(root, {
+      updateTag(root, {
         id: created.id,
         name: "TypeScript",
         definition: "Typed superset of JavaScript",
@@ -76,40 +76,40 @@ describe("meaningful durable activity", () => {
       const actions = withWorkspaceDatabase(root, (database) =>
         database
           .prepare(
-            "SELECT action FROM concept_activity WHERE concept_id = ? ORDER BY id",
+            "SELECT action FROM tag_activity WHERE tag_id = ? ORDER BY id",
           )
           .all(created.id),
       );
       expect(actions).toEqual([
-        { action: "concept.created" },
-        { action: "concept.updated" },
+        { action: "tag.created" },
+        { action: "tag.updated" },
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("rolls back a concept mutation when its activity cannot be recorded", () => {
+  it("rolls back a Tag mutation when its activity cannot be recorded", () => {
     const root = workspace();
     try {
       withWorkspaceDatabase(root, (database) => {
         database.exec(`
-          CREATE TRIGGER reject_concept_activity
-          BEFORE INSERT ON concept_activity
+          CREATE TRIGGER reject_tag_activity
+          BEFORE INSERT ON tag_activity
           BEGIN
-            SELECT RAISE(ABORT, 'blocked concept activity');
+            SELECT RAISE(ABORT, 'blocked tag activity');
           END;
         `);
       });
 
       expect(() =>
-        createConcept(root, {
+        createTag(root, {
           name: "PostgreSQL",
           definition: "Relational database",
           aliases: ["Postgres"],
         }),
-      ).toThrow("blocked concept activity");
-      expect(listConcepts(root)).toEqual([]);
+      ).toThrow("blocked tag activity");
+      expect(listTags(root)).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

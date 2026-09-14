@@ -11,10 +11,8 @@ import { createCombinedDocumentDesktopApi } from "./combined-document-api";
 import { createCvContentAccessDesktopApi } from "./cv-content-access-api";
 import { createCvDescriptorDesktopApi } from "./cv-descriptor-api";
 import { createDocumentOutputDesktopApi } from "./document-output-api";
-import { createFocusDesktopApi } from "./focus-api";
 import { createProfileAiContextDesktopApi } from "./profile-ai-context-api";
 import { createSetupEnvironmentDesktopApi } from "./setup-environment-api";
-import { createTodoDesktopApi } from "./todo-api";
 import { createWorkspaceRecoveryDesktopApi } from "./workspace-recovery-api";
 
 const invoke = (channel: string, ...args: readonly unknown[]) => ipcRenderer.invoke(channel, ...args);
@@ -34,8 +32,6 @@ contextBridge.exposeInMainWorld(
     ...createCvDescriptorDesktopApi(invoke),
     ...createDocumentOutputDesktopApi(invoke),
     ...createProfileAiContextDesktopApi(invoke),
-    ...createTodoDesktopApi(invoke),
-    ...createFocusDesktopApi(invoke),
     ...createSetupEnvironmentDesktopApi(invoke),
     ...createWorkspaceRecoveryDesktopApi(invoke),
   }),
