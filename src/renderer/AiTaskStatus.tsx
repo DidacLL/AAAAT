@@ -7,14 +7,15 @@ export function AiTaskStatus() {
   const active = tasks.filter((task) => task.status === "queued" || task.status === "working");
   const failed = tasks.filter((task) => task.status === "failed");
   const completed = tasks.filter((task) => task.status === "completed");
+  const overallStatus = active.length > 0 ? "working" : failed.length > 0 ? "failed" : "completed";
   const summary = active.length > 0
-    ? `AI work · ${active.length} running`
+    ? `AI tasks · ${active.length} working`
     : failed.length > 0
-      ? `AI work · ${failed.length} needs attention`
-      : `AI work · ${completed.length} completed`;
+      ? `AI tasks · ${failed.length} needs attention`
+      : `AI tasks · ${completed.length} completed`;
 
   return (
-    <details className="shell-ai-task-status">
+    <details className={`shell-ai-task-status shell-ai-task-status-${overallStatus}`} open={active.length > 0 || failed.length > 0}>
       <summary>{summary}</summary>
       <div className="shell-ai-task-list">
         {tasks.map((task) => (
