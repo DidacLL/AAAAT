@@ -10,7 +10,6 @@ import {
   type ProviderDocumentAiContext,
   type ProviderOpportunityReviewContext,
   type ProviderJobExtractionRequest,
-  type ProviderJobExtractionResult,
   type ProviderVariantRecommendationContext,
   type ProviderVariantRecommendationResult,
   providerCvTailoringResultSchema,
@@ -49,7 +48,7 @@ export interface ModelProvider {
   extractJob(
     connection: AiConnectionStatus,
     request: ProviderJobExtractionRequest,
-  ): Promise<ProviderJobExtractionResult>;
+  ): Promise<z.input<typeof providerJobExtractionResultSchema>>;
   recommendVariant(
     connection: AiConnectionStatus,
     context: ProviderVariantRecommendationContext,
@@ -167,7 +166,7 @@ export function createOpenAiCompatibleProvider(
     async extractJob(
       connection: AiConnectionStatus,
       request: ProviderJobExtractionRequest,
-    ): Promise<ProviderJobExtractionResult> {
+    ): Promise<z.input<typeof providerJobExtractionResultSchema>> {
       const content = await requestContent(
         fetchImpl,
         connection,
