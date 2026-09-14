@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   AI_PROVIDER_SAFETY_CEILING_MS,
+  AiProviderError,
   createOpenAiCompatibleProvider,
 } from "../src/main/ai-provider";
 import type {
@@ -16,7 +17,7 @@ import type {
 const connection: AiConnectionStatus = {
   name: "Local fixture",
   endpoint: "http://localhost:11434/v1",
-  model: "fixture-model",
+  model: "Qwen3-8B-Q4_K_M",
 };
 const fieldRef = "aaaat_provider_00000000-0000-4000-8000-000000000801_1";
 const candidature = {
@@ -53,11 +54,15 @@ function extractionRequest(): ProviderJobExtractionRequest {
   };
 }
 
-function response(content: unknown): Response {
+function contentResponse(content: string, status = 200): Response {
   return new Response(
-    JSON.stringify({ choices: [{ message: { content: JSON.stringify(content) } }] }),
-    { status: 200, headers: { "content-type": "application/json" } },
+    JSON.stringify({ choices: [{ message: { content } }] }),
+    { status, headers: { "content-type": "application/json" } },
   );
+}
+
+function response(content: unknown): Response {
+  return contentResponse(JSON.stringify(content));
 }
 
 afterEach(() => {
@@ -65,7 +70,7 @@ afterEach(() => {
 });
 
 describe("OpenAI-compatible provider", () => {
-  it("sends one keyless opportunity review request and validates the neutral result", async () => {
+  it("uses schema-constrained output and disables thinking for a Qwen3 llama.cpp-compatible request", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       response({
         summary: "The supplied TypeScript experience is relevant evidence.",
@@ -84,10 +89,46 @@ describe("OpenAI-compatible provider", () => {
     expect(init?.headers).toEqual({ "content-type": "application/json" });
     const body = JSON.parse(String(init?.body)) as {
       model: string;
+      reasoning_effort: string;
+      chat_template_kwargs: { enable_thinking: boolean };
+      response_format: {
+        type: string;
+        json_schema: { strict: boolean; schema: Record<string, unknown> };
+      };
       messages: Array<{ role: string; content: string }>;
     };
-    expect(body.model).toBe("fixture-model");
+    expect(body.model).toBe("Qwen3-8B-Q4_K_M");
+    expect(body.reasoning_effort).toBe("none");
+    expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(body.response_format.type).toBe("json_schema");
+    expect(body.response_format.json_schema.strict).toBe(true);
+    expect(body.response_format.json_schema.schema).toMatchObject({ type: "object" });
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
+  });
+
+  it("falls back coherently when an endpoint rejects the structured-output request option", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("unsupported response_format", { status: 400 }))
+      .mockResolvedValueOnce(
+        response({
+          summary: "Relevant evidence supplied.",
+          relevantEvidence: ["TypeScript"],
+          uncertainties: [],
+          questions: [],
+        }),
+      );
+    const provider = createOpenAiCompatibleProvider(fetchImpl);
+
+    await expect(provider.reviewOpportunity(connection, context)).resolves.toMatchObject({
+      summary: "Relevant evidence supplied.",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    const secondBody = JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body)) as Record<string, unknown>;
+    expect(firstBody.response_format).toBeDefined();
+    expect(secondBody.response_format).toBeUndefined();
+    expect(secondBody.chat_template_kwargs).toEqual({ enable_thinking: false });
   });
 
   it("allows a local-compatible response beyond the old 30-second threshold", async () => {
@@ -196,27 +237,87 @@ describe("OpenAI-compatible provider", () => {
     });
   });
 
-  it("rejects malformed typed output and hides raw provider failure details", async () => {
-    const malformed = createOpenAiCompatibleProvider(
+  it("distinguishes unreachable, HTTP, malformed-envelope, invalid-JSON, and contract failures with inspectable evidence", async () => {
+    const unreachable = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockRejectedValue(new TypeError("connect ECONNREFUSED")),
+    );
+    await expect(unreachable.reviewOpportunity(connection, context)).rejects.toMatchObject({
+      diagnostic: expect.objectContaining({
+        failureKind: "connection_unreachable",
+        systemInstruction: expect.stringContaining("Review one opportunity"),
+        userPayload: JSON.stringify(context),
+        rawModelResponse: "",
+      }),
+    });
+
+    const http = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockResolvedValue(new Response("provider overloaded", { status: 503 })),
+    );
+    await expect(http.reviewOpportunity(connection, context)).rejects.toMatchObject({
+      diagnostic: expect.objectContaining({
+        failureKind: "provider_http_failure",
+        rawModelResponse: "provider overloaded",
+      }),
+    });
+
+    const envelope = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockResolvedValue(new Response("not-an-envelope", { status: 200 })),
+    );
+    await expect(envelope.reviewOpportunity(connection, context)).rejects.toMatchObject({
+      diagnostic: expect.objectContaining({
+        failureKind: "provider_envelope_invalid",
+        rawModelResponse: "not-an-envelope",
+      }),
+    });
+
+    const invalidJson = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockResolvedValue(contentResponse("small model prose instead of JSON")),
+    );
+    await expect(invalidJson.reviewOpportunity(connection, context)).rejects.toMatchObject({
+      diagnostic: expect.objectContaining({
+        failureKind: "model_response_invalid_json",
+        rawModelResponse: "small model prose instead of JSON",
+        validationError: expect.any(String),
+      }),
+    });
+
+    const noncompliant = createOpenAiCompatibleProvider(
       vi.fn<typeof fetch>().mockResolvedValue(
-        new Response(JSON.stringify({ choices: [{ message: { content: "not-json" } }] }), {
-          status: 200,
-        }),
+        response({ summary: "Only one field; deliberately schema-noncompliant." }),
       ),
     );
-    await expect(malformed.reviewOpportunity(connection, context)).rejects.toThrow(
-      "invalid opportunity review",
-    );
-
-    const failed = createOpenAiCompatibleProvider(
-      vi.fn<typeof fetch>().mockResolvedValue(new Response("private provider detail", { status: 500 })),
-    );
-    await expect(failed.reviewOpportunity(connection, context)).rejects.toThrow(
-      "configured AI provider rejected the request",
-    );
+    await expect(noncompliant.reviewOpportunity(connection, context)).rejects.toMatchObject({
+      diagnostic: expect.objectContaining({
+        failureKind: "operation_contract_invalid",
+        rawModelResponse: expect.stringContaining("deliberately schema-noncompliant"),
+        validationError: expect.stringContaining("relevantEvidence"),
+      }),
+    });
   });
 
-  it("rejects ratings, rankings, winner selection, and prescribed actions", async () => {
+  it("keeps raw exchange evidence on the typed provider error without putting credentials into diagnostics", async () => {
+    const provider = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockResolvedValue(contentResponse("not-json")),
+    );
+
+    try {
+      await provider.reviewOpportunity(connection, context);
+      throw new Error("Expected provider failure");
+    } catch (reason) {
+      expect(reason).toBeInstanceOf(AiProviderError);
+      const failure = reason as AiProviderError;
+      expect(failure.diagnostic).toMatchObject({
+        operation: "opportunity_review",
+        endpoint: "http://localhost:11434/v1",
+        model: "Qwen3-8B-Q4_K_M",
+        userPayload: JSON.stringify(context),
+        rawModelResponse: "not-json",
+      });
+      expect(failure.message).not.toContain("connect ECONNREFUSED");
+    }
+  });
+
+  it("rejects ratings, rankings, winner selection, and prescribed actions as contract failures", async () => {
     const provider = createOpenAiCompatibleProvider(
       vi.fn<typeof fetch>().mockResolvedValue(
         response({
@@ -228,8 +329,8 @@ describe("OpenAI-compatible provider", () => {
       ),
     );
 
-    await expect(provider.reviewOpportunity(connection, context)).rejects.toThrow(
-      "invalid opportunity review",
-    );
+    await expect(provider.reviewOpportunity(connection, context)).rejects.toMatchObject({
+      diagnostic: expect.objectContaining({ failureKind: "operation_contract_invalid" }),
+    });
   });
 });
