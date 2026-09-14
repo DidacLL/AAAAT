@@ -56,6 +56,67 @@
   margin: 0.25rem 0.25rem 0 0;
 }
 
+.shell-ai-task-status {
+  position: relative;
+  min-width: 0;
+}
+
+.shell-ai-task-status > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.shell-ai-task-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  display: grid;
+  width: min(420px, calc(100vw - 1rem));
+  max-height: min(65vh, 460px);
+  gap: 0.4rem;
+  padding: 0.55rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper-strong);
+  box-shadow: 0 8px 24px rgb(35 25 15 / 18%);
+}
+
+.shell-ai-task {
+  display: flex;
+  min-width: 0;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  border-left: 3px solid var(--line);
+  background: var(--paper);
+}
+
+.shell-ai-task-working,
+.shell-ai-task-queued {
+  border-left-color: var(--accent);
+}
+
+.shell-ai-task-failed {
+  border-left-color: #8f3e2e;
+}
+
+.shell-ai-task > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.16rem;
+}
+
+.shell-ai-task span,
+.shell-ai-task small,
+.shell-ai-task strong {
+  overflow-wrap: anywhere;
+}
+
 .candidature-inference-panel {
   margin-block: 0.7rem;
 }
@@ -122,5 +183,13 @@
 
   .candidature-inference-panel .candidature-editor-heading {
     align-items: start;
+  }
+
+  .shell-ai-task-list {
+    position: fixed;
+    top: 3.5rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    width: auto;
   }
 }
