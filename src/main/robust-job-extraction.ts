@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 
 import {
   aiConnectionStatusSchema,
-  candidatureRuntimeValueSchema,
   jobExtractionNewFieldSchema,
   providerJobExtractionRequestSchema,
+  type AiConnectionStatus,
   type JobExtractionNewField,
   type JobExtractionRequest,
   type ProviderJobExtractionRequest,
@@ -16,9 +16,10 @@ import {
   type JobExtractionProposalIssue,
   type PartialJobExtractionResult,
 } from "../shared/ai-proposal-outcomes";
-import type {
-  CandidatureFieldConfiguration,
-  CandidatureRuntimeValue,
+import {
+  candidatureRuntimeValueSchema,
+  type CandidatureFieldConfiguration,
+  type CandidatureRuntimeValue,
 } from "../shared/contracts";
 import { requireAiConnectionForOperation } from "./ai-connection-service";
 import { AiProviderError, createOpenAiCompatibleProvider } from "./ai-provider";
@@ -80,7 +81,9 @@ function discoveryWireRequest(
   };
 }
 
-function scalarJsonSchema(field: ProviderJobExtractionRequest["fields"][number]): Record<string, unknown> {
+function scalarJsonSchema(
+  field: ProviderJobExtractionRequest["fields"][number],
+): Record<string, unknown> {
   switch (field.valueType) {
     case "text":
       return { type: "string", maxLength: 5000 };
@@ -99,7 +102,9 @@ function scalarJsonSchema(field: ProviderJobExtractionRequest["fields"][number])
   }
 }
 
-function proposalJsonSchema(field: ProviderJobExtractionRequest["fields"][number]): Record<string, unknown> {
+function proposalJsonSchema(
+  field: ProviderJobExtractionRequest["fields"][number],
+): Record<string, unknown> {
   const scalar = scalarJsonSchema(field);
   return {
     type: "object",
@@ -115,7 +120,10 @@ function proposalJsonSchema(field: ProviderJobExtractionRequest["fields"][number
   };
 }
 
-function strengthenStructuredSchema(body: Record<string, unknown>, request: ProviderJobExtractionRequest): void {
+function strengthenStructuredSchema(
+  body: Record<string, unknown>,
+  request: ProviderJobExtractionRequest,
+): void {
   const responseFormat = body.response_format;
   if (!responseFormat || typeof responseFormat !== "object") return;
   const jsonSchema = (responseFormat as { json_schema?: unknown }).json_schema;
@@ -139,7 +147,9 @@ function capturingFetch(
   let requestBody = "";
   let responseBody = "";
   const fetchImpl: typeof fetch = async (input, init) => {
-    if (signal?.aborted) throw signal.reason;
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error ? signal.reason : new DOMException("Aborted", "AbortError");
+    }
     let nextInit = init;
     if (typeof init?.body === "string") {
       requestBody = init.body;
@@ -189,7 +199,7 @@ function endpointForInspection(endpoint: string): string {
 }
 
 function capturedExchange(
-  connection: ReturnType<typeof aiConnectionStatusSchema.parse>,
+  connection: AiConnectionStatus,
   captured: CapturedExchange,
   providerValidationError: string,
   fallbackRawModelResponse = "",
@@ -211,7 +221,7 @@ function capturedExchange(
       request.messages?.find((message) => message.role === "user")?.content ?? "",
     );
   } catch {
-    // A provider-level failure will retain its normal diagnostic instead.
+    // Provider failures retain their normal diagnostic.
   }
   return {
     operation: "job_extraction",
@@ -236,7 +246,9 @@ function looseEnvelope(value: unknown): { proposals: unknown[]; newFields: unkno
   };
 }
 
-function parseRecoverableModelResult(raw: string): { proposals: unknown[]; newFields: unknown[] } | null {
+function parseRecoverableModelResult(
+  raw: string,
+): { proposals: unknown[]; newFields: unknown[] } | null {
   try {
     return looseEnvelope(JSON.parse(raw) as unknown);
   } catch {
@@ -293,7 +305,9 @@ function localChoiceValue(
   if (Array.isArray(raw)) {
     const resolved = raw.map(resolve);
     if (resolved.some((value) => value === null)) {
-      return { reason: `${field.definition.label} used a choice that was not offered to the model.` };
+      return {
+        reason: `${field.definition.label} used a choice that was not offered to the model.`,
+      };
     }
     return { value: resolved as string[] };
   }
@@ -319,7 +333,15 @@ function validateExistingProposals(
 
   for (const rawProposal of rawProposals) {
     if (!rawProposal || typeof rawProposal !== "object") {
-      issues.push(issue("stale", null, null, rawProposal, "AI returned a proposal without a field reference."));
+      issues.push(
+        issue(
+          "stale",
+          null,
+          null,
+          rawProposal,
+          "AI returned a proposal without a field reference.",
+        ),
+      );
       continue;
     }
     const candidate = rawProposal as { fieldRef?: unknown; value?: unknown };
@@ -340,12 +362,28 @@ function validateExistingProposals(
     const field = byId.get(fieldId);
     const label = field?.definition.label ?? wire.fieldLabels.get(fieldRef) ?? null;
     if (seenRefs.has(fieldRef)) {
-      issues.push(issue("invalid", fieldId || null, label, candidate.value, "AI proposed this information more than once."));
+      issues.push(
+        issue(
+          "invalid",
+          fieldId || null,
+          label,
+          candidate.value,
+          "AI proposed this information more than once.",
+        ),
+      );
       continue;
     }
     seenRefs.add(fieldRef);
     if (!field || !field.definition.enabled) {
-      issues.push(issue("stale", fieldId || null, label, candidate.value, "This information definition changed or is no longer available."));
+      issues.push(
+        issue(
+          "stale",
+          fieldId || null,
+          label,
+          candidate.value,
+          "This information definition changed or is no longer available.",
+        ),
+      );
       continue;
     }
 
@@ -361,7 +399,15 @@ function validateExistingProposals(
     }
     const runtime = candidatureRuntimeValueSchema.safeParse(cardinality.value);
     if (!runtime.success) {
-      issues.push(issue("invalid", fieldId, label, candidate.value, `${field.definition.label} has an incompatible value structure.`));
+      issues.push(
+        issue(
+          "invalid",
+          fieldId,
+          label,
+          candidate.value,
+          `${field.definition.label} has an incompatible value structure.`,
+        ),
+      );
       continue;
     }
     try {
@@ -369,7 +415,15 @@ function validateExistingProposals(
         validateCandidatureFieldValueInDatabase(database, fieldId, runtime.data),
       );
       if (normalized === null) {
-        issues.push(issue("invalid", fieldId, label, candidate.value, `${field.definition.label} did not contain a usable value.`));
+        issues.push(
+          issue(
+            "invalid",
+            fieldId,
+            label,
+            candidate.value,
+            `${field.definition.label} did not contain a usable value.`,
+          ),
+        );
         continue;
       }
       proposals.push({ fieldId, value: normalized });
@@ -380,7 +434,9 @@ function validateExistingProposals(
           fieldId,
           label,
           candidate.value,
-          reason instanceof Error ? reason.message : `${field.definition.label} is incompatible with the AI proposal.`,
+          reason instanceof Error
+            ? reason.message
+            : `${field.definition.label} is incompatible with the AI proposal.`,
         ),
       );
     }
@@ -417,21 +473,33 @@ function validNewScalar(field: JobExtractionNewField, value: unknown): boolean {
     case "choice":
       return (
         typeof value === "string" &&
-        field.choices.some((choice) => choice.trim().toLocaleLowerCase() === value.trim().toLocaleLowerCase())
+        field.choices.some(
+          (choice) => choice.trim().toLocaleLowerCase() === value.trim().toLocaleLowerCase(),
+        )
       );
   }
 }
 
 function normalizeNewField(
   rawField: unknown,
-): { readonly field?: JobExtractionNewField; readonly reason?: string; readonly label: string | null } {
+): {
+  readonly field?: JobExtractionNewField;
+  readonly reason?: string;
+  readonly label: string | null;
+} {
   const parsed = jobExtractionNewFieldSchema.safeParse(rawField);
   const label =
-    rawField && typeof rawField === "object" && typeof (rawField as { label?: unknown }).label === "string"
+    rawField &&
+    typeof rawField === "object" &&
+    typeof (rawField as { label?: unknown }).label === "string"
       ? String((rawField as { label: string }).label).trim().slice(0, 120) || null
       : null;
   if (!parsed.success) {
-    return { label, reason: "AI proposed a new information definition that does not satisfy AAAAT's field contract." };
+    return {
+      label,
+      reason:
+        "AI proposed a new information definition that does not satisfy AAAAT's field contract.",
+    };
   }
   const field = parsed.data;
   let normalized: unknown = field.value;
@@ -450,30 +518,60 @@ function normalizeNewField(
   }
   const values = Array.isArray(normalized) ? normalized : [normalized];
   if (values.length === 0 || values.some((value) => !validNewScalar(field, value))) {
-    return { label: field.label, reason: `${field.label} has a value incompatible with its proposed type.` };
+    return {
+      label: field.label,
+      reason: `${field.label} has a value incompatible with its proposed type.`,
+    };
   }
   if (new Set(values.map((value) => JSON.stringify(value))).size !== values.length) {
-    return { label: field.label, reason: `${field.label} contains duplicate proposed values.` };
+    return {
+      label: field.label,
+      reason: `${field.label} contains duplicate proposed values.`,
+    };
   }
-  return { field: { ...field, value: normalized as CandidatureRuntimeValue }, label: field.label };
+  return {
+    field: { ...field, value: normalized as CandidatureRuntimeValue },
+    label: field.label,
+  };
 }
 
 function validateNewFields(
   rawFields: readonly unknown[],
   existingFields: readonly CandidatureFieldConfiguration[],
-): { readonly fields: JobExtractionNewField[]; readonly issues: JobExtractionProposalIssue[] } {
+): {
+  readonly fields: JobExtractionNewField[];
+  readonly issues: JobExtractionProposalIssue[];
+} {
   const fields: JobExtractionNewField[] = [];
   const issues: JobExtractionProposalIssue[] = [];
-  const labels = new Set(existingFields.map((field) => field.definition.label.trim().toLocaleLowerCase()));
+  const labels = new Set(
+    existingFields.map((field) => field.definition.label.trim().toLocaleLowerCase()),
+  );
   for (const rawField of rawFields) {
     const normalized = normalizeNewField(rawField);
     if (!normalized.field) {
-      issues.push(issue("new_field_invalid", null, normalized.label, proposedValue(rawField), normalized.reason ?? "AAAAT could not use this proposed information definition."));
+      issues.push(
+        issue(
+          "new_field_invalid",
+          null,
+          normalized.label,
+          proposedValue(rawField),
+          normalized.reason ?? "AAAAT could not use this proposed information definition.",
+        ),
+      );
       continue;
     }
     const key = normalized.field.label.trim().toLocaleLowerCase();
     if (labels.has(key)) {
-      issues.push(issue("new_field_invalid", null, normalized.field.label, normalized.field.value, "AI proposed a new information definition that duplicates existing information."));
+      issues.push(
+        issue(
+          "new_field_invalid",
+          null,
+          normalized.field.label,
+          normalized.field.value,
+          "AI proposed a new information definition that duplicates existing information.",
+        ),
+      );
       continue;
     }
     labels.add(key);
