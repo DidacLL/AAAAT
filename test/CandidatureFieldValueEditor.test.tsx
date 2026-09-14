@@ -85,19 +85,21 @@ describe("read-first candidature information value", () => {
     render(<StatefulEditor configuration={field("text")} initialValue="October or November" />);
 
     expect(screen.getByText("October or November", { exact: true })).toBeInTheDocument();
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Value")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Suggest with AI" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ask AI to fill Availability" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Edit value" }));
-    const input = screen.getByRole("textbox");
+    await user.click(screen.getByRole("button", { name: "Edit Availability" }));
+    const input = screen.getByLabelText("Value");
     expect(input).toHaveValue("October or November");
+    expect(screen.getByRole("checkbox", { name: "Show in Focus" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Allow AI to use this information" })).toBeInTheDocument();
     await user.clear(input);
     await user.type(input, "October through December");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Value")).not.toBeInTheDocument();
     expect(screen.getByText("October through December", { exact: true })).toBeInTheDocument();
   });
 
@@ -116,7 +118,7 @@ describe("read-first candidature information value", () => {
     expect(screen.getByText("Yes", { exact: true })).toBeInTheDocument();
   });
 
-  it("keeps suggestion available without entering edit mode while dirty reporting remains local to value edits", async () => {
+  it("keeps AI fill available without entering edit mode while dirty reporting remains local to edits", async () => {
     const user = userEvent.setup();
     const clear = vi.fn(async () => undefined);
     const discover = vi.fn(async () => undefined);
@@ -131,21 +133,21 @@ describe("read-first candidature information value", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Suggest with AI" }));
+    await user.click(screen.getByRole("button", { name: "Ask AI to fill Availability" }));
     expect(discover).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Value")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Edit value" }));
-    const input = screen.getByRole("textbox");
+    await user.click(screen.getByRole("button", { name: "Edit Availability" }));
+    const input = screen.getByLabelText("Value");
     await user.type(input, " onward");
     expect(dirty).toHaveBeenLastCalledWith(true);
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Value")).not.toBeInTheDocument();
     expect(screen.getByText("October", { exact: true })).toBeInTheDocument();
     expect(dirty).toHaveBeenLastCalledWith(false);
 
-    await user.click(screen.getByRole("button", { name: "Edit value" }));
+    await user.click(screen.getByRole("button", { name: "Edit Availability" }));
     await user.click(screen.getByRole("button", { name: "Clear" }));
     expect(clear).toHaveBeenCalledTimes(1);
   });
@@ -166,8 +168,8 @@ describe("read-first candidature information value", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Edit value" }));
-    const input = screen.getByRole("textbox");
+    await user.click(screen.getByRole("button", { name: "Edit Availability" }));
+    const input = screen.getByLabelText("Value");
     await user.clear(input);
     await user.type(input, "Madrid\nParis\nLisbon");
     expect(input).toHaveValue("Madrid\nParis\nLisbon");
@@ -182,7 +184,7 @@ describe("read-first candidature information value", () => {
         onDirtyChange={dirty}
       />,
     );
-    expect(screen.getByRole("textbox")).toHaveValue("Madrid\nParis\nLisbon");
+    expect(screen.getByLabelText("Value")).toHaveValue("Madrid\nParis\nLisbon");
 
     rerender(
       <CandidatureFieldValueEditor
@@ -193,10 +195,10 @@ describe("read-first candidature information value", () => {
         onDirtyChange={dirty}
       />,
     );
-    expect(screen.getByRole("textbox")).toHaveValue("Madrid\nParis\nLisbon");
+    expect(screen.getByLabelText("Value")).toHaveValue("Madrid\nParis\nLisbon");
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Value")).not.toBeInTheDocument();
     expect(screen.getByText("Madrid, Paris, Remote", { exact: true })).toBeInTheDocument();
     expect(dirty).toHaveBeenLastCalledWith(false);
   });
