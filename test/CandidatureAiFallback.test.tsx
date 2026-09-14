@@ -33,15 +33,7 @@ const candidature: CandidatureRecord = {
   updatedAt: timestamp,
   label: "AI fallback opportunity",
   sourceSearchText: "retained source",
-  values: [
-    {
-      candidatureId,
-      fieldId,
-      value: "Existing value",
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    },
-  ],
+  values: [{ candidatureId, fieldId, value: "Existing value", createdAt: timestamp, updatedAt: timestamp }],
   documentIds: [],
   tagIds: [],
 };
@@ -131,7 +123,7 @@ afterEach(() => {
 });
 
 describe("candidature AI Settings fallback", () => {
-  it("routes unavailable candidature suggestions to AI settings and preserves candidature origin", async () => {
+  it("routes an unavailable field fill to AI settings and preserves candidature origin", async () => {
     installApi();
     const user = userEvent.setup();
     render(
@@ -146,11 +138,12 @@ describe("candidature AI Settings fallback", () => {
     const information = screen.getByRole("region", { name: "Candidature information" });
     const role = within(information).getByRole("heading", { name: "Role" }).closest("article");
     if (!role) throw new Error("Retained Role information missing");
-    await user.click(within(role).getByRole("button", { name: "Suggest with AI" }));
+    await user.click(within(role).getByRole("button", { name: "Ask AI to fill Role" }));
 
-    const suggestions = await screen.findByRole("region", { name: "Candidature AI suggestions" });
-    expect(within(suggestions).getByText(/AI is not ready for this action yet/i)).toBeInTheDocument();
-    await user.click(within(suggestions).getByRole("button", { name: "Open AI settings" }));
+    const unavailable = await screen.findByText("AI is not ready for this request.");
+    const message = unavailable.closest("div");
+    if (!message) throw new Error("Expected inline AI readiness message");
+    await user.click(within(message).getByRole("button", { name: "Open AI settings" }));
 
     expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
     expect(screen.getByRole("heading", { name: "AI fallback opportunity" })).toBeInTheDocument();
