@@ -1,3 +1,4 @@
+import { AiExchangeInspector } from "./AiExchangeInspector";
 import { cancelAiTask, clearAiTask, useAiTasks } from "./ai-task-store";
 
 export function AiTaskStatus() {
@@ -37,6 +38,7 @@ export function AiTaskStatus() {
                         : "Failed"}
               </span>
               {task.error ? <small>{task.error}</small> : null}
+              {task.exchange ? <AiExchangeInspector exchange={task.exchange} /> : null}
             </div>
             {task.status === "queued" || task.status === "working" ? (
               <button type="button" className="compact-secondary" onClick={() => cancelAiTask(task.key)}>
