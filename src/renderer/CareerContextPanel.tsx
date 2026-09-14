@@ -63,7 +63,6 @@ export function CareerContextPanel({
   const [context, setContext] = useState<CareerContext | null>(null);
   const [draft, setDraft] = useState<CareerContext>(emptyContext);
   const [editing, setEditing] = useState(false);
-  const [disclosureDirty, setDisclosureDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -94,9 +93,9 @@ export function CareerContextPanel({
   const dirty = context ? JSON.stringify(draft) !== JSON.stringify(context) : false;
 
   useEffect(() => {
-    onDirtyChange?.((editing && dirty) || disclosureDirty);
+    onDirtyChange?.(editing && dirty);
     return () => onDirtyChange?.(false);
-  }, [dirty, disclosureDirty, editing, onDirtyChange]);
+  }, [dirty, editing, onDirtyChange]);
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -118,40 +117,25 @@ export function CareerContextPanel({
     setError(null);
   };
 
-  return (
-    <section className="career-context-panel" aria-label="Career preferences">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Current direction</p>
-          <h2>Career preferences</h2>
-          <p>
-            Reusable direction, constraints, and preferences to keep alongside your professional
-            information. AAAAT retains them; it does not choose opportunities for you.
-          </p>
+  if (!context) {
+    return (
+      <section className="career-context-panel career-context-compact" aria-label="Career preferences">
+        <p className="compact-help">{error ?? "Loading career preferences…"}</p>
+      </section>
+    );
+  }
+
+  if (editing) {
+    return (
+      <section className="career-context-panel career-context-editing" aria-label="Career preferences">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Optional context</p>
+            <h2>Career preferences</h2>
+            <p className="profile-intro">Keep only the direction, constraints or preferences that are useful to you.</p>
+          </div>
         </div>
-        {!editing && context ? (
-          <button
-            className="compact-secondary"
-            type="button"
-            onClick={() => {
-              setDraft(context);
-              setEditing(true);
-            }}
-          >
-            {nonEmpty.length === 0 ? "Add career preferences" : "Edit career preferences"}
-          </button>
-        ) : null}
-      </div>
-
-      {error ? (
-        <p className="error-message" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      {!context ? (
-        <p>{error ? null : "Loading career preferences..."}</p>
-      ) : editing ? (
+        {error ? <p className="error-message" role="alert">{error}</p> : null}
         <form className="editor-card career-context-editor" onSubmit={(event) => void save(event)}>
           {fields.map(({ key, label, hint }) => (
             <label className="wide-field" key={key}>
@@ -159,40 +143,58 @@ export function CareerContextPanel({
               <span className="field-hint">{hint}</span>
               <textarea
                 value={draft[key]}
-                onChange={(event) =>
-                  setDraft({ ...draft, [key]: event.target.value })
-                }
+                onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
               />
             </label>
           ))}
+          <div className="wide-field contextual-ai-row">
+            <span>Optional AI use</span>
+            <CareerContextAiDisclosureControl />
+          </div>
           <div className="form-actions wide-field">
             <button className="compact-primary" type="submit">
-              Save career preferences
+              Save preferences
             </button>
             <button className="compact-secondary" type="button" onClick={cancel}>
               Cancel
             </button>
           </div>
         </form>
-      ) : nonEmpty.length === 0 ? (
-        <p className="empty-copy">
-          Add only preferences or constraints that help you recognise or describe suitable
-          opportunities.
-        </p>
-      ) : (
-        <dl className="career-context-summary">
-          {nonEmpty.map(({ key, label }) => (
-            <div key={key}>
-              <dt>{label}</dt>
-              <dd>{context[key]}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      </section>
+    );
+  }
 
-      {context ? (
-        <CareerContextAiDisclosureControl onDirtyChange={setDisclosureDirty} />
-      ) : null}
-    </section>
+  return (
+    <details className="career-context-panel career-context-compact" aria-label="Career preferences">
+      <summary>
+        <span>Career preferences</span>
+        <span>{nonEmpty.length === 0 ? "Optional" : `${String(nonEmpty.length)} saved`}</span>
+      </summary>
+      <div className="career-context-compact-content">
+        {error ? <p className="error-message" role="alert">{error}</p> : null}
+        {nonEmpty.length === 0 ? (
+          <p className="compact-help">Add only preferences or constraints that are useful to your work.</p>
+        ) : (
+          <dl className="career-context-summary">
+            {nonEmpty.map(({ key, label }) => (
+              <div key={key}>
+                <dt>{label}</dt>
+                <dd>{context[key]}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        <button
+          className="compact-secondary"
+          type="button"
+          onClick={() => {
+            setDraft(context);
+            setEditing(true);
+          }}
+        >
+          {nonEmpty.length === 0 ? "Add preferences" : "Edit preferences"}
+        </button>
+      </div>
+    </details>
   );
 }
