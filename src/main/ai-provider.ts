@@ -137,19 +137,26 @@ interface ProviderContent {
   readonly structuredOutputMode: AiStructuredOutputMode;
 }
 
+type RequestProfile = "structured_no_thinking" | "structured" | "plain_json";
+
 function requestBody<T>(
   connection: AiConnectionStatus,
   operation: AiOperation,
   instruction: string,
   userPayload: string,
   schema: z.ZodType<T>,
-  structured: boolean,
+  profile: RequestProfile,
 ): Record<string, unknown> {
+  const structured = profile !== "plain_json";
   return {
     model: connection.model,
     temperature: 0,
-    reasoning_effort: "none",
-    chat_template_kwargs: { enable_thinking: false },
+    ...(profile === "structured_no_thinking"
+      ? {
+          reasoning_effort: "none",
+          chat_template_kwargs: { enable_thinking: false },
+        }
+      : {}),
     ...(structured
       ? {
           response_format: {
@@ -169,8 +176,12 @@ function requestBody<T>(
   };
 }
 
-function mayRejectStructuredOutput(status: number): boolean {
+function mayRejectRequestOption(status: number): boolean {
   return status === 400 || status === 404 || status === 415 || status === 422;
+}
+
+function outputMode(profile: RequestProfile): AiStructuredOutputMode {
+  return profile === "plain_json" ? "plain_json_fallback" : "json_schema";
 }
 
 async function requestContent<T>(
@@ -189,7 +200,7 @@ async function requestContent<T>(
     ? AbortSignal.any([externalSignal, timeoutSignal])
     : timeoutSignal;
 
-  const attempt = async (structured: boolean): Promise<{ response: Response; raw: string }> => {
+  const attempt = async (profile: RequestProfile): Promise<{ response: Response; raw: string }> => {
     let response: Response;
     try {
       response = await fetchImpl(chatCompletionsUrl(connection.endpoint), {
@@ -198,7 +209,7 @@ async function requestContent<T>(
         redirect: "error",
         signal,
         body: JSON.stringify(
-          requestBody(connection, operation, instruction, userPayload, schema, structured),
+          requestBody(connection, operation, instruction, userPayload, schema, profile),
         ),
       });
     } catch (reason) {
@@ -216,7 +227,7 @@ async function requestContent<T>(
             "",
             "The request exceeded AAAAT's provider safety timeout.",
             "connection_unreachable",
-            structured ? "json_schema" : "plain_json_fallback",
+            outputMode(profile),
           ),
         );
       }
@@ -230,7 +241,7 @@ async function requestContent<T>(
           "",
           reason instanceof Error ? reason.message : "Network request failed before an HTTP response was received.",
           "connection_unreachable",
-          structured ? "json_schema" : "plain_json_fallback",
+          outputMode(profile),
         ),
       );
     }
@@ -249,18 +260,22 @@ async function requestContent<T>(
           "",
           reason instanceof Error ? reason.message : "The provider response body could not be read.",
           "provider_envelope_invalid",
-          structured ? "json_schema" : "plain_json_fallback",
+          outputMode(profile),
         ),
       );
     }
     return { response, raw };
   };
 
-  let mode: AiStructuredOutputMode = "json_schema";
-  let current = await attempt(true);
-  if (!current.response.ok && mayRejectStructuredOutput(current.response.status)) {
-    mode = "plain_json_fallback";
-    current = await attempt(false);
+  let profile: RequestProfile = "structured_no_thinking";
+  let current = await attempt(profile);
+  if (!current.response.ok && mayRejectRequestOption(current.response.status)) {
+    profile = "structured";
+    current = await attempt(profile);
+  }
+  if (!current.response.ok && mayRejectRequestOption(current.response.status)) {
+    profile = "plain_json";
+    current = await attempt(profile);
   }
 
   if (!current.response.ok) {
@@ -274,7 +289,7 @@ async function requestContent<T>(
         current.raw,
         `HTTP ${current.response.status} ${current.response.statusText}`.trim(),
         "provider_http_failure",
-        mode,
+        outputMode(profile),
       ),
     );
   }
@@ -293,7 +308,7 @@ async function requestContent<T>(
         current.raw,
         reason instanceof Error ? reason.message : "The provider envelope was not valid JSON.",
         "provider_envelope_invalid",
-        mode,
+        outputMode(profile),
       ),
     );
   }
@@ -313,11 +328,11 @@ async function requestContent<T>(
           ? "The provider response did not contain choices[0].message.content."
           : z.prettifyError(parsed.error),
         "provider_envelope_invalid",
-        mode,
+        outputMode(profile),
       ),
     );
   }
-  return { content, structuredOutputMode: mode };
+  return { content, structuredOutputMode: outputMode(profile) };
 }
 
 function parseJson<T>(
