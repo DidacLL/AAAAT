@@ -9,9 +9,11 @@ export interface AiTaskSnapshot<T = unknown> {
   readonly detail: string | null;
   readonly result?: T;
   readonly error?: string;
+  readonly handledFieldIds?: readonly string[];
 }
 
 type TaskRunner<T> = (updateDetail: (detail: string) => void) => Promise<T>;
+type CompletionDetail<T> = (result: T) => string;
 
 const tasks = new Map<string, AiTaskSnapshot>();
 const listeners = new Set<() => void>();
@@ -31,6 +33,17 @@ function taskError(reason: unknown): string {
   return reason instanceof Error && reason.message.trim()
     ? reason.message
     : "AAAAT could not complete this AI task.";
+}
+
+function proposalFieldIds(result: unknown): string[] {
+  if (!result || typeof result !== "object" || !("proposals" in result)) return [];
+  const proposals = (result as { proposals?: unknown }).proposals;
+  if (!Array.isArray(proposals)) return [];
+  return proposals.flatMap((proposal) => {
+    if (!proposal || typeof proposal !== "object" || !("fieldId" in proposal)) return [];
+    const fieldId = (proposal as { fieldId?: unknown }).fieldId;
+    return typeof fieldId === "string" ? [fieldId] : [];
+  });
 }
 
 export function getAiTask<T>(key: string): AiTaskSnapshot<T> | null {
@@ -57,6 +70,7 @@ export function startAiTask<T>(
   key: string,
   runner: TaskRunner<T>,
   label = "AI task",
+  completionDetail?: CompletionDetail<T>,
 ): void {
   const current = tasks.get(key);
   if (current?.status === "queued" || current?.status === "working") return;
@@ -85,8 +99,9 @@ export function startAiTask<T>(
           key,
           label: active?.label ?? label,
           status: "completed",
-          detail: "Completed",
+          detail: completionDetail?.(result) ?? "Completed",
           result,
+          handledFieldIds: [],
         });
         emit();
       })
@@ -102,6 +117,21 @@ export function startAiTask<T>(
         emit();
       });
   }, 0);
+}
+
+export function markAiTaskFieldHandled(key: string, fieldId: string): void {
+  const current = tasks.get(key);
+  if (!current || current.status !== "completed") return;
+  const handled = new Set(current.handledFieldIds ?? []);
+  handled.add(fieldId);
+  const proposalIds = proposalFieldIds(current.result);
+  const reviewed = proposalIds.length > 0 && proposalIds.every((id) => handled.has(id));
+  tasks.set(key, {
+    ...current,
+    handledFieldIds: Array.from(handled),
+    detail: reviewed ? "Completed · proposals reviewed" : current.detail,
+  });
+  emit();
 }
 
 export function clearAiTask(key: string): void {
