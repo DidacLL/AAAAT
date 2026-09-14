@@ -62,7 +62,13 @@ const record: CandidatureRecord = {
   tagIds: [],
 };
 
+const updateFieldPreferences = vi.fn();
+
 function installApi() {
+  updateFieldPreferences.mockImplementation(async (input) => ({
+    ...information,
+    preferences: { ...information.preferences, ...input },
+  }));
   const api = {
     candidatures: {
       list: vi.fn().mockResolvedValue([record]),
@@ -71,9 +77,9 @@ function installApi() {
       update: vi.fn(),
       filter: vi.fn().mockResolvedValue([candidatureId]),
       createField: vi.fn(),
-      updateField: vi.fn(),
+      updateField: vi.fn().mockResolvedValue(information),
       deleteField: vi.fn(),
-      updateFieldPreferences: vi.fn(),
+      updateFieldPreferences,
       setFieldValue: vi.fn().mockResolvedValue(record),
       clearFieldValue: vi.fn().mockResolvedValue({ ...record, values: [] }),
       listSources: vi.fn().mockResolvedValue([]),
@@ -93,13 +99,17 @@ function installApi() {
 }
 
 describe("complete candidature information editing", () => {
-  beforeEach(() => installApi());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    installApi();
+  });
+
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
   });
 
-  it("opens complete editing directly from corpus, keeps values read-first, and protects dirty edits on return", async () => {
+  it("keeps one field read-first with edit and AI affordances, then enters and exits inline edit mode", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
@@ -109,16 +119,18 @@ describe("complete candidature information editing", () => {
 
     const complete = await screen.findByRole("region", { name: "Complete candidature" });
     const informationRegion = within(complete).getByRole("region", { name: "Candidature information" });
-    const heading = within(informationRegion).getByRole("heading", { name: "Availability" });
-    const card = heading.closest("article");
+    const card = within(informationRegion).getByRole("heading", { name: "Availability" }).closest("article");
     if (!card) throw new Error("Retained information card missing");
 
     expect(within(card).getByText("October or November", { exact: true })).toBeInTheDocument();
-    expect(within(card).queryByRole("textbox")).not.toBeInTheDocument();
-    expect(within(card).queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Edit Availability" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Ask AI to fill Availability" })).toBeInTheDocument();
+    expect(within(card).queryByLabelText("Value")).not.toBeInTheDocument();
 
-    await user.click(within(card).getByRole("button", { name: "Edit value" }));
-    const input = within(card).getByRole("textbox");
+    await user.click(within(card).getByRole("button", { name: "Edit Availability" }));
+    const input = within(card).getByLabelText("Value");
+    expect(within(card).getByRole("checkbox", { name: "Show in Focus" })).toBeInTheDocument();
+    expect(within(card).getByRole("checkbox", { name: "Allow AI to use this information" })).toBeInTheDocument();
     await user.clear(input);
     await user.type(input, "October through December");
 
@@ -126,5 +138,34 @@ describe("complete candidature information editing", () => {
     expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits?");
     expect(screen.getByRole("region", { name: "Complete candidature" })).toBeInTheDocument();
     expect(input).toHaveValue("October through December");
+
+    await user.click(within(card).getByRole("button", { name: "Cancel" }));
+    expect(within(card).getByText("October or November", { exact: true })).toBeInTheDocument();
+    expect(within(card).queryByLabelText("Value")).not.toBeInTheDocument();
+  });
+
+  it("changes Focus visibility from the field edit state without a separate settings panel", async () => {
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    await screen.findByLabelText("Candidature corpus Focus");
+    await user.click(screen.getByRole("button", { name: "All details" }));
+    const card = screen.getByRole("heading", { name: "Availability" }).closest("article");
+    if (!card) throw new Error("Availability card missing");
+
+    expect(screen.queryByText("Customize available information")).not.toBeInTheDocument();
+    expect(screen.queryByText("Information display & AI settings")).not.toBeInTheDocument();
+
+    await user.click(within(card).getByRole("button", { name: "Edit Availability" }));
+    const focus = within(card).getByRole("checkbox", { name: "Show in Focus" });
+    expect(focus).toBeChecked();
+    await user.click(focus);
+
+    expect(updateFieldPreferences).toHaveBeenCalledWith({
+      ...information.preferences,
+      aiDiscovery: true,
+      focusVisible: false,
+      fieldId,
+    });
   });
 });
