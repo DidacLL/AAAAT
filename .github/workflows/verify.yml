@@ -22,6 +22,7 @@ jobs:
       latex: ${{ steps.classify.outputs.latex }}
       linux_package: ${{ steps.classify.outputs.linux_package }}
       full_package: ${{ steps.classify.outputs.full_package }}
+      desktop_specs: ${{ steps.classify.outputs.desktop_specs }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,15 +44,30 @@ jobs:
           latex=false
           linux_package=false
           full_package=false
+          desktop_specs=""
           docs_only=true
           files=""
           basis=""
+
+          add_desktop_spec() {
+            local spec="$1"
+            [[ "$desktop_specs" == "all" ]] && return
+            case " $desktop_specs " in
+              *" $spec "*) ;;
+              *) desktop_specs="${desktop_specs:+$desktop_specs }$spec" ;;
+            esac
+          }
+
+          select_all_desktop() {
+            desktop_specs="all"
+          }
 
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             fast=true
             latex=true
             linux_package=true
             full_package=true
+            select_all_desktop
             docs_only=false
             files="(manual dispatch: full verification)"
             basis="manual dispatch"
@@ -65,13 +81,13 @@ jobs:
               latex=true
               linux_package=true
               full_package=true
+              select_all_desktop
               docs_only=false
               files="(unbounded diff: fail-safe full verification)"
               basis="unbounded diff"
             else
               # Reuse the latest successful Verify run on an ancestor of this PR head.
-              # This prevents later docs-only or unrelated commits from replaying expensive
-              # package/runtime evidence already established earlier in the same PR.
+              # Later commits are classified only against new changes after that evidence.
               if [[ "$EVENT_ACTION" == "synchronize" && -n "${PR_NUMBER:-}" ]]; then
                 successful_heads="$(
                   gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/verify.yml/runs" \
@@ -103,9 +119,8 @@ jobs:
                     continue
                     ;;
                   .github/workflows/*)
-                    # CI wiring does not itself change application behavior. The workflow
-                    # run validates orchestration; affected product lanes are selected only
-                    # when their actual code/config/dependencies changed.
+                    # Workflow edits validate orchestration through the fast lane; they do not
+                    # make unrelated product/runtime suites relevant by themselves.
                     docs_only=false
                     fast=true
                     continue
@@ -120,30 +135,58 @@ jobs:
                     latex=true
                     linux_package=true
                     full_package=true
+                    select_all_desktop
                     ;;
                   forge.config.ts|forge.env.d.ts|vite.main.config.mts|vite.preload.config.mts|vite.renderer.config.mts|playwright.config.ts)
                     linux_package=true
                     full_package=true
+                    select_all_desktop
                     ;;
                   src/main/*mcp*.ts)
-                    # MCP tool/schema behavior is platform-neutral. Reuse prior cross-platform
-                    # packaging/startup evidence and run one packaged integration lane unless
-                    # platform-sensitive package/entry/setup files also changed.
                     linux_package=true
+                    add_desktop_spec test/desktop/packaged-mcp.spec.ts
                     ;;
                   src/preload/*|src/main/entry.ts|src/main/main.ts|src/main/latex-runner.ts|src/main/*workspace*.ts|src/main/*backup*.ts|src/main/*vscode*.ts|src/main/external-command.ts)
                     linux_package=true
                     full_package=true
+                    select_all_desktop
                     ;;
-                  src/main/*|src/renderer/*|src/shared/*|migrations/*|index.html|test/desktop/sparse-candidature.spec.ts)
+                  src/main/*|src/shared/*|migrations/*|index.html)
                     linux_package=true
+                    select_all_desktop
                     ;;
-                  test/desktop/packaged-mcp.spec.ts)
+
+                  # Renderer changes run only packaged journeys that exercise that surface.
+                  src/renderer/CandidatureFieldDefinitionsPanel.tsx|src/renderer/CandidatureManualEntryPanel.tsx|src/renderer/CandidaturesAiWorkspace.tsx|src/renderer/CandidaturesWorkspace.tsx|src/renderer/candidature-capture.css|src/renderer/candidature-recovery.css|src/renderer/candidatures.css)
                     linux_package=true
+                    add_desktop_spec test/desktop/sparse-candidature.spec.ts
+                    add_desktop_spec test/desktop/contextual-handoffs.spec.ts
                     ;;
-                  test/desktop/*)
+                  src/renderer/CareerContextAiDisclosureControl.tsx|src/renderer/CareerContextPanel.tsx|src/renderer/ProfileItemAiDisclosureControl.tsx|src/renderer/professional-information.css)
+                    linux_package=true
+                    add_desktop_spec test/desktop/professional-information.spec.ts
+                    ;;
+                  src/renderer/styles.css)
+                    linux_package=true
+                    add_desktop_spec test/desktop/packaged-app.spec.ts
+                    add_desktop_spec test/desktop/sparse-candidature.spec.ts
+                    add_desktop_spec test/desktop/professional-information.spec.ts
+                    add_desktop_spec test/desktop/settings-composition.spec.ts
+                    ;;
+                  src/renderer/*)
+                    linux_package=true
+                    select_all_desktop
+                    ;;
+
+                  # A desktop-spec-only change runs that spec rather than the whole suite.
+                  test/desktop/packaged-app.spec.ts|test/desktop/packaged-vscode-setup.spec.ts)
                     linux_package=true
                     full_package=true
+                    select_all_desktop
+                    ;;
+                  test/desktop/*.spec.ts)
+                    linux_package=true
+                    add_desktop_spec "$file"
                     ;;
                 esac
 
@@ -156,10 +199,18 @@ jobs:
             fi
           fi
 
+          if [[ "$full_package" == "true" ]]; then
+            select_all_desktop
+          elif [[ "$linux_package" == "true" && -z "$desktop_specs" ]]; then
+            # Fail safe: never select a package lane without a runtime target.
+            select_all_desktop
+          fi
+
           echo "fast=$fast" >> "$GITHUB_OUTPUT"
           echo "latex=$latex" >> "$GITHUB_OUTPUT"
           echo "linux_package=$linux_package" >> "$GITHUB_OUTPUT"
           echo "full_package=$full_package" >> "$GITHUB_OUTPUT"
+          echo "desktop_specs=$desktop_specs" >> "$GITHUB_OUTPUT"
 
           {
             echo "### CI impact"
@@ -170,6 +221,7 @@ jobs:
             echo "- LaTeX portability: $latex"
             echo "- Linux package/smoke: $linux_package"
             echo "- full cross-platform package/smoke: $full_package"
+            echo "- packaged desktop specs: ${desktop_specs:-none}"
             echo
             echo "Changed paths since evidence basis:"
             echo '```text'
@@ -220,6 +272,8 @@ jobs:
     if: needs.impact.outputs.linux_package == 'true' && needs.impact.outputs.full_package != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      DESKTOP_SPECS: ${{ needs.impact.outputs.desktop_specs }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -244,12 +298,17 @@ jobs:
       - name: Packaged runtime smoke
         shell: bash
         run: |
-          xvfb-run --auto-servernum bash -lc '
+          if [[ "$DESKTOP_SPECS" == "all" ]]; then
+            desktop_command="npm run test:desktop"
+          else
+            desktop_command="npx playwright test --config playwright.config.ts $DESKTOP_SPECS"
+          fi
+          xvfb-run --auto-servernum bash -lc "
             openbox >/tmp/aaaat-openbox.log 2>&1 &
-            wm_pid=$!
-            trap "kill $wm_pid 2>/dev/null || true" EXIT
-            npm run test:desktop
-          '
+            wm_pid=\$!
+            trap 'kill \$wm_pid 2>/dev/null || true' EXIT
+            $desktop_command
+          "
 
   package_full:
     name: Package and smoke (${{ matrix.os }})
