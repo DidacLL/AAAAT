@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-export type AiTaskStatus = "queued" | "working" | "completed" | "failed";
+export type AiTaskStatus = "queued" | "working" | "completed" | "failed" | "cancelled";
 
 export interface AiTaskSnapshot<T = unknown> {
   readonly key: string;
@@ -10,13 +10,18 @@ export interface AiTaskSnapshot<T = unknown> {
   readonly result?: T;
   readonly error?: string;
   readonly handledFieldIds?: readonly string[];
+  readonly appliedFieldIds?: readonly string[];
   readonly scopeFieldIds?: readonly string[];
 }
 
-type TaskRunner<T> = (updateDetail: (detail: string) => void) => Promise<T>;
+type TaskRunner<T> = (
+  updateDetail: (detail: string) => void,
+  signal: AbortSignal,
+) => Promise<T>;
 type CompletionDetail<T> = (result: T) => string;
 
 const tasks = new Map<string, AiTaskSnapshot>();
+const controllers = new Map<string, AbortController>();
 const listeners = new Set<() => void>();
 let taskListSnapshot: readonly AiTaskSnapshot[] = [];
 
@@ -78,6 +83,8 @@ export function startAiTask<T>(
   const current = tasks.get(key);
   if (current?.status === "queued" || current?.status === "working") return;
 
+  const controller = new AbortController();
+  controllers.set(key, controller);
   tasks.set(key, {
     key,
     label,
@@ -89,69 +96,104 @@ export function startAiTask<T>(
 
   setTimeout(() => {
     const queued = tasks.get(key);
-    if (queued?.status !== "queued") return;
+    if (queued?.status !== "queued" || controller.signal.aborted) return;
 
     tasks.set(key, { ...queued, status: "working", detail: "Working…" });
     emit();
 
     const updateDetail = (detail: string) => {
       const active = tasks.get(key);
-      if (active?.status !== "working") return;
+      if (active?.status !== "working" || controller.signal.aborted) return;
       tasks.set(key, { ...active, detail });
       emit();
     };
 
-    void runner(updateDetail)
+    void runner(updateDetail, controller.signal)
       .then((result) => {
         const active = tasks.get(key);
+        if (!active || active.status !== "working" || controller.signal.aborted) return;
         tasks.set(key, {
           key,
-          label: active?.label ?? label,
+          label: active.label ?? label,
           status: "completed",
           detail: completionDetail?.(result) ?? "Completed",
           result,
           handledFieldIds: [],
-          scopeFieldIds: active?.scopeFieldIds ?? (scopeFieldIds ? [...scopeFieldIds] : undefined),
+          appliedFieldIds: [],
+          scopeFieldIds: active.scopeFieldIds ?? (scopeFieldIds ? [...scopeFieldIds] : undefined),
         });
+        controllers.delete(key);
         emit();
       })
       .catch((reason: unknown) => {
         const active = tasks.get(key);
+        if (!active || active.status !== "working" || controller.signal.aborted) return;
         tasks.set(key, {
           key,
-          label: active?.label ?? label,
+          label: active.label ?? label,
           status: "failed",
           detail: "Failed",
           error: taskError(reason),
-          scopeFieldIds: active?.scopeFieldIds ?? (scopeFieldIds ? [...scopeFieldIds] : undefined),
+          scopeFieldIds: active.scopeFieldIds ?? (scopeFieldIds ? [...scopeFieldIds] : undefined),
         });
+        controllers.delete(key);
         emit();
       });
   }, 0);
 }
 
-export function markAiTaskFieldHandled(key: string, fieldId: string): void {
+export function cancelAiTask(key: string): void {
+  const current = tasks.get(key);
+  if (!current || (current.status !== "queued" && current.status !== "working")) return;
+  controllers.get(key)?.abort();
+  controllers.delete(key);
+  tasks.set(key, {
+    ...current,
+    status: "cancelled",
+    detail: "Cancelled",
+    error: undefined,
+    result: undefined,
+  });
+  emit();
+}
+
+function markFieldHandled(key: string, fieldId: string, applied: boolean): void {
   const current = tasks.get(key);
   if (!current || current.status !== "completed") return;
   const handled = new Set(current.handledFieldIds ?? []);
+  const appliedIds = new Set(current.appliedFieldIds ?? []);
   handled.add(fieldId);
+  if (applied) appliedIds.add(fieldId);
   const proposalIds = proposalFieldIds(current.result, current.scopeFieldIds);
   const reviewed = proposalIds.length > 0 && proposalIds.every((id) => handled.has(id));
   tasks.set(key, {
     ...current,
     handledFieldIds: Array.from(handled),
-    detail: reviewed ? "Completed · proposals reviewed" : current.detail,
+    appliedFieldIds: Array.from(appliedIds),
+    detail: reviewed ? "Completed · information applied/reviewed" : current.detail,
   });
   emit();
 }
 
+export function markAiTaskFieldHandled(key: string, fieldId: string): void {
+  markFieldHandled(key, fieldId, false);
+}
+
+export function markAiTaskFieldApplied(key: string, fieldId: string): void {
+  markFieldHandled(key, fieldId, true);
+}
+
 export function clearAiTask(key: string): void {
+  controllers.get(key)?.abort();
+  controllers.delete(key);
   if (!tasks.delete(key)) return;
   emit();
 }
 
 export function clearAllAiTasks(): void {
   if (tasks.size === 0) return;
+  for (const controller of controllers.values()) controller.abort();
+  controllers.clear();
   tasks.clear();
   emit();
 }
