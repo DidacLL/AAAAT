@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  cancelAiTask,
   clearAllAiTasks,
   getAiTask,
   startAiTask,
@@ -53,6 +54,53 @@ describe("renderer AI task state", () => {
       status: "completed",
       result: "done",
     });
+  });
+
+  it("cancels a working task, aborts its runner signal, and ignores a late result", async () => {
+    const pending = deferred<string>();
+    let signal: AbortSignal | null = null;
+    startAiTask("slow-local", async (_updateDetail, runnerSignal) => {
+      signal = runnerSignal;
+      return pending.promise;
+    });
+
+    await vi.runOnlyPendingTimersAsync();
+    expect(getAiTask("slow-local")).toMatchObject({ status: "working" });
+
+    cancelAiTask("slow-local");
+    expect(signal?.aborted).toBe(true);
+    expect(getAiTask("slow-local")).toMatchObject({ status: "cancelled", detail: "Cancelled" });
+
+    pending.resolve("too late");
+    await flush();
+    expect(getAiTask("slow-local")).toMatchObject({ status: "cancelled" });
+    expect(getAiTask("slow-local")?.result).toBeUndefined();
+  });
+
+  it("keeps AI-created fields applied and inside completed task scope", async () => {
+    startAiTask(
+      "bulk",
+      async () => ({
+        proposals: [
+          { fieldId: "missing", value: "filled" },
+          { fieldId: "new-field", value: "found" },
+        ],
+        appliedFieldIds: ["new-field"],
+      }),
+      "Fill missing information",
+      undefined,
+      ["missing"],
+    );
+
+    await vi.runOnlyPendingTimersAsync();
+    await flush();
+
+    expect(getAiTask("bulk")).toMatchObject({
+      status: "completed",
+      handledFieldIds: ["new-field"],
+      appliedFieldIds: ["new-field"],
+    });
+    expect(getAiTask("bulk")?.scopeFieldIds).toEqual(["missing", "new-field"]);
   });
 
   it("keeps an actionable failure available for retry", async () => {
