@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,6 +14,7 @@ const regionalId = "00000000-0000-4000-8000-000000000501";
 const nimbusId = "00000000-0000-4000-8000-000000000510";
 const organisationId = "00000000-0000-4000-8000-000000000502";
 const hoursId = "00000000-0000-4000-8000-000000000503";
+const addedId = "00000000-0000-4000-8000-000000000507";
 const tagId = "00000000-0000-4000-8000-000000000508";
 const timestamp = "2026-09-04T00:00:00.000Z";
 
@@ -116,11 +117,9 @@ function installApi() {
       ],
     };
   });
-  createField.mockImplementation(async (input) =>
-    field("00000000-0000-4000-8000-000000000507", input.label, "text", false),
-  );
+  createField.mockImplementation(async (input) => field(addedId, input.label, "text", false));
   updateFieldPreferences.mockImplementation(async (input) => {
-    const current = input.fieldId === organisationId ? organisation : hours;
+    const current = input.fieldId === organisationId ? organisation : input.fieldId === hoursId ? hours : field(addedId, "Flight hours", "text", false);
     return {
       ...current,
       preferences: { ...current.preferences, ...input },
@@ -139,11 +138,17 @@ function installApi() {
       })),
       filter: vi.fn().mockResolvedValue([regionalId, nimbusId]),
       createField,
-      updateField: vi.fn(),
+      updateField: vi.fn().mockImplementation(async (input) => ({
+        ...(input.id === organisationId ? organisation : hours),
+        definition: {
+          ...(input.id === organisationId ? organisation.definition : hours.definition),
+          ...input,
+        },
+      })),
       deleteField: vi.fn(),
       updateFieldPreferences,
       setFieldValue,
-      clearFieldValue: vi.fn(),
+      clearFieldValue: vi.fn().mockResolvedValue({ ...regional, values: [] }),
       listSources: vi.fn().mockResolvedValue([]),
       addSource: vi.fn(),
       updateSource: vi.fn(),
@@ -190,7 +195,7 @@ describe("rebuilt candidature workspace", () => {
     expect(screen.queryByRole("region", { name: "Complete candidature" })).not.toBeInTheDocument();
   });
 
-  it("transitions from corpus to selected Focus, shows only configured recall information, edits it, and returns", async () => {
+  it("transitions from corpus to selected Focus, keeps recall information read-first, edits it, and returns", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
@@ -203,8 +208,8 @@ describe("rebuilt candidature workspace", () => {
     expect(within(focus).queryByRole("heading", { name: "Minimum flight hours" })).not.toBeInTheDocument();
     expect(within(focus).getByRole("region", { name: "Tags" })).toHaveTextContent("Platform");
 
-    await user.click(within(focus).getByRole("button", { name: "Edit value" }));
-    const value = within(focus).getByRole("textbox");
+    await user.click(within(focus).getByRole("button", { name: "Edit Organisation" }));
+    const value = within(focus).getByLabelText("Value");
     await user.clear(value);
     await user.type(value, "Regional Air Europe");
     await user.click(within(focus).getByRole("button", { name: "Save" }));
@@ -218,45 +223,66 @@ describe("rebuilt candidature workspace", () => {
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
   });
 
-  it("opens complete candidature work directly from corpus without passing through selected Focus", async () => {
+  it("shows retained and missing fields in one collection with no ordinary customization panel", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-
     await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
 
-    const complete = screen.getByRole("region", { name: "Complete candidature" });
-    expect(within(complete).getByRole("region", { name: "Candidature information" })).toBeInTheDocument();
-    expect(within(complete).getByRole("region", { name: "Sources" })).toBeInTheDocument();
-    expect(within(complete).getByRole("region", { name: "Tags" })).toBeInTheDocument();
-    expect(within(complete).getByRole("region", { name: "Application material" })).toBeInTheDocument();
-    expect(screen.queryByRole("tablist", { name: "Candidature sections" })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Concept/i)).not.toBeInTheDocument();
+    const information = screen.getByRole("region", { name: "Candidature information" });
+    expect(within(information).getByRole("heading", { name: "Organisation" })).toBeInTheDocument();
+    expect(within(information).getByRole("heading", { name: "Minimum flight hours" })).toBeInTheDocument();
+    expect(within(information).getByText("Not set")).toBeInTheDocument();
+    expect(screen.queryByText("Customize available information")).not.toBeInTheDocument();
+    expect(screen.queryByText("Information display & AI settings")).not.toBeInTheDocument();
   });
 
-  it("adds missing information on demand without turning ordinary editing into schema administration", async () => {
+  it("adds a new kind of information from the field collection with the + flow", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
     await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
 
-    const addInformationSummary = screen.getByText("+ Add information", { selector: "summary" });
-    await user.click(addInformationSummary);
-    const addInformation = addInformationSummary.closest("details");
-    if (!addInformation) throw new Error("Add information disclosure missing");
-    await user.selectOptions(within(addInformation).getByLabelText("Information to add"), hoursId);
-    const input = within(addInformation).getByRole("spinbutton");
-    await user.type(input, "1500");
-    await user.click(within(addInformation).getByRole("button", { name: /^Save$/ }));
+    await user.click(screen.getByRole("button", { name: "Add information" }));
+    const form = screen.getByRole("form", { name: "Add information" });
+    await user.type(within(form).getByLabelText("Name"), "Flight hours");
+    await user.type(within(form).getByLabelText(/Details/), "Total logged hours");
+    await user.click(within(form).getByRole("button", { name: "Add" }));
 
-    expect(setFieldValue).toHaveBeenCalledWith({
-      candidatureId: regionalId,
-      fieldId: hoursId,
-      value: 1500,
+    expect(createField).toHaveBeenCalledWith({
+      label: "Flight hours",
+      description: "Total logged hours",
+      valueType: "text",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
     });
-    expect(screen.queryByText("Cardinality", { exact: true })).not.toBeInTheDocument();
-    expect(screen.queryByText("Value type", { exact: true })).not.toBeInTheDocument();
+    expect(updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
+      fieldId: addedId,
+      aiDiscovery: true,
+    }));
   });
 
-  it("keeps Tag notes editable in complete maintenance with no Concept-era vocabulary", async () => {
+  it("updates Focus visibility inline from the field edit state", async () => {
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
+
+    const information = screen.getByRole("region", { name: "Candidature information" });
+    const fieldCard = within(information).getByRole("heading", { name: "Minimum flight hours" }).closest("article");
+    if (!fieldCard) throw new Error("Field card missing");
+    await user.click(within(fieldCard).getByRole("button", { name: "Edit Minimum flight hours" }));
+    const focusVisible = within(fieldCard).getByRole("checkbox", { name: "Show in Focus" });
+    expect(focusVisible).not.toBeChecked();
+    await user.click(focusVisible);
+
+    expect(updateFieldPreferences).toHaveBeenCalledWith({
+      ...hours.preferences,
+      aiDiscovery: true,
+      focusVisible: true,
+      fieldId: hoursId,
+    });
+  });
+
+  it("keeps Tag notes editable in complete maintenance", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
     await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
@@ -276,67 +302,5 @@ describe("rebuilt candidature workspace", () => {
       notes: "Ask how platform ownership is divided.",
       aliases: platformTag.aliases,
     });
-    expect(screen.queryByText(/Concept/i)).not.toBeInTheDocument();
-  });
-
-  it("does not discard an unsaved Tag association when another field is saved", async () => {
-    const user = userEvent.setup();
-    render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
-
-    const tags = screen.getByRole("region", { name: "Tags" });
-    const platform = within(tags).getByRole("checkbox", { name: /Platform/ });
-    expect(platform).toBeChecked();
-    await user.click(platform);
-    expect(platform).not.toBeChecked();
-
-    const information = screen.getByRole("region", { name: "Candidature information" });
-    const organisationCard = within(information)
-      .getByRole("heading", { name: "Organisation" })
-      .closest("article");
-    if (!organisationCard) throw new Error("Organisation information card missing");
-    await user.click(within(organisationCard).getByRole("button", { name: "Edit value" }));
-    const value = within(organisationCard).getByRole("textbox");
-    await user.clear(value);
-    await user.type(value, "Regional Air Europe");
-    await user.click(within(organisationCard).getByRole("button", { name: /^Save$/ }));
-
-    expect(within(tags).getByRole("checkbox", { name: /Platform/ })).not.toBeChecked();
-    expect(within(tags).getByRole("button", { name: "Save Tag associations" })).toBeInTheDocument();
-  });
-
-  it("updates Focus visibility immediately while persistence is pending", async () => {
-    const user = userEvent.setup();
-    let resolvePreference!: (value: CandidatureFieldConfiguration) => void;
-    updateFieldPreferences.mockImplementationOnce(
-      () => new Promise<CandidatureFieldConfiguration>((resolve) => {
-        resolvePreference = resolve;
-      }),
-    );
-
-    render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
-    await user.click(screen.getByText("Information display & AI settings", { selector: "summary" }));
-
-    const fieldCard = screen.getByText("Minimum flight hours", { selector: "strong" }).closest("article");
-    if (!fieldCard) throw new Error("Field preference card missing");
-    const focusVisible = within(fieldCard).getByRole("checkbox", { name: "Show in Focus when retained" });
-    expect(focusVisible).not.toBeChecked();
-
-    await user.click(focusVisible);
-    expect(focusVisible).toBeChecked();
-    expect(updateFieldPreferences).toHaveBeenCalledWith({
-      ...hours.preferences,
-      focusVisible: true,
-      fieldId: hoursId,
-    });
-
-    await act(async () => {
-      resolvePreference({
-        ...hours,
-        preferences: { ...hours.preferences, focusVisible: true },
-      });
-    });
-    await waitFor(() => expect(focusVisible).toBeChecked());
   });
 });
