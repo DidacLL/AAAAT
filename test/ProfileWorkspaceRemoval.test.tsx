@@ -44,11 +44,11 @@ function installApi() {
 
 function firstItemArticle(): HTMLElement {
   const article = screen.getByText(firstItem.title).closest("article");
-  if (!article) throw new Error("Expected professional information item");
+  if (!article) throw new Error("Expected My information item");
   return article;
 }
 
-describe("professional information removal", () => {
+describe("My information removal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     current.mockResolvedValue(profile);
@@ -61,7 +61,7 @@ describe("professional information removal", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps reusable information when removal is declined", async () => {
+  it("keeps information when removal is declined", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
@@ -70,7 +70,7 @@ describe("professional information removal", () => {
     await user.click(within(firstItemArticle()).getByRole("button", { name: "Remove" }));
 
     expect(confirm).toHaveBeenCalledWith(
-      `Remove “${firstItem.title}” from reusable professional information? Saved variations and documents that use it may change.`,
+      `Remove “${firstItem.title}” from My information? Saved variations and documents that use it may change.`,
     );
     expect(removeItem).not.toHaveBeenCalled();
     expect(screen.getByText(firstItem.title)).toBeInTheDocument();
