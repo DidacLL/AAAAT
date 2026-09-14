@@ -25,10 +25,13 @@ export function CandidatureBulkAiReview({
   const task = useAiTask<JobExtractionResult>(taskId);
   const [accepting, setAccepting] = useState(false);
   const enabled = new Set(fields.filter((field) => field.definition.enabled).map((field) => field.definition.id));
+  const scoped = task?.scopeFieldIds ? new Set(task.scopeFieldIds) : null;
   const retained = new Set(candidature.values.map((value) => value.fieldId));
   const proposals = (task?.result?.proposals ?? []).filter(
     (proposal) =>
-      enabled.has(proposal.fieldId) && !(task?.handledFieldIds ?? []).includes(proposal.fieldId),
+      enabled.has(proposal.fieldId) &&
+      (!scoped || scoped.has(proposal.fieldId)) &&
+      !(task?.handledFieldIds ?? []).includes(proposal.fieldId),
   );
   const safeMissing = proposals.filter((proposal) => !retained.has(proposal.fieldId));
 
