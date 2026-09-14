@@ -339,6 +339,19 @@ export function CandidaturesWorkspace({
     }
   };
 
+  const refreshInformation = async () => {
+    try {
+      const [nextFields, nextRecords] = await Promise.all([
+        window.aaaat.candidatures.listFields(),
+        window.aaaat.candidatures.list(),
+      ]);
+      setFields(nextFields);
+      setRecords(nextRecords);
+    } catch {
+      setError("AAAAT could not refresh AI-filled candidature information.");
+    }
+  };
+
   const saveDocuments = async () => {
     if (!selected) return;
     try {
@@ -679,6 +692,8 @@ export function CandidaturesWorkspace({
             targetFieldIds={enabledMissingFields.map((field) => field.definition.id)}
             taskId={`candidature-inference:${selected.id}:missing`}
             title="Fill missing information"
+            allowNewFields
+            onChanged={() => void refreshInformation()}
           />
         ) : null}
       </section>
