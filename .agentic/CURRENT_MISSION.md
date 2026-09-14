@@ -2,58 +2,34 @@
 
 ## Active bounded work
 
-**Issue #314 — Rebuild Candidatures around two-state Focus, raw capture, direct editing and Tags**
+None.
 
-Branch: `product/rebuild-candidatures`
+Issue #314 — Rebuild Candidatures around two-state Focus, raw capture, direct editing and Tags — is complete.
 
-Exact base: `main` at `5adf115d2b020914afe02ec336cc48a95b09ea71` (PR #315, recovered product/UX authority).
+PR #316 merged into `main` as `81668a992a30fe393934f75cf19176addd7aa229`.
 
-Pre-recovery work is retired. Issue #304 is closed and PR #312 is closed unmerged. Do not reuse their branches or treat their implementation as authority.
+The implementation branch `product/rebuild-candidatures` is retired as execution authority. Do not continue work from it or from another pre-merge branch.
 
-## Product outcome
+## Current product baseline
 
-Replace the current selected-record-first candidature UI with the recovered AAAAT candidature model:
+The merged candidature model is now the baseline:
 
-- **Corpus Focus** starts with no forced selection and shows multiple recognizable candidatures using only a small configured/default set of Focus fields/signals.
-- Selecting one candidature transitions to **selected-candidature Focus** using the available screen rather than expanding a cramped card or preserving a permanent list/detail split.
-- Selected Focus is read-first but directly editable for displayed fields.
-- Tags are contextual shared glossary/wiki knowledge and replace the competing `Concepts` product/domain vocabulary.
-- Complete candidature work is independently reachable and exposes all information/Sources/Tags/application material through progressive disclosure.
-- The candidature field set is user-maintainable product data. Shipped fields are defaults, not a fixed ontology; users can add/edit meaningful field definitions for different professions, and configured AI extraction targets the current enabled/discoverable field set.
-- **New candidature has two peer direct approaches:** fill useful fields directly, or paste raw material with minimal friction.
-- Raw capture retains the material first as a Source. The post-paste surface then exposes **Send to AI** and **Fill candidature yourself** as explicit peer choices; the manual path keeps the retained Source and editable fields together and remains complete with no AI.
-- Retaining raw material alone is already a valid successful outcome; neither AI nor manual structuring is mandatory afterward.
-- Reminders, Sources, documents and Activity do not become default Focus clutter.
-- No lifecycle/status/priority/next-action/completeness machinery is introduced.
+- corpus Focus starts with no forced selection and shows only deliberately Focus-selected fields/signals;
+- selecting a candidature transitions to selected-candidature Focus using the available screen;
+- selected Focus is read-first but directly editable for displayed fields;
+- complete candidature work is independently reachable;
+- candidature field definitions are user-maintainable product data, not a fixed profession-specific ontology;
+- New candidature has two peer approaches: direct field entry and raw-material capture;
+- raw capture retains a Source first, then offers explicit AI-assisted or manual Source-to-fields continuations;
+- Tags are the shared glossary/tag model; `Concepts` is not a parallel product/domain vocabulary;
+- no lifecycle/status/priority/next-action/completeness architecture is part of the candidature model;
+- development-only migration ancestry and the obsolete global ToDo runtime are not compatibility requirements;
+- local/manual/no-AI operation, Sources, search, document handoffs, bounded AI and privacy boundaries remain preserved.
 
-## Preserve where independently justified
+## Next activation rule
 
-- local authoritative workspace and complete manual/no-AI operation;
-- flexible user-maintainable candidature field/value model;
-- first-class Sources and full Source readability;
-- useful candidature search semantics;
-- candidature ↔ VCVGenerator handoffs and application-material relationships;
-- archive as secondary corpus organization;
-- dirty-state protection across field, Tag, Source and document work;
-- bounded optional AI extraction/field assistance against user-configured fields;
-- narrow renderer/preload/main mutation boundaries.
+No successor issue is active.
 
-## Excluded
+The next bounded mission must be chosen deliberately from current owner/product priorities and start from current `main` plus the current product authority. Do not infer a successor merely from #314 exclusions, historical plans, old branches, or leftover implementation structures.
 
-- professional-information taxonomy redesign;
-- VCVGenerator redesign;
-- provider/integration redesign;
-- job discovery inside AAAAT;
-- lifecycle/status/priority/next-action features;
-- reminder/task-management expansion;
-- generic dashboard/framework work;
-- deterministic/embedded extraction heuristics for company/role/salary in this Issue;
-- compatibility with development-only workspace schemas.
-
-## Review / evidence
-
-Treat #314 as Class C. Require independent Reviewer and Skeptical Simplifier assessment after implementation.
-
-Verification must protect behavior rather than the new component arrangement. Packaged `720×600` evidence must cover corpus Focus → selected Focus → inline edit → back, direct complete-candidature entry, and raw Source → explicit AI/manual choices → manual Source-to-fields work without AI.
-
-Do not activate a successor until #314 is complete and reconciled against the recovered product authority.
+Before activating new work, verify that the issue is independently valuable and does not reintroduce superseded candidature, lifecycle, Concept, migration-compatibility, reminder-hub, or in-app job-discovery assumptions.
