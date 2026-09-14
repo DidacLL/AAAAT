@@ -7,8 +7,7 @@ import type {
   CandidatureRuntimeValue,
   CandidatureSource,
 } from "../shared/contracts";
-import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
-import { startAiTask, useAiTask } from "./ai-task-store";
+import { clearAiTask, startAiTask, useAiTask } from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
 interface Props {
@@ -17,8 +16,6 @@ interface Props {
   readonly targetFieldIds: readonly string[];
   readonly taskId: string;
   readonly title: string;
-  readonly onSaveValue: (fieldId: string, value: CandidatureRuntimeValue) => Promise<void>;
-  readonly onClose: () => void;
 }
 
 function displayValue(
@@ -78,17 +75,15 @@ export function CandidatureInferencePanel({
   targetFieldIds,
   taskId,
   title,
-  onSaveValue,
-  onClose,
 }: Props) {
   const { openSettingsFor } = useContextualHandoffs();
   const task = useAiTask<JobExtractionResult>(taskId);
   const [sources, setSources] = useState<CandidatureSource[] | null>(null);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
-  const [handledFieldIds, setHandledFieldIds] = useState<ReadonlySet<string>>(new Set());
   const targetSet = useMemo(() => new Set(targetFieldIds), [targetFieldIds]);
-  const requestedFields = fields.filter(
-    (field) => targetSet.has(field.definition.id) && field.definition.enabled && field.preferences.aiDiscovery,
+  const requestedFields = useMemo(
+    () => fields.filter((field) => targetSet.has(field.definition.id) && field.definition.enabled),
+    [fields, targetSet],
   );
 
   useEffect(() => {
@@ -110,123 +105,84 @@ export function CandidatureInferencePanel({
     return () => {
       active = false;
     };
-  }, [candidature.id, task?.status]);
+  }, [candidature.id]);
 
-  const context = sources === null ? "" : sourceContext(candidature, fields, sources, targetSet);
-  const active = task?.status === "queued" || task?.status === "working";
-  const proposals = (task?.result?.proposals ?? []).filter(
-    (proposal) => targetSet.has(proposal.fieldId) && !handledFieldIds.has(proposal.fieldId),
+  const context = useMemo(
+    () => (sources === null ? "" : sourceContext(candidature, fields, sources, targetSet)),
+    [candidature, fields, sources, targetSet],
   );
-  const requestLabel = requestedFields.length === 1
-    ? `Ask AI to find ${requestedFields[0]?.definition.label ?? "this information"}`
-    : "Ask AI to find missing information";
 
-  const start = () => {
-    if (!context || requestedFields.length === 0) return;
-    startAiTask<JobExtractionResult>(taskId, async (updateDetail) => {
-      updateDetail(
-        `Looking through retained Sources and information for ${requestedFields.length === 1 ? requestedFields[0]?.definition.label ?? "this information" : `${requestedFields.length} missing items`}. Slow local models can take several minutes.`,
-      );
-      return window.aaaat.ai.extractJob({
-        sourceTitle: "Retained AAAAT candidature context",
-        sourceUrl: "",
-        sourceText: context,
-      });
-    });
-  };
+  useEffect(() => {
+    if (task || aiReady !== true || !context || requestedFields.length === 0) return;
 
-  const markHandled = (fieldId: string) => {
-    setHandledFieldIds((current) => new Set([...current, fieldId]));
-  };
+    startAiTask<JobExtractionResult>(
+      taskId,
+      async (updateDetail) => {
+        const discoveryDisabled = requestedFields.filter((field) => !field.preferences.aiDiscovery);
+        if (discoveryDisabled.length > 0) {
+          await Promise.all(
+            discoveryDisabled.map((field) =>
+              window.aaaat.candidatures.updateFieldPreferences({
+                ...field.preferences,
+                fieldId: field.definition.id,
+                aiDiscovery: true,
+              }),
+            ),
+          );
+        }
+        updateDetail(
+          requestedFields.length === 1
+            ? `Finding ${requestedFields[0]?.definition.label ?? "this information"}…`
+            : `Finding ${requestedFields.length} missing values…`,
+        );
+        return window.aaaat.ai.extractJob({
+          sourceTitle: "Retained AAAAT candidature context",
+          sourceUrl: "",
+          sourceText: context,
+        });
+      },
+      title,
+      (result) => {
+        const usable = result.proposals.filter((proposal) => targetSet.has(proposal.fieldId));
+        return usable.length > 0
+          ? `Completed · ${usable.length} proposal${usable.length === 1 ? "" : "s"} ready for review`
+          : "Completed · no usable proposal";
+      },
+    );
+  }, [aiReady, context, requestedFields, targetSet, task, taskId, title]);
 
-  return (
-    <section className="candidature-inference-panel" aria-label="Candidature AI suggestions">
-      <div className="candidature-editor-heading">
-        <div>
-          <p className="eyebrow">AI suggestions</p>
-          <h4>{title}</h4>
-          <p>
-            AAAAT can look through retained Sources and information you allow AI to use. Nothing changes until you accept a suggestion.
-          </p>
-        </div>
-        <button type="button" className="compact-secondary" onClick={onClose}>Hide</button>
+  if (requestedFields.length === 0) {
+    return <p className="compact-help">There is no available information to fill here.</p>;
+  }
+  if (sources === null || aiReady === null || task?.status === "queued" || task?.status === "working") {
+    return null;
+  }
+  if (!aiReady) {
+    return (
+      <div className="ai-task-failure candidature-inline-ai-message">
+        <span>AI is not ready for this request.</span>
+        <button type="button" className="compact-secondary" onClick={() => openSettingsFor("ai", "candidatures")}>
+          Open AI settings
+        </button>
       </div>
-
-      {requestedFields.length === 0 ? (
-        <p className="compact-help">AI suggestions are turned off for this information. You can change that under the secondary information customization controls.</p>
-      ) : sources === null || aiReady === null ? (
-        <p role="status">Checking whether AI is ready for this request…</p>
-      ) : !aiReady ? (
-        <div className="ai-task-failure">
-          <p>AI is not ready for this action yet. Open AI settings to check the connection. Manual editing remains available.</p>
-          <button type="button" className="compact-secondary" onClick={() => openSettingsFor("ai", "candidatures")}>
-            Open AI settings
-          </button>
-        </div>
-      ) : !context ? (
-        <p className="compact-help">Keep some Source text or information allowed for AI use before asking AI to find a value.</p>
-      ) : (
-        <>
-          <details className="ai-disclosure-preview">
-            <summary>What this request will send</summary>
-            <pre>{context}</pre>
-          </details>
-
-          {task?.status === "queued" ? (
-            <p role="status" className="ai-task-state">Queued. You can keep editing this candidature while AAAAT waits for the model.</p>
-          ) : task?.status === "working" ? (
-            <p role="status" className="ai-task-state">{task.detail ?? "Working…"}</p>
-          ) : task?.status === "failed" ? (
-            <div className="ai-task-failure" role="alert">
-              <strong>AI could not finish this request</strong>
-              <p>{task.error}</p>
-            </div>
-          ) : null}
-
-          {!task || task.status === "failed" ? (
-            <button type="button" disabled={active} onClick={start}>
-              {task?.status === "failed" ? "Retry AI request" : requestLabel}
-            </button>
-          ) : null}
-
-          {task?.status === "completed" && proposals.length === 0 ? (
-            <div>
-              <p role="status">AI finished but did not find a usable value for this information.</p>
-              <button type="button" className="compact-secondary" onClick={start}>Try again</button>
-            </div>
-          ) : null}
-
-          {proposals.length > 0 ? (
-            <div className="ai-proposal-list" aria-label="AI proposals">
-              {proposals.map((proposal) => {
-                const field = fields.find((candidate) => candidate.definition.id === proposal.fieldId);
-                if (!field) return null;
-                const existing = candidature.values.some((value) => value.fieldId === proposal.fieldId);
-                return (
-                  <article key={proposal.fieldId} className="retained-information-card ai-proposal-card">
-                    <div>
-                      <strong>{field.definition.label}</strong>
-                      <p>{existing ? "Suggested replacement. The current value stays unchanged until you save." : "Suggested value. Nothing is retained until you save."}</p>
-                    </div>
-                    <CandidatureFieldValueEditor
-                      field={field}
-                      value={proposal.value}
-                      initialEditing
-                      saveLabel="Use suggestion"
-                      clearLabel="Reject suggestion"
-                      onSave={async (value) => {
-                        await onSaveValue(field.definition.id, value);
-                        markHandled(field.definition.id);
-                      }}
-                      onClear={async () => markHandled(field.definition.id)}
-                    />
-                  </article>
-                );
-              })}
-            </div>
-          ) : null}
-        </>
-      )}
-    </section>
-  );
+    );
+  }
+  if (!context) {
+    return (
+      <p className="compact-help candidature-inline-ai-message">
+        Keep some Source text or allow retained information as AI context before asking AI to fill this value.
+      </p>
+    );
+  }
+  if (task?.status === "failed") {
+    return (
+      <div className="ai-task-failure candidature-inline-ai-message" role="alert">
+        <span>{task.error}</span>
+        <button type="button" className="compact-secondary" onClick={() => clearAiTask(taskId)}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+  return null;
 }
