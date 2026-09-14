@@ -155,7 +155,7 @@ describe("AAAAT workspace state", () => {
 
   afterEach(() => cleanup());
 
-  it("creates a user-owned workspace with the accepted primary work destinations", async () => {
+  it("creates a user-owned workspace with three plain primary destinations", async () => {
     const user = userEvent.setup();
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Choose where AAAAT should keep your career workspace." })).toBeInTheDocument();
@@ -171,15 +171,14 @@ describe("AAAAT workspace state", () => {
     const navigation = screen.getByRole("navigation", { name: "Primary work areas" });
     expect(within(navigation).getAllByRole("button").map((button) => button.textContent)).toEqual([
       "Candidatures",
-      "CVs & letters",
-      "Professional information",
+      "Documents",
+      "My information",
     ]);
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "ToDos" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reminders" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "AI assist" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Profile" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Documents" })).not.toBeInTheDocument();
   });
 
   it("keeps backup restore secondary but usable from the first-run surface", async () => {
@@ -225,7 +224,7 @@ describe("AAAAT workspace state", () => {
     current.mockResolvedValueOnce(readyWorkspace);
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
+    await user.click(await screen.findByRole("button", { name: "Documents" }));
 
     expect(screen.queryByRole("heading", { name: "Document assistance" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Optional AI assistance" })).not.toBeInTheDocument();
@@ -250,16 +249,16 @@ describe("AAAAT workspace state", () => {
     expect(screen.getByText(readyWorkspace.rootPath)).toBeInTheDocument();
   });
 
-  it("keeps a dirty professional-information editor mounted when global navigation is cancelled", async () => {
+  it("keeps a dirty My information editor mounted when global navigation is cancelled", async () => {
     current.mockResolvedValueOnce(readyWorkspace);
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole("button", { name: "Professional information" }));
+    await user.click(await screen.findByRole("button", { name: "My information" }));
     await user.click(await screen.findByRole("button", { name: "Add information" }));
     await user.type(await screen.findByLabelText("Title"), "Unsaved profile item");
-    await user.click(screen.getByRole("button", { name: "CVs & letters" }));
+    await user.click(screen.getByRole("button", { name: "Documents" }));
 
     expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and leave this workspace area?");
     expect(screen.getByLabelText("Title")).toHaveValue("Unsaved profile item");
@@ -272,7 +271,7 @@ describe("AAAAT workspace state", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole("button", { name: "Professional information" }));
+    await user.click(await screen.findByRole("button", { name: "My information" }));
     await user.click(await screen.findByRole("button", { name: "Add information" }));
     await user.type(await screen.findByLabelText("Title"), "Unsaved profile item");
     await user.click(screen.getByRole("button", { name: "Switch workspace" }));
@@ -289,7 +288,7 @@ describe("AAAAT workspace state", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole("button", { name: "Professional information" }));
+    await user.click(await screen.findByRole("button", { name: "My information" }));
     await user.click(await screen.findByRole("button", { name: "Add information" }));
     await user.type(await screen.findByLabelText("Title"), "Draft retained after picker cancel");
     await user.click(screen.getByRole("button", { name: "Switch workspace" }));
