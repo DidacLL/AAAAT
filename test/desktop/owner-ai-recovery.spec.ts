@@ -170,7 +170,7 @@ async function startSlowProvider(): Promise<{ server: Server; endpoint: string }
         setTimeout(() => {
           response.writeHead(200, { "content-type": "application/json" });
           response.end(JSON.stringify({ choices: [{ message: { content } }] }));
-        }, 2_500);
+        }, 5_000);
       } catch (reason) {
         response.writeHead(500, { "content-type": "application/json" });
         response.end(JSON.stringify({ error: reason instanceof Error ? reason.message : "invalid request" }));
@@ -258,17 +258,28 @@ test("packaged candidature keeps manual work usable while delayed local AI compl
     await expect(tagReference).toContainText("Work involving aircraft and operational flight activity.");
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
-    const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
+    let card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
     await expect(card).toBeVisible();
     await card.getByRole("button", { name: "All details" }).click();
 
-    const complete = running.page.getByRole("region", { name: "Complete candidature" });
+    let complete = running.page.getByRole("region", { name: "Complete candidature" });
     await complete.getByRole("button", { name: "Suggest missing information with AI" }).click();
-    const inference = complete.getByRole("region", { name: "Candidature AI suggestions" });
+    let inference = complete.getByRole("region", { name: "Candidature AI suggestions" });
     await inference.getByRole("button", { name: "Ask AI to find missing information" }).click();
 
     await expect(inference.getByText(/Queued|Looking through retained Sources and information/)).toBeVisible();
     await expect(running.page.getByText(/AI tasks · 1 working/)).toBeVisible();
+
+    await complete.getByRole("button", { name: "Back", exact: true }).click();
+    await expect(corpus).toBeVisible();
+    await expect(running.page.getByText(/AI tasks · 1 working/)).toBeVisible();
+
+    card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
+    await card.getByRole("button", { name: "All details" }).click();
+    complete = running.page.getByRole("region", { name: "Complete candidature" });
+    await complete.getByRole("button", { name: "Suggest missing information with AI" }).click();
+    inference = complete.getByRole("region", { name: "Candidature AI suggestions" });
+    await expect(inference.getByText(/Looking through retained Sources and information/)).toBeVisible();
 
     const roleCard = complete.getByRole("heading", { name: "Role" }).locator("xpath=ancestor::article[1]");
     await roleCard.getByRole("button", { name: "Edit value" }).click();
