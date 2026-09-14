@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
-import type { JobExtractionNewField, JobExtractionResult } from "../shared/ai-contracts";
+import type { JobExtractionNewField } from "../shared/ai-contracts";
+import type {
+  JobExtractionProposalIssue,
+  PartialJobExtractionResult,
+} from "../shared/ai-proposal-outcomes";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
@@ -10,7 +14,7 @@ import type {
 import { clearAiTask, startAiTask, useAiTask } from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
-interface InferenceTaskResult extends JobExtractionResult {
+interface InferenceTaskResult extends PartialJobExtractionResult {
   readonly appliedFieldIds?: readonly string[];
 }
 
@@ -100,6 +104,19 @@ function createdValue(
   return mapOne(suggestion.value);
 }
 
+function newFieldIssue(
+  suggestion: JobExtractionNewField,
+  reason: string,
+): JobExtractionProposalIssue {
+  return {
+    kind: "new_field_invalid",
+    fieldId: null,
+    fieldLabel: suggestion.label,
+    proposedValue: suggestion.value,
+    reason,
+  };
+}
+
 export function CandidatureInferencePanel({
   candidature,
   fields,
@@ -173,7 +190,7 @@ export function CandidatureInferencePanel({
           void window.aaaat.aiTasks.cancelJobExtraction(taskId).catch(() => undefined);
         };
         signal.addEventListener("abort", cancelProvider, { once: true });
-        let result: JobExtractionResult;
+        let result: PartialJobExtractionResult;
         try {
           result = await window.aaaat.aiTasks.extractJob(taskId, {
             sourceTitle: "Retained AAAAT candidature context",
@@ -188,14 +205,22 @@ export function CandidatureInferencePanel({
         updateDetail("Adding useful information found in the offer…");
         const existing = await window.aaaat.candidatures.listFields();
         const labels = new Set(existing.map((field) => normalizedLabel(field.definition.label)));
-        const createdProposals: JobExtractionResult["proposals"] = [];
+        const createdProposals: PartialJobExtractionResult["proposals"] = [];
         const appliedFieldIds: string[] = [];
+        const issues: JobExtractionProposalIssue[] = [...result.issues];
 
         for (const suggestion of result.newFields) {
-          if (signal.aborted || labels.has(normalizedLabel(suggestion.label))) continue;
+          if (signal.aborted) break;
+          if (labels.has(normalizedLabel(suggestion.label))) {
+            issues.push(newFieldIssue(suggestion, "This proposed information duplicates an existing field."));
+            continue;
+          }
           const choices = createChoices(suggestion);
           const value = createdValue(suggestion, choices);
-          if (value === null) continue;
+          if (value === null) {
+            issues.push(newFieldIssue(suggestion, "AAAAT could not map the proposed value to the proposed choices."));
+            continue;
+          }
 
           let created: CandidatureFieldConfiguration | null = null;
           try {
@@ -221,7 +246,15 @@ export function CandidatureInferencePanel({
             labels.add(normalizedLabel(suggestion.label));
             createdProposals.push({ fieldId: created.definition.id, value });
             appliedFieldIds.push(created.definition.id);
-          } catch {
+          } catch (reason) {
+            issues.push(
+              newFieldIssue(
+                suggestion,
+                reason instanceof Error
+                  ? reason.message
+                  : "AAAAT could not retain this proposed information.",
+              ),
+            );
             if (created) {
               try {
                 await window.aaaat.candidatures.deleteField(created.definition.id);
@@ -236,6 +269,8 @@ export function CandidatureInferencePanel({
         return {
           proposals: [...result.proposals, ...createdProposals],
           newFields: [],
+          issues,
+          ...(result.exchange ? { exchange: result.exchange } : {}),
           appliedFieldIds,
         };
       },
@@ -244,8 +279,12 @@ export function CandidatureInferencePanel({
         const usable = result.proposals.filter(
           (proposal) => targetSet.has(proposal.fieldId) || (result.appliedFieldIds ?? []).includes(proposal.fieldId),
         );
+        const review = result.issues.length;
+        if (usable.length === 0 && review === 0) return "Completed · no usable information found";
+        if (review > 0) {
+          return `Completed · ${usable.length} value${usable.length === 1 ? "" : "s"} found · ${review} needs review`;
+        }
         const added = result.appliedFieldIds?.length ?? 0;
-        if (usable.length === 0) return "Completed · no usable information found";
         return added > 0
           ? `Completed · ${usable.length} value${usable.length === 1 ? "" : "s"} found, ${added} new field${added === 1 ? "" : "s"} added`
           : `Completed · ${usable.length} value${usable.length === 1 ? "" : "s"} found`;
