@@ -144,12 +144,15 @@ interface ProviderContext {
 }
 
 async function startSlowProvider(): Promise<{ server: Server; endpoint: string }> {
+  let requestCount = 0;
   const server = createServer((request, response) => {
     if (request.method !== "POST" || request.url !== "/v1/chat/completions") {
       response.writeHead(404).end();
       return;
     }
 
+    requestCount += 1;
+    const thisRequest = requestCount;
     let body = "";
     request.setEncoding("utf8");
     request.on("data", (chunk: string) => {
@@ -162,15 +165,26 @@ async function startSlowProvider(): Promise<{ server: Server; endpoint: string }
         };
         const userMessage = payload.messages?.at(-1)?.content ?? "{}";
         const context = JSON.parse(userMessage) as ProviderContext;
-        const target = context.fields?.find((field) => field.label === "Organisation") ?? context.fields?.[0];
-        if (!target?.fieldRef) throw new Error("No discovery field was supplied");
+        const organisation = context.fields?.find((field) => field.label === "Organisation");
+        if (!organisation?.fieldRef) throw new Error("Organisation discovery field was not supplied");
         const content = JSON.stringify({
-          proposals: [{ fieldRef: target.fieldRef, value: "Aster Aviation" }],
+          proposals: [{ fieldRef: organisation.fieldRef, value: "Aster Aviation" }],
+          newFields: [{
+            label: "Base airport",
+            description: "Primary operating base stated in the offer.",
+            valueType: "text",
+            cardinality: "one",
+            choices: [],
+            value: "Madrid Barajas",
+          }],
         });
-        setTimeout(() => {
+        const timer = setTimeout(() => {
+          if (response.destroyed) return;
           response.writeHead(200, { "content-type": "application/json" });
           response.end(JSON.stringify({ choices: [{ message: { content } }] }));
-        }, 5_000);
+        }, thisRequest === 1 ? 20_000 : 1_200);
+        timer.unref();
+        response.once("close", () => clearTimeout(timer));
       } catch (reason) {
         response.writeHead(500, { "content-type": "application/json" });
         response.end(JSON.stringify({ error: reason instanceof Error ? reason.message : "invalid request" }));
@@ -193,7 +207,7 @@ async function closeServer(server: Server): Promise<void> {
   });
 }
 
-test("packaged candidature keeps manual work usable while delayed local AI completes", async () => {
+test("packaged candidature cancels slow local AI then auto-fills safe information", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-owner-ai-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owner-ai-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
@@ -232,30 +246,19 @@ test("packaged candidature keeps manual work usable while delayed local AI compl
           kind: "job_posting",
           title: "Aster vacancy",
           url: "https://example.invalid/aster",
-          sourceText: "Aster Aviation seeks a Captain in Madrid.",
+          sourceText: "Aster Aviation seeks a Captain based at Madrid Barajas.",
         },
         values: [{ fieldId: role.definition.id, value: "Captain" }],
-      });
-      await window.aaaat.candidatures.createTag({
-        name: "Flight operations",
-        aliases: ["Air ops"],
-        definition: "Work involving aircraft and operational flight activity.",
-        notes: "Use for aviation-role context.",
       });
       return {
         candidatureId: candidature.id,
         organisationId: organisation.definition.id,
+        roleId: role.definition.id,
       };
     });
 
     await running.page.reload();
     await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
-
-    const tagReference = running.page.locator("details.corpus-tags-reference");
-    await tagReference.locator("summary").click();
-    await expect(tagReference.getByText("Flight operations", { exact: true })).toBeVisible();
-    await expect(tagReference).toContainText("Air ops");
-    await expect(tagReference).toContainText("Work involving aircraft and operational flight activity.");
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     let card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
@@ -263,47 +266,73 @@ test("packaged candidature keeps manual work usable while delayed local AI compl
     await card.getByRole("button", { name: "All details" }).click();
 
     let complete = running.page.getByRole("region", { name: "Complete candidature" });
-    await complete.getByRole("button", { name: "Suggest missing information with AI" }).click();
-    let inference = complete.getByRole("region", { name: "Candidature AI suggestions" });
-    await inference.getByRole("button", { name: "Ask AI to find missing information" }).click();
+    await expect(complete.getByRole("heading", { name: "Work arrangement" })).toBeVisible();
 
-    await expect(inference.getByText(/Queued|Looking through retained Sources and information/)).toBeVisible();
+    await complete.getByRole("button", { name: "Add information" }).click();
+    const addInformation = complete.getByRole("form", { name: "Add information" });
+    await addInformation.getByLabel("Name").fill("Notice period");
+    await addInformation.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(complete.getByRole("heading", { name: "Notice period" })).toBeVisible();
+
+    await complete.getByRole("button", { name: "Ask AI to fill missing information" }).click();
     await expect(running.page.getByText(/AI tasks · 1 working/)).toBeVisible();
+
+    const taskRail = running.page.locator("details.shell-ai-task-status");
+    await taskRail.getByRole("button", { name: "Cancel" }).click();
+    await expect(taskRail.locator("summary")).toContainText("cancelled");
+    await taskRail.locator("summary").click();
+    await taskRail.getByRole("button", { name: "Dismiss" }).click();
+
+    await expect(running.page.getByText(/AI tasks · 1 working/)).toBeVisible();
+
+    const roleCard = complete.getByRole("heading", { name: "Role" }).locator("xpath=ancestor::article[1]");
+    await roleCard.getByRole("button", { name: "Edit Role" }).click();
+    await roleCard.getByLabel("Value").fill("Senior Captain");
+    await roleCard.getByRole("button", { name: "Save" }).click();
+    await expect(roleCard.getByText("Senior Captain", { exact: true })).toBeVisible();
 
     await complete.getByRole("button", { name: "Back", exact: true }).click();
     await expect(corpus).toBeVisible();
     await expect(running.page.getByText(/AI tasks · 1 working/)).toBeVisible();
 
-    card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
+    await expect(running.page.getByText(/AI tasks · 1 completed/)).toBeVisible({ timeout: 10_000 });
+    card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Senior Captain" }).first();
     await card.getByRole("button", { name: "All details" }).click();
     complete = running.page.getByRole("region", { name: "Complete candidature" });
-    await complete.getByRole("button", { name: "Suggest missing information with AI" }).click();
-    inference = complete.getByRole("region", { name: "Candidature AI suggestions" });
-    await expect(inference.getByText(/Looking through retained Sources and information/)).toBeVisible();
 
-    const roleCard = complete.getByRole("heading", { name: "Role" }).locator("xpath=ancestor::article[1]");
-    await roleCard.getByRole("button", { name: "Edit value" }).click();
-    const roleInput = roleCard.getByRole("textbox");
-    await roleInput.fill("Senior Captain");
-    await roleCard.getByRole("button", { name: "Save" }).click();
-    await expect(roleCard.getByText("Senior Captain", { exact: true })).toBeVisible();
+    const organisationCard = complete.getByRole("heading", { name: "Organisation" }).locator("xpath=ancestor::article[1]");
+    await expect(organisationCard.getByText("Aster Aviation", { exact: true })).toBeVisible();
+    await expect(organisationCard.getByText(/AI filled/)).toBeVisible();
 
-    await expect(inference.getByText("Organisation", { exact: true })).toBeVisible();
-    const beforeAccept = await running.page.evaluate(async ({ candidatureId, organisationId }) => {
+    const newFieldCard = complete.getByRole("heading", { name: "Base airport" }).locator("xpath=ancestor::article[1]");
+    await expect(newFieldCard.getByText("Madrid Barajas", { exact: true })).toBeVisible();
+    await expect(newFieldCard.getByText(/AI filled/)).toBeVisible();
+
+    const retainedValues = await running.page.evaluate(async ({ candidatureId, organisationId, roleId }) => {
       const record = (await window.aaaat.candidatures.list()).find((candidate) => candidate.id === candidatureId);
-      return record?.values.some((value) => value.fieldId === organisationId) ?? false;
+      const fields = await window.aaaat.candidatures.listFields();
+      const baseAirport = fields.find((field) => field.definition.label === "Base airport");
+      return {
+        organisation: record?.values.find((value) => value.fieldId === organisationId)?.value ?? null,
+        role: record?.values.find((value) => value.fieldId === roleId)?.value ?? null,
+        baseAirport: baseAirport
+          ? record?.values.find((value) => value.fieldId === baseAirport.definition.id)?.value ?? null
+          : null,
+      };
     }, ids);
-    expect(beforeAccept).toBe(false);
+    expect(retainedValues).toEqual({
+      organisation: "Aster Aviation",
+      role: "Senior Captain",
+      baseAirport: "Madrid Barajas",
+    });
 
-    const proposal = inference.getByText("Organisation", { exact: true }).locator("xpath=ancestor::article[1]");
-    await proposal.getByRole("button", { name: "Use suggestion" }).click();
-    const afterAccept = await running.page.evaluate(async ({ candidatureId, organisationId }) => {
-      const record = (await window.aaaat.candidatures.list()).find((candidate) => candidate.id === candidatureId);
-      return record?.values.find((value) => value.fieldId === organisationId)?.value ?? null;
-    }, ids);
-    expect(afterAccept).toBe("Aster Aviation");
+    await expect(complete.getByRole("region", { name: "Documents" })).toBeVisible();
+    await running.page.getByRole("button", { name: "Documents", exact: true }).click();
+    await expect(running.page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
+    await expect(running.page.getByLabel("Use information from")).toHaveValue("");
 
-    await expect(running.page.getByText(/AI tasks · 1 completed/)).toBeVisible();
+    await running.page.getByRole("button", { name: "My information", exact: true }).click();
+    await expect(running.page.getByRole("heading", { name: "My information", exact: true })).toBeVisible();
   } finally {
     if (running) await stopPackagedApp(running);
     await closeServer(provider.server);
