@@ -93,7 +93,7 @@ function installApi() {
   });
 }
 
-describe("candidature field definitions", () => {
+describe("candidature information-kind management", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     installApi();
@@ -104,13 +104,17 @@ describe("candidature field definitions", () => {
     vi.restoreAllMocks();
   });
 
-  it("lets the user adapt a shipped field instead of treating defaults as fixed ontology", async () => {
+  it("keeps reusable information administration behind an explicit secondary path", async () => {
     const user = userEvent.setup();
     render(<CandidatureFieldDefinitionsPanel onChanged={vi.fn()} />);
 
-    await user.click(await screen.findByText("Customize information", { selector: "summary" }));
+    const summary = await screen.findByText("Manage information kinds", { selector: "summary" });
+    expect(screen.queryByRole("region", { name: "Change candidature information kind" })).not.toBeInTheDocument();
+    await user.click(summary);
+
+    expect(screen.getByText(/does not edit the values of the candidature above/i)).toBeInTheDocument();
     const editor = screen.getByRole("region", { name: "Change candidature information kind" });
-    await user.selectOptions(within(editor).getByLabelText("Information"), roleId);
+    await user.selectOptions(within(editor).getByLabelText("Information kind"), roleId);
     const name = within(editor).getByLabelText("Name");
     await user.clear(name);
     await user.type(name, "Position title");
@@ -122,11 +126,11 @@ describe("candidature field definitions", () => {
     }));
   });
 
-  it("creates profession-specific typed fields and exposes them to AI extraction only when chosen", async () => {
+  it("creates profession-specific typed information kinds and exposes them to AI only when chosen", async () => {
     const user = userEvent.setup();
     render(<CandidatureFieldDefinitionsPanel onChanged={vi.fn()} />);
 
-    await user.click(await screen.findByText("Customize information", { selector: "summary" }));
+    await user.click(await screen.findByText("Manage information kinds", { selector: "summary" }));
     const creator = screen.getByRole("region", { name: "Add candidature information kind" });
     await user.type(within(creator).getByLabelText("Name"), "Flight hours");
     await user.selectOptions(within(creator).getByLabelText("Format"), "number");
@@ -135,7 +139,7 @@ describe("candidature field definitions", () => {
         name: "AI may suggest this information from retained Sources",
       }),
     );
-    await user.click(within(creator).getByRole("button", { name: "Add" }));
+    await user.click(within(creator).getByRole("button", { name: "Add information kind" }));
 
     expect(createField).toHaveBeenCalledWith(expect.objectContaining({
       label: "Flight hours",
