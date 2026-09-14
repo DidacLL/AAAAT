@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -96,35 +96,25 @@ describe("CareerContextPanel", () => {
     expect(screen.queryByText("Objectives")).not.toBeInTheDocument();
   });
 
-  it("keeps external disclosure secondary and independent from local Career preference text", async () => {
+  it("keeps AI-use preferences secondary and independent from local career preference text", async () => {
     current.mockResolvedValueOnce({
       ...emptyContext,
       constraints: "Private local constraint",
       targetRoles: "Staff engineer",
     });
-    const onDirtyChange = vi.fn();
     const user = userEvent.setup();
-    render(<CareerContextPanel onDirtyChange={onDirtyChange} />);
+    render(<CareerContextPanel />);
 
     expect(await screen.findByText("Private local constraint")).toBeInTheDocument();
-    const disclosureSummary = screen.getByText("External AI disclosure");
-    const disclosureDetails = disclosureSummary.closest("details");
-    expect(disclosureDetails).not.toBeNull();
-    expect(disclosureDetails).not.toHaveAttribute("open");
+    const disclosure = screen.getByRole("button", { name: "Choose what AI may use" });
+    await user.click(disclosure);
 
-    await user.click(disclosureSummary);
-    expect(disclosureDetails).toHaveAttribute("open");
-    const constraints = await screen.findByRole("checkbox", { name: "Share Constraints" });
+    const constraints = await screen.findByRole("checkbox", { name: "Constraints" });
     expect(constraints).toBeChecked();
     await user.click(constraints);
 
-    expect(screen.getByText("Private local constraint")).toBeInTheDocument();
-    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
-    expect(update).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole("button", { name: "Save external AI disclosure" }));
     expect(updateDisclosure).toHaveBeenCalledWith({ ...allShared, constraints: false });
-    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
     expect(screen.getByText("Private local constraint")).toBeInTheDocument();
+    expect(update).not.toHaveBeenCalled();
   });
 });
