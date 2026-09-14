@@ -2,35 +2,68 @@
 .candidature-selected-focus,
 .candidature-detail {
   min-width: 0;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.candidature-corpus .candidature-toolbar,
+.candidature-detail .candidature-editor-heading,
+.candidature-selected-focus .focus-heading {
+  margin: 0;
 }
 
 .candidature-corpus-tools {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.75rem;
+  gap: 0.65rem;
   align-items: end;
-  margin-block: 1rem;
+  margin-block: 0.75rem;
+}
+
+.candidature-corpus-tools label {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--muted-ink);
+  font-size: 0.82rem;
+}
+
+.candidature-corpus-tools input,
+.candidature-corpus-tools select {
+  min-height: 2.25rem;
 }
 
 .candidature-corpus-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 0.65rem;
 }
 
 .candidature-corpus-card {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffaf3;
 }
 
 .candidature-focus-entry {
   display: grid;
   width: 100%;
   min-width: 0;
-  gap: 0.45rem;
+  gap: 0.38rem;
+  padding: 0.55rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
   text-align: left;
+}
+
+.candidature-focus-entry:hover,
+.candidature-focus-entry:focus-visible {
+  background: #f4eee5;
 }
 
 .candidature-focus-entry strong,
@@ -43,40 +76,130 @@
 
 .candidature-direct-edit {
   align-self: flex-start;
+  padding-block: 0.35rem;
 }
 
 .candidature-context-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-block-end: 1rem;
+  gap: 0.4rem;
+  margin-block-end: 0.6rem;
+}
+
+.candidature-selected-focus .focus-panel {
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border-radius: 9px;
+}
+
+.candidature-selected-focus .focus-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.6rem;
+}
+
+.candidature-selected-focus .focus-block {
+  min-width: 0;
+  padding: 0.7rem;
+  border-radius: 7px;
+}
+
+.candidature-selected-focus .focus-wide {
+  grid-column: 1 / -1;
 }
 
 .focus-tags,
 .tag-editor,
 .secondary-candidature-detail {
-  margin-block-start: 1rem;
+  margin-block-start: 0.75rem;
+}
+
+.focus-tags {
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--line);
 }
 
 .tag-chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.35rem;
 }
 
+.selected-tag-definition {
+  margin-top: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid var(--focus);
+  background: #fffaf3;
+}
+
+.candidature-detail {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.candidature-detail > .section-surface,
+.candidature-detail > .candidature-sources,
+.candidature-detail > .candidature-application-material {
+  min-width: 0;
+}
+
+.candidature-detail .section-surface {
+  gap: 0.75rem;
+  padding: 0.8rem;
+  border-radius: 8px;
+}
+
+.retained-information-list,
 .tag-association-list,
 .field-preference-list {
   display: grid;
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.retained-information-card {
+  min-width: 0;
+  padding: 0.7rem;
+  border-radius: 7px;
+  background: #fffaf3;
+}
+
+.add-information-panel,
+.field-management,
+.secondary-candidature-detail {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+
+.add-information-panel > summary,
+.field-management > summary,
+.secondary-candidature-detail > summary {
+  width: fit-content;
+  color: var(--muted-ink);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 650;
 }
 
 .tag-editor {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.65rem;
+}
+
+.secondary-candidature-detail {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .retained-information-list,
+  .tag-association-list,
+  .field-preference-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {
-  .candidature-corpus-tools {
+  .candidature-corpus-tools,
+  .candidature-selected-focus .focus-grid {
     grid-template-columns: 1fr;
   }
 
@@ -87,5 +210,29 @@
   .candidature-context-actions,
   .candidature-editor-heading > .button-row {
     align-items: stretch;
+  }
+
+  .candidature-selected-focus .focus-wide {
+    grid-column: auto;
+  }
+
+  .candidature-detail .section-surface,
+  .candidature-selected-focus .focus-panel {
+    padding: 0.65rem;
+  }
+}
+
+@media (max-height: 640px) {
+  .candidature-corpus-tools {
+    margin-block: 0.5rem;
+  }
+
+  .candidature-selected-focus .focus-panel,
+  .candidature-detail .section-surface {
+    gap: 0.55rem;
+  }
+
+  .candidature-context-actions {
+    margin-block-end: 0.4rem;
   }
 }
