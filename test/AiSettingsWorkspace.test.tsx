@@ -126,6 +126,8 @@ describe("AI settings workspace", () => {
   it("acknowledges validation immediately and updates all capability state when a slow task completes", async () => {
     const user = userEvent.setup();
     const firstValidation = deferred<typeof first[]>();
+    const firstOperation = aiOperations[0];
+    if (!firstOperation) throw new Error("Expected at least one AI operation");
     list.mockResolvedValue([first]);
     let validated: AiOperation[] = [];
     validateOperation.mockImplementation(async ({ operation }: { operation: AiOperation }) => {
@@ -152,8 +154,8 @@ describe("AI settings workspace", () => {
 
     firstValidation.resolve([{
       ...first,
-      validatedOperations: [aiOperations[0]],
-      defaultForOperations: [aiOperations[0]],
+      validatedOperations: [firstOperation],
+      defaultForOperations: [firstOperation],
     }]);
 
     expect(await screen.findByText(/Validation completed/)).toBeInTheDocument();
