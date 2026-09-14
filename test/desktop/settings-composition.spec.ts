@@ -165,6 +165,33 @@ async function expectNoHorizontalOverflow(page: Page, width: number, height: num
   );
 }
 
+async function expectRepresentativeResizeCoverage(page: Page, state: string) {
+  for (const [width, height] of [
+    [1280, 900],
+    [1180, 760],
+    [720, 760],
+    [1180, 600],
+  ] as const) {
+    await expectNoHorizontalOverflow(page, width, height, state);
+  }
+}
+
+async function expectFirstRunUsable(page: Page) {
+  for (const [width, height] of [
+    [1280, 900],
+    [1180, 760],
+    [720, 760],
+    [1180, 600],
+  ] as const) {
+    await expectNoHorizontalOverflow(page, width, height, "first-run");
+    await expect(
+      page.getByRole("heading", { name: "Choose where AAAAT should keep your career workspace." }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create workspace" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open existing workspace" })).toBeVisible();
+  }
+}
+
 test("packaged Settings is intention-based and compact-task oriented", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-settings-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-settings-workspace-"));
@@ -174,6 +201,7 @@ test("packaged Settings is intention-based and compact-task oriented", async () 
   try {
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page).toHaveTitle("AAAAT");
+    await expectFirstRunUsable(running.page);
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
     await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
@@ -191,8 +219,7 @@ test("packaged Settings is intention-based and compact-task oriented", async () 
       await expect(overview.getByRole("button", { name: new RegExp(label) })).toBeVisible();
     }
     await expect(running.page.getByLabel("Connection name")).toHaveCount(0);
-    await expectNoHorizontalOverflow(running.page, 1200, 800, "overview");
-    await expectNoHorizontalOverflow(running.page, 720, 600, "overview");
+    await expectRepresentativeResizeCoverage(running.page, "overview");
 
     await overview.getByRole("button", { name: /AI connections/ }).click();
     await expect(running.page.getByRole("region", { name: "AI connections settings" })).toBeVisible();
@@ -200,21 +227,24 @@ test("packaged Settings is intention-based and compact-task oriented", async () 
     await expect(running.page.getByLabel("Connection name")).toHaveCount(0);
     await running.page.getByRole("button", { name: "Add connection" }).click();
     await expect(running.page.getByLabel("Connection name")).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "ai-add");
+    await expectNoHorizontalOverflow(running.page, 720, 760, "ai-add-narrow");
+    await expectNoHorizontalOverflow(running.page, 1180, 600, "ai-add-short");
     await running.page.getByRole("button", { name: "Cancel" }).click();
     await running.page.getByRole("button", { name: "Back to Settings" }).click();
 
     await overview.getByRole("button", { name: /Document rendering/ }).click();
     await expect(running.page.getByRole("region", { name: "Document rendering settings" })).toBeVisible();
     await expect(running.page.getByText(/Document editing remains available|Local TeX rendering is available/)).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "rendering");
+    await expectNoHorizontalOverflow(running.page, 720, 760, "rendering-narrow");
+    await expectNoHorizontalOverflow(running.page, 1180, 600, "rendering-short");
     await running.page.getByRole("button", { name: "Back to Settings" }).click();
 
     await overview.getByRole("button", { name: /Portability & external tools/ }).click();
     await expect(running.page.getByRole("region", { name: "Portability & external tools settings" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Export AI setup" })).toBeVisible();
     await expect(running.page.getByText(/does not control permissions granted to an external host or tool/i).first()).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "portability");
+    await expectNoHorizontalOverflow(running.page, 720, 760, "portability-narrow");
+    await expectNoHorizontalOverflow(running.page, 1180, 600, "portability-short");
     await running.page.getByRole("button", { name: "Back to Settings" }).click();
 
     await running.page.getByRole("button", { name: "Return to work" }).click();
