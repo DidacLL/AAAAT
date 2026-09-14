@@ -64,6 +64,16 @@ function preAppliedFieldIds(result: unknown): string[] {
   return values.filter((value): value is string => typeof value === "string");
 }
 
+function completedScope(
+  activeScope: readonly string[] | undefined,
+  fallbackScope: readonly string[] | undefined,
+  appliedFieldIds: readonly string[],
+): readonly string[] | undefined {
+  const base = activeScope ?? fallbackScope;
+  if (!base && appliedFieldIds.length === 0) return undefined;
+  return Array.from(new Set([...(base ?? []), ...appliedFieldIds]));
+}
+
 export function getAiTask<T>(key: string): AiTaskSnapshot<T> | null {
   return (tasks.get(key) as AiTaskSnapshot<T> | undefined) ?? null;
 }
@@ -132,7 +142,7 @@ export function startAiTask<T>(
           result,
           handledFieldIds: appliedFieldIds,
           appliedFieldIds,
-          scopeFieldIds: active.scopeFieldIds ?? (scopeFieldIds ? [...scopeFieldIds] : undefined),
+          scopeFieldIds: completedScope(active.scopeFieldIds, scopeFieldIds, appliedFieldIds),
         });
         controllers.delete(key);
         emit();
