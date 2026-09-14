@@ -22,86 +22,73 @@ export function CareerContextAiDisclosureControl({
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const [saved, setSaved] = useState<CareerContextAiDisclosure | null>(null);
-  const [draft, setDraft] = useState<CareerContextAiDisclosure | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [value, setValue] = useState<CareerContextAiDisclosure | null>(null);
+  const [savingKey, setSavingKey] = useState<CareerContextAiDisclosureKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onDirtyChange?.(false);
+    return () => onDirtyChange?.(false);
+  }, [onDirtyChange]);
 
   useEffect(() => {
     let active = true;
     void window.aaaat.careerContextAiDisclosure
       .current()
       .then((current) => {
-        if (!active) return;
-        setSaved(current);
-        setDraft(current);
+        if (active) setValue(current);
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load external AI disclosure preferences.");
+        if (active) setError("AAAAT could not load the AI-use settings.");
       });
     return () => {
       active = false;
     };
   }, []);
 
-  const dirty = saved !== null && draft !== null && JSON.stringify(saved) !== JSON.stringify(draft);
-
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-    return () => onDirtyChange?.(false);
-  }, [dirty, onDirtyChange]);
-
-  const save = async () => {
-    if (!draft) return;
-    setSaving(true);
+  const setAllowed = async (key: CareerContextAiDisclosureKey, allowed: boolean) => {
+    if (!value || savingKey) return;
+    const previous = value;
+    const next = { ...value, [key]: allowed };
+    setValue(next);
+    setSavingKey(key);
     setError(null);
     try {
-      const next = await window.aaaat.careerContextAiDisclosure.update(draft);
-      setSaved(next);
-      setDraft(next);
+      setValue(await window.aaaat.careerContextAiDisclosure.update(next));
     } catch {
-      setError("AAAAT could not save external AI disclosure preferences.");
+      setValue(previous);
+      setError("AAAAT could not save the AI-use setting.");
     } finally {
-      setSaving(false);
+      setSavingKey(null);
     }
   };
 
   return (
-    <details className="career-context-ai-disclosure">
-      <summary>External AI disclosure</summary>
-      <div className="career-context-ai-disclosure-content">
+    <details className="ai-visibility-control career-context-ai-disclosure">
+      <summary aria-label="Choose what AI may use" title="Choose what AI may use">
+        AI
+      </summary>
+      <div className="ai-visibility-content">
         <p className="compact-help">
-          Choose which Career preferences may leave AAAAT through the external career-assistance
-          connection. Turning sharing off keeps the preference stored and visible locally.
+          Choose which preferences optional AI help may use. Everything stays stored locally either way.
         </p>
-        {!draft ? <p className="compact-help">Loading disclosure preferences…</p> : null}
-        {draft ? (
-          <fieldset>
-            <legend>Share with external career assistance</legend>
+        {!value ? <p className="compact-help">Loading…</p> : null}
+        {value ? (
+          <div className="ai-visibility-options">
             {keys.map((key) => (
               <label className="check-field" key={key}>
                 <input
                   type="checkbox"
-                  checked={draft[key]}
-                  onChange={(event) =>
-                    setDraft({ ...draft, [key]: event.target.checked })
-                  }
+                  checked={value[key]}
+                  disabled={savingKey !== null}
+                  onChange={(event) => void setAllowed(key, event.target.checked)}
                 />
-                Share {labels[key]}
+                {labels[key]}
               </label>
             ))}
-          </fieldset>
+          </div>
         ) : null}
-        {draft ? (
-          <button
-            className="compact-secondary"
-            type="button"
-            disabled={saving || !dirty}
-            onClick={() => void save()}
-          >
-            {saving ? "Saving…" : "Save external AI disclosure"}
-          </button>
-        ) : null}
+        {savingKey ? <span className="compact-help">Saving…</span> : null}
         {error ? <p className="error-message" role="alert">{error}</p> : null}
       </div>
     </details>
