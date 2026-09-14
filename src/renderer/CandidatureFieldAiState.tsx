@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { JobExtractionResult } from "../shared/ai-contracts";
 import type {
@@ -7,6 +7,7 @@ import type {
 } from "../shared/contracts";
 import {
   clearAiTask,
+  markAiTaskFieldApplied,
   markAiTaskFieldHandled,
   type AiTaskSnapshot,
   useAiTasks,
@@ -45,6 +46,7 @@ export function CandidatureFieldAiState({
 }: Props) {
   const tasks = useAiTasks();
   const [editingProposal, setEditingProposal] = useState(false);
+  const [autoApplying, setAutoApplying] = useState(false);
   const exactKey = `candidature-inference:${candidatureId}:${field.definition.id}`;
   const bulkKey = `candidature-inference:${candidatureId}:missing`;
   const candidates = tasks.filter(
@@ -61,11 +63,41 @@ export function CandidatureFieldAiState({
   const activeTask = candidates.find(
     (task) => task.status === "queued" || task.status === "working",
   );
+  const appliedTask = candidates.find(
+    (task) =>
+      task.status === "completed" &&
+      (task.appliedFieldIds ?? []).includes(field.definition.id),
+  );
+
+  useEffect(() => {
+    if (
+      !proposal ||
+      !proposalTask ||
+      proposalTask.key !== exactKey ||
+      currentValue !== undefined ||
+      autoApplying
+    ) {
+      return;
+    }
+    let active = true;
+    setAutoApplying(true);
+    void onSaveValue(proposal.value)
+      .then(() => {
+        if (!active) return;
+        markAiTaskFieldApplied(proposalTask.key, field.definition.id);
+      })
+      .finally(() => {
+        if (active) setAutoApplying(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [autoApplying, currentValue, exactKey, field.definition.id, onSaveValue, proposal, proposalTask]);
 
   const accept = async (value: CandidatureRuntimeValue) => {
     if (!proposalTask) return;
     await onSaveValue(value);
-    markAiTaskFieldHandled(proposalTask.key, field.definition.id);
+    markAiTaskFieldApplied(proposalTask.key, field.definition.id);
     setEditingProposal(false);
   };
 
@@ -80,13 +112,22 @@ export function CandidatureFieldAiState({
     onRetry();
   };
 
+  if (autoApplying && proposalTask?.key === exactKey && currentValue === undefined) {
+    return (
+      <div className="candidature-field-ai-state candidature-field-ai-working" role="status">
+        <span className="candidature-state-lamp candidature-state-lamp-working" aria-hidden="true" />
+        <span>Saving AI-filled information…</span>
+      </div>
+    );
+  }
+
   if (proposal && proposalTask) {
     return (
       <div className="candidature-field-ai-state candidature-field-ai-proposal" role="status">
         <div className="candidature-ai-proposal-heading">
           <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
-          <strong>AI proposal</strong>
-          <span>{currentValue === undefined ? "Not saved yet" : "Current value stays until you accept"}</span>
+          <strong>AI found another value</strong>
+          <span>Your saved value will not be replaced unless you choose it.</span>
         </div>
         {editingProposal ? (
           <CandidatureFieldValueEditor
@@ -94,8 +135,8 @@ export function CandidatureFieldAiState({
             value={proposal.value}
             initialEditing
             showFieldControls={false}
-            saveLabel="Accept"
-            clearLabel="Reject"
+            saveLabel="Use this value"
+            clearLabel="Dismiss"
             onSave={accept}
             onClear={async () => reject()}
           />
@@ -105,9 +146,9 @@ export function CandidatureFieldAiState({
               {Array.isArray(proposal.value) ? proposal.value.map(String).join(", ") : String(proposal.value)}
             </p>
             <div className="button-row candidature-ai-review-actions">
-              <button type="button" onClick={() => void accept(proposal.value)}>Accept</button>
+              <button type="button" onClick={() => void accept(proposal.value)}>Use this value</button>
               <button type="button" className="compact-secondary" onClick={() => setEditingProposal(true)}>Edit</button>
-              <button type="button" className="compact-secondary" onClick={reject}>Reject</button>
+              <button type="button" className="compact-secondary" onClick={reject}>Dismiss</button>
             </div>
           </>
         )}
@@ -142,6 +183,15 @@ export function CandidatureFieldAiState({
       <div className="candidature-field-ai-state candidature-field-ai-empty" role="status">
         <span>AI finished but did not find a usable value.</span>
         <button type="button" className="compact-secondary" onClick={() => retry(exactTask)}>Try again</button>
+      </div>
+    );
+  }
+
+  if (appliedTask && currentValue !== undefined) {
+    return (
+      <div className="candidature-field-ai-state candidature-field-ai-applied" role="status">
+        <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
+        <span><strong>AI filled</strong> · New</span>
       </div>
     );
   }
