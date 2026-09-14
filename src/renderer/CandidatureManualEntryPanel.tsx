@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -159,18 +159,6 @@ export function CandidatureManualEntryPanel({
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
 
-  const values = useMemo(() => {
-    const parsed: { fieldId: string; value: CandidatureRuntimeValue }[] = [];
-    for (const field of fields) {
-      const draft = drafts[field.definition.id] ?? { text: "", choices: [] };
-      const value = parseDraft(field, draft);
-      if (value !== null && (!Array.isArray(value) || value.length > 0)) {
-        parsed.push({ fieldId: field.definition.id, value });
-      }
-    }
-    return parsed;
-  }, [drafts, fields]);
-
   const setDraft = (fieldId: string, draft: FieldDraft) => {
     setDrafts((current) => ({ ...current, [fieldId]: draft }));
     setError(null);
@@ -261,9 +249,17 @@ export function CandidatureManualEntryPanel({
   };
 
   const save = async () => {
-    let parsedValues: { fieldId: string; value: CandidatureRuntimeValue }[];
+    const parsedValues: { fieldId: string; value: CandidatureRuntimeValue }[] = [];
     try {
-      parsedValues = values;
+      for (const field of fields) {
+        const value = parseDraft(
+          field,
+          drafts[field.definition.id] ?? { text: "", choices: [] },
+        );
+        if (value !== null && (!Array.isArray(value) || value.length > 0)) {
+          parsedValues.push({ fieldId: field.definition.id, value });
+        }
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Check the candidature information.");
       return;
