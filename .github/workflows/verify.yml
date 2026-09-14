@@ -119,10 +119,13 @@ jobs:
                     continue
                     ;;
                   .github/workflows/*)
-                    # Workflow edits validate orchestration through the fast lane; they do not
-                    # make unrelated product/runtime suites relevant by themselves.
+                    # Workflow changes affect verification orchestration and artifact retention,
+                    # so prove the full package path on the changed workflow itself.
                     docs_only=false
                     fast=true
+                    linux_package=true
+                    full_package=true
+                    select_all_desktop
                     continue
                     ;;
                 esac
@@ -309,6 +312,16 @@ jobs:
             trap 'kill \$wm_pid 2>/dev/null || true' EXIT
             $desktop_command
           "
+      - name: Bundle packaged app
+        shell: bash
+        run: tar -C out -czf "AAAAT-linux-${RUNNER_ARCH}.tar.gz" "AAAAT-linux-$(node -p 'process.arch')"
+      - name: Upload packaged app
+        uses: actions/upload-artifact@v7
+        with:
+          name: AAAAT-ubuntu-latest-${{ runner.arch }}
+          path: out/AAAAT-linux-${{ runner.arch }}.tar.gz
+          if-no-files-found: error
+          compression-level: 0
 
   package_full:
     name: Package and smoke (${{ matrix.os }})
