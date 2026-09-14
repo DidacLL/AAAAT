@@ -241,16 +241,16 @@ export function CandidatureInferencePanel({
       },
       title,
       (result) => {
-        const usable = allowNewFields
-          ? result.proposals
-          : result.proposals.filter((proposal) => targetSet.has(proposal.fieldId));
+        const usable = result.proposals.filter(
+          (proposal) => targetSet.has(proposal.fieldId) || (result.appliedFieldIds ?? []).includes(proposal.fieldId),
+        );
         const added = result.appliedFieldIds?.length ?? 0;
         if (usable.length === 0) return "Completed · no usable information found";
         return added > 0
           ? `Completed · ${usable.length} value${usable.length === 1 ? "" : "s"} found, ${added} new field${added === 1 ? "" : "s"} added`
           : `Completed · ${usable.length} value${usable.length === 1 ? "" : "s"} found`;
       },
-      allowNewFields ? undefined : targetFieldIds,
+      targetFieldIds,
     );
   }, [
     aiReady,
