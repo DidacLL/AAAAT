@@ -76,7 +76,7 @@ describe("partial-safe job extraction", () => {
   it("keeps valid siblings, normalizes safe cardinality mismatches, and isolates invalid or stale proposals", async () => {
     const root = await configuredWorkspace();
     const organisation = discoveryField(root, {
-      label: "Organisation",
+      label: "Organisation partial test",
       description: "Employer name.",
       valueType: "text",
       cardinality: "one",
@@ -92,7 +92,7 @@ describe("partial-safe job extraction", () => {
       enabled: true,
     });
     const location = discoveryField(root, {
-      label: "Location",
+      label: "Location partial test",
       description: "Opportunity location.",
       valueType: "text",
       cardinality: "one",
@@ -100,7 +100,7 @@ describe("partial-safe job extraction", () => {
       enabled: true,
     });
     const salary = discoveryField(root, {
-      label: "Salary",
+      label: "Salary partial test",
       description: "Compensation amount.",
       valueType: "number",
       cardinality: "one",
@@ -108,7 +108,7 @@ describe("partial-safe job extraction", () => {
       enabled: true,
     });
     const applyUrl = discoveryField(root, {
-      label: "Apply URL",
+      label: "Apply URL partial test",
       description: "Application URL.",
       valueType: "url",
       cardinality: "one",
@@ -116,7 +116,7 @@ describe("partial-safe job extraction", () => {
       enabled: true,
     });
     const workMode = discoveryField(root, {
-      label: "Work mode",
+      label: "Work mode partial test",
       description: "Allowed working mode.",
       valueType: "choice",
       cardinality: "one",
@@ -145,17 +145,17 @@ describe("partial-safe job extraction", () => {
 
       const modelResult = {
         proposals: [
-          { fieldRef: ref("Organisation"), value: "Aster Aviation" },
+          { fieldRef: ref("Organisation partial test"), value: "Aster Aviation" },
           { fieldRef: ref("Idiomas"), value: "English" },
-          { fieldRef: ref("Location"), value: ["Madrid"] },
-          { fieldRef: ref("Salary"), value: "50000" },
-          { fieldRef: ref("Apply URL"), value: "not a URL" },
-          { fieldRef: ref("Work mode"), value: "aaaat_unknown_choice" },
+          { fieldRef: ref("Location partial test"), value: ["Madrid"] },
+          { fieldRef: ref("Salary partial test"), value: "50000" },
+          { fieldRef: ref("Apply URL partial test"), value: "not a URL" },
+          { fieldRef: ref("Work mode partial test"), value: "aaaat_unknown_choice" },
           { fieldRef: "aaaat_stale_field_1", value: "stale" },
         ],
         newFields: [
           {
-            label: "Seniority",
+            label: "Seniority partial test",
             description: "Seniority named by the offer.",
             valueType: "text",
             cardinality: "one",
@@ -193,7 +193,7 @@ describe("partial-safe job extraction", () => {
       ]),
     );
     expect(result.proposals).toHaveLength(3);
-    expect(result.newFields).toMatchObject([{ label: "Seniority", value: "Senior" }]);
+    expect(result.newFields).toMatchObject([{ label: "Seniority partial test", value: "Senior" }]);
     expect(result.issues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ fieldId: salary.definition.id, kind: "invalid" }),
@@ -225,7 +225,7 @@ describe("partial-safe job extraction", () => {
       (candidate) => candidate.label === "Idiomas",
     )?.fieldRef;
     const locationWireRef = parsedPayload.fields.find(
-      (candidate) => candidate.label === "Location",
+      (candidate) => candidate.label === "Location partial test",
     )?.fieldRef;
     expect(
       items.anyOf?.find((candidate) => candidate.properties?.fieldRef?.const === languageWireRef)
@@ -240,7 +240,7 @@ describe("partial-safe job extraction", () => {
   it("marks one-value multi-item arrays incompatible without discarding usable siblings", async () => {
     const root = await configuredWorkspace();
     const role = discoveryField(root, {
-      label: "Role",
+      label: "Role partial test",
       description: "Role title.",
       valueType: "text",
       cardinality: "one",
@@ -248,7 +248,7 @@ describe("partial-safe job extraction", () => {
       enabled: true,
     });
     const location = discoveryField(root, {
-      label: "Location",
+      label: "Location single-value partial test",
       description: "Location.",
       valueType: "text",
       cardinality: "one",
@@ -269,8 +269,8 @@ describe("partial-safe job extraction", () => {
           payload.fields.find((field) => field.label === label)?.fieldRef ?? "";
         const modelResult = {
           proposals: [
-            { fieldRef: ref("Role"), value: ["Engineer", "Architect"] },
-            { fieldRef: ref("Location"), value: "Madrid" },
+            { fieldRef: ref("Role partial test"), value: ["Engineer", "Architect"] },
+            { fieldRef: ref("Location single-value partial test"), value: "Madrid" },
           ],
           newFields: [],
         };
