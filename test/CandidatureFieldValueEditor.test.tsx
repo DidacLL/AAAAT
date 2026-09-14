@@ -80,7 +80,7 @@ function StatefulEditor({
 afterEach(() => cleanup());
 
 describe("read-first candidature information value", () => {
-  it("shows retained text as readable content until Edit is deliberate", async () => {
+  it("shows retained text as readable content until value editing is deliberate", async () => {
     const user = userEvent.setup();
     render(<StatefulEditor configuration={field("text")} initialValue="October or November" />);
 
@@ -88,9 +88,9 @@ describe("read-first candidature information value", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Discover from Sources" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Suggest with AI" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Edit value" }));
     const input = screen.getByRole("textbox");
     expect(input).toHaveValue("October or November");
     await user.clear(input);
@@ -116,7 +116,7 @@ describe("read-first candidature information value", () => {
     expect(screen.getByText("Yes", { exact: true })).toBeInTheDocument();
   });
 
-  it("keeps clear, discovery, cancel and dirty reporting local to deliberate edit mode", async () => {
+  it("keeps suggestion available without entering edit mode while dirty reporting remains local to value edits", async () => {
     const user = userEvent.setup();
     const clear = vi.fn(async () => undefined);
     const discover = vi.fn(async () => undefined);
@@ -131,20 +131,21 @@ describe("read-first candidature information value", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Suggest with AI" }));
+    expect(discover).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit value" }));
     const input = screen.getByRole("textbox");
     await user.type(input, " onward");
     expect(dirty).toHaveBeenLastCalledWith(true);
-
-    await user.click(screen.getByRole("button", { name: "Discover from Sources" }));
-    expect(discover).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.getByText("October", { exact: true })).toBeInTheDocument();
     expect(dirty).toHaveBeenLastCalledWith(false);
 
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Edit value" }));
     await user.click(screen.getByRole("button", { name: "Clear" }));
     expect(clear).toHaveBeenCalledTimes(1);
   });
@@ -165,7 +166,7 @@ describe("read-first candidature information value", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Edit value" }));
     const input = screen.getByRole("textbox");
     await user.clear(input);
     await user.type(input, "Madrid\nParis\nLisbon");
