@@ -156,7 +156,7 @@ function renderForCandidature(documentId?: string) {
   );
 }
 
-describe("manual CVs and letters workspace", () => {
+describe("manual Documents workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     list.mockResolvedValue([]);
@@ -197,12 +197,12 @@ describe("manual CVs and letters workspace", () => {
 
   afterEach(() => cleanup());
 
-  it("creates a CV from default professional information and makes the rendered result the ordinary output task", async () => {
+  it("creates a CV from My information and makes the rendered result the ordinary output task", async () => {
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
-    await screen.findByRole("heading", { name: "CVs & letters" });
-    expect(screen.getByLabelText("Professional information")).toHaveValue("");
-    expect(screen.getByRole("option", { name: "Default professional information" })).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "Documents" });
+    expect(screen.getByLabelText("Use information from")).toHaveValue("");
+    expect(screen.getByRole("option", { name: "My information" })).toBeInTheDocument();
     expect(screen.queryByText("Canonical profile")).not.toBeInTheDocument();
     expect(screen.queryByText("Profile basis")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Title"), "Platform CV");
@@ -227,9 +227,8 @@ describe("manual CVs and letters workspace", () => {
     expect(screen.getByText("main.tex", { exact: true })).not.toBeVisible();
     expect(screen.getByText("aaaat.sty", { exact: true })).not.toBeVisible();
     expect(screen.getByText("data.tex", { exact: true })).not.toBeVisible();
-    expect(screen.getByRole("heading", { name: "AI-visible CV description" })).not.toBeVisible();
-    expect(screen.getByRole("heading", { name: "External CV content access" })).not.toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Retained application artifacts" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "External assistant access", hidden: true })).not.toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Saved application PDFs" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Render PDF" }));
     expect(renderDocument).toHaveBeenCalledWith(record().id);
@@ -252,12 +251,12 @@ describe("manual CVs and letters workspace", () => {
     await user.click(screen.getByRole("button", { name: "Open source project" }));
     expect(openDocumentProject).toHaveBeenCalledWith(record().id);
     expect(await screen.findByText("Opened the live document source project.")).toBeVisible();
-    await user.click(screen.getByText("External assistant privacy & integration"));
-    expect(await screen.findByRole("heading", { name: "AI-visible CV description" })).toBeVisible();
-    expect(await screen.findByRole("heading", { name: "External CV content access" })).toBeVisible();
+    await user.click(screen.getByText("External assistant access", { selector: "summary" }));
+    expect(await screen.findByRole("region", { name: "External assistant access" })).toBeVisible();
+    expect(screen.getByText("Optional assistant description", { selector: "summary" })).toBeVisible();
   });
 
-  it("keeps candidature artifact administration out of standalone output even when candidatures exist", async () => {
+  it("keeps saved application PDFs out of standalone output even when candidatures exist", async () => {
     const document = record();
     list.mockResolvedValueOnce([document]);
     listCandidatures.mockResolvedValueOnce([candidature]);
@@ -267,17 +266,17 @@ describe("manual CVs and letters workspace", () => {
 
     await screen.findByRole("heading", { name: "Platform CV" });
     await user.click(screen.getByRole("tab", { name: "Output" }));
-    expect(screen.queryByText(`Application artifact for ${candidature.label}`)).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Retained application artifacts" })).not.toBeInTheDocument();
+    expect(screen.queryByText(`Saved application PDFs for ${candidature.label}`)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Saved application PDFs" })).not.toBeInTheDocument();
     expect(listArtifacts).not.toHaveBeenCalled();
   });
 
-  it("creates from default professional information when no saved variations exist", async () => {
+  it("creates from My information when no saved variations exist", async () => {
     installApi({ items: [item], variants: [] });
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
-    await screen.findByRole("heading", { name: "CVs & letters" });
-    expect(screen.getByLabelText("Professional information")).toHaveValue("");
+    await screen.findByRole("heading", { name: "Documents" });
+    expect(screen.getByLabelText("Use information from")).toHaveValue("");
     await user.type(screen.getByLabelText("Title"), "General CV");
     await user.click(screen.getByRole("button", { name: "Create CV" }));
 
@@ -290,15 +289,15 @@ describe("manual CVs and letters workspace", () => {
     create.mockResolvedValueOnce(record({ variantId: variant.id }));
     const user = userEvent.setup();
     render(<DocumentsWorkspace />);
-    await screen.findByRole("heading", { name: "CVs & letters" });
+    await screen.findByRole("heading", { name: "Documents" });
     await user.type(screen.getByLabelText("Title"), "Focused CV");
-    await user.selectOptions(screen.getByLabelText("Professional information"), variant.id);
+    await user.selectOptions(screen.getByLabelText("Use information from"), variant.id);
     await user.click(screen.getByRole("button", { name: "Create CV" }));
 
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Focused CV", variantId: variant.id }),
     );
-    await user.click(screen.getByRole("tab", { name: "Professional information" }));
+    await user.click(screen.getByRole("tab", { name: "My information" }));
     expect(screen.getByText(/saved variation “Platform focus”/)).toBeInTheDocument();
   });
 
@@ -311,7 +310,7 @@ describe("manual CVs and letters workspace", () => {
     render(<DocumentsWorkspace />);
 
     const collectionButton = await screen.findByRole("button", { name: /Platform CV/ });
-    const workspace = screen.getByRole("region", { name: "CVs & letters" });
+    const workspace = screen.getByRole("region", { name: "Documents" });
     await user.click(collectionButton);
     expect(workspace).toHaveClass("compact-document-detail");
 
@@ -319,13 +318,13 @@ describe("manual CVs and letters workspace", () => {
     const titleInput = within(content).getByLabelText("Title");
     await user.clear(titleInput);
     await user.type(titleInput, "Unsaved platform CV");
-    await user.click(screen.getByRole("tab", { name: "Professional information" }));
+    await user.click(screen.getByRole("tab", { name: "My information" }));
     await user.click(screen.getByRole("tab", { name: "Output" }));
     await user.click(screen.getByRole("tab", { name: "Content" }));
     expect(within(content).getByLabelText("Title")).toHaveValue("Unsaved platform CV");
     expect(confirm).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Back to CVs & letters" }));
+    await user.click(screen.getByRole("button", { name: "Back to Documents" }));
     expect(workspace).not.toHaveClass("compact-document-detail");
     expect(within(content).getByLabelText("Title")).toHaveValue("Unsaved platform CV");
     expect(confirm).not.toHaveBeenCalled();
@@ -352,8 +351,8 @@ describe("manual CVs and letters workspace", () => {
     render(<DocumentsWorkspace />);
 
     const saveButton = await screen.findByRole("button", { name: "Save changes" });
-    expect(screen.queryByRole("heading", { name: "AI-visible CV description" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "External CV content access" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "External assistant access" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Optional assistant description", { selector: "summary" })).not.toBeInTheDocument();
     expect(currentCvDescriptor).not.toHaveBeenCalled();
     expect(currentCvContentAccess).not.toHaveBeenCalled();
     const form = saveButton.closest("form");
@@ -388,7 +387,7 @@ describe("manual CVs and letters workspace", () => {
     expect(regenerate).toHaveBeenCalledWith(manual.id);
   });
 
-  it("retains a working document only in candidature-linked context", async () => {
+  it("saves a document PDF only in candidature-linked context", async () => {
     const document = record();
     list.mockResolvedValueOnce([document]);
     listCandidatures.mockResolvedValueOnce([candidature]);
@@ -398,9 +397,9 @@ describe("manual CVs and letters workspace", () => {
 
     await screen.findByRole("heading", { name: "Platform CV" });
     await user.click(screen.getByRole("tab", { name: "Output" }));
-    await user.click(await screen.findByText(`Application artifact for ${candidature.label}`));
-    const retain = await screen.findByRole("button", { name: "Retain application artifact" });
-    await user.click(retain);
+    await user.click(await screen.findByText(`Saved application PDFs for ${candidature.label}`));
+    const savePdf = await screen.findByRole("button", { name: "Save application PDF" });
+    await user.click(savePdf);
 
     expect(listArtifacts).toHaveBeenCalledWith(candidature.id);
     expect(captureArtifact).toHaveBeenCalledWith({
@@ -410,17 +409,17 @@ describe("manual CVs and letters workspace", () => {
     expect(await screen.findByText(retainedArtifact.artifactPath)).toBeVisible();
   });
 
-  it("lists retained candidature artifacts without a surviving working document association only in candidature context", async () => {
+  it("lists saved candidature PDFs without a surviving document association only in candidature context", async () => {
     list.mockResolvedValueOnce([]);
     listCandidatures.mockResolvedValueOnce([{ ...candidature, documentIds: [] }]);
     listArtifacts.mockResolvedValueOnce([retainedArtifact]);
     const user = userEvent.setup();
     renderForCandidature();
 
-    await user.click(await screen.findByText(`Application artifact for ${candidature.label}`));
+    await user.click(await screen.findByText(`Saved application PDFs for ${candidature.label}`));
     expect(await screen.findByText(retainedArtifact.artifactPath)).toBeVisible();
     expect(screen.getByText(retainedArtifact.sourcePath)).toBeVisible();
     expect(listArtifacts).toHaveBeenCalledWith(candidature.id);
-    expect(screen.queryByRole("button", { name: "Retain application artifact" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save application PDF" })).not.toBeInTheDocument();
   });
 });
