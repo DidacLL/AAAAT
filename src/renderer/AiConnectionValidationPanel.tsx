@@ -47,6 +47,12 @@ function capabilityFailureLabel(failure: ValidationFailure): string {
   }
 }
 
+function isProviderLevelFailure(exchange: AiExchangeDiagnostic | undefined): boolean {
+  return exchange?.failureKind === "connection_unreachable"
+    || exchange?.failureKind === "provider_http_failure"
+    || exchange?.failureKind === "provider_envelope_invalid";
+}
+
 export function AiConnectionValidationPanel({ connection, onConnections }: Props) {
   const task = useAiTask<ValidationResult>(taskKey(connection.id));
   const [routingBusy, setRoutingBusy] = useState<AiOperation | null>(null);
@@ -94,6 +100,7 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
             if (!current) throw new Error("The AI connection no longer exists.");
           } catch (reason) {
             const failure = aiTaskFailure(reason);
+            if (isProviderLevelFailure(failure.exchange)) throw reason;
             nextFailures.push({
               operation,
               message: failure.message,
@@ -132,23 +139,28 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
 
   const validatedCount = connection.validatedOperations.length;
   const failureList = failures ?? [];
-  const hasUnreachableFailure = failureList.some(
+  const taskFailureKind = task?.status === "failed" ? task.exchange?.failureKind : undefined;
+  const hasUnreachableFailure = taskFailureKind === "connection_unreachable" || failureList.some(
     (failure) => failure.exchange?.failureKind === "connection_unreachable",
   );
-  const hasProviderFailure = failureList.some(
-    (failure) =>
-      failure.exchange?.failureKind === "provider_http_failure" ||
-      failure.exchange?.failureKind === "provider_envelope_invalid",
-  );
+  const hasProviderFailure = taskFailureKind === "provider_http_failure"
+    || taskFailureKind === "provider_envelope_invalid"
+    || failureList.some(
+      (failure) =>
+        failure.exchange?.failureKind === "provider_http_failure" ||
+        failure.exchange?.failureKind === "provider_envelope_invalid",
+    );
   const health = active
     ? "Checking"
     : hasUnreachableFailure
       ? "Unreachable / timed out"
-      : validatedCount > 0 || failureList.length > 0
-        ? hasProviderFailure
-          ? "Connected · provider response needs attention"
-          : "Connected"
-        : "Configured · not checked";
+      : hasProviderFailure
+        ? "Connected · provider response needs attention"
+        : validatedCount > 0 || failureList.length > 0
+          ? "Connected"
+          : task?.status === "failed"
+            ? "Needs attention"
+            : "Configured · not checked";
 
   return (
     <section className="ai-validation-card" aria-label={`AI readiness for ${connection.name}`}>
@@ -179,7 +191,7 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
         <button type="button" disabled={active} onClick={validate}>
           {active
             ? "Validation running…"
-            : failureList.length > 0
+            : task?.status === "failed" || failureList.length > 0
               ? "Retry failed validation"
               : validatedCount > 0
                 ? "Continue validation"
