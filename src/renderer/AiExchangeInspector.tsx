@@ -1,5 +1,6 @@
 import { aiOperationLabels } from "../shared/ai-connection-contracts";
 import type { AiExchangeDiagnostic } from "../shared/ai-diagnostics";
+import "./ai-exchange-inspector.css";
 
 interface Props {
   readonly exchange: AiExchangeDiagnostic;
