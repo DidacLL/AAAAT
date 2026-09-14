@@ -67,7 +67,11 @@ export function CandidatureFocusPanel({
                   value={value}
                   onSave={(nextValue) => onSaveValue(field.definition.id, nextValue)}
                   onClear={() => onClearValue(field.definition.id)}
-                  onDiscover={() => onDiscoverValue(field.definition.id)}
+                  onDiscover={
+                    field.preferences.aiDiscovery
+                      ? () => onDiscoverValue(field.definition.id)
+                      : undefined
+                  }
                   onDirtyChange={(dirty) => onDirtyChange(field.definition.id, dirty)}
                 />
               </section>
