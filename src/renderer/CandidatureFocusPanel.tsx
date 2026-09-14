@@ -4,6 +4,7 @@ import type {
   CandidatureRuntimeValue,
   TagRecord,
 } from "../shared/contracts";
+import { CandidatureFieldAiState } from "./CandidatureFieldAiState";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 
 interface Props {
@@ -65,14 +66,18 @@ export function CandidatureFocusPanel({
                 <CandidatureFieldValueEditor
                   field={field}
                   value={value}
+                  showFieldControls={false}
                   onSave={(nextValue) => onSaveValue(field.definition.id, nextValue)}
                   onClear={() => onClearValue(field.definition.id)}
-                  onDiscover={
-                    field.preferences.aiDiscovery
-                      ? () => onDiscoverValue(field.definition.id)
-                      : undefined
-                  }
+                  onDiscover={() => onDiscoverValue(field.definition.id)}
                   onDirtyChange={(dirty) => onDirtyChange(field.definition.id, dirty)}
+                />
+                <CandidatureFieldAiState
+                  candidatureId={record.id}
+                  field={field}
+                  currentValue={value}
+                  onSaveValue={(nextValue) => onSaveValue(field.definition.id, nextValue)}
+                  onRetry={() => onDiscoverValue(field.definition.id)}
                 />
               </section>
             );
@@ -80,7 +85,7 @@ export function CandidatureFocusPanel({
         </div>
       ) : (
         <p className="compact-empty">
-          No retained information is currently selected for Focus. Use complete candidature editing to add information or adjust Focus visibility.
+          No retained information is currently selected for Focus. Edit a candidature field to show it here.
         </p>
       )}
 
