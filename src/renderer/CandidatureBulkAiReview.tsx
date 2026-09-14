@@ -125,7 +125,7 @@ export function CandidatureBulkAiReview({
       <div className="candidature-bulk-ai-review" role="status">
         <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
         <span>
-          {appliedCount > 0 ? `${appliedCount} fields filled · ` : ""}
+          {appliedCount > 0 ? `${appliedCount} field${appliedCount === 1 ? "" : "s"} filled · ` : ""}
           {needsReview} need{needsReview === 1 ? "s" : ""} review
         </span>
         {unplacedIssues.length > 0 ? (
