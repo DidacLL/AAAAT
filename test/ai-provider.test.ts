@@ -35,6 +35,24 @@ const context: ProviderOpportunityReviewContext = {
   profileItems: [{ kind: "skill", title: "TypeScript" }],
 };
 
+function extractionRequest(): ProviderJobExtractionRequest {
+  return {
+    sourceTitle: "Pilot vacancy",
+    sourceUrl: "",
+    sourceText: "Minimum 1,500 total hours.",
+    fields: [
+      {
+        fieldRef,
+        label: "Minimum flight hours",
+        description: "Minimum total flight hours requested.",
+        valueType: "number",
+        cardinality: "one",
+        choices: [],
+      },
+    ],
+  };
+}
+
 function response(content: unknown): Response {
   return new Response(
     JSON.stringify({ choices: [{ message: { content: JSON.stringify(content) } }] }),
@@ -76,21 +94,7 @@ describe("OpenAI-compatible provider", () => {
     vi.useFakeTimers();
     expect(AI_PROVIDER_SAFETY_CEILING_MS).toBeGreaterThan(30_000);
 
-    const request: ProviderJobExtractionRequest = {
-      sourceTitle: "Pilot vacancy",
-      sourceUrl: "",
-      sourceText: "Minimum 1,500 total hours.",
-      fields: [
-        {
-          fieldRef,
-          label: "Minimum flight hours",
-          description: "Minimum total flight hours requested.",
-          valueType: "number",
-          cardinality: "one",
-          choices: [],
-        },
-      ],
-    };
+    const request = extractionRequest();
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
       await new Promise((resolve) => setTimeout(resolve, 31_000));
       expect(init?.signal?.aborted).toBe(false);
@@ -100,32 +104,64 @@ describe("OpenAI-compatible provider", () => {
     const pending = provider.extractJob(connection, request);
 
     await vi.advanceTimersByTimeAsync(31_000);
-    await expect(pending).resolves.toEqual({ proposals: [{ fieldRef, value: 1500 }] });
+    await expect(pending).resolves.toEqual({
+      proposals: [{ fieldRef, value: 1500 }],
+      newFields: [],
+    });
   });
 
-  it("sends operation-scoped discovery references and reads typed proposals", async () => {
-    const request: ProviderJobExtractionRequest = {
-      sourceTitle: "Pilot vacancy",
-      sourceUrl: "https://example.invalid/pilot",
-      sourceText: "Minimum 1,500 total hours.",
-      fields: [
-        {
-          fieldRef,
-          label: "Minimum flight hours",
-          description: "Minimum total flight hours requested.",
-          valueType: "number",
-          cardinality: "one",
-          choices: [],
-        },
-      ],
-    };
+  it("aborts an active local extraction when the task is cancelled", async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+      await new Promise<never>((_resolve, reject) => {
+        init?.signal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
+      });
+      throw new Error("unreachable");
+    });
+    const provider = createOpenAiCompatibleProvider(fetchImpl);
+    const pending = provider.extractJob(connection, extractionRequest(), controller.signal);
+
+    controller.abort();
+
+    await expect(pending).rejects.toThrow("AI task cancelled.");
+    expect(fetchImpl.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+  });
+
+  it("sends operation-scoped discovery references and reads typed proposals plus optional new fields", async () => {
+    const request = extractionRequest();
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      response({ proposals: [{ fieldRef, value: 1500 }] }),
+      response({
+        proposals: [{ fieldRef, value: 1500 }],
+        newFields: [
+          {
+            label: "Base location",
+            description: "Primary operating base",
+            valueType: "text",
+            cardinality: "one",
+            choices: [],
+            value: "Madrid",
+          },
+        ],
+      }),
     );
     const provider = createOpenAiCompatibleProvider(fetchImpl);
 
     await expect(provider.extractJob(connection, request)).resolves.toEqual({
       proposals: [{ fieldRef, value: 1500 }],
+      newFields: [
+        {
+          label: "Base location",
+          description: "Primary operating base",
+          valueType: "text",
+          cardinality: "one",
+          choices: [],
+          value: "Madrid",
+        },
+      ],
     });
     const [, init] = fetchImpl.mock.calls[0] ?? [];
     const body = JSON.parse(String(init?.body)) as {
