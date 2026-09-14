@@ -1,5 +1,11 @@
 import { useSyncExternalStore } from "react";
 
+import {
+  AI_EXCHANGE_DIAGNOSTIC_MARKER,
+  aiExchangeDiagnosticSchema,
+  type AiExchangeDiagnostic,
+} from "../shared/ai-diagnostics";
+
 export type AiTaskStatus = "queued" | "working" | "completed" | "failed" | "cancelled";
 
 export interface AiTaskSnapshot<T = unknown> {
@@ -9,6 +15,7 @@ export interface AiTaskSnapshot<T = unknown> {
   readonly detail: string | null;
   readonly result?: T;
   readonly error?: string;
+  readonly exchange?: AiExchangeDiagnostic;
   readonly handledFieldIds?: readonly string[];
   readonly appliedFieldIds?: readonly string[];
   readonly scopeFieldIds?: readonly string[];
@@ -35,14 +42,47 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function taskError(reason: unknown): string {
+function decodeBase64Url(value: string): string {
+  const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  const bytes = Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+export function aiTaskFailure(reason: unknown): {
+  readonly message: string;
+  readonly exchange?: AiExchangeDiagnostic;
+} {
   if (!(reason instanceof Error) || !reason.message.trim()) {
-    return "AAAAT could not complete this AI task.";
+    return { message: "AAAAT could not complete this AI task." };
   }
-  return reason.message
+
+  const markerIndex = reason.message.indexOf(AI_EXCHANGE_DIAGNOSTIC_MARKER);
+  let exchange: AiExchangeDiagnostic | undefined;
+  let message = markerIndex >= 0 ? reason.message.slice(0, markerIndex) : reason.message;
+  if (markerIndex >= 0) {
+    const encoded = reason.message
+      .slice(markerIndex + AI_EXCHANGE_DIAGNOSTIC_MARKER.length)
+      .trim()
+      .split(/\s/, 1)[0];
+    if (encoded) {
+      try {
+        const parsed = aiExchangeDiagnosticSchema.safeParse(
+          JSON.parse(decodeBase64Url(encoded)) as unknown,
+        );
+        if (parsed.success) exchange = parsed.data;
+      } catch {
+        exchange = undefined;
+      }
+    }
+  }
+
+  message = message
     .replace(/^Error invoking remote method '[^']+':\s*/i, "")
     .replace(/^AiProviderError:\s*/i, "")
+    .replace(/^Error:\s*/i, "")
     .trim();
+  return { message: message || "AAAAT could not complete this AI task.", exchange };
 }
 
 function proposalFieldIds(result: unknown, scopeFieldIds?: readonly string[]): string[] {
@@ -150,12 +190,14 @@ export function startAiTask<T>(
       .catch((reason: unknown) => {
         const active = tasks.get(key);
         if (!active || active.status !== "working" || controller.signal.aborted) return;
+        const failure = aiTaskFailure(reason);
         tasks.set(key, {
           key,
           label: active.label ?? label,
           status: "failed",
           detail: "Failed",
-          error: taskError(reason),
+          error: failure.message,
+          exchange: failure.exchange,
           scopeFieldIds: active.scopeFieldIds ?? (scopeFieldIds ? [...scopeFieldIds] : undefined),
         });
         controllers.delete(key);
@@ -174,6 +216,7 @@ export function cancelAiTask(key: string): void {
     status: "cancelled",
     detail: "Cancelled",
     error: undefined,
+    exchange: undefined,
     result: undefined,
   });
   emit();
