@@ -48,6 +48,7 @@ export interface ModelProvider {
   extractJob(
     connection: AiConnectionStatus,
     request: ProviderJobExtractionRequest,
+    signal?: AbortSignal,
   ): Promise<z.input<typeof providerJobExtractionResultSchema>>;
   recommendVariant(
     connection: AiConnectionStatus,
@@ -81,14 +82,19 @@ async function requestContent(
   instruction: string,
   context: unknown,
   requestTimeoutMs: number,
+  externalSignal?: AbortSignal,
 ): Promise<string> {
   let response: Response;
+  const timeoutSignal = AbortSignal.timeout(requestTimeoutMs);
+  const signal = externalSignal
+    ? AbortSignal.any([externalSignal, timeoutSignal])
+    : timeoutSignal;
   try {
     response = await fetchImpl(chatCompletionsUrl(connection.endpoint), {
       method: "POST",
       headers: { "content-type": "application/json" },
       redirect: "error",
-      signal: AbortSignal.timeout(requestTimeoutMs),
+      signal,
       body: JSON.stringify({
         model: connection.model,
         temperature: 0,
@@ -99,6 +105,9 @@ async function requestContent(
       }),
     });
   } catch (reason) {
+    if (externalSignal?.aborted) {
+      throw new AiProviderError("AI task cancelled.");
+    }
     if (timeoutFailure(reason)) {
       throw new AiProviderError(
         "The AI provider did not finish before AAAAT's 15-minute safety limit. The model may still be healthy; retry the task or inspect the local provider if it remains stuck.",
@@ -166,6 +175,7 @@ export function createOpenAiCompatibleProvider(
     async extractJob(
       connection: AiConnectionStatus,
       request: ProviderJobExtractionRequest,
+      signal?: AbortSignal,
     ): Promise<z.input<typeof providerJobExtractionResultSchema>> {
       const content = await requestContent(
         fetchImpl,
@@ -173,6 +183,7 @@ export function createOpenAiCompatibleProvider(
         "Extract only facts supported by the supplied Source. Return JSON only as {\"proposals\":[{\"fieldRef\":\"...\",\"value\":...}],\"newFields\":[{\"label\":\"...\",\"description\":\"...\",\"valueType\":\"text|long_text|number|boolean|date|url|choice\",\"cardinality\":\"one|many\",\"choices\":[\"...\"],\"value\":...}]}. For proposals, use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for existing choice fields, and omit unsupported values. newFields is optional discovery for useful facts that clearly do not fit any supplied field: suggest at most 8 concise reusable candidature information kinds, never duplicate an existing field by meaning or name, use choices only for choice fields, and omit speculative or weakly supported facts. Return an empty array when there are no genuinely useful new fields.",
         request,
         requestTimeoutMs,
+        signal,
       );
       return parseJson(
         content,
