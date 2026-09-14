@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,7 @@ vi.mock("../src/renderer/CandidatureActivityPanel", () => ({ CandidatureActivity
 
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
 import { clearAllAiTasks, getAiTask } from "../src/renderer/ai-task-store";
+import type { JobExtractionResult } from "../src/shared/ai-contracts";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
@@ -80,7 +81,7 @@ function deferred<T>() {
 
 function installApi(
   currentRef: { current: CandidatureRecord },
-  extraction: ReturnType<typeof deferred<{ proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> }>>,
+  extraction: ReturnType<typeof deferred<JobExtractionResult>>,
 ) {
   const setFieldValue = vi.fn(async ({ fieldId, value }: { fieldId: string; value: CandidatureRuntimeValue }) => {
     currentRef.current = {
@@ -92,7 +93,7 @@ function installApi(
     };
     return currentRef.current;
   });
-  const extractJob = vi.fn((request: ExtractionRequest) => {
+  const extractJob = vi.fn((_taskId: string, request: ExtractionRequest) => {
     void request;
     return extraction.promise;
   });
@@ -153,7 +154,10 @@ function installApi(
           defaultForOperations: ["job_extraction"],
         }]),
       },
-      ai: { extractJob },
+      aiTasks: {
+        extractJob,
+        cancelJobExtraction: vi.fn(async () => true),
+      },
     },
   });
   return { setFieldValue, extractJob };
@@ -174,7 +178,7 @@ describe("post-creation candidature AI inference", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps a single-field proposal attached to its field across navigation and persists only on acceptance", async () => {
+  it("keeps a conflicting single-field result attached across navigation and never overwrites without a choice", async () => {
     const user = userEvent.setup();
     const state = {
       current: {
@@ -189,7 +193,7 @@ describe("post-creation candidature AI inference", () => {
         tagIds: [],
       } satisfies CandidatureRecord,
     };
-    const extraction = deferred<{ proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> }>();
+    const extraction = deferred<JobExtractionResult>();
     const { setFieldValue, extractJob } = installApi(state, extraction);
 
     render(<CandidaturesWorkspace />);
@@ -204,7 +208,7 @@ describe("post-creation candidature AI inference", () => {
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
 
-    extraction.resolve({ proposals: [{ fieldId: roleId, value: "Senior Captain" }] });
+    extraction.resolve({ proposals: [{ fieldId: roleId, value: "Senior Captain" }], newFields: [] });
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
     expect(setFieldValue).not.toHaveBeenCalled();
 
@@ -213,22 +217,24 @@ describe("post-creation candidature AI inference", () => {
     const reopenedRole = within(detail).getByRole("heading", { name: "Role" }).closest("article");
     if (!reopenedRole) throw new Error("Reopened Role card missing");
 
-    expect(await within(reopenedRole).findByText("AI proposal")).toBeInTheDocument();
+    expect(await within(reopenedRole).findByText("AI found another value")).toBeInTheDocument();
     expect(within(reopenedRole).getByText("Senior Captain")).toBeInTheDocument();
-    expect(within(reopenedRole).getByText("Current value stays until you accept")).toBeInTheDocument();
+    expect(within(reopenedRole).getByText(/will not be replaced/i)).toBeInTheDocument();
     expect(within(reopenedRole).getByText("Captain", { exact: true })).toBeInTheDocument();
     expect(setFieldValue).not.toHaveBeenCalled();
 
-    await user.click(within(reopenedRole).getByRole("button", { name: "Accept" }));
+    await user.click(within(reopenedRole).getByRole("button", { name: "Use this value" }));
     expect(setFieldValue).toHaveBeenCalledWith({
       candidatureId,
       fieldId: roleId,
       value: "Senior Captain",
     });
-    expect(getAiTask(`candidature-inference:${candidatureId}:${roleId}`)?.detail).toBe("Completed · proposals reviewed");
+    expect(getAiTask(`candidature-inference:${candidatureId}:${roleId}`)?.detail).toBe(
+      "Completed · information applied/reviewed",
+    );
   });
 
-  it("fills missing information as visible field proposals and Accept all never overwrites an existing value", async () => {
+  it("auto-fills missing information and never overwrites an existing value", async () => {
     const user = userEvent.setup();
     const state = {
       current: {
@@ -243,7 +249,7 @@ describe("post-creation candidature AI inference", () => {
         tagIds: [],
       } satisfies CandidatureRecord,
     };
-    const extraction = deferred<{ proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> }>();
+    const extraction = deferred<JobExtractionResult>();
     const { setFieldValue } = installApi(state, extraction);
 
     render(<CandidaturesWorkspace />);
@@ -256,24 +262,25 @@ describe("post-creation candidature AI inference", () => {
         { fieldId: locationId, value: "Madrid" },
         { fieldId: roleId, value: "Senior Captain" },
       ],
+      newFields: [],
     });
 
-    expect(await within(detail).findByText("2 AI proposals ready in the fields below.")).toBeInTheDocument();
+    await waitFor(() => expect(setFieldValue).toHaveBeenCalledTimes(2));
+    expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId: organisationId, value: "Aster Aviation" });
+    expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId: locationId, value: "Madrid" });
+    expect(setFieldValue).not.toHaveBeenCalledWith(expect.objectContaining({ fieldId: roleId }));
+
     const organisationCard = within(detail).getByRole("heading", { name: "Organisation" }).closest("article");
     const locationCard = within(detail).getByRole("heading", { name: "Location" }).closest("article");
     const roleCard = within(detail).getByRole("heading", { name: "Role" }).closest("article");
     if (!organisationCard || !locationCard || !roleCard) throw new Error("Expected field cards missing");
 
-    expect(within(organisationCard).getByText("Aster Aviation")).toBeInTheDocument();
+    expect(await within(organisationCard).findByText("Aster Aviation")).toBeInTheDocument();
     expect(within(locationCard).getByText("Madrid")).toBeInTheDocument();
+    expect(within(organisationCard).getByText(/AI filled/)).toBeInTheDocument();
+    expect(within(locationCard).getByText(/AI filled/)).toBeInTheDocument();
+    expect(within(roleCard).getByText("Captain", { exact: true })).toBeInTheDocument();
     expect(within(roleCard).queryByText("Senior Captain")).not.toBeInTheDocument();
-    expect(setFieldValue).not.toHaveBeenCalled();
-
-    await user.click(within(detail).getByRole("button", { name: "Accept all" }));
-    expect(setFieldValue).toHaveBeenCalledTimes(2);
-    expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId: organisationId, value: "Aster Aviation" });
-    expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId: locationId, value: "Madrid" });
-    expect(setFieldValue).not.toHaveBeenCalledWith(expect.objectContaining({ fieldId: roleId }));
   });
 
   it("explains a completed single-field task when AI returns no usable proposal", async () => {
@@ -291,7 +298,7 @@ describe("post-creation candidature AI inference", () => {
         tagIds: [],
       } satisfies CandidatureRecord,
     };
-    const extraction = deferred<{ proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> }>();
+    const extraction = deferred<JobExtractionResult>();
     installApi(state, extraction);
 
     render(<CandidaturesWorkspace />);
@@ -299,9 +306,11 @@ describe("post-creation candidature AI inference", () => {
     const locationCard = within(detail).getByRole("heading", { name: "Location" }).closest("article");
     if (!locationCard) throw new Error("Location card missing");
     await user.click(within(locationCard).getByRole("button", { name: "Ask AI to fill Location" }));
-    extraction.resolve({ proposals: [] });
+    extraction.resolve({ proposals: [], newFields: [] });
 
     expect(await within(locationCard).findByText("AI finished but did not find a usable value.")).toBeInTheDocument();
-    expect(getAiTask(`candidature-inference:${candidatureId}:${locationId}`)?.detail).toBe("Completed · no usable proposal");
+    expect(getAiTask(`candidature-inference:${candidatureId}:${locationId}`)?.detail).toBe(
+      "Completed · no usable information found",
+    );
   });
 });
