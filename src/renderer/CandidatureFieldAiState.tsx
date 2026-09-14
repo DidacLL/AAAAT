@@ -25,7 +25,7 @@ interface Props {
 function extractionResult(task: AiTaskSnapshot): JobExtractionResult | null {
   if (!task.result || typeof task.result !== "object" || !("proposals" in task.result)) return null;
   const proposals = (task.result as JobExtractionResult).proposals;
-  return Array.isArray(proposals) ? { proposals } : null;
+  return Array.isArray(proposals) ? { proposals, newFields: [] } : null;
 }
 
 function inScope(task: AiTaskSnapshot, fieldId: string): boolean {
