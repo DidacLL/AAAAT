@@ -236,15 +236,27 @@ test("packaged candidature keeps manual work usable while delayed local AI compl
         },
         values: [{ fieldId: role.definition.id, value: "Captain" }],
       });
+      await window.aaaat.candidatures.createTag({
+        name: "Flight operations",
+        aliases: ["Air ops"],
+        definition: "Work involving aircraft and operational flight activity.",
+        notes: "Use for aviation-role context.",
+      });
       return {
         candidatureId: candidature.id,
-        roleId: role.definition.id,
         organisationId: organisation.definition.id,
       };
     });
 
     await running.page.reload();
     await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+
+    const tagReference = running.page.locator("details.corpus-tags-reference");
+    await tagReference.locator("summary").click();
+    await expect(tagReference.getByText("Flight operations", { exact: true })).toBeVisible();
+    await expect(tagReference).toContainText("Air ops");
+    await expect(tagReference).toContainText("Work involving aircraft and operational flight activity.");
+
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
     await expect(card).toBeVisible();
