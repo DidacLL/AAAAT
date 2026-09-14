@@ -32,8 +32,8 @@ function installApi() {
 
 afterEach(() => cleanup());
 
-describe("AI-visible CV description editor", () => {
-  it("loads, edits and saves only explicit tags and notes", async () => {
+describe("optional CV assistant description", () => {
+  it("keeps tags and notes behind one optional disclosure and saves them explicitly", async () => {
     current.mockResolvedValueOnce({
       documentId: document.id,
       tags: ["platform"],
@@ -55,26 +55,28 @@ describe("AI-visible CV description editor", () => {
       />,
     );
 
-    expect(await screen.findByLabelText("AI-visible tags")).toHaveValue("platform");
-    expect(screen.getByLabelText("AI-visible notes")).toHaveValue("Good for platform roles.");
+    expect(await screen.findByText("Optional assistant description")).toBeInTheDocument();
+    await user.click(screen.getByText("Optional assistant description", { selector: "summary" }));
+    expect(screen.getByLabelText("Tags")).toHaveValue("platform");
+    expect(screen.getByLabelText("Notes")).toHaveValue("Good for platform roles.");
     expect(current).toHaveBeenCalledWith(document.id);
 
-    await user.clear(screen.getByLabelText("AI-visible tags"));
-    await user.type(screen.getByLabelText("AI-visible tags"), "backend, leadership");
-    await user.clear(screen.getByLabelText("AI-visible notes"));
-    await user.type(screen.getByLabelText("AI-visible notes"), "Strong leadership evidence.");
+    await user.clear(screen.getByLabelText("Tags"));
+    await user.type(screen.getByLabelText("Tags"), "backend, leadership");
+    await user.clear(screen.getByLabelText("Notes"));
+    await user.type(screen.getByLabelText("Notes"), "Strong leadership evidence.");
     expect(onDirtyChange).toHaveBeenCalledWith(true);
 
-    await user.click(screen.getByRole("button", { name: "Save AI-visible description" }));
+    await user.click(screen.getByRole("button", { name: "Save description" }));
     expect(update).toHaveBeenCalledWith({
       documentId: document.id,
       tags: ["backend", "leadership"],
       notes: "Strong leadership evidence.",
     });
-    expect(onNotice).toHaveBeenCalledWith("AI-visible CV description saved.");
+    expect(onNotice).toHaveBeenCalledWith("Assistant description saved.");
   });
 
-  it("clears descriptors explicitly with empty tags and null notes", async () => {
+  it("clears the optional description explicitly", async () => {
     current.mockResolvedValueOnce({
       documentId: document.id,
       tags: ["platform"],
@@ -92,10 +94,11 @@ describe("AI-visible CV description editor", () => {
         onNotice={() => undefined}
       />,
     );
-    await screen.findByLabelText("AI-visible tags");
-    await user.clear(screen.getByLabelText("AI-visible tags"));
-    await user.clear(screen.getByLabelText("AI-visible notes"));
-    await user.click(screen.getByRole("button", { name: "Save AI-visible description" }));
+    await screen.findByText("Optional assistant description");
+    await user.click(screen.getByText("Optional assistant description", { selector: "summary" }));
+    await user.clear(screen.getByLabelText("Tags"));
+    await user.clear(screen.getByLabelText("Notes"));
+    await user.click(screen.getByRole("button", { name: "Save description" }));
 
     expect(update).toHaveBeenCalledWith({ documentId: document.id, tags: [], notes: null });
   });
