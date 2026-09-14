@@ -66,7 +66,7 @@ function installApi() {
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
 }
 
-describe("professional information workspace", () => {
+describe("My information workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     current.mockResolvedValue(emptyProfile);
@@ -90,8 +90,8 @@ describe("professional information workspace", () => {
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
 
-    expect(await screen.findByRole("heading", { name: "Professional information" })).toBeInTheDocument();
-    expect(screen.getByText(/No professional information yet/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "My information" })).toBeInTheDocument();
+    expect(screen.getByText(/No information yet/)).toBeInTheDocument();
     expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
     expect(screen.queryByText("Canonical profile")).not.toBeInTheDocument();
     expect(screen.queryByText("Focused variants")).not.toBeInTheDocument();
@@ -112,7 +112,7 @@ describe("professional information workspace", () => {
       endDate: undefined,
       url: undefined,
     });
-    expect(await screen.findByRole("heading", { name: "Professional information" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "My information" })).toBeInTheDocument();
   });
 
   it("keeps contextual AI use independent from local reusable content", async () => {
@@ -120,9 +120,9 @@ describe("professional information workspace", () => {
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
 
-    const list = await screen.findByRole("region", { name: "Professional information" });
+    const list = await screen.findByRole("region", { name: "My information" });
     const firstItem = within(list).getByText("Professional summary").closest("article");
-    if (!firstItem) throw new Error("Expected professional information item");
+    if (!firstItem) throw new Error("Expected My information item");
     await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
 
     expect(screen.getByLabelText("Title")).toHaveValue("Professional summary");
@@ -141,7 +141,7 @@ describe("professional information workspace", () => {
     render(<ProfileWorkspace />);
 
     await screen.findByText("Professional summary");
-    expect(screen.getByText(/default professional information already works without one/i)).toBeInTheDocument();
+    expect(screen.getByText(/My information already works without a variation/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Create saved variation" }));
     expect(screen.getByRole("heading", { name: "Saved variations" })).toBeInTheDocument();
     expect(screen.queryByText("Difference-only")).not.toBeInTheDocument();
@@ -194,7 +194,7 @@ describe("professional information workspace", () => {
     await user.type(screen.getByLabelText("Name"), "New focus");
     await user.type(screen.getByLabelText("Intended focus"), "Unsaved new variation");
 
-    await user.click(screen.getByRole("button", { name: "Back to professional information" }));
+    await user.click(screen.getByRole("button", { name: "Back to My information" }));
     expect(confirm).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Add information" }));
     await user.selectOptions(screen.getByLabelText("Type"), "skill");
@@ -214,15 +214,15 @@ describe("professional information workspace", () => {
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
 
-    const list = await screen.findByRole("region", { name: "Professional information" });
+    const list = await screen.findByRole("region", { name: "My information" });
     const firstItem = within(list).getByText("Professional summary").closest("article");
-    if (!firstItem) throw new Error("Expected professional information item");
+    if (!firstItem) throw new Error("Expected My information item");
     await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
     const title = screen.getByLabelText("Title");
     await user.clear(title);
     await user.type(title, "Unsaved professional edit");
 
-    await user.click(screen.getByRole("button", { name: "Back to professional information" }));
+    await user.click(screen.getByRole("button", { name: "Back to My information" }));
     expect(confirm).toHaveBeenCalledWith("Discard unsaved information edits?");
     expect(screen.getByLabelText("Title")).toHaveValue("Unsaved professional edit");
     expect(screen.getByRole("heading", { name: "Edit information" })).toBeInTheDocument();
