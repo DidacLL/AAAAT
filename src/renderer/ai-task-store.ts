@@ -7,7 +7,9 @@ import {
 } from "../shared/ai-diagnostics";
 import {
   jobExtractionExchangeSchema,
+  jobExtractionProposalIssueSchema,
   type InspectableAiExchange,
+  type JobExtractionProposalIssue,
 } from "../shared/ai-proposal-outcomes";
 
 export type AiTaskStatus = "queued" | "working" | "completed" | "failed" | "cancelled";
@@ -251,6 +253,37 @@ function markFieldHandled(key: string, fieldId: string, applied: boolean): void 
     detail: reviewed ? "Completed · information applied/reviewed" : current.detail,
   });
   emit();
+}
+
+function taskIssues(result: unknown): JobExtractionProposalIssue[] {
+  if (!result || typeof result !== "object" || !("issues" in result)) return [];
+  const raw = (result as { issues?: unknown }).issues;
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((candidate) => {
+    const parsed = jobExtractionProposalIssueSchema.safeParse(candidate);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
+export function recordAiTaskFieldIssue(key: string, rawIssue: JobExtractionProposalIssue): void {
+  const current = tasks.get(key);
+  if (!current || current.status !== "completed" || !current.result || typeof current.result !== "object") return;
+  const parsed = jobExtractionProposalIssueSchema.parse(rawIssue);
+  const issues = taskIssues(current.result).filter(
+    (candidate) => !(parsed.fieldId && candidate.fieldId === parsed.fieldId),
+  );
+  const result = { ...current.result, issues: [...issues, parsed] };
+  tasks.set(key, { ...current, result });
+  if (parsed.fieldId) markFieldHandled(key, parsed.fieldId, false);
+  else emit();
+}
+
+export function resolveAiTaskFieldIssue(key: string, fieldId: string, applied = false): void {
+  const current = tasks.get(key);
+  if (!current || current.status !== "completed" || !current.result || typeof current.result !== "object") return;
+  const issues = taskIssues(current.result).filter((candidate) => candidate.fieldId !== fieldId);
+  tasks.set(key, { ...current, result: { ...current.result, issues } });
+  markFieldHandled(key, fieldId, applied);
 }
 
 export function markAiTaskFieldHandled(key: string, fieldId: string): void {
