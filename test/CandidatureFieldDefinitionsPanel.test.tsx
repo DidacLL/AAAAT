@@ -102,13 +102,13 @@ describe("candidature field definitions", () => {
     const user = userEvent.setup();
     render(<CandidatureFieldDefinitionsPanel onChanged={vi.fn()} />);
 
-    await user.click(await screen.findByText("Manage candidature fields", { selector: "summary" }));
-    const editor = screen.getByRole("region", { name: "Edit candidature field" });
-    await user.selectOptions(within(editor).getByLabelText("Field"), roleId);
+    await user.click(await screen.findByText("Customize information", { selector: "summary" }));
+    const editor = screen.getByRole("region", { name: "Change candidature information kind" });
+    await user.selectOptions(within(editor).getByLabelText("Information"), roleId);
     const name = within(editor).getByLabelText("Name");
     await user.clear(name);
     await user.type(name, "Position title");
-    await user.click(within(editor).getByRole("button", { name: "Save field" }));
+    await user.click(within(editor).getByRole("button", { name: "Save changes" }));
 
     expect(updateField).toHaveBeenCalledWith(expect.objectContaining({
       id: roleId,
@@ -120,16 +120,16 @@ describe("candidature field definitions", () => {
     const user = userEvent.setup();
     render(<CandidatureFieldDefinitionsPanel onChanged={vi.fn()} />);
 
-    await user.click(await screen.findByText("Manage candidature fields", { selector: "summary" }));
-    const creator = screen.getByRole("region", { name: "Create candidature field" });
+    await user.click(await screen.findByText("Customize information", { selector: "summary" }));
+    const creator = screen.getByRole("region", { name: "Add candidature information kind" });
     await user.type(within(creator).getByLabelText("Name"), "Flight hours");
-    await user.selectOptions(within(creator).getByLabelText("Type"), "number");
+    await user.selectOptions(within(creator).getByLabelText("Format"), "number");
     await user.click(
       within(creator).getByRole("checkbox", {
-        name: "AI extraction may propose this field from retained Sources",
+        name: "AI may suggest this information from retained Sources",
       }),
     );
-    await user.click(within(creator).getByRole("button", { name: "Add field" }));
+    await user.click(within(creator).getByRole("button", { name: "Add" }));
 
     expect(createField).toHaveBeenCalledWith(expect.objectContaining({
       label: "Flight hours",
