@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { JobExtractionResult } from "../shared/ai-contracts";
-import type {
-  CandidatureFieldConfiguration,
-  CandidatureRuntimeValue,
+import type { PartialJobExtractionResult } from "../shared/ai-proposal-outcomes";
+import {
+  candidatureRuntimeValueSchema,
+  type CandidatureFieldConfiguration,
+  type CandidatureRuntimeValue,
 } from "../shared/contracts";
 import {
   clearAiTask,
   markAiTaskFieldApplied,
   markAiTaskFieldHandled,
+  recordAiTaskFieldIssue,
+  resolveAiTaskFieldIssue,
   type AiTaskSnapshot,
   useAiTasks,
 } from "./ai-task-store";
@@ -22,10 +25,12 @@ interface Props {
   readonly onRetry: () => void;
 }
 
-function extractionResult(task: AiTaskSnapshot): JobExtractionResult | null {
+function extractionResult(task: AiTaskSnapshot): PartialJobExtractionResult | null {
   if (!task.result || typeof task.result !== "object" || !("proposals" in task.result)) return null;
-  const proposals = (task.result as JobExtractionResult).proposals;
-  return Array.isArray(proposals) ? { proposals, newFields: [] } : null;
+  const result = task.result as PartialJobExtractionResult;
+  return Array.isArray(result.proposals)
+    ? { proposals: result.proposals, newFields: result.newFields ?? [], issues: result.issues ?? [], ...(result.exchange ? { exchange: result.exchange } : {}) }
+    : null;
 }
 
 function inScope(task: AiTaskSnapshot, fieldId: string): boolean {
@@ -37,6 +42,19 @@ function proposalFor(task: AiTaskSnapshot, fieldId: string) {
   return extractionResult(task)?.proposals.find((proposal) => proposal.fieldId === fieldId) ?? null;
 }
 
+function issueFor(task: AiTaskSnapshot, fieldId: string) {
+  if (!inScope(task, fieldId)) return null;
+  return extractionResult(task)?.issues.find((issue) => issue.fieldId === fieldId) ?? null;
+}
+
+function displayUnknown(value: unknown): string {
+  if (Array.isArray(value)) return value.map(String).join(", ");
+  if (value === undefined) return "(missing)";
+  if (value === null) return "null";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
 export function CandidatureFieldAiState({
   candidatureId,
   field,
@@ -46,6 +64,7 @@ export function CandidatureFieldAiState({
 }: Props) {
   const tasks = useAiTasks();
   const [editingProposal, setEditingProposal] = useState(false);
+  const [editingIssue, setEditingIssue] = useState(false);
   const autoApplying = useRef(false);
   const exactKey = `candidature-inference:${candidatureId}:${field.definition.id}`;
   const bulkKey = `candidature-inference:${candidatureId}:missing`;
@@ -54,6 +73,13 @@ export function CandidatureFieldAiState({
       (task.key === exactKey || task.key === bulkKey) && inScope(task, field.definition.id),
   );
 
+  const issueTask = candidates.find(
+    (task) => task.status === "completed" && issueFor(task, field.definition.id),
+  );
+  const fieldIssue = issueTask ? issueFor(issueTask, field.definition.id) : null;
+  const proposedIssueValue = fieldIssue
+    ? candidatureRuntimeValueSchema.safeParse(fieldIssue.proposedValue)
+    : null;
   const proposalTask = candidates.find((task) => {
     const proposal = proposalFor(task, field.definition.id);
     return proposal && !(task.handledFieldIds ?? []).includes(field.definition.id);
@@ -85,13 +111,26 @@ export function CandidatureFieldAiState({
       .then(() => {
         if (active) markAiTaskFieldApplied(proposalTask.key, field.definition.id);
       })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        recordAiTaskFieldIssue(proposalTask.key, {
+          kind: "invalid",
+          fieldId: field.definition.id,
+          fieldLabel: field.definition.label,
+          proposedValue: proposal.value,
+          reason:
+            reason instanceof Error
+              ? reason.message
+              : "AAAAT could not retain this AI proposal.",
+        });
+      })
       .finally(() => {
         autoApplying.current = false;
       });
     return () => {
       active = false;
     };
-  }, [currentValue, exactKey, field.definition.id, onSaveValue, proposal, proposalTask]);
+  }, [currentValue, exactKey, field.definition.id, field.definition.label, onSaveValue, proposal, proposalTask]);
 
   const accept = async (value: CandidatureRuntimeValue) => {
     if (!proposalTask) return;
@@ -106,11 +145,71 @@ export function CandidatureFieldAiState({
     setEditingProposal(false);
   };
 
+  const acceptIssueEdit = async (value: CandidatureRuntimeValue) => {
+    if (!issueTask) return;
+    await onSaveValue(value);
+    resolveAiTaskFieldIssue(issueTask.key, field.definition.id, true);
+    setEditingIssue(false);
+  };
+
+  const dismissIssue = () => {
+    if (!issueTask) return;
+    resolveAiTaskFieldIssue(issueTask.key, field.definition.id, false);
+    setEditingIssue(false);
+  };
+
+  const retryIssue = () => {
+    if (!issueTask) return;
+    resolveAiTaskFieldIssue(issueTask.key, field.definition.id, false);
+    if (issueTask.key === exactKey) clearAiTask(issueTask.key);
+    autoApplying.current = false;
+    setEditingIssue(false);
+    onRetry();
+  };
+
   const retry = (task: AiTaskSnapshot) => {
     autoApplying.current = false;
     clearAiTask(task.key);
     onRetry();
   };
+
+  if (fieldIssue && issueTask) {
+    return (
+      <div className="candidature-field-ai-state candidature-field-ai-error" role="status">
+        <div className="candidature-ai-proposal-heading">
+          <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
+          <strong>AI suggestion needs review</strong>
+          <span>AAAAT kept the rest of the AI result.</span>
+        </div>
+        <p className="candidature-ai-proposed-value">
+          <strong>AI proposed:</strong> {displayUnknown(fieldIssue.proposedValue)}
+        </p>
+        <p className="compact-help">{fieldIssue.reason}</p>
+        {editingIssue && proposedIssueValue?.success ? (
+          <CandidatureFieldValueEditor
+            field={field}
+            value={proposedIssueValue.data}
+            initialEditing
+            showFieldControls={false}
+            saveLabel="Use corrected value"
+            clearLabel="Dismiss"
+            onSave={acceptIssueEdit}
+            onClear={async () => dismissIssue()}
+          />
+        ) : (
+          <div className="button-row candidature-ai-review-actions">
+            {proposedIssueValue?.success ? (
+              <button type="button" className="compact-secondary" onClick={() => setEditingIssue(true)}>
+                Edit
+              </button>
+            ) : null}
+            <button type="button" className="compact-secondary" onClick={retryIssue}>Retry this field</button>
+            <button type="button" className="compact-secondary" onClick={dismissIssue}>Dismiss</button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (proposal && proposalTask?.key === exactKey && currentValue === undefined) {
     return (
