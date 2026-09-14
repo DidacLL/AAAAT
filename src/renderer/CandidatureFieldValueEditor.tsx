@@ -12,6 +12,10 @@ interface Props {
   readonly onClear: () => Promise<void>;
   readonly onDiscover?: () => void | Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
+  readonly initialEditing?: boolean;
+  readonly saveLabel?: string;
+  readonly clearLabel?: string;
+  readonly discoverLabel?: string;
 }
 
 function textFor(value: CandidatureRuntimeValue | undefined): string {
@@ -51,8 +55,12 @@ export function CandidatureFieldValueEditor({
   onClear,
   onDiscover,
   onDirtyChange,
+  initialEditing = value === undefined,
+  saveLabel = "Save",
+  clearLabel = "Clear",
+  discoverLabel = "Suggest with AI",
 }: Props) {
-  const [editing, setEditing] = useState(value === undefined);
+  const [editing, setEditing] = useState(initialEditing);
   const [text, setText] = useState(textFor(value));
   const [choices, setChoices] = useState<string[]>(choicesFor(field, value));
   const [busy, setBusy] = useState(false);
@@ -166,7 +174,7 @@ export function CandidatureFieldValueEditor({
     try {
       await onDiscover();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not discover this value.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not request an AI suggestion.");
     } finally {
       setBusy(false);
     }
@@ -187,8 +195,13 @@ export function CandidatureFieldValueEditor({
         </p>
         <div className="button-row">
           <button type="button" className="compact-secondary" onClick={() => setEditing(true)}>
-            Edit
+            Edit value
           </button>
+          {onDiscover ? (
+            <button type="button" className="compact-secondary" disabled={busy} onClick={() => void discover()}>
+              {discoverLabel}
+            </button>
+          ) : null}
         </div>
       </div>
     );
@@ -274,11 +287,11 @@ export function CandidatureFieldValueEditor({
     <div className="candidature-value-editor">
       {input}
       <div className="button-row">
-        <button type="button" disabled={busy} onClick={() => void save()}>Save</button>
+        <button type="button" disabled={busy} onClick={() => void save()}>{saveLabel}</button>
         {value !== undefined ? (
           <>
             <button type="button" className="compact-secondary" disabled={busy} onClick={() => void clear()}>
-              Clear
+              {clearLabel}
             </button>
             <button type="button" className="compact-secondary" disabled={busy} onClick={cancel}>
               Cancel
@@ -287,7 +300,7 @@ export function CandidatureFieldValueEditor({
         ) : null}
         {onDiscover ? (
           <button type="button" className="compact-secondary" disabled={busy} onClick={() => void discover()}>
-            Discover from Sources
+            {discoverLabel}
           </button>
         ) : null}
       </div>
