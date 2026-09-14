@@ -10,7 +10,7 @@ vi.mock("../src/renderer/CandidatureActivityPanel", () => ({ CandidatureActivity
 
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
 import { clearAllAiTasks, getAiTask } from "../src/renderer/ai-task-store";
-import type { JobExtractionResult } from "../src/shared/ai-contracts";
+import type { PartialJobExtractionResult } from "../src/shared/ai-proposal-outcomes";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
@@ -81,7 +81,7 @@ function deferred<T>() {
 
 function installApi(
   currentRef: { current: CandidatureRecord },
-  extraction: ReturnType<typeof deferred<JobExtractionResult>>,
+  extraction: ReturnType<typeof deferred<PartialJobExtractionResult>>,
 ) {
   const setFieldValue = vi.fn(async ({ fieldId, value }: { fieldId: string; value: CandidatureRuntimeValue }) => {
     currentRef.current = {
@@ -193,7 +193,7 @@ describe("post-creation candidature AI inference", () => {
         tagIds: [],
       } satisfies CandidatureRecord,
     };
-    const extraction = deferred<JobExtractionResult>();
+    const extraction = deferred<PartialJobExtractionResult>();
     const { setFieldValue, extractJob } = installApi(state, extraction);
 
     render(<CandidaturesWorkspace />);
@@ -208,7 +208,11 @@ describe("post-creation candidature AI inference", () => {
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
 
-    extraction.resolve({ proposals: [{ fieldId: roleId, value: "Senior Captain" }], newFields: [] });
+    extraction.resolve({
+      proposals: [{ fieldId: roleId, value: "Senior Captain" }],
+      newFields: [],
+      issues: [],
+    });
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
     expect(setFieldValue).not.toHaveBeenCalled();
 
@@ -249,7 +253,7 @@ describe("post-creation candidature AI inference", () => {
         tagIds: [],
       } satisfies CandidatureRecord,
     };
-    const extraction = deferred<JobExtractionResult>();
+    const extraction = deferred<PartialJobExtractionResult>();
     const { setFieldValue } = installApi(state, extraction);
 
     render(<CandidaturesWorkspace />);
@@ -263,6 +267,7 @@ describe("post-creation candidature AI inference", () => {
         { fieldId: roleId, value: "Senior Captain" },
       ],
       newFields: [],
+      issues: [],
     });
 
     await waitFor(() => expect(setFieldValue).toHaveBeenCalledTimes(2));
@@ -298,7 +303,7 @@ describe("post-creation candidature AI inference", () => {
         tagIds: [],
       } satisfies CandidatureRecord,
     };
-    const extraction = deferred<JobExtractionResult>();
+    const extraction = deferred<PartialJobExtractionResult>();
     installApi(state, extraction);
 
     render(<CandidaturesWorkspace />);
@@ -306,7 +311,7 @@ describe("post-creation candidature AI inference", () => {
     const locationCard = within(detail).getByRole("heading", { name: "Location" }).closest("article");
     if (!locationCard) throw new Error("Location card missing");
     await user.click(within(locationCard).getByRole("button", { name: "Ask AI to fill Location" }));
-    extraction.resolve({ proposals: [], newFields: [] });
+    extraction.resolve({ proposals: [], newFields: [], issues: [] });
 
     expect(await within(locationCard).findByText("AI finished but did not find a usable value.")).toBeInTheDocument();
     expect(getAiTask(`candidature-inference:${candidatureId}:${locationId}`)?.detail).toBe(
