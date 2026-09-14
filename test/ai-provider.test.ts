@@ -65,6 +65,15 @@ function response(content: unknown): Response {
   return contentResponse(JSON.stringify(content));
 }
 
+function validReview() {
+  return {
+    summary: "Relevant evidence supplied.",
+    relevantEvidence: ["TypeScript"],
+    uncertainties: [],
+    questions: [],
+  };
+}
+
 afterEach(() => {
   vi.useRealTimers();
 });
@@ -106,18 +115,11 @@ describe("OpenAI-compatible provider", () => {
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
   });
 
-  it("falls back coherently when an endpoint rejects the structured-output request option", async () => {
+  it("retries standards-only structured output when provider-specific thinking controls are rejected", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response("unsupported response_format", { status: 400 }))
-      .mockResolvedValueOnce(
-        response({
-          summary: "Relevant evidence supplied.",
-          relevantEvidence: ["TypeScript"],
-          uncertainties: [],
-          questions: [],
-        }),
-      );
+      .mockResolvedValueOnce(new Response("unknown chat_template_kwargs", { status: 400 }))
+      .mockResolvedValueOnce(response(validReview()));
     const provider = createOpenAiCompatibleProvider(fetchImpl);
 
     await expect(provider.reviewOpportunity(connection, context)).resolves.toMatchObject({
@@ -127,8 +129,28 @@ describe("OpenAI-compatible provider", () => {
     const firstBody = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
     const secondBody = JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body)) as Record<string, unknown>;
     expect(firstBody.response_format).toBeDefined();
-    expect(secondBody.response_format).toBeUndefined();
-    expect(secondBody.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(firstBody.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(secondBody.response_format).toBeDefined();
+    expect(secondBody.chat_template_kwargs).toBeUndefined();
+    expect(secondBody.reasoning_effort).toBeUndefined();
+  });
+
+  it("falls back coherently when an endpoint does not support structured-output request options", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("unsupported options", { status: 400 }))
+      .mockResolvedValueOnce(new Response("unsupported response_format", { status: 400 }))
+      .mockResolvedValueOnce(response(validReview()));
+    const provider = createOpenAiCompatibleProvider(fetchImpl);
+
+    await expect(provider.reviewOpportunity(connection, context)).resolves.toMatchObject({
+      summary: "Relevant evidence supplied.",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    const thirdBody = JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body)) as Record<string, unknown>;
+    expect(thirdBody.response_format).toBeUndefined();
+    expect(thirdBody.chat_template_kwargs).toBeUndefined();
+    expect(thirdBody.reasoning_effort).toBeUndefined();
   });
 
   it("allows a local-compatible response beyond the old 30-second threshold", async () => {
