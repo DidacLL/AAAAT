@@ -36,7 +36,7 @@ export function CvAssistantDescriptorPanel({
         setNotes(current.notes ?? "");
       })
       .catch(() => {
-        if (active) onError("AAAAT could not load the AI-visible CV description.");
+        if (active) onError("AAAAT could not load this document's assistant description.");
       });
     return () => {
       active = false;
@@ -65,24 +65,22 @@ export function CvAssistantDescriptorPanel({
       setDescriptor(saved);
       setTagsText(saved.tags.join(", "));
       setNotes(saved.notes ?? "");
-      onNotice("AI-visible CV description saved.");
+      onNotice("Assistant description saved.");
     } catch {
-      onError("Check the AI-visible CV tags and notes and try again.");
+      onError("Check the assistant description and try again.");
     }
   };
 
   return (
-    <section className="manual-source-warning" aria-label="AI-visible CV description">
-      <h3>AI-visible CV description</h3>
-      <p>
-        External assistants can read only these tags and notes through the bounded CV-description
-        operation. This description does not share the CV title, document content, local IDs, or file
-        paths.
+    <details className="external-assistant-description" aria-label="Optional assistant description">
+      <summary>Optional assistant description</summary>
+      <p className="document-section-intro">
+        Give external assistants a short description of this CV without sharing the CV content itself.
       </p>
       {descriptor ? (
         <form className="document-fields" onSubmit={(event) => void save(event)}>
           <label className="wide-field">
-            AI-visible tags
+            Tags
             <input
               value={tagsText}
               onChange={(event) => setTagsText(event.target.value)}
@@ -90,24 +88,24 @@ export function CvAssistantDescriptorPanel({
             />
           </label>
           <label className="wide-field">
-            AI-visible notes
+            Notes
             <textarea
-              rows={4}
+              rows={3}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
-              placeholder="What this CV is intended to emphasize or where it is strongest."
+              placeholder="What this CV is intended to emphasize."
             />
           </label>
-          {dirty ? <p className="document-notice wide-field">Unsaved AI-visible description.</p> : null}
+          {dirty ? <p className="document-notice wide-field">Unsaved assistant description.</p> : null}
           <div className="document-actions wide-field">
             <button className="compact-primary" type="submit" disabled={!dirty}>
-              Save AI-visible description
+              Save description
             </button>
           </div>
         </form>
       ) : (
-        <p>Loading AI-visible CV description…</p>
+        <p>Loading assistant description…</p>
       )}
-    </section>
+    </details>
   );
 }
