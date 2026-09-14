@@ -203,7 +203,7 @@ describe("rebuilt candidature workspace", () => {
     expect(within(focus).queryByRole("heading", { name: "Minimum flight hours" })).not.toBeInTheDocument();
     expect(within(focus).getByRole("region", { name: "Tags" })).toHaveTextContent("Platform");
 
-    await user.click(within(focus).getByRole("button", { name: "Edit" }));
+    await user.click(within(focus).getByRole("button", { name: "Edit value" }));
     const value = within(focus).getByRole("textbox");
     await user.clear(value);
     await user.type(value, "Regional Air Europe");
@@ -295,7 +295,7 @@ describe("rebuilt candidature workspace", () => {
       .getByRole("heading", { name: "Organisation" })
       .closest("article");
     if (!organisationCard) throw new Error("Organisation information card missing");
-    await user.click(within(organisationCard).getByRole("button", { name: "Edit" }));
+    await user.click(within(organisationCard).getByRole("button", { name: "Edit value" }));
     const value = within(organisationCard).getByRole("textbox");
     await user.clear(value);
     await user.type(value, "Regional Air Europe");
@@ -316,7 +316,7 @@ describe("rebuilt candidature workspace", () => {
 
     render(<CandidaturesWorkspace />);
     await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
-    await user.click(screen.getByText("Focus & AI", { selector: "summary" }));
+    await user.click(screen.getByText("Information display & AI settings", { selector: "summary" }));
 
     const fieldCard = screen.getByText("Minimum flight hours", { selector: "strong" }).closest("article");
     if (!fieldCard) throw new Error("Field preference card missing");
