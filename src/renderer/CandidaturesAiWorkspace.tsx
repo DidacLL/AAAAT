@@ -242,17 +242,17 @@ export function CandidaturesAiWorkspace({
           <div className="post-paste-actions" role="group" aria-label="Continue from saved Source">
             <button
               type="button"
-              disabled={aiExtractionAvailable !== true}
+              disabled={aiExtractionAvailable === null}
               onClick={() => setPostPasteMode("ai")}
             >
-              Send to AI
+              {aiExtractionAvailable === false ? "Set up AI suggestions" : "Send to AI"}
             </button>
             <button type="button" onClick={() => setPostPasteMode("manual")}>
               Fill candidature yourself
             </button>
           </div>
           {aiExtractionAvailable === false ? (
-            <p className="compact-help">AI extraction is not configured. Manual entry remains complete.</p>
+            <p className="compact-help">AI suggestions need a validated connection. You can open the AI path for the exact setup action, or continue manually.</p>
           ) : aiExtractionAvailable === null ? (
             <p className="compact-help">Checking AI availability…</p>
           ) : null}
