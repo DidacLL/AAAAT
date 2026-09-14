@@ -34,7 +34,10 @@ function fieldDraft(field: CandidatureFieldConfiguration): CandidatureFieldUpdat
   };
 }
 
-function ensureChoiceDraft<T extends CandidatureFieldCreate | CandidatureFieldUpdate>(draft: T, valueType: T["valueType"]): T {
+function ensureChoiceDraft<T extends CandidatureFieldCreate | CandidatureFieldUpdate>(
+  draft: T,
+  valueType: T["valueType"],
+): T {
   return {
     ...draft,
     valueType,
@@ -91,7 +94,7 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
         if (active) setFields(next);
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load candidature field definitions.");
+        if (active) setError("AAAAT could not load information settings.");
       });
     return () => {
       active = false;
@@ -99,7 +102,7 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
   }, []);
 
   const selectField = (fieldId: string) => {
-    if (dirty && selectedId && !window.confirm("Discard unsaved field-definition edits?")) return;
+    if (dirty && selectedId && !window.confirm("Discard unsaved information changes?")) return;
     setSelectedId(fieldId);
     const field = fields.find((candidate) => candidate.definition.id === fieldId);
     setEditDraft(field ? fieldDraft(field) : null);
@@ -123,7 +126,7 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
       setEditAiDiscovery(refreshed?.preferences.aiDiscovery ?? false);
       onChanged();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not save this field definition.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save these information settings.");
     }
   };
 
@@ -148,13 +151,13 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
       setEditAiDiscovery(refreshed?.preferences.aiDiscovery ?? false);
       onChanged();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not create this field definition.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not add this kind of information.");
     }
   };
 
   const deleteSelected = async () => {
     if (!selected || selected.definition.systemKey !== null) return;
-    if (!window.confirm(`Delete unused field “${selected.definition.label}”?`)) return;
+    if (!window.confirm(`Remove unused information kind “${selected.definition.label}”?`)) return;
     setError(null);
     try {
       await window.aaaat.candidatures.deleteField(selected.definition.id);
@@ -164,7 +167,7 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
       setEditAiDiscovery(false);
       onChanged();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not delete this field definition.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not remove this information kind.");
     }
   };
 
@@ -214,32 +217,37 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
             })
           }
         >
-          Add choice
+          Add option
         </button>
       </div>
     );
   };
 
-  const enabledCount = useMemo(() => fields.filter((field) => field.definition.enabled).length, [fields]);
+  const enabledCount = useMemo(
+    () => fields.filter((field) => field.definition.enabled).length,
+    [fields],
+  );
 
   return (
     <details className="field-definitions-panel">
-      <summary>Manage candidature fields</summary>
+      <summary>Customize information</summary>
       <div className="field-definitions-content">
         <p>
-          Shipped fields are defaults, not a fixed ontology. Add or adapt fields for the work you actually do.
+          Choose the kinds of information that are useful for your applications. The defaults are only a starting point.
         </p>
-        <p className="compact-help">{enabledCount} enabled field{enabledCount === 1 ? "" : "s"}</p>
+        <p className="compact-help">
+          {enabledCount} available kind{enabledCount === 1 ? "" : "s"} of information
+        </p>
 
-        <section className="editor-card" aria-label="Edit candidature field">
-          <h4>Edit a field</h4>
+        <section className="editor-card" aria-label="Change candidature information kind">
+          <h4>Change an information kind</h4>
           <label>
-            Field
+            Information
             <select value={selectedId} onChange={(event) => selectField(event.target.value)}>
               <option value="">Choose…</option>
               {fields.map((field) => (
                 <option key={field.definition.id} value={field.definition.id}>
-                  {field.definition.label}{field.definition.enabled ? "" : " · retired"}
+                  {field.definition.label}{field.definition.enabled ? "" : " · hidden"}
                 </option>
               ))}
             </select>
@@ -248,48 +256,82 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
             <div className="field-definition-form">
               <label>
                 Name
-                <input value={editDraft.label} onChange={(event) => setEditDraft({ ...editDraft, label: event.target.value })} />
+                <input
+                  value={editDraft.label}
+                  onChange={(event) => setEditDraft({ ...editDraft, label: event.target.value })}
+                />
               </label>
               <label>
                 Description
-                <textarea rows={3} value={editDraft.description} onChange={(event) => setEditDraft({ ...editDraft, description: event.target.value })} />
+                <textarea
+                  rows={3}
+                  value={editDraft.description}
+                  onChange={(event) => setEditDraft({ ...editDraft, description: event.target.value })}
+                />
               </label>
               <label>
-                Type
+                Format
                 <select
                   value={editDraft.valueType}
-                  onChange={(event) => setEditDraft(ensureChoiceDraft(editDraft, event.target.value as CandidatureFieldUpdate["valueType"]))}
+                  onChange={(event) =>
+                    setEditDraft(
+                      ensureChoiceDraft(
+                        editDraft,
+                        event.target.value as CandidatureFieldUpdate["valueType"],
+                      ),
+                    )
+                  }
                 >
-                  <option value="text">Text</option>
+                  <option value="text">Short text</option>
                   <option value="long_text">Long text</option>
                   <option value="number">Number</option>
                   <option value="boolean">Yes / no</option>
                   <option value="date">Date</option>
                   <option value="url">URL</option>
-                  <option value="choice">Choice</option>
+                  <option value="choice">Choose from options</option>
                 </select>
               </label>
               <label>
-                Values
-                <select value={editDraft.cardinality} onChange={(event) => setEditDraft({ ...editDraft, cardinality: event.target.value as CandidatureFieldUpdate["cardinality"] })}>
+                Allow
+                <select
+                  value={editDraft.cardinality}
+                  onChange={(event) =>
+                    setEditDraft({
+                      ...editDraft,
+                      cardinality: event.target.value as CandidatureFieldUpdate["cardinality"],
+                    })
+                  }
+                >
                   <option value="one">One value</option>
-                  <option value="many">Multiple values</option>
+                  <option value="many">Several values</option>
                 </select>
               </label>
               {renderChoices(editDraft, setEditDraft)}
               <label>
-                <input type="checkbox" checked={editDraft.enabled} onChange={(event) => setEditDraft({ ...editDraft, enabled: event.target.checked })} />
-                Available for candidature entry
+                <input
+                  type="checkbox"
+                  checked={editDraft.enabled}
+                  onChange={(event) =>
+                    setEditDraft({ ...editDraft, enabled: event.target.checked })
+                  }
+                />
+                Available when adding candidature information
               </label>
               <label>
-                <input type="checkbox" checked={editAiDiscovery} onChange={(event) => setEditAiDiscovery(event.target.checked)} />
-                AI extraction may propose this field from retained Sources
+                <input
+                  type="checkbox"
+                  checked={editAiDiscovery}
+                  onChange={(event) => setEditAiDiscovery(event.target.checked)}
+                />
+                AI may suggest this information from retained Sources
               </label>
               <div className="button-row">
-                <button type="button" disabled={!editDirty} onClick={() => void saveExisting()}>Save field</button>
+                <button type="button" disabled={!editDirty} onClick={() => void saveExisting()}>
+                  Save changes
+                </button>
                 {selected.definition.systemKey === null ? (
                   <button type="button" className="compact-secondary" onClick={() => void deleteSelected()}>
-                    Delete unused field
+                    Remove unused kind
                   </button>
                 ) : null}
               </div>
@@ -297,45 +339,72 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
           ) : null}
         </section>
 
-        <section className="editor-card" aria-label="Create candidature field">
-          <h4>Add a field</h4>
+        <section className="editor-card" aria-label="Add candidature information kind">
+          <h4>Add a kind of information</h4>
           <label>
             Name
-            <input value={newDraft.label} onChange={(event) => setNewDraft({ ...newDraft, label: event.target.value })} placeholder="Flight hours" />
+            <input
+              value={newDraft.label}
+              onChange={(event) => setNewDraft({ ...newDraft, label: event.target.value })}
+              placeholder="Flight hours"
+            />
           </label>
           <label>
             Description
-            <textarea rows={3} value={newDraft.description} onChange={(event) => setNewDraft({ ...newDraft, description: event.target.value })} />
+            <textarea
+              rows={3}
+              value={newDraft.description}
+              onChange={(event) => setNewDraft({ ...newDraft, description: event.target.value })}
+            />
           </label>
           <label>
-            Type
+            Format
             <select
               value={newDraft.valueType}
-              onChange={(event) => setNewDraft(ensureChoiceDraft(newDraft, event.target.value as CandidatureFieldCreate["valueType"]))}
+              onChange={(event) =>
+                setNewDraft(
+                  ensureChoiceDraft(
+                    newDraft,
+                    event.target.value as CandidatureFieldCreate["valueType"],
+                  ),
+                )
+              }
             >
-              <option value="text">Text</option>
+              <option value="text">Short text</option>
               <option value="long_text">Long text</option>
               <option value="number">Number</option>
               <option value="boolean">Yes / no</option>
               <option value="date">Date</option>
               <option value="url">URL</option>
-              <option value="choice">Choice</option>
+              <option value="choice">Choose from options</option>
             </select>
           </label>
           <label>
-            Values
-            <select value={newDraft.cardinality} onChange={(event) => setNewDraft({ ...newDraft, cardinality: event.target.value as CandidatureFieldCreate["cardinality"] })}>
+            Allow
+            <select
+              value={newDraft.cardinality}
+              onChange={(event) =>
+                setNewDraft({
+                  ...newDraft,
+                  cardinality: event.target.value as CandidatureFieldCreate["cardinality"],
+                })
+              }
+            >
               <option value="one">One value</option>
-              <option value="many">Multiple values</option>
+              <option value="many">Several values</option>
             </select>
           </label>
           {renderChoices(newDraft, setNewDraft)}
           <label>
-            <input type="checkbox" checked={newAiDiscovery} onChange={(event) => setNewAiDiscovery(event.target.checked)} />
-            AI extraction may propose this field from retained Sources
+            <input
+              type="checkbox"
+              checked={newAiDiscovery}
+              onChange={(event) => setNewAiDiscovery(event.target.checked)}
+            />
+            AI may suggest this information from retained Sources
           </label>
           <button type="button" disabled={!newDraft.label.trim()} onClick={() => void createField()}>
-            Add field
+            Add
           </button>
         </section>
 
