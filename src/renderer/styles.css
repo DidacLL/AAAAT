@@ -1,6 +1,7 @@
 :root {
   color: #243038;
   background: #eee6d7;
+  color-scheme: light;
   font-family: "Segoe UI", Inter, Arial, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -217,9 +218,9 @@ button:disabled {
 
 .error-message {
   max-width: 760px;
-  margin: 12px 0 0;
+  margin: 9px 0 0;
   color: #913629;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .workspace-screen {
@@ -231,25 +232,25 @@ button:disabled {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
-  margin: 0 0 20px;
+  gap: 16px;
+  margin: 0 0 12px;
 }
 
 .workspace-heading h1,
 .section-heading h2 {
   margin: 0;
   font-weight: 650;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
 }
 
 .workspace-heading h1 {
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .eyebrow {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   color: var(--accent-dark);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -259,27 +260,27 @@ button:disabled {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .section-heading h2 {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .section-heading > span {
   color: var(--muted-ink);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .editor-card {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  padding: 15px;
+  gap: 9px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-left: 3px solid var(--panel-deep);
-  border-radius: 5px;
+  border-radius: 4px;
   background: #f8efe1;
   box-shadow: 0 1px 0 rgb(82 61 39 / 7%);
 }
@@ -289,7 +290,7 @@ button:disabled {
 .manual-field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   color: var(--ink);
   font-size: 13px;
   font-weight: 650;
@@ -304,7 +305,7 @@ button:disabled {
 .manual-field select,
 .manual-field textarea {
   width: 100%;
-  padding: 9px 10px;
+  padding: 8px 9px;
   border: 1px solid #a9967e;
   border-radius: 4px;
   color: var(--ink);
@@ -314,7 +315,7 @@ button:disabled {
 .editor-card textarea,
 .variant-rule textarea,
 .manual-field textarea {
-  min-height: 72px;
+  min-height: 68px;
   resize: vertical;
 }
 
@@ -335,7 +336,7 @@ button:disabled {
 .variant-tabs {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .compact-primary,
@@ -343,7 +344,7 @@ button:disabled {
 .row-actions button,
 .order-actions button,
 .variant-tabs button {
-  padding: 8px 11px;
+  padding: 7px 9px;
   border-radius: 4px;
   font-size: 13px;
 }
@@ -374,15 +375,15 @@ button:disabled {
 .variant-rule-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 7px;
+  margin-top: 9px;
 }
 
 .profile-item,
 .variant-rule {
-  padding: 14px;
+  padding: 11px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 4px;
   background: var(--paper);
 }
 
@@ -390,24 +391,24 @@ button:disabled {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .profile-item h3 {
-  margin: 4px 0;
-  font-size: 17px;
+  margin: 3px 0;
+  font-size: 16px;
 }
 
 .profile-item p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   color: var(--muted-ink);
-  font-size: 14px;
+  font-size: 13px;
   white-space: pre-wrap;
 }
 
 .item-kind {
   color: var(--accent-dark);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -415,7 +416,7 @@ button:disabled {
 
 .variant-tabs {
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  margin-bottom: 9px;
 }
 
 .variant-tabs .active-variant {
@@ -427,14 +428,14 @@ button:disabled {
 .variant-rule {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .variant-rule-title {
   display: flex;
   grid-column: 1 / -1;
   align-items: center;
-  gap: 12px;
+  gap: 9px;
 }
 
 .variant-rule-title strong {
@@ -488,10 +489,10 @@ button:disabled {
 
 .ai-visibility-content {
   display: grid;
-  gap: 9px;
+  gap: 8px;
   width: min(420px, calc(100vw - 48px));
-  margin-top: 7px;
-  padding: 11px 12px;
+  margin-top: 6px;
+  padding: 9px 10px;
   border: 1px solid var(--line);
   border-left: 3px solid var(--focus);
   border-radius: 4px;
@@ -501,7 +502,7 @@ button:disabled {
 
 .ai-visibility-content label {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   font-size: 13px;
   font-weight: 650;
 }
@@ -509,7 +510,7 @@ button:disabled {
 .ai-visibility-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 7px 12px;
+  gap: 6px 10px;
 }
 
 @media (max-width: 680px) {
