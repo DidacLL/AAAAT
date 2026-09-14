@@ -278,7 +278,6 @@ export function App() {
               <span className="workspace-chip" title={workspace.rootPath}>
                 <span>Workspace</span><code>{workspace.rootPath}</code>
               </span>
-              <AiTaskStatus />
               <button className="compact-secondary" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>
                 {choosing ? "Choosing…" : "Switch workspace"}
               </button>
@@ -293,17 +292,20 @@ export function App() {
           <main className="workspace-screen">
             {workspaceError ? <p className="error-message shell-error" role="alert">{workspaceError}</p> : null}
             <div className="work-shell">
-              <nav className="primary-work-nav" aria-label="Primary work areas">
-                <button type="button" className={!settingsOpen && productView === "candidatures" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "candidatures" ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Candidatures</button>
-                <button type="button" className={!settingsOpen && productView === "documents" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "documents" ? "page" : undefined} onClick={() => selectProductView("documents")}>CVs &amp; letters</button>
-                <button type="button" className={!settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>Professional information</button>
-              </nav>
+              <aside className="work-rail" aria-label="Workspace controls">
+                <nav className="primary-work-nav" aria-label="Primary work areas">
+                  <button type="button" className={!settingsOpen && productView === "candidatures" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "candidatures" ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Candidatures</button>
+                  <button type="button" className={!settingsOpen && productView === "documents" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "documents" ? "page" : undefined} onClick={() => selectProductView("documents")}>CVs &amp; letters</button>
+                  <button type="button" className={!settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>Professional information</button>
+                </nav>
+                <AiTaskStatus />
+              </aside>
 
               <section className="work-surface">
                 {settingsOpen ? (
                   <div className="settings-area" key={`settings-${workspace.rootPath}-${settingsHandoff?.view ?? "overview"}`}>
                     <div className="shell-section-heading">
-                      <div><p className="eyebrow">Secondary administration</p><h1>Settings</h1></div>
+                      <h1>Settings</h1>
                       <button
                         className="compact-secondary"
                         type="button"
@@ -346,7 +348,7 @@ export function App() {
                   <div hidden={settingsOpen || productView !== "professional-information"}>
                     {professionalInformationHandoff ? (
                       <div className="contextual-return-bar" role="status">
-                        <span>Editing reusable professional information for the current document.</span>
+                        <span>Editing professional information used by the current document.</span>
                         <button className="compact-secondary" type="button" onClick={handoffApi.returnToDocument}>
                           Return to document
                         </button>
