@@ -109,7 +109,7 @@ describe("candidature information customization", () => {
     render(<CandidatureFieldDefinitionsPanel onChanged={vi.fn()} />);
 
     const summary = await screen.findByText("Customize available information", { selector: "summary" });
-    expect(screen.queryByRole("region", { name: "Change available candidature information" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Change available candidature information", hidden: true })).not.toBeVisible();
     await user.click(summary);
 
     expect(screen.getByText(/does not edit the values of the candidature above/i)).toBeInTheDocument();
