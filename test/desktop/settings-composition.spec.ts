@@ -223,7 +223,7 @@ test("packaged Settings is intention-based and compact-task oriented", async () 
 
     await overview.getByRole("button", { name: /AI connections/ }).click();
     await expect(running.page.getByRole("region", { name: "AI connections settings" })).toBeVisible();
-    await expect(running.page.getByText(/AAAAT works without AI/i)).toBeVisible();
+    await expect(running.page.getByText(/AAAAT works fully without AI/i)).toBeVisible();
     await expect(running.page.getByLabel("Connection name")).toHaveCount(0);
     await running.page.getByRole("button", { name: "Add connection" }).click();
     await expect(running.page.getByLabel("Connection name")).toBeVisible();
