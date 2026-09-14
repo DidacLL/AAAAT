@@ -9,7 +9,7 @@ vi.mock("../src/renderer/CandidatureApplicationMaterialPanel", () => ({
 vi.mock("../src/renderer/CandidatureActivityPanel", () => ({ CandidatureActivityPanel: () => null }));
 
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
-import { clearAllAiTasks } from "../src/renderer/ai-task-store";
+import { clearAllAiTasks, getAiTask } from "../src/renderer/ai-task-store";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
@@ -78,10 +78,95 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-describe("post-creation candidature AI inference", () => {
-  beforeEach(() => {
-    clearAllAiTasks();
+function installApi(
+  currentRef: { current: CandidatureRecord },
+  extraction: ReturnType<typeof deferred<{ proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> }>>,
+) {
+  const setFieldValue = vi.fn(async ({ fieldId, value }: { fieldId: string; value: CandidatureRuntimeValue }) => {
+    currentRef.current = {
+      ...currentRef.current,
+      values: [
+        ...currentRef.current.values.filter((item) => item.fieldId !== fieldId),
+        retained(fieldId, value),
+      ],
+    };
+    return currentRef.current;
   });
+  const extractJob = vi.fn((request: ExtractionRequest) => {
+    void request;
+    return extraction.promise;
+  });
+
+  Object.defineProperty(window, "aaaat", {
+    configurable: true,
+    value: {
+      candidatures: {
+        list: vi.fn(async () => [currentRef.current]),
+        listFields: vi.fn(async () => fields),
+        create: vi.fn(),
+        update: vi.fn(),
+        filter: vi.fn(async () => [candidatureId]),
+        createField: vi.fn(),
+        updateField: vi.fn(),
+        deleteField: vi.fn(),
+        updateFieldPreferences: vi.fn(async (input) => ({
+          ...fields.find((candidate) => candidate.definition.id === input.fieldId)!,
+          preferences: input,
+        })),
+        setFieldValue,
+        clearFieldValue: vi.fn(async ({ fieldId }) => {
+          currentRef.current = {
+            ...currentRef.current,
+            values: currentRef.current.values.filter((item) => item.fieldId !== fieldId),
+          };
+          return currentRef.current;
+        }),
+        listSources: vi.fn(async () => [{
+          id: sourceId,
+          candidatureId,
+          kind: "job_posting",
+          title: "Aster vacancy",
+          url: "https://example.invalid/aster",
+          sourceText: "Aster Aviation seeks a Senior Captain in Madrid.",
+          createdAt: "2026-09-14T00:00:00.000Z",
+          updatedAt: "2026-09-14T00:00:00.000Z",
+        }]),
+        addSource: vi.fn(),
+        updateSource: vi.fn(),
+        removeSource: vi.fn(),
+        setDocuments: vi.fn(),
+        listTags: vi.fn(async () => []),
+        createTag: vi.fn(),
+        updateTag: vi.fn(),
+        setTags: vi.fn(),
+      },
+      candidatureSearch: { search: vi.fn(async () => [candidatureId]) },
+      documents: { list: vi.fn(async () => []) },
+      aiConnections: {
+        list: vi.fn(async () => [{
+          id: "00000000-0000-4000-8000-000000000926",
+          name: "Qwen local",
+          endpoint: "http://127.0.0.1:8080/v1",
+          model: "qwen3-8b",
+          isDefault: true,
+          validatedOperations: ["job_extraction"],
+          defaultForOperations: ["job_extraction"],
+        }]),
+      },
+      ai: { extractJob },
+    },
+  });
+  return { setFieldValue, extractJob };
+}
+
+async function openDetails(user: ReturnType<typeof userEvent.setup>) {
+  await screen.findByLabelText("Candidature corpus Focus");
+  await user.click(screen.getByRole("button", { name: "All details" }));
+  return screen.findByRole("region", { name: "Complete candidature" });
+}
+
+describe("post-creation candidature AI inference", () => {
+  beforeEach(() => clearAllAiTasks());
 
   afterEach(() => {
     cleanup();
@@ -89,207 +174,134 @@ describe("post-creation candidature AI inference", () => {
     vi.restoreAllMocks();
   });
 
-  it("queues bulk inference, keeps manual value editing usable, and never writes proposals silently", async () => {
+  it("keeps a single-field proposal attached to its field across navigation and persists only on acceptance", async () => {
     const user = userEvent.setup();
-    let current: CandidatureRecord = {
-      id: candidatureId,
-      archived: false,
-      createdAt: "2026-09-14T00:00:00.000Z",
-      updatedAt: "2026-09-14T00:00:00.000Z",
-      label: "Captain opportunity",
-      sourceSearchText: "Aster Aviation Madrid",
-      values: [retained(roleId, "Captain")],
-      documentIds: [],
-      tagIds: [],
+    const state = {
+      current: {
+        id: candidatureId,
+        archived: false,
+        createdAt: "2026-09-14T00:00:00.000Z",
+        updatedAt: "2026-09-14T00:00:00.000Z",
+        label: "Captain opportunity",
+        sourceSearchText: "Aster Aviation Madrid",
+        values: [retained(roleId, "Captain")],
+        documentIds: [],
+        tagIds: [],
+      } satisfies CandidatureRecord,
     };
     const extraction = deferred<{ proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> }>();
-    const setFieldValue = vi.fn(async ({ fieldId, value }: { fieldId: string; value: CandidatureRuntimeValue }) => {
-      current = {
-        ...current,
-        values: [
-          ...current.values.filter((item) => item.fieldId !== fieldId),
-          retained(fieldId, value),
-        ],
-      };
-      return current;
-    });
-    const extractJob = vi.fn((request: ExtractionRequest) => {
-      void request;
-      return extraction.promise;
-    });
-
-    Object.defineProperty(window, "aaaat", {
-      configurable: true,
-      value: {
-        candidatures: {
-          list: vi.fn(async () => [current]),
-          listFields: vi.fn(async () => fields),
-          create: vi.fn(),
-          update: vi.fn(),
-          filter: vi.fn(async () => [candidatureId]),
-          createField: vi.fn(),
-          updateField: vi.fn(),
-          deleteField: vi.fn(),
-          updateFieldPreferences: vi.fn(),
-          setFieldValue,
-          clearFieldValue: vi.fn(),
-          listSources: vi.fn(async () => [{
-            id: sourceId,
-            candidatureId,
-            kind: "job_posting",
-            title: "Aster vacancy",
-            url: "https://example.invalid/aster",
-            sourceText: "Aster Aviation seeks a Captain in Madrid.",
-            createdAt: "2026-09-14T00:00:00.000Z",
-            updatedAt: "2026-09-14T00:00:00.000Z",
-          }]),
-          addSource: vi.fn(),
-          updateSource: vi.fn(),
-          removeSource: vi.fn(),
-          setDocuments: vi.fn(),
-          listTags: vi.fn(async () => []),
-          createTag: vi.fn(),
-          updateTag: vi.fn(),
-          setTags: vi.fn(),
-        },
-        candidatureSearch: { search: vi.fn(async () => [candidatureId]) },
-        documents: { list: vi.fn(async () => []) },
-        aiConnections: {
-          list: vi.fn(async () => [{
-            id: "00000000-0000-4000-8000-000000000926",
-            name: "Qwen local",
-            endpoint: "http://127.0.0.1:8080/v1",
-            model: "qwen3-8b",
-            isDefault: true,
-            validatedOperations: ["job_extraction"],
-            defaultForOperations: ["job_extraction"],
-          }]),
-        },
-        ai: { extractJob },
-      },
-    });
+    const { setFieldValue, extractJob } = installApi(state, extraction);
 
     render(<CandidaturesWorkspace />);
-    await screen.findByLabelText("Candidature corpus Focus");
-    await user.click(screen.getByRole("button", { name: "All details" }));
-
-    await user.click(screen.getByRole("button", { name: "Suggest missing information with AI" }));
-    const inference = await screen.findByRole("region", { name: "Candidature AI suggestions" });
-    await user.click(within(inference).getByRole("button", { name: "Ask AI to find missing information" }));
-    expect(await within(inference).findByText(/Queued|Looking through retained Sources and information/)).toBeInTheDocument();
-
-    const roleCard = screen.getByRole("heading", { name: "Role" }).closest("article");
+    let detail = await openDetails(user);
+    const roleCard = within(detail).getByRole("heading", { name: "Role" }).closest("article");
     if (!roleCard) throw new Error("Role card missing");
-    await user.click(within(roleCard).getByRole("button", { name: "Edit value" }));
-    const roleInput = within(roleCard).getByRole("textbox");
-    await user.clear(roleInput);
-    await user.type(roleInput, "Senior Captain");
-    await user.click(within(roleCard).getByRole("button", { name: "Save" }));
-    expect(setFieldValue).toHaveBeenCalledTimes(1);
 
-    const request = extractJob.mock.calls[0]?.[0];
-    expect(request?.sourceText).toContain("Aster Aviation seeks a Captain in Madrid.");
-    expect(request?.sourceText).toContain("Role: Captain");
+    await user.click(within(roleCard).getByRole("button", { name: "Ask AI to fill Role" }));
+    expect(await screen.findByText(/Finding Role|AI queued/)).toBeInTheDocument();
+    expect(extractJob).toHaveBeenCalledTimes(1);
 
-    extraction.resolve({
-      proposals: [
-        { fieldId: organisationId, value: "Aster Aviation" },
-        { fieldId: locationId, value: "Madrid" },
-        { fieldId: roleId, value: "Captain" },
-      ],
-    });
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
 
-    expect(await within(inference).findByText("Organisation", { exact: true })).toBeInTheDocument();
-    expect(within(inference).getByText("Location", { exact: true })).toBeInTheDocument();
-    expect(within(inference).queryByText("Role", { exact: true })).not.toBeInTheDocument();
-    expect(setFieldValue).toHaveBeenCalledTimes(1);
-
-    const organisationCard = within(inference).getByText("Organisation", { exact: true }).closest("article");
-    if (!organisationCard) throw new Error("Organisation proposal missing");
-    await user.click(within(organisationCard).getByRole("button", { name: "Use suggestion" }));
-    expect(setFieldValue).toHaveBeenLastCalledWith({
-      candidatureId,
-      fieldId: organisationId,
-      value: "Aster Aviation",
-    });
-  });
-
-  it("offers a specific-field proposal as an explicit replacement", async () => {
-    const user = userEvent.setup();
-    const extraction = deferred<{ proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> }>();
-    const current: CandidatureRecord = {
-      id: candidatureId,
-      archived: false,
-      createdAt: "2026-09-14T00:00:00.000Z",
-      updatedAt: "2026-09-14T00:00:00.000Z",
-      label: "Captain opportunity",
-      sourceSearchText: "",
-      values: [retained(roleId, "Captain")],
-      documentIds: [],
-      tagIds: [],
-    };
-    const setFieldValue = vi.fn(async () => current);
-
-    Object.defineProperty(window, "aaaat", {
-      configurable: true,
-      value: {
-        candidatures: {
-          list: vi.fn(async () => [current]),
-          listFields: vi.fn(async () => fields),
-          setFieldValue,
-          clearFieldValue: vi.fn(),
-          listSources: vi.fn(async () => [{
-            id: sourceId,
-            candidatureId,
-            kind: "job_posting",
-            title: "Vacancy",
-            url: "",
-            sourceText: "Role title: Senior Captain",
-            createdAt: "2026-09-14T00:00:00.000Z",
-            updatedAt: "2026-09-14T00:00:00.000Z",
-          }]),
-          listTags: vi.fn(async () => []),
-        },
-        candidatureSearch: { search: vi.fn(async () => [candidatureId]) },
-        documents: { list: vi.fn(async () => []) },
-        aiConnections: {
-          list: vi.fn(async () => [{
-            id: "00000000-0000-4000-8000-000000000926",
-            name: "Qwen local",
-            endpoint: "http://127.0.0.1:8080/v1",
-            model: "qwen3-8b",
-            isDefault: true,
-            validatedOperations: ["job_extraction"],
-            defaultForOperations: ["job_extraction"],
-          }]),
-        },
-        ai: {
-          extractJob: vi.fn((request: ExtractionRequest) => {
-            void request;
-            return extraction.promise;
-          }),
-        },
-      },
-    });
-
-    render(<CandidaturesWorkspace />);
-    await screen.findByLabelText("Candidature corpus Focus");
-    await user.click(screen.getByRole("button", { name: "All details" }));
-    const roleCard = screen.getByRole("heading", { name: "Role" }).closest("article");
-    if (!roleCard) throw new Error("Role card missing");
-    await user.click(within(roleCard).getByRole("button", { name: "Suggest with AI" }));
-
-    const inference = await screen.findByRole("region", { name: "Candidature AI suggestions" });
-    await user.click(within(inference).getByRole("button", { name: "Ask AI to find Role" }));
     extraction.resolve({ proposals: [{ fieldId: roleId, value: "Senior Captain" }] });
-
-    expect(await within(inference).findByText(/Suggested replacement/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
     expect(setFieldValue).not.toHaveBeenCalled();
-    await user.click(within(inference).getByRole("button", { name: "Use suggestion" }));
+
+    await user.click(screen.getByRole("button", { name: "All details" }));
+    detail = await screen.findByRole("region", { name: "Complete candidature" });
+    const reopenedRole = within(detail).getByRole("heading", { name: "Role" }).closest("article");
+    if (!reopenedRole) throw new Error("Reopened Role card missing");
+
+    expect(await within(reopenedRole).findByText("AI proposal")).toBeInTheDocument();
+    expect(within(reopenedRole).getByText("Senior Captain")).toBeInTheDocument();
+    expect(within(reopenedRole).getByText("Current value stays until you accept")).toBeInTheDocument();
+    expect(within(reopenedRole).getByText("Captain", { exact: true })).toBeInTheDocument();
+    expect(setFieldValue).not.toHaveBeenCalled();
+
+    await user.click(within(reopenedRole).getByRole("button", { name: "Accept" }));
     expect(setFieldValue).toHaveBeenCalledWith({
       candidatureId,
       fieldId: roleId,
       value: "Senior Captain",
     });
+    expect(getAiTask(`candidature-inference:${candidatureId}:${roleId}`)?.detail).toBe("Completed · proposals reviewed");
+  });
+
+  it("fills missing information as visible field proposals and Accept all never overwrites an existing value", async () => {
+    const user = userEvent.setup();
+    const state = {
+      current: {
+        id: candidatureId,
+        archived: false,
+        createdAt: "2026-09-14T00:00:00.000Z",
+        updatedAt: "2026-09-14T00:00:00.000Z",
+        label: "Captain opportunity",
+        sourceSearchText: "Aster Aviation Madrid",
+        values: [retained(roleId, "Captain")],
+        documentIds: [],
+        tagIds: [],
+      } satisfies CandidatureRecord,
+    };
+    const extraction = deferred<{ proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> }>();
+    const { setFieldValue } = installApi(state, extraction);
+
+    render(<CandidaturesWorkspace />);
+    const detail = await openDetails(user);
+    await user.click(within(detail).getByRole("button", { name: "Ask AI to fill missing information" }));
+
+    extraction.resolve({
+      proposals: [
+        { fieldId: organisationId, value: "Aster Aviation" },
+        { fieldId: locationId, value: "Madrid" },
+        { fieldId: roleId, value: "Senior Captain" },
+      ],
+    });
+
+    expect(await within(detail).findByText("2 AI proposals ready in the fields below.")).toBeInTheDocument();
+    const organisationCard = within(detail).getByRole("heading", { name: "Organisation" }).closest("article");
+    const locationCard = within(detail).getByRole("heading", { name: "Location" }).closest("article");
+    const roleCard = within(detail).getByRole("heading", { name: "Role" }).closest("article");
+    if (!organisationCard || !locationCard || !roleCard) throw new Error("Expected field cards missing");
+
+    expect(within(organisationCard).getByText("Aster Aviation")).toBeInTheDocument();
+    expect(within(locationCard).getByText("Madrid")).toBeInTheDocument();
+    expect(within(roleCard).queryByText("Senior Captain")).not.toBeInTheDocument();
+    expect(setFieldValue).not.toHaveBeenCalled();
+
+    await user.click(within(detail).getByRole("button", { name: "Accept all" }));
+    expect(setFieldValue).toHaveBeenCalledTimes(2);
+    expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId: organisationId, value: "Aster Aviation" });
+    expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId: locationId, value: "Madrid" });
+    expect(setFieldValue).not.toHaveBeenCalledWith(expect.objectContaining({ fieldId: roleId }));
+  });
+
+  it("explains a completed single-field task when AI returns no usable proposal", async () => {
+    const user = userEvent.setup();
+    const state = {
+      current: {
+        id: candidatureId,
+        archived: false,
+        createdAt: "2026-09-14T00:00:00.000Z",
+        updatedAt: "2026-09-14T00:00:00.000Z",
+        label: "Captain opportunity",
+        sourceSearchText: "Aster Aviation Madrid",
+        values: [retained(roleId, "Captain")],
+        documentIds: [],
+        tagIds: [],
+      } satisfies CandidatureRecord,
+    };
+    const extraction = deferred<{ proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> }>();
+    installApi(state, extraction);
+
+    render(<CandidaturesWorkspace />);
+    const detail = await openDetails(user);
+    const locationCard = within(detail).getByRole("heading", { name: "Location" }).closest("article");
+    if (!locationCard) throw new Error("Location card missing");
+    await user.click(within(locationCard).getByRole("button", { name: "Ask AI to fill Location" }));
+    extraction.resolve({ proposals: [] });
+
+    expect(await within(locationCard).findByText("AI finished but did not find a usable value.")).toBeInTheDocument();
+    expect(getAiTask(`candidature-inference:${candidatureId}:${locationId}`)?.detail).toBe("Completed · no usable proposal");
   });
 });
