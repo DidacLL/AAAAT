@@ -176,7 +176,7 @@ test("packaged Settings is intention-based and compact-task oriented", async () 
     await expect(running.page).toHaveTitle("AAAAT");
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     await running.page.getByRole("button", { name: "Settings" }).click();
     const overview = running.page.getByRole("region", { name: "Settings overview" });
@@ -218,7 +218,7 @@ test("packaged Settings is intention-based and compact-task oriented", async () 
     await running.page.getByRole("button", { name: "Back to Settings" }).click();
 
     await running.page.getByRole("button", { name: "Return to work" }).click();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
     console.log("[packaged settings] compact return-to-work=true");
   } finally {
     if (running) await stopPackagedApp(running);
