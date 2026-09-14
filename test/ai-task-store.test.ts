@@ -58,17 +58,18 @@ describe("renderer AI task state", () => {
 
   it("cancels a working task, aborts its runner signal, and ignores a late result", async () => {
     const pending = deferred<string>();
-    let signal: AbortSignal | null = null;
+    const runnerSignals: AbortSignal[] = [];
     startAiTask("slow-local", async (_updateDetail, runnerSignal) => {
-      signal = runnerSignal;
+      runnerSignals.push(runnerSignal);
       return pending.promise;
     });
 
     await vi.runOnlyPendingTimersAsync();
     expect(getAiTask("slow-local")).toMatchObject({ status: "working" });
+    expect(runnerSignals).toHaveLength(1);
 
     cancelAiTask("slow-local");
-    expect(signal?.aborted).toBe(true);
+    expect(runnerSignals[0]?.aborted).toBe(true);
     expect(getAiTask("slow-local")).toMatchObject({ status: "cancelled", detail: "Cancelled" });
 
     pending.resolve("too late");
