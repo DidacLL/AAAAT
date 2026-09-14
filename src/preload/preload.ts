@@ -15,6 +15,7 @@ import { createProfileAiContextDesktopApi } from "./profile-ai-context-api";
 import { createSetupEnvironmentDesktopApi } from "./setup-environment-api";
 import { createWorkspaceRecoveryDesktopApi } from "./workspace-recovery-api";
 
+// Preserve IPC rejection text verbatim: failed AI exchanges carry their inspectable local diagnostic through the Error message.
 const invoke = (channel: string, ...args: readonly unknown[]) => ipcRenderer.invoke(channel, ...args);
 
 contextBridge.exposeInMainWorld(
