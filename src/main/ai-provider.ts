@@ -235,7 +235,7 @@ async function requestContent<T>(
       );
     }
 
-    let raw = "";
+    let raw: string;
     try {
       raw = await response.text();
     } catch (reason) {
