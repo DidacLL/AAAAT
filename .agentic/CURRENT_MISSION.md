@@ -2,58 +2,53 @@
 
 ## Active bounded work
 
-**Issue #314 — Rebuild Candidatures around two-state Focus, raw capture, direct editing and Tags**
+**Issue #314 — Rebuild Candidatures around two-state Focus, raw capture, direct editing and Tags — reopened for UX acceptance correction after real Windows owner review.**
 
-Branch: `product/rebuild-candidatures`
+PR #316 merged the domain/state/persistence baseline into `main` as `81668a992a30fe393934f75cf19176addd7aa229`, but the visible renderer did not satisfy the recovered interaction/spatial/visual contract.
 
-Exact base: `main` at `5adf115d2b020914afe02ec336cc48a95b09ea71` (PR #315, recovered product/UX authority).
+Do not revive the retired `product/rebuild-candidatures` branch. Start corrective implementation from current `main`.
 
-Pre-recovery work is retired. Issue #304 is closed and PR #312 is closed unmerged. Do not reuse their branches or treat their implementation as authority.
+## Required correction
 
-## Product outcome
+Treat the post-merge owner acceptance comment on #314 as blocking scope. In particular:
 
-Replace the current selected-record-first candidature UI with the recovered AAAAT candidature model:
+- Candidatures first sight is retrieval/capture, not field-definition administration.
+- Corpus Focus owns the useful viewport; configuration must not push it below the fold.
+- Ordinary UI presents information/details, not schema/field-management language.
+- Field-definition capability remains user-owned but lives one deliberate step deeper in complete candidature work, close to the information it affects.
+- Direct candidature creation is low-friction and coherent, not a page-long sequence of isolated field editors with per-field Save buttons.
+- The two creation approaches remain explicit peers, but visible wording must be ordinary/user-facing rather than implementation vocabulary.
+- Use maximized/default/minimum desktop space productively; one principal task gets the useful area and fixed narrow centered layouts/excessive blank space are not acceptable.
+- First-run workspace selection must fit the supported default/minimum window without scrolling; branding must scale around the task.
+- Professional information is read-first; saved variations and privacy/AI disclosure are secondary until relevant.
+- AI disclosure is contextual, compact and understandable near the affected information, not permanent first-sight checkbox-console chrome or protocol/security jargon.
+- Local storage, Focus visibility and AI disclosure remain independent semantics without forcing the user to understand the internal model.
+- Visible UI follows `docs/UX_VISUAL_DIRECTION.md`: friendly worn retrofuturist field-terminal / paper-dossier character with professional information clarity, not generic SaaS card/form styling.
+- Empty/sparse states are intentionally composed and useful rather than controls floating in unused space.
 
-- **Corpus Focus** starts with no forced selection and shows multiple recognizable candidatures using only a small configured/default set of Focus fields/signals.
-- Selecting one candidature transitions to **selected-candidature Focus** using the available screen rather than expanding a cramped card or preserving a permanent list/detail split.
-- Selected Focus is read-first but directly editable for displayed fields.
-- Tags are contextual shared glossary/wiki knowledge and replace the competing `Concepts` product/domain vocabulary.
-- Complete candidature work is independently reachable and exposes all information/Sources/Tags/application material through progressive disclosure.
-- The candidature field set is user-maintainable product data. Shipped fields are defaults, not a fixed ontology; users can add/edit meaningful field definitions for different professions, and configured AI extraction targets the current enabled/discoverable field set.
-- **New candidature has two peer direct approaches:** fill useful fields directly, or paste raw material with minimal friction.
-- Raw capture retains the material first as a Source. The post-paste surface then exposes **Send to AI** and **Fill candidature yourself** as explicit peer choices; the manual path keeps the retained Source and editable fields together and remains complete with no AI.
-- Retaining raw material alone is already a valid successful outcome; neither AI nor manual structuring is mandatory afterward.
-- Reminders, Sources, documents and Activity do not become default Focus clutter.
-- No lifecycle/status/priority/next-action/completeness machinery is introduced.
+## Preserve from #316
 
-## Preserve where independently justified
+Do not regress the useful underlying work already merged:
 
-- local authoritative workspace and complete manual/no-AI operation;
-- flexible user-maintainable candidature field/value model;
-- first-class Sources and full Source readability;
-- useful candidature search semantics;
-- candidature ↔ VCVGenerator handoffs and application-material relationships;
-- archive as secondary corpus organization;
-- dirty-state protection across field, Tag, Source and document work;
-- bounded optional AI extraction/field assistance against user-configured fields;
-- narrow renderer/preload/main mutation boundaries.
+- two-state corpus → selected-candidature Focus behavior;
+- direct complete-candidature entry;
+- raw Source-first capture with explicit AI/manual continuations;
+- user-maintainable profession-specific candidature information definitions;
+- Tags as the shared glossary model;
+- local/manual/no-AI operation;
+- Sources/search/document handoffs/bounded AI/privacy semantics;
+- dirty-state protections and current-schema persistence/backup cleanup;
+- no lifecycle/status/priority/next-action architecture;
+- no obsolete global ToDo/Concept/migration-compatibility paths.
 
-## Excluded
+## UX authority
 
-- professional-information taxonomy redesign;
-- VCVGenerator redesign;
-- provider/integration redesign;
-- job discovery inside AAAAT;
-- lifecycle/status/priority/next-action features;
-- reminder/task-management expansion;
-- generic dashboard/framework work;
-- deterministic/embedded extraction heuristics for company/role/salary in this Issue;
-- compatibility with development-only workspace schemas.
+Use current explicit Product Owner instruction first, then `PRODUCT_DEFINITION.md`, `docs/UX_DEFINITION.md`, `docs/UX_VISUAL_DIRECTION.md`, and relevant current product context.
 
-## Review / evidence
+Do not treat merged renderer structure, historical mockups, component boundaries, existing CSS, or tests that merely assert visible text as design authority.
 
-Treat #314 as Class C. Require independent Reviewer and Skeptical Simplifier assessment after implementation.
+## Completion boundary
 
-Verification must protect behavior rather than the new component arrangement. Packaged `720×600` evidence must cover corpus Focus → selected Focus → inline edit → back, direct complete-candidature entry, and raw Source → explicit AI/manual choices → manual Source-to-fields work without AI.
+#314 is not complete again until the owner-visible UI is coherently recomposed around the recovered product intentions and is genuinely usable at default and `720×600` sizes without first-sight developer/admin clutter.
 
-Do not activate a successor until #314 is complete and reconciled against the recovered product authority.
+Do not activate a successor product issue before this acceptance gap is closed.
