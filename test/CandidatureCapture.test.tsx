@@ -193,7 +193,7 @@ describe("candidature creation", () => {
     expect(within(choice).getByText(phrase)).toBeVisible();
   });
 
-  it("keeps manual post-paste filling fully available without AI", async () => {
+  it("keeps manual post-paste filling complete while making missing AI setup actionable", async () => {
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
 
@@ -203,7 +203,8 @@ describe("candidature creation", () => {
     await user.click(screen.getByRole("button", { name: "Save Source" }));
 
     const choice = await screen.findByRole("region", { name: "Raw candidature saved" });
-    expect(within(choice).getByRole("button", { name: "Send to AI" })).toBeDisabled();
+    expect(within(choice).getByRole("button", { name: "Set up AI suggestions" })).toBeEnabled();
+    expect(within(choice).getByText(/validated connection/i)).toBeInTheDocument();
     await user.click(within(choice).getByRole("button", { name: "Fill candidature yourself" }));
 
     const manual = await screen.findByRole("region", { name: "Fill candidature yourself" });
