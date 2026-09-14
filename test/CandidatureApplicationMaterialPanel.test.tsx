@@ -114,55 +114,54 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-describe("task-first candidature application material", () => {
-  it("shows owned working material and opens retained exact artifacts through the artifact API", async () => {
+describe("candidature Documents", () => {
+  it("shows linked editable documents and opens saved PDFs through the artifact API", async () => {
     const user = userEvent.setup();
     const { onOpenDocument } = renderPanel();
 
-    const working = await screen.findByRole("region", { name: "Working application documents" });
-    expect(within(working).getByRole("heading", { name: "Platform CV" })).toBeInTheDocument();
-    expect(within(working).getByText("Working CV")).toBeInTheDocument();
-    expect(within(working).getByText(/not a retained exact application artifact/)).toBeInTheDocument();
+    const linked = await screen.findByRole("region", { name: "CVs and letters for this candidature" });
+    expect(within(linked).getByRole("heading", { name: "Platform CV" })).toBeInTheDocument();
+    expect(within(linked).getByText("CV")).toBeInTheDocument();
+    expect(within(linked).getByText("Editable document")).toBeInTheDocument();
 
-    const retained = await screen.findByRole("region", { name: "Retained application artifacts" });
-    expect(within(retained).getByRole("heading", { name: "Platform CV submitted" })).toBeInTheDocument();
-    expect(within(retained).getByText("Retained exact CV artifact")).toBeInTheDocument();
-    await user.click(within(retained).getByRole("button", { name: "Open retained PDF" }));
+    const saved = await screen.findByRole("region", { name: "Saved application PDFs" });
+    expect(within(saved).getByRole("heading", { name: "Platform CV submitted" })).toBeInTheDocument();
+    expect(within(saved).getByText("Saved CV")).toBeInTheDocument();
+    await user.click(within(saved).getByRole("button", { name: "Open PDF" }));
     expect(openArtifact).toHaveBeenCalledWith(artifact.id);
 
-    const management = screen.getByText("Manage existing document associations", { selector: "summary" });
+    const linking = screen.getByText("Link an existing CV or letter", { selector: "summary" });
     expect(screen.getByRole("checkbox", { name: "General letter (cover letter)" })).not.toBeVisible();
 
-    await user.click(within(working).getByRole("button", { name: "Open in CVs & letters" }));
+    await user.click(within(linked).getByRole("button", { name: "Open document" }));
     expect(onOpenDocument).toHaveBeenCalledWith(workingDocument.id);
-    await user.click(screen.getByRole("button", { name: "Create CV or letter for this candidature" }));
+    await user.click(screen.getByRole("button", { name: "Create CV or letter" }));
     expect(onOpenDocument).toHaveBeenCalledWith();
 
-    await user.click(management);
+    await user.click(linking);
     expect(screen.getByRole("checkbox", { name: "General letter (cover letter)" })).toBeVisible();
   });
 
-  it("identifies a retained combined packet as one exact artifact", async () => {
+  it("identifies a combined saved PDF without exposing artifact jargon", async () => {
     listArtifacts.mockResolvedValue([combinedArtifact]);
     renderPanel();
 
-    const retained = await screen.findByRole("region", { name: "Retained application artifacts" });
+    const saved = await screen.findByRole("region", { name: "Saved application PDFs" });
+    expect(within(saved).getByText("Saved CV + cover letter")).toBeInTheDocument();
     expect(
-      within(retained).getByText("Retained exact combined CV + cover letter artifact"),
+      within(saved).getByRole("heading", { name: "Combined: General letter + Platform CV" }),
     ).toBeInTheDocument();
-    expect(
-      within(retained).getByRole("heading", { name: "Combined: General letter + Platform CV" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/artifact/i)).not.toBeInTheDocument();
   });
 
-  it("reports retained artifact open failures without mutating document associations", async () => {
+  it("reports saved-PDF open failures without mutating document links", async () => {
     const user = userEvent.setup();
-    openArtifact.mockRejectedValue(new Error("The retained application PDF is missing."));
+    openArtifact.mockRejectedValue(new Error("The saved application PDF is missing."));
     const { rerender, onDocumentSelectionChange, onSaveDocuments, onOpenDocument } = renderPanel();
 
-    const retained = await screen.findByRole("region", { name: "Retained application artifacts" });
-    await user.click(within(retained).getByRole("button", { name: "Open retained PDF" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("The retained application PDF is missing.");
+    const saved = await screen.findByRole("region", { name: "Saved application PDFs" });
+    await user.click(within(saved).getByRole("button", { name: "Open PDF" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The saved application PDF is missing.");
     expect(onDocumentSelectionChange).not.toHaveBeenCalled();
     expect(onSaveDocuments).not.toHaveBeenCalled();
 
@@ -180,15 +179,15 @@ describe("task-first candidature application material", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("preserves explicit association changes and save as secondary management", async () => {
+  it("preserves explicit linking changes and save as secondary management", async () => {
     const user = userEvent.setup();
     const { rerender, onDocumentSelectionChange, onSaveDocuments, onOpenDocument } = renderPanel();
 
-    await screen.findByRole("region", { name: "Working application documents" });
-    await user.click(screen.getByText("Manage existing document associations", { selector: "summary" }));
+    await screen.findByRole("region", { name: "CVs and letters for this candidature" });
+    await user.click(screen.getByText("Link an existing CV or letter", { selector: "summary" }));
     await user.click(screen.getByRole("checkbox", { name: "General letter (cover letter)" }));
     expect(onDocumentSelectionChange).toHaveBeenCalledWith([workingDocument.id, otherDocument.id]);
-    expect(screen.getByRole("button", { name: "Save document associations" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save links" })).toBeDisabled();
 
     rerender(
       <CandidatureApplicationMaterialPanel
@@ -201,21 +200,19 @@ describe("task-first candidature application material", () => {
         onOpenDocument={onOpenDocument}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Save document associations" }));
+    await user.click(screen.getByRole("button", { name: "Save links" }));
     expect(onSaveDocuments).toHaveBeenCalledTimes(1);
   });
 
-  it("uses a task-first empty state while keeping association management reachable", async () => {
+  it("uses a simple empty state while keeping linking reachable", async () => {
     listArtifacts.mockResolvedValue([]);
     const sparse = { ...candidature, documentIds: [] };
     renderPanel({ record: sparse, selectedDocumentIds: [] });
 
-    expect(
-      await screen.findByText(/No application material belongs to this candidature yet/),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Working application documents" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Retained application artifacts" })).not.toBeInTheDocument();
+    expect(await screen.findByText("No documents are linked to this candidature yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "CVs and letters for this candidature" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Saved application PDFs" })).not.toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Platform CV (CV)" })).not.toBeVisible();
-    expect(screen.getByText("Manage existing document associations", { selector: "summary" })).toBeVisible();
+    expect(screen.getByText("Link an existing CV or letter", { selector: "summary" })).toBeVisible();
   });
 });
