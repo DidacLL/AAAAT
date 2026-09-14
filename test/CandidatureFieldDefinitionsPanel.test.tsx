@@ -93,7 +93,7 @@ function installApi() {
   });
 }
 
-describe("candidature information-kind management", () => {
+describe("candidature information customization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     installApi();
@@ -104,17 +104,17 @@ describe("candidature information-kind management", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps reusable information administration behind an explicit secondary path", async () => {
+  it("keeps reusable information customization behind an explicit secondary path", async () => {
     const user = userEvent.setup();
     render(<CandidatureFieldDefinitionsPanel onChanged={vi.fn()} />);
 
-    const summary = await screen.findByText("Manage information kinds", { selector: "summary" });
-    expect(screen.queryByRole("region", { name: "Change candidature information kind" })).not.toBeInTheDocument();
+    const summary = await screen.findByText("Customize available information", { selector: "summary" });
+    expect(screen.queryByRole("region", { name: "Change available candidature information" })).not.toBeInTheDocument();
     await user.click(summary);
 
     expect(screen.getByText(/does not edit the values of the candidature above/i)).toBeInTheDocument();
-    const editor = screen.getByRole("region", { name: "Change candidature information kind" });
-    await user.selectOptions(within(editor).getByLabelText("Information kind"), roleId);
+    const editor = screen.getByRole("region", { name: "Change available candidature information" });
+    await user.selectOptions(within(editor).getByLabelText("Information"), roleId);
     const name = within(editor).getByLabelText("Name");
     await user.clear(name);
     await user.type(name, "Position title");
@@ -126,12 +126,12 @@ describe("candidature information-kind management", () => {
     }));
   });
 
-  it("creates profession-specific typed information kinds and exposes them to AI only when chosen", async () => {
+  it("creates profession-specific information and exposes it to AI only when chosen", async () => {
     const user = userEvent.setup();
     render(<CandidatureFieldDefinitionsPanel onChanged={vi.fn()} />);
 
-    await user.click(await screen.findByText("Manage information kinds", { selector: "summary" }));
-    const creator = screen.getByRole("region", { name: "Add candidature information kind" });
+    await user.click(await screen.findByText("Customize available information", { selector: "summary" }));
+    const creator = screen.getByRole("region", { name: "Add available candidature information" });
     await user.type(within(creator).getByLabelText("Name"), "Flight hours");
     await user.selectOptions(within(creator).getByLabelText("Format"), "number");
     await user.click(
@@ -139,7 +139,7 @@ describe("candidature information-kind management", () => {
         name: "AI may suggest this information from retained Sources",
       }),
     );
-    await user.click(within(creator).getByRole("button", { name: "Add information kind" }));
+    await user.click(within(creator).getByRole("button", { name: "Add available information" }));
 
     expect(createField).toHaveBeenCalledWith(expect.objectContaining({
       label: "Flight hours",
