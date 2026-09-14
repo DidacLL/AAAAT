@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { JobExtractionPanel } from "../src/renderer/JobExtractionPanel";
+import { clearAllAiTasks } from "../src/renderer/ai-task-store";
 import {
   ContextualHandoffContext,
   type ContextualHandoffApi,
@@ -87,9 +88,18 @@ function renderPanel() {
   );
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe("saved Source extraction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearAllAiTasks();
     listFields.mockResolvedValue([field, contactField]);
     listConnections.mockResolvedValue([
       {
@@ -119,14 +129,18 @@ describe("saved Source extraction", () => {
     });
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    clearAllAiTasks();
+  });
 
-  it("presents configured extraction immediately after save, discloses the exact Source, and retains only selected proposals", async () => {
+  it("acknowledges extraction immediately, discloses the exact Source, and retains only selected proposals", async () => {
     const user = userEvent.setup();
+    const pending = deferred<{ proposals: Array<{ fieldId: string; value: string }> }>();
+    extractJob.mockReturnValueOnce(pending.promise);
     renderPanel();
 
     await screen.findByRole("heading", { name: "Extract useful information?" });
-    expect(screen.queryByRole("button", { name: "Review source with AI" })).not.toBeInTheDocument();
     expect(extractJob).not.toHaveBeenCalled();
     expect(screen.getByText("Remote review endpoint")).toBeInTheDocument();
     expect(screen.getByText("Remote HTTPS")).toBeInTheDocument();
@@ -136,8 +150,16 @@ describe("saved Source extraction", () => {
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
 
     await user.click(screen.getByRole("button", { name: "Extract useful information" }));
-
+    expect(await screen.findByText(/Queued|AI is reading the saved Source/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keep without AI" })).toBeEnabled();
     expect(extractJob).toHaveBeenCalledWith(source);
+
+    pending.resolve({
+      proposals: [
+        { fieldId, value: "1500" },
+        { fieldId: contactFieldId, value: "recruiter@example.test" },
+      ],
+    });
     await screen.findByRole("heading", { name: "Proposed information" });
     expect(onDirtyChange).toHaveBeenLastCalledWith(true);
     await user.click(screen.getByRole("checkbox", { name: /Recruiter contact: recruiter@example/ }));
@@ -197,7 +219,7 @@ describe("saved Source extraction", () => {
     expect(screen.queryByText("Validated alternative")).not.toBeInTheDocument();
   });
 
-  it("keeps the saved Source unchanged when the user keeps it without AI or extraction fails", async () => {
+  it("keeps the saved Source unchanged when dismissed and exposes extraction failure with retry", async () => {
     const user = userEvent.setup();
     renderPanel();
     await screen.findByRole("heading", { name: "Extract useful information?" });
@@ -207,16 +229,16 @@ describe("saved Source extraction", () => {
     expect(onDismiss).toHaveBeenCalledOnce();
     expect(setFieldValue).not.toHaveBeenCalled();
 
+    cleanup();
     onDismiss.mockClear();
+    clearAllAiTasks();
     extractJob.mockRejectedValueOnce(new Error("The configured endpoint did not respond."));
     renderPanel();
-    await screen.findAllByRole("heading", { name: "Extract useful information?" });
-    const buttons = screen.getAllByRole("button", { name: "Extract useful information" });
-    await user.click(buttons.at(-1)!);
+    await screen.findByRole("heading", { name: "Extract useful information?" });
+    await user.click(screen.getByRole("button", { name: "Extract useful information" }));
 
     expect(await screen.findByText("The configured endpoint did not respond.")).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: "Open AI connections settings" }).at(-1)!);
-    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
+    expect(screen.getByRole("button", { name: "Retry AI extraction" })).toBeEnabled();
     expect(setFieldValue).not.toHaveBeenCalled();
     expect(onAccepted).not.toHaveBeenCalled();
   });
@@ -233,7 +255,7 @@ describe("saved Source extraction", () => {
     expect(screen.queryByRole("heading", { name: "Extract useful information?" })).not.toBeInTheDocument();
   });
 
-  it("shows no extraction ceremony when the selected route is not validated", async () => {
+  it("shows the exact setup action when no validated route is usable", async () => {
     listConnections.mockResolvedValueOnce([
       {
         id: "00000000-0000-4000-8000-000000000907",
@@ -254,10 +276,12 @@ describe("saved Source extraction", () => {
         defaultForOperations: [],
       },
     ]);
+    const user = userEvent.setup();
     renderPanel();
 
-    await vi.waitFor(() => {
-      expect(screen.queryByRole("heading", { name: "Extract useful information?" })).not.toBeInTheDocument();
-    });
+    await screen.findByRole("heading", { name: "AI suggestions are not ready yet" });
+    await user.click(screen.getByRole("button", { name: "Open AI settings" }));
+    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
+    expect(screen.getByRole("button", { name: "Keep without AI" })).toBeEnabled();
   });
 });
