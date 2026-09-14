@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { CandidatureFieldCreate } from "../shared/contracts";
 
@@ -6,6 +6,66 @@ interface Props {
   readonly onChanged: () => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }
+
+const legacyDefaultSystemKeys = new Set([
+  "candidature.organization",
+  "candidature.role",
+  "candidature.location",
+  "candidature.compensation",
+  "candidature.application_date",
+  "candidature.notes",
+]);
+
+const recommendedDefaults: readonly CandidatureFieldCreate[] = [
+  {
+    label: "Work arrangement",
+    description: "Remote, hybrid, on-site or another stated working arrangement.",
+    valueType: "text",
+    cardinality: "one",
+    choices: [],
+    enabled: true,
+  },
+  {
+    label: "Employment type",
+    description: "Permanent, contract, internship, freelance or another stated engagement type.",
+    valueType: "text",
+    cardinality: "one",
+    choices: [],
+    enabled: true,
+  },
+  {
+    label: "Seniority",
+    description: "Stated seniority, level or grade for the opportunity.",
+    valueType: "text",
+    cardinality: "one",
+    choices: [],
+    enabled: true,
+  },
+  {
+    label: "Application URL",
+    description: "Direct link for the application or vacancy when available.",
+    valueType: "url",
+    cardinality: "one",
+    choices: [],
+    enabled: true,
+  },
+  {
+    label: "Closing date",
+    description: "Application deadline or closing date when stated.",
+    valueType: "date",
+    cardinality: "one",
+    choices: [],
+    enabled: true,
+  },
+  {
+    label: "Contact",
+    description: "Recruiter, hiring manager or other named opportunity contact.",
+    valueType: "text",
+    cardinality: "one",
+    choices: [],
+    enabled: true,
+  },
+];
 
 function blankField(): CandidatureFieldCreate {
   return {
@@ -23,6 +83,41 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
   const [draft, setDraft] = useState<CandidatureFieldCreate>(blankField);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const onChangedRef = useRef(onChanged);
+
+  useEffect(() => {
+    onChangedRef.current = onChanged;
+  }, [onChanged]);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const current = await window.aaaat.candidatures.listFields();
+      const currentSystemKeys = new Set(
+        current.flatMap((field) => field.definition.systemKey ? [field.definition.systemKey] : []),
+      );
+      const isUnmodifiedLegacyDefault =
+        current.length === legacyDefaultSystemKeys.size &&
+        [...legacyDefaultSystemKeys].every((key) => currentSystemKeys.has(key));
+      if (!isUnmodifiedLegacyDefault) return;
+
+      for (const input of recommendedDefaults) {
+        const created = await window.aaaat.candidatures.createField(input);
+        await window.aaaat.candidatures.updateFieldPreferences({
+          ...created.preferences,
+          fieldId: created.definition.id,
+          aiDiscovery: true,
+          aiContextMode: "expose",
+        });
+      }
+      if (active) onChangedRef.current();
+    })().catch(() => {
+      if (active) setError("AAAAT could not add the newer default candidature information.");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const dirty =
     open &&
@@ -70,14 +165,17 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
 
   if (!open) {
     return (
-      <button
-        type="button"
-        className="candidature-add-information-button"
-        aria-label="Add information"
-        onClick={() => setOpen(true)}
-      >
-        <span aria-hidden="true">+</span> Add information
-      </button>
+      <div className="candidature-add-information-entry">
+        <button
+          type="button"
+          className="candidature-add-information-button"
+          aria-label="Add information"
+          onClick={() => setOpen(true)}
+        >
+          <span aria-hidden="true">+</span> Add information
+        </button>
+        {error ? <p className="error-message" role="alert">{error}</p> : null}
+      </div>
     );
   }
 
