@@ -134,14 +134,14 @@ describe("candidature dirty navigation", () => {
     await user.clear(value);
     await user.type(value, "Unsaved Regional Air");
 
-    await user.click(within(selectedFocus).getByRole("button", { name: "Edit full candidature" }));
+    await user.click(within(selectedFocus).getByRole("button", { name: "All details" }));
 
     expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits?");
     expect(screen.getByRole("region", { name: /^Candidature Focus$/ })).toBeInTheDocument();
     expect(value).toHaveValue("Unsaved Regional Air");
 
     confirm.mockReturnValue(true);
-    await user.click(screen.getByRole("button", { name: "Edit full candidature" }));
+    await user.click(screen.getByRole("button", { name: "All details" }));
 
     expect(screen.getByRole("region", { name: "Complete candidature" })).toBeInTheDocument();
   });
@@ -151,26 +151,26 @@ describe("candidature dirty navigation", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<CandidaturesWorkspace />);
 
-    await user.click(await screen.findByRole("button", { name: "Edit candidature" }));
+    await user.click(await screen.findByRole("button", { name: "All details" }));
     const tags = screen.getByRole("region", { name: "Tags" });
     const platform = within(tags).getByRole("checkbox", { name: /Platform/ });
     expect(platform).toBeChecked();
     await user.click(platform);
     expect(platform).not.toBeChecked();
 
-    await user.click(screen.getByRole("button", { name: "Open Focus" }));
+    await user.click(screen.getByRole("button", { name: "Focus" }));
 
     expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits?");
     expect(screen.getByRole("region", { name: "Complete candidature" })).toBeInTheDocument();
     expect(platform).not.toBeChecked();
 
     confirm.mockReturnValue(true);
-    await user.click(screen.getByRole("button", { name: "Open Focus" }));
+    await user.click(screen.getByRole("button", { name: "Focus" }));
     expect(screen.getByRole("region", { name: /^Candidature Focus$/ })).toBeInTheDocument();
 
     confirm.mockClear();
     confirm.mockReturnValue(false);
-    await user.click(screen.getByRole("button", { name: "Edit full candidature" }));
+    await user.click(screen.getByRole("button", { name: "All details" }));
 
     expect(confirm).not.toHaveBeenCalled();
     const restoredTags = screen.getByRole("region", { name: "Tags" });

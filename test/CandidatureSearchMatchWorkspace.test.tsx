@@ -70,7 +70,7 @@ describe("candidature corpus search recognition", () => {
     render(<CandidaturesWorkspace />);
     await screen.findByRole("heading", { name: "Candidatures" });
 
-    const searchInput = screen.getByRole("searchbox", { name: "Search candidatures" });
+    const searchInput = screen.getByRole("searchbox", { name: "Search" });
     await user.type(searchInput, "security clearance");
 
     const sourceResult = await screen.findByRole("button", { name: /Nimbus Labs/ });

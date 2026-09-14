@@ -108,7 +108,7 @@ describe("complete candidature information editing", () => {
     render(<CandidaturesWorkspace />);
 
     await screen.findByLabelText("Candidature corpus Focus");
-    await user.click(screen.getByRole("button", { name: "Edit candidature" }));
+    await user.click(screen.getByRole("button", { name: "All details" }));
 
     const complete = await screen.findByRole("region", { name: "Complete candidature" });
     const informationRegion = within(complete).getByRole("region", { name: "Candidature information" });
@@ -125,7 +125,7 @@ describe("complete candidature information editing", () => {
     await user.clear(input);
     await user.type(input, "October through December");
 
-    await user.click(screen.getByRole("button", { name: "Back to candidatures" }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
     expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits?");
     expect(screen.getByRole("region", { name: "Complete candidature" })).toBeInTheDocument();
     expect(input).toHaveValue("October through December");

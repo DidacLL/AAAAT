@@ -111,7 +111,7 @@ describe("CareerContextPanel", () => {
     await user.click(summary);
     expect(screen.getByText("Private local constraint")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Edit preferences" }));
-    await user.click(screen.getByRole("button", { name: "Choose what AI may use" }));
+    await user.click(screen.getByLabelText("Choose what AI may use"));
 
     const constraints = await screen.findByRole("checkbox", { name: "Constraints" });
     expect(constraints).toBeChecked();

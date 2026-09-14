@@ -214,7 +214,7 @@ describe("rebuilt candidature workspace", () => {
       value: "Regional Air Europe",
     });
 
-    await user.click(within(selected).getByRole("button", { name: "Back to candidatures" }));
+    await user.click(within(selected).getByRole("button", { name: "Back" }));
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
   });
 
@@ -222,7 +222,7 @@ describe("rebuilt candidature workspace", () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    await user.click((await screen.findAllByRole("button", { name: "Edit candidature" }))[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
 
     const complete = screen.getByRole("region", { name: "Complete candidature" });
     expect(within(complete).getByRole("region", { name: "Candidature information" })).toBeInTheDocument();
@@ -236,7 +236,7 @@ describe("rebuilt candidature workspace", () => {
   it("adds missing information on demand without turning ordinary editing into schema administration", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "Edit candidature" }))[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
 
     const addInformationSummary = screen.getByText("+ Add information", { selector: "summary" });
     await user.click(addInformationSummary);
@@ -259,7 +259,7 @@ describe("rebuilt candidature workspace", () => {
   it("keeps Tag notes editable in complete maintenance with no Concept-era vocabulary", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "Edit candidature" }))[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
 
     const tags = screen.getByRole("region", { name: "Tags" });
     await user.click(within(tags).getByRole("button", { name: "Edit Tag" }));
@@ -282,7 +282,7 @@ describe("rebuilt candidature workspace", () => {
   it("does not discard an unsaved Tag association when another field is saved", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "Edit candidature" }))[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
 
     const tags = screen.getByRole("region", { name: "Tags" });
     const platform = within(tags).getByRole("checkbox", { name: /Platform/ });
@@ -315,8 +315,8 @@ describe("rebuilt candidature workspace", () => {
     );
 
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "Edit candidature" }))[0]!);
-    await user.click(screen.getByText("Focus and AI visibility", { selector: "summary" }));
+    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
+    await user.click(screen.getByText("Focus & AI", { selector: "summary" }));
 
     const fieldCard = screen.getByText("Minimum flight hours", { selector: "strong" }).closest("article");
     if (!fieldCard) throw new Error("Field preference card missing");

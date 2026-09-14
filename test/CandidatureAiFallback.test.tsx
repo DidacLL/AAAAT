@@ -150,7 +150,7 @@ describe("candidature AI Settings fallback", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Edit candidature" }));
+    await user.click(screen.getByRole("button", { name: "All details" }));
 
     const information = screen.getByRole("region", { name: "Candidature information" });
     const role = within(information).getByRole("heading", { name: "Role" }).closest("article");

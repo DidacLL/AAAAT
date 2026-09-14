@@ -100,7 +100,7 @@ describe("professional information workspace", () => {
     expect(screen.getByRole("heading", { name: "Add information" })).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Type"), "skill");
     await user.type(screen.getByLabelText("Title"), "TypeScript");
-    expect(screen.queryByRole("button", { name: "Choose how AI may use this information" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Choose how AI may use this information")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add information" }));
 
     expect(addItem).toHaveBeenCalledWith({
@@ -126,7 +126,7 @@ describe("professional information workspace", () => {
     await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
 
     expect(screen.getByLabelText("Title")).toHaveValue("Professional summary");
-    await user.click(await screen.findByRole("button", { name: "Choose how AI may use this information" }));
+    await user.click(await screen.findByLabelText("Choose how AI may use this information"));
     expect(await screen.findByText(/does not hide, remove or change your local information/i)).toBeInTheDocument();
     await user.selectOptions(screen.getByRole("combobox", { name: "AI may" }), "omit");
 

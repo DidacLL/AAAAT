@@ -25,7 +25,7 @@ describe("professional-information AI disclosure control", () => {
     const user = userEvent.setup();
     render(<ProfileItemAiDisclosureControl itemId={itemId} />);
 
-    await user.click(screen.getByRole("button", { name: "Choose how AI may use this information" }));
+    await user.click(screen.getByLabelText("Choose how AI may use this information"));
     const select = await screen.findByRole("combobox", { name: "AI may" });
     expect(select).toHaveValue("expose");
     expect(screen.getByText(/does not hide, remove or change your local information/i)).toBeInTheDocument();
@@ -40,10 +40,10 @@ describe("professional-information AI disclosure control", () => {
     const user = userEvent.setup();
     render(<ProfileItemAiDisclosureControl itemId={itemId} />);
 
-    await user.click(screen.getByRole("button", { name: "Choose how AI may use this information" }));
+    await user.click(screen.getByLabelText("Choose how AI may use this information"));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "AAAAT could not load the AI-use setting.",
     );
-    expect(screen.getByRole("button", { name: "Choose how AI may use this information" })).toBeVisible();
+    expect(screen.getByLabelText("Choose how AI may use this information")).toBeVisible();
   });
 });
