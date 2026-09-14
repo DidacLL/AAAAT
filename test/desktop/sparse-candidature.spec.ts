@@ -318,8 +318,8 @@ test("packaged raw capture stays usable across large, normal, narrow and short w
     const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
     const roleBlock = selectedFocus.locator(".focus-block").filter({ hasText: "Role" });
     await expect(roleBlock).toContainText("Captain");
-    await roleBlock.getByRole("button", { name: "Edit value", exact: true }).click();
-    await roleBlock.getByRole("textbox").fill("Senior Captain");
+    await roleBlock.getByRole("button", { name: "Edit Role", exact: true }).click();
+    await roleBlock.getByLabel("Value").fill("Senior Captain");
     await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
     await expect(roleBlock).toContainText("Senior Captain");
     await expectRepresentativeResizeCoverage(running.page);
