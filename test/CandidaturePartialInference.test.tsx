@@ -179,7 +179,9 @@ describe("partial candidature inference UI", () => {
     await waitFor(() => expect(screen.getByTestId("organisation-value")).toHaveTextContent("Aster Aviation"));
     expect(getAiTask(taskId)?.status).toBe("completed");
     expect(getAiTask(taskId)?.appliedFieldIds).toContain(organisationId);
-    expect(getAiTask(taskId)?.exchange).toMatchObject({ rawModelResponse: "{\"proposals\":[...]}" });
+    expect(getAiTask(taskId)?.completedExchange).toMatchObject({
+      rawModelResponse: "{\"proposals\":[...]}",
+    });
 
     const roleSection = screen.getByRole("region", { name: "Role field" });
     expect(within(roleSection).getByText("AI found another value")).toBeInTheDocument();
@@ -190,7 +192,7 @@ describe("partial candidature inference UI", () => {
     expect(within(locationSection).getByText("AI suggestion needs review")).toBeInTheDocument();
     expect(within(locationSection).getByText(/Madrid, Barcelona/)).toBeInTheDocument();
     expect(within(locationSection).getByText(/accepts one value, but AI proposed 2/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 fields filled · 2 need review/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 field filled · 2 need review/i)).toBeInTheDocument();
   });
 
   it("retries only the bad field while retaining the completed bulk task and successful sibling", async () => {
