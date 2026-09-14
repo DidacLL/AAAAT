@@ -72,6 +72,7 @@ function StatefulEditor({
         setValue(undefined);
       }}
       onDiscover={onDiscover}
+      onUpdatePreferences={async () => undefined}
       onDirtyChange={onDirtyChange}
     />
   );
