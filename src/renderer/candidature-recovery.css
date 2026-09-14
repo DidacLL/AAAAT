@@ -2,8 +2,7 @@
 .candidature-selected-focus,
 .candidature-detail {
   min-width: 0;
-  max-width: 1180px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .candidature-corpus .candidature-toolbar,
@@ -12,50 +11,72 @@
   margin: 0;
 }
 
+.candidature-corpus .candidature-toolbar {
+  align-items: end;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--line);
+}
+
 .candidature-corpus-tools {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.65rem;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 180px);
+  gap: 0.55rem;
   align-items: end;
-  margin-block: 0.75rem;
+  margin-block: 0.65rem 0.75rem;
 }
 
 .candidature-corpus-tools label {
   display: grid;
-  gap: 0.3rem;
+  gap: 0.28rem;
   color: var(--muted-ink);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  font-weight: 650;
 }
 
 .candidature-corpus-tools input,
 .candidature-corpus-tools select {
   min-height: 2.25rem;
+  padding: 8px 9px;
+  border: 1px solid #aa987f;
+  border-radius: 4px;
+  color: var(--ink);
+  background: var(--paper-strong);
 }
 
 .candidature-corpus-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 255px), 1fr));
+  gap: 0.55rem;
 }
 
 .candidature-corpus-card {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.55rem;
+  gap: 0.3rem;
+  padding: 0.45rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fffaf3;
+  border-left: 3px solid #b28f69;
+  border-radius: 5px;
+  background:
+    linear-gradient(90deg, rgb(138 100 60 / 4%), transparent 22%),
+    var(--paper);
+  box-shadow: 0 1px 0 rgb(82 61 39 / 8%);
+}
+
+.candidature-corpus-card:focus-within,
+.candidature-corpus-card:hover {
+  border-left-color: var(--accent);
 }
 
 .candidature-focus-entry {
   display: grid;
   width: 100%;
   min-width: 0;
-  gap: 0.38rem;
-  padding: 0.55rem;
+  gap: 0.36rem;
+  padding: 0.5rem;
   border: 0;
+  border-radius: 3px;
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -63,7 +84,17 @@
 
 .candidature-focus-entry:hover,
 .candidature-focus-entry:focus-visible {
-  background: #f4eee5;
+  background: #f5ead9;
+}
+
+.candidature-focus-entry:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.candidature-focus-entry strong {
+  font-size: 1rem;
+  line-height: 1.25;
 }
 
 .candidature-focus-entry strong,
@@ -74,33 +105,95 @@
   overflow-wrap: anywhere;
 }
 
+.candidature-recognition-cue {
+  grid-template-columns: minmax(70px, max-content) minmax(0, 1fr);
+}
+
+.candidature-recognition-cue > span:first-child {
+  color: var(--muted-ink);
+  font-size: 0.69rem;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.candidature-recognition-cue > span:last-child {
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
 .candidature-direct-edit {
   align-self: flex-start;
-  padding-block: 0.35rem;
+  margin-left: 0.45rem;
+  padding: 0.3rem 0.48rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted-ink);
+}
+
+.candidature-direct-edit:hover,
+.candidature-direct-edit:focus-visible {
+  border-color: var(--line);
+  color: var(--ink);
+  background: #f2e7d7;
+}
+
+.candidature-empty-state {
+  display: grid;
+  min-height: min(42vh, 330px);
+  place-content: center;
+  justify-items: center;
+  gap: 5px;
+  padding: 28px;
+  border: 1px dashed #ad9a80;
+  border-radius: 5px;
+  background:
+    linear-gradient(135deg, rgb(145 115 78 / 4%) 0 1px, transparent 1px 12px),
+    #f7eedf;
+  text-align: center;
+}
+
+.candidature-empty-state h3,
+.candidature-empty-state p {
+  margin: 0;
+}
+
+.candidature-empty-state p {
+  max-width: 52ch;
+  color: var(--muted-ink);
 }
 
 .candidature-context-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin-block-end: 0.6rem;
+  margin-block-end: 0.55rem;
+}
+
+.candidature-selected-focus {
+  display: grid;
+  gap: 0.55rem;
 }
 
 .candidature-selected-focus .focus-panel {
   gap: 0.7rem;
-  padding: 0.85rem;
-  border-radius: 9px;
+  padding: clamp(0.75rem, 1.4vw, 1.05rem);
+  border-left: 4px solid var(--focus);
+  border-radius: 5px;
+  background: var(--paper);
+  box-shadow: var(--paper-shadow);
 }
 
 .candidature-selected-focus .focus-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 0.55rem;
 }
 
 .candidature-selected-focus .focus-block {
   min-width: 0;
-  padding: 0.7rem;
-  border-radius: 7px;
+  padding: 0.68rem;
+  border-radius: 4px;
+  background: #fffdf7;
 }
 
 .candidature-selected-focus .focus-wide {
@@ -110,12 +203,12 @@
 .focus-tags,
 .tag-editor,
 .secondary-candidature-detail {
-  margin-block-start: 0.75rem;
+  margin-block-start: 0.7rem;
 }
 
 .focus-tags {
-  padding-top: 0.65rem;
-  border-top: 1px solid var(--line);
+  padding-top: 0.62rem;
+  border-top: 1px solid var(--line-soft);
 }
 
 .tag-chip-row {
@@ -124,16 +217,22 @@
   gap: 0.35rem;
 }
 
+.tag-chip-row button {
+  border-radius: 999px;
+}
+
 .selected-tag-definition {
-  margin-top: 0.5rem;
+  margin-top: 0.48rem;
   padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line-soft);
   border-left: 3px solid var(--focus);
-  background: #fffaf3;
+  border-radius: 3px;
+  background: #fff9ec;
 }
 
 .candidature-detail {
   display: grid;
-  gap: 0.7rem;
+  gap: 0.65rem;
 }
 
 .candidature-detail > .section-surface,
@@ -142,42 +241,90 @@
   min-width: 0;
 }
 
-.candidature-detail .section-surface {
-  gap: 0.75rem;
+.candidature-detail .candidature-editor-heading {
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--line);
+}
+
+.candidature-detail .section-surface,
+.candidature-detail > .candidature-sources,
+.candidature-detail > .candidature-application-material {
   padding: 0.8rem;
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  box-shadow: 0 1px 0 rgb(82 61 39 / 7%);
+}
+
+.candidature-detail .section-surface {
+  gap: 0.7rem;
+}
+
+.candidature-detail .section-surface > div:first-child > h3,
+.candidature-detail .candidature-sources h3,
+.candidature-detail .candidature-application-material h3 {
+  font-size: 1.02rem;
 }
 
 .retained-information-list,
 .tag-association-list,
 .field-preference-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 255px), 1fr));
+  gap: 0.55rem;
 }
 
 .retained-information-card {
   min-width: 0;
-  padding: 0.7rem;
-  border-radius: 7px;
-  background: #fffaf3;
+  padding: 0.68rem;
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid #c2a57f;
+  border-radius: 4px;
+  background: var(--paper-strong);
+}
+
+.retained-information-card h4 {
+  margin: 0;
+}
+
+.retained-information-card > div:first-child > p {
+  margin-top: 3px;
+  font-size: 0.82rem;
 }
 
 .add-information-panel,
 .field-management,
 .secondary-candidature-detail {
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--line);
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line-soft);
 }
 
 .add-information-panel > summary,
 .field-management > summary,
 .secondary-candidature-detail > summary {
   width: fit-content;
+  padding: 3px 0;
   color: var(--muted-ink);
   cursor: pointer;
-  font-size: 0.86rem;
-  font-weight: 650;
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.add-information-panel > summary:hover,
+.field-management > summary:hover,
+.secondary-candidature-detail > summary:hover,
+.add-information-panel > summary:focus-visible,
+.field-management > summary:focus-visible,
+.secondary-candidature-detail > summary:focus-visible {
+  color: var(--ink);
+}
+
+.field-management[open] {
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--focus);
+  border-radius: 4px;
+  background: #efe7d8;
 }
 
 .tag-editor {
@@ -187,6 +334,33 @@
 
 .secondary-candidature-detail {
   margin-top: 0;
+}
+
+@media (min-width: 1180px) {
+  .candidature-detail {
+    grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
+    align-items: start;
+  }
+
+  .candidature-detail > .candidature-editor-heading,
+  .candidature-detail > .error-message,
+  .candidature-detail > .secondary-candidature-detail {
+    grid-column: 1 / -1;
+  }
+
+  .candidature-detail > .section-surface:first-of-type,
+  .candidature-detail > .candidature-sources {
+    grid-column: 1;
+  }
+
+  .candidature-detail > .section-surface[aria-label="Tags"],
+  .candidature-detail > .candidature-application-material {
+    grid-column: 2;
+  }
+
+  .candidature-detail > .candidature-sources {
+    grid-row: span 2;
+  }
 }
 
 @media (max-width: 900px) {
@@ -217,22 +391,28 @@
   }
 
   .candidature-detail .section-surface,
-  .candidature-selected-focus .focus-panel {
+  .candidature-selected-focus .focus-panel,
+  .candidature-detail > .candidature-sources,
+  .candidature-detail > .candidature-application-material {
     padding: 0.65rem;
   }
 }
 
 @media (max-height: 640px) {
   .candidature-corpus-tools {
-    margin-block: 0.5rem;
+    margin-block: 0.42rem 0.55rem;
   }
 
   .candidature-selected-focus .focus-panel,
   .candidature-detail .section-surface {
-    gap: 0.55rem;
+    gap: 0.5rem;
   }
 
   .candidature-context-actions {
-    margin-block-end: 0.4rem;
+    margin-block-end: 0.35rem;
+  }
+
+  .candidature-empty-state {
+    min-height: 180px;
   }
 }
