@@ -27,7 +27,12 @@ function extractionResult(task: AiTaskSnapshot): JobExtractionResult | null {
   return Array.isArray(proposals) ? { proposals } : null;
 }
 
+function inScope(task: AiTaskSnapshot, fieldId: string): boolean {
+  return !task.scopeFieldIds || task.scopeFieldIds.includes(fieldId);
+}
+
 function proposalFor(task: AiTaskSnapshot, fieldId: string) {
+  if (!inScope(task, fieldId)) return null;
   return extractionResult(task)?.proposals.find((proposal) => proposal.fieldId === fieldId) ?? null;
 }
 
@@ -42,7 +47,10 @@ export function CandidatureFieldAiState({
   const [editingProposal, setEditingProposal] = useState(false);
   const exactKey = `candidature-inference:${candidatureId}:${field.definition.id}`;
   const bulkKey = `candidature-inference:${candidatureId}:missing`;
-  const candidates = tasks.filter((task) => task.key === exactKey || task.key === bulkKey);
+  const candidates = tasks.filter(
+    (task) =>
+      (task.key === exactKey || task.key === bulkKey) && inScope(task, field.definition.id),
+  );
 
   const proposalTask = candidates.find((task) => {
     const proposal = proposalFor(task, field.definition.id);
@@ -51,9 +59,7 @@ export function CandidatureFieldAiState({
   const proposal = proposalTask ? proposalFor(proposalTask, field.definition.id) : null;
   const exactTask = candidates.find((task) => task.key === exactKey) ?? null;
   const activeTask = candidates.find(
-    (task) =>
-      (task.status === "queued" || task.status === "working") &&
-      (task.key === exactKey || currentValue === undefined),
+    (task) => task.status === "queued" || task.status === "working",
   );
 
   const accept = async (value: CandidatureRuntimeValue) => {
