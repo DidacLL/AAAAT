@@ -2,10 +2,12 @@ import { z } from "zod";
 
 import {
   jobExtractionRequestSchema,
-  jobExtractionResultSchema,
   type JobExtractionRequest,
-  type JobExtractionResult,
 } from "./ai-contracts";
+import {
+  partialJobExtractionResultSchema,
+  type PartialJobExtractionResult,
+} from "./ai-proposal-outcomes";
 
 export const aiTaskCancellationChannels = Object.freeze({
   jobExtract: "aaaat:ai-task-job-extract",
@@ -21,7 +23,7 @@ export const cancellableJobExtractionRequestSchema = z
   })
   .strict();
 
-export const cancellableJobExtractionResultSchema = jobExtractionResultSchema;
+export const cancellableJobExtractionResultSchema = partialJobExtractionResultSchema;
 export const aiTaskCancellationResultSchema = z.boolean();
 
 export interface AiTaskCancellationDesktopApi {
@@ -29,7 +31,7 @@ export interface AiTaskCancellationDesktopApi {
     readonly extractJob: (
       taskId: string,
       request: JobExtractionRequest,
-    ) => Promise<JobExtractionResult>;
+    ) => Promise<PartialJobExtractionResult>;
     readonly cancelJobExtraction: (taskId: string) => Promise<boolean>;
   };
 }
