@@ -151,13 +151,13 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
       setEditAiDiscovery(refreshed?.preferences.aiDiscovery ?? false);
       onChanged();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not add this kind of information.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not add this information.");
     }
   };
 
   const deleteSelected = async () => {
     if (!selected || selected.definition.systemKey !== null) return;
-    if (!window.confirm(`Remove unused information kind “${selected.definition.label}”?`)) return;
+    if (!window.confirm(`Remove unused information “${selected.definition.label}”?`)) return;
     setError(null);
     try {
       await window.aaaat.candidatures.deleteField(selected.definition.id);
@@ -167,7 +167,7 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
       setEditAiDiscovery(false);
       onChanged();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not remove this information kind.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not remove this information.");
     }
   };
 
@@ -230,19 +230,19 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
 
   return (
     <details className="field-definitions-panel">
-      <summary>Manage information kinds</summary>
+      <summary>Customize available information</summary>
       <div className="field-definitions-content">
         <p>
-          This changes the reusable kinds of information AAAAT can store across candidatures. It does not edit the values of the candidature above.
+          Choose what information AAAAT offers across candidatures. This does not edit the values of the candidature above.
         </p>
         <p className="compact-help">
-          {enabledCount} available kind{enabledCount === 1 ? "" : "s"} of information
+          {enabledCount} available information item{enabledCount === 1 ? "" : "s"}
         </p>
 
-        <section className="editor-card" aria-label="Change candidature information kind">
-          <h4>Edit a reusable information kind</h4>
+        <section className="editor-card" aria-label="Change available candidature information">
+          <h4>Change available information</h4>
           <label>
-            Information kind
+            Information
             <select value={selectedId} onChange={(event) => selectField(event.target.value)}>
               <option value="">Choose…</option>
               {fields.map((field) => (
@@ -331,7 +331,7 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
                 </button>
                 {selected.definition.systemKey === null ? (
                   <button type="button" className="compact-secondary" onClick={() => void deleteSelected()}>
-                    Remove unused kind
+                    Remove unused information
                   </button>
                 ) : null}
               </div>
@@ -339,8 +339,8 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
           ) : null}
         </section>
 
-        <section className="editor-card" aria-label="Add candidature information kind">
-          <h4>Add a reusable information kind</h4>
+        <section className="editor-card" aria-label="Add available candidature information">
+          <h4>Add available information</h4>
           <label>
             Name
             <input
@@ -404,7 +404,7 @@ export function CandidatureFieldDefinitionsPanel({ onChanged, onDirtyChange }: P
             AI may suggest this information from retained Sources
           </label>
           <button type="button" disabled={!newDraft.label.trim()} onClick={() => void createField()}>
-            Add information kind
+            Add available information
           </button>
         </section>
 
