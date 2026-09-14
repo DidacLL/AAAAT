@@ -304,7 +304,7 @@ export function JobExtractionPanel({
           )}
           {proposal.issues.length > 0 ? (
             <div className="candidature-field-ai-error" role="status">
-              <strong>{proposal.issues.length} AI suggestion{proposal.issues.length === 1 ? "" : "s"} need review</strong>
+              <strong>{proposal.issues.length} AI suggestion{proposal.issues.length === 1 ? "" : "s"} {proposal.issues.length === 1 ? "needs" : "need"} review</strong>
               {proposal.issues.map((issue, index) => (
                 <p key={`${issue.fieldId ?? issue.fieldLabel ?? "proposal"}-${index}`}>
                   <strong>{issue.fieldLabel ?? "Unknown information"}:</strong> {issueValue(issue.proposedValue)} · {issue.reason}
