@@ -293,7 +293,7 @@ test("packaged raw capture stays usable across large, normal, narrow and short w
     const saved = running.page.getByRole("region", { name: "Raw candidature saved" });
     await expect(saved).toBeVisible();
     const continuations = saved.getByRole("group", { name: "Continue from saved Source" });
-    await expect(continuations.getByRole("button", { name: "Send to AI" })).toBeDisabled();
+    await expect(continuations.getByRole("button", { name: "Send to AI" })).toBeEnabled();
     await expect(continuations.getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
     await expect(saved).toContainText(rawMaterial);
     await expectNoHorizontalOverflow(running.page, 720, 760);
@@ -318,7 +318,7 @@ test("packaged raw capture stays usable across large, normal, narrow and short w
     const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
     const roleBlock = selectedFocus.locator(".focus-block").filter({ hasText: "Role" });
     await expect(roleBlock).toContainText("Captain");
-    await roleBlock.getByRole("button", { name: "Edit", exact: true }).click();
+    await roleBlock.getByRole("button", { name: "Edit value", exact: true }).click();
     await roleBlock.getByRole("textbox").fill("Senior Captain");
     await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
     await expect(roleBlock).toContainText("Senior Captain");
