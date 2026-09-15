@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import {
-  jobExtractionRequestSchema,
-  type JobExtractionRequest,
-} from "./ai-contracts";
+import { jobExtractionRequestSchema } from "./ai-contracts";
 import {
   partialJobExtractionResultSchema,
   type PartialJobExtractionResult,
@@ -16,10 +13,19 @@ export const aiTaskCancellationChannels = Object.freeze({
 
 export const aiTaskIdSchema = z.string().trim().min(1).max(200);
 
+export const cancellableJobExtractionTaskRequestSchema = jobExtractionRequestSchema
+  .extend({
+    targetFieldIds: z.array(z.string().uuid()).min(1).max(32).optional(),
+  })
+  .strict();
+export type CancellableJobExtractionTaskRequest = z.infer<
+  typeof cancellableJobExtractionTaskRequestSchema
+>;
+
 export const cancellableJobExtractionRequestSchema = z
   .object({
     taskId: aiTaskIdSchema,
-    request: jobExtractionRequestSchema,
+    request: cancellableJobExtractionTaskRequestSchema,
   })
   .strict();
 
@@ -30,7 +36,7 @@ export interface AiTaskCancellationDesktopApi {
   readonly aiTasks: {
     readonly extractJob: (
       taskId: string,
-      request: JobExtractionRequest,
+      request: CancellableJobExtractionTaskRequest,
     ) => Promise<PartialJobExtractionResult>;
     readonly cancelJobExtraction: (taskId: string) => Promise<boolean>;
   };
