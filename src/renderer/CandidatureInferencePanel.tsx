@@ -196,7 +196,7 @@ export function CandidatureInferencePanel({
             sourceTitle: "Retained AAAAT candidature context",
             sourceUrl: "",
             sourceText: context,
-            targetFieldIds,
+            targetFieldIds: [...targetFieldIds],
           });
         } finally {
           signal.removeEventListener("abort", cancelProvider);
