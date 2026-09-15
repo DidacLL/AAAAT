@@ -171,9 +171,126 @@
   padding-top: 0.7rem;
 }
 
+.document-intent-home {
+  min-height: 100%;
+  padding: clamp(1rem, 2.5vw, 2.5rem);
+  background:
+    linear-gradient(90deg, rgba(42, 35, 27, 0.04) 1px, transparent 1px) 0 0 / 40px 40px,
+    rgba(239, 230, 211, 0.42);
+}
+
+.document-intent-heading,
+.document-intent-actions,
+.document-start-options,
+.document-intent-existing {
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.document-intent-heading h1 {
+  margin: 0.2rem 0 0.5rem;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+}
+
+.document-intent-heading p:last-child {
+  max-width: 56rem;
+  line-height: 1.5;
+}
+
+.document-intent-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.document-intent-actions > button,
+.document-intent-list > button {
+  text-align: left;
+  border: 1px solid rgba(74, 58, 39, 0.48);
+  background: rgba(255, 250, 239, 0.8);
+  box-shadow: 0 6px 16px rgba(45, 35, 24, 0.08);
+}
+
+.document-intent-actions > button {
+  min-height: 8rem;
+  padding: 1.1rem;
+  display: grid;
+  align-content: center;
+  gap: 0.45rem;
+}
+
+.document-intent-actions strong {
+  font-size: 1.22rem;
+}
+
+.document-intent-actions span {
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.document-start-options {
+  margin-top: 1rem;
+  padding: 0.7rem 0;
+  border-top: 1px dashed rgba(74, 58, 39, 0.36);
+  border-bottom: 1px dashed rgba(74, 58, 39, 0.36);
+}
+
+.document-start-options summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.document-start-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  padding-top: 0.75rem;
+}
+
+.document-start-options-grid label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
+.document-start-options-grid small {
+  display: inline;
+  font-weight: 400;
+}
+
+.document-intent-existing {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid rgba(74, 58, 39, 0.34);
+}
+
+.document-intent-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.7rem;
+}
+
+.document-intent-list > button {
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.document-intent-empty {
+  margin: 0.5rem 0 0;
+}
+
+.documents-workspace.compact-document-detail .document-create {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .job-offer-dossier,
-  .setup-harness-grid {
+  .setup-harness-grid,
+  .document-intent-actions,
+  .document-start-options-grid {
     grid-template-columns: 1fr;
   }
 
@@ -187,7 +304,8 @@
 }
 
 @media (max-width: 620px) {
-  .job-offer-start {
+  .job-offer-start,
+  .document-intent-home {
     padding: 0.75rem;
   }
 

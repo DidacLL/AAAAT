@@ -113,10 +113,10 @@ describe("Settings workspace", () => {
     expect(screen.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "installer.ai" })).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "configurator.ai" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "VS Code external tool setup" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "VS Code external tool setup", hidden: true })).not.toBeVisible();
 
     await user.click(screen.getByText("Optional VS Code adapter", { selector: "summary" }));
-    expect(screen.getByRole("region", { name: "VS Code external tool setup" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "VS Code external tool setup" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Connect VS Code project" }));
     expect(connectVscode).toHaveBeenCalledTimes(1);
     expect(connectVscode).toHaveBeenCalledWith();

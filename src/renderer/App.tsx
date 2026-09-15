@@ -11,6 +11,7 @@ import {
   type ProfessionalInformationHandoff,
   type SettingsHandoff,
 } from "./contextual-handoffs";
+import { DocumentsStartWorkspace } from "./DocumentsStartWorkspace";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import { JobOfferToDocumentsWorkspace } from "./JobOfferToDocumentsWorkspace";
 import "./intent-recovery.css";
@@ -195,19 +196,31 @@ export function App() {
     return true;
   };
 
-  const currentViewDirty = () => {
-    if (productView === "job-offer") return jobOfferDirty;
-    if (productView === "candidatures") return candidatureDirty;
-    if (productView === "documents") return documentDirty;
-    return professionalInformationDirty;
-  };
-
   const selectProductView = (next: ProductView) => {
-    if (next === productView && !settingsOpen) return;
+    if (next === productView && !settingsOpen) {
+      if (next === "documents" && documentHandoff) {
+        if (protectedWorkDirty && !window.confirm("Discard unsaved edits and leave this work?")) return;
+        setDocumentDirty(false);
+        setDocumentHandoff(null);
+        setProfessionalInformationHandoff(null);
+        setDocumentWorkspaceRevision((current) => current + 1);
+      }
+      return;
+    }
     if (!leaveSettings()) return;
-    if (next !== productView && currentViewDirty() && !window.confirm("Discard unsaved edits and leave this work?")) return;
+    if (next !== productView && protectedWorkDirty && !window.confirm("Discard unsaved edits and leave this work?")) return;
     resetHandoffs();
     setProductView(next);
+  };
+
+  const openStandaloneDocument = (documentId: string) => {
+    setSettingsOpen(false);
+    setSettingsHandoff(null);
+    setProfessionalInformationHandoff(null);
+    setDocumentDirty(false);
+    setDocumentHandoff({ documentId });
+    setDocumentWorkspaceRevision((current) => current + 1);
+    setProductView("documents");
   };
 
   const openSettings = () => {
@@ -297,6 +310,8 @@ export function App() {
     professionalInformationHandoff !== null ||
     settingsHandoff?.origin === "documents";
   const keepProfessionalInformationMounted = productView === "professional-information";
+  const documentDetailActive =
+    documentHandoff !== null || professionalInformationHandoff !== null || settingsHandoff?.origin === "documents";
 
   return (
     <ContextualHandoffContext.Provider value={handoffApi}>
@@ -371,10 +386,14 @@ export function App() {
 
                 {keepDocumentsMounted ? (
                   <div hidden={settingsOpen || productView !== "documents"}>
-                    <DocumentsArea
-                      key={`documents-${workspace.rootPath}-${String(documentWorkspaceRevision)}`}
-                      onDirtyChange={setDocumentDirty}
-                    />
+                    {documentDetailActive ? (
+                      <DocumentsArea
+                        key={`documents-${workspace.rootPath}-${String(documentWorkspaceRevision)}`}
+                        onDirtyChange={setDocumentDirty}
+                      />
+                    ) : (
+                      <DocumentsStartWorkspace onOpenDocument={openStandaloneDocument} />
+                    )}
                   </div>
                 ) : null}
 

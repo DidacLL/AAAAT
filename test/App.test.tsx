@@ -197,14 +197,17 @@ describe("AAAAT intention-first shell", () => {
     expect(screen.getByRole("checkbox", { name: /Cover letter/ })).toBeChecked();
   });
 
-  it("keeps standalone CV and cover-letter work independently discoverable", async () => {
+  it("keeps standalone document work independently discoverable without exposing variants first", async () => {
     current.mockResolvedValueOnce(readyWorkspace);
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "CV & cover letter" }));
 
-    expect(await screen.findByRole("heading", { name: "Create a CV or cover letter." })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create CV" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "What are you making?" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /New CV/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /New cover letter/ })).toBeInTheDocument();
+    expect(screen.getByText("Creation options", { selector: "summary" })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Saved variation/)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Document assistance" })).not.toBeInTheDocument();
   });
 
