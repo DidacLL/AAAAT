@@ -6,6 +6,7 @@ on:
       - product/dogfood-workspace-ai-context
     paths:
       - scripts/product-pass-apply.py
+      - .github/workflows/product-pass-apply.yml
 
 permissions:
   contents: write
