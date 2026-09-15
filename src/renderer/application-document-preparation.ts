@@ -48,7 +48,7 @@ export async function maybeStartApplicationDocumentPreparation(input: {
     taskKey,
     async (updateDetail, signal) => {
       let extractedValues = 0;
-      let extractionIssues = 0;
+      let extractionIssues: number;
       let cvPrepared = false;
       let coverLetterPrepared = false;
 

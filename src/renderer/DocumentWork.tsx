@@ -255,7 +255,7 @@ export function DocumentWork({
     return () => {
       active = false;
     };
-  }, [preparationTask?.status]);
+  }, [editorDirty, preparationTask?.status, selectedId]);
 
   useEffect(() => {
     const candidatureId = documentHandoff?.candidatureId;

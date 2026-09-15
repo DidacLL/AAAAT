@@ -101,7 +101,26 @@ export function SetupEnvironmentPanel({ view = "all" }: { readonly view?: SetupE
   };
 
   useEffect(() => {
-    void load();
+    let active = true;
+    void Promise.all([
+      window.aaaat.setupEnvironment.current(),
+      window.aaaat.setupAssistant.access(),
+    ])
+      .then(([nextSnapshot, nextAccess]) => {
+        if (!active) return;
+        setSnapshot(nextSnapshot);
+        setAccess(nextAccess);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setError(reason instanceof Error ? reason.message : "AAAAT could not inspect the current setup environment.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const updateAccess = async (next: SetupAssistantAccess) => {
