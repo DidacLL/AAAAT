@@ -1,43 +1,10 @@
 name: Product pass applier
 
 on:
-  push:
-    branches:
-      - product/dogfood-workspace-ai-context
-    paths:
-      - scripts/product-pass-acceptance-v3b.py
-      - .github/workflows/product-pass-apply.yml
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  apply:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          ref: product/dogfood-workspace-ai-context
-      - name: Apply acceptance refinements
-        run: python scripts/product-pass-acceptance-v3b.py
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24.15.0'
-          cache: npm
-      - name: Install
-        run: npm ci --ignore-scripts
-      - name: Verify
-        run: npm run verify
-      - name: Commit applied edits
-        shell: bash
-        run: |
-          set -euo pipefail
-          git add -A
-          if git diff --cached --quiet; then exit 0; fi
-          git config user.name "AAAAT product pass"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Tighten mutation-aware AI protocol verification"
-          git push origin HEAD:product/dogfood-workspace-ai-context
-# temporary branch-only verification runner
+      - run: echo "Temporary product-pass runner retired."
