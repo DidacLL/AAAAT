@@ -57,6 +57,7 @@ import type {
   DocumentRecord,
   ProfileItem,
 } from "../shared/contracts";
+import { compactSourceText } from "../shared/source-text";
 import {
   getDefaultAiConnection,
   requireAiConnectionForOperation,
@@ -231,7 +232,7 @@ function projectCandidature(
 }
 
 function operationScope(kind: string): string {
-  return `aaaat_${kind.replace(/[^a-z]/g, "")}_${randomUUID()}`;
+  return `aaaat_${kind.replace(/[^a-z]/g, "")}`;
 }
 
 function providerCandidature(
@@ -484,7 +485,7 @@ export async function discoverCandidatureFieldFromSources(
   const sourceText = selected
     .map(
       (source) =>
-        `Source: ${source.title}\nURL: ${source.url}\n${source.sourceText}`,
+        `Source: ${source.title}\nURL: ${source.url}\n${compactSourceText(source.sourceText)}`,
     )
     .join("\n\n---\n\n")
     .slice(0, 50000)

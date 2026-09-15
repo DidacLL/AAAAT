@@ -17,6 +17,7 @@ import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsP
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureFocusPanel } from "./CandidatureFocusPanel";
 import { CandidatureInferencePanel } from "./CandidatureInferencePanel";
+import { CandidatureOfferPanel } from "./CandidatureOfferPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import {
@@ -614,6 +615,8 @@ export function CandidaturesWorkspace({
       </div>
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
+
+      <CandidatureOfferPanel candidatureId={selected.id} />
 
       <section className="section-surface candidature-information-surface" aria-label="Candidature information">
         <div className="candidature-editor-heading candidature-information-heading">

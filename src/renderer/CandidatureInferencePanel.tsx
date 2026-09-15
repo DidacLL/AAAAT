@@ -11,6 +11,7 @@ import type {
   CandidatureRuntimeValue,
   CandidatureSource,
 } from "../shared/contracts";
+import { compactSourceText } from "../shared/source-text";
 import { clearAiTask, startAiTask, useAiTask } from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
@@ -67,7 +68,7 @@ function sourceContext(
       `Retained Source ${index + 1}`,
       source.title ? `Title: ${source.title}` : "",
       source.url ? `URL: ${source.url}` : "",
-      source.sourceText,
+      compactSourceText(source.sourceText),
     ]
       .filter(Boolean)
       .join("\n"),
