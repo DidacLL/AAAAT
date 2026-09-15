@@ -40,3 +40,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Tighten mutation-aware AI protocol verification"
           git push origin HEAD:product/dogfood-workspace-ai-context
+# temporary branch-only verification runner
