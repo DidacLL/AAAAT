@@ -27,6 +27,7 @@ jobs:
           from pathlib import Path
           script = Path("scripts/product-pass-apply-v2.py")
           code = script.read_text(encoding="utf-8")
+
           old = '''replace(
               "src/main/robust-job-extraction.ts",
               'import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";\\n',
@@ -40,6 +41,36 @@ jobs:
           if old not in code:
               raise RuntimeError("robust extraction patch block not found")
           code = code.replace(old, new, 1)
+
+          old = '''replace(
+              "src/renderer/SettingsWorkspace.tsx",
+              'function WorkspaceLocationPanel({\\n',
+              ''' + "'''function ResetWorkspacePanel() {" + '''\n'''
+          # Replace the whole obsolete reset insertion block by locating its exact start/end.
+          start = code.index('replace(\n    "src/renderer/SettingsWorkspace.tsx",\n    \'function WorkspaceLocationPanel({\\n\',')
+          end_marker = "\n)\n# Add panel in workspace view after recovery panel occurrence."
+          end = code.index(end_marker, start) + 2
+          replacement = r'''replace(
+              "src/renderer/SettingsWorkspace.tsx",
+              'export function SettingsWorkspace({\n',
+              ''' + "'''function ResetWorkspacePanel() {\n  const [busy, setBusy] = useState(false);\n  return (\n    <section className=\"profile-column destructive-settings\" aria-label=\"Reset workspace\">\n      <div className=\"section-heading\"><div><p className=\"eyebrow\">Current workspace only</p><h2>Reset workspace</h2></div></div>\n      <p>Remove the current workspace data and return this folder to a clean usable AAAAT state. Other workspaces are not affected.</p>\n      <button type=\"button\" className=\"compact-secondary\" disabled={busy} onClick={() => {\n        if (!window.confirm(\"Reset this workspace? This permanently removes its candidatures, Sources, Tags, professional information, documents, artifacts and workspace AI settings.\")) return;\n        setBusy(true);\n        void window.aaaat.workspace.reset().then(() => window.location.reload()).catch(() => setBusy(false));\n      }}>{busy ? \"Resetting…\" : \"Reset workspace\"}</button>\n    </section>\n  );\n}\n\nexport function SettingsWorkspace({\n'''" + ''',
+          )'''
+          code = code[:start] + replacement + code[end:]
+
+          old = '''replace(
+              "src/renderer/SettingsWorkspace.tsx",
+              '            <WorkspaceRecoveryPanel currentWorkspace={currentWorkspace} editorDirty={protectedWorkDirty} onRestored={onRestored} />\\n',
+              '            <WorkspaceRecoveryPanel currentWorkspace={currentWorkspace} editorDirty={protectedWorkDirty} onRestored={onRestored} />\\n            <ResetWorkspacePanel />\\n',
+          )'''
+          new = '''replace(
+              "src/renderer/SettingsWorkspace.tsx",
+              '          </div>\\n        </div>\\n      ) : null}\\n\\n      {view === "recovery" ? (\\n',
+              '          </div>\\n          <ResetWorkspacePanel />\\n        </div>\\n      ) : null}\\n\\n      {view === "recovery" ? (\\n',
+          )'''
+          if old not in code:
+              raise RuntimeError("settings reset placement patch block not found")
+          code = code.replace(old, new, 1)
+
           exec(compile(code, str(script), "exec"), {"__file__": str(script), "__name__": "__main__"})
           PY
       - uses: actions/setup-node@v6
