@@ -33,9 +33,7 @@ function expectedServerEntry(executable: string, workspace: string) {
     type: "stdio",
     command: executable,
     args: ["--mcp", "--workspace", workspace],
-    ...(process.platform === "win32"
-      ? { env: { ELECTRON_NO_ATTACH_CONSOLE: "1" } }
-      : {}),
+    ...(process.platform === "win32" ? { env: { ELECTRON_NO_ATTACH_CONSOLE: "1" } } : {}),
   };
 }
 
@@ -44,8 +42,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-describe("VS Code MCP setup", () => {
-  it("writes a portable proposed manifest with the bounded disclosed capabilities and no machine paths or secrets", () => {
+describe("optional VS Code MCP adapter", () => {
+  it("writes a portable proposed adapter manifest for the shared bounded capability contract", () => {
     const { workspace, project, executable } = fixture();
     const manifest = proposeVscodeMcpSetup(workspace, project);
     expect(manifest).toMatchObject({
@@ -64,6 +62,8 @@ describe("VS Code MCP setup", () => {
       "cv_descriptions.read",
       "cv_content.read",
       "cv.render",
+      "installer.status.read",
+      "configurator.status.read",
     ]);
     expect(manifest.toolNames).toEqual([
       "candidature_create",
@@ -73,11 +73,13 @@ describe("VS Code MCP setup", () => {
       "cv_descriptions_read",
       "cv_content_read",
       "cv_render",
+      "installer_status_read",
+      "configurator_status_read",
     ]);
     expect(manifest.privacyDisclosure).toContain("selected one candidature for that task");
-    expect(manifest.privacyDisclosure).toMatch(
-      /(?:does not[^.]*expose|never[^.]*exposes)[^.]*other candidatures/i,
-    );
+    expect(manifest.privacyDisclosure).toContain("installer_status_read");
+    expect(manifest.privacyDisclosure).toContain("configurator_status_read");
+    expect(manifest.privacyDisclosure).toMatch(/No tool exposes generic database, filesystem, process, network/i);
     const text = readFileSync(path.join(workspace, "integrations", "vscode-mcp.json"), "utf8");
     expect(text).not.toContain(workspace);
     expect(text).not.toContain(project);
@@ -85,7 +87,7 @@ describe("VS Code MCP setup", () => {
     expect(text).not.toMatch(/password|secret/i);
   });
 
-  it("validates connection before writing the exact VS Code stdio entry", async () => {
+  it("validates the shared MCP connection before writing the exact optional VS Code stdio entry", async () => {
     const { workspace, project, executable } = fixture();
     proposeVscodeMcpSetup(workspace, project);
     const verify = vi.fn(async () => undefined);
@@ -96,9 +98,7 @@ describe("VS Code MCP setup", () => {
     expect(state).toBe("configured");
     expect(verify).toHaveBeenCalledTimes(1);
     expect(JSON.parse(readFileSync(path.join(project, ".vscode", "mcp.json"), "utf8"))).toEqual({
-      servers: {
-        aaaat: expectedServerEntry(executable, workspace),
-      },
+      servers: { aaaat: expectedServerEntry(executable, workspace) },
     });
   });
 
@@ -108,11 +108,7 @@ describe("VS Code MCP setup", () => {
     const vscode = path.join(project, ".vscode");
     mkdirSync(vscode);
     const configPath = path.join(vscode, "mcp.json");
-    const compatible = {
-      servers: {
-        aaaat: expectedServerEntry(executable, workspace),
-      },
-    };
+    const compatible = { servers: { aaaat: expectedServerEntry(executable, workspace) } };
     writeFileSync(configPath, JSON.stringify(compatible, null, 2) + "\n", "utf8");
     const verify = vi.fn(async () => undefined);
     await expect(
@@ -133,7 +129,7 @@ describe("VS Code MCP setup", () => {
     expect(JSON.parse(readFileSync(configPath, "utf8"))).toEqual(conflicting);
   });
 
-  it("requires the exact bounded setup invocation", () => {
+  it("keeps host setup explicit and bounded", () => {
     expect(
       parseVscodeMcpSetupInvocation([
         "aaaat",

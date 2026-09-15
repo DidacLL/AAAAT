@@ -2,6 +2,7 @@ import { createReadStream, createWriteStream } from "node:fs";
 
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import { z } from "zod";
 
 import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
 import {
@@ -33,10 +34,13 @@ import {
   selectedCvContentItems,
 } from "./cv-content-access-service";
 import { listAiVisibleCvDescriptors } from "./cv-descriptor-service";
+import { getSetupEnvironmentSnapshot } from "./setup-environment-service";
 import { openWorkspace } from "./workspace";
 
 const mcpFlag = "--mcp";
 const workspaceFlag = "--workspace";
+const emptyInputSchema = z.object({}).strict();
+
 export const candidatureCreateToolName = "candidature_create";
 export const opportunityResearchContextReadToolName = "opportunity_research_context_read";
 export const candidatureSourceAddToolName = "candidature_source_add";
@@ -44,6 +48,8 @@ export const careerContextReadToolName = "career_context_read";
 export const cvDescriptionsReadToolName = "cv_descriptions_read";
 export const cvContentReadToolName = "cv_content_read";
 export const cvRenderToolName = "cv_render";
+export const installerStatusReadToolName = "installer_status_read";
+export const configuratorStatusReadToolName = "configurator_status_read";
 
 function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
@@ -160,12 +166,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
         selectedOpportunityResearchContext(rootPath),
       );
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(context),
-          },
-        ],
+        content: [{ type: "text" as const, text: JSON.stringify(context) }],
       };
     },
   );
@@ -184,12 +185,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
         retained ? { retained: true } : null,
       );
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(result),
-          },
-        ],
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
     },
   );
@@ -203,14 +199,8 @@ function createServerForWorkspace(rootPath: string): McpServer {
     },
     async (input) => {
       externalCareerContextRequestSchema.parse(input);
-      const context = projectCareerContext(rootPath);
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(context),
-          },
-        ],
+        content: [{ type: "text" as const, text: JSON.stringify(projectCareerContext(rootPath)) }],
       };
     },
   );
@@ -224,14 +214,8 @@ function createServerForWorkspace(rootPath: string): McpServer {
     },
     async (input) => {
       externalCvDescriptionsRequestSchema.parse(input);
-      const descriptions = projectCvDescriptions(rootPath);
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(descriptions),
-          },
-        ],
+        content: [{ type: "text" as const, text: JSON.stringify(projectCvDescriptions(rootPath)) }],
       };
     },
   );
@@ -245,14 +229,8 @@ function createServerForWorkspace(rootPath: string): McpServer {
     },
     async (input) => {
       externalCvContentRequestSchema.parse(input);
-      const content = projectCvContent(rootPath);
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(content),
-          },
-        ],
+        content: [{ type: "text" as const, text: JSON.stringify(projectCvContent(rootPath)) }],
       };
     },
   );
@@ -269,10 +247,60 @@ function createServerForWorkspace(rootPath: string): McpServer {
       const rendered = await renderExternallyAuthorizedCv(rootPath);
       const result = externalCvRenderResultSchema.parse(rendered ? { rendered: true } : null);
       return {
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
+      };
+    },
+  );
+
+  server.registerTool(
+    installerStatusReadToolName,
+    {
+      description:
+        "Read AAAAT's privacy-minimal installation/prerequisite status: current-workspace readiness, local document-rendering readiness and only the names of missing known TeX tools. This capability cannot install software, execute commands, browse the filesystem or read career/application data.",
+      inputSchema: emptyInputSchema,
+    },
+    async (input) => {
+      emptyInputSchema.parse(input);
+      const snapshot = await getSetupEnvironmentSnapshot(rootPath);
+      return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(result),
+            text: JSON.stringify({
+              workspaceReady: snapshot.workspaceReady,
+              documentRenderingReady: snapshot.tex.documentRenderingReady,
+              missingTools: snapshot.tex.commands
+                .filter((command) => !command.available)
+                .map((command) => command.command),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    configuratorStatusReadToolName,
+    {
+      description:
+        "Read AAAAT's privacy-minimal optional AI configuration coverage: whether configuration is readable, connection count and per-operation validated-route availability. It exposes no connection names, endpoints, credentials, prompts, career/application data or mutation authority.",
+      inputSchema: emptyInputSchema,
+    },
+    async (input) => {
+      emptyInputSchema.parse(input);
+      const snapshot = await getSetupEnvironmentSnapshot(rootPath);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({
+              configurationReadable: snapshot.ai.configurationReadable,
+              connectionCount: snapshot.ai.connectionCount,
+              operations: snapshot.ai.operations.map((status) => ({
+                operation: status.operation,
+                available: status.available,
+              })),
+            }),
           },
         ],
       };

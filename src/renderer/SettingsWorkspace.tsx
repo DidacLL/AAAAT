@@ -29,7 +29,7 @@ const settingsLabels: Record<Exclude<SettingsView, "overview">, string> = {
   recovery: "Backup & recovery",
   rendering: "Document rendering",
   ai: "AI connections",
-  portability: "Portability & external tools",
+  portability: "External assistants & portability",
 };
 
 function ResetWorkspacePanel() {
@@ -109,7 +109,7 @@ export function SettingsWorkspace({
     return (
       <section className="settings-workspace" aria-label="Settings overview">
         <p className="settings-intro">
-          Administration stays secondary to candidature, document and professional-information work. Open only the setting you need.
+          Keep workspace ownership, rendering, optional AI and external-assistant setup here. Ordinary application and document work does not depend on these settings.
         </p>
         <div className="settings-intention-list">
           <button className="settings-intention" type="button" onClick={() => selectView("workspace")}>
@@ -129,8 +129,8 @@ export function SettingsWorkspace({
             <span>{aiSummary}</span>
           </button>
           <button className="settings-intention" type="button" onClick={() => selectView("portability")}>
-            <strong>Portability &amp; external tools</strong>
-            <span>Connect the demonstrated VS Code external tool or move portable AI setup.</span>
+            <strong>External assistants &amp; portability</strong>
+            <span>Use bounded AAAAT capabilities from compatible assistants and move portable AI setup.</span>
           </button>
         </div>
       </section>
@@ -150,20 +150,13 @@ export function SettingsWorkspace({
         <div className="profile-workspace">
           <div className="profile-column">
             <div className="section-heading">
-              <div>
-                <p className="eyebrow">Local ownership</p>
-                <h3>Current workspace</h3>
-              </div>
+              <div><p className="eyebrow">Local ownership</p><h3>Current workspace</h3></div>
             </div>
             <p>AAAAT keeps this workspace on your computer under your control.</p>
             <code className="settings-path">{currentWorkspace.rootPath}</code>
             <div className="button-row">
-              <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("create")}>
-                Create another workspace
-              </button>
-              <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("open")}>
-                Open another workspace
-              </button>
+              <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("create")}>Create another workspace</button>
+              <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("open")}>Open another workspace</button>
             </div>
           </div>
           <ResetWorkspacePanel />
@@ -180,15 +173,26 @@ export function SettingsWorkspace({
 
       {view === "rendering" ? <SetupEnvironmentPanel view="rendering" /> : null}
 
-      {view === "ai" ? (
-        <AiSettingsWorkspace view="connections" onDirtyChange={setDetailDirty} />
-      ) : null}
+      {view === "ai" ? <AiSettingsWorkspace view="connections" onDirtyChange={setDetailDirty} /> : null}
 
       {view === "portability" ? (
         <div className="settings-portability-stack">
-          <VscodeExternalToolSetup />
-          <AiSettingsWorkspace view="portability" />
+          <section className="settings-portability-intro" aria-label="Bounded external assistants">
+            <p className="eyebrow">Host agnostic</p>
+            <h3>Use AAAAT from a compatible assistant</h3>
+            <p>
+              AAAAT exposes a small local capability surface for tasks such as retaining an opportunity, reading deliberately shared career/CV context, requesting a CV render, and inspecting setup status. It does not grant generic database, filesystem, shell, process or browsing authority.
+            </p>
+            <p>
+              The host is your choice: ChatGPT, Claude, local agents, editors and other compatible tools can use the same bounded contract when their environment supports it. Host-specific adapters are conveniences, not product dependencies.
+            </p>
+          </section>
           <SetupEnvironmentPanel view="guidance" />
+          <AiSettingsWorkspace view="portability" />
+          <details className="optional-host-adapter">
+            <summary>Optional VS Code adapter</summary>
+            <VscodeExternalToolSetup />
+          </details>
         </div>
       ) : null}
     </section>

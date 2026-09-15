@@ -13,13 +13,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import {
-  chromium,
-  expect,
-  test,
-  type Browser,
-  type Page,
-} from "@playwright/test";
+import { chromium, expect, test, type Browser, type Page } from "@playwright/test";
 
 function packagedExecutable(): string {
   const packageRoot = path.resolve("out", "AAAAT-" + process.platform + "-" + process.arch);
@@ -68,9 +62,7 @@ async function waitForDebugger(
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   const error = processError().trim();
-  throw new Error(
-    "Packaged application did not expose its test endpoint" + (error ? ":\n" + error : ""),
-  );
+  throw new Error("Packaged application did not expose its test endpoint" + (error ? ":\n" + error : ""));
 }
 
 function processHasExited(child: ChildProcess): boolean {
@@ -94,27 +86,19 @@ async function waitForProcessExit(child: ChildProcess, timeoutMs: number): Promi
 
 async function stopProcess(child: ChildProcess): Promise<void> {
   if (processHasExited(child)) return;
-
   let terminationError = "";
   if (process.platform === "win32") {
     if (!child.pid) throw new Error("Packaged Windows application has no process ID");
-    const result = spawnSync(
-      "taskkill.exe",
-      ["/PID", String(child.pid), "/T", "/F"],
-      {
-        encoding: "utf8",
-        timeout: 5_000,
-        windowsHide: true,
-      },
-    );
+    const result = spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], {
+      encoding: "utf8",
+      timeout: 5_000,
+      windowsHide: true,
+    });
     if (result.error) throw result.error;
-    if (result.status !== 0) {
-      terminationError = (result.stderr || result.stdout || "taskkill failed").trim();
-    }
+    if (result.status !== 0) terminationError = (result.stderr || result.stdout || "taskkill failed").trim();
   } else if (!child.kill()) {
     terminationError = "could not signal packaged application process";
   }
-
   try {
     await waitForProcessExit(child, 5_000);
   } catch (error) {
@@ -141,34 +125,26 @@ async function startPackagedApp(
 ): Promise<RunningApp> {
   const port = await reservePort();
   const endpoint = "http://127.0.0.1:" + port;
-  const child = spawn(
-    packagedExecutable(),
-    ["--user-data-dir=" + userData, "--remote-debugging-port=" + port],
-    {
-      env:
-        process.platform === "linux"
-          ? {
-              ...process.env,
-              GTK_USE_PORTAL: "0",
-              ...(linuxHome
-                ? { HOME: linuxHome, XDG_CONFIG_HOME: path.join(linuxHome, ".config") }
-                : {}),
-              ...(linuxDocumentTools
-                ? {
-                    PATH: `${linuxDocumentTools.rootPath}${path.delimiter}${process.env.PATH ?? ""}`,
-                    AAAAT_TEST_OUTPUT_OPEN_LOG: linuxDocumentTools.openLogPath,
-                  }
-                : {}),
-            }
-          : process.env,
-      stdio: ["ignore", "ignore", "pipe"],
-      windowsHide: true,
-    },
-  );
-  let processError = "";
-  child.stderr?.on("data", (chunk: Buffer) => {
-    processError += chunk.toString();
+  const child = spawn(packagedExecutable(), ["--user-data-dir=" + userData, "--remote-debugging-port=" + port], {
+    env:
+      process.platform === "linux"
+        ? {
+            ...process.env,
+            GTK_USE_PORTAL: "0",
+            ...(linuxHome ? { HOME: linuxHome, XDG_CONFIG_HOME: path.join(linuxHome, ".config") } : {}),
+            ...(linuxDocumentTools
+              ? {
+                  PATH: `${linuxDocumentTools.rootPath}${path.delimiter}${process.env.PATH ?? ""}`,
+                  AAAAT_TEST_OUTPUT_OPEN_LOG: linuxDocumentTools.openLogPath,
+                }
+              : {}),
+          }
+        : process.env,
+    stdio: ["ignore", "ignore", "pipe"],
+    windowsHide: true,
   });
+  let processError = "";
+  child.stderr?.on("data", (chunk: Buffer) => { processError += chunk.toString(); });
   await waitForDebugger(endpoint, () => child.exitCode, () => processError);
   const browser = await chromium.connectOverCDP(endpoint);
   const context = browser.contexts()[0];
@@ -192,11 +168,7 @@ function prepareLinuxChooserHome(workspacePath: string): string {
   const configPath = path.join(homePath, ".config");
   mkdirSync(configPath, { recursive: true });
   const escapedWorkspacePath = workspacePath.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-  writeFileSync(
-    path.join(configPath, "user-dirs.dirs"),
-    `XDG_DOWNLOAD_DIR="${escapedWorkspacePath}"\n`,
-    "utf8",
-  );
+  writeFileSync(path.join(configPath, "user-dirs.dirs"), `XDG_DOWNLOAD_DIR="${escapedWorkspacePath}"\n`, "utf8");
   return homePath;
 }
 
@@ -205,29 +177,18 @@ function prepareLinuxDocumentTools(): LinuxDocumentTools {
   const openLogPath = path.join(rootPath, "opened-output.log");
   writeFileSync(
     path.join(rootPath, "latexmk"),
-    [
-      "#!/bin/sh",
-      "set -eu",
-      "mkdir -p build",
-      "printf '%s\\n' '%PDF-1.4' '%%EOF' > build/main.pdf",
-      "",
-    ].join("\n"),
+    ["#!/bin/sh", "set -eu", "mkdir -p build", "printf '%s\\n' '%PDF-1.4' '%%EOF' > build/main.pdf", ""].join("\n"),
     { encoding: "utf8", mode: 0o755 },
   );
   writeFileSync(
     path.join(rootPath, "xdg-open"),
-    [
-      "#!/bin/sh",
-      "set -eu",
-      "printf '%s\\n' \"$1\" >> \"$AAAAT_TEST_OUTPUT_OPEN_LOG\"",
-      "",
-    ].join("\n"),
+    ["#!/bin/sh", "set -eu", "printf '%s\\n' \"$1\" >> \"$AAAAT_TEST_OUTPUT_OPEN_LOG\"", ""].join("\n"),
     { encoding: "utf8", mode: 0o755 },
   );
   return { rootPath, openLogPath };
 }
 
-function chooseLinuxDirectory(): void {
+function chooseLinuxDirectory(windowTitle: string): void {
   execFileSync(
     "bash",
     [
@@ -236,30 +197,7 @@ function chooseLinuxDirectory(): void {
         "set -eu",
         "window=''",
         "for attempt in $(seq 1 100); do",
-        "  window=$(xdotool search --onlyvisible --name 'Create or select an AAAAT workspace' 2>/dev/null | tail -n 1 || true)",
-        "  if [ -n \"$window\" ]; then break; fi",
-        "  sleep 0.1",
-        "done",
-        "test -n \"$window\"",
-        "xdotool windowactivate --sync \"$window\"",
-        "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
-        "xdotool mousemove --window \"$window\" $((WIDTH - 70)) $((HEIGHT - 35)) click 1",
-      ].join("\n"),
-    ],
-    { stdio: "inherit" },
-  );
-}
-
-function chooseLinuxDemoDirectory(): void {
-  execFileSync(
-    "bash",
-    [
-      "-lc",
-      [
-        "set -eu",
-        "window=''",
-        "for attempt in $(seq 1 100); do",
-        "  window=$(xdotool search --onlyvisible --name 'Create a demo AAAAT workspace' 2>/dev/null | tail -n 1 || true)",
+        `  window=$(xdotool search --onlyvisible --name '${windowTitle}' 2>/dev/null | tail -n 1 || true)`,
         "  if [ -n \"$window\" ]; then break; fi",
         "  sleep 0.1",
         "done",
@@ -287,7 +225,7 @@ function resizeLinuxAppWindow(width: number, height: number): { width: number; h
         "  sleep 0.1",
         "done",
         "test -n \"$window\"",
-        `xdotool windowactivate --sync "$window"`,
+        "xdotool windowactivate --sync \"$window\"",
         `xdotool windowsize --sync "$window" ${String(width)} ${String(height)}`,
         "sleep 0.15",
         "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
@@ -301,104 +239,28 @@ function resizeLinuxAppWindow(width: number, height: number): { width: number; h
   return { width: Number(match[1]), height: Number(match[2]) };
 }
 
-async function proveAcceptedShellAtWindowSize(
-  page: Page,
-  width: number,
-  height: number,
-): Promise<void> {
-  const actual = resizeLinuxAppWindow(width, height);
-  expect(actual).toEqual({ width, height });
+async function proveIntentShell(page: Page, width: number, height: number): Promise<void> {
+  expect(resizeLinuxAppWindow(width, height)).toEqual({ width, height });
   await page.waitForTimeout(150);
-
   const primary = page.getByRole("navigation", { name: "Primary work areas" });
-  await expect(primary).toBeVisible();
-  await expect(primary.getByRole("button", { name: "Candidatures" })).toBeVisible();
-  await expect(primary.getByRole("button", { name: "Documents" })).toBeVisible();
+  await expect(primary.getByRole("button", { name: "From a job offer" })).toBeVisible();
+  await expect(primary.getByRole("button", { name: "CV & cover letter" })).toBeVisible();
+  await expect(primary.getByRole("button", { name: "Saved applications" })).toBeVisible();
   await expect(primary.getByRole("button", { name: "My information" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Switch workspace" })).toBeVisible();
-
-  const geometry = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
-  }));
-  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
-
-  console.log(
-    `[packaged UX] window=${String(actual.width)}x${String(actual.height)} viewport=${String(geometry.innerWidth)}x${String(geometry.innerHeight)} horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
-  );
-}
-
-async function proveCandidatureFlowAtWindowSize(
-  page: Page,
-  width: number,
-  height: number,
-): Promise<void> {
-  await proveAcceptedShellAtWindowSize(page, width, height);
-
-  await expect(page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
-  const search = page.getByRole("searchbox", { name: "Search" });
-  const show = page.getByLabel("Show");
-  const corpus = page.locator('[aria-label="Candidature corpus Focus"]');
-  await expect(search).toBeVisible();
-  await expect(show).toBeVisible();
-  await expect(corpus).toBeVisible();
-  await expect(page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
-
-  await search.fill("packaged smoke");
-  await show.selectOption("all");
-  const focusEntry = corpus.getByRole("button", { name: /packaged smoke/i }).first();
-  await expect(focusEntry).toBeVisible();
-  await focusEntry.click();
-
-  const selected = page.getByRole("region", { name: "Candidature Focus", exact: true });
-  await expect(selected).toBeVisible();
-  await expect(selected.getByRole("button", { name: "Back" })).toBeVisible();
-  await expect(selected.getByRole("button", { name: "All details" })).toBeVisible();
-  await expect(selected.getByRole("region", { name: "Selected candidature Focus" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Sources" })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Documents" })).toHaveCount(0);
-  await expect(page.locator("summary").filter({ hasText: "Activity" })).toHaveCount(0);
-  await expect(page.getByText(/Concept/i)).toHaveCount(0);
-
-  await selected.getByRole("button", { name: "Back" }).click();
-  await expect(search).toHaveValue("packaged smoke");
-  await expect(show).toHaveValue("all");
-  await expect(corpus).toBeVisible();
-
-  await page.getByRole("button", { name: "All details" }).click();
-  const complete = page.getByRole("region", { name: "Complete candidature" });
-  await expect(complete).toBeVisible();
-  await expect(complete.getByRole("region", { name: "Retained offer" })).toBeVisible();
-  await expect(complete.getByRole("region", { name: "Candidature information" })).toBeVisible();
-  await expect(complete.getByRole("region", { name: "Sources" })).toBeVisible();
-  await expect(complete.getByRole("region", { name: "Tags" })).toBeVisible();
-  await expect(complete.getByRole("region", { name: "Documents" })).toBeVisible();
-  await expect(page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
-  await expect(page.getByText(/Concept/i)).toHaveCount(0);
-  await complete.getByRole("button", { name: "Back" }).click();
-
-  await expect(search).toHaveValue("packaged smoke");
-  await expect(show).toHaveValue("all");
+  await expect(page.getByRole("button", { name: "Change workspace" })).toBeVisible();
   const geometry = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
   }));
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
-  console.log(
-    `[packaged candidature] window=${String(width)}x${String(height)} corpus-focus=true selected-focus=true direct-complete-edit=true state-preserved=true horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
-  );
 }
 
-function packagedDocumentId(workspacePath: string): string {
+function documentId(workspacePath: string, title: string): string {
   const database = new DatabaseSync(path.join(workspacePath, "workspace.sqlite"), { readOnly: true });
   try {
-    const row = database
-      .prepare("SELECT id FROM documents WHERE title = ?")
-      .get("Packaged CV") as { id: string } | undefined;
-    if (!row) throw new Error("Packaged document was not persisted");
+    const row = database.prepare("SELECT id FROM documents WHERE title = ?").get(title) as { id: string } | undefined;
+    if (!row) throw new Error(`Document ${title} was not persisted`);
     return row.id;
   } finally {
     database.close();
@@ -406,119 +268,21 @@ function packagedDocumentId(workspacePath: string): string {
 }
 
 async function expectLastOpenedOutput(openLogPath: string, expectedOutputPath: string): Promise<void> {
-  await expect
-    .poll(() => {
-      if (!existsSync(openLogPath)) return "";
-      return readFileSync(openLogPath, "utf8").trim().split(/\r?\n/).at(-1) ?? "";
-    })
-    .toBe(expectedOutputPath);
-}
-
-async function proveDocumentWorkspace(
-  page: Page,
-  workspacePath: string,
-  openLogPath: string,
-): Promise<void> {
-  const primary = page.getByRole("navigation", { name: "Primary work areas" });
-  await primary.getByRole("button", { name: "Documents" }).click();
-
-  await proveAcceptedShellAtWindowSize(page, 720, 600);
-  const workspace = page.getByRole("region", { name: "Documents" });
-  const collection = workspace.locator(".documents-sidebar");
-  const local = page.getByRole("tablist", { name: "Document work" });
-  await expect(collection).toBeVisible();
-  await expect(local).not.toBeVisible();
-  await expect(collection.getByRole("heading", { name: "Documents" })).toBeVisible();
-  await expect(collection.getByLabel("Use information from")).toBeVisible();
-  await expect(page.getByText("Canonical profile", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Profile basis", { exact: true })).toHaveCount(0);
-
-  await collection.getByLabel("Title").fill("Packaged CV");
-  await collection.getByRole("button", { name: "Create CV" }).click();
-  await expect(page.getByRole("button", { name: "Back to Documents" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Packaged CV" })).toBeVisible();
-  await expect(local).toBeVisible();
-  await expect(local.getByRole("tab")).toHaveCount(3);
-  await expect(local.getByRole("tab", { name: "Content" })).toBeVisible();
-  await expect(local.getByRole("tab", { name: "My information" })).toBeVisible();
-  await expect(local.getByRole("tab", { name: "Output" })).toBeVisible();
-
-  const content = page.getByRole("tabpanel", { name: "Document content" });
-  await content.getByLabel("Language").fill("en");
-  await content.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Document changes saved.")).toBeVisible();
-
-  const localGeometry = await local.evaluate((element) => ({
-    clientWidth: element.clientWidth,
-    scrollWidth: element.scrollWidth,
-  }));
-  const pageGeometry = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }));
-  expect(localGeometry.scrollWidth).toBeLessThanOrEqual(localGeometry.clientWidth);
-  expect(pageGeometry.scrollWidth).toBeLessThanOrEqual(pageGeometry.clientWidth);
-  console.log(
-    `[packaged documents] window=720x600 state=selected local-nav-overflow=${String(localGeometry.scrollWidth - localGeometry.clientWidth)} horizontal-overflow=${String(pageGeometry.scrollWidth - pageGeometry.clientWidth)}`,
-  );
-
-  await local.getByRole("tab", { name: "My information" }).click();
-  await expect(page.getByRole("tabpanel", { name: "My information in this document" })).toBeVisible();
-  await local.getByRole("tab", { name: "Output" }).click();
-  await expect(page.getByRole("tabpanel", { name: "Document output" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Rendered PDF result" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Render PDF" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "AI-visible CV description" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Retained application artifacts" })).toHaveCount(0);
-
-  const documentId = packagedDocumentId(workspacePath);
-  const expectedOutputPath = path.join(workspacePath, "documents", documentId, "build", "main.pdf");
-  await expect(page.getByText(expectedOutputPath)).not.toBeVisible();
-  await page.getByRole("button", { name: "Render PDF" }).click();
-  await expect(page.getByText("PDF rendered successfully. Open the result below.")).toBeVisible();
-  expect(existsSync(expectedOutputPath)).toBe(true);
-  await page.getByRole("button", { name: "Open PDF" }).click();
-  await expectLastOpenedOutput(openLogPath, expectedOutputPath);
-  console.log("[packaged documents] window=720x600 create-edit-render-open=true");
-
-  await local.getByRole("tab", { name: "Content" }).click();
-  await expect(content).toBeVisible();
-  await page.getByRole("button", { name: "Back to Documents" }).click();
-  await expect(collection).toBeVisible();
-  await expect(local).not.toBeVisible();
-  console.log("[packaged documents] window=720x600 state=collection return=true");
-
-  await proveAcceptedShellAtWindowSize(page, 1200, 800);
-  await expect(collection).toBeVisible();
-  await expect(local).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Packaged CV" })).toBeVisible();
-  await local.getByRole("tab", { name: "Output" }).click();
-  await expect(page.getByRole("button", { name: "Open PDF" })).toBeVisible();
-  await page.getByRole("button", { name: "Open PDF" }).click();
-  await expectLastOpenedOutput(openLogPath, expectedOutputPath);
-  const wideGeometry = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }));
-  expect(wideGeometry.scrollWidth).toBeLessThanOrEqual(wideGeometry.clientWidth);
-  console.log(
-    `[packaged documents] window=1200x800 result-access=true horizontal-overflow=${String(wideGeometry.scrollWidth - wideGeometry.clientWidth)}`,
-  );
+  await expect.poll(() => {
+    if (!existsSync(openLogPath)) return "";
+    return readFileSync(openLogPath, "utf8").trim().split(/\r?\n/).at(-1) ?? "";
+  }).toBe(expectedOutputPath);
 }
 
 test("packaged external command rejects unsupported authority without opening desktop", () => {
   const uninitializedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-command-smoke-"));
   try {
-    const result = spawnSync(
-      packagedExecutable(),
-      ["--external-command", "candidature.update", "--workspace", uninitializedWorkspace],
-      {
-        input: "{}",
-        encoding: "utf8",
-        timeout: 5_000,
-        windowsHide: true,
-      },
-    );
+    const result = spawnSync(packagedExecutable(), ["--external-command", "candidature.update", "--workspace", uninitializedWorkspace], {
+      input: "{}",
+      encoding: "utf8",
+      timeout: 5_000,
+      windowsHide: true,
+    });
     expect(result.error).toBeUndefined();
     expect(result.status).toBe(2);
     expect(result.stdout.trim()).toBe('{"ok":false,"error":"unsupported-capability"}');
@@ -528,244 +292,145 @@ test("packaged external command rejects unsupported authority without opening de
   }
 });
 
-test("packaged demo workspace exposes offer, prompt guidance, and reset", async () => {
-  test.skip(process.platform !== "linux", "Linux chooser automation exercises the packaged demo path");
-  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-demo-packaged-"));
-  const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-demo-owned-"));
-  const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
+test("packaged desktop keeps the sandboxed boundary and first-run ownership choices", async () => {
+  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-boundary-"));
   let running: RunningApp | undefined;
-
   try {
-    running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(running.page.getByRole("button", { name: "Try with demo data" })).toBeVisible();
-    await running.page.getByRole("button", { name: "Try with demo data" }).click();
-    chooseLinuxDemoDirectory();
-
-    await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
-    await expect(running.page.getByText("Demo workspace", { exact: true })).toBeVisible();
-    const demoCorpus = running.page.locator('[aria-label="Candidature corpus Focus"]');
-    await expect(demoCorpus.getByRole("button", { name: /Northstar Labs/i }).first()).toBeVisible();
-    await demoCorpus.getByRole("button", { name: /Northstar Labs/i }).first().click();
-    await running.page
-      .getByRole("region", { name: "Candidature Focus", exact: true })
-      .getByRole("button", { name: "All details" })
-      .click();
-    const demoComplete = running.page.getByRole("region", { name: "Complete candidature" });
-    const demoOffer = demoComplete.getByRole("region", { name: "Retained offer" });
-    await expect(demoOffer).toContainText("English is required");
-    await expect(demoOffer.getByText("Original Source")).toBeVisible();
-    await demoComplete.getByRole("button", { name: "Back" }).click();
-
-    await running.page.getByRole("button", { name: "Settings" }).click();
-    await running.page.getByRole("button", { name: /AI connections/ }).click();
-    const advanced = running.page.locator("summary").filter({ hasText: "Advanced: AI instructions and context" });
-    await advanced.click();
-    const coverPrompt = running.page.locator(".document-card").filter({ hasText: "Cover-letter drafting" }).first();
-    await coverPrompt.getByLabel("Optional guidance").fill("Prefer short paragraphs in packaged verification.");
-    await coverPrompt.getByRole("button", { name: "Save guidance" }).click();
-    await coverPrompt.locator("summary").filter({ hasText: "Effective final instruction" }).click();
-    await expect(coverPrompt).toContainText("Prefer short paragraphs in packaged verification.");
-
-    await running.page.getByRole("button", { name: "Back to Settings" }).click();
-    await running.page.getByRole("button", { name: /^Workspace\b/ }).click();
-    const reset = running.page.getByRole("region", { name: "Reset workspace" });
-    await expect(reset.getByRole("button", { name: "Reset workspace" })).toBeVisible();
-    running.page.once("dialog", (dialog) => void dialog.accept());
-    await reset.getByRole("button", { name: "Reset workspace" }).click();
-    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
-    await expect(running.page.getByText("No candidatures yet")).toBeVisible();
-
-    const database = new DatabaseSync(path.join(ownedWorkspace, "workspace.sqlite"), { readOnly: true });
-    try {
-      expect(database.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 0 });
-      expect(database.prepare("SELECT COUNT(*) AS count FROM profile_items").get()).toEqual({ count: 0 });
-      expect(database.prepare("SELECT COUNT(*) AS count FROM documents").get()).toEqual({ count: 0 });
-      expect(database.prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.demo'").get()).toBeUndefined();
-      expect(database.prepare("SELECT value FROM workspace_metadata WHERE key = 'ai.prompt.guidance.cover_letter_draft'").get()).toBeUndefined();
-    } finally {
-      database.close();
-    }
-  } finally {
-    if (running) await stopPackagedApp(running);
-    rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    rmSync(ownedWorkspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    rmSync(linuxHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-  }
-});
-
-test("packaged desktop preserves security gates and required bounded capabilities", async () => {
-  const executablePath = packagedExecutable();
-  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-"));
-  const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
-  const linuxHome = process.platform === "linux" ? prepareLinuxChooserHome(ownedWorkspace) : undefined;
-  const linuxDocumentTools = process.platform === "linux" ? prepareLinuxDocumentTools() : undefined;
-  expect(existsSync(executablePath)).toBe(true);
-  let running: RunningApp | undefined;
-
-  try {
-    running = await startPackagedApp(isolatedUserData, linuxHome, linuxDocumentTools);
+    running = await startPackagedApp(isolatedUserData);
     await expect(running.page).toHaveTitle("AAAAT");
-    await expect(
-      running.page.getByRole("heading", {
-        name: "Choose where AAAAT should keep your career workspace.",
-      }),
-    ).toBeVisible();
-    await expect(running.page.getByText(/workspace data stays local/i)).toBeVisible();
-    await expect(running.page.getByText(/works without AI/i)).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Choose where AAAAT should keep your career workspace." })).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Create workspace" })).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Open existing workspace" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Try with demo data" })).toBeVisible();
 
     const boundary = await running.page.evaluate(() => ({
       processType: typeof Reflect.get(window, "process"),
       requireType: typeof Reflect.get(window, "require"),
-      systemInfo: typeof window.aaaat.system.info,
       workspaceCurrent: typeof window.aaaat.workspace.current,
-      workspaceChoose: typeof window.aaaat.workspace.choose,
-      workspaceCreateDemo: typeof window.aaaat.workspace.createDemo,
-      workspaceReset: typeof window.aaaat.workspace.reset,
-      workspaceStatus: typeof window.aaaat.workspace.status,
-      aiPromptList: typeof window.aaaat.aiPrompts.list,
-      profileCurrent: typeof window.aaaat.profile.current,
-      documentList: typeof window.aaaat.documents.list,
-      documentRender: typeof window.aaaat.documents.render,
-      documentOutputOpen: typeof window.aaaat.documentOutput.open,
-      candidatureList: typeof window.aaaat.candidatures.list,
       candidatureCreate: typeof window.aaaat.candidatures.create,
-      candidatureFilter: typeof window.aaaat.candidatures.filter,
-      candidatureFieldList: typeof window.aaaat.candidatures.listFields,
-      candidatureFieldCreate: typeof window.aaaat.candidatures.createField,
-      candidatureFieldSet: typeof window.aaaat.candidatures.setFieldValue,
-      candidatureSources: typeof window.aaaat.candidatures.listSources,
-      candidatureDocuments: typeof window.aaaat.candidatures.setDocuments,
-      candidatureTags: typeof window.aaaat.candidatures.setTags,
-      aiConnection: typeof window.aaaat.ai.connection,
-      aiExtract: typeof window.aaaat.ai.extractJob,
-      aiDiscoverField: typeof window.aaaat.ai.discoverField,
+      documentCreate: typeof window.aaaat.documents.create,
+      documentRender: typeof window.aaaat.documents.render,
+      setupEnvironment: typeof window.aaaat.setupEnvironment.current,
     }));
-
     expect(boundary.processType).toBe("undefined");
     expect(boundary.requireType).toBe("undefined");
-    for (const [name, value] of Object.entries(boundary)) {
-      if (name === "processType" || name === "requireType") continue;
-      expect(value, `${name} should be available through the bounded preload API`).toBe("function");
-    }
+    expect(boundary.workspaceCurrent).toBe("function");
+    expect(boundary.candidatureCreate).toBe("function");
+    expect(boundary.documentCreate).toBe("function");
+    expect(boundary.documentRender).toBe("function");
+    expect(boundary.setupEnvironment).toBe("function");
+  } finally {
+    if (running) await stopPackagedApp(running);
+    rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+});
 
-    const csp = await running.page
-      .locator('meta[http-equiv="Content-Security-Policy"]')
-      .getAttribute("content");
-    expect(csp).toContain("connect-src 'self'");
-    expect(csp).not.toContain("ws://localhost:");
+test("packaged Linux follows the raw-offer-to-document journey and keeps standalone work and host-agnostic settings", async () => {
+  test.skip(process.platform !== "linux", "Linux chooser automation exercises the full packaged desktop journey");
+  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-journey-"));
+  const workspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
+  const home = prepareLinuxChooserHome(workspace);
+  const tools = prepareLinuxDocumentTools();
+  let running: RunningApp | undefined;
 
-    if (process.platform !== "linux") return;
-
+  try {
+    running = await startPackagedApp(isolatedUserData, home, tools);
     await running.page.getByRole("button", { name: "Create workspace" }).click();
-    chooseLinuxDirectory();
-    await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
-    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+    chooseLinuxDirectory("Create or select an AAAAT workspace");
 
-    await proveAcceptedShellAtWindowSize(running.page, 1200, 800);
-    await proveAcceptedShellAtWindowSize(running.page, 720, 600);
+    await expect(running.page.getByText(workspace)).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
+    await proveIntentShell(running.page, 1200, 800);
+    await proveIntentShell(running.page, 720, 600);
 
-    const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
-    await expect(primary.getByRole("button", { name: "Candidatures" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    await expect(running.page.getByRole("button", { name: "ToDos" })).toHaveCount(0);
-    await expect(running.page.getByRole("button", { name: "AI assist" })).toHaveCount(0);
-    await expect(running.page.getByRole("button", { name: "Profile" })).toHaveCount(0);
-    await expect(running.page.getByRole("button", { name: "CVs & letters" })).toHaveCount(0);
-    await expect(running.page.getByRole("button", { name: "Professional information" })).toHaveCount(0);
+    const offer = "Acme Platform Engineer. Build Python distributed systems. Remote in Spain.";
+    await running.page.getByLabel("Job offer").fill(offer);
+    await running.page.getByRole("button", { name: "Start application documents" }).click();
+    await expect(running.page.getByRole("heading", { name: "Application CV" })).toBeVisible();
 
-    const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
-    expect(existsSync(databasePath)).toBe(true);
+    const databasePath = path.join(workspace, "workspace.sqlite");
     const database = new DatabaseSync(databasePath, { readOnly: true });
     try {
-      expect(
-        database
-          .prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.initialized_at'")
-          .get(),
-      ).toMatchObject({ value: expect.any(String) });
-      expect(
-        database.prepare("SELECT name FROM sqlite_schema WHERE name = 'schema_migrations'").get(),
-      ).toBeUndefined();
-      expect(
-        database.prepare("SELECT name FROM sqlite_schema WHERE name = 'todos'").get(),
-      ).toBeUndefined();
-      expect(
-        database
-          .prepare("SELECT opportunity_research_selected AS selected FROM candidatures LIMIT 0")
-          .all(),
-      ).toEqual([]);
+      expect(database.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 1 });
+      expect(database.prepare("SELECT COUNT(*) AS count FROM documents").get()).toEqual({ count: 2 });
+      expect(database.prepare("SELECT source_text AS sourceText FROM candidature_sources").get()).toEqual({ sourceText: offer });
     } finally {
       database.close();
     }
 
-    await stopPackagedApp(running);
-    running = undefined;
+    const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
+    await primary.getByRole("button", { name: "Saved applications" }).click();
+    const search = running.page.getByRole("searchbox", { name: "Search" });
+    await search.fill("Acme");
+    await expect(running.page.locator('[aria-label="Candidature corpus Focus"]')).toBeVisible();
 
-    const commandResult = spawnSync(
-      executablePath,
-      ["--external-command", "candidature.create", "--workspace", ownedWorkspace],
-      {
-        input: JSON.stringify({
-          source: {
-            kind: "other",
-            title: "packaged smoke",
-            url: "",
-            sourceText: "private smoke source",
-          },
-        }),
-        encoding: "utf8",
-        timeout: 5_000,
-        windowsHide: true,
-      },
-    );
-    expect(commandResult.error).toBeUndefined();
-    expect(commandResult.status).toBe(0);
-    expect(commandResult.stdout.trim()).toBe(
-      '{"ok":true,"capability":"candidature.create","created":true}',
-    );
-    expect(commandResult.stdout).not.toContain("private smoke source");
-    expect(commandResult.stdout).not.toContain(ownedWorkspace);
+    await primary.getByRole("button", { name: "CV & cover letter" }).click();
+    await expect(running.page.getByRole("button", { name: "Application CV" })).toBeVisible();
+    await running.page.getByLabel("Title").fill("Standalone acceptance CV");
+    await running.page.getByRole("button", { name: "Create CV" }).click();
+    await expect(running.page.getByRole("heading", { name: "Standalone acceptance CV" })).toBeVisible();
 
-    const commandDatabase = new DatabaseSync(databasePath, { readOnly: true });
-    try {
-      expect(commandDatabase.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({
-        count: 1,
-      });
-      expect(
-        commandDatabase
-          .prepare("SELECT kind, title, source_text AS sourceText FROM candidature_sources")
-          .all(),
-      ).toEqual([
-        { kind: "other", title: "packaged smoke", sourceText: "private smoke source" },
-      ]);
-      expect(commandDatabase.prepare("SELECT COUNT(*) AS count FROM candidature_field_values").get()).toEqual({
-        count: 0,
-      });
-      expect(commandDatabase.prepare("SELECT action FROM candidature_activity").all()).toEqual([
-        { action: "candidature.created" },
-      ]);
-    } finally {
-      commandDatabase.close();
-    }
+    const localNav = running.page.getByRole("tablist", { name: "Document work" });
+    await localNav.getByRole("tab", { name: "Output" }).click();
+    await running.page.getByRole("button", { name: "Render PDF" }).click();
+    await expect(running.page.getByText("PDF rendered successfully. Open the result below.")).toBeVisible();
+    const outputPath = path.join(workspace, "documents", documentId(workspace, "Standalone acceptance CV"), "build", "main.pdf");
+    expect(existsSync(outputPath)).toBe(true);
+    await running.page.getByRole("button", { name: "Open PDF" }).click();
+    await expectLastOpenedOutput(tools.openLogPath, outputPath);
 
-    running = await startPackagedApp(isolatedUserData, linuxHome, linuxDocumentTools);
-    await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
-    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
-    await proveCandidatureFlowAtWindowSize(running.page, 1200, 800);
-    await proveCandidatureFlowAtWindowSize(running.page, 720, 600);
-    if (!linuxDocumentTools) throw new Error("Linux document tools are required for packaged evidence");
-    await proveDocumentWorkspace(running.page, ownedWorkspace, linuxDocumentTools.openLogPath);
+    await running.page.getByRole("button", { name: "Settings" }).click();
+    await running.page.getByRole("button", { name: /External assistants & portability/ }).click();
+    await expect(running.page.getByRole("heading", { name: "Use AAAAT from a compatible assistant" })).toBeVisible();
+    await expect(running.page.getByRole("article", { name: "installer.ai" })).toBeVisible();
+    await expect(running.page.getByRole("article", { name: "configurator.ai" })).toBeVisible();
+    await expect(running.page.getByText("Optional VS Code adapter", { selector: "summary" })).toBeVisible();
+    await expect(running.page.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeVisible();
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    rmSync(ownedWorkspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    if (linuxHome) {
-      rmSync(linuxHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(tools.rootPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+});
+
+test("packaged demo remains isolated and reset returns the workspace to a clean intention-first surface", async () => {
+  test.skip(process.platform !== "linux", "Linux chooser automation exercises the packaged demo path");
+  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-demo-packaged-"));
+  const workspace = mkdtempSync(path.join(tmpdir(), "aaaat-demo-owned-"));
+  const home = prepareLinuxChooserHome(workspace);
+  let running: RunningApp | undefined;
+  try {
+    running = await startPackagedApp(isolatedUserData, home);
+    await running.page.getByRole("button", { name: "Try with demo data" }).click();
+    chooseLinuxDirectory("Create a demo AAAAT workspace");
+
+    await expect(running.page.getByText("Demo workspace", { exact: true })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
+    await running.page.getByRole("button", { name: "Saved applications" }).click();
+    await expect(running.page.locator('[aria-label="Candidature corpus Focus"]').getByRole("button", { name: /Northstar Labs/i }).first()).toBeVisible();
+
+    await running.page.getByRole("button", { name: "Settings" }).click();
+    await running.page.getByRole("button", { name: /^Workspace\b/ }).click();
+    const reset = running.page.getByRole("region", { name: "Reset workspace" });
+    running.page.once("dialog", (dialog) => void dialog.accept());
+    await reset.getByRole("button", { name: "Reset workspace" }).click();
+    await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
+
+    const database = new DatabaseSync(path.join(workspace, "workspace.sqlite"), { readOnly: true });
+    try {
+      expect(database.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 0 });
+      expect(database.prepare("SELECT COUNT(*) AS count FROM profile_items").get()).toEqual({ count: 0 });
+      expect(database.prepare("SELECT COUNT(*) AS count FROM documents").get()).toEqual({ count: 0 });
+      expect(database.prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.demo'").get()).toBeUndefined();
+    } finally {
+      database.close();
     }
-    if (linuxDocumentTools) {
-      rmSync(linuxDocumentTools.rootPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    }
+  } finally {
+    if (running) await stopPackagedApp(running);
+    rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });

@@ -1,0 +1,198 @@
+.job-offer-start {
+  min-height: 100%;
+  padding: clamp(1rem, 2.5vw, 2.5rem);
+  background:
+    linear-gradient(90deg, rgba(42, 35, 27, 0.05) 1px, transparent 1px) 0 0 / 36px 36px,
+    linear-gradient(rgba(42, 35, 27, 0.035) 1px, transparent 1px) 0 0 / 36px 36px;
+}
+
+.job-offer-dossier-heading {
+  max-width: 70rem;
+  margin: 0 auto 1rem;
+}
+
+.job-offer-dossier-heading h1 {
+  margin: 0.2rem 0 0.55rem;
+  font-size: clamp(1.65rem, 3vw, 2.55rem);
+  line-height: 1.06;
+}
+
+.job-offer-dossier-heading p:last-child {
+  max-width: 58rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.job-offer-dossier {
+  max-width: 76rem;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(17rem, 0.7fr);
+  gap: 1rem;
+  align-items: start;
+  padding: 1rem;
+  border: 1px solid rgba(74, 58, 39, 0.55);
+  border-radius: 12px;
+  background: rgba(235, 224, 199, 0.82);
+  box-shadow: 0 10px 28px rgba(40, 31, 22, 0.12), inset 0 0 0 3px rgba(255, 250, 235, 0.34);
+}
+
+.job-offer-paper {
+  grid-row: span 2;
+  display: grid;
+  gap: 0.45rem;
+  font-weight: 700;
+}
+
+.job-offer-paper textarea {
+  width: 100%;
+  min-height: min(56vh, 34rem);
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 1rem;
+  border: 1px solid rgba(73, 60, 43, 0.48);
+  border-radius: 6px;
+  background: #fffaf0;
+  box-shadow: inset 0 1px 5px rgba(51, 39, 27, 0.08);
+  font: inherit;
+  line-height: 1.45;
+}
+
+.job-offer-output-choice {
+  margin: 0;
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.6rem;
+  border: 1px solid rgba(74, 58, 39, 0.4);
+  border-radius: 8px;
+  background: rgba(51, 45, 37, 0.06);
+}
+
+.job-offer-output-choice legend {
+  padding: 0 0.35rem;
+  font-weight: 800;
+}
+
+.job-offer-output-choice label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.7rem;
+  border: 1px solid rgba(74, 58, 39, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 250, 239, 0.76);
+}
+
+.job-offer-output-choice input {
+  margin-top: 0.18rem;
+}
+
+.job-offer-output-choice span,
+.job-offer-output-choice small {
+  display: block;
+}
+
+.job-offer-output-choice small {
+  margin-top: 0.2rem;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.job-offer-start-actions {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.job-offer-start-actions .primary-action {
+  width: 100%;
+  min-height: 3rem;
+}
+
+.job-offer-start-actions p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.primary-work-nav button:first-child {
+  border-left-width: 3px;
+}
+
+.settings-portability-intro {
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(74, 58, 39, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 250, 239, 0.68);
+}
+
+.settings-portability-intro h3,
+.setup-harness-card h3 {
+  margin: 0.15rem 0 0.35rem;
+}
+
+.setup-harness-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.setup-harness-card {
+  padding: 1rem;
+  border: 1px solid rgba(74, 58, 39, 0.42);
+  border-radius: 8px;
+  background: rgba(255, 250, 239, 0.72);
+}
+
+.setup-harness-status {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.setup-harness-list {
+  margin: 0.8rem 0;
+  padding-left: 1.1rem;
+}
+
+.setup-harness-list li + li {
+  margin-top: 0.35rem;
+}
+
+.optional-host-adapter {
+  margin-top: 0.75rem;
+  border-top: 1px dashed rgba(74, 58, 39, 0.38);
+  padding-top: 0.7rem;
+}
+
+@media (max-width: 900px) {
+  .job-offer-dossier,
+  .setup-harness-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .job-offer-paper {
+    grid-row: auto;
+  }
+
+  .job-offer-paper textarea {
+    min-height: 18rem;
+  }
+}
+
+@media (max-width: 620px) {
+  .job-offer-start {
+    padding: 0.75rem;
+  }
+
+  .job-offer-dossier {
+    padding: 0.75rem;
+    border-radius: 7px;
+  }
+}

@@ -12,6 +12,8 @@ import {
   type SettingsHandoff,
 } from "./contextual-handoffs";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
+import { JobOfferToDocumentsWorkspace } from "./JobOfferToDocumentsWorkspace";
+import "./intent-recovery.css";
 import "./owner-feedback-recovery.css";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 import { SettingsWorkspace } from "./SettingsWorkspace";
@@ -19,7 +21,7 @@ import "./shell.css";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
-type ProductView = "candidatures" | "documents" | "professional-information";
+type ProductView = "job-offer" | "documents" | "candidatures" | "professional-information";
 
 function ProfileArea({
   initialItemId,
@@ -65,8 +67,9 @@ export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [demoWorkspace, setDemoWorkspace] = useState(false);
-  const [productView, setProductView] = useState<ProductView>("candidatures");
+  const [productView, setProductView] = useState<ProductView>("job-offer");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [jobOfferDirty, setJobOfferDirty] = useState(false);
   const [candidatureDirty, setCandidatureDirty] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
   const [professionalInformationDirty, setProfessionalInformationDirty] = useState(false);
@@ -99,13 +102,22 @@ export function App() {
     return () => { active = false; };
   }, []);
 
-  const protectedWorkDirty = candidatureDirty || documentDirty || professionalInformationDirty;
+  const protectedWorkDirty =
+    jobOfferDirty || candidatureDirty || documentDirty || professionalInformationDirty;
   const anyDirty = protectedWorkDirty || settingsDirty;
 
   const resetHandoffs = () => {
     setDocumentHandoff(null);
     setProfessionalInformationHandoff(null);
     setSettingsHandoff(null);
+  };
+
+  const resetDirty = () => {
+    setJobOfferDirty(false);
+    setCandidatureDirty(false);
+    setDocumentDirty(false);
+    setProfessionalInformationDirty(false);
+    setSettingsDirty(false);
   };
 
   const chooseWorkspace = async (choice: WorkspaceChoice) => {
@@ -118,17 +130,14 @@ export function App() {
         setWorkspacePhase(workspace ? "ready" : "idle");
         return;
       }
-      setCandidatureDirty(false);
-      setDocumentDirty(false);
-      setProfessionalInformationDirty(false);
-      setSettingsDirty(false);
+      resetDirty();
       resetHandoffs();
       setWorkspace(selectedWorkspace);
       const status = (window.aaaat.workspace as typeof window.aaaat.workspace & { status?: () => Promise<{ demo: boolean }> }).status;
       setDemoWorkspace(status ? await status().then((next) => next.demo).catch(() => false) : false);
       setWorkspacePhase("ready");
       setSettingsOpen(false);
-      setProductView("candidatures");
+      setProductView("job-offer");
     } catch {
       setWorkspacePhase(workspace ? "ready" : "idle");
       setWorkspaceError(
@@ -141,30 +150,40 @@ export function App() {
 
   const createDemoWorkspace = async () => {
     if (workspace && anyDirty && !window.confirm("Discard unsaved edits and switch to a demo workspace?")) return;
-    setWorkspacePhase("choosing"); setWorkspaceError(null);
+    setWorkspacePhase("choosing");
+    setWorkspaceError(null);
     try {
       const selected = await window.aaaat.workspace.createDemo();
-      if (!selected) { setWorkspacePhase(workspace ? "ready" : "idle"); return; }
-      setCandidatureDirty(false); setDocumentDirty(false); setProfessionalInformationDirty(false); setSettingsDirty(false);
-      resetHandoffs(); setWorkspace(selected); setDemoWorkspace(true); setWorkspacePhase("ready"); setSettingsOpen(false); setProductView("candidatures");
+      if (!selected) {
+        setWorkspacePhase(workspace ? "ready" : "idle");
+        return;
+      }
+      resetDirty();
+      resetHandoffs();
+      setWorkspace(selected);
+      setDemoWorkspace(true);
+      setWorkspacePhase("ready");
+      setSettingsOpen(false);
+      setProductView("job-offer");
     } catch (reason) {
       setWorkspacePhase(workspace ? "ready" : "idle");
-      setWorkspaceError(reason instanceof Error ? reason.message : "AAAAT could not create the demo workspace. Choose an empty folder.");
+      setWorkspaceError(
+        reason instanceof Error
+          ? reason.message
+          : "AAAAT could not create the demo workspace. Choose an empty folder.",
+      );
     }
   };
 
   const openRestoredWorkspace = (restoredWorkspace: WorkspaceInfo) => {
-    setCandidatureDirty(false);
-    setDocumentDirty(false);
-    setProfessionalInformationDirty(false);
-    setSettingsDirty(false);
+    resetDirty();
     resetHandoffs();
     setWorkspaceError(null);
     setWorkspace(restoredWorkspace);
     setDemoWorkspace(false);
     setWorkspacePhase("ready");
     setSettingsOpen(false);
-    setProductView("candidatures");
+    setProductView("job-offer");
   };
 
   const leaveSettings = () => {
@@ -176,16 +195,17 @@ export function App() {
     return true;
   };
 
+  const currentViewDirty = () => {
+    if (productView === "job-offer") return jobOfferDirty;
+    if (productView === "candidatures") return candidatureDirty;
+    if (productView === "documents") return documentDirty;
+    return professionalInformationDirty;
+  };
+
   const selectProductView = (next: ProductView) => {
     if (next === productView && !settingsOpen) return;
     if (!leaveSettings()) return;
-    const discardedWorkDirty =
-      (next !== "candidatures" && candidatureDirty) ||
-      (next !== "documents" && documentDirty) ||
-      (next !== "professional-information" && professionalInformationDirty);
-    if (discardedWorkDirty && !window.confirm("Discard unsaved edits and leave this workspace area?")) {
-      return;
-    }
+    if (next !== productView && currentViewDirty() && !window.confirm("Discard unsaved edits and leave this work?")) return;
     resetHandoffs();
     setProductView(next);
   };
@@ -210,15 +230,11 @@ export function App() {
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
         setDocumentHandoff({ candidatureId, ...(documentId ? { documentId } : {}) });
+        setJobOfferDirty(false);
         setProductView("documents");
       },
       returnToCandidature: () => {
-        if (
-          documentDirty &&
-          !window.confirm("Discard unsaved document edits and return to this candidature?")
-        ) {
-          return;
-        }
+        if (documentDirty && !window.confirm("Discard unsaved document edits and return to this application?")) return;
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
@@ -232,12 +248,7 @@ export function App() {
         setProductView("professional-information");
       },
       returnToDocument: () => {
-        if (
-          professionalInformationDirty &&
-          !window.confirm("Discard unsaved My information edits and return to document?")
-        ) {
-          return;
-        }
+        if (professionalInformationDirty && !window.confirm("Discard unsaved My information edits and return to document?")) return;
         const returningDocumentId = professionalInformationHandoff?.documentId;
         setSettingsOpen(false);
         setSettingsHandoff(null);
@@ -301,7 +312,7 @@ export function App() {
                 <span>{demoWorkspace ? "Demo workspace" : "Workspace"}</span><code>{workspace.rootPath}</code>
               </span>
               <button className="compact-secondary" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>
-                {choosing ? "Choosing…" : "Switch workspace"}
+                {choosing ? "Choosing…" : "Change workspace"}
               </button>
               <button className={settingsOpen ? "shell-settings active-shell-utility" : "shell-settings"} type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>
                 Settings
@@ -316,8 +327,9 @@ export function App() {
             <div className="work-shell">
               <aside className="work-rail" aria-label="Workspace controls">
                 <nav className="primary-work-nav" aria-label="Primary work areas">
-                  <button type="button" className={!settingsOpen && productView === "candidatures" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "candidatures" ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Candidatures</button>
-                  <button type="button" className={!settingsOpen && productView === "documents" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "documents" ? "page" : undefined} onClick={() => selectProductView("documents")}>Documents</button>
+                  <button type="button" className={!settingsOpen && productView === "job-offer" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "job-offer" ? "page" : undefined} onClick={() => selectProductView("job-offer")}>From a job offer</button>
+                  <button type="button" className={!settingsOpen && productView === "documents" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "documents" ? "page" : undefined} onClick={() => selectProductView("documents")}>CV &amp; cover letter</button>
+                  <button type="button" className={!settingsOpen && productView === "candidatures" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "candidatures" ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Saved applications</button>
                   <button type="button" className={!settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>My information</button>
                 </nav>
                 <AiTaskStatus />
@@ -328,15 +340,11 @@ export function App() {
                   <div className="settings-area" key={`settings-${workspace.rootPath}-${settingsHandoff?.view ?? "overview"}`}>
                     <div className="shell-section-heading">
                       <h1>Settings</h1>
-                      <button
-                        className="compact-secondary"
-                        type="button"
-                        onClick={settingsHandoff ? handoffApi.returnFromSettings : closeSettings}
-                      >
+                      <button className="compact-secondary" type="button" onClick={settingsHandoff ? handoffApi.returnFromSettings : closeSettings}>
                         {settingsHandoff?.origin === "documents"
                           ? "Return to document"
                           : settingsHandoff?.origin === "candidatures"
-                            ? "Return to candidature"
+                            ? "Return to application"
                             : "Return to work"}
                       </button>
                     </div>
@@ -350,6 +358,10 @@ export function App() {
                     />
                   </div>
                 ) : null}
+
+                <div hidden={settingsOpen || productView !== "job-offer"}>
+                  <JobOfferToDocumentsWorkspace onDirtyChange={setJobOfferDirty} />
+                </div>
 
                 {keepCandidaturesMounted ? (
                   <div hidden={settingsOpen || productView !== "candidatures"}>

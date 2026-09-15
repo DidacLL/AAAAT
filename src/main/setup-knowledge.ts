@@ -1,6 +1,4 @@
-export const vscodeMcpSetupRecipe = Object.freeze({
-  id: "vscode.mcp" as const,
-  host: "vscode" as const,
+export const externalAssistantMcpContract = Object.freeze({
   transport: "stdio" as const,
   capabilityNames: Object.freeze([
     "candidature.create",
@@ -10,6 +8,8 @@ export const vscodeMcpSetupRecipe = Object.freeze({
     "cv_descriptions.read",
     "cv_content.read",
     "cv.render",
+    "installer.status.read",
+    "configurator.status.read",
   ] as const),
   toolNames: Object.freeze([
     "candidature_create",
@@ -19,11 +19,23 @@ export const vscodeMcpSetupRecipe = Object.freeze({
     "cv_descriptions_read",
     "cv_content_read",
     "cv_render",
+    "installer_status_read",
+    "configurator_status_read",
   ] as const),
   permissionScope:
-    "Create one candidature from one retained Source; for the single candidature the user locally selects for the opportunity-research task, read only its AI-permitted formatted information and retain one returned Source; read only non-empty Career preferences the user locally permits for external career assistance; read user-authored AI-visible CV tags and notes; read the effective content of the single CV the user explicitly allows; and request local PDF rendering only when that same CV has separate external render authorization in the selected existing AAAAT workspace." as const,
+    "Create one candidature from one retained Source; for the single candidature the user locally selects for the opportunity-research task, read only its AI-permitted formatted information and retain one returned Source; read only non-empty Career preferences the user locally permits for external career assistance; read user-authored AI-visible CV tags and notes; read the effective content of the single CV the user explicitly allows; request local PDF rendering only when that same CV has separate external render authorization; and read privacy-minimal installation/configuration readiness. None of these capabilities provide generic storage or machine authority." as const,
   privacyDisclosure:
-    "The host configuration contains the AAAAT executable and selected workspace paths so the user-trusted host can launch the local stdio server. candidature_create accepts one retained Source and returns only a creation acknowledgement. opportunity_research_context_read accepts no selectors and returns null unless the user has locally selected one candidature for that task; when selected it returns only that candidature's retained information permitted for AI context, with private values omitted or replaced according to their local settings, and it never exposes other candidatures, Sources, professional information, Career preferences, documents, local IDs, or paths. candidature_source_add accepts only Source material and writes it through AAAAT's normal Source service to that same task-selected candidature, returning only a retained acknowledgement or null; it cannot select or browse candidatures or mutate candidature fields. career_context_read accepts no data arguments and returns only non-empty user-written Career preferences values whose local external-AI sharing preference is enabled; hidden values remain local and the external caller cannot select or re-enable them. cv_descriptions_read accepts no data arguments and returns only user-authored AI-visible CV tags and notes under response-local labels; it does not expose CV titles, document content, durable local IDs, professional information, candidature history, or file paths. cv_content_read accepts no data arguments and returns null unless the user has deliberately selected one CV for external content access; when selected it returns only that CV's effective resolved professional-information content without the document title, local IDs, paths, raw TeX/PDF, descriptors, candidature history, or other documents. cv_render accepts no data arguments and returns null unless that content-selected CV also has separate local external-render authorization; when authorized it requests AAAAT's normal local PDF render and returns only a success acknowledgement, never paths, document identity, TeX/PDF bytes, commands, engine settings, or logs. None of these tools expose generic database, filesystem, process, network, browse, search, query, or command authority. A shell-capable host remains the user's trust choice outside this tool payload boundary." as const,
+    "The external assistant receives only the payload of the bounded capability it invokes. candidature_create accepts one retained Source and returns only a creation acknowledgement. opportunity_research_context_read accepts no selectors and returns null unless the user has locally selected one candidature for that task; it never exposes other candidatures, Sources, professional information, documents, local IDs, or paths. candidature_source_add writes only Source material to that same task-selected candidature and returns only a retained acknowledgement. career_context_read returns only non-empty user-written Career preferences explicitly permitted for external assistance. cv_descriptions_read returns only user-authored AI-visible CV tags and notes under temporary labels. cv_content_read returns only effective content of the one CV explicitly allowed for external access. cv_render requests only AAAAT's normal local render for that authorized CV and returns no paths or document identity. installer_status_read returns only workspace/document-rendering readiness and missing known TeX command names; configurator_status_read returns only optional AI configuration readability, connection count and per-operation route availability, never connection names or career/application content. No tool exposes generic database, filesystem, process, network, browse, search, query, package-manager or command authority. A host with broader machine access remains the user's separate trust choice outside AAAAT's tool boundary." as const,
+});
+
+export const vscodeMcpSetupRecipe = Object.freeze({
+  id: "vscode.mcp" as const,
+  host: "vscode" as const,
+  transport: externalAssistantMcpContract.transport,
+  capabilityNames: externalAssistantMcpContract.capabilityNames,
+  toolNames: externalAssistantMcpContract.toolNames,
+  permissionScope: externalAssistantMcpContract.permissionScope,
+  privacyDisclosure: externalAssistantMcpContract.privacyDisclosure,
   actions: Object.freeze([
     "validate-workspace",
     "validate-executable",
