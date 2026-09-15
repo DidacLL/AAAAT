@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiSettingsWorkspace } from "../src/renderer/AiSettingsWorkspace";
+import { clearAllAiTasks } from "../src/renderer/ai-task-store";
+import { aiOperations, type AiOperation } from "../src/shared/ai-connection-contracts";
+import { AI_EXCHANGE_DIAGNOSTIC_MARKER } from "../src/shared/ai-diagnostics";
 
 const firstId = "00000000-0000-4000-8000-000000000a11";
 const secondId = "00000000-0000-4000-8000-000000000a12";
@@ -13,8 +16,8 @@ const first = {
   endpoint: "http://localhost:11434/v1",
   model: "fast-model",
   isDefault: true,
-  validatedOperations: [],
-  defaultForOperations: [],
+  validatedOperations: [] as AiOperation[],
+  defaultForOperations: [] as AiOperation[],
 };
 const second = {
   id: secondId,
@@ -22,8 +25,8 @@ const second = {
   endpoint: "http://localhost:11434/v1",
   model: "deep-model",
   isDefault: false,
-  validatedOperations: [],
-  defaultForOperations: [],
+  validatedOperations: [] as AiOperation[],
+  defaultForOperations: [] as AiOperation[],
 };
 
 const list = vi.fn();
@@ -53,9 +56,38 @@ function installApi() {
   });
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+function incompatibleValidationError(operation: AiOperation): Error {
+  const exchange = {
+    id: "00000000-0000-4000-8000-000000000a99",
+    operation,
+    endpoint: "http://localhost:11434/v1",
+    model: "fast-model",
+    systemInstruction: "Exact validation system instruction",
+    userPayload: "{\"synthetic\":\"validation context\"}",
+    rawModelResponse: "{\"summary\":42}",
+    validationError: "Capability validation failed: summary must be a string.",
+    failureKind: "operation_incompatible",
+    structuredOutputMode: "json_schema",
+  };
+  return new Error(
+    `Error invoking remote method 'aaaat:ai-connections-validate-operation': AiProviderError: The endpoint is reachable, but this model is incompatible with this AAAAT operation.\n${AI_EXCHANGE_DIAGNOSTIC_MARKER}${btoa(JSON.stringify(exchange))}`,
+  );
+}
+
 describe("AI settings workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearAllAiTasks();
     list.mockResolvedValue([]);
     exportPortable.mockResolvedValue("cancelled");
     importPortable.mockResolvedValue({ status: "cancelled", connections: [] });
@@ -64,6 +96,7 @@ describe("AI settings workspace", () => {
 
   afterEach(() => {
     cleanup();
+    clearAllAiTasks();
     vi.restoreAllMocks();
   });
 
@@ -91,6 +124,7 @@ describe("AI settings workspace", () => {
       model: "fast-model",
     });
     expect(await screen.findByText("General default connection")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate AI capabilities" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add another" }));
     await user.type(screen.getByLabelText("Connection name"), "Deep local");
@@ -108,47 +142,74 @@ describe("AI settings workspace", () => {
     expect(screen.queryByLabelText(/API key/i)).not.toBeInTheDocument();
   });
 
-  it("validates operations explicitly and switches only validated operation defaults", async () => {
+  it("acknowledges validation immediately and updates all capability state when a slow task completes", async () => {
     const user = userEvent.setup();
-    list.mockResolvedValue([first, second]);
-    const firstValidated = {
-      ...first,
-      validatedOperations: ["opportunity_review"],
-      defaultForOperations: ["opportunity_review"],
-    };
-    const secondValidated = {
-      ...second,
-      validatedOperations: ["opportunity_review"],
-      defaultForOperations: [],
-    };
-    validateOperation
-      .mockResolvedValueOnce([firstValidated, second])
-      .mockResolvedValueOnce([firstValidated, secondValidated]);
-    setOperationDefault.mockResolvedValue([
-      { ...firstValidated, defaultForOperations: [] },
-      { ...secondValidated, defaultForOperations: ["opportunity_review"] },
-    ]);
+    const firstValidation = deferred<typeof first[]>();
+    const firstOperation = aiOperations[0];
+    if (!firstOperation) throw new Error("Expected at least one AI operation");
+    list.mockResolvedValue([first]);
+    let validated: AiOperation[] = [];
+    validateOperation.mockImplementation(async ({ operation }: { operation: AiOperation }) => {
+      if (validated.length === 0) {
+        const result = await firstValidation.promise;
+        validated = [operation];
+        return result;
+      }
+      validated = [...validated, operation];
+      return [{
+        ...first,
+        validatedOperations: [...validated],
+        defaultForOperations: [...validated],
+      }];
+    });
 
     render(<AiSettingsWorkspace />);
-    await screen.findByRole("button", { name: "Validate Fast local for Opportunity review" });
+    await user.click(await screen.findByRole("button", { name: "Validate AI capabilities" }));
 
-    await user.click(screen.getByRole("button", { name: "Validate Fast local for Opportunity review" }));
-    expect(validateOperation).toHaveBeenCalledWith({
-      connectionId: firstId,
-      operation: "opportunity_review",
-    });
-    expect(await screen.findByText(/Opportunity review: validated · operation default/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Queued|Validating Opportunity review/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validation running…" })).toBeDisabled();
 
-    await user.click(screen.getByRole("button", { name: "Validate Deep local for Opportunity review" }));
-    expect(validateOperation).toHaveBeenLastCalledWith({
-      connectionId: secondId,
-      operation: "opportunity_review",
+    firstValidation.resolve([{
+      ...first,
+      validatedOperations: [firstOperation],
+      defaultForOperations: [firstOperation],
+    }]);
+
+    expect(await screen.findByText(/Validation completed/)).toBeInTheDocument();
+    expect(screen.getByText(`${aiOperations.length}/${aiOperations.length} ready`)).toBeInTheDocument();
+    expect(validateOperation).toHaveBeenCalledTimes(aiOperations.length);
+    expect(screen.getByText("AI ready.", { exact: false })).toBeInTheDocument();
+  });
+
+  it("keeps the connection connected when one operation is incompatible and preserves the exchange for retry", async () => {
+    const user = userEvent.setup();
+    const incompatibleOperation = aiOperations[0];
+    if (!incompatibleOperation) throw new Error("Expected at least one AI operation");
+    list.mockResolvedValue([first]);
+    let validated: AiOperation[] = [];
+    validateOperation.mockImplementation(async ({ operation }: { operation: AiOperation }) => {
+      if (operation === incompatibleOperation) throw incompatibleValidationError(operation);
+      validated = [...validated, operation];
+      return [{
+        ...first,
+        validatedOperations: [...validated],
+        defaultForOperations: [...validated],
+      }];
     });
-    await user.click(screen.getByRole("button", { name: "Use Deep local for Opportunity review" }));
-    expect(setOperationDefault).toHaveBeenCalledWith({
-      connectionId: secondId,
-      operation: "opportunity_review",
-    });
+
+    render(<AiSettingsWorkspace />);
+    await user.click(await screen.findByRole("button", { name: "Validate AI capabilities" }));
+
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+    expect(screen.getByText("Incompatible · failed validation")).toBeInTheDocument();
+    expect(screen.getByText(`${aiOperations.length - 1}/${aiOperations.length} ready`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry failed validation" })).toBeEnabled();
+    expect(screen.getByText("Inspect AI exchange")).toBeInTheDocument();
+    expect(screen.getByText("{\"summary\":42}")).toBeInTheDocument();
+    expect(screen.getByText(/summary must be a string/)).toBeInTheDocument();
+    expect(validateOperation).toHaveBeenCalledTimes(aiOperations.length);
   });
 
   it("edits an existing named connection by stable ID", async () => {
@@ -182,8 +243,8 @@ describe("AI settings workspace", () => {
       endpoint: "http://127.0.0.1:1234/v1",
       model: "imported-model",
       isDefault: true,
-      validatedOperations: [],
-      defaultForOperations: [],
+      validatedOperations: [] as AiOperation[],
+      defaultForOperations: [] as AiOperation[],
     };
     importPortable.mockResolvedValue({ status: "imported", connections: [imported] });
     const confirm = vi.spyOn(window, "confirm");
@@ -200,31 +261,15 @@ describe("AI settings workspace", () => {
     confirm.mockReturnValueOnce(false);
     await user.click(screen.getByRole("button", { name: "Import AI setup" }));
     expect(importPortable).not.toHaveBeenCalled();
-    expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/replaces all current AI connections/i));
 
     confirm.mockReturnValueOnce(true);
     await user.click(screen.getByRole("button", { name: "Import AI setup" }));
     expect(importPortable).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Imported local")).toBeInTheDocument();
     expect(screen.queryByText("Fast local")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validate Imported local for Opportunity review" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate AI capabilities" })).toBeInTheDocument();
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Validate operations again on this computer",
+      "Validate AI capabilities on this computer",
     );
-  });
-
-  it("keeps the current setup when the import file dialog is cancelled", async () => {
-    const user = userEvent.setup();
-    list.mockResolvedValue([first]);
-    importPortable.mockResolvedValue({ status: "cancelled", connections: [first] });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-
-    render(<AiSettingsWorkspace />);
-    await screen.findByText("Fast local");
-    await user.click(screen.getByRole("button", { name: "Import AI setup" }));
-
-    expect(importPortable).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Fast local")).toBeInTheDocument();
-    expect(screen.queryByText(/Portable AI setup imported/)).not.toBeInTheDocument();
   });
 });

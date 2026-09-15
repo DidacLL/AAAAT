@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  aiOperationLabels,
-  aiOperations,
-  type AiOperation,
-  type NamedAiConnection,
-} from "../shared/ai-connection-contracts";
+import type { NamedAiConnection } from "../shared/ai-connection-contracts";
+import { AiConnectionValidationPanel } from "./AiConnectionValidationPanel";
+import { clearAiTask } from "./ai-task-store";
 
 interface Draft {
   readonly name: string;
@@ -42,7 +39,6 @@ export function AiSettingsWorkspace({
   const [formOpen, setFormOpen] = useState(view === "all");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [busyOperation, setBusyOperation] = useState<string | null>(null);
   const [portabilityBusy, setPortabilityBusy] = useState<"export" | "import" | null>(null);
   const [portabilityStatus, setPortabilityStatus] = useState<string | null>(null);
 
@@ -106,6 +102,9 @@ export function AiSettingsWorkspace({
     setError(null);
     setPortabilityStatus(null);
     try {
+      const previous = editingId
+        ? connections.find((connection) => connection.id === editingId) ?? null
+        : null;
       const saved = await window.aaaat.aiConnections.save({
         ...(editingId ? { id: editingId } : {}),
         ...draft,
@@ -117,6 +116,10 @@ export function AiSettingsWorkspace({
             (connection) => connection.name.toLocaleLowerCase() === draft.name.trim().toLocaleLowerCase(),
           );
       if (savedConnection) {
+        const capabilityBoundaryChanged =
+          previous !== null &&
+          (previous.endpoint !== savedConnection.endpoint || previous.model !== savedConnection.model);
+        if (capabilityBoundaryChanged) clearAiTask(`ai-validation:${savedConnection.id}`);
         setEditingId(savedConnection.id);
         setDraft(editable(savedConnection));
       }
@@ -148,6 +151,7 @@ export function AiSettingsWorkspace({
     setPortabilityStatus(null);
     try {
       const next = await window.aaaat.aiConnections.remove(connection.id);
+      clearAiTask(`ai-validation:${connection.id}`);
       setConnections(next);
       if (connection.id === editingId) {
         setEditingId(null);
@@ -156,46 +160,6 @@ export function AiSettingsWorkspace({
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not remove this AI connection.");
-    }
-  };
-
-  const validateOperation = async (connection: NamedAiConnection, operation: AiOperation) => {
-    const busyKey = `validate:${connection.id}:${operation}`;
-    setBusyOperation(busyKey);
-    setError(null);
-    setPortabilityStatus(null);
-    try {
-      setConnections(
-        await window.aaaat.aiConnections.validateOperation({ connectionId: connection.id, operation }),
-      );
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : `AAAAT could not validate ${aiOperationLabels[operation]}.`,
-      );
-    } finally {
-      setBusyOperation(null);
-    }
-  };
-
-  const setOperationDefault = async (connection: NamedAiConnection, operation: AiOperation) => {
-    const busyKey = `default:${connection.id}:${operation}`;
-    setBusyOperation(busyKey);
-    setError(null);
-    setPortabilityStatus(null);
-    try {
-      setConnections(
-        await window.aaaat.aiConnections.setOperationDefault({ connectionId: connection.id, operation }),
-      );
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : `AAAAT could not change the default for ${aiOperationLabels[operation]}.`,
-      );
-    } finally {
-      setBusyOperation(null);
     }
   };
 
@@ -219,7 +183,7 @@ export function AiSettingsWorkspace({
     if (!confirmDiscard()) return;
     if (
       !window.confirm(
-        "Import portable AI setup? This replaces all current AI connections and clears operation validations and operation defaults. You will need to validate operations again on this computer.",
+        "Import portable AI setup? This replaces all current AI connections and clears operation validations and operation defaults. You will need to validate AI capabilities again on this computer.",
       )
     ) {
       return;
@@ -230,12 +194,13 @@ export function AiSettingsWorkspace({
     try {
       const result = await window.aaaat.aiConnections.importPortable();
       if (result.status === "imported") {
+        for (const connection of connections) clearAiTask(`ai-validation:${connection.id}`);
         setConnections(result.connections);
         setEditingId(null);
         setDraft(emptyDraft);
         setFormOpen(view === "all");
         setPortabilityStatus(
-          "Portable AI setup imported. Validate operations again on this computer before using AI assistance.",
+          "Portable AI setup imported. Validate AI capabilities on this computer before using AI assistance.",
         );
       }
     } catch (reason) {
@@ -257,11 +222,11 @@ export function AiSettingsWorkspace({
             <span>Optional</span>
           </div>
           <p>
-            AAAAT works without AI. Configure a connection only when you want contextual assistance;
-            capability checks use synthetic AAAAT data, not your candidature or professional
-            information. HTTP is accepted only for a loopback endpoint. A remote endpoint must use
-            HTTPS and have its authentication handled outside AAAAT; AAAAT does not collect,
-            transmit, or store credentials.
+            Connect a local or remote OpenAI-compatible model when you want AI assistance. AAAAT works
+            fully without AI. Connection checks use synthetic test data, not your candidature or
+            professional information. Slow local models may take minutes; the check stays visible while
+            you continue working. HTTP is accepted only for a loopback endpoint. Remote endpoints must
+            use HTTPS and handle authentication outside AAAAT.
           </p>
           {error ? <p className="error-message" role="alert">{error}</p> : null}
 
@@ -288,7 +253,7 @@ export function AiSettingsWorkspace({
                 <input value={draft.model} onChange={(event) => setDraft({ ...draft, model: event.target.value })} placeholder="model-name" />
               </label>
               <label className="wide-field">
-                AI provider base URL
+                Connection address
                 <input
                   value={draft.endpoint}
                   onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })}
@@ -309,7 +274,7 @@ export function AiSettingsWorkspace({
       {showConnections ? (
         <div className="profile-column">
           <div className="section-heading">
-            <div><p className="eyebrow">Configured routes</p><h2>Configured connections</h2></div>
+            <div><p className="eyebrow">Connections</p><h2>Configured connections</h2></div>
             <span>{connections.length}/16</span>
           </div>
 
@@ -329,32 +294,14 @@ export function AiSettingsWorkspace({
                     <button type="button" className="compact-secondary" onClick={() => beginEdit(connection)} aria-label={`Edit ${connection.name}`}>Edit</button>
                     <button type="button" className="compact-secondary" onClick={() => void remove(connection)} aria-label={`Remove ${connection.name}`}>Remove</button>
                   </div>
-                  <div className="wide-field">
-                    <p><strong>Validated operations</strong></p>
-                    {aiOperations.map((operation) => {
-                      const validated = connection.validatedOperations.includes(operation);
-                      const operationDefault = connection.defaultForOperations.includes(operation);
-                      const validateKey = `validate:${connection.id}:${operation}`;
-                      const defaultKey = `default:${connection.id}:${operation}`;
-                      return (
-                        <div key={operation} className="button-row">
-                          <span>{aiOperationLabels[operation]}: {validated ? "validated" : "not validated"}{operationDefault ? " · operation default" : ""}</span>
-                          {!validated ? (
-                            <button type="button" className="compact-secondary" disabled={busyOperation !== null} onClick={() => void validateOperation(connection, operation)} aria-label={`Validate ${connection.name} for ${aiOperationLabels[operation]}`}>{busyOperation === validateKey ? "Validating…" : "Validate"}</button>
-                          ) : !operationDefault ? (
-                            <button type="button" className="compact-secondary" disabled={busyOperation !== null} onClick={() => void setOperationDefault(connection, operation)} aria-label={`Use ${connection.name} for ${aiOperationLabels[operation]}`}>{busyOperation === defaultKey ? "Saving…" : "Use for operation"}</button>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <AiConnectionValidationPanel connection={connection} onConnections={setConnections} />
                 </article>
               ))}
             </div>
           )}
 
-          {connections.length > 0 && !defaultConnection ? <p className="error-message">No general default AI connection is selected. An operation still works when it has an explicit validated operation default.</p> : null}
-          <p>An operation uses its explicit operation default first. The general default is used only when validated for that operation; AAAAT does not silently fall back to another connection.</p>
+          {connections.length > 0 && !defaultConnection ? <p className="error-message">No general default AI connection is selected. Choose one unless every AI action has its own selected connection.</p> : null}
+          <p className="compact-help">One visible check runs the remaining supported AI actions in sequence. Each action is still checked separately, and you can keep using AAAAT while it runs.</p>
         </div>
       ) : null}
 

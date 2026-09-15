@@ -1,0 +1,38 @@
+import type { JobExtractionRequest } from "../shared/ai-contracts";
+import type { PartialJobExtractionResult } from "../shared/ai-proposal-outcomes";
+import type { CancellableJobExtractionTaskRequest } from "../shared/ai-task-cancellation-contracts";
+import { extractJobWithPartialOutcomes } from "./robust-job-extraction";
+
+const activeExtractions = new Map<string, AbortController>();
+
+export async function runCancellableJobExtraction(
+  rootPath: string,
+  taskId: string,
+  request: CancellableJobExtractionTaskRequest,
+): Promise<PartialJobExtractionResult> {
+  const previous = activeExtractions.get(taskId);
+  previous?.abort();
+
+  const controller = new AbortController();
+  activeExtractions.set(taskId, controller);
+  const { targetFieldIds, ...sourceRequest } = request;
+
+  try {
+    return await extractJobWithPartialOutcomes(
+      rootPath,
+      sourceRequest satisfies JobExtractionRequest,
+      controller.signal,
+      targetFieldIds,
+    );
+  } finally {
+    if (activeExtractions.get(taskId) === controller) activeExtractions.delete(taskId);
+  }
+}
+
+export function cancelCancellableJobExtraction(taskId: string): boolean {
+  const controller = activeExtractions.get(taskId);
+  if (!controller) return false;
+  controller.abort();
+  activeExtractions.delete(taskId);
+  return true;
+}

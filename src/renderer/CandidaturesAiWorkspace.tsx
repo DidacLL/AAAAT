@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import type { JobExtractionRequest } from "../shared/ai-contracts";
-import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsPanel";
 import { CandidatureManualEntryPanel } from "./CandidatureManualEntryPanel";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import "./candidature-capture.css";
@@ -19,7 +18,6 @@ export function CandidaturesAiWorkspace({
   const [candidatureDirty, setCandidatureDirty] = useState(false);
   const [extractionDirty, setExtractionDirty] = useState(false);
   const [manualEntryDirty, setManualEntryDirty] = useState(false);
-  const [fieldDefinitionsDirty, setFieldDefinitionsDirty] = useState(false);
   const [creationMode, setCreationMode] = useState<CreationMode>("idle");
   const [captureText, setCaptureText] = useState("");
   const [captureSaving, setCaptureSaving] = useState(false);
@@ -36,21 +34,10 @@ export function CandidaturesAiWorkspace({
 
   useEffect(() => {
     onDirtyChange?.(
-      candidatureDirty ||
-        extractionDirty ||
-        manualEntryDirty ||
-        fieldDefinitionsDirty ||
-        captureDirty,
+      candidatureDirty || extractionDirty || manualEntryDirty || captureDirty,
     );
     return () => onDirtyChange?.(false);
-  }, [
-    candidatureDirty,
-    captureDirty,
-    extractionDirty,
-    fieldDefinitionsDirty,
-    manualEntryDirty,
-    onDirtyChange,
-  ]);
+  }, [candidatureDirty, captureDirty, extractionDirty, manualEntryDirty, onDirtyChange]);
 
   useEffect(() => {
     if (!savedSource) return;
@@ -88,7 +75,7 @@ export function CandidaturesAiWorkspace({
 
   const openCreation = (mode: Exclude<CreationMode, "idle">) => {
     if (
-      (candidatureDirty || fieldDefinitionsDirty) &&
+      candidatureDirty &&
       !window.confirm("Discard unsaved candidature edits and start a new candidature?")
     ) {
       return;
@@ -151,7 +138,7 @@ export function CandidaturesAiWorkspace({
     return (
       <div className="candidature-capture-owner candidature-capture-active">
         <CandidatureManualEntryPanel
-          title="Fill candidature fields"
+          title="Fill fields directly"
           onDone={() => {
             setCreationMode("idle");
             setManualEntryDirty(false);
@@ -170,11 +157,11 @@ export function CandidaturesAiWorkspace({
         <section className="candidature-capture-panel" aria-label="New candidature raw capture">
           <div>
             <p className="eyebrow">New candidature</p>
-            <h2>Paste whatever you have.</h2>
-            <p>Any raw candidature material is enough. AAAAT keeps it as provided.</p>
+            <h2>Paste raw material</h2>
+            <p>Paste an offer, recruiter message, copied page or notes. Keeping the Source is already enough.</p>
           </div>
           <label className="candidature-capture-material">
-            Candidature material
+            Raw material
             <textarea
               autoFocus
               rows={12}
@@ -182,7 +169,7 @@ export function CandidaturesAiWorkspace({
               maxLength={50000}
               disabled={captureSaving}
               onChange={(event) => setCaptureText(event.target.value)}
-              placeholder="Paste the material here."
+              placeholder="Paste whatever you have. AAAAT will retain it as the original Source."
             />
           </label>
           <div className="button-row">
@@ -191,7 +178,7 @@ export function CandidaturesAiWorkspace({
               disabled={!canSaveCapture || captureSaving}
               onClick={() => void saveCapture()}
             >
-              {captureSaving ? "Saving…" : "Keep raw material"}
+              {captureSaving ? "Saving…" : "Save Source"}
             </button>
             <button
               type="button"
@@ -229,7 +216,7 @@ export function CandidaturesAiWorkspace({
         <div className="candidature-capture-owner candidature-capture-active">
           <div className="candidature-context-actions">
             <button type="button" className="compact-secondary" onClick={() => setPostPasteMode("choose")}>
-              Back to choices
+              Back
             </button>
           </div>
           <JobExtractionPanel
@@ -247,30 +234,30 @@ export function CandidaturesAiWorkspace({
       <div className="candidature-capture-owner candidature-capture-active">
         <section className="post-paste-choice" aria-label="Raw candidature saved">
           <div>
-            <p className="eyebrow">Raw material saved</p>
-            <h2>How do you want to fill the candidature?</h2>
-            <p>The original material is already retained. These are optional next actions.</p>
+            <p className="eyebrow">Source saved</p>
+            <h2>Continue now, or leave it here</h2>
+            <p>The original material is retained. AI and manual filling are optional peer continuations.</p>
           </div>
           <pre className="post-paste-source-preview">{savedSource.source.sourceText}</pre>
-          <div className="post-paste-actions">
+          <div className="post-paste-actions" role="group" aria-label="Continue from saved Source">
             <button
               type="button"
-              disabled={aiExtractionAvailable !== true}
+              disabled={aiExtractionAvailable === null}
               onClick={() => setPostPasteMode("ai")}
             >
-              Send to AI
+              {aiExtractionAvailable === false ? "Set up AI suggestions" : "Send to AI"}
             </button>
             <button type="button" onClick={() => setPostPasteMode("manual")}>
               Fill candidature yourself
             </button>
           </div>
           {aiExtractionAvailable === false ? (
-            <p className="compact-help">No extraction-capable AI connection is configured. Manual filling remains fully available.</p>
+            <p className="compact-help">AI suggestions need a validated connection. You can open the AI path for the exact setup action, or continue manually.</p>
           ) : aiExtractionAvailable === null ? (
-            <p className="compact-help">Checking configured AI connections…</p>
+            <p className="compact-help">Checking AI availability…</p>
           ) : null}
-          <button type="button" className="compact-secondary" onClick={finishPostPaste}>
-            Back to candidatures
+          <button type="button" className="compact-secondary post-paste-done" onClick={finishPostPaste}>
+            Done for now
           </button>
         </section>
       </div>
@@ -279,19 +266,30 @@ export function CandidaturesAiWorkspace({
 
   return (
     <div className="candidature-capture-owner">
-      <div className="candidature-capture-actions" aria-label="New candidature options">
-        <button type="button" onClick={() => openCreation("manual")}>
-          New candidature — fill fields
+      <div className="candidature-capture-actions" role="group" aria-label="Create candidature">
+        <div className="candidature-new-intro">
+          <span className="candidature-new-label">New candidature</span>
+          <span>Start with what you already have.</span>
+        </div>
+        <button
+          className="candidature-entry-path"
+          type="button"
+          aria-label="Fill fields directly"
+          onClick={() => openCreation("manual")}
+        >
+          <strong>Fill fields directly</strong>
+          <span>Enter the useful details you already know.</span>
         </button>
-        <button type="button" onClick={() => openCreation("raw")}>
-          New candidature — paste raw material
+        <button
+          className="candidature-entry-path"
+          type="button"
+          aria-label="Paste raw material"
+          onClick={() => openCreation("raw")}
+        >
+          <strong>Paste raw material</strong>
+          <span>Keep an offer, message, copied page or notes first.</span>
         </button>
       </div>
-
-      <CandidatureFieldDefinitionsPanel
-        onChanged={() => setRevision((current) => current + 1)}
-        onDirtyChange={setFieldDefinitionsDirty}
-      />
 
       <CandidaturesWorkspace key={revision} onDirtyChange={setCandidatureDirty} />
     </div>

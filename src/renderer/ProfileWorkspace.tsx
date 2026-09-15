@@ -250,7 +250,7 @@ export function ProfileWorkspace({
         }
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load professional information.");
+        if (active) setError("AAAAT could not load My information.");
       });
     return () => {
       active = false;
@@ -271,7 +271,7 @@ export function ProfileWorkspace({
         if (!active) return;
         const item = current.items.find((candidate) => candidate.id === initialItemId);
         if (!item) {
-          setError("The reusable professional-information item is no longer available.");
+          setError("That item is no longer available in My information.");
           return;
         }
         setSnapshot(current);
@@ -282,7 +282,7 @@ export function ProfileWorkspace({
         setView("item");
       })
       .catch(() => {
-        if (active) setError("AAAAT could not open that reusable professional information.");
+        if (active) setError("AAAAT could not open that item from My information.");
       });
     return () => {
       active = false;
@@ -314,7 +314,7 @@ export function ProfileWorkspace({
   const removeItem = async (item: ProfileItem) => {
     if (item.id === editingItemId && !confirmItemDiscard()) return;
     const confirmed = window.confirm(
-      `Remove “${item.title}” from reusable professional information? Saved variations and documents that use it may change.`,
+      `Remove “${item.title}” from My information? Saved variations and documents that use it may change.`,
     );
     if (!confirmed) return;
     setError(null);
@@ -449,24 +449,24 @@ export function ProfileWorkspace({
 
   if (!snapshot) {
     return (
-      <section className="profile-workspace" aria-label="Professional information">
-        <p>{error ?? "Loading professional information..."}</p>
+      <section className="profile-workspace" aria-label="My information">
+        <p>{error ?? "Loading My information..."}</p>
       </section>
     );
   }
 
   return (
-    <section className="profile-workspace" aria-label="Professional information">
+    <section className="profile-workspace" aria-label="My information">
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
       {view === "overview" ? (
         <div className="profile-column professional-information-overview">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Reusable information</p>
-              <h2>Professional information</h2>
+              <p className="eyebrow">Used in your documents</p>
+              <h2>My information</h2>
               <p className="profile-intro">
-                Keep only the experience, skills, education and other information you want to reuse in CVs and letters.
+                Keep experience, skills, education and other career facts here once. CVs and letters can reuse them.
               </p>
             </div>
             <button className="compact-primary" type="button" onClick={startNewItem}>
@@ -476,11 +476,11 @@ export function ProfileWorkspace({
 
           {snapshot.items.length === 0 ? (
             <div className="professional-information-empty">
-              <h3>No professional information yet.</h3>
+              <h3>No information yet.</h3>
               <p>Add one useful thing to start. There is no completeness requirement.</p>
             </div>
           ) : (
-            <div className="item-list" aria-label="Professional information items">
+            <div className="item-list" aria-label="My information items">
               {snapshot.items.map((item) => (
                 <article className="profile-item" key={item.id}>
                   <div>
@@ -502,7 +502,7 @@ export function ProfileWorkspace({
             <div>
               <strong>Saved variations</strong>
               <p>
-                Optional reusable differences for a recurring role, language or emphasis. Your default professional information already works without one.
+                Optional differences for a recurring role, language or emphasis. My information already works without a variation.
               </p>
             </div>
             <button className="compact-secondary" type="button" onClick={() => setView("variations")}>
@@ -518,11 +518,11 @@ export function ProfileWorkspace({
       {view === "item" ? (
         <div className="profile-column professional-information-editor">
           <button className="compact-secondary professional-information-back" type="button" onClick={cancelItemEdit}>
-            {professionalInformationHandoff ? "Return to document" : "Back to professional information"}
+            {professionalInformationHandoff ? "Return to document" : "Back to My information"}
           </button>
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Reusable information</p>
+              <p className="eyebrow">My information</p>
               <h2>{editingItemId ? "Edit information" : "Add information"}</h2>
             </div>
             {itemEditorDirty ? <span>Unsaved changes</span> : null}
@@ -585,14 +585,14 @@ export function ProfileWorkspace({
             type="button"
             onClick={() => setView("overview")}
           >
-            Back to professional information
+            Back to My information
           </button>
           <div className="section-heading">
             <div>
               <p className="eyebrow">Optional reuse</p>
               <h2>Saved variations</h2>
               <p className="profile-intro">
-                Keep only what differs from your default professional information. Unchanged information continues to come from the default.
+                Keep only what differs from My information. Everything else continues to use the default facts above.
               </p>
             </div>
             <span>{snapshot.variants.length}</span>
@@ -675,7 +675,7 @@ export function ProfileWorkspace({
           ) : (
             <form className="editor-card" onSubmit={(event) => void createVariant(event)}>
               <p className="wide-field profile-intro">
-                A saved variation is optional. With no differences, it simply uses your default professional information.
+                A saved variation is optional. With no differences, it simply uses My information.
               </p>
               <label>
                 Name

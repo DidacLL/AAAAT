@@ -340,7 +340,10 @@ describe("AI service over live candidature information", () => {
         },
         provider({ extractJob: extract }),
       ),
-    ).resolves.toEqual({ proposals: [{ fieldId: hours.definition.id, value: 1500 }] });
+    ).resolves.toEqual({
+      proposals: [{ fieldId: hours.definition.id, value: 1500 }],
+      newFields: [],
+    });
     expect(listCandidatures(root)).toEqual([]);
   });
 

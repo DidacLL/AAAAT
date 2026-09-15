@@ -94,38 +94,34 @@ describe("complete candidature maintenance", () => {
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Complete candidature" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Edit candidature" }));
+    await user.click(screen.getByRole("button", { name: "All details" }));
 
     const complete = screen.getByRole("region", { name: "Complete candidature" });
     expect(within(complete).getByRole("heading", { name: "Regional Air" })).toBeInTheDocument();
     expect(within(complete).getByRole("region", { name: "Candidature information" })).toBeInTheDocument();
     expect(within(complete).getByRole("region", { name: "Sources" })).toBeInTheDocument();
     expect(within(complete).getByRole("region", { name: "Tags" })).toBeInTheDocument();
-    expect(within(complete).getByRole("region", { name: "Application material" })).toBeInTheDocument();
+    expect(within(complete).getByRole("region", { name: "Documents" })).toBeInTheDocument();
     expect(within(complete).getByText("Activity", { selector: "summary" })).toBeInTheDocument();
     expect(screen.queryByRole("tablist", { name: "Candidature sections" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Concept/i)).not.toBeInTheDocument();
   });
 
-  it("uses Tags for reusable glossary associations while application material remains independently available", async () => {
+  it("uses Tags for reusable glossary associations while Documents remains independently available", async () => {
     installApi();
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    await user.click(await screen.findByRole("button", { name: "Edit candidature" }));
+    await user.click(await screen.findByRole("button", { name: "All details" }));
 
     const tags = screen.getByRole("region", { name: "Tags" });
     await user.click(within(tags).getByRole("checkbox", { name: "Platform" }));
     await user.click(within(tags).getByRole("button", { name: "Save Tag associations" }));
     expect(setTags).toHaveBeenCalledWith({ candidatureId, tagIds: [tag.id] });
 
-    const applicationMaterial = screen.getByRole("region", { name: "Application material" });
-    expect(within(applicationMaterial).getByRole("heading", { name: "Application CV" })).toBeInTheDocument();
-    expect(
-      within(applicationMaterial).getByRole("button", { name: "Create CV or letter for this candidature" }),
-    ).toBeInTheDocument();
-    expect(
-      within(applicationMaterial).getByRole("button", { name: "Open in CVs & letters" }),
-    ).toBeInTheDocument();
+    const documents = screen.getByRole("region", { name: "Documents" });
+    expect(within(documents).getByRole("heading", { name: "Application CV" })).toBeInTheDocument();
+    expect(within(documents).getByRole("button", { name: "Create CV or letter" })).toBeInTheDocument();
+    expect(within(documents).getByRole("button", { name: "Open document" })).toBeInTheDocument();
   });
 });

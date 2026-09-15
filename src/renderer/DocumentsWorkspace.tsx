@@ -182,7 +182,7 @@ export function DocumentsWorkspace({
         }
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load CVs and letters.");
+        if (active) setError("AAAAT could not load Documents.");
       });
     return () => {
       active = false;
@@ -230,7 +230,7 @@ export function DocumentsWorkspace({
         if (active) setArtifacts(retained);
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load retained application artifacts.");
+        if (active) setError("AAAAT could not load saved application PDFs.");
       });
     return () => {
       active = false;
@@ -276,7 +276,7 @@ export function DocumentsWorkspace({
       setError(
         reason instanceof Error
           ? reason.message
-          : "Check the document title and professional information.",
+          : "Check the document title and My information.",
       );
     }
   };
@@ -461,7 +461,7 @@ export function DocumentsWorkspace({
   const captureArtifact = async () => {
     if (!selected || !contextCandidature || !canCaptureArtifact) return;
     if (editorDirty) {
-      setError("Save document changes before retaining an application artifact.");
+      setError("Save document changes before saving an application PDF.");
       return;
     }
     setCapturingArtifact(true);
@@ -473,12 +473,12 @@ export function DocumentsWorkspace({
         documentId: selected.id,
       });
       setArtifacts((current) => [captured, ...current.filter((artifact) => artifact.id !== captured.id)]);
-      setNotice(`Retained application artifact: ${captured.artifactPath}`);
+      setNotice(`Saved application PDF: ${captured.artifactPath}`);
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
-          : "AAAAT could not retain this application artifact.",
+          : "AAAAT could not save this application PDF.",
       );
     } finally {
       setCapturingArtifact(false);
@@ -537,8 +537,8 @@ export function DocumentsWorkspace({
 
   if (!profile) {
     return (
-      <section className="documents-workspace" aria-label="CVs & letters">
-        <p>{error ?? "Loading CVs and letters..."}</p>
+      <section className="documents-workspace" aria-label="Documents">
+        <p>{error ?? "Loading Documents..."}</p>
       </section>
     );
   }
@@ -550,20 +550,20 @@ export function DocumentsWorkspace({
   return (
     <section
       className={`documents-workspace${compactDocumentOpen && selected ? " compact-document-detail" : ""}`}
-      aria-label="CVs & letters"
+      aria-label="Documents"
     >
       <div className="documents-sidebar">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Working documents</p>
-            <h2>CVs & letters</h2>
+            <p className="eyebrow">CVs &amp; letters</p>
+            <h2>Documents</h2>
           </div>
           <span>{documents.length}</span>
         </div>
 
         <form className="document-create" onSubmit={(event) => void create(event)}>
           {contextCandidature ? (
-            <p className="wide-field document-notice">New work will be associated with {contextCandidature.label}.</p>
+            <p className="wide-field document-notice">New work will be linked to {contextCandidature.label}.</p>
           ) : null}
           <label>
             Type
@@ -580,9 +580,9 @@ export function DocumentsWorkspace({
             <input required value={newTitle} onChange={(event) => setNewTitle(event.target.value)} />
           </label>
           <label>
-            Professional information
+            Use information from
             <select value={newVariantId} onChange={(event) => setNewVariantId(event.target.value)}>
-              <option value="">Default professional information</option>
+              <option value="">My information</option>
               {profile.variants.length > 0 ? (
                 <optgroup label="Saved variations">
                   {profile.variants.map((variant) => (
@@ -597,7 +597,7 @@ export function DocumentsWorkspace({
           </button>
         </form>
 
-        <div className="document-list" aria-label="Working CVs and letters">
+        <div className="document-list" aria-label="Documents list">
           {documents.length === 0 ? <p>No CVs or letters yet.</p> : null}
           {documents.map((document) => (
             <button
@@ -628,7 +628,7 @@ export function DocumentsWorkspace({
             type="button"
             onClick={() => setCompactDocumentOpen(false)}
           >
-            Back to CVs & letters
+            Back to Documents
           </button>
         ) : null}
         {error ? (
@@ -647,7 +647,7 @@ export function DocumentsWorkspace({
           <div className="document-empty">
             <h2>Create a CV or cover letter.</h2>
             <p>
-              Start with your default professional information or an optional saved variation. AI and local rendering are not required to create or edit a document.
+              Start from My information or an optional saved variation. AI and local rendering are not required to create or edit a document.
             </p>
           </div>
         ) : (
@@ -657,13 +657,13 @@ export function DocumentsWorkspace({
                 <p className="eyebrow">{selected.kind === "cv" ? "CV" : "Cover letter"}</p>
                 <h2>{selected.title}</h2>
               </div>
-              <span>{editorDirty || descriptorDirty || assistanceDirty ? "Unsaved changes" : "Working document"}</span>
+              <span>{editorDirty || descriptorDirty || assistanceDirty ? "Unsaved changes" : "Document"}</span>
             </div>
 
             <div className="document-local-nav" role="tablist" aria-label="Document work">
               {([
                 ["content", "Content"],
-                ["professional-information", "Professional information"],
+                ["professional-information", "My information"],
                 ["output", "Output"],
               ] as const).map(([view, label]) => (
                 <button
@@ -687,7 +687,7 @@ export function DocumentsWorkspace({
             >
               {editorDirty ? (
                 <p className="document-notice">
-                  Unsaved document changes stay local. Save before rendering, exporting, or retaining application material.
+                  Unsaved document changes stay local. Save before rendering, exporting, or saving an application PDF.
                 </p>
               ) : null}
               {selected.mode === "manual" ? (
@@ -749,22 +749,22 @@ export function DocumentsWorkspace({
             <section
               className="document-local-panel"
               role="tabpanel"
-              aria-label="Professional information in this document"
+              aria-label="My information in this document"
               hidden={documentView !== "professional-information"}
             >
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">Reusable source</p>
-                  <h3>Professional information</h3>
+                  <p className="eyebrow">Included career facts</p>
+                  <h3>My information</h3>
                 </div>
                 <span>{resolvedCount} included</span>
               </div>
               <p className="document-section-intro">
-                Using {selectedVariation ? `saved variation “${selectedVariation}”` : "default professional information"}. Changes below apply only to this document.
+                Using {selectedVariation ? `saved variation “${selectedVariation}”` : "My information"}. Changes below apply only to this document.
               </p>
               <div className="document-items">
                 {orderedItems.length === 0 ? (
-                  <p>No reusable professional information is available yet. The document remains editable.</p>
+                  <p>My information is empty. The document remains editable.</p>
                 ) : null}
                 {orderedItems.map((item, index) => {
                   const rule = selected.rules.find((candidate) => candidate.itemId === item.id);
@@ -783,7 +783,7 @@ export function DocumentsWorkspace({
                           className="compact-secondary"
                           onClick={() => openProfessionalInformationItem(selected.id, item.id)}
                         >
-                          Edit reusable source
+                          Edit in My information
                         </button>
                       </div>
                       <label className="include-control">
@@ -844,7 +844,7 @@ export function DocumentsWorkspace({
                   <span>{renderedResultId === selected.id ? "Ready" : "Not rendered this session"}</span>
                 </div>
                 <p className="document-section-intro">
-                  Render the saved working document, then open the resulting PDF directly.
+                  Render the saved document, then open the resulting PDF directly.
                 </p>
                 <div className="document-actions document-output-actions">
                   <button className="compact-primary" type="button" disabled={editorDirty} onClick={() => void render()}>
@@ -891,18 +891,18 @@ export function DocumentsWorkspace({
 
               {selected.kind === "cv" ? (
                 <details className="document-advanced">
-                  <summary>External assistant privacy & integration</summary>
-                  <CvAssistantDescriptorPanel
-                    key={`descriptor:${selected.id}`}
-                    document={selected}
-                    onDirtyChange={setDescriptorDirty}
-                    onError={setError}
-                    onNotice={setNotice}
-                  />
+                  <summary>External assistant access</summary>
                   <CvExternalContentAccessPanel
                     key={`content-access:${selected.id}`}
                     document={selected}
                     disabled={editorDirty}
+                    onError={setError}
+                    onNotice={setNotice}
+                  />
+                  <CvAssistantDescriptorPanel
+                    key={`descriptor:${selected.id}`}
+                    document={selected}
+                    onDirtyChange={setDescriptorDirty}
                     onError={setError}
                     onNotice={setNotice}
                   />
@@ -929,11 +929,11 @@ export function DocumentsWorkspace({
 
           {contextCandidature ? (
             <details className="document-advanced">
-              <summary>Application artifact for {contextCandidature.label}</summary>
-              <section className="manual-source-warning" aria-label="Retained application artifacts">
-                <h3>Retained application artifacts</h3>
+              <summary>Saved application PDFs for {contextCandidature.label}</summary>
+              <section className="manual-source-warning" aria-label="Saved application PDFs">
+                <h3>Saved application PDFs</h3>
                 <p>
-                  Preserve an exact snapshot only when this material is actually used for {contextCandidature.label}.
+                  Save an exact PDF snapshot when this document is actually used for {contextCandidature.label}.
                 </p>
                 {selected ? (
                   canCaptureArtifact ? (
@@ -942,26 +942,26 @@ export function DocumentsWorkspace({
                       disabled={editorDirty || capturingArtifact}
                       onClick={() => void captureArtifact()}
                     >
-                      {capturingArtifact ? "Retaining…" : "Retain application artifact"}
+                      {capturingArtifact ? "Saving…" : "Save application PDF"}
                     </button>
                   ) : (
-                    <p>Associate the selected working document with this candidature before retaining it.</p>
+                    <p>Link the selected document to this candidature before saving an application PDF.</p>
                   )
                 ) : (
                   <p>
-                    Select a working document to retain another snapshot. Existing retained artifacts remain available here.
+                    Select a document to save another PDF. Existing saved application PDFs remain available here.
                   </p>
                 )}
                 {artifacts.length === 0 ? (
-                  <p>No retained application artifacts for this candidature.</p>
+                  <p>No saved application PDFs for this candidature.</p>
                 ) : (
                   <div className="document-paths">
                     {artifacts.map((artifact) => (
                       <article key={artifact.id}>
                         <strong>{artifact.title}</strong>
                         <p>{new Date(artifact.capturedAt).toLocaleString()}</p>
-                        <p><span>Retained source</span><code>{artifact.sourcePath}</code></p>
-                        <p><span>Retained PDF</span><code>{artifact.artifactPath}</code></p>
+                        <p><span>Saved source</span><code>{artifact.sourcePath}</code></p>
+                        <p><span>Saved PDF</span><code>{artifact.artifactPath}</code></p>
                       </article>
                     ))}
                   </div>

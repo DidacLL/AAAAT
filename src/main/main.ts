@@ -26,6 +26,13 @@ import {
   variantRecommendationResultSchema,
 } from "../shared/ai-contracts";
 import {
+  aiTaskCancellationChannels,
+  aiTaskCancellationResultSchema,
+  aiTaskIdSchema,
+  cancellableJobExtractionRequestSchema,
+  cancellableJobExtractionResultSchema,
+} from "../shared/ai-task-cancellation-contracts";
+import {
   candidatureDocumentSelectionSchema,
   candidatureFieldCreateSchema,
   candidatureFieldDefinitionSchema,
@@ -90,6 +97,10 @@ import {
   recommendVariant,
   tailorCv,
 } from "./ai-service";
+import {
+  cancelCancellableJobExtraction,
+  runCancellableJobExtraction,
+} from "./ai-task-cancellation";
 import {
   clearCandidatureFieldValue,
   createCandidatureField,
@@ -253,6 +264,7 @@ function registerIpc(mainWindow: BrowserWindow): void {
   for (const channel of [
     ...Object.values(channels),
     ...Object.values(aiChannels),
+    ...Object.values(aiTaskCancellationChannels),
     ...Object.values(workspaceRecoveryChannels),
   ]) {
     ipcMain.removeHandler(channel);
@@ -566,6 +578,19 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return jobExtractionResultSchema.parse(
       await extractJob(requireWorkspaceRoot(), jobExtractionRequestSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.jobExtract, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const parsed = cancellableJobExtractionRequestSchema.parse(input);
+    return cancellableJobExtractionResultSchema.parse(
+      await runCancellableJobExtraction(requireWorkspaceRoot(), parsed.taskId, parsed.request),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.jobExtractCancel, (event, taskId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return aiTaskCancellationResultSchema.parse(
+      cancelCancellableJobExtraction(aiTaskIdSchema.parse(taskId)),
     );
   });
   ipcMain.handle(aiChannels.fieldDiscover, async (event, input: unknown) => {

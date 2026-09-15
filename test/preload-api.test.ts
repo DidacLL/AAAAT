@@ -91,7 +91,7 @@ describe("desktop preload API", () => {
         };
       }
       if (channel === aiChannels.jobExtract) {
-        return { proposals: [{ fieldId, value: 1500 }] };
+        return { proposals: [{ fieldId, value: 1500 }], newFields: [] };
       }
       if (channel === aiChannels.fieldDiscover) {
         return {
@@ -133,7 +133,7 @@ describe("desktop preload API", () => {
         sourceUrl: "",
         sourceText: "Minimum 1,500 hours.",
       }),
-    ).resolves.toEqual({ proposals: [{ fieldId, value: 1500 }] });
+    ).resolves.toEqual({ proposals: [{ fieldId, value: 1500 }], newFields: [] });
     await expect(
       api.ai.previewOpportunityReview({
         candidatureId,

@@ -33,15 +33,7 @@ const candidature: CandidatureRecord = {
   updatedAt: timestamp,
   label: "AI fallback opportunity",
   sourceSearchText: "retained source",
-  values: [
-    {
-      candidatureId,
-      fieldId,
-      value: "Existing value",
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    },
-  ],
+  values: [{ candidatureId, fieldId, value: "Existing value", createdAt: timestamp, updatedAt: timestamp }],
   documentIds: [],
   tagIds: [],
 };
@@ -70,7 +62,6 @@ const field: CandidatureFieldConfiguration = {
   },
 };
 
-const discoverField = vi.fn();
 const openSettingsFor = vi.fn();
 
 function handoffs(): ContextualHandoffApi {
@@ -88,7 +79,6 @@ function handoffs(): ContextualHandoffApi {
 }
 
 function installApi() {
-  discoverField.mockRejectedValue(new Error("No validated AI route is available."));
   const api = {
     candidatures: {
       list: vi.fn().mockResolvedValue([candidature]),
@@ -122,14 +112,7 @@ function installApi() {
     documents: { list: vi.fn().mockResolvedValue([]) },
     artifacts: { list: vi.fn().mockResolvedValue([]) },
     candidatureSearch: { search: vi.fn().mockResolvedValue([]) },
-    ai: { discoverField },
-    setupEnvironment: {
-      current: vi.fn().mockResolvedValue({
-        ai: {
-          operations: [{ operation: "historical_field_discovery", available: false }],
-        },
-      }),
-    },
+    aiConnections: { list: vi.fn().mockResolvedValue([]) },
   } as unknown as DesktopApi;
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
 }
@@ -140,7 +123,7 @@ afterEach(() => {
 });
 
 describe("candidature AI Settings fallback", () => {
-  it("routes unavailable selected-Source discovery to AI connections and preserves candidature origin", async () => {
+  it("routes an unavailable field fill to AI settings and preserves candidature origin", async () => {
     installApi();
     const user = userEvent.setup();
     render(
@@ -150,30 +133,19 @@ describe("candidature AI Settings fallback", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Edit candidature" }));
+    await user.click(screen.getByRole("button", { name: "All details" }));
 
     const information = screen.getByRole("region", { name: "Candidature information" });
     const role = within(information).getByRole("heading", { name: "Role" }).closest("article");
     if (!role) throw new Error("Retained Role information missing");
-    await user.click(within(role).getByRole("button", { name: "Edit" }));
-    await user.click(within(role).getByRole("button", { name: "Discover from Sources" }));
+    await user.click(within(role).getByRole("button", { name: "Ask AI to fill Role" }));
 
-    const discovery = await screen.findByRole("dialog", { name: "Historical Source discovery" });
-    const send = within(discovery).getByRole("button", { name: "Send selected Sources to AI" });
-    expect(send).toBeDisabled();
-    expect(discoverField).not.toHaveBeenCalled();
+    const unavailable = await screen.findByText("AI is not ready for this request.");
+    const message = unavailable.closest("div");
+    if (!message) throw new Error("Expected inline AI readiness message");
+    await user.click(within(message).getByRole("button", { name: "Open AI settings" }));
 
-    await user.click(within(discovery).getByRole("checkbox", { name: "Retained source" }));
-    await user.click(send);
-
-    expect(discoverField).toHaveBeenCalledWith({
-      candidatureId,
-      fieldId,
-      sourceIds: [sourceId],
-    });
-    await vi.waitFor(() => {
-      expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
-    });
+    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
     expect(screen.getByRole("heading", { name: "AI fallback opportunity" })).toBeInTheDocument();
   });
 });

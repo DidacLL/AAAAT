@@ -251,18 +251,20 @@ Settings owns infrequent administration: workspace, backup/restore, rendering/Te
 
 Do not expose ports, MCP, IPC, schemas, migrations or provider internals in ordinary product language.
 
-## 16. Constrained desktop space
+## 16. Adaptive desktop space
 
-`720×600` is a real supported minimum, not a screenshot checkbox.
+AAAAT is genuinely resizable. No concrete viewport dimension is a product contract; dimensions used in screenshots or automated checks are verification samples only.
 
-At constrained sizes:
+Across constrained, default and maximized windows:
 
+- use the available space productively rather than preserving a fixed-width composition;
 - give the current intention most of the screen;
-- transition between corpus and selected-candidature Focus rather than compressing both indefinitely;
+- transition, stack or reflow when simultaneous panes would become cramped;
 - the raw-material manual-fill surface may stack its Source and fields vertically when necessary, but must preserve easy same-task access to both;
-- stack/scroll rather than clip;
+- scroll rather than clip;
 - preserve readable labels and controls;
-- avoid persistent multi-pane dashboards that leave no useful working area.
+- avoid persistent multi-pane dashboards that leave no useful working area;
+- expanding the window should reveal or enlarge useful working space rather than merely increase empty margins.
 
 ## 17. Editing safety
 

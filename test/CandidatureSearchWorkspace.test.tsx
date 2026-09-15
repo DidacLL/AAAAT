@@ -82,7 +82,7 @@ describe("candidature local corpus search UI", () => {
 
     render(<CandidaturesWorkspace />);
     await screen.findByRole("heading", { name: "Candidatures" });
-    const input = screen.getByRole("searchbox", { name: "Search candidatures" });
+    const input = screen.getByRole("searchbox", { name: "Search" });
 
     fireEvent.change(input, { target: { value: "first" } });
     await waitFor(() => expect(search).toHaveBeenCalledWith({ query: "first" }));

@@ -3,10 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { JobExtractionPanel } from "../src/renderer/JobExtractionPanel";
+import { clearAllAiTasks } from "../src/renderer/ai-task-store";
 import {
   ContextualHandoffContext,
   type ContextualHandoffApi,
 } from "../src/renderer/contextual-handoffs";
+import type { PartialJobExtractionResult } from "../src/shared/ai-proposal-outcomes";
 import type { CandidatureFieldConfiguration } from "../src/shared/contracts";
 
 const candidatureId = "00000000-0000-4000-8000-000000000900";
@@ -45,6 +47,7 @@ const contactField: CandidatureFieldConfiguration = {
     ...field.definition,
     id: contactFieldId,
     label: "Recruiter contact",
+    valueType: "text",
   },
   preferences: {
     ...field.preferences,
@@ -53,6 +56,7 @@ const contactField: CandidatureFieldConfiguration = {
 };
 
 const extractJob = vi.fn();
+const cancelJobExtraction = vi.fn();
 const listFields = vi.fn();
 const listConnections = vi.fn();
 const setFieldValue = vi.fn();
@@ -87,9 +91,25 @@ function renderPanel() {
   );
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+function extractionResult(
+  proposals: PartialJobExtractionResult["proposals"],
+  issues: PartialJobExtractionResult["issues"] = [],
+): PartialJobExtractionResult {
+  return { proposals, newFields: [], issues };
+}
+
 describe("saved Source extraction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearAllAiTasks();
     listFields.mockResolvedValue([field, contactField]);
     listConnections.mockResolvedValue([
       {
@@ -102,31 +122,36 @@ describe("saved Source extraction", () => {
         defaultForOperations: ["job_extraction"],
       },
     ]);
-    extractJob.mockResolvedValue({
-      proposals: [
-        { fieldId, value: "1500" },
+    extractJob.mockResolvedValue(
+      extractionResult([
+        { fieldId, value: 1500 },
         { fieldId: contactFieldId, value: "recruiter@example.test" },
-      ],
-    });
+      ]),
+    );
+    cancelJobExtraction.mockResolvedValue(true);
     setFieldValue.mockResolvedValue(undefined);
     Object.defineProperty(window, "aaaat", {
       configurable: true,
       value: {
-        ai: { extractJob },
+        aiTasks: { extractJob, cancelJobExtraction },
         aiConnections: { list: listConnections },
         candidatures: { listFields, setFieldValue },
       },
     });
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    clearAllAiTasks();
+  });
 
-  it("presents configured extraction immediately after save, discloses the exact Source, and retains only selected proposals", async () => {
+  it("acknowledges extraction immediately, discloses the exact Source, and retains only selected proposals", async () => {
     const user = userEvent.setup();
+    const pending = deferred<PartialJobExtractionResult>();
+    extractJob.mockReturnValueOnce(pending.promise);
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Extract useful information?" });
-    expect(screen.queryByRole("button", { name: "Review source with AI" })).not.toBeInTheDocument();
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
     expect(extractJob).not.toHaveBeenCalled();
     expect(screen.getByText("Remote review endpoint")).toBeInTheDocument();
     expect(screen.getByText("Remote HTTPS")).toBeInTheDocument();
@@ -135,18 +160,72 @@ describe("saved Source extraction", () => {
     expect(screen.getByText(source.sourceText)).toBeInTheDocument();
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
 
-    await user.click(screen.getByRole("button", { name: "Extract useful information" }));
+    await user.click(screen.getByRole("button", { name: "Ask AI to find information" }));
+    expect(await screen.findByText(/Queued|Looking through the saved Source/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keep without AI" })).toBeEnabled();
+    expect(extractJob).toHaveBeenCalledWith(`initial-extraction:${candidatureId}`, source);
 
-    expect(extractJob).toHaveBeenCalledWith(source);
-    await screen.findByRole("heading", { name: "Proposed information" });
+    pending.resolve(
+      extractionResult([
+        { fieldId, value: 1500 },
+        { fieldId: contactFieldId, value: "recruiter@example.test" },
+      ]),
+    );
+    await screen.findByRole("heading", { name: "Suggested information" });
     expect(onDirtyChange).toHaveBeenLastCalledWith(true);
     await user.click(screen.getByRole("checkbox", { name: /Recruiter contact: recruiter@example/ }));
     await user.click(screen.getByRole("button", { name: "Keep selected information" }));
 
-    expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId, value: "1500" });
+    expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId, value: 1500 });
     expect(setFieldValue).toHaveBeenCalledTimes(1);
     expect(onAccepted).toHaveBeenCalledOnce();
     expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it("keeps successful siblings when one selected proposal cannot be persisted", async () => {
+    const user = userEvent.setup();
+    setFieldValue.mockImplementation(async ({ fieldId: selectedFieldId }) => {
+      if (selectedFieldId === contactFieldId) throw new Error("Recruiter contact changed while saving.");
+      return undefined;
+    });
+    renderPanel();
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
+    await user.click(screen.getByRole("button", { name: "Ask AI to find information" }));
+    await screen.findByRole("heading", { name: "Suggested information" });
+    await user.click(screen.getByRole("button", { name: "Keep selected information" }));
+
+    expect(setFieldValue).toHaveBeenCalledTimes(2);
+    expect(onAccepted).toHaveBeenCalledOnce();
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(await screen.findByText(/1 field kept · 1 needs review/i)).toBeInTheDocument();
+    expect(screen.getByText(/Recruiter contact changed while saving/i)).toBeInTheDocument();
+  });
+
+  it("shows field-specific unusable proposals without turning the extraction into a failed task", async () => {
+    const user = userEvent.setup();
+    extractJob.mockResolvedValueOnce(
+      extractionResult(
+        [{ fieldId, value: 1500 }],
+        [
+          {
+            kind: "invalid",
+            fieldId: contactFieldId,
+            fieldLabel: "Recruiter contact",
+            proposedValue: ["a@example.test", "b@example.test"],
+            reason: "Recruiter contact accepts one value, but AI proposed 2.",
+          },
+        ],
+      ),
+    );
+    renderPanel();
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
+    await user.click(screen.getByRole("button", { name: "Ask AI to find information" }));
+
+    await screen.findByRole("heading", { name: "Suggested information" });
+    expect(screen.getByText(/1 AI suggestion needs review/i)).toBeInTheDocument();
+    expect(screen.getByText(/a@example.test, b@example.test/i)).toBeInTheDocument();
+    expect(screen.getByText(/accepts one value, but AI proposed 2/i)).toBeInTheDocument();
+    expect(screen.queryByText(/AI could not finish this request/i)).not.toBeInTheDocument();
   });
 
   it("identifies a loopback connection as local without exposing its literal endpoint", async () => {
@@ -163,7 +242,7 @@ describe("saved Source extraction", () => {
     ]);
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Extract useful information?" });
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
     expect(screen.getByText("Laptop model")).toBeInTheDocument();
     expect(screen.getByText("Local on this computer")).toBeInTheDocument();
     expect(screen.queryByText("http://127.0.0.1:11434/v1")).not.toBeInTheDocument();
@@ -192,31 +271,31 @@ describe("saved Source extraction", () => {
     ]);
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Extract useful information?" });
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
     expect(screen.getByText("Selected general default")).toBeInTheDocument();
     expect(screen.queryByText("Validated alternative")).not.toBeInTheDocument();
   });
 
-  it("keeps the saved Source unchanged when the user keeps it without AI or extraction fails", async () => {
+  it("keeps the saved Source unchanged when dismissed and exposes extraction failure with retry", async () => {
     const user = userEvent.setup();
     renderPanel();
-    await screen.findByRole("heading", { name: "Extract useful information?" });
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
     await user.click(screen.getByRole("button", { name: "Keep without AI" }));
 
     expect(extractJob).not.toHaveBeenCalled();
     expect(onDismiss).toHaveBeenCalledOnce();
     expect(setFieldValue).not.toHaveBeenCalled();
 
+    cleanup();
     onDismiss.mockClear();
+    clearAllAiTasks();
     extractJob.mockRejectedValueOnce(new Error("The configured endpoint did not respond."));
     renderPanel();
-    await screen.findAllByRole("heading", { name: "Extract useful information?" });
-    const buttons = screen.getAllByRole("button", { name: "Extract useful information" });
-    await user.click(buttons.at(-1)!);
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
+    await user.click(screen.getByRole("button", { name: "Ask AI to find information" }));
 
     expect(await screen.findByText("The configured endpoint did not respond.")).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: "Open AI connections settings" }).at(-1)!);
-    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
+    expect(screen.getByRole("button", { name: "Retry AI request" })).toBeEnabled();
     expect(setFieldValue).not.toHaveBeenCalled();
     expect(onAccepted).not.toHaveBeenCalled();
   });
@@ -230,10 +309,10 @@ describe("saved Source extraction", () => {
         onDismiss={onDismiss}
       />,
     );
-    expect(screen.queryByRole("heading", { name: "Extract useful information?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Ask AI to find useful information?" })).not.toBeInTheDocument();
   });
 
-  it("shows no extraction ceremony when the selected route is not validated", async () => {
+  it("shows the exact setup action when no validated route is usable", async () => {
     listConnections.mockResolvedValueOnce([
       {
         id: "00000000-0000-4000-8000-000000000907",
@@ -254,10 +333,12 @@ describe("saved Source extraction", () => {
         defaultForOperations: [],
       },
     ]);
+    const user = userEvent.setup();
     renderPanel();
 
-    await vi.waitFor(() => {
-      expect(screen.queryByRole("heading", { name: "Extract useful information?" })).not.toBeInTheDocument();
-    });
+    await screen.findByRole("heading", { name: "AI is not ready for this action yet" });
+    await user.click(screen.getByRole("button", { name: "Open AI settings" }));
+    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
+    expect(screen.getByRole("button", { name: "Keep without AI" })).toBeEnabled();
   });
 });

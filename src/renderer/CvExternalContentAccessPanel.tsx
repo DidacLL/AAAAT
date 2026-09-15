@@ -25,7 +25,7 @@ export function CvExternalContentAccessPanel({
         if (active) setAccess(current);
       })
       .catch(() => {
-        if (active) onError("AAAAT could not load the external CV permissions.");
+        if (active) onError("AAAAT could not load this document's external assistant access.");
       });
     return () => {
       active = false;
@@ -36,7 +36,7 @@ export function CvExternalContentAccessPanel({
     if (
       allowed &&
       !window.confirm(
-        "Allow the configured external assistant host to read this CV's effective resolved content? This shares the CV content, not only its AI-visible tags and notes. Selecting this CV replaces any previously shared CV.",
+        "Allow the configured external assistant to use this CV content? Only this CV becomes available, and choosing it replaces any previously shared CV.",
       )
     ) {
       return;
@@ -49,11 +49,11 @@ export function CvExternalContentAccessPanel({
       setAccess(saved);
       onNotice(
         allowed
-          ? "This CV is now the one CV available to the external content-read operation. External rendering is still disabled until you allow it separately."
-          : "External content access and any external render authorization for this CV were revoked.",
+          ? "External assistant access is allowed for this CV."
+          : "External assistant access for this CV was revoked.",
       );
     } catch {
-      onError("AAAAT could not change the external CV content permission.");
+      onError("AAAAT could not change external assistant access for this CV.");
     } finally {
       setSaving(false);
     }
@@ -63,7 +63,7 @@ export function CvExternalContentAccessPanel({
     if (
       allowed &&
       !window.confirm(
-        "Allow the configured external assistant host to request local PDF rendering for this CV? Rendering uses AAAAT's normal local document service and does not grant filesystem, command, path, or document-selection access.",
+        "Allow the configured external assistant to request AAAAT's normal local PDF render for this CV?",
       )
     ) {
       return;
@@ -77,57 +77,55 @@ export function CvExternalContentAccessPanel({
         allowed,
       });
       setAccess(saved);
-      onNotice(
-        allowed
-          ? "External rendering is allowed for this CV."
-          : "External render authorization for this CV was revoked.",
-      );
+      onNotice(allowed ? "External PDF rendering is allowed for this CV." : "External PDF rendering was revoked.");
     } catch {
-      onError("AAAAT could not change the external CV render permission.");
+      onError("AAAAT could not change external PDF rendering access.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <section className="manual-source-warning" aria-label="External CV content access">
-      <h3>External CV content access</h3>
-      <p>
-        This is broader than the AI-visible description. When allowed, the configured external host can
-        read this CV&apos;s effective included and overridden profile-item content through one bounded
-        read-only operation. AAAAT does not expose the document title, local IDs, file paths, raw TeX,
-        candidature history, or other documents.
+    <section className="external-assistant-access-controls" aria-label="External assistant access">
+      <h3>External assistant access</h3>
+      <p className="document-section-intro">
+        Keep this off unless you want the configured external assistant to use the content of this CV.
       </p>
       {access ? (
-        <div className="document-actions">
-          <button
-            className={access.allowed ? undefined : "compact-primary"}
-            type="button"
-            disabled={disabled || saving}
-            onClick={() => void updateContent(!access.allowed)}
-          >
-            {saving
-              ? "Saving…"
-              : access.allowed
-                ? "Revoke external CV content access"
-                : "Allow external assistants to read this CV content"}
-          </button>
-          <span>{access.allowed ? "Content access allowed for this CV." : "Content access not allowed."}</span>
-          <button
-            type="button"
-            disabled={disabled || saving || !access.allowed}
-            onClick={() => void updateRender(!access.renderAllowed)}
-          >
-            {access.renderAllowed ? "Revoke external render authorization" : "Allow external PDF rendering"}
-          </button>
-          <span>
-            {access.renderAllowed
-              ? "The external host may request AAAAT's normal local render for this CV."
-              : "External rendering is not authorized."}
+        <>
+          <label className="external-assistant-primary-toggle">
+            <input
+              type="checkbox"
+              checked={access.allowed}
+              disabled={disabled || saving}
+              onChange={(event) => void updateContent(event.target.checked)}
+            />
+            Allow external assistant to use this CV
+          </label>
+          <span className="compact-help">
+            {access.allowed ? "This CV is available to the configured external assistant." : "CV content is not shared."}
           </span>
-        </div>
+
+          {access.allowed ? (
+            <details className="external-assistant-advanced">
+              <summary>Advanced authorization</summary>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={access.renderAllowed}
+                  disabled={disabled || saving}
+                  onChange={(event) => void updateRender(event.target.checked)}
+                />
+                Allow external assistant to request local PDF rendering
+              </label>
+              <p className="compact-help">
+                Rendering still runs through AAAAT's normal local document service and does not grant filesystem access.
+              </p>
+            </details>
+          ) : null}
+        </>
       ) : (
-        <p>Loading external CV permissions…</p>
+        <p>Loading external assistant access…</p>
       )}
     </section>
   );

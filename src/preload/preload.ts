@@ -15,12 +15,16 @@ import { createProfileAiContextDesktopApi } from "./profile-ai-context-api";
 import { createSetupEnvironmentDesktopApi } from "./setup-environment-api";
 import { createWorkspaceRecoveryDesktopApi } from "./workspace-recovery-api";
 
+// Preserve IPC rejection text verbatim: failed AI exchanges carry their inspectable local diagnostic through the Error message.
 const invoke = (channel: string, ...args: readonly unknown[]) => ipcRenderer.invoke(channel, ...args);
+
+// Build the validated core surface once. In particular, scoped AI-task requests are parsed by createDesktopApi before crossing IPC.
+const coreApi = createDesktopApi(invoke);
 
 contextBridge.exposeInMainWorld(
   "aaaat",
   Object.freeze({
-    ...createDesktopApi(invoke),
+    ...coreApi,
     ...createAiConnectionDesktopApi(invoke),
     ...createArtifactDesktopApi(invoke),
     ...createCandidatureActivityDesktopApi(invoke),

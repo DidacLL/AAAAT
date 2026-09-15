@@ -175,10 +175,21 @@ async function expectNoHorizontalOverflow(page: Page, width: number, height: num
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
 }
 
+async function expectRepresentativeResizeCoverage(page: Page): Promise<void> {
+  for (const [width, height] of [
+    [1280, 900],
+    [1180, 760],
+    [720, 760],
+    [1180, 600],
+  ] as const) {
+    await expectNoHorizontalOverflow(page, width, height);
+  }
+}
+
 async function createWorkspace(running: RunningApp): Promise<void> {
   await running.page.getByRole("button", { name: "Create workspace" }).click();
   chooseLinuxDirectory();
-  await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+  await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 }
 
 test("packaged sparse candidature accepts a runtime field and survives close/reopen", async () => {
@@ -226,7 +237,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
 
     await stopPackagedApp(running);
     running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     const focusEntry = corpus.locator("button.candidature-focus-entry").first();
@@ -236,7 +247,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
     await expect(selectedFocus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
     await expect(selectedFocus).toContainText("1500");
-    await running.page.getByRole("button", { name: "Edit full candidature" }).click();
+    await running.page.getByRole("button", { name: "All details" }).click();
 
     const complete = running.page.getByRole("region", { name: "Complete candidature" });
     const sources = complete.getByRole("region", { name: "Sources" });
@@ -247,8 +258,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     await expect(sourceReader.getByText("https://example.invalid/pilot", { exact: true })).toBeVisible();
     expect(created.candidatureId).toBeTruthy();
     expect(created.fieldId).toBeTruthy();
-    await expectNoHorizontalOverflow(running.page, 1200, 800);
-    await expectNoHorizontalOverflow(running.page, 720, 600);
+    await expectRepresentativeResizeCoverage(running.page);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
@@ -257,7 +267,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
   }
 });
 
-test("packaged raw capture exposes explicit AI/manual choices and manual Source-to-fields work at 720x600", async () => {
+test("packaged raw capture stays usable across large, normal, narrow and short windows", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-capture-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-capture-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
@@ -268,40 +278,37 @@ test("packaged raw capture exposes explicit AI/manual choices and manual Source-
   try {
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await createWorkspace(running);
-    await expectNoHorizontalOverflow(running.page, 720, 600);
+    await expectRepresentativeResizeCoverage(running.page);
 
-    await expect(
-      running.page.getByRole("button", { name: "New candidature — fill fields" }),
-    ).toBeVisible();
-    await expect(
-      running.page.getByRole("button", { name: "New candidature — paste raw material" }),
-    ).toBeVisible();
+    const creation = running.page.getByRole("group", { name: "Create candidature" });
+    await expect(creation.getByRole("button", { name: "Fill fields directly" })).toBeVisible();
+    await expect(creation.getByRole("button", { name: "Paste raw material" })).toBeVisible();
 
-    await running.page.getByRole("button", { name: "New candidature — paste raw material" }).click();
-    await expect(running.page.getByRole("heading", { name: "Paste whatever you have." })).toBeVisible();
-    await running.page.getByLabel("Candidature material").fill(rawMaterial);
+    await creation.getByRole("button", { name: "Paste raw material" }).click();
+    await expect(running.page.getByRole("heading", { name: "Paste raw material" })).toBeVisible();
+    await running.page.getByLabel("Raw material").fill(rawMaterial);
     expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(0);
-    await running.page.getByRole("button", { name: "Keep raw material" }).click();
+    await running.page.getByRole("button", { name: "Save Source" }).click();
 
     const saved = running.page.getByRole("region", { name: "Raw candidature saved" });
     await expect(saved).toBeVisible();
-    await expect(saved.getByRole("button", { name: "Send to AI" })).toBeDisabled();
-    await expect(saved.getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
+    const continuations = saved.getByRole("group", { name: "Continue from saved Source" });
+    await expect(continuations.getByRole("button", { name: "Set up AI suggestions" })).toBeEnabled();
+    await expect(continuations.getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
     await expect(saved).toContainText(rawMaterial);
-    await expectNoHorizontalOverflow(running.page, 720, 600);
+    await expectNoHorizontalOverflow(running.page, 720, 760);
+    await expectNoHorizontalOverflow(running.page, 1180, 600);
 
-    await saved.getByRole("button", { name: "Fill candidature yourself" }).click();
+    await continuations.getByRole("button", { name: "Fill candidature yourself" }).click();
     const manual = running.page.getByRole("region", { name: "Fill candidature yourself" });
-    await expect(manual.getByRole("region", { name: "Raw candidature material" })).toContainText(rawMaterial);
-    const fields = manual.getByRole("region", { name: "Candidature fields" });
-    const roleCard = fields.locator(".retained-information-card").filter({ hasText: "Role" });
-    const roleInput = roleCard.getByRole("textbox");
+    await expect(manual.getByRole("region", { name: "Pasted candidature material" })).toContainText(rawMaterial);
+    const fields = manual.getByRole("form", { name: "Candidature information" });
+    const roleInput = fields.getByRole("textbox", { name: /Role/ });
     await roleInput.fill("Captain");
-    await roleCard.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(roleCard).toContainText("Captain");
-    await expectNoHorizontalOverflow(running.page, 720, 600);
+    await fields.getByRole("button", { name: "Save details" }).click();
+    await expectNoHorizontalOverflow(running.page, 720, 760);
+    await expectNoHorizontalOverflow(running.page, 1180, 600);
 
-    await manual.getByRole("button", { name: "Done" }).click();
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     await expect(corpus).toBeVisible();
     const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
@@ -311,11 +318,11 @@ test("packaged raw capture exposes explicit AI/manual choices and manual Source-
     const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
     const roleBlock = selectedFocus.locator(".focus-block").filter({ hasText: "Role" });
     await expect(roleBlock).toContainText("Captain");
-    await roleBlock.getByRole("button", { name: "Edit", exact: true }).click();
-    await roleBlock.getByRole("textbox").fill("Senior Captain");
+    await roleBlock.getByRole("button", { name: "Edit Role", exact: true }).click();
+    await roleBlock.getByLabel("Value").fill("Senior Captain");
     await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
     await expect(roleBlock).toContainText("Senior Captain");
-    await expectNoHorizontalOverflow(running.page, 720, 600);
+    await expectRepresentativeResizeCoverage(running.page);
 
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {

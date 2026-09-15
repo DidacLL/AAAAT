@@ -131,7 +131,7 @@ describe("Settings workspace", () => {
     );
 
     await user.click(await screen.findByRole("button", { name: /AI connections/ }));
-    expect(screen.getByText(/AAAAT works without AI/i)).toBeInTheDocument();
+    expect(screen.getByText(/AAAAT works fully without AI/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Connection name")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add connection" }));
     await user.type(screen.getByLabelText("Connection name"), "Unsaved local route");

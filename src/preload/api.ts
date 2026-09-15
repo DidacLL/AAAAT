@@ -16,6 +16,14 @@ import {
   type AiDesktopApi,
 } from "../shared/ai-contracts";
 import {
+  aiTaskCancellationChannels,
+  aiTaskCancellationResultSchema,
+  aiTaskIdSchema,
+  cancellableJobExtractionRequestSchema,
+  cancellableJobExtractionResultSchema,
+  type AiTaskCancellationDesktopApi,
+} from "../shared/ai-task-cancellation-contracts";
+import {
   candidatureDocumentSelectionSchema,
   candidatureFieldCreateSchema,
   candidatureFieldDefinitionSchema,
@@ -68,7 +76,9 @@ import {
 
 type Invoke = (channel: string, ...args: readonly unknown[]) => Promise<unknown>;
 
-export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
+export function createDesktopApi(
+  invoke: Invoke,
+): DesktopApi & AiDesktopApi & AiTaskCancellationDesktopApi {
   const system = Object.freeze({
     info: async () => systemInfoSchema.parse(await invoke(channels.systemInfo)),
   });
@@ -385,5 +395,25 @@ export function createDesktopApi(invoke: Invoke): DesktopApi & AiDesktopApi {
       ),
   });
 
-  return Object.freeze({ system, workspace, profile, careerContext, documents, candidatures, ai });
+  const aiTasks = Object.freeze({
+    extractJob: async (
+      taskId: string,
+      request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["extractJob"]>[1],
+    ) =>
+      cancellableJobExtractionResultSchema.parse(
+        await invoke(
+          aiTaskCancellationChannels.jobExtract,
+          cancellableJobExtractionRequestSchema.parse({ taskId, request }),
+        ),
+      ),
+    cancelJobExtraction: async (taskId: string) =>
+      aiTaskCancellationResultSchema.parse(
+        await invoke(
+          aiTaskCancellationChannels.jobExtractCancel,
+          aiTaskIdSchema.parse(taskId),
+        ),
+      ),
+  });
+
+  return Object.freeze({ system, workspace, profile, careerContext, documents, candidatures, ai, aiTasks });
 }

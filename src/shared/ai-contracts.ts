@@ -154,12 +154,39 @@ export const jobExtractionProposalSchema = z
   .strict();
 export type JobExtractionProposal = z.infer<typeof jobExtractionProposalSchema>;
 
+export const jobExtractionNewFieldSchema = z
+  .object({
+    label: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(500).default(""),
+    valueType: candidatureFieldValueTypeSchema,
+    cardinality: candidatureFieldCardinalitySchema,
+    choices: z.array(z.string().trim().min(1).max(120)).max(32).default([]),
+    value: candidatureRuntimeValueSchema,
+  })
+  .strict()
+  .superRefine((field, context) => {
+    if (field.valueType === "choice" && field.choices.length === 0) {
+      context.addIssue({ code: "custom", path: ["choices"], message: "Choice suggestions need choices." });
+    }
+    if (field.valueType !== "choice" && field.choices.length > 0) {
+      context.addIssue({ code: "custom", path: ["choices"], message: "Only choice suggestions may include choices." });
+    }
+  });
+export type JobExtractionNewField = z.infer<typeof jobExtractionNewFieldSchema>;
+
 export const jobExtractionResultSchema = z
-  .object({ proposals: z.array(jobExtractionProposalSchema).max(32) })
+  .object({
+    proposals: z.array(jobExtractionProposalSchema).max(32),
+    newFields: z.array(jobExtractionNewFieldSchema).max(8).default([]),
+  })
   .strict()
   .refine(
     (result) => new Set(result.proposals.map((proposal) => proposal.fieldId)).size === result.proposals.length,
     { message: "Each discovery field may be proposed only once." },
+  )
+  .refine(
+    (result) => new Set(result.newFields.map((field) => field.label.toLocaleLowerCase())).size === result.newFields.length,
+    { message: "Each suggested new field needs a unique name." },
   );
 export type JobExtractionResult = z.infer<typeof jobExtractionResultSchema>;
 
@@ -337,6 +364,7 @@ export const providerJobExtractionResultSchema = z
           .strict(),
       )
       .max(32),
+    newFields: z.array(jobExtractionNewFieldSchema).max(8).default([]),
   })
   .strict()
   .refine(

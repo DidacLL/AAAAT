@@ -126,7 +126,7 @@ describe("selected candidature Focus", () => {
     expect(within(focus).getByText("Staff Platform Engineer")).toBeInTheDocument();
     expect(within(focus).queryByText("Private complete-edit detail")).not.toBeInTheDocument();
 
-    await user.click(within(focus).getByRole("button", { name: "Edit" }));
+    await user.click(within(focus).getByRole("button", { name: "Edit Role" }));
     expect(within(focus).getByRole("textbox")).toHaveValue("Staff Platform Engineer");
   });
 

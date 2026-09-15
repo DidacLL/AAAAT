@@ -37,8 +37,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("external CV content access control", () => {
-  it("keeps rendering disabled after content disclosure until separately confirmed", async () => {
+describe("external assistant access control", () => {
+  it("presents one understandable document permission while keeping render authorization advanced", async () => {
     current.mockResolvedValueOnce({ documentId: document.id, allowed: false, renderAllowed: false });
     update.mockResolvedValueOnce({ documentId: document.id, allowed: true, renderAllowed: false });
     updateRender.mockResolvedValueOnce({
@@ -59,19 +59,24 @@ describe("external CV content access control", () => {
       />,
     );
 
-    await user.click(
-      await screen.findByRole("button", { name: "Allow external assistants to read this CV content" }),
-    );
-    expect(update).toHaveBeenCalledWith({ documentId: document.id, allowed: true });
-    expect(screen.getByText("External rendering is not authorized.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "External assistant access" })).toBeInTheDocument();
+    const content = screen.getByRole("checkbox", { name: "Allow external assistant to use this CV" });
+    expect(content).not.toBeChecked();
+    expect(screen.queryByText("Advanced authorization")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Allow external PDF rendering" }));
-    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining("request local PDF rendering"));
+    await user.click(content);
+    expect(update).toHaveBeenCalledWith({ documentId: document.id, allowed: true });
+    expect(await screen.findByText("Advanced authorization")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Advanced authorization", { selector: "summary" }));
+    const renderAccess = screen.getByRole("checkbox", { name: "Allow external assistant to request local PDF rendering" });
+    expect(renderAccess).not.toBeChecked();
+    await user.click(renderAccess);
+    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining("local PDF render"));
     expect(updateRender).toHaveBeenCalledWith({ documentId: document.id, allowed: true });
-    expect(await screen.findByText(/external host may request AAAAT's normal local render/i)).toBeInTheDocument();
   });
 
-  it("revokes content and render authority together and disables permission changes while edits are unsaved", async () => {
+  it("revokes content and render authority together and disables permission changes while document edits are unsaved", async () => {
     current.mockResolvedValue({ documentId: document.id, allowed: true, renderAllowed: true });
     update.mockResolvedValue({ documentId: document.id, allowed: false, renderAllowed: false });
     installApi();
@@ -85,8 +90,10 @@ describe("external CV content access control", () => {
         onNotice={() => undefined}
       />,
     );
-    expect(await screen.findByRole("button", { name: "Revoke external CV content access" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Revoke external render authorization" })).toBeDisabled();
+    const content = await screen.findByRole("checkbox", { name: "Allow external assistant to use this CV" });
+    expect(content).toBeDisabled();
+    await user.click(screen.getByText("Advanced authorization", { selector: "summary" }));
+    expect(screen.getByRole("checkbox", { name: "Allow external assistant to request local PDF rendering" })).toBeDisabled();
 
     rerender(
       <CvExternalContentAccessPanel
@@ -96,8 +103,9 @@ describe("external CV content access control", () => {
         onNotice={() => undefined}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Revoke external CV content access" }));
+    await user.click(screen.getByRole("checkbox", { name: "Allow external assistant to use this CV" }));
     expect(update).toHaveBeenCalledWith({ documentId: document.id, allowed: false });
-    expect(await screen.findByText("External rendering is not authorized.")).toBeInTheDocument();
+    expect(await screen.findByText("CV content is not shared.")).toBeInTheDocument();
+    expect(screen.queryByText("Advanced authorization")).not.toBeInTheDocument();
   });
 });

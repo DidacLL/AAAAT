@@ -18,8 +18,6 @@
 .candidature-toolbar h2,
 .candidature-editor-heading h3,
 .candidature-documents h3,
-.candidature-concepts h3,
-.concept-editor h3,
 .focus-heading h3,
 .focus-panel h4,
 .candidature-working-brief h3,
@@ -34,8 +32,7 @@
   gap: 12px;
 }
 
-.candidature-filters label,
-.concept-editor label {
+.candidature-filters label {
   display: grid;
   gap: 6px;
   color: var(--muted-ink);
@@ -43,10 +40,7 @@
 }
 
 .candidature-filters input,
-.candidature-filters select,
-.concept-editor input,
-.concept-editor select,
-.concept-editor textarea {
+.candidature-filters select {
   width: 100%;
   padding: 9px 10px;
   border: 1px solid var(--line);
@@ -174,8 +168,6 @@
 .candidature-working-brief p,
 .candidature-sources p,
 .candidature-documents p,
-.candidature-concepts p,
-.concept-editor p,
 .focus-panel p {
   margin: 4px 0 0;
   color: var(--muted-ink);
@@ -217,8 +209,7 @@
   color: var(--ink);
 }
 
-.candidature-fields textarea,
-.concept-editor textarea {
+.candidature-fields textarea {
   resize: vertical;
 }
 
@@ -227,7 +218,6 @@
 }
 
 .document-association-list,
-.concept-association-list,
 .source-card-list {
   display: grid;
   gap: 10px;
@@ -247,45 +237,11 @@
   background: white;
 }
 
-.focus-status {
-  max-width: 45%;
-  color: var(--muted-ink);
-  font-size: 0.9rem;
-  text-align: right;
-}
-
-.focus-next-action {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 10px 12px;
-  border-left: 3px solid var(--focus);
-  background: #fffdf9;
-}
-
-.focus-next-action span,
-.focus-next-action time {
-  color: var(--muted-ink);
-  font-size: 0.82rem;
-}
-
-.focus-next-action time {
-  margin-left: auto;
-}
-
-.focus-priority-block,
-.focus-block,
-.focus-documents,
-.focus-concepts,
-.selected-concept-definition {
+.focus-block {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fffdf9;
-}
-
-.focus-pitch {
-  border-left: 3px solid var(--focus);
 }
 
 .focus-grid {
@@ -296,49 +252,6 @@
 
 .focus-block p + p {
   margin-top: 8px;
-}
-
-.focus-add-action,
-.focus-add-card {
-  width: fit-content;
-  border-style: dashed;
-  background: transparent;
-  color: var(--muted-ink);
-}
-
-.focus-add-card {
-  width: 100%;
-  min-height: 72px;
-  text-align: left;
-}
-
-.focus-documents ul {
-  margin: 8px 0 0;
-  padding-left: 20px;
-}
-
-.concept-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.concept-chip {
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: white;
-  color: var(--ink);
-}
-
-.selected-concept-chip {
-  border-color: var(--focus);
-  box-shadow: inset 0 0 0 1px var(--focus);
-}
-
-.selected-concept-definition {
-  margin-top: 12px;
 }
 
 .job-extraction-panel,
@@ -375,8 +288,7 @@
 }
 
 .source-card,
-.source-reader-panel,
-.concept-association-card {
+.source-reader-panel {
   display: grid;
   gap: 8px;
   padding: 12px;
@@ -392,8 +304,7 @@
 }
 
 .source-card-heading span,
-.source-reference,
-.concept-association-card small {
+.source-reference {
   color: var(--muted-ink);
   font-size: 0.82rem;
 }
@@ -410,28 +321,11 @@
   white-space: pre-wrap;
 }
 
-.source-editor-panel,
-.concept-editor {
+.source-editor-panel {
   display: grid;
   gap: 12px;
   padding-top: 14px;
   border-top: 1px solid var(--line);
-}
-
-.concept-association-card label {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: start;
-  gap: 8px;
-}
-
-.concept-association-card label span {
-  display: grid;
-  gap: 2px;
-}
-
-.concept-association-card > button {
-  justify-self: start;
 }
 
 .button-row {
@@ -447,25 +341,19 @@
   border-radius: 8px;
 }
 
-.candidature-concepts-support,
 .optional-ai-assistance {
   border-top: 1px solid var(--line);
   padding-top: 12px;
   color: var(--muted-ink);
 }
 
-.candidature-concepts-support summary,
 .optional-ai-assistance summary {
   cursor: pointer;
   font-size: 0.9rem;
 }
 
-.candidature-concepts-support[open] > .section-surface,
 .optional-ai-content {
   margin-top: 12px;
-}
-
-.optional-ai-content {
   display: grid;
   gap: 14px;
 }
@@ -501,20 +389,6 @@
   .source-reader-heading {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .focus-status {
-    max-width: none;
-    text-align: left;
-  }
-
-  .focus-next-action {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .focus-next-action time {
-    margin-left: 0;
   }
 
   .candidature-section-nav {

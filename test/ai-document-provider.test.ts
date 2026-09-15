@@ -100,8 +100,13 @@ describe("document AI provider operations", () => {
       ),
     );
 
-    await expect(provider.draftCoverLetter(connection, context)).rejects.toThrow(
-      "invalid cover-letter draft",
-    );
+    await expect(provider.draftCoverLetter(connection, context)).rejects.toMatchObject({
+      diagnostic: expect.objectContaining({
+        operation: "cover_letter_draft",
+        failureKind: "operation_contract_invalid",
+        rawModelResponse: expect.stringContaining('"unsupported":"extra"'),
+        validationError: expect.stringContaining("unsupported"),
+      }),
+    });
   });
 });

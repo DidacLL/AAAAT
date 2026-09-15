@@ -148,7 +148,7 @@ test("packaged candidature document handoff returns to complete candidature with
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     await running.page.evaluate(async () => {
       await window.aaaat.candidatures.create({
@@ -165,15 +165,15 @@ test("packaged candidature document handoff returns to complete candidature with
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Handoff opportunity" });
-    await card.getByRole("button", { name: "Edit candidature" }).click();
+    await card.getByRole("button", { name: "All details" }).click();
     await expect(running.page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
 
     const complete = running.page.getByRole("region", { name: "Complete candidature" });
-    const material = complete.getByRole("region", { name: "Application material" });
-    await material.getByRole("button", { name: "Create CV or letter for this candidature" }).click();
+    const material = complete.getByRole("region", { name: "Documents" });
+    await material.getByRole("button", { name: "Create CV or letter" }).click();
 
-    const documents = running.page.getByRole("region", { name: "CVs & letters" });
-    await expect(documents).toContainText("New work will be associated with Handoff opportunity.");
+    const documents = running.page.getByRole("region", { name: "Documents" });
+    await expect(documents).toContainText("New work will be linked to Handoff opportunity.");
     await documents.locator(".document-create").getByLabel("Title").fill("Handoff CV");
     await documents.getByRole("button", { name: "Create CV" }).click();
     await expect(documents.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
@@ -182,8 +182,8 @@ test("packaged candidature document handoff returns to complete candidature with
     const returnedComplete = running.page.getByRole("region", { name: "Complete candidature" });
     await expect(returnedComplete).toBeVisible();
     await expect(running.page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
-    const returnedMaterial = returnedComplete.getByRole("region", { name: "Application material" });
-    const working = returnedMaterial.getByRole("region", { name: "Working application documents" });
+    const returnedMaterial = returnedComplete.getByRole("region", { name: "Documents" });
+    const working = returnedMaterial.getByRole("region", { name: "CVs and letters for this candidature" });
     await expect(working.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
 
     const association = await running.page.evaluate(async () => {
@@ -199,21 +199,21 @@ test("packaged candidature document handoff returns to complete candidature with
     await associationDetails.locator("summary").click();
     const associationDraft = associationDetails.getByRole("checkbox", { name: "Handoff CV (CV)" });
     await associationDraft.uncheck();
-    await expect(associationDetails.getByRole("button", { name: "Save document associations" })).toBeEnabled();
+    await expect(associationDetails.getByRole("button", { name: "Save links" })).toBeEnabled();
 
-    await working.getByRole("button", { name: "Open in CVs & letters" }).click();
+    await working.getByRole("button", { name: "Open document" }).click();
     await expect(documents.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
     await documents.getByRole("button", { name: "Return to Handoff opportunity" }).click();
 
     const roundTripMaterial = running.page
       .getByRole("region", { name: "Complete candidature" })
-      .getByRole("region", { name: "Application material" });
+      .getByRole("region", { name: "Documents" });
     const roundTripAssociations = roundTripMaterial.locator("details.application-material-associations");
     if ((await roundTripAssociations.getAttribute("open")) === null) {
       await roundTripAssociations.locator("summary").click();
     }
     await expect(roundTripAssociations.getByRole("checkbox", { name: "Handoff CV (CV)" })).not.toBeChecked();
-    await expect(roundTripAssociations.getByRole("button", { name: "Save document associations" })).toBeEnabled();
+    await expect(roundTripAssociations.getByRole("button", { name: "Save links" })).toBeEnabled();
 
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {

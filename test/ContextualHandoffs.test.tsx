@@ -61,9 +61,9 @@ vi.mock("../src/renderer/ProfileWorkspace", () => ({
   }) => {
     const handoffs = useContextualHandoffs();
     return (
-      <section aria-label="Mock professional information">
+      <section aria-label="Mock My information">
         <p>Item {initialItemId ?? "overview"}</p>
-        <button type="button" onClick={() => onDirtyChange?.(true)}>Make professional information dirty</button>
+        <button type="button" onClick={() => onDirtyChange?.(true)}>Make My information dirty</button>
         <button
           type="button"
           onClick={() => {
@@ -136,9 +136,9 @@ describe("contextual handoff coordination", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
+    await user.click(await screen.findByRole("button", { name: "Documents" }));
     await user.click(screen.getByRole("button", { name: "Open reusable source" }));
-    expect(screen.getByRole("region", { name: "Mock professional information" })).toHaveTextContent(
+    expect(screen.getByRole("region", { name: "Mock My information" })).toHaveTextContent(
       "Item item-1",
     );
 
@@ -150,7 +150,7 @@ describe("contextual handoff coordination", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
+    await user.click(await screen.findByRole("button", { name: "Documents" }));
     const documentRegion = screen.getByRole("region", { name: "Mock documents" });
     await user.click(screen.getByRole("button", { name: "Open render settings" }));
     expect(screen.getByRole("region", { name: "Mock settings" })).toHaveTextContent(
@@ -178,36 +178,36 @@ describe("contextual handoff coordination", () => {
     expect(screen.getByRole("region", { name: "Mock candidatures" })).toBe(candidatureRegion);
   });
 
-  it("does not discard dirty Professional information through the shell return", async () => {
+  it("does not discard dirty My information through the shell return", async () => {
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<App />);
 
-    await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
+    await user.click(await screen.findByRole("button", { name: "Documents" }));
     await user.click(screen.getByRole("button", { name: "Open reusable source" }));
-    await user.click(screen.getByRole("button", { name: "Make professional information dirty" }));
+    await user.click(screen.getByRole("button", { name: "Make My information dirty" }));
     await user.click(screen.getByRole("button", { name: "Return to document" }));
 
     expect(confirm).toHaveBeenCalledWith(
-      "Discard unsaved professional-information edits and return to document?",
+      "Discard unsaved My information edits and return to document?",
     );
-    expect(screen.getByRole("region", { name: "Mock professional information" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Mock My information" })).toBeVisible();
   });
 
-  it("does not let professional-information save bypass a dirty career-preferences draft", async () => {
+  it("does not let My information save bypass a dirty career-preferences draft", async () => {
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<App />);
 
-    await user.click(await screen.findByRole("button", { name: "CVs & letters" }));
+    await user.click(await screen.findByRole("button", { name: "Documents" }));
     await user.click(screen.getByRole("button", { name: "Open reusable source" }));
     await user.click(screen.getByRole("button", { name: "Make career preferences dirty" }));
     await user.click(screen.getByRole("button", { name: "Save handed-off item" }));
 
     expect(confirm).toHaveBeenCalledWith(
-      "Discard unsaved professional-information edits and return to document?",
+      "Discard unsaved My information edits and return to document?",
     );
-    expect(screen.getByRole("region", { name: "Mock professional information" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Mock My information" })).toBeVisible();
     expect(screen.getByRole("region", { name: "Mock career preferences" })).toBeVisible();
   });
 
@@ -236,11 +236,11 @@ describe("contextual handoff coordination", () => {
     await user.click(screen.getByRole("button", { name: "Open linked document" }));
     const documentRegion = screen.getByRole("region", { name: "Mock documents" });
 
-    await user.click(screen.getByRole("button", { name: "Professional information" }));
+    await user.click(screen.getByRole("button", { name: "My information" }));
 
     expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and leave this workspace area?");
     expect(documentRegion).toBeVisible();
     expect(candidatureRegion).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Mock professional information" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Mock My information" })).not.toBeInTheDocument();
   });
 });

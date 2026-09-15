@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
+  CandidatureFieldPreferences,
+  CandidatureFieldUpdate,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
 
@@ -11,7 +13,14 @@ interface Props {
   readonly onSave: (value: CandidatureRuntimeValue) => Promise<void>;
   readonly onClear: () => Promise<void>;
   readonly onDiscover?: () => void | Promise<void>;
+  readonly onUpdateField?: (update: CandidatureFieldUpdate) => Promise<void>;
+  readonly onUpdatePreferences?: (patch: Partial<CandidatureFieldPreferences>) => Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
+  readonly initialEditing?: boolean;
+  readonly saveLabel?: string;
+  readonly clearLabel?: string;
+  readonly discoverLabel?: string;
+  readonly showFieldControls?: boolean;
 }
 
 function textFor(value: CandidatureRuntimeValue | undefined): string {
@@ -50,11 +59,20 @@ export function CandidatureFieldValueEditor({
   onSave,
   onClear,
   onDiscover,
+  onUpdateField,
+  onUpdatePreferences,
   onDirtyChange,
+  initialEditing = false,
+  saveLabel = "Save",
+  clearLabel = "Clear",
+  discoverLabel = "Ask AI to fill",
+  showFieldControls = true,
 }: Props) {
-  const [editing, setEditing] = useState(value === undefined);
+  const [editing, setEditing] = useState(initialEditing);
   const [text, setText] = useState(textFor(value));
   const [choices, setChoices] = useState<string[]>(choicesFor(field, value));
+  const [definitionName, setDefinitionName] = useState(field.definition.label);
+  const [definitionDescription, setDefinitionDescription] = useState(field.definition.description);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onDirtyChangeRef = useRef(onDirtyChange);
@@ -63,14 +81,22 @@ export function CandidatureFieldValueEditor({
     onDirtyChangeRef.current = onDirtyChange;
   }, [onDirtyChange]);
 
-  const dirty =
+  const valueDirty =
     editing &&
     (text !== textFor(value) || JSON.stringify(choices) !== JSON.stringify(choicesFor(field, value)));
+  const definitionDirty =
+    editing &&
+    showFieldControls &&
+    onUpdateField !== undefined &&
+    (definitionName !== field.definition.label || definitionDescription !== field.definition.description);
+  const dirty = valueDirty || definitionDirty;
 
   useEffect(() => {
     if (dirty) return;
     setText(textFor(value));
     setChoices(choicesFor(field, value));
+    setDefinitionName(field.definition.label);
+    setDefinitionDescription(field.definition.description);
     setError(null);
   }, [dirty, field, value]);
 
@@ -128,10 +154,25 @@ export function CandidatureFieldValueEditor({
     return text;
   };
 
+  const persistDefinition = async () => {
+    if (!definitionDirty || !onUpdateField) return;
+    await onUpdateField({
+      id: field.definition.id,
+      label: definitionName.trim(),
+      description: definitionDescription,
+      valueType: field.definition.valueType,
+      cardinality: field.definition.cardinality,
+      choices: field.definition.choices,
+      enabled: field.definition.enabled,
+    });
+  };
+
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
+      if (!definitionName.trim()) throw new Error("Information name cannot be empty.");
+      await persistDefinition();
       const parsed = parsedValue();
       if (parsed === null || (Array.isArray(parsed) && parsed.length === 0)) {
         await onClear();
@@ -140,7 +181,7 @@ export function CandidatureFieldValueEditor({
       }
       setEditing(false);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not save this value.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save this information.");
     } finally {
       setBusy(false);
     }
@@ -150,10 +191,11 @@ export function CandidatureFieldValueEditor({
     setBusy(true);
     setError(null);
     try {
+      await persistDefinition();
       await onClear();
       setEditing(false);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not clear this value.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not clear this information.");
     } finally {
       setBusy(false);
     }
@@ -161,12 +203,22 @@ export function CandidatureFieldValueEditor({
 
   const discover = async () => {
     if (!onDiscover) return;
-    setBusy(true);
     setError(null);
     try {
       await onDiscover();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not discover this value.");
+      setError(reason instanceof Error ? reason.message : "AAAAT could not request an AI suggestion.");
+    }
+  };
+
+  const updatePreferences = async (patch: Partial<CandidatureFieldPreferences>) => {
+    if (!onUpdatePreferences) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onUpdatePreferences(patch);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save this information setting.");
     } finally {
       setBusy(false);
     }
@@ -175,21 +227,41 @@ export function CandidatureFieldValueEditor({
   const cancel = () => {
     setText(textFor(value));
     setChoices(choicesFor(field, value));
+    setDefinitionName(field.definition.label);
+    setDefinitionDescription(field.definition.description);
     setError(null);
     setEditing(false);
   };
 
-  if (value !== undefined && !editing) {
+  if (!editing) {
     return (
       <div className="candidature-value-editor candidature-value-reader">
-        <p style={{ margin: 0, overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}>
-          {displayValue(field, value)}
+        <p className={value === undefined ? "candidature-missing-value" : undefined}>
+          {value === undefined ? "Not set" : displayValue(field, value)}
         </p>
-        <div className="button-row">
-          <button type="button" className="compact-secondary" onClick={() => setEditing(true)}>
-            Edit
+        <div className="candidature-field-affordances">
+          <button
+            type="button"
+            className="candidature-icon-button"
+            aria-label={`Edit ${field.definition.label}`}
+            title="Edit"
+            onClick={() => setEditing(true)}
+          >
+            <span aria-hidden="true">✎</span>
           </button>
+          {onDiscover ? (
+            <button
+              type="button"
+              className="candidature-icon-button candidature-ai-button"
+              aria-label={`Ask AI to fill ${field.definition.label}`}
+              title={discoverLabel}
+              onClick={() => void discover()}
+            >
+              <span aria-hidden="true">✦</span>
+            </button>
+          ) : null}
         </div>
+        {error ? <p className="error-message" role="alert">{error}</p> : null}
       </div>
     );
   }
@@ -271,23 +343,81 @@ export function CandidatureFieldValueEditor({
   })();
 
   return (
-    <div className="candidature-value-editor">
-      {input}
-      <div className="button-row">
-        <button type="button" disabled={busy} onClick={() => void save()}>Save</button>
+    <div className="candidature-value-editor candidature-value-editor-active">
+      {showFieldControls && onUpdateField ? (
+        <div className="candidature-field-definition-inline">
+          <label>
+            Name
+            <input
+              value={definitionName}
+              disabled={busy}
+              onChange={(event) => setDefinitionName(event.target.value)}
+            />
+          </label>
+          <label>
+            Details <span className="compact-help">optional</span>
+            <input
+              value={definitionDescription}
+              disabled={busy}
+              onChange={(event) => setDefinitionDescription(event.target.value)}
+            />
+          </label>
+        </div>
+      ) : null}
+
+      <label className="candidature-value-input">
+        Value
+        {input}
+      </label>
+
+      {showFieldControls && onUpdatePreferences ? (
+        <div className="candidature-field-inline-controls">
+          <label>
+            <input
+              type="checkbox"
+              checked={field.preferences.focusVisible}
+              disabled={busy}
+              onChange={(event) => void updatePreferences({ focusVisible: event.target.checked })}
+            />
+            Show in Focus
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={field.preferences.aiContextMode === "expose"}
+              disabled={busy}
+              onChange={(event) =>
+                void updatePreferences({ aiContextMode: event.target.checked ? "expose" : "omit" })
+              }
+            />
+            Allow AI to use this information
+          </label>
+          {field.preferences.aiContextMode === "token" ? (
+            <small>This field currently uses a local placeholder for AI context. Changing the toggle replaces that advanced setting.</small>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="button-row candidature-field-edit-actions">
+        <button type="button" disabled={busy} onClick={() => void save()}>{saveLabel}</button>
         {value !== undefined ? (
-          <>
-            <button type="button" className="compact-secondary" disabled={busy} onClick={() => void clear()}>
-              Clear
-            </button>
-            <button type="button" className="compact-secondary" disabled={busy} onClick={cancel}>
-              Cancel
-            </button>
-          </>
+          <button type="button" className="compact-secondary" disabled={busy} onClick={() => void clear()}>
+            {clearLabel}
+          </button>
         ) : null}
+        <button type="button" className="compact-secondary" disabled={busy} onClick={cancel}>
+          Cancel
+        </button>
         {onDiscover ? (
-          <button type="button" className="compact-secondary" disabled={busy} onClick={() => void discover()}>
-            Discover from Sources
+          <button
+            type="button"
+            className="candidature-icon-button candidature-ai-button"
+            aria-label={`Ask AI to fill ${field.definition.label}`}
+            title={discoverLabel}
+            disabled={busy}
+            onClick={() => void discover()}
+          >
+            <span aria-hidden="true">✦</span>
           </button>
         ) : null}
       </div>

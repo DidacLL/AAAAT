@@ -6,7 +6,7 @@ import path from "node:path";
 
 import { chromium, expect, test, type Browser, type Page } from "@playwright/test";
 
-test.skip(process.platform !== "linux", "The packaged professional-information journey runs once on Linux");
+test.skip(process.platform !== "linux", "The packaged My information journey runs once on Linux");
 
 function packagedExecutable(): string {
   return path.resolve("out", `AAAAT-${process.platform}-${process.arch}`, "aaaat");
@@ -161,11 +161,22 @@ async function expectNoHorizontalOverflow(page: Page, width: number, height: num
   expect(geometry.innerHeight).toBe(height);
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
   console.log(
-    `[packaged professional information] window=${String(width)}x${String(height)} state=${state} horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
+    `[packaged My information] window=${String(width)}x${String(height)} state=${state} horizontal-overflow=${String(geometry.scrollWidth - geometry.clientWidth)}`,
   );
 }
 
-test("packaged Professional information is read-first and compact-task oriented", async () => {
+async function expectRepresentativeResizeCoverage(page: Page, state: string) {
+  for (const [width, height] of [
+    [1280, 900],
+    [1180, 760],
+    [720, 760],
+    [1180, 600],
+  ] as const) {
+    await expectNoHorizontalOverflow(page, width, height, state);
+  }
+}
+
+test("packaged My information stays read-first across window samples", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-professional-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-professional-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
@@ -176,50 +187,51 @@ test("packaged Professional information is read-first and compact-task oriented"
     await expect(running.page).toHaveTitle("AAAAT");
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
-    await primary.getByRole("button", { name: "Professional information" }).click();
-    const workspace = running.page.getByRole("region", { name: "Professional information" });
-    await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
+    await primary.getByRole("button", { name: "My information" }).click();
+    const workspace = running.page.getByRole("region", { name: "My information" });
+    await expect(workspace.getByRole("heading", { name: "My information", exact: true })).toBeVisible();
     await expect(workspace.getByRole("button", { name: "Add information" })).toBeVisible();
     await expect(running.page.getByText("Canonical profile", { exact: true })).toHaveCount(0);
     await expect(running.page.getByText("Focused variants", { exact: true })).toHaveCount(0);
 
     const order = await running.page.evaluate(() => {
-      const profile = document.querySelector('[aria-label="Professional information"]');
+      const profile = document.querySelector('[aria-label="My information"]');
       const career = document.querySelector('[aria-label="Career preferences"]');
       if (!profile || !career) return null;
       return Boolean(profile.compareDocumentPosition(career) & Node.DOCUMENT_POSITION_FOLLOWING);
     });
     expect(order).toBe(true);
 
-    await expectNoHorizontalOverflow(running.page, 1200, 800, "overview");
-    await expectNoHorizontalOverflow(running.page, 720, 600, "overview");
+    await expectRepresentativeResizeCoverage(running.page, "overview");
 
     await workspace.getByRole("button", { name: "Add information" }).click();
     await expect(workspace.getByRole("heading", { name: "Add information", exact: true })).toBeVisible();
-    await expect(workspace.getByRole("button", { name: "Back to professional information" })).toBeVisible();
-    await expectNoHorizontalOverflow(running.page, 720, 600, "item-editor");
-    await workspace.getByRole("button", { name: "Back to professional information" }).click();
-    await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
+    await expect(workspace.getByRole("button", { name: "Back to My information" })).toBeVisible();
+    await expectNoHorizontalOverflow(running.page, 720, 760, "item-editor-narrow");
+    await expectNoHorizontalOverflow(running.page, 1180, 600, "item-editor-short");
+    await workspace.getByRole("button", { name: "Back to My information" }).click();
+    await expect(workspace.getByRole("heading", { name: "My information", exact: true })).toBeVisible();
 
     await workspace.getByRole("button", { name: "Create saved variation" }).click();
     await expect(workspace.getByRole("heading", { name: "Saved variations", exact: true })).toBeVisible();
     await expect(
       workspace.getByText(
-        "A saved variation is optional. With no differences, it simply uses your default professional information.",
+        "A saved variation is optional. With no differences, it simply uses My information.",
         { exact: true },
       ),
     ).toBeVisible();
     await expect(running.page.getByText("Difference-only", { exact: true })).toHaveCount(0);
     await expect(running.page.getByText("Override title", { exact: true })).toHaveCount(0);
-    await expectNoHorizontalOverflow(running.page, 720, 600, "saved-variations");
+    await expectNoHorizontalOverflow(running.page, 720, 760, "saved-variations-narrow");
+    await expectNoHorizontalOverflow(running.page, 1180, 600, "saved-variations-short");
 
-    await workspace.getByRole("button", { name: "Back to professional information" }).click();
-    await expect(workspace.getByRole("heading", { name: "Professional information", exact: true })).toBeVisible();
-    await expect(running.page.getByRole("region", { name: "Career preferences" })).toBeVisible();
-    console.log("[packaged professional information] compact return=true career-context-reachable=true");
+    await workspace.getByRole("button", { name: "Back to My information" }).click();
+    await expect(workspace.getByRole("heading", { name: "My information", exact: true })).toBeVisible();
+    await expect(running.page.locator('details[aria-label="Career preferences"]')).toBeVisible();
+    console.log("[packaged My information] compact return=true career-context-reachable=true");
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

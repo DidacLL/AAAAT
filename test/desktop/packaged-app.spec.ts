@@ -290,8 +290,8 @@ async function proveAcceptedShellAtWindowSize(
   const primary = page.getByRole("navigation", { name: "Primary work areas" });
   await expect(primary).toBeVisible();
   await expect(primary.getByRole("button", { name: "Candidatures" })).toBeVisible();
-  await expect(primary.getByRole("button", { name: "CVs & letters" })).toBeVisible();
-  await expect(primary.getByRole("button", { name: "Professional information" })).toBeVisible();
+  await expect(primary.getByRole("button", { name: "Documents" })).toBeVisible();
+  await expect(primary.getByRole("button", { name: "My information" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch workspace" })).toBeVisible();
 
@@ -315,8 +315,8 @@ async function proveCandidatureFlowAtWindowSize(
 ): Promise<void> {
   await proveAcceptedShellAtWindowSize(page, width, height);
 
-  await expect(page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
-  const search = page.getByRole("searchbox", { name: "Search candidatures" });
+  await expect(page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+  const search = page.getByRole("searchbox", { name: "Search" });
   const show = page.getByLabel("Show");
   const corpus = page.locator('[aria-label="Candidature corpus Focus"]');
   await expect(search).toBeVisible();
@@ -332,29 +332,29 @@ async function proveCandidatureFlowAtWindowSize(
 
   const selected = page.getByRole("region", { name: "Candidature Focus", exact: true });
   await expect(selected).toBeVisible();
-  await expect(selected.getByRole("button", { name: "Back to candidatures" })).toBeVisible();
-  await expect(selected.getByRole("button", { name: "Edit full candidature" })).toBeVisible();
+  await expect(selected.getByRole("button", { name: "Back" })).toBeVisible();
+  await expect(selected.getByRole("button", { name: "All details" })).toBeVisible();
   await expect(selected.getByRole("region", { name: "Selected candidature Focus" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Sources" })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Application material" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Documents" })).toHaveCount(0);
   await expect(page.locator("summary").filter({ hasText: "Activity" })).toHaveCount(0);
   await expect(page.getByText(/Concept/i)).toHaveCount(0);
 
-  await selected.getByRole("button", { name: "Back to candidatures" }).click();
+  await selected.getByRole("button", { name: "Back" }).click();
   await expect(search).toHaveValue("packaged smoke");
   await expect(show).toHaveValue("all");
   await expect(corpus).toBeVisible();
 
-  await page.getByRole("button", { name: "Edit candidature" }).click();
+  await page.getByRole("button", { name: "All details" }).click();
   const complete = page.getByRole("region", { name: "Complete candidature" });
   await expect(complete).toBeVisible();
   await expect(complete.getByRole("region", { name: "Candidature information" })).toBeVisible();
   await expect(complete.getByRole("region", { name: "Sources" })).toBeVisible();
   await expect(complete.getByRole("region", { name: "Tags" })).toBeVisible();
-  await expect(complete.getByRole("region", { name: "Application material" })).toBeVisible();
+  await expect(complete.getByRole("region", { name: "Documents" })).toBeVisible();
   await expect(page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
   await expect(page.getByText(/Concept/i)).toHaveCount(0);
-  await complete.getByRole("button", { name: "Back to candidatures" }).click();
+  await complete.getByRole("button", { name: "Back" }).click();
 
   await expect(search).toHaveValue("packaged smoke");
   await expect(show).toHaveValue("all");
@@ -396,27 +396,27 @@ async function proveDocumentWorkspace(
   openLogPath: string,
 ): Promise<void> {
   const primary = page.getByRole("navigation", { name: "Primary work areas" });
-  await primary.getByRole("button", { name: "CVs & letters" }).click();
+  await primary.getByRole("button", { name: "Documents" }).click();
 
   await proveAcceptedShellAtWindowSize(page, 720, 600);
-  const workspace = page.getByRole("region", { name: "CVs & letters" });
+  const workspace = page.getByRole("region", { name: "Documents" });
   const collection = workspace.locator(".documents-sidebar");
   const local = page.getByRole("tablist", { name: "Document work" });
   await expect(collection).toBeVisible();
   await expect(local).not.toBeVisible();
-  await expect(collection.getByRole("heading", { name: "CVs & letters" })).toBeVisible();
-  await expect(collection.getByLabel("Professional information")).toBeVisible();
+  await expect(collection.getByRole("heading", { name: "Documents" })).toBeVisible();
+  await expect(collection.getByLabel("Use information from")).toBeVisible();
   await expect(page.getByText("Canonical profile", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Profile basis", { exact: true })).toHaveCount(0);
 
   await collection.getByLabel("Title").fill("Packaged CV");
   await collection.getByRole("button", { name: "Create CV" }).click();
-  await expect(page.getByRole("button", { name: "Back to CVs & letters" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Back to Documents" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Packaged CV" })).toBeVisible();
   await expect(local).toBeVisible();
   await expect(local.getByRole("tab")).toHaveCount(3);
   await expect(local.getByRole("tab", { name: "Content" })).toBeVisible();
-  await expect(local.getByRole("tab", { name: "Professional information" })).toBeVisible();
+  await expect(local.getByRole("tab", { name: "My information" })).toBeVisible();
   await expect(local.getByRole("tab", { name: "Output" })).toBeVisible();
 
   const content = page.getByRole("tabpanel", { name: "Document content" });
@@ -438,8 +438,8 @@ async function proveDocumentWorkspace(
     `[packaged documents] window=720x600 state=selected local-nav-overflow=${String(localGeometry.scrollWidth - localGeometry.clientWidth)} horizontal-overflow=${String(pageGeometry.scrollWidth - pageGeometry.clientWidth)}`,
   );
 
-  await local.getByRole("tab", { name: "Professional information" }).click();
-  await expect(page.getByRole("tabpanel", { name: "Professional information in this document" })).toBeVisible();
+  await local.getByRole("tab", { name: "My information" }).click();
+  await expect(page.getByRole("tabpanel", { name: "My information in this document" })).toBeVisible();
   await local.getByRole("tab", { name: "Output" }).click();
   await expect(page.getByRole("tabpanel", { name: "Document output" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Rendered PDF result" })).toBeVisible();
@@ -459,7 +459,7 @@ async function proveDocumentWorkspace(
 
   await local.getByRole("tab", { name: "Content" }).click();
   await expect(content).toBeVisible();
-  await page.getByRole("button", { name: "Back to CVs & letters" }).click();
+  await page.getByRole("button", { name: "Back to Documents" }).click();
   await expect(collection).toBeVisible();
   await expect(local).not.toBeVisible();
   console.log("[packaged documents] window=720x600 state=collection return=true");
@@ -566,7 +566,7 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     await proveAcceptedShellAtWindowSize(running.page, 1200, 800);
     await proveAcceptedShellAtWindowSize(running.page, 720, 600);
@@ -579,7 +579,8 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     await expect(running.page.getByRole("button", { name: "ToDos" })).toHaveCount(0);
     await expect(running.page.getByRole("button", { name: "AI assist" })).toHaveCount(0);
     await expect(running.page.getByRole("button", { name: "Profile" })).toHaveCount(0);
-    await expect(running.page.getByRole("button", { name: "Documents" })).toHaveCount(0);
+    await expect(running.page.getByRole("button", { name: "CVs & letters" })).toHaveCount(0);
+    await expect(running.page.getByRole("button", { name: "Professional information" })).toHaveCount(0);
 
     const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
     expect(existsSync(databasePath)).toBe(true);
@@ -657,7 +658,7 @@ test("packaged desktop preserves security gates and required bounded capabilitie
 
     running = await startPackagedApp(isolatedUserData, linuxHome, linuxDocumentTools);
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
-    await expect(running.page.getByRole("heading", { name: "Candidatures" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
     await proveCandidatureFlowAtWindowSize(running.page, 1200, 800);
     await proveCandidatureFlowAtWindowSize(running.page, 720, 600);
     if (!linuxDocumentTools) throw new Error("Linux document tools are required for packaged evidence");

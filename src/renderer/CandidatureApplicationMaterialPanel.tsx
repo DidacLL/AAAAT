@@ -14,7 +14,7 @@ function artifactKind(artifact: ApplicationArtifactRecord): string {
     case "cover_letter":
       return "Cover letter";
     case "combined":
-      return "combined CV + cover letter";
+      return "CV + cover letter";
   }
 }
 
@@ -60,7 +60,7 @@ export function CandidatureApplicationMaterialPanel({
         setArtifactState({
           candidatureId: candidature.id,
           artifacts: [],
-          error: "AAAAT could not load retained application artifacts.",
+          error: "AAAAT could not load saved application PDFs.",
           loaded: true,
         });
       });
@@ -92,48 +92,47 @@ export function CandidatureApplicationMaterialPanel({
       setArtifactOpenFailure({
         candidatureId: candidature.id,
         error:
-          reason instanceof Error ? reason.message : "AAAAT could not open the retained application PDF.",
+          reason instanceof Error ? reason.message : "AAAAT could not open the saved application PDF.",
       });
     }
   };
 
   return (
-    <section className="candidature-documents section-surface" aria-label="Application material">
+    <section className="candidature-documents section-surface" aria-label="Documents">
       <div className="candidature-editor-heading">
         <div>
-          <p className="eyebrow">Application material</p>
-          <h3>Application material</h3>
-          <p>Working documents and retained exact material that belong to this candidature.</p>
+          <p className="eyebrow">Documents</p>
+          <h3>Documents</h3>
+          <p>CVs and letters are edited in Documents. This shows the documents linked to this candidature and PDFs you saved from them.</p>
         </div>
         <button type="button" onClick={() => onOpenDocument()}>
-          Create CV or letter for this candidature
+          Create CV or letter
         </button>
       </div>
 
       {currentArtifactState.loaded && !hasMaterial && !currentArtifactState.error ? (
         <p className="compact-empty">
-          No application material belongs to this candidature yet. Create a CV or cover letter, or
-          associate an existing working document if useful.
+          No documents are linked to this candidature yet.
         </p>
       ) : null}
 
       {associatedDocuments.length > 0 ? (
-        <section aria-label="Working application documents">
-          <h4>Working documents</h4>
+        <section aria-label="CVs and letters for this candidature">
+          <h4>CVs &amp; letters for this candidature</h4>
           <div className="document-association-list">
             {associatedDocuments.map((document) => (
               <article className="retained-information-card" key={document.id}>
                 <div>
-                  <p className="eyebrow">Working {documentKind(document)}</p>
+                  <p className="eyebrow">{documentKind(document)}</p>
                   <h4>{document.title}</h4>
-                  <p>This is a mutable working document, not a retained exact application artifact.</p>
+                  <p>Editable document</p>
                 </div>
                 <button
                   type="button"
                   className="compact-secondary"
                   onClick={() => onOpenDocument(document.id)}
                 >
-                  Open in CVs &amp; letters
+                  Open document
                 </button>
               </article>
             ))}
@@ -146,22 +145,22 @@ export function CandidatureApplicationMaterialPanel({
       ) : null}
       {artifactOpenError ? <p className="error-message" role="alert">{artifactOpenError}</p> : null}
       {currentArtifactState.artifacts.length > 0 ? (
-        <section aria-label="Retained application artifacts">
-          <h4>Retained exact artifacts</h4>
+        <section aria-label="Saved application PDFs">
+          <h4>Saved application PDFs</h4>
           <div className="document-association-list">
             {currentArtifactState.artifacts.map((artifact) => (
               <article className="retained-information-card" key={artifact.id}>
                 <div>
-                  <p className="eyebrow">Retained exact {artifactKind(artifact)} artifact</p>
+                  <p className="eyebrow">Saved {artifactKind(artifact)}</p>
                   <h4>{artifact.title}</h4>
-                  <p>Captured {new Date(artifact.capturedAt).toLocaleString()}</p>
+                  <p>Saved {new Date(artifact.capturedAt).toLocaleString()}</p>
                 </div>
                 <button
                   type="button"
                   className="compact-secondary"
                   onClick={() => void openArtifact(artifact.id)}
                 >
-                  Open retained PDF
+                  Open PDF
                 </button>
               </article>
             ))}
@@ -170,12 +169,12 @@ export function CandidatureApplicationMaterialPanel({
       ) : null}
 
       <details className="application-material-associations">
-        <summary>Manage existing document associations</summary>
+        <summary>Link an existing CV or letter</summary>
         <p className="compact-help">
-          Associate or remove mutable working documents without changing retained exact artifacts.
+          Link an existing editable document to this candidature. Saved PDFs are not changed.
         </p>
         {documents.length === 0 ? (
-          <p className="compact-empty">No existing CVs or cover letters are available to associate.</p>
+          <p className="compact-empty">No existing CVs or letters are available.</p>
         ) : (
           <div className="document-association-list">
             {documents.map((document) => (
@@ -197,7 +196,7 @@ export function CandidatureApplicationMaterialPanel({
           </div>
         )}
         <button type="button" disabled={!documentSelectionDirty} onClick={onSaveDocuments}>
-          Save document associations
+          Save links
         </button>
       </details>
     </section>

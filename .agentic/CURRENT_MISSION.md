@@ -18,8 +18,8 @@ Treat the post-merge owner acceptance comment on #314 as blocking scope. In part
 - Field-definition capability remains user-owned but lives one deliberate step deeper in complete candidature work, close to the information it affects.
 - Direct candidature creation is low-friction and coherent, not a page-long sequence of isolated field editors with per-field Save buttons.
 - The two creation approaches remain explicit peers, but visible wording must be ordinary/user-facing rather than implementation vocabulary.
-- Use maximized/default/minimum desktop space productively; one principal task gets the useful area and fixed narrow centered layouts/excessive blank space are not acceptable.
-- First-run workspace selection must fit the supported default/minimum window without scrolling; branding must scale around the task.
+- Use the available desktop window productively across constrained, default and maximized sizes; one principal task gets the useful area and fixed narrow centered layouts/excessive blank space are not acceptable.
+- First-run workspace selection must remain usable in constrained windows without clipping; branding must scale around the task.
 - Professional information is read-first; saved variations and privacy/AI disclosure are secondary until relevant.
 - AI disclosure is contextual, compact and understandable near the affected information, not permanent first-sight checkbox-console chrome or protocol/security jargon.
 - Local storage, Focus visibility and AI disclosure remain independent semantics without forcing the user to understand the internal model.
@@ -47,8 +47,10 @@ Use current explicit Product Owner instruction first, then `PRODUCT_DEFINITION.m
 
 Do not treat merged renderer structure, historical mockups, component boundaries, existing CSS, or tests that merely assert visible text as design authority.
 
+Concrete viewport dimensions used by tests or screenshots are verification samples only. They do not define product meaning or a supported fixed/minimum window contract. The product contract is adaptive/resizable behavior: use available space well, stack/reflow/scroll when constrained, and avoid clipping.
+
 ## Completion boundary
 
-#314 is not complete again until the owner-visible UI is coherently recomposed around the recovered product intentions and is genuinely usable at default and `720×600` sizes without first-sight developer/admin clutter.
+#314 is not complete again until the owner-visible UI is coherently recomposed around the recovered product intentions and remains genuinely usable across constrained, default and maximized desktop windows.
 
 Do not activate a successor product issue before this acceptance gap is closed.

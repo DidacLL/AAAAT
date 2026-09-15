@@ -145,12 +145,13 @@ describe("candidature creation", () => {
     vi.restoreAllMocks();
   });
 
-  it("offers field-by-field and raw-material creation as peer entrances", async () => {
+  it("offers direct field entry and raw-material capture as peer entrances", async () => {
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    expect(screen.getByRole("button", { name: "New candidature — fill fields" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "New candidature — paste raw material" })).toBeVisible();
+    const creation = screen.getByRole("group", { name: "Create candidature" });
+    expect(within(creation).getByRole("button", { name: "Fill fields directly" })).toBeVisible();
+    expect(within(creation).getByRole("button", { name: "Paste raw material" })).toBeVisible();
   });
 
   it("keeps raw capture transient until raw material is explicitly retained", async () => {
@@ -159,12 +160,12 @@ describe("candidature creation", () => {
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "New candidature — paste raw material" }));
+    await user.click(screen.getByRole("button", { name: "Paste raw material" }));
 
     expect(create).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Keep raw material" })).toBeDisabled();
-    await user.type(screen.getByLabelText("Candidature material"), phrase);
-    expect(screen.getByRole("button", { name: "Keep raw material" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save Source" })).toBeDisabled();
+    await user.type(screen.getByLabelText("Raw material"), phrase);
+    expect(screen.getByRole("button", { name: "Save Source" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(confirm).toHaveBeenCalledWith("Discard this unsaved candidature capture?");
@@ -177,37 +178,38 @@ describe("candidature creation", () => {
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "New candidature — paste raw material" }));
-    await user.type(screen.getByLabelText("Candidature material"), phrase);
-    await user.click(screen.getByRole("button", { name: "Keep raw material" }));
+    await user.click(screen.getByRole("button", { name: "Paste raw material" }));
+    await user.type(screen.getByLabelText("Raw material"), phrase);
+    await user.click(screen.getByRole("button", { name: "Save Source" }));
 
     expect(create).toHaveBeenCalledWith({
       source: { kind: "other", title: "", url: "", sourceText: phrase },
       values: [],
     });
     const choice = await screen.findByRole("region", { name: "Raw candidature saved" });
-    expect(within(choice).getByRole("button", { name: "Send to AI" })).toBeEnabled();
-    expect(within(choice).getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
+    const continuations = within(choice).getByRole("group", { name: "Continue from saved Source" });
+    expect(within(continuations).getByRole("button", { name: "Send to AI" })).toBeEnabled();
+    expect(within(continuations).getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
     expect(within(choice).getByText(phrase)).toBeVisible();
   });
 
-  it("keeps manual post-paste filling fully available without AI", async () => {
+  it("keeps manual post-paste filling complete while making missing AI setup actionable", async () => {
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "New candidature — paste raw material" }));
-    await user.type(screen.getByLabelText("Candidature material"), phrase);
-    await user.click(screen.getByRole("button", { name: "Keep raw material" }));
+    await user.click(screen.getByRole("button", { name: "Paste raw material" }));
+    await user.type(screen.getByLabelText("Raw material"), phrase);
+    await user.click(screen.getByRole("button", { name: "Save Source" }));
 
     const choice = await screen.findByRole("region", { name: "Raw candidature saved" });
-    expect(within(choice).getByRole("button", { name: "Send to AI" })).toBeDisabled();
+    expect(within(choice).getByRole("button", { name: "Set up AI suggestions" })).toBeEnabled();
+    expect(within(choice).getByText(/validated connection/i)).toBeInTheDocument();
     await user.click(within(choice).getByRole("button", { name: "Fill candidature yourself" }));
 
     const manual = await screen.findByRole("region", { name: "Fill candidature yourself" });
-    expect(within(manual).getByRole("region", { name: "Raw candidature material" })).toHaveTextContent(phrase);
-    expect(within(manual).getByRole("region", { name: "Candidature fields" })).toBeVisible();
-    expect(within(manual).getByRole("heading", { name: "Role" })).toBeVisible();
+    expect(within(manual).getByRole("region", { name: "Pasted candidature material" })).toHaveTextContent(phrase);
+    expect(within(manual).getByRole("form", { name: "Candidature information" })).toBeVisible();
   });
 
   it("supports direct field-by-field creation without requiring a Source", async () => {
@@ -215,32 +217,12 @@ describe("candidature creation", () => {
     render(<CandidaturesAiWorkspace />);
 
     await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "New candidature — fill fields" }));
+    await user.click(screen.getByRole("button", { name: "Fill fields directly" }));
 
-    const manual = await screen.findByRole("region", { name: "Fill candidature fields" });
+    const manual = await screen.findByRole("region", { name: "Fill fields directly" });
     await user.type(within(manual).getByRole("textbox"), "Captain");
-    await user.click(within(manual).getByRole("button", { name: "Save" }));
+    await user.click(within(manual).getByRole("button", { name: "Save candidature" }));
 
     expect(create).toHaveBeenCalledWith({ values: [{ fieldId, value: "Captain" }] });
-  });
-
-  it("does not start creation over unsaved field-definition edits without confirmation", async () => {
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const user = userEvent.setup();
-    render(<CandidaturesAiWorkspace />);
-
-    await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByText("Manage candidature fields", { selector: "summary" }));
-    const editor = screen.getByRole("region", { name: "Edit candidature field" });
-    await user.selectOptions(within(editor).getByLabelText("Field"), fieldId);
-    const name = within(editor).getByLabelText("Name");
-    await user.clear(name);
-    await user.type(name, "Position title");
-
-    await user.click(screen.getByRole("button", { name: "New candidature — paste raw material" }));
-
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits and start a new candidature?");
-    expect(screen.queryByRole("region", { name: "New candidature raw capture" })).not.toBeInTheDocument();
-    expect(name).toHaveValue("Position title");
   });
 });
