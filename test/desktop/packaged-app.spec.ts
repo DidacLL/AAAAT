@@ -567,7 +567,7 @@ test("packaged demo workspace exposes offer, prompt guidance, and reset", async 
     await expect(coverPrompt).toContainText("Prefer short paragraphs in packaged verification.");
 
     await running.page.getByRole("button", { name: "Back to Settings" }).click();
-    await running.page.getByRole("button", { name: "Workspace", exact: true }).click();
+    await running.page.getByRole("button", { name: /^Workspace\b/ }).click();
     const reset = running.page.getByRole("region", { name: "Reset workspace" });
     await expect(reset.getByRole("button", { name: "Reset workspace" })).toBeVisible();
     running.page.once("dialog", (dialog) => void dialog.accept());
