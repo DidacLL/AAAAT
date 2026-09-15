@@ -227,7 +227,7 @@ function prepareLinuxDocumentTools(): LinuxDocumentTools {
   return { rootPath, openLogPath };
 }
 
-function chooseLinuxDirectory(): void {
+function chooseLinuxDemoDirectory(): void {
   execFileSync(
     "bash",
     [
@@ -236,7 +236,7 @@ function chooseLinuxDirectory(): void {
         "set -eu",
         "window=''",
         "for attempt in $(seq 1 100); do",
-        "  window=$(xdotool search --onlyvisible --name 'Create or select an AAAAT workspace' 2>/dev/null | tail -n 1 || true)",
+        "  window=$(xdotool search --onlyvisible --name 'Create a demo AAAAT workspace' 2>/dev/null | tail -n 1 || true)",
         "  if [ -n \"$window\" ]; then break; fi",
         "  sleep 0.1",
         "done",
@@ -348,6 +348,7 @@ async function proveCandidatureFlowAtWindowSize(
   await page.getByRole("button", { name: "All details" }).click();
   const complete = page.getByRole("region", { name: "Complete candidature" });
   await expect(complete).toBeVisible();
+  await expect(complete.getByRole("region", { name: "Retained offer" })).toBeVisible();
   await expect(complete.getByRole("region", { name: "Candidature information" })).toBeVisible();
   await expect(complete.getByRole("region", { name: "Sources" })).toBeVisible();
   await expect(complete.getByRole("region", { name: "Tags" })).toBeVisible();
@@ -523,6 +524,7 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     ).toBeVisible();
     await expect(running.page.getByText(/workspace data stays local/i)).toBeVisible();
     await expect(running.page.getByText(/works without AI/i)).toBeVisible();
+    await expect(running.page.getByRole("button", { name: "Try with demo data" })).toBeVisible();
 
     const boundary = await running.page.evaluate(() => ({
       processType: typeof Reflect.get(window, "process"),
@@ -530,6 +532,10 @@ test("packaged desktop preserves security gates and required bounded capabilitie
       systemInfo: typeof window.aaaat.system.info,
       workspaceCurrent: typeof window.aaaat.workspace.current,
       workspaceChoose: typeof window.aaaat.workspace.choose,
+      workspaceCreateDemo: typeof window.aaaat.workspace.createDemo,
+      workspaceReset: typeof window.aaaat.workspace.reset,
+      workspaceStatus: typeof window.aaaat.workspace.status,
+      aiPromptList: typeof window.aaaat.aiPrompts.list,
       profileCurrent: typeof window.aaaat.profile.current,
       documentList: typeof window.aaaat.documents.list,
       documentRender: typeof window.aaaat.documents.render,
@@ -563,10 +569,49 @@ test("packaged desktop preserves security gates and required bounded capabilitie
 
     if (process.platform !== "linux") return;
 
-    await running.page.getByRole("button", { name: "Create workspace" }).click();
-    chooseLinuxDirectory();
+    await running.page.getByRole("button", { name: "Try with demo data" }).click();
+    chooseLinuxDemoDirectory();
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
+    await expect(running.page.getByText("Demo workspace", { exact: true })).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+    const demoCorpus = running.page.locator('[aria-label="Candidature corpus Focus"]');
+    await expect(demoCorpus.getByRole("button", { name: /Northstar Labs/i }).first()).toBeVisible();
+    await demoCorpus.getByRole("button", { name: /Northstar Labs/i }).first().click();
+    await running.page.getByRole("region", { name: "Candidature Focus", exact: true }).getByRole("button", { name: "All details" }).click();
+    const demoComplete = running.page.getByRole("region", { name: "Complete candidature" });
+    const demoOffer = demoComplete.getByRole("region", { name: "Retained offer" });
+    await expect(demoOffer).toContainText("English is required");
+    await expect(demoOffer.getByText("Original Source")).toBeVisible();
+    await demoComplete.getByRole("button", { name: "Back" }).click();
+
+    await running.page.getByRole("button", { name: "Settings" }).click();
+    await running.page.getByRole("button", { name: /AI connections/ }).click();
+    const advanced = running.page.locator("summary").filter({ hasText: "Advanced: AI instructions and context" });
+    await advanced.click();
+    const coverPrompt = running.page.locator(".document-card").filter({ hasText: "Cover letter draft" }).first();
+    await coverPrompt.getByLabel("Optional guidance").fill("Prefer short paragraphs in packaged verification.");
+    await coverPrompt.getByRole("button", { name: "Save guidance" }).click();
+    await coverPrompt.locator("summary").filter({ hasText: "Effective final instruction" }).click();
+    await expect(coverPrompt).toContainText("Prefer short paragraphs in packaged verification.");
+    await running.page.getByRole("button", { name: "Back to Settings" }).click();
+    await running.page.getByRole("button", { name: "Workspace", exact: true }).click();
+    const reset = running.page.getByRole("region", { name: "Reset workspace" });
+    await expect(reset.getByRole("button", { name: "Reset workspace" })).toBeVisible();
+    running.page.once("dialog", (dialog) => void dialog.accept());
+    await reset.getByRole("button", { name: "Reset workspace" }).click();
+    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+    await expect(running.page.getByText("No candidatures yet")).toBeVisible();
+
+    const resetDatabase = new DatabaseSync(path.join(ownedWorkspace, "workspace.sqlite"), { readOnly: true });
+    try {
+      expect(resetDatabase.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 0 });
+      expect(resetDatabase.prepare("SELECT COUNT(*) AS count FROM profile_items").get()).toEqual({ count: 0 });
+      expect(resetDatabase.prepare("SELECT COUNT(*) AS count FROM documents").get()).toEqual({ count: 0 });
+      expect(resetDatabase.prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.demo'").get()).toBeUndefined();
+      expect(resetDatabase.prepare("SELECT value FROM workspace_metadata WHERE key = 'ai.prompt.guidance.cover_letter_draft'").get()).toBeUndefined();
+    } finally {
+      resetDatabase.close();
+    }
 
     await proveAcceptedShellAtWindowSize(running.page, 1200, 800);
     await proveAcceptedShellAtWindowSize(running.page, 720, 600);

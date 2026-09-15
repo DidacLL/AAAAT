@@ -296,4 +296,124 @@ describe("partial-safe job extraction", () => {
       }),
     ]);
   });
+
+  it("sends only explicitly targeted fields with compact task-local references", async () => {
+    const root = await configuredWorkspace();
+    const target = discoveryField(root, {
+      label: "Target language",
+      description: "Language required by the opportunity.",
+      valueType: "text",
+      cardinality: "many",
+      choices: [],
+      enabled: true,
+    });
+    discoveryField(root, {
+      label: "Unrelated notice period",
+      description: "Notice period if supplied.",
+      valueType: "text",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
+    });
+
+    let payload: { fields: Array<{ fieldRef: string; label: string; description: string; cardinality: string }> } | null = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_input, init) => {
+        const body = JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> };
+        payload = JSON.parse(body.messages.find((message) => message.role === "user")?.content ?? "{}") as typeof payload;
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: JSON.stringify({ proposals: [], newFields: [] }) } }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }),
+    );
+
+    await extractJobWithPartialOutcomes(
+      root,
+      { sourceTitle: "Targeted", sourceUrl: "", sourceText: "English required." },
+      undefined,
+      [target.definition.id],
+    );
+
+    expect((payload as unknown as { fields: unknown[] }).fields).toEqual([
+      expect.objectContaining({
+        fieldRef: "aaaat_f1",
+        label: "Target language",
+        description: "Language required by the opportunity.",
+        cardinality: "many",
+      }),
+    ]);
+    expect(JSON.stringify(payload)).not.toContain("Unrelated notice period");
+    expect(JSON.stringify(payload)).not.toContain(target.definition.id);
+  });
+
+  it("reuses Idiomas for Language Required and still allows genuinely unrelated new information", async () => {
+    const root = await configuredWorkspace();
+    const idiomas = discoveryField(root, {
+      label: "Idiomas",
+      description: "Languages required or useful for the opportunity.",
+      valueType: "text",
+      cardinality: "many",
+      choices: [],
+      enabled: true,
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_input, init) => {
+        const body = JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> };
+        const payload = JSON.parse(
+          body.messages.find((message) => message.role === "user")?.content ?? "{}",
+        ) as { fields: Array<{ fieldRef: string; label: string; description: string; cardinality: string }> };
+        expect(payload.fields).toEqual([
+          expect.objectContaining({
+            fieldRef: "aaaat_f1",
+            label: "Idiomas",
+            description: "Languages required or useful for the opportunity.",
+            cardinality: "many",
+          }),
+        ]);
+        const modelResult = {
+          proposals: [],
+          newFields: [
+            {
+              label: "Language Required",
+              description: "Language required by the offer.",
+              valueType: "text",
+              cardinality: "many",
+              choices: [],
+              value: "English",
+            },
+            {
+              label: "Interview format",
+              description: "Interview format stated by the offer.",
+              valueType: "text",
+              cardinality: "one",
+              choices: [],
+              value: "Panel interview",
+            },
+          ],
+        };
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: JSON.stringify(modelResult) } }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }),
+    );
+
+    const result = await extractJobWithPartialOutcomes(
+      root,
+      { sourceTitle: "Reuse", sourceUrl: "", sourceText: "English required. Panel interview." },
+      undefined,
+      [idiomas.definition.id],
+    );
+
+    expect(result.proposals).toContainEqual({ fieldId: idiomas.definition.id, value: ["English"] });
+    expect(result.newFields).toEqual([
+      expect.objectContaining({ label: "Interview format", value: "Panel interview" }),
+    ]);
+    expect(result.newFields.some((field) => field.label === "Language Required")).toBe(false);
+  });
+
 });

@@ -41,25 +41,20 @@ interface CapturedExchange {
   readonly responseBody: string;
 }
 
-function operationScope(): string {
-  return "aaaat_discovery";
-}
-
 function discoveryWireRequest(
   request: JobExtractionRequest,
   fields: readonly CandidatureFieldConfiguration[],
 ): DiscoveryWireRequest {
-  const scope = operationScope();
   const fieldIds = new Map<string, string>();
   const fieldLabels = new Map<string, string>();
   const choiceIds = new Map<string, ReadonlyMap<string, string>>();
   const providerFields = fields.map((field, index) => {
-    const fieldRef = `${scope}_${index + 1}`;
+    const fieldRef = `aaaat_f${index + 1}`;
     fieldIds.set(fieldRef, field.definition.id);
     fieldLabels.set(fieldRef, field.definition.label);
     const choices = new Map<string, string>();
     const providerChoices = field.definition.choices.map((choice, choiceIndex) => {
-      const choiceRef = `${fieldRef}_${choiceIndex + 1}`;
+      const choiceRef = `${fieldRef}_c${choiceIndex + 1}`;
       choices.set(choiceRef, choice.id);
       return { choiceRef, label: choice.label };
     });
