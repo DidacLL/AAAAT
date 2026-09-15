@@ -584,15 +584,24 @@ export async function extractJobWithPartialOutcomes(
   rootPath: string,
   request: JobExtractionRequest,
   signal?: AbortSignal,
+  targetFieldIds?: readonly string[],
 ): Promise<PartialJobExtractionResult> {
   const connection = aiConnectionStatusSchema.parse(
     requireAiConnectionForOperation(rootPath, "job_extraction"),
   );
+  const targetSet = targetFieldIds ? new Set(targetFieldIds) : null;
   const fields = listCandidatureFields(rootPath).filter(
-    (field) => field.definition.enabled && field.preferences.aiDiscovery,
+    (field) =>
+      field.definition.enabled &&
+      field.preferences.aiDiscovery &&
+      (!targetSet || targetSet.has(field.definition.id)),
   );
   if (fields.length === 0) {
-    throw new Error("Enable AI discovery for at least one candidature field first.");
+    throw new Error(
+      targetSet
+        ? "The requested candidature information is no longer available for AI discovery."
+        : "Enable AI discovery for at least one candidature field first.",
+    );
   }
   const wire = discoveryWireRequest(request, fields);
   const capture = capturingFetch(wire.request, signal);
