@@ -5,7 +5,7 @@ on:
     branches:
       - product/dogfood-workspace-ai-context
     paths:
-      - scripts/product-pass-acceptance-v3.py
+      - scripts/product-pass-acceptance-v3b.py
       - .github/workflows/product-pass-apply.yml
 
 permissions:
@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
           ref: product/dogfood-workspace-ai-context
       - name: Apply acceptance refinements
-        run: python scripts/product-pass-acceptance-v3.py
+        run: python scripts/product-pass-acceptance-v3b.py
       - uses: actions/setup-node@v6
         with:
           node-version: '24.15.0'
