@@ -90,6 +90,8 @@ function installApi() {
     configurable: true,
     value: {
       workspace: { current: async () => workspace, choose: async () => workspace },
+      profile: { current: async () => ({ items: [], variants: [] }) },
+      documents: { list: async () => [] },
     },
   });
 }

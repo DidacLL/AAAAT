@@ -335,7 +335,7 @@ test("packaged Linux follows the raw-offer-to-document journey and keeps standal
     await proveIntentShell(running.page, 720, 600);
 
     const offer = "Acme Platform Engineer. Build Python distributed systems. Remote in Spain.";
-    await running.page.getByLabel("Job offer").fill(offer);
+    await running.page.getByRole("textbox", { name: "Job offer" }).fill(offer);
     await running.page.getByRole("button", { name: "Start application documents" }).click();
     await expect(running.page.getByRole("heading", { name: "Application CV" })).toBeVisible();
 

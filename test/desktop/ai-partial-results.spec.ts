@@ -282,7 +282,7 @@ test("packaged candidature AI keeps partial results from an imperfect OpenAI-com
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
 
     await running.page.getByRole("button", { name: "Settings" }).click();
     const overview = running.page.getByRole("region", { name: "Settings overview" });
@@ -330,8 +330,8 @@ test("packaged candidature AI keeps partial results from an imperfect OpenAI-com
     });
 
     const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
-    await primary.getByRole("button", { name: "Documents" }).click();
-    await primary.getByRole("button", { name: "Candidatures" }).click();
+    await primary.getByRole("button", { name: "CV & cover letter" }).click();
+    await primary.getByRole("button", { name: "Saved applications" }).click();
     const search = running.page.getByRole("searchbox", { name: "Search" });
     await search.fill("Partial result packaged acceptance");
     await running.page.getByRole("button", { name: "All details" }).click();
