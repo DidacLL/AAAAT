@@ -5,7 +5,7 @@ on:
     branches:
       - product/dogfood-workspace-ai-context
     paths:
-      - scripts/product-pass-apply-v1e.py
+      - scripts/product-pass-apply-v2.py
       - .github/workflows/product-pass-apply.yml
 
 permissions:
@@ -14,21 +14,21 @@ permissions:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: product/dogfood-workspace-ai-context
-      - name: Apply product pass edits
-        run: python scripts/product-pass-apply-v1e.py
+      - name: Apply integrated product pass
+        run: python scripts/product-pass-apply-v2.py
       - uses: actions/setup-node@v6
         with:
           node-version: '24.15.0'
           cache: npm
       - name: Install
         run: npm ci --ignore-scripts
-      - name: Fast verification
+      - name: Verify
         run: npm run verify
       - name: Commit applied edits
         shell: bash
@@ -38,5 +38,5 @@ jobs:
           if git diff --cached --quiet; then exit 0; fi
           git config user.name "AAAAT product pass"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Improve retained offer and AI extraction context"
+          git commit -m "Finish workspace demo reset and AI prompt transparency"
           git push origin HEAD:product/dogfood-workspace-ai-context
