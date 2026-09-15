@@ -68,7 +68,7 @@ export function buildSetupGuidance(
         : "AAAAT can keep working while the missing local prerequisite is resolved.",
       checks: installerChecks,
       externalCapability:
-        "A connected assistant may read this bounded prerequisite status to help the user complete setup. It receives no shell, package-manager, filesystem or workspace-data authority.",
+        "A connected assistant may always inspect this bounded prerequisite status. If the user explicitly enables installer.ai actions in Settings, it may also request AAAAT's fixed rendering self-test. It receives no shell, package-manager, arbitrary command, path selector or general filesystem authority.",
     },
     {
       name: "configurator.ai",
@@ -81,7 +81,7 @@ export function buildSetupGuidance(
           : "AI is optional; AAAAT remains fully usable without a configured route.",
       checks: configuratorChecks,
       externalCapability:
-        "A connected assistant may read this bounded configuration status and explain the next user-controlled setting. It cannot browse career data, edit configuration or gain generic machine authority through this capability.",
+        "A connected assistant may always inspect this privacy-minimal configuration coverage. If the user explicitly enables configurator.ai actions in Settings, it may save a typed name/endpoint/model connection, ask AAAAT to validate one known operation, and select an already validated per-operation default. It cannot bypass validation, add credentials or arbitrary provider options, or gain generic machine authority.",
     },
   ] as const;
 }

@@ -51,6 +51,11 @@ beforeEach(() => {
     configurable: true,
     value: {
       setupEnvironment: { current: async () => readyEnvironment, connectVscode },
+      setupAssistant: {
+        access: async () => ({ installerActionsAllowed: false, configuratorActionsAllowed: false }),
+        updateAccess: async (update: { installerActionsAllowed: boolean; configuratorActionsAllowed: boolean }) => update,
+        runRenderingSelfTest: async () => ({ passed: true }),
+      },
       workspaceRecovery: { backup, restore },
       aiConnections: {
         list,
@@ -113,6 +118,7 @@ describe("Settings workspace", () => {
     expect(screen.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "installer.ai" })).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "configurator.ai" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "External setup action authority" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "VS Code external tool setup", hidden: true })).not.toBeVisible();
 
     await user.click(screen.getByText("Optional VS Code adapter", { selector: "summary" }));

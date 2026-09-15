@@ -56,6 +56,7 @@ describe("optional VS Code MCP adapter", () => {
     });
     expect(manifest.capabilityNames).toEqual([
       "candidature.create",
+      "application.documents.create",
       "opportunity_research.context.read",
       "candidature.source.add",
       "career_context.read",
@@ -63,10 +64,15 @@ describe("optional VS Code MCP adapter", () => {
       "cv_content.read",
       "cv.render",
       "installer.status.read",
+      "installer.rendering.self_test",
       "configurator.status.read",
+      "configurator.ai_connection.save",
+      "configurator.ai_operation.validate",
+      "configurator.ai_operation.default",
     ]);
     expect(manifest.toolNames).toEqual([
       "candidature_create",
+      "application_documents_create",
       "opportunity_research_context_read",
       "candidature_source_add",
       "career_context_read",
@@ -74,11 +80,15 @@ describe("optional VS Code MCP adapter", () => {
       "cv_content_read",
       "cv_render",
       "installer_status_read",
+      "installer_rendering_self_test",
       "configurator_status_read",
+      "configurator_ai_connection_save",
+      "configurator_ai_operation_validate",
+      "configurator_ai_operation_default",
     ]);
-    expect(manifest.privacyDisclosure).toContain("selected one candidature for that task");
-    expect(manifest.privacyDisclosure).toContain("installer_status_read");
-    expect(manifest.privacyDisclosure).toContain("configurator_status_read");
+    expect(manifest.privacyDisclosure).toContain("application creation");
+    expect(manifest.privacyDisclosure).toContain("installer_rendering_self_test");
+    expect(manifest.privacyDisclosure).toContain("configurator AI mutations");
     expect(manifest.privacyDisclosure).toMatch(/No tool exposes generic database, filesystem, process, network/i);
     const text = readFileSync(path.join(workspace, "integrations", "vscode-mcp.json"), "utf8");
     expect(text).not.toContain(workspace);

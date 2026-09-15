@@ -6,6 +6,7 @@ import { App } from "../src/renderer/App";
 import type { AiConnectionDesktopApi } from "../src/shared/ai-connection-contracts";
 import type { CareerContextAiDisclosureDesktopApi } from "../src/shared/career-context-ai-disclosure-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot, WorkspaceInfo } from "../src/shared/contracts";
+import type { SetupAssistantDesktopApi } from "../src/shared/setup-assistant-contracts";
 import type { SetupEnvironmentDesktopApi } from "../src/shared/setup-environment-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../src/shared/workspace-recovery-contracts";
 
@@ -63,6 +64,7 @@ const unavailable = async (): Promise<never> => {
 
 const desktopApi: DesktopApi &
   WorkspaceRecoveryDesktopApi &
+  SetupAssistantDesktopApi &
   SetupEnvironmentDesktopApi &
   AiConnectionDesktopApi &
   CareerContextAiDisclosureDesktopApi = {
@@ -77,6 +79,11 @@ const desktopApi: DesktopApi &
     status: async () => ({ demo: false }),
   },
   workspaceRecovery: { backup, restore },
+  setupAssistant: {
+    access: async () => ({ installerActionsAllowed: false, configuratorActionsAllowed: false }),
+    updateAccess: async (update) => update,
+    runRenderingSelfTest: async () => ({ passed: true }),
+  },
   setupEnvironment: {
     current: async () => readyEnvironment,
     connectVscode: async () => ({ status: "cancelled", message: "No project was changed." }),
@@ -235,6 +242,7 @@ describe("AAAAT intention-first shell", () => {
 
     expect(await screen.findByRole("heading", { name: "Use AAAAT from a compatible assistant" })).toBeInTheDocument();
     expect(screen.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "External setup action authority" })).toBeInTheDocument();
     expect(screen.getByText("Optional VS Code adapter", { selector: "summary" })).toBeInTheDocument();
     expect(screen.queryByText(/Connect the demonstrated VS Code external tool/i)).not.toBeInTheDocument();
   });

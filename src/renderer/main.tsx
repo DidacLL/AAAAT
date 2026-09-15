@@ -20,6 +20,7 @@ import type {
   ProfileAiContextDesktopApi,
   ProfileAiContextUpdate,
 } from "../shared/profile-ai-context-contracts";
+import type { SetupAssistantDesktopApi } from "../shared/setup-assistant-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-contracts";
 import { App } from "./App";
@@ -62,9 +63,14 @@ function createPreviewApi(): DesktopApi &
   CvDescriptorDesktopApi &
   DocumentOutputDesktopApi &
   ProfileAiContextDesktopApi &
+  SetupAssistantDesktopApi &
   SetupEnvironmentDesktopApi &
   WorkspaceRecoveryDesktopApi {
   let careerContextAiDisclosure = defaultCareerContextAiDisclosure;
+  let setupAssistantAccess = {
+    installerActionsAllowed: false,
+    configuratorActionsAllowed: false,
+  };
   return Object.freeze({
     system: Object.freeze({
       info: async () => ({
@@ -180,6 +186,14 @@ function createPreviewApi(): DesktopApi &
       capture: previewUnavailable,
       captureCombined: previewUnavailable,
       open: previewUnavailable,
+    }),
+    setupAssistant: Object.freeze({
+      access: async () => setupAssistantAccess,
+      updateAccess: async (update) => {
+        setupAssistantAccess = update;
+        return setupAssistantAccess;
+      },
+      runRenderingSelfTest: previewUnavailable,
     }),
     setupEnvironment: Object.freeze({
       current: previewUnavailable,

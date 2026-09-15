@@ -7,6 +7,7 @@ import path from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { listAiConnections } from "../src/main/ai-connection-service";
 import {
   listCandidatureFields,
   setCandidatureFieldValue,
@@ -17,19 +18,26 @@ import {
   listCandidatures,
   listCandidatureSources,
 } from "../src/main/candidature-service";
+import { listDocuments } from "../src/main/document-service";
 import {
+  applicationDocumentsCreateToolName,
   candidatureCreateToolName,
   candidatureSourceAddToolName,
   careerContextReadToolName,
+  configuratorAiConnectionSaveToolName,
+  configuratorAiOperationDefaultToolName,
+  configuratorAiOperationValidateToolName,
   configuratorStatusReadToolName,
   createAaaatMcpServer,
   cvContentReadToolName,
   cvDescriptionsReadToolName,
   cvRenderToolName,
+  installerRenderingSelfTestToolName,
   installerStatusReadToolName,
   mcpWorkspaceFromInvocation,
   opportunityResearchContextReadToolName,
 } from "../src/main/mcp-server";
+import { updateSetupAssistantAccess } from "../src/main/setup-assistant-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
@@ -67,12 +75,13 @@ afterEach(() => {
 });
 
 describe("official bounded MCP server", () => {
-  it("exposes meaningful task capabilities without generic database/filesystem/shell authority", async () => {
+  it("exposes meaningful product intentions without generic database/filesystem/shell authority", async () => {
     const connection = await connectedClient(temporaryWorkspace());
     try {
       const tools = await connection.client.listTools();
       expect(tools.tools.map((tool) => tool.name)).toEqual([
         candidatureCreateToolName,
+        applicationDocumentsCreateToolName,
         opportunityResearchContextReadToolName,
         candidatureSourceAddToolName,
         careerContextReadToolName,
@@ -80,13 +89,18 @@ describe("official bounded MCP server", () => {
         cvContentReadToolName,
         cvRenderToolName,
         installerStatusReadToolName,
+        installerRenderingSelfTestToolName,
         configuratorStatusReadToolName,
+        configuratorAiConnectionSaveToolName,
+        configuratorAiOperationValidateToolName,
+        configuratorAiOperationDefaultToolName,
       ]);
       const names = tools.tools.map((tool) => tool.name);
       expect(names).not.toContain("candidature_list");
       expect(names).not.toContain("database_query");
       expect(names).not.toContain("filesystem_read");
       expect(names).not.toContain("shell_exec");
+      expect(names).not.toContain("package_install");
     } finally {
       await connection.close();
     }
@@ -116,6 +130,35 @@ describe("official bounded MCP server", () => {
         title: "Pilot vacancy",
         sourceText: "Minimum 1,500 total hours.",
       });
+    } finally {
+      await connection.close();
+    }
+  });
+
+  it("can perform the same offer-to-document intention as the desktop without exposing hidden application identity", async () => {
+    const root = temporaryWorkspace();
+    const connection = await connectedClient(root);
+    try {
+      const result = await connection.client.callTool({
+        name: applicationDocumentsCreateToolName,
+        arguments: {
+          sourceText: "Example Corp needs a platform engineer.",
+          outputs: ["cv", "cover_letter"],
+        },
+      });
+      const text = textResult(result);
+      expect(JSON.parse(text)).toEqual({
+        created: true,
+        cv: { created: true, aiPrepared: false },
+        coverLetter: { created: true, aiPrepared: false },
+      });
+      expect(text).not.toContain(root);
+      expect(text).not.toContain("Example Corp");
+      expect(listCandidatures(root)).toHaveLength(1);
+      expect(listDocuments(root).map((document) => document.kind).sort()).toEqual([
+        "cover_letter",
+        "cv",
+      ]);
     } finally {
       await connection.close();
     }
@@ -180,7 +223,48 @@ describe("official bounded MCP server", () => {
     }
   });
 
-  it("exposes installer/configurator status as read-only privacy-minimal state", async () => {
+  it("keeps installer/configurator mutation authority disabled until the user enables it locally", async () => {
+    const root = temporaryWorkspace();
+    const connection = await connectedClient(root);
+    try {
+      const deniedInstaller = await connection.client.callTool({
+        name: installerRenderingSelfTestToolName,
+        arguments: {},
+      });
+      expect(deniedInstaller.isError).toBe(true);
+
+      const deniedConfigurator = await connection.client.callTool({
+        name: configuratorAiConnectionSaveToolName,
+        arguments: {
+          name: "Local model",
+          endpoint: "http://127.0.0.1:11434/v1",
+          model: "qwen",
+        },
+      });
+      expect(deniedConfigurator.isError).toBe(true);
+      expect(listAiConnections(root)).toEqual([]);
+
+      updateSetupAssistantAccess(root, {
+        installerActionsAllowed: false,
+        configuratorActionsAllowed: true,
+      });
+      const saved = await connection.client.callTool({
+        name: configuratorAiConnectionSaveToolName,
+        arguments: {
+          name: "Local model",
+          endpoint: "http://127.0.0.1:11434/v1",
+          model: "qwen",
+        },
+      });
+      expect(saved.isError).not.toBe(true);
+      expect(JSON.parse(textResult(saved))).toEqual({ saved: true });
+      expect(listAiConnections(root)).toHaveLength(1);
+    } finally {
+      await connection.close();
+    }
+  });
+
+  it("exposes installer/configurator status as privacy-minimal state", async () => {
     const root = temporaryWorkspace();
     const connection = await connectedClient(root);
     try {

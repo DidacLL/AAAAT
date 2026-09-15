@@ -32,7 +32,7 @@ function snapshot(overrides: Partial<SetupEnvironmentSnapshot> = {}): SetupEnvir
 }
 
 describe("shared setup harness projection", () => {
-  it("models installation readiness without turning installer.ai into a prompt or exposing versions", () => {
+  it("models installation readiness without turning installer.ai into a prompt or generic machine authority", () => {
     const [installer, configurator] = buildSetupGuidance(snapshot());
 
     expect(installer).toMatchObject({
@@ -47,6 +47,7 @@ describe("shared setup harness projection", () => {
     ]);
     expect(JSON.stringify(installer)).not.toContain("Sensitive Latexmk version");
     expect(JSON.stringify(installer)).not.toContain("Sensitive pdfTeX version");
+    expect(installer.externalCapability).toMatch(/rendering self-test/i);
     expect(installer.externalCapability).toMatch(/no shell/i);
 
     expect(configurator).toMatchObject({
@@ -55,6 +56,8 @@ describe("shared setup harness projection", () => {
       title: "Optional AI configuration",
     });
     expect(configurator.summary).toContain("AI is optional");
+    expect(configurator.externalCapability).toMatch(/save a typed name\/endpoint\/model connection/i);
+    expect(configurator.externalCapability).toMatch(/cannot bypass validation/i);
   });
 
   it("reports missing prerequisites and validated AI coverage without private connection names", () => {

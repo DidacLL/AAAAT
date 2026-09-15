@@ -52,5 +52,6 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     import("./profile-ai-context-ipc"),
     import("./ai-prompt-ipc"),
     import("./setup-environment-ipc"),
+    import("./setup-assistant-ipc"),
   ]).then(() => import("./main"));
 }

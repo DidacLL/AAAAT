@@ -18,13 +18,15 @@ Internal names such as candidature, field definition, rule, variant, artifact, s
 
 The ordinary path is:
 
-> I found a job → paste the raw offer → choose CV, cover letter or both → work on the documents.
+> I found a job → paste the raw offer → choose CV, cover letter or both → work on useful documents.
 
 The pasted offer is the dominant first-sight object. AAAAT retains it as a Source and may automatically create/link the underlying application context and documents. The user is not asked to create, name, remember, relocate or manually link a candidature before reaching document work.
 
-After document work begins, the retained offer/application context remains reachable for inspection without turning the handoff into a navigation puzzle.
+When the required AI routes are already validated, choosing **Tailored CV** and/or **Cover letter** is itself the user authorization to start the relevant bounded preparation. AAAAT starts that slow work automatically from the retained offer and reusable professional information, keeps it non-blocking, shows progress in the document, and persists the resulting tailored CV state and/or letter draft. The user is not required to discover a second AI button for the same intention.
 
-AI is optional. Manual/local use is a complete path.
+One malformed extraction proposal cannot invalidate otherwise useful preparation. If AI is unavailable, incompatible or cannot derive safe opportunity facts, the Source and document projects remain intact and directly editable. Manual/local use is a complete path.
+
+After document work begins, the retained offer/application context remains reachable for inspection without turning the handoff into a navigation puzzle.
 
 ## 3. Standalone document work is independently core
 
@@ -34,10 +36,10 @@ The normal document surface emphasizes:
 
 - the document being produced;
 - its actual editable content;
-- the professional information relevant/included in it;
+- the professional information actually relevant/included in it;
 - its current rendered/exportable result.
 
-Saved variations, ordering rules, per-document overrides, source/LaTeX ownership, paths and external-assistant disclosure remain available when useful, but are progressively disclosed. Large generic administration forms and unused professional fields must not dominate ordinary document work.
+For CVs, effective included evidence dominates first sight. For cover letters, the letter text dominates first sight. Saved variations, ordering rules, per-document overrides, source/LaTeX ownership, paths and external-assistant disclosure remain available when useful, but are progressively disclosed. Large generic administration forms and unused professional fields must not dominate ordinary document work.
 
 ## 4. Saved applications is recall, not prerequisite filing
 
@@ -61,7 +63,9 @@ VS Code is an optional advanced adapter only. Product copy must not imply AAAAT 
 
 Compatible external assistants may include ChatGPT, Claude, local agents, editor hosts or other user-selected environments. AAAAT exposes bounded capabilities, never generic database/filesystem/shell/process authority.
 
-`installer.ai` and `configurator.ai` are live shared setup projections used by AAAAT and compatible external assistants. They are not copyable free-chat prompt documents.
+`installer.ai` and `configurator.ai` are live shared setup capabilities used by AAAAT and compatible external assistants. They are not copyable free-chat prompt documents and are not merely status cards. Status is privacy-minimal and readable; external mutations are denied by default until the user locally enables installer/configurator actions independently. Enabled actions remain typed AAAAT intentions such as the fixed rendering self-test or AI connection save/validation/default selection, never arbitrary shell/package-manager/filesystem authority.
+
+The external surface should express meaningful user intentions available in the desktop, such as creating application documents from one job offer, rather than expose generic CRUD or hidden durable IDs.
 
 ## 7. Progressive disclosure
 
@@ -101,9 +105,11 @@ Required evidence includes at least:
 
 - first-run workspace/demo access remains usable;
 - a pasted offer can create CV/cover-letter work without prior candidature administration;
+- with validated AI available, that same journey persists useful tailored/generated document state instead of merely empty linked records;
+- without AI, the same journey remains complete and directly editable;
 - standalone CV/cover-letter work remains directly reachable;
 - retained applications and My information remain reachable/readable;
 - unsaved work is protected;
 - Settings presents host-agnostic bounded assistant access and keeps VS Code optional;
-- setup harnesses are live state, not clipboard prompt templates;
+- setup capabilities are live state/actions, not clipboard prompt templates, and external mutations remain explicitly user-controlled;
 - packaged desktop behavior remains coherent at constrained and normal desktop sizes.

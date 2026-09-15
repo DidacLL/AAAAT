@@ -13,6 +13,7 @@ import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-cont
 import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
 import type { DocumentOutputDesktopApi } from "../shared/document-output-contracts";
 import type { ProfileAiContextDesktopApi } from "../shared/profile-ai-context-contracts";
+import type { SetupAssistantDesktopApi } from "../shared/setup-assistant-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-contracts";
 
@@ -33,6 +34,7 @@ declare global {
       CvDescriptorDesktopApi &
       DocumentOutputDesktopApi &
       ProfileAiContextDesktopApi &
+      SetupAssistantDesktopApi &
       SetupEnvironmentDesktopApi &
       WorkspaceRecoveryDesktopApi;
   }

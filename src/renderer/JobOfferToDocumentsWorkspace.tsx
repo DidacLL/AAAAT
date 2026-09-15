@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 
+import type { DocumentRecord } from "../shared/contracts";
+import { maybeStartApplicationDocumentPreparation } from "./application-document-preparation";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
 export function JobOfferToDocumentsWorkspace({
@@ -29,7 +31,7 @@ export function JobOfferToDocumentsWorkspace({
     setBusy(true);
     setError(null);
     let candidatureId: string | null = null;
-    const documentIds: string[] = [];
+    const createdDocuments: DocumentRecord[] = [];
 
     try {
       const candidature = await window.aaaat.candidatures.create({
@@ -44,39 +46,51 @@ export function JobOfferToDocumentsWorkspace({
       candidatureId = candidature.id;
 
       if (includeCv) {
-        const cv = await window.aaaat.documents.create({
-          kind: "cv",
-          title: "Application CV",
-          variantId: null,
-          engine: "pdflatex",
-          bodyParagraphs: [],
-        });
-        documentIds.push(cv.id);
+        createdDocuments.push(
+          await window.aaaat.documents.create({
+            kind: "cv",
+            title: "Application CV",
+            variantId: null,
+            engine: "pdflatex",
+            bodyParagraphs: [],
+          }),
+        );
       }
 
       if (includeCoverLetter) {
-        const letter = await window.aaaat.documents.create({
-          kind: "cover_letter",
-          title: "Application cover letter",
-          variantId: null,
-          engine: "pdflatex",
-          bodyParagraphs: [],
-        });
-        documentIds.push(letter.id);
+        createdDocuments.push(
+          await window.aaaat.documents.create({
+            kind: "cover_letter",
+            title: "Application cover letter",
+            variantId: null,
+            engine: "pdflatex",
+            bodyParagraphs: [],
+          }),
+        );
       }
 
+      const documentIds = createdDocuments.map((document) => document.id);
       await window.aaaat.candidatures.setDocuments({
         candidatureId: candidature.id,
         documentIds,
       });
 
+      await maybeStartApplicationDocumentPreparation({
+        candidatureId: candidature.id,
+        sourceText,
+        documents: createdDocuments,
+      }).catch(() => false);
+
       setOfferText("");
       onDirtyChange?.(false);
       openDocumentFromCandidature(candidature.id, documentIds[0]);
     } catch (reason) {
-      if (candidatureId && documentIds.length > 0) {
+      if (candidatureId && createdDocuments.length > 0) {
         await window.aaaat.candidatures
-          .setDocuments({ candidatureId, documentIds })
+          .setDocuments({
+            candidatureId,
+            documentIds: createdDocuments.map((document) => document.id),
+          })
           .catch(() => undefined);
       }
       setError(
@@ -95,8 +109,8 @@ export function JobOfferToDocumentsWorkspace({
         <p className="eyebrow">Application desk</p>
         <h1>Turn a job offer into application documents.</h1>
         <p>
-          Paste the offer once. AAAAT keeps the original Source, creates the underlying application context,
-          and opens the CV or cover letter work directly. You do not need to name or file a candidature first.
+          Paste the offer once. AAAAT retains the original Source, creates the application context,
+          and opens the document work directly. You do not need to name or file an application first.
         </p>
       </div>
 
@@ -123,7 +137,10 @@ export function JobOfferToDocumentsWorkspace({
               disabled={busy}
               onChange={(event) => setIncludeCv(event.target.checked)}
             />
-            <span><strong>Tailored CV</strong><small>Use your professional information in this offer context.</small></span>
+            <span>
+              <strong>Tailored CV</strong>
+              <small>Use the strongest relevant evidence from your saved professional information.</small>
+            </span>
           </label>
           <label>
             <input
@@ -132,7 +149,10 @@ export function JobOfferToDocumentsWorkspace({
               disabled={busy}
               onChange={(event) => setIncludeCoverLetter(event.target.checked)}
             />
-            <span><strong>Cover letter</strong><small>Draft and refine a letter beside the retained offer.</small></span>
+            <span>
+              <strong>Cover letter</strong>
+              <small>Start with a useful draft grounded in the offer and your retained evidence.</small>
+            </span>
           </label>
         </fieldset>
 
@@ -142,9 +162,12 @@ export function JobOfferToDocumentsWorkspace({
             type="submit"
             disabled={busy || offerText.trim().length === 0 || (!includeCv && !includeCoverLetter)}
           >
-            {busy ? "Preparing application work…" : "Start application documents"}
+            {busy ? "Creating application documents…" : "Start application documents"}
           </button>
-          <p>AI is optional. The offer and document project stay editable and locally owned.</p>
+          <p>
+            If validated AI routes are available, AAAAT starts the slow preparation in the background automatically.
+            Without AI, both documents still open as ordinary editable local work.
+          </p>
         </div>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
       </form>

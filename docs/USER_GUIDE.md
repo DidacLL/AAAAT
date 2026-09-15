@@ -23,10 +23,13 @@ AAAAT then:
 1. retains the pasted material as the original local Source;
 2. creates the underlying application context without asking you to file it first;
 3. creates the selected local document project(s);
-4. links the documents to the application context; and
-5. opens document work directly.
+4. links the documents to the application context;
+5. opens document work directly; and
+6. when the required AI routes are already validated and usable, starts the bounded preparation work automatically in the background: it extracts safe structured opportunity facts, keeps independently valid facts, selects relevant retained career evidence for the CV, and/or stores a grounded cover-letter draft.
 
-The raw Source remains available later under **Saved applications**. AI is optional throughout this path.
+Slow AI work does not block the rest of AAAAT. Progress and the final prepared state appear in the document itself; you do not need to discover another AI button. If AI is unavailable, unsupported, or produces no safe opportunity facts, the retained Source and created documents remain complete ordinary editable work rather than a failed application flow.
+
+The raw Source remains available later under **Saved applications**.
 
 ## Standalone CV and cover-letter work
 
@@ -34,7 +37,7 @@ Open **CV & cover letter** when there is no job offer or when you simply want to
 
 AAAAT uses reusable **My information** and keeps generated LaTeX projects user-owned. Document content remains editable without AI. Rendering is local when compatible TeX tools are available.
 
-Document-specific overrides, source ownership, external-assistant access and other advanced controls belong behind the relevant document rather than in the first-sight creation path.
+Inside a CV, the effective information actually used by the document is the primary view. Inside a cover letter, the letter text itself is primary. Saved variations, per-item inclusion/order/overrides, external-assistant access, source/LaTeX ownership and other advanced controls remain available through progressive disclosure instead of defining the normal editing model.
 
 ## Saved applications and Sources
 
@@ -65,7 +68,7 @@ Settings also provides **Reset workspace**, a destructive action scoped only to 
 
 AAAAT owns document data and portable LaTeX source. Local PDF rendering uses compatible `latexmk` and `pdflatex` commands already available on the computer.
 
-Open **Settings → Document rendering** for live status. Missing rendering tools do not prevent editing or local ownership. AAAAT does not silently install packages or expose arbitrary command execution.
+Open **Settings → Document rendering** for live status and AAAAT's rendering self-test. The self-test creates, renders and removes one temporary AAAAT-managed document through the fixed document pipeline. Missing rendering tools do not prevent editing or local ownership. AAAAT does not silently install packages or expose arbitrary command execution.
 
 ## Optional AI inside AAAAT
 
@@ -75,20 +78,23 @@ One malformed proposal must not discard otherwise valid field proposals. AI outp
 
 ## `installer.ai` and `configurator.ai`
 
-These names describe AAAAT's shared installation/configuration harness, not copy/paste prompt files.
+These names describe AAAAT's shared installation/configuration capabilities, not copy/paste prompt files and not read-only status cards.
 
-- **`installer.ai`** projects live workspace and local rendering prerequisites.
-- **`configurator.ai`** projects optional AI configuration and per-operation validated coverage.
+- **`installer.ai`** exposes live workspace/rendering prerequisites and the bounded AAAAT rendering self-test.
+- **`configurator.ai`** exposes optional AI configuration coverage and, when explicitly authorized, typed connection save, per-operation capability validation and validated per-operation default selection.
 
-The same structured state is used by the normal Settings UI and can be read by a compatible external assistant through bounded AAAAT tools. An assistant can explain what is missing or what the user should configure next, but these status capabilities do not grant shell, package-manager, filesystem, database or arbitrary configuration authority.
+Status inspection is always privacy-minimal. Mutating external setup actions are denied by default. In **Settings → External assistants & portability**, the user may separately enable **installer.ai actions** and **configurator.ai actions** for the current workspace. These switches grant only the documented AAAAT product actions; they do not grant shell, package-manager, arbitrary command, filesystem, database or generic provider authority. Resetting the workspace clears this local authority with the rest of the workspace data.
+
+The desktop uses the same underlying setup services directly. External assistants do not receive a privileged bypass around normal validation.
 
 ## External assistants and hosts
 
 AAAAT is provider- and host-agnostic. A compatible assistant may be ChatGPT, Claude, a local agent, an editor host or another environment chosen by the user.
 
-The packaged MCP stdio surface currently exposes bounded capabilities including:
+The packaged MCP stdio surface exposes bounded capabilities including:
 
 - `candidature_create`
+- `application_documents_create`
 - `opportunity_research_context_read`
 - `candidature_source_add`
 - `career_context_read`
@@ -96,9 +102,15 @@ The packaged MCP stdio surface currently exposes bounded capabilities including:
 - `cv_content_read`
 - `cv_render`
 - `installer_status_read`
+- `installer_rendering_self_test`
 - `configurator_status_read`
+- `configurator_ai_connection_save`
+- `configurator_ai_operation_validate`
+- `configurator_ai_operation_default`
 
-These tools do not expose generic candidature/corpus browsing, database queries, filesystem access, shell/process execution, package installation, local IDs or unrelated private areas. AAAAT controls what its tools disclose; a host's own wider permissions remain a separate user trust choice.
+`application_documents_create` expresses the same high-level offer → CV / cover letter / both intention as the desktop and returns only created/prepared booleans, never hidden application/document IDs or local paths. Setup mutation tools require the matching explicit local Settings authority. The configurator tools accept only typed AAAAT connection/operation inputs and continue to use normal endpoint and capability validation.
+
+These tools do not expose generic candidature/corpus browsing, database queries, filesystem access, shell/process execution, package installation, arbitrary local paths or unrelated private areas. AAAAT controls what its tools disclose; a host's own wider permissions remain a separate user trust choice.
 
 ### Optional VS Code adapter
 

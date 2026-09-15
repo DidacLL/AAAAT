@@ -28,20 +28,31 @@ const readySnapshot = {
 };
 
 const current = vi.fn();
+const access = vi.fn();
+const updateAccess = vi.fn();
+const runRenderingSelfTest = vi.fn();
 
 beforeEach(() => {
-  current.mockReset();
+  current.mockReset().mockResolvedValue(readySnapshot);
+  access.mockReset().mockResolvedValue({
+    installerActionsAllowed: false,
+    configuratorActionsAllowed: false,
+  });
+  updateAccess.mockReset().mockImplementation(async (next) => next);
+  runRenderingSelfTest.mockReset().mockResolvedValue({ passed: true });
   Object.defineProperty(window, "aaaat", {
     configurable: true,
-    value: { setupEnvironment: { current } },
+    value: {
+      setupEnvironment: { current },
+      setupAssistant: { access, updateAccess, runRenderingSelfTest },
+    },
   });
 });
 
 afterEach(() => cleanup());
 
 describe("setup environment panel", () => {
-  it("shows live local status and the shared installer/configurator harness without copy-paste prompts", async () => {
-    current.mockResolvedValue(readySnapshot);
+  it("shows live local status and bounded installer/configurator capabilities instead of prompt templates", async () => {
     render(<SetupEnvironmentPanel />);
 
     expect(await screen.findByRole("heading", { name: "Local setup status" })).toBeInTheDocument();
@@ -50,8 +61,34 @@ describe("setup environment panel", () => {
     expect(screen.getByRole("region", { name: "AAAAT setup harness" })).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "installer.ai" })).toHaveTextContent("Installation & local prerequisites");
     expect(screen.getByRole("article", { name: "configurator.ai" })).toHaveTextContent("Optional AI configuration");
+    expect(screen.getByRole("region", { name: "External setup action authority" })).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: /installer\.ai guidance/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /copy installer\.ai/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps external setup mutations locally opt-in", async () => {
+    const user = userEvent.setup();
+    render(<SetupEnvironmentPanel view="guidance" />);
+
+    const installer = await screen.findByRole("checkbox", { name: /installer\.ai actions/i });
+    const configurator = screen.getByRole("checkbox", { name: /configurator\.ai actions/i });
+    expect(installer).not.toBeChecked();
+    expect(configurator).not.toBeChecked();
+
+    await user.click(installer);
+    expect(updateAccess).toHaveBeenCalledWith({
+      installerActionsAllowed: true,
+      configuratorActionsAllowed: false,
+    });
+  });
+
+  it("runs AAAAT's fixed local rendering self-test from rendering settings", async () => {
+    const user = userEvent.setup();
+    render(<SetupEnvironmentPanel view="rendering" />);
+
+    await user.click(await screen.findByRole("button", { name: "Run rendering self-test" }));
+    expect(runRenderingSelfTest).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/rendering self-test passed/i)).toBeInTheDocument();
   });
 
   it("shows missing TeX as live setup attention and can refresh", async () => {
@@ -84,14 +121,5 @@ describe("setup environment panel", () => {
     expect(screen.queryByRole("button", { name: /^install/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Refresh environment" }));
     expect(current).toHaveBeenCalledTimes(2);
-  });
-
-  it("renders the compact harness-only view used by external-assistant settings", async () => {
-    current.mockResolvedValue(readySnapshot);
-    render(<SetupEnvironmentPanel view="guidance" />);
-
-    expect(await screen.findByRole("heading", { name: "AAAAT setup harness" })).toBeInTheDocument();
-    expect(screen.getByText(/live AAAAT setup state, not a prompt template/i)).toBeInTheDocument();
-    expect(screen.getAllByText("External assistant access", { selector: "summary" })).toHaveLength(2);
   });
 });
