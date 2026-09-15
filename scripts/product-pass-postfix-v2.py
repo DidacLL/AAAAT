@@ -92,3 +92,63 @@ replace(
     "  workspace: { current, choose },\n",
     "  workspace: {\n    current,\n    choose,\n    createDemo: async () => readyWorkspace,\n    reset: async () => readyWorkspace,\n    status: async () => ({ demo: false }),\n  },\n",
 )
+
+# The demo marker is cosmetic. Missing/failed status lookup must never make a valid
+# remembered workspace appear unavailable, including in narrow test/preview APIs.
+replace(
+    "src/renderer/App.tsx",
+    '        if (currentWorkspace) void window.aaaat.workspace.status().then((status) => { if (active) setDemoWorkspace(status.demo); });\n',
+    '''        if (currentWorkspace) {
+          const status = (window.aaaat.workspace as typeof window.aaaat.workspace & { status?: () => Promise<{ demo: boolean }> }).status;
+          if (status) void status().then((next) => { if (active) setDemoWorkspace(next.demo); }).catch(() => { if (active) setDemoWorkspace(false); });
+        }
+''',
+)
+replace(
+    "src/renderer/App.tsx",
+    '      setDemoWorkspace((await window.aaaat.workspace.status()).demo);\n      setWorkspacePhase("ready");\n',
+    '''      const status = (window.aaaat.workspace as typeof window.aaaat.workspace & { status?: () => Promise<{ demo: boolean }> }).status;
+      setDemoWorkspace(status ? await status().then((next) => next.demo).catch(() => false) : false);
+      setWorkspacePhase("ready");
+''',
+)
+
+# Prompt transparency is an additive advanced panel. Production preload always
+# provides the API, but old/narrow renderer mocks should not crash unrelated views.
+panel_path = ROOT / "src/renderer/AiPromptTransparencyPanel.tsx"
+panel = panel_path.read_text(encoding="utf-8")
+panel = panel.replace(
+    '  const [busy, setBusy] = useState<string | null>(null);\n\n  useEffect(() => {',
+    '  const [busy, setBusy] = useState<string | null>(null);\n  const promptApi = (window.aaaat as typeof window.aaaat & { aiPrompts?: typeof window.aaaat.aiPrompts }).aiPrompts;\n\n  useEffect(() => {',
+    1,
+)
+panel = panel.replace(
+    '    let active = true;\n    void window.aaaat.aiPrompts.list().then((next) => {',
+    '    if (!promptApi) return undefined;\n    let active = true;\n    void promptApi.list().then((next) => {',
+    1,
+)
+panel = panel.replace('  }, []);', '  }, [promptApi]);', 1)
+panel = panel.replace(
+    '  return (\n    <details className="profile-column ai-prompt-transparency">',
+    '  if (!promptApi) return null;\n\n  return (\n    <details className="profile-column ai-prompt-transparency">',
+    1,
+)
+panel = panel.replace('void window.aaaat.aiPrompts.save(', 'void promptApi.save(')
+panel = panel.replace('void window.aaaat.aiPrompts.reset(', 'void promptApi.reset(')
+panel_path.write_text(panel, encoding="utf-8")
+
+# Demo ordering is presentation-driven, so assert retained raw HTML across all
+# demo Sources rather than assuming a candidature list order.
+demo_test = ROOT / "test/demo-workspace.test.ts"
+demo = demo_test.read_text(encoding="utf-8")
+demo = demo.replace(
+    '    expect(listCandidatureSources(root, candidatures[0]!.id)[0]?.sourceText).toContain("<main>");\n',
+    '''    const rawSources = candidatures.flatMap((candidature) =>
+      listCandidatureSources(root, candidature.id).map((source) => source.sourceText),
+    );
+    expect(rawSources.some((source) => source.includes("<main>"))).toBe(true);
+    expect(rawSources.some((source) => source.includes("<article>"))).toBe(true);
+''',
+    1,
+)
+demo_test.write_text(demo, encoding="utf-8")
