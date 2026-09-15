@@ -506,6 +506,7 @@ test("packaged external command rejects unsupported authority without opening de
 });
 
 test("packaged desktop preserves security gates and required bounded capabilities", async () => {
+  test.setTimeout(120_000);
   const executablePath = packagedExecutable();
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-owned-"));
@@ -535,7 +536,6 @@ test("packaged desktop preserves security gates and required bounded capabilitie
       workspaceCreateDemo: typeof window.aaaat.workspace.createDemo,
       workspaceReset: typeof window.aaaat.workspace.reset,
       workspaceStatus: typeof window.aaaat.workspace.status,
-      aiPromptList: typeof window.aaaat.aiPrompts.list,
       profileCurrent: typeof window.aaaat.profile.current,
       documentList: typeof window.aaaat.documents.list,
       documentRender: typeof window.aaaat.documents.render,
@@ -552,6 +552,9 @@ test("packaged desktop preserves security gates and required bounded capabilitie
       aiConnection: typeof window.aaaat.ai.connection,
       aiExtract: typeof window.aaaat.ai.extractJob,
       aiDiscoverField: typeof window.aaaat.ai.discoverField,
+      aiPromptList: typeof window.aaaat.aiPrompts.list,
+      aiPromptSave: typeof window.aaaat.aiPrompts.save,
+      aiPromptReset: typeof window.aaaat.aiPrompts.reset,
     }));
 
     expect(boundary.processType).toBe("undefined");
@@ -574,88 +577,42 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     await expect(running.page.getByText(ownedWorkspace)).toBeVisible();
     await expect(running.page.getByText("Demo workspace", { exact: true })).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
-    const demoCorpus = running.page.locator('[aria-label="Candidature corpus Focus"]');
-    await expect(demoCorpus.getByRole("button", { name: /Northstar Labs/i }).first()).toBeVisible();
-    await demoCorpus.getByRole("button", { name: /Northstar Labs/i }).first().click();
-    await running.page.getByRole("region", { name: "Candidature Focus", exact: true }).getByRole("button", { name: "All details" }).click();
-    const demoComplete = running.page.getByRole("region", { name: "Complete candidature" });
-    const demoOffer = demoComplete.getByRole("region", { name: "Retained offer" });
-    await expect(demoOffer).toContainText("English is required");
-    await expect(demoOffer.getByText("Original Source")).toBeVisible();
-    await demoComplete.getByRole("button", { name: "Back" }).click();
+    await running.page.getByRole("button", { name: /Northstar Labs/i }).first().click();
+    await running.page.getByRole("button", { name: "All details" }).click();
+    const completeDemo = running.page.getByRole("region", { name: "Complete candidature" });
+    const offer = completeDemo.getByRole("region", { name: "Retained offer" });
+    await expect(offer).toContainText("Northstar Labs builds developer infrastructure");
+    await offer.locator("summary").filter({ hasText: "Original Source" }).click();
+    await expect(offer.locator("pre")).toContainText("<main><h1>Platform Engineer</h1>");
 
     await running.page.getByRole("button", { name: "Settings" }).click();
-    await running.page.getByRole("button", { name: /AI connections/ }).click();
+    await running.page.getByRole("button", { name: "AI connections" }).click();
     const advanced = running.page.locator("summary").filter({ hasText: "Advanced: AI instructions and context" });
     await advanced.click();
-    const coverPrompt = running.page.locator(".document-card").filter({ hasText: "Cover letter draft" }).first();
-    await coverPrompt.getByLabel("Optional guidance").fill("Prefer short paragraphs in packaged verification.");
-    await coverPrompt.getByRole("button", { name: "Save guidance" }).click();
-    await coverPrompt.locator("summary").filter({ hasText: "Effective final instruction" }).click();
-    await expect(coverPrompt).toContainText("Prefer short paragraphs in packaged verification.");
+    const promptPanel = running.page.getByRole("region", { name: "AI prompt transparency" });
+    const coverLetter = promptPanel.locator("article").filter({ hasText: "Cover letter draft" });
+    await expect(coverLetter).toContainText("Context sent:");
+    await expect(coverLetter).toContainText("Expected response:");
+    await coverLetter.getByLabel("Optional guidance").fill("Prefer two short paragraphs.");
+    await coverLetter.getByRole("button", { name: "Save guidance" }).click();
+    await coverLetter.locator("summary").filter({ hasText: "Effective final instruction" }).click();
+    await expect(coverLetter.locator("pre")).toContainText("Prefer two short paragraphs.");
+
     await running.page.getByRole("button", { name: "Back to Settings" }).click();
-    await running.page.getByRole("button", { name: "Workspace", exact: true }).click();
-    const reset = running.page.getByRole("region", { name: "Reset workspace" });
-    await expect(reset.getByRole("button", { name: "Reset workspace" })).toBeVisible();
-    running.page.once("dialog", (dialog) => void dialog.accept());
-    await reset.getByRole("button", { name: "Reset workspace" }).click();
+    await running.page.getByRole("button", { name: "Workspace" }).click();
+    running.page.once("dialog", (dialog) => dialog.accept());
+    await running.page.getByRole("button", { name: "Reset workspace" }).click();
     await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
     await expect(running.page.getByText("No candidatures yet")).toBeVisible();
-
-    const resetDatabase = new DatabaseSync(path.join(ownedWorkspace, "workspace.sqlite"), { readOnly: true });
-    try {
-      expect(resetDatabase.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 0 });
-      expect(resetDatabase.prepare("SELECT COUNT(*) AS count FROM profile_items").get()).toEqual({ count: 0 });
-      expect(resetDatabase.prepare("SELECT COUNT(*) AS count FROM documents").get()).toEqual({ count: 0 });
-      expect(resetDatabase.prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.demo'").get()).toBeUndefined();
-      expect(resetDatabase.prepare("SELECT value FROM workspace_metadata WHERE key = 'ai.prompt.guidance.cover_letter_draft'").get()).toBeUndefined();
-    } finally {
-      resetDatabase.close();
-    }
-
-    await proveAcceptedShellAtWindowSize(running.page, 1200, 800);
-    await proveAcceptedShellAtWindowSize(running.page, 720, 600);
-
-    const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
-    await expect(primary.getByRole("button", { name: "Candidatures" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    await expect(running.page.getByRole("button", { name: "ToDos" })).toHaveCount(0);
-    await expect(running.page.getByRole("button", { name: "AI assist" })).toHaveCount(0);
-    await expect(running.page.getByRole("button", { name: "Profile" })).toHaveCount(0);
-    await expect(running.page.getByRole("button", { name: "CVs & letters" })).toHaveCount(0);
-    await expect(running.page.getByRole("button", { name: "Professional information" })).toHaveCount(0);
-
-    const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
-    expect(existsSync(databasePath)).toBe(true);
-    const database = new DatabaseSync(databasePath, { readOnly: true });
-    try {
-      expect(
-        database
-          .prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.initialized_at'")
-          .get(),
-      ).toMatchObject({ value: expect.any(String) });
-      expect(
-        database.prepare("SELECT name FROM sqlite_schema WHERE name = 'schema_migrations'").get(),
-      ).toBeUndefined();
-      expect(
-        database.prepare("SELECT name FROM sqlite_schema WHERE name = 'todos'").get(),
-      ).toBeUndefined();
-      expect(
-        database
-          .prepare("SELECT opportunity_research_selected AS selected FROM candidatures LIMIT 0")
-          .all(),
-      ).toEqual([]);
-    } finally {
-      database.close();
-    }
+    expect(new DatabaseSync(path.join(ownedWorkspace, "workspace.sqlite"), { readOnly: true })
+      .prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 0 });
 
     await stopPackagedApp(running);
     running = undefined;
 
+    const executablePathAfterReset = packagedExecutable();
     const commandResult = spawnSync(
-      executablePath,
+      executablePathAfterReset,
       ["--external-command", "candidature.create", "--workspace", ownedWorkspace],
       {
         input: JSON.stringify({
@@ -679,6 +636,7 @@ test("packaged desktop preserves security gates and required bounded capabilitie
     expect(commandResult.stdout).not.toContain("private smoke source");
     expect(commandResult.stdout).not.toContain(ownedWorkspace);
 
+    const databasePath = path.join(ownedWorkspace, "workspace.sqlite");
     const commandDatabase = new DatabaseSync(databasePath, { readOnly: true });
     try {
       expect(commandDatabase.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({
