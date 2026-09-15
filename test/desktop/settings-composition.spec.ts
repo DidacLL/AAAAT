@@ -222,7 +222,7 @@ test("packaged Settings is secondary, host-agnostic and compact-task oriented", 
     await expect(running.page.getByRole("article", { name: "installer.ai" })).toBeVisible();
     await expect(running.page.getByRole("article", { name: "configurator.ai" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Export AI setup" })).toBeVisible();
-    await expect(running.page.getByText("Optional VS Code adapter", { selector: "summary" })).toBeVisible();
+    await expect(running.page.locator("summary").filter({ hasText: "Optional VS Code adapter" })).toBeVisible();
     await expectNoHorizontalOverflow(running.page, 720, 760, "portability-narrow");
     await expectNoHorizontalOverflow(running.page, 1180, 600, "portability-short");
     await running.page.getByRole("button", { name: "Back to Settings" }).click();

@@ -44,25 +44,18 @@ async function reservePort(): Promise<number> {
   });
 }
 
-async function waitForDebugger(
-  endpoint: string,
-  processExit: () => number | null,
-  processError: () => string,
-): Promise<void> {
+async function waitForDebugger(endpoint: string, processExit: () => number | null, processError: () => string) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    if (processExit() !== null) {
-      throw new Error("Packaged application exited before startup: " + processError());
-    }
+    if (processExit() !== null) throw new Error("Packaged application exited before startup: " + processError());
     try {
       const response = await fetch(endpoint + "/json/version");
       if (response.ok) return;
     } catch {
-      // The packaged process is still starting.
+      // Packaged Chromium is still starting.
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  const error = processError().trim();
-  throw new Error("Packaged application did not expose its test endpoint" + (error ? ":\n" + error : ""));
+  throw new Error("Packaged application did not expose its test endpoint: " + processError());
 }
 
 function processHasExited(child: ChildProcess): boolean {
@@ -147,8 +140,7 @@ async function startPackagedApp(
   child.stderr?.on("data", (chunk: Buffer) => { processError += chunk.toString(); });
   await waitForDebugger(endpoint, () => child.exitCode, () => processError);
   const browser = await chromium.connectOverCDP(endpoint);
-  const context = browser.contexts()[0];
-  const page = context?.pages()[0];
+  const page = browser.contexts()[0]?.pages()[0];
   if (!page) {
     await browser.close();
     await stopProcess(child);
@@ -243,10 +235,9 @@ async function proveIntentShell(page: Page, width: number, height: number): Prom
   expect(resizeLinuxAppWindow(width, height)).toEqual({ width, height });
   await page.waitForTimeout(150);
   const primary = page.getByRole("navigation", { name: "Primary work areas" });
-  await expect(primary.getByRole("button", { name: "From a job offer" })).toBeVisible();
-  await expect(primary.getByRole("button", { name: "CV & cover letter" })).toBeVisible();
-  await expect(primary.getByRole("button", { name: "Saved applications" })).toBeVisible();
-  await expect(primary.getByRole("button", { name: "My information" })).toBeVisible();
+  for (const label of ["From a job offer", "CV & cover letter", "Saved applications", "My information"]) {
+    await expect(primary.getByRole("button", { name: label })).toBeVisible();
+  }
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Change workspace" })).toBeVisible();
   const geometry = await page.evaluate(() => ({
@@ -360,8 +351,7 @@ test("packaged Linux follows the raw-offer-to-document journey and keeps standal
 
     const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
     await primary.getByRole("button", { name: "Saved applications" }).click();
-    const search = running.page.getByRole("searchbox", { name: "Search" });
-    await search.fill("Acme");
+    await running.page.getByRole("searchbox", { name: "Search" }).fill("Acme");
     await expect(running.page.locator('[aria-label="Candidature corpus Focus"]')).toBeVisible();
 
     await primary.getByRole("button", { name: "CV & cover letter" }).click();
@@ -384,7 +374,7 @@ test("packaged Linux follows the raw-offer-to-document journey and keeps standal
     await expect(running.page.getByRole("heading", { name: "Use AAAAT from a compatible assistant" })).toBeVisible();
     await expect(running.page.getByRole("article", { name: "installer.ai" })).toBeVisible();
     await expect(running.page.getByRole("article", { name: "configurator.ai" })).toBeVisible();
-    await expect(running.page.getByText("Optional VS Code adapter", { selector: "summary" })).toBeVisible();
+    await expect(running.page.locator("summary").filter({ hasText: "Optional VS Code adapter" })).toBeVisible();
     await expect(running.page.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeVisible();
   } finally {
     if (running) await stopPackagedApp(running);
