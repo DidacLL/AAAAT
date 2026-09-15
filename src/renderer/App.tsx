@@ -64,6 +64,7 @@ export function App() {
   const [workspacePhase, setWorkspacePhase] = useState<WorkspacePhase>("loading");
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [demoWorkspace, setDemoWorkspace] = useState(false);
   const [productView, setProductView] = useState<ProductView>("candidatures");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [candidatureDirty, setCandidatureDirty] = useState(false);
@@ -84,6 +85,10 @@ export function App() {
         if (!active) return;
         setWorkspace(currentWorkspace);
         setWorkspacePhase(currentWorkspace ? "ready" : "idle");
+        if (currentWorkspace) {
+          const status = (window.aaaat.workspace as typeof window.aaaat.workspace & { status?: () => Promise<{ demo: boolean }> }).status;
+          if (status) void status().then((next) => { if (active) setDemoWorkspace(next.demo); }).catch(() => { if (active) setDemoWorkspace(false); });
+        }
       })
       .catch(() => {
         if (active) {
@@ -119,6 +124,8 @@ export function App() {
       setSettingsDirty(false);
       resetHandoffs();
       setWorkspace(selectedWorkspace);
+      const status = (window.aaaat.workspace as typeof window.aaaat.workspace & { status?: () => Promise<{ demo: boolean }> }).status;
+      setDemoWorkspace(status ? await status().then((next) => next.demo).catch(() => false) : false);
       setWorkspacePhase("ready");
       setSettingsOpen(false);
       setProductView("candidatures");
@@ -132,6 +139,20 @@ export function App() {
     }
   };
 
+  const createDemoWorkspace = async () => {
+    if (workspace && anyDirty && !window.confirm("Discard unsaved edits and switch to a demo workspace?")) return;
+    setWorkspacePhase("choosing"); setWorkspaceError(null);
+    try {
+      const selected = await window.aaaat.workspace.createDemo();
+      if (!selected) { setWorkspacePhase(workspace ? "ready" : "idle"); return; }
+      setCandidatureDirty(false); setDocumentDirty(false); setProfessionalInformationDirty(false); setSettingsDirty(false);
+      resetHandoffs(); setWorkspace(selected); setDemoWorkspace(true); setWorkspacePhase("ready"); setSettingsOpen(false); setProductView("candidatures");
+    } catch (reason) {
+      setWorkspacePhase(workspace ? "ready" : "idle");
+      setWorkspaceError(reason instanceof Error ? reason.message : "AAAAT could not create the demo workspace. Choose an empty folder.");
+    }
+  };
+
   const openRestoredWorkspace = (restoredWorkspace: WorkspaceInfo) => {
     setCandidatureDirty(false);
     setDocumentDirty(false);
@@ -140,6 +161,7 @@ export function App() {
     resetHandoffs();
     setWorkspaceError(null);
     setWorkspace(restoredWorkspace);
+    setDemoWorkspace(false);
     setWorkspacePhase("ready");
     setSettingsOpen(false);
     setProductView("candidatures");
@@ -276,7 +298,7 @@ export function App() {
           {ready ? (
             <div className="shell-utilities">
               <span className="workspace-chip" title={workspace.rootPath}>
-                <span>Workspace</span><code>{workspace.rootPath}</code>
+                <span>{demoWorkspace ? "Demo workspace" : "Workspace"}</span><code>{workspace.rootPath}</code>
               </span>
               <button className="compact-secondary" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>
                 {choosing ? "Choosing…" : "Switch workspace"}
@@ -376,6 +398,7 @@ export function App() {
                 <div className="workspace-actions">
                   <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing workspace..." : "Create workspace"}</button>
                   <button className="secondary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open existing workspace</button>
+                  <button className="secondary-action" type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Try with demo data</button>
                 </div>
                 <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />
               </>

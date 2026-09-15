@@ -68,7 +68,13 @@ const desktopApi: DesktopApi &
   system: {
     info: async () => ({ appVersion: "2.0.0", electronVersion: "44.1.1", nodeVersion: "24.19.0" }),
   },
-  workspace: { current, choose },
+  workspace: {
+    current,
+    choose,
+    createDemo: async () => readyWorkspace,
+    reset: async () => readyWorkspace,
+    status: async () => ({ demo: false }),
+  },
   workspaceRecovery: { backup, restore },
   setupEnvironment: {
     current: async () => readyEnvironment,

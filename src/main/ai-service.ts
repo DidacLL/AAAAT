@@ -63,7 +63,8 @@ import {
   requireAiConnectionForOperation,
   saveDefaultAiConnection,
 } from "./ai-connection-service";
-import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
+import { type ModelProvider } from "./ai-provider";
+import { createWorkspaceAiProvider } from "./ai-prompt-service";
 import {
   listCandidatureFields,
   validateCandidatureFieldValueInDatabase,
@@ -345,7 +346,7 @@ function rehydrateOpportunityReviewResult(
 export async function reviewOpportunity(
   rootPath: string,
   rawRequest: OpportunityReviewRequest,
-  provider: ModelProvider = createOpenAiCompatibleProvider(),
+  provider: ModelProvider = createWorkspaceAiProvider(rootPath),
 ): Promise<OpportunityReviewResult> {
   const request = opportunityReviewRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "opportunity_review");
@@ -445,7 +446,7 @@ function validateDiscoveryResult(
 export async function extractJob(
   rootPath: string,
   rawRequest: JobExtractionRequest,
-  provider: ModelProvider = createOpenAiCompatibleProvider(),
+  provider: ModelProvider = createWorkspaceAiProvider(rootPath),
 ): Promise<JobExtractionResult> {
   const request = jobExtractionRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "job_extraction");
@@ -461,7 +462,7 @@ export async function extractJob(
 export async function discoverCandidatureFieldFromSources(
   rootPath: string,
   rawRequest: HistoricalFieldDiscoveryRequest,
-  provider: ModelProvider = createOpenAiCompatibleProvider(),
+  provider: ModelProvider = createWorkspaceAiProvider(rootPath),
 ): Promise<HistoricalFieldDiscoveryResult> {
   const request = historicalFieldDiscoveryRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "historical_field_discovery");
@@ -496,7 +497,7 @@ export async function discoverCandidatureFieldFromSources(
     { sourceText, sourceTitle: "Retained AAAAT Sources", sourceUrl: "" },
     [field],
   );
-  const rawResult = await provider.extractJob(statusFor(stored), wire.request);
+  const rawResult = await provider.extractJob(statusFor(stored), wire.request, undefined, "historical_field_discovery");
   const result = validateDiscoveryResult(rootPath, wire, rawResult);
   return historicalFieldDiscoveryResultSchema.parse({
     proposal: result.proposals[0] ?? null,
@@ -507,7 +508,7 @@ export async function discoverCandidatureFieldFromSources(
 export async function recommendVariant(
   rootPath: string,
   rawRequest: VariantRecommendationRequest,
-  provider: ModelProvider = createOpenAiCompatibleProvider(),
+  provider: ModelProvider = createWorkspaceAiProvider(rootPath),
 ): Promise<VariantRecommendationResult> {
   const request = variantRecommendationRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "variant_recommendation");
@@ -664,7 +665,7 @@ function currentDocumentEvidenceIds(rootPath: string, documentId: string): Reado
 export async function tailorCv(
   rootPath: string,
   rawRequest: DocumentAiRequest,
-  provider: ModelProvider = createOpenAiCompatibleProvider(),
+  provider: ModelProvider = createWorkspaceAiProvider(rootPath),
 ): Promise<CvTailoringResult> {
   const request = documentAiRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "cv_tailoring");
@@ -697,7 +698,7 @@ export async function tailorCv(
 export async function draftCoverLetter(
   rootPath: string,
   rawRequest: DocumentAiRequest,
-  provider: ModelProvider = createOpenAiCompatibleProvider(),
+  provider: ModelProvider = createWorkspaceAiProvider(rootPath),
 ): Promise<CoverLetterDraft> {
   const request = documentAiRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "cover_letter_draft");

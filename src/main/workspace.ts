@@ -268,6 +268,30 @@ export function openWorkspace(rootPath: string): WorkspaceInfo {
   return { rootPath: canonicalPath };
 }
 
+export function resetWorkspace(rootPath: string): WorkspaceInfo {
+  const canonicalPath = canonicalizeWorkspaceRoot(rootPath);
+  verifyExistingWorkspace(canonicalPath);
+  for (const target of [
+    databasePathFor(canonicalPath),
+    databasePathFor(canonicalPath) + "-wal",
+    databasePathFor(canonicalPath) + "-shm",
+    path.join(canonicalPath, "documents"),
+    path.join(canonicalPath, "artifacts"),
+    path.join(canonicalPath, "ai-connection.json"),
+  ]) {
+    rmSync(target, { recursive: true, force: true });
+  }
+  return initializeNewWorkspace(canonicalPath);
+}
+
+export function workspaceIsDemo(rootPath: string): boolean {
+  return withWorkspaceDatabase(rootPath, (database) => {
+    const row = database.prepare("SELECT value FROM workspace_metadata WHERE key = ?")
+      .get("workspace.demo") as { value: string } | undefined;
+    return row?.value === "1";
+  });
+}
+
 export function withWorkspaceDatabase<T>(
   rootPath: string,
   action: (database: DatabaseSync) => T,

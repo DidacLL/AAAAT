@@ -49,6 +49,7 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     import("./cv-descriptor-ipc"),
     import("./document-output-ipc"),
     import("./profile-ai-context-ipc"),
+    import("./ai-prompt-ipc"),
     import("./setup-environment-ipc"),
   ]).then(() => import("./main"));
 }

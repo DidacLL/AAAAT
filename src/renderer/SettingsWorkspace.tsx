@@ -32,6 +32,21 @@ const settingsLabels: Record<Exclude<SettingsView, "overview">, string> = {
   portability: "Portability & external tools",
 };
 
+function ResetWorkspacePanel() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <section className="profile-column destructive-settings" aria-label="Reset workspace">
+      <div className="section-heading"><div><p className="eyebrow">Current workspace only</p><h2>Reset workspace</h2></div></div>
+      <p>Remove the current workspace data and return this folder to a clean usable AAAAT state. Other workspaces are not affected.</p>
+      <button type="button" className="compact-secondary" disabled={busy} onClick={() => {
+        if (!window.confirm("Reset this workspace? This permanently removes its candidatures, Sources, Tags, professional information, documents, artifacts and workspace AI settings.")) return;
+        setBusy(true);
+        void window.aaaat.workspace.reset().then(() => window.location.reload()).catch(() => setBusy(false));
+      }}>{busy ? "Resetting…" : "Reset workspace"}</button>
+    </section>
+  );
+}
+
 export function SettingsWorkspace({
   currentWorkspace,
   initialView = "overview",
@@ -151,6 +166,7 @@ export function SettingsWorkspace({
               </button>
             </div>
           </div>
+          <ResetWorkspacePanel />
         </div>
       ) : null}
 

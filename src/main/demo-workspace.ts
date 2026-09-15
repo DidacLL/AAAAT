@@ -1,0 +1,107 @@
+import { randomUUID } from "node:crypto";
+import { readdirSync } from "node:fs";
+
+import { createDocument } from "./document-service";
+import { createOrOpenWorkspace, withWorkspaceDatabase } from "./workspace";
+
+const orgField = "00000000-0000-4000-8000-000000000101";
+const roleField = "00000000-0000-4000-8000-000000000102";
+const locationField = "00000000-0000-4000-8000-000000000103";
+const compensationField = "00000000-0000-4000-8000-000000000104";
+const notesField = "00000000-0000-4000-8000-000000000106";
+
+export function createDemoWorkspace(rootPath: string) {
+  if (readdirSync(rootPath).length > 0) {
+    throw new Error("Demo data can only be created in an empty folder.");
+  }
+  const workspace = createOrOpenWorkspace(rootPath);
+  const now = new Date().toISOString();
+  const first = randomUUID();
+  const second = randomUUID();
+  const languageField = randomUUID();
+  const tags = [
+    { id: randomUUID(), name: "Remote", definition: "Remote-friendly opportunity." },
+    { id: randomUUID(), name: "Backend", definition: "Backend/platform engineering work." },
+    { id: randomUUID(), name: "ML", definition: "Machine-learning product work." },
+  ];
+
+  withWorkspaceDatabase(workspace.rootPath, (database) => {
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      database.prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
+        .run("workspace.demo", "1");
+      database.prepare(`INSERT INTO candidature_fields(
+        id, system_key, label, description, value_type, cardinality, options_json, enabled, created_at, updated_at
+      ) VALUES (?, NULL, ?, ?, 'text', 'many', '[]', 1, ?, ?)`)
+        .run(languageField, "Languages", "Languages required or useful for the opportunity.", now, now);
+      database.prepare(`INSERT INTO candidature_field_preferences(
+        field_id, focus_visible, focus_order, focus_prominence, identity_order, ai_discovery, ai_context_mode
+      ) VALUES (?, 1, 4, 'compact', NULL, 1, 'expose')`).run(languageField);
+
+      const insertCandidature = database.prepare(
+        "INSERT INTO candidatures(id, archived, opportunity_research_selected, created_at, updated_at) VALUES (?, 0, 0, ?, ?)",
+      );
+      insertCandidature.run(first, now, now);
+      insertCandidature.run(second, now, now);
+      const value = database.prepare(`INSERT INTO candidature_field_values(
+        candidature_id, field_id, value_json, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?)`);
+      const setValues = (id: string, rows: readonly [string, unknown][]) => {
+        for (const [fieldId, item] of rows) value.run(id, fieldId, JSON.stringify(item), now, now);
+      };
+      setValues(first, [
+        [orgField, "Northstar Labs"], [roleField, "Platform Engineer"], [locationField, "Spain · Remote"],
+        [compensationField, "€55k–€70k"], [languageField, ["English", "Spanish"]],
+        [notesField, "Fictional demo candidature. Recruiter screen expected next week."],
+      ]);
+      setValues(second, [
+        [orgField, "Lumen Health"], [roleField, "ML Product Engineer"], [locationField, "Barcelona · Hybrid"],
+        [languageField, ["English"]], [notesField, "Fictional demo candidature. Portfolio link requested."],
+      ]);
+      const source = database.prepare(`INSERT INTO candidature_sources(
+        id, candidature_id, kind, title, url, source_text, created_at, updated_at
+      ) VALUES (?, ?, 'job_posting', ?, ?, ?, ?, ?)`);
+      source.run(randomUUID(), first, "Platform Engineer — Northstar Labs", "https://example.test/northstar-platform",
+        `<main><h1>Platform Engineer</h1><p>Northstar Labs builds developer infrastructure for distributed teams.</p><p>We are looking for experience with TypeScript, APIs, PostgreSQL and production observability.</p><p>English is required. Spanish is useful.</p><p>Remote within Spain. Salary €55,000–€70,000.</p></main>`, now, now);
+      source.run(randomUUID(), second, "ML Product Engineer — Lumen Health", "https://example.test/lumen-ml",
+        `<article><h1>ML Product Engineer</h1><p>Build user-facing ML workflows with Python and TypeScript.</p><p>Experience shipping models is valued; healthcare experience is helpful but not required.</p><p>English required. Hybrid in Barcelona.</p></article>`, now, now);
+
+      for (const tag of tags) {
+        database.prepare(`INSERT INTO tags(id, name, definition, notes, aliases_json, created_at, updated_at)
+          VALUES (?, ?, ?, '', '[]', ?, ?)`).run(tag.id, tag.name, tag.definition, now, now);
+      }
+      database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(first, tags[0]!.id);
+      database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(first, tags[1]!.id);
+      database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(second, tags[2]!.id);
+
+      const profile = database.prepare(`INSERT INTO profile_items(
+        id, kind, title, subtitle, description, start_date, end_date, url, sort_order, ai_context_mode, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, 'expose', ?, ?)`);
+      profile.run(randomUUID(), "summary", "Fictional demo profile", null, "Software engineer focused on backend systems, developer tooling and practical ML products.", 0, now, now);
+      profile.run(randomUUID(), "experience", "Software Engineer", "Example Cooperative", "Built TypeScript services, PostgreSQL data flows and internal automation used by distributed teams.", 1, now, now);
+      profile.run(randomUUID(), "skill", "Backend engineering", null, "TypeScript, Python, SQL, API design, testing and observability.", 2, now, now);
+      profile.run(randomUUID(), "language", "English", "Professional", "Fictional demo proficiency.", 3, now, now);
+      database.prepare(`UPDATE career_context SET career_direction = ?, objectives = ?, constraints_text = ?, target_roles = ?, target_markets_locations = ?, work_preferences = ?, application_writing_preferences = ?, updated_at = ? WHERE id = 1`)
+        .run("Backend/platform or ML product engineering.", "Find a product team with strong engineering ownership.", "Prefer Spain or remote EU roles.", "Backend Engineer; Platform Engineer; ML Product Engineer", "Spain; Remote EU", "Small-to-medium product teams; pragmatic engineering culture.", "Concise, concrete, avoid inflated claims.", now);
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      throw error;
+    }
+  });
+
+  const cv = createDocument(workspace.rootPath, {
+    kind: "cv", title: "Demo CV", variantId: null, language: "en", engine: "pdflatex", bodyParagraphs: [],
+  });
+  const letter = createDocument(workspace.rootPath, {
+    kind: "cover_letter", title: "Demo cover letter", variantId: null, language: "en", engine: "pdflatex",
+    recipient: "Hiring team", subject: "Platform Engineer application",
+    bodyParagraphs: ["I am interested in the fictional Platform Engineer role because it matches my backend and developer-tooling experience.", "My recent work includes TypeScript services, PostgreSQL workflows and production automation for distributed teams."],
+    closing: "Kind regards",
+  });
+  withWorkspaceDatabase(workspace.rootPath, (database) => {
+    database.prepare("INSERT INTO candidature_documents(candidature_id, document_id) VALUES (?, ?)").run(first, cv.id);
+    database.prepare("INSERT INTO candidature_documents(candidature_id, document_id) VALUES (?, ?)").run(first, letter.id);
+  });
+  return workspace;
+}

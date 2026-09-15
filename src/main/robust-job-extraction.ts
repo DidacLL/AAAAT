@@ -21,7 +21,8 @@ import {
 } from "../shared/contracts";
 import { compactSourceText } from "../shared/source-text";
 import { requireAiConnectionForOperation } from "./ai-connection-service";
-import { AiProviderError, createOpenAiCompatibleProvider } from "./ai-provider";
+import { AiProviderError } from "./ai-provider";
+import { createWorkspaceAiProvider } from "./ai-prompt-service";
 import {
   listCandidatureFields,
   validateCandidatureFieldValueInDatabase,
@@ -646,7 +647,7 @@ export async function extractJobWithPartialOutcomes(
   }
   const wire = discoveryWireRequest(request, fields);
   const capture = capturingFetch(wire.request, signal);
-  const provider = createOpenAiCompatibleProvider(capture.fetchImpl);
+  const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);
 
   let rawResult: unknown;
   let providerValidationError = "";

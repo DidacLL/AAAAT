@@ -1,4 +1,5 @@
 import type { AiConnectionDesktopApi } from "../shared/ai-connection-contracts";
+import type { AiPromptDesktopApi } from "../shared/ai-prompt-contracts";
 import type { AiDesktopApi } from "../shared/ai-contracts";
 import type { AiTaskCancellationDesktopApi } from "../shared/ai-task-cancellation-contracts";
 import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
@@ -21,6 +22,7 @@ declare global {
       AiDesktopApi &
       AiTaskCancellationDesktopApi &
       AiConnectionDesktopApi &
+      AiPromptDesktopApi &
       ArtifactDesktopApi &
       CandidatureActivityDesktopApi &
       CandidatureOpportunityResearchAccessDesktopApi &

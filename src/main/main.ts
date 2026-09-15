@@ -80,6 +80,7 @@ import {
   tagRecordSchema,
   tagUpdateSchema,
   workspaceChoiceSchema,
+  workspaceStatusSchema,
   type WorkspaceInfo,
 } from "../shared/contracts";
 import {
@@ -150,12 +151,15 @@ import {
 } from "./profile-service";
 import { createTag, listTags, updateTag } from "./tag-service";
 import { createWindowOptions } from "./window-options";
+import { createDemoWorkspace } from "./demo-workspace";
 import { createWorkspaceBackup, restoreWorkspaceBackup } from "./workspace-backup";
 import {
   createOrOpenWorkspace,
   openWorkspace,
   readLastWorkspacePath,
   rememberWorkspacePath,
+  resetWorkspace,
+  workspaceIsDemo,
 } from "./workspace";
 
 app.enableSandbox();
@@ -203,6 +207,20 @@ async function chooseWorkspace(
   const selectedPath = selection.filePaths[0];
   if (!selectedPath) return null;
   const workspace = creating ? createOrOpenWorkspace(selectedPath) : openWorkspace(selectedPath);
+  rememberWorkspacePath(workspaceSettingsPath(), workspace.rootPath);
+  currentWorkspace = workspace;
+  return workspace;
+}
+
+async function createDemo(mainWindow: BrowserWindow): Promise<WorkspaceInfo | null> {
+  const selection = await dialog.showOpenDialog(mainWindow, {
+    title: "Create a demo AAAAT workspace",
+    buttonLabel: "Create demo here",
+    properties: ["openDirectory", "createDirectory", "promptToCreate"],
+  });
+  const selectedPath = selection.filePaths[0];
+  if (selection.canceled || !selectedPath) return null;
+  const workspace = createDemoWorkspace(selectedPath);
   rememberWorkspacePath(workspaceSettingsPath(), workspace.rootPath);
   currentWorkspace = workspace;
   return workspace;
@@ -286,6 +304,21 @@ function registerIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(channels.workspaceChoose, async (event, choice: unknown) => {
     assertTrustedSender(event, mainWindow);
     return optionalWorkspaceInfoSchema.parse(await chooseWorkspace(mainWindow, choice));
+  });
+  ipcMain.handle(channels.workspaceCreateDemo, async (event) => {
+    assertTrustedSender(event, mainWindow);
+    return optionalWorkspaceInfoSchema.parse(await createDemo(mainWindow));
+  });
+  ipcMain.handle(channels.workspaceReset, (event) => {
+    assertTrustedSender(event, mainWindow);
+    const workspace = resetWorkspace(requireWorkspaceRoot());
+    rememberWorkspacePath(workspaceSettingsPath(), workspace.rootPath);
+    currentWorkspace = workspace;
+    return workspace;
+  });
+  ipcMain.handle(channels.workspaceStatus, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return workspaceStatusSchema.parse({ demo: workspaceIsDemo(requireWorkspaceRoot()) });
   });
   ipcMain.handle(workspaceRecoveryChannels.backup, async (event) => {
     assertTrustedSender(event, mainWindow);
