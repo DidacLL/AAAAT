@@ -162,7 +162,8 @@ describe("contextual handoff coordination", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await openDocuments(user);
+    await openSavedApplications(user);
+    await user.click(screen.getByRole("button", { name: "Open linked document" }));
     const documentRegion = screen.getByRole("region", { name: "Mock documents" });
     await user.click(screen.getByRole("button", { name: "Open render settings" }));
     expect(screen.getByRole("region", { name: "Mock settings" })).toHaveTextContent("Settings detail rendering");
