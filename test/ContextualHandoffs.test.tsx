@@ -146,6 +146,17 @@ describe("contextual handoff coordination", () => {
     expect(screen.getByRole("region", { name: "Mock candidatures" })).toBe(candidatureRegion);
   });
 
+  it("treats primary Saved applications navigation as a fresh corpus instead of a contextual return", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const candidatureRegion = await openSavedApplications(user);
+    await user.click(screen.getByRole("button", { name: "Open linked document" }));
+    await user.click(screen.getByRole("button", { name: "Saved applications" }));
+
+    expect(screen.getByRole("region", { name: "Mock candidatures" })).not.toBe(candidatureRegion);
+  });
+
   it("opens one reusable source and returns to the same document context", async () => {
     const user = userEvent.setup();
     render(<App />);

@@ -75,6 +75,7 @@ export function App() {
   const [documentDirty, setDocumentDirty] = useState(false);
   const [professionalInformationDirty, setProfessionalInformationDirty] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const [candidatureWorkspaceRevision, setCandidatureWorkspaceRevision] = useState(0);
   const [documentWorkspaceRevision, setDocumentWorkspaceRevision] = useState(0);
   const [documentHandoff, setDocumentHandoff] = useState<DocumentHandoff | null>(null);
   const [professionalInformationHandoff, setProfessionalInformationHandoff] =
@@ -209,6 +210,9 @@ export function App() {
     }
     if (!leaveSettings()) return;
     if (next !== productView && protectedWorkDirty && !window.confirm("Discard unsaved edits and leave this work?")) return;
+    if (next === "candidatures" && documentHandoff?.candidatureId) {
+      setCandidatureWorkspaceRevision((current) => current + 1);
+    }
     resetHandoffs();
     setProductView(next);
   };
@@ -380,7 +384,10 @@ export function App() {
 
                 {keepCandidaturesMounted ? (
                   <div hidden={settingsOpen || productView !== "candidatures"}>
-                    <CandidaturesArea key={`candidatures-${workspace.rootPath}`} onDirtyChange={setCandidatureDirty} />
+                    <CandidaturesArea
+                      key={`candidatures-${workspace.rootPath}-${String(candidatureWorkspaceRevision)}`}
+                      onDirtyChange={setCandidatureDirty}
+                    />
                   </div>
                 ) : null}
 
