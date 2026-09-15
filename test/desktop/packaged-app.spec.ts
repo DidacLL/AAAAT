@@ -560,7 +560,7 @@ test("packaged demo workspace exposes offer, prompt guidance, and reset", async 
     await running.page.getByRole("button", { name: /AI connections/ }).click();
     const advanced = running.page.locator("summary").filter({ hasText: "Advanced: AI instructions and context" });
     await advanced.click();
-    const coverPrompt = running.page.locator(".document-card").filter({ hasText: "Cover letter draft" }).first();
+    const coverPrompt = running.page.locator(".document-card").filter({ hasText: "Cover-letter drafting" }).first();
     await coverPrompt.getByLabel("Optional guidance").fill("Prefer short paragraphs in packaged verification.");
     await coverPrompt.getByRole("button", { name: "Save guidance" }).click();
     await coverPrompt.locator("summary").filter({ hasText: "Effective final instruction" }).click();
