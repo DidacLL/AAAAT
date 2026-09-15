@@ -21,7 +21,18 @@ jobs:
           fetch-depth: 0
           ref: product/dogfood-workspace-ai-context
       - name: Apply integrated product pass
-        run: python scripts/product-pass-apply-v2.py
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          script = Path("scripts/product-pass-apply-v2.py")
+          code = script.read_text(encoding="utf-8")
+          code = code.replace(
+              "'import { createOpenAiCompatibleProvider, type ModelProvider } from \"./ai-provider\";\\n',\n    'import { type ModelProvider } from \"./ai-provider\";\\nimport { createWorkspaceAiProvider } from \"./ai-prompt-service\";\\n',",
+              "'import { AiProviderError, createOpenAiCompatibleProvider } from \"./ai-provider\";\\n',\n    'import { AiProviderError } from \"./ai-provider\";\\nimport { createWorkspaceAiProvider } from \"./ai-prompt-service\";\\n',",
+          )
+          exec(compile(code, str(script), "exec"), {"__file__": str(script), "__name__": "__main__"})
+          PY
       - uses: actions/setup-node@v6
         with:
           node-version: '24.15.0'
