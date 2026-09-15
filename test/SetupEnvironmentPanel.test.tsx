@@ -28,61 +28,70 @@ const readySnapshot = {
 };
 
 const current = vi.fn();
-const writeText = vi.fn();
-
-function installApi() {
-  Object.defineProperty(window, "aaaat", {
-    configurable: true,
-    value: { setupEnvironment: { current } },
-  });
-}
-
-function installClipboard() {
-  Object.defineProperty(navigator, "clipboard", {
-    configurable: true,
-    value: { writeText },
-  });
-}
+const access = vi.fn();
+const updateAccess = vi.fn();
+const runRenderingSelfTest = vi.fn();
 
 beforeEach(() => {
-  current.mockReset();
-  writeText.mockReset();
-  writeText.mockResolvedValue(undefined);
-  installApi();
+  current.mockReset().mockResolvedValue(readySnapshot);
+  access.mockReset().mockResolvedValue({
+    installerActionsAllowed: false,
+    configuratorActionsAllowed: false,
+  });
+  updateAccess.mockReset().mockImplementation(async (next) => next);
+  runRenderingSelfTest.mockReset().mockResolvedValue({ passed: true });
+  Object.defineProperty(window, "aaaat", {
+    configurable: true,
+    value: {
+      setupEnvironment: { current },
+      setupAssistant: { access, updateAccess, runRenderingSelfTest },
+    },
+  });
 });
 
 afterEach(() => cleanup());
 
 describe("setup environment panel", () => {
-  it("shows detected local tools, validated AI routes, and copyable privacy-minimal guidance", async () => {
-    current.mockResolvedValue(readySnapshot);
-    const user = userEvent.setup();
-    installClipboard();
+  it("shows live local status and bounded installer/configurator capabilities instead of prompt templates", async () => {
     render(<SetupEnvironmentPanel />);
 
     expect(await screen.findByRole("heading", { name: "Local setup status" })).toBeInTheDocument();
-    expect(await screen.findByText("Ready with the detected local TeX tools.")).toBeInTheDocument();
-    expect(screen.getByText("latexmk").closest("p")).toHaveTextContent("latexmk: available · Latexmk 4.86");
-    expect(screen.getByText("pdflatex").closest("p")).toHaveTextContent("pdflatex: available · pdfTeX");
+    expect(screen.getByText("Ready with the detected local TeX tools.")).toBeInTheDocument();
     expect(screen.getByText("Available via Local model.")).toBeInTheDocument();
-    expect(screen.getAllByText("No validated route is configured.").length).toBeGreaterThan(0);
-
-    const installer = await screen.findByRole("textbox", { name: "installer.ai guidance" });
-    const configurator = screen.getByRole("textbox", { name: "configurator.ai guidance" });
-    const installerText = (installer as HTMLTextAreaElement).value;
-    const configuratorText = (configurator as HTMLTextAreaElement).value;
-
-    expect(installerText).toContain("Document rendering: ready");
-    expect(installerText).not.toContain("Latexmk 4.86");
-    expect(configuratorText).toContain("Opportunity review: validated route available");
-    expect(configuratorText).not.toContain("Local model");
-
-    await user.click(screen.getByRole("button", { name: "Copy configurator.ai" }));
-    expect(writeText).toHaveBeenCalledWith(configuratorText);
-    expect(await screen.findByRole("status")).toHaveTextContent("configurator.ai copied.");
+    expect(screen.getByRole("region", { name: "AAAAT setup harness" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "installer.ai" })).toHaveTextContent("Installation & local prerequisites");
+    expect(screen.getByRole("article", { name: "configurator.ai" })).toHaveTextContent("Optional AI configuration");
+    expect(screen.getByRole("region", { name: "External setup action authority" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /installer\.ai guidance/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /copy installer\.ai/i })).not.toBeInTheDocument();
   });
 
-  it("explains missing TeX and zero AI without offering a hidden install action and can refresh", async () => {
+  it("keeps external setup mutations locally opt-in", async () => {
+    const user = userEvent.setup();
+    render(<SetupEnvironmentPanel view="guidance" />);
+
+    const installer = await screen.findByRole("checkbox", { name: /installer\.ai actions/i });
+    const configurator = screen.getByRole("checkbox", { name: /configurator\.ai actions/i });
+    expect(installer).not.toBeChecked();
+    expect(configurator).not.toBeChecked();
+
+    await user.click(installer);
+    expect(updateAccess).toHaveBeenCalledWith({
+      installerActionsAllowed: true,
+      configuratorActionsAllowed: false,
+    });
+  });
+
+  it("runs AAAAT's fixed local rendering self-test from rendering settings", async () => {
+    const user = userEvent.setup();
+    render(<SetupEnvironmentPanel view="rendering" />);
+
+    await user.click(await screen.findByRole("button", { name: "Run rendering self-test" }));
+    expect(runRenderingSelfTest).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/rendering self-test passed/i)).toBeInTheDocument();
+  });
+
+  it("shows missing TeX as live setup attention and can refresh", async () => {
     const missing = {
       ...readySnapshot,
       tex: {
@@ -106,33 +115,11 @@ describe("setup environment panel", () => {
     const user = userEvent.setup();
     render(<SetupEnvironmentPanel />);
 
-    expect(
-      await screen.findByText("Needs a compatible TeX installation providing latexmk and pdflatex."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Needs a compatible TeX installation providing latexmk and pdflatex.")).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "installer.ai" })).toHaveTextContent("attention");
+    expect(screen.getByRole("article", { name: "configurator.ai" })).toHaveTextContent("AI is optional");
     expect(screen.queryByRole("button", { name: /^install/i })).not.toBeInTheDocument();
-    expect((screen.getByRole("textbox", { name: "installer.ai guidance" }) as HTMLTextAreaElement).value)
-      .toContain("latexmk: missing");
-    expect((screen.getByRole("textbox", { name: "configurator.ai guidance" }) as HTMLTextAreaElement).value)
-      .toContain("0 configured AI connections");
     await user.click(screen.getByRole("button", { name: "Refresh environment" }));
     expect(current).toHaveBeenCalledTimes(2);
-  });
-
-  it("keeps guidance selectable when clipboard copying fails", async () => {
-    current.mockResolvedValue(readySnapshot);
-    const user = userEvent.setup();
-    installClipboard();
-    writeText.mockRejectedValueOnce(new Error("clipboard denied"));
-    render(<SetupEnvironmentPanel />);
-
-    const installer = await screen.findByRole("textbox", { name: "installer.ai guidance" });
-    const installerText = (installer as HTMLTextAreaElement).value;
-    await user.click(screen.getByRole("button", { name: "Copy installer.ai" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Clipboard copy failed. Select the guidance text and copy it manually.",
-    );
-    expect((screen.getByRole("textbox", { name: "installer.ai guidance" }) as HTMLTextAreaElement).value)
-      .toBe(installerText);
   });
 });

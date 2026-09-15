@@ -189,6 +189,8 @@ async function expectRepresentativeResizeCoverage(page: Page): Promise<void> {
 async function createWorkspace(running: RunningApp): Promise<void> {
   await running.page.getByRole("button", { name: "Create workspace" }).click();
   chooseLinuxDirectory();
+  await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
+  await running.page.getByRole("button", { name: "Saved applications" }).click();
   await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 }
 
@@ -237,6 +239,8 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
 
     await stopPackagedApp(running);
     running = await startPackagedApp(isolatedUserData, linuxHome);
+    await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
+    await running.page.getByRole("button", { name: "Saved applications" }).click();
     await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");

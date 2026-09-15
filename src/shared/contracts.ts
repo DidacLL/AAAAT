@@ -4,6 +4,9 @@ export const channels = Object.freeze({
   systemInfo: "aaaat:system-info",
   workspaceCurrent: "aaaat:workspace-current",
   workspaceChoose: "aaaat:workspace-choose",
+  workspaceCreateDemo: "aaaat:workspace-create-demo",
+  workspaceReset: "aaaat:workspace-reset",
+  workspaceStatus: "aaaat:workspace-status",
   profileCurrent: "aaaat:profile-current",
   profileAddItem: "aaaat:profile-add-item",
   profileUpdateItem: "aaaat:profile-update-item",
@@ -63,6 +66,8 @@ export type WorkspaceChoice = z.infer<typeof workspaceChoiceSchema>;
 export const workspaceInfoSchema = z.object({ rootPath: z.string().min(1) }).strict();
 export const optionalWorkspaceInfoSchema = workspaceInfoSchema.nullable();
 export type WorkspaceInfo = z.infer<typeof workspaceInfoSchema>;
+export const workspaceStatusSchema = z.object({ demo: z.boolean() }).strict();
+export type WorkspaceStatus = z.infer<typeof workspaceStatusSchema>;
 
 const careerContextText = z.string().max(10000);
 export const careerContextSchema = z
@@ -557,6 +562,9 @@ export interface DesktopApi {
   readonly workspace: {
     readonly current: () => Promise<WorkspaceInfo | null>;
     readonly choose: (choice: WorkspaceChoice) => Promise<WorkspaceInfo | null>;
+    readonly createDemo: () => Promise<WorkspaceInfo | null>;
+    readonly reset: () => Promise<WorkspaceInfo>;
+    readonly status: () => Promise<WorkspaceStatus>;
   };
   readonly profile: {
     readonly current: () => Promise<ProfileSnapshot>;

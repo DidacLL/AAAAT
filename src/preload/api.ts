@@ -71,6 +71,8 @@ import {
   tagRecordSchema,
   tagUpdateSchema,
   workspaceChoiceSchema,
+  workspaceInfoSchema,
+  workspaceStatusSchema,
   type DesktopApi,
 } from "../shared/contracts";
 
@@ -89,6 +91,10 @@ export function createDesktopApi(
       optionalWorkspaceInfoSchema.parse(
         await invoke(channels.workspaceChoose, workspaceChoiceSchema.parse(choice)),
       ),
+    createDemo: async () =>
+      optionalWorkspaceInfoSchema.parse(await invoke(channels.workspaceCreateDemo)),
+    reset: async () => workspaceInfoSchema.parse(await invoke(channels.workspaceReset)),
+    status: async () => workspaceStatusSchema.parse(await invoke(channels.workspaceStatus)),
   });
 
   const profile = Object.freeze({

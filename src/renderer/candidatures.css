@@ -397,3 +397,33 @@
     padding-bottom: 10px;
   }
 }
+
+
+.candidature-offer-panel {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.candidature-offer-source-switcher {
+  display: grid;
+  gap: 0.25rem;
+  min-width: min(18rem, 100%);
+}
+
+.candidature-offer-body {
+  min-width: 0;
+}
+
+.candidature-offer-body .source-reader-content {
+  max-height: 34rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.source-original-disclosure pre {
+  max-height: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

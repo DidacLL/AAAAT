@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import type { AiConnectionDesktopApi } from "../shared/ai-connection-contracts";
+import type { AiPromptDesktopApi } from "../shared/ai-prompt-contracts";
 import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
 import type { CandidatureActivityDesktopApi } from "../shared/candidature-activity-contracts";
 import type { CandidatureOpportunityResearchAccessDesktopApi } from "../shared/candidature-opportunity-research-access-contracts";
@@ -19,6 +20,10 @@ import type {
   ProfileAiContextDesktopApi,
   ProfileAiContextUpdate,
 } from "../shared/profile-ai-context-contracts";
+import type {
+  SetupAssistantAccessUpdate,
+  SetupAssistantDesktopApi,
+} from "../shared/setup-assistant-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-contracts";
 import { App } from "./App";
@@ -51,6 +56,7 @@ const previewUnavailable = async (): Promise<never> => {
 
 function createPreviewApi(): DesktopApi &
   AiConnectionDesktopApi &
+  AiPromptDesktopApi &
   ArtifactDesktopApi &
   CandidatureActivityDesktopApi &
   CandidatureOpportunityResearchAccessDesktopApi &
@@ -60,9 +66,14 @@ function createPreviewApi(): DesktopApi &
   CvDescriptorDesktopApi &
   DocumentOutputDesktopApi &
   ProfileAiContextDesktopApi &
+  SetupAssistantDesktopApi &
   SetupEnvironmentDesktopApi &
   WorkspaceRecoveryDesktopApi {
   let careerContextAiDisclosure = defaultCareerContextAiDisclosure;
+  let setupAssistantAccess = {
+    installerActionsAllowed: false,
+    configuratorActionsAllowed: false,
+  };
   return Object.freeze({
     system: Object.freeze({
       info: async () => ({
@@ -74,6 +85,9 @@ function createPreviewApi(): DesktopApi &
     workspace: Object.freeze({
       current: async () => null,
       choose: async () => ({ rootPath: "/Users/example/AAAAT Workspace" }),
+      createDemo: async () => ({ rootPath: "/Users/example/AAAAT Demo Workspace" }),
+      reset: async () => ({ rootPath: "/Users/example/AAAAT Workspace" }),
+      status: async () => ({ demo: false }),
     }),
     profile: Object.freeze({
       current: async () => emptyProfile,
@@ -165,11 +179,24 @@ function createPreviewApi(): DesktopApi &
       exportPortable: previewUnavailable,
       importPortable: previewUnavailable,
     }),
+    aiPrompts: Object.freeze({
+      list: async () => [],
+      save: async () => [],
+      reset: async () => [],
+    }),
     artifacts: Object.freeze({
       list: async () => [],
       capture: previewUnavailable,
       captureCombined: previewUnavailable,
       open: previewUnavailable,
+    }),
+    setupAssistant: Object.freeze({
+      access: async () => setupAssistantAccess,
+      updateAccess: async (update: SetupAssistantAccessUpdate) => {
+        setupAssistantAccess = update;
+        return setupAssistantAccess;
+      },
+      runRenderingSelfTest: previewUnavailable,
     }),
     setupEnvironment: Object.freeze({
       current: previewUnavailable,

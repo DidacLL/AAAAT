@@ -37,25 +37,19 @@ interface RunningApp {
 async function startPackagedApp(userData: string, linuxHome: string): Promise<RunningApp> {
   const port = await reservePort();
   const endpoint = `http://127.0.0.1:${port}`;
-  const child = spawn(
-    packagedExecutable(),
-    [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`],
-    {
-      env: {
-        ...process.env,
-        GTK_USE_PORTAL: "0",
-        HOME: linuxHome,
-        XDG_CONFIG_HOME: path.join(linuxHome, ".config"),
-        XDG_DATA_HOME: path.join(linuxHome, ".local", "share"),
-        PATH: `${path.join(linuxHome, "bin")}${path.delimiter}${process.env.PATH ?? ""}`,
-      },
-      stdio: ["ignore", "ignore", "pipe"],
+  const child = spawn(packagedExecutable(), [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`], {
+    env: {
+      ...process.env,
+      GTK_USE_PORTAL: "0",
+      HOME: linuxHome,
+      XDG_CONFIG_HOME: path.join(linuxHome, ".config"),
+      XDG_DATA_HOME: path.join(linuxHome, ".local", "share"),
+      PATH: `${path.join(linuxHome, "bin")}${path.delimiter}${process.env.PATH ?? ""}`,
     },
-  );
-  let processError = "";
-  child.stderr?.on("data", (chunk: Buffer) => {
-    processError += chunk.toString();
+    stdio: ["ignore", "ignore", "pipe"],
   });
+  let processError = "";
+  child.stderr?.on("data", (chunk: Buffer) => { processError += chunk.toString(); });
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (child.exitCode !== null) throw new Error(`Packaged AAAAT exited: ${processError}`);
     try {
@@ -138,7 +132,7 @@ function chooseLinuxDirectory(): void {
   );
 }
 
-test("packaged candidature document handoff returns to complete candidature without reviving tabs", async () => {
+test("packaged saved-application document handoff returns to complete application without reviving tabs", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-handoff-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
@@ -148,7 +142,7 @@ test("packaged candidature document handoff returns to complete candidature with
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
 
     await running.page.evaluate(async () => {
       await window.aaaat.candidatures.create({
@@ -162,6 +156,7 @@ test("packaged candidature document handoff returns to complete candidature with
       });
     });
     await running.page.reload();
+    await running.page.getByRole("button", { name: "Saved applications" }).click();
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Handoff opportunity" });
@@ -187,9 +182,7 @@ test("packaged candidature document handoff returns to complete candidature with
     await expect(working.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
 
     const association = await running.page.evaluate(async () => {
-      const candidature = (await window.aaaat.candidatures.list()).find(
-        (record) => record.label === "Handoff opportunity",
-      );
+      const candidature = (await window.aaaat.candidatures.list()).find((record) => record.label === "Handoff opportunity");
       const document = (await window.aaaat.documents.list()).find((record) => record.title === "Handoff CV");
       return Boolean(candidature && document && candidature.documentIds.includes(document.id));
     });
@@ -205,9 +198,7 @@ test("packaged candidature document handoff returns to complete candidature with
     await expect(documents.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
     await documents.getByRole("button", { name: "Return to Handoff opportunity" }).click();
 
-    const roundTripMaterial = running.page
-      .getByRole("region", { name: "Complete candidature" })
-      .getByRole("region", { name: "Documents" });
+    const roundTripMaterial = running.page.getByRole("region", { name: "Complete candidature" }).getByRole("region", { name: "Documents" });
     const roundTripAssociations = roundTripMaterial.locator("details.application-material-associations");
     if ((await roundTripAssociations.getAttribute("open")) === null) {
       await roundTripAssociations.locator("summary").click();

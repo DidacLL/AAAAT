@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 import { createAiConnectionDesktopApi } from "./ai-connection-api";
+import { createAiPromptDesktopApi } from "./ai-prompt-api";
 import { createArtifactDesktopApi } from "./artifact-api";
 import { createCandidatureActivityDesktopApi } from "./candidature-activity-api";
 import { createCandidatureOpportunityResearchAccessDesktopApi } from "./candidature-opportunity-research-access-api";
@@ -12,6 +13,7 @@ import { createCvContentAccessDesktopApi } from "./cv-content-access-api";
 import { createCvDescriptorDesktopApi } from "./cv-descriptor-api";
 import { createDocumentOutputDesktopApi } from "./document-output-api";
 import { createProfileAiContextDesktopApi } from "./profile-ai-context-api";
+import { createSetupAssistantDesktopApi } from "./setup-assistant-api";
 import { createSetupEnvironmentDesktopApi } from "./setup-environment-api";
 import { createWorkspaceRecoveryDesktopApi } from "./workspace-recovery-api";
 
@@ -26,6 +28,7 @@ contextBridge.exposeInMainWorld(
   Object.freeze({
     ...coreApi,
     ...createAiConnectionDesktopApi(invoke),
+    ...createAiPromptDesktopApi(invoke),
     ...createArtifactDesktopApi(invoke),
     ...createCandidatureActivityDesktopApi(invoke),
     ...createCandidatureOpportunityResearchAccessDesktopApi(invoke),
@@ -36,6 +39,7 @@ contextBridge.exposeInMainWorld(
     ...createCvDescriptorDesktopApi(invoke),
     ...createDocumentOutputDesktopApi(invoke),
     ...createProfileAiContextDesktopApi(invoke),
+    ...createSetupAssistantDesktopApi(invoke),
     ...createSetupEnvironmentDesktopApi(invoke),
     ...createWorkspaceRecoveryDesktopApi(invoke),
   }),

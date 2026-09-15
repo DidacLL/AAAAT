@@ -2,7 +2,7 @@
 
 This document derives technical architecture from the [Product Definition](../PRODUCT_DEFINITION.md). It does not create product meaning. Current explicit Product Owner instruction and the Product Definition prevail if this document, an ADR, an Issue, a test, or existing code appears to disagree.
 
-Use [PRODUCT_CONTEXT.md](../PRODUCT_CONTEXT.md) to interpret the product when needed, [OWNER_DEVELOPMENT_PRINCIPLES.md](../OWNER_DEVELOPMENT_PRINCIPLES.md) for development style, and [CURRENT_MISSION.md](../.agentic/CURRENT_MISSION.md) plus live GitHub state for active work. Historical owner material lives under [owner-source](owner-source/) and is provenance only.
+Use [PRODUCT_CONTEXT.md](../PRODUCT_CONTEXT.md) for rationale, [OWNER_DEVELOPMENT_PRINCIPLES.md](../OWNER_DEVELOPMENT_PRINCIPLES.md) for development style, and [CURRENT_MISSION.md](../.agentic/CURRENT_MISSION.md) plus live GitHub state for active work.
 
 ## Architectural baseline
 
@@ -18,29 +18,27 @@ application services
 SQLite workspace and user-owned files
 ```
 
-The renderer remains sandboxed, context-isolated, and unprivileged. It receives only a narrow preload allowlist; it does not receive unrestricted filesystem, database, process, credential, or Electron authority. Durable mutations enter through normal application services, regardless of whether their input originated in the UI, an import, direct optional AI, or a bounded external integration.
+The renderer remains sandboxed, context-isolated and unprivileged. Durable mutations enter through normal application services whether their input originated in the UI, an import, direct optional AI, or a bounded external integration.
 
-The repository uses the committed Node/npm toolchain, Vite and Electron Forge for the desktop application, Zod for boundary validation, and the existing Vitest/Testing Library/Playwright evidence surfaces. These are implementation choices, not a separate product contract.
+Persisted domain objects do not define the desktop interaction architecture. The shell is composed around user intentions and may create/link domain objects automatically. In particular, the raw-offer-to-document journey may retain a Source, create an application context and link document projects without surfacing those intermediate objects as required steps.
 
 ## Domain and information architecture
 
-Keep structurally meaningful domain objects explicit: candidatures, Sources, Tags, professional information and variants, documents and artifacts, optional AI connections, and secondary candidature-attached notes/checkables where useful. Do not collapse them into generic records, arbitrary CRUD, a generic content repository, or a generic workflow model.
+Keep structurally meaningful domain objects explicit underneath the UI: candidatures/application contexts, Sources, Tags, professional information and variants, documents/artifacts, optional AI connections and bounded secondary data. Do not collapse them into generic records, arbitrary CRUD, a generic content repository or a workflow framework.
 
-Normal user-facing information shares repeated behavior where real cases demonstrate it: editing, clearing/removal where domain semantics permit it, retrieval, AI disclosure control, and Focus presentation. The technical field/value representation is an implementation aid. Ordinary value entry must not force users to think in schemas, identifiers, field types, cardinality, or database-like configuration.
+Ordinary value entry must not force users to think in schemas, identifiers, field types, cardinality or database-like configuration. Flexible application information remains user-maintainable product data, but definition controls are progressively disclosed.
 
-The candidature field set is nevertheless user-maintainable product data. Shipped definitions are defaults rather than a closed developer-owned ontology. Users can add or adapt field definitions—including meaningful type, cardinality and choice behavior—through progressively disclosed controls when their profession or search requires information the defaults do not cover. This ownership must not be removed merely to keep ordinary editing simple.
-
-Configured candidature extraction/discovery operates against the current field definitions and their explicit AI-discovery preferences. It must not silently use a hidden fixed ontology that users cannot shape. Focus visibility and AI disclosure remain independent from field existence and local storage.
-
-Do not introduce a second generic EAV abstraction, a new framework, or broad persistence unification around this field model. Preserve the bounded candidature field/value services already justified by the product.
-
-Sources remain explicit retained records. Original material is not replaced by extraction or enrichment, and local source search must reach useful retained title, URL, and text. Tags retain their narrow shared glossary/retrieval meaning. Secondary candidature-attached notes/checkables remain conveniences; they do not become a scheduler, generic task system, or AI-task subsystem.
+Sources remain explicit retained records. Original material is not replaced by extraction/enrichment. Tags keep their narrow glossary/retrieval role.
 
 ## Document architecture
 
-VCVGenerator uses canonical reusable professional information, optional difference-based variants, and deliberate document-specific overrides without cloned competing identities. Working documents remain editable. Exact material used for an application is retained separately from a mutable working document where the user needs that history.
+VCVGenerator uses canonical reusable professional information, optional difference-based variants and deliberate document-specific overrides without cloned competing identities. Standalone document work and opportunity-context document work use the same document foundation.
 
-The portable document boundary is:
+The normal document surface is about the document being produced and information relevant to it. For a CV, effective included evidence is primary. For a cover letter, the editable letter text is primary. Variants, per-document overrides, ordering, LaTeX/source ownership and external disclosure remain available, but they are secondary controls rather than the creation mental model.
+
+When the user starts application documents from a raw offer and validated AI routes already exist, the renderer may start one bounded non-blocking preparation task automatically. That task reuses the existing robust job-extraction and document-AI operations sequentially, applies only independently valid existing-field proposals, then persists the resulting CV inclusion/order rules and/or cover-letter fields through normal document services. Failure or absence of AI never invalidates the retained Source or the created editable documents.
+
+The portable boundary is:
 
 ```text
 validated editable model
@@ -51,11 +49,11 @@ validated editable model
 → user-owned source and rendered output
 ```
 
-Do not silently overwrite user-authored blueprints or package sources. AAAAT-generated projects and independently authored documents must compile outside AAAAT in a compatible TeX environment. Alternate engines, a template marketplace, and a document-plugin framework are not implied.
+Do not silently overwrite user-authored blueprints or package sources.
 
-## Optional intelligence and external integrations
+## Optional intelligence and external assistants
 
-AI is optional bounded processing. AAAAT owns its local domain structures, validation, mutation rules, capabilities, and process/renderer boundaries; it does not own a provider's reasoning, prompts, network, research behavior, or internal policy.
+AI is optional bounded processing. AAAAT owns local domain structures, validation, mutation rules, capabilities and process/renderer boundaries; it does not own a provider's reasoning or internal policy.
 
 Use this operation shape:
 
@@ -67,35 +65,26 @@ named purpose
 → normal application service
 ```
 
-Privacy projection controls what a named operation discloses. It may expose, omit, or locally replace values while authoritative literals remain local. Projection is disclosure behavior, not the complete security boundary. Do not expose generic corpus browsing, arbitrary durable IDs, arbitrary filesystem/shell/process access, generic query/CRUD surfaces, scraping, or broad local write access for convenience.
+External assistants use meaningful bounded AAAAT capabilities. The carrier/host is not product meaning. The packaged MCP stdio surface is one current carrier and may be used by ChatGPT, Claude, local agents, editor hosts or other compatible environments.
 
-External AI and hosts may use named product operations through a demonstrated transport such as MCP, a command, a skill, plugin, or another bounded mechanism. The transport is not product meaning and does not justify a provider marketplace, AI orchestration framework, general API platform, prompt-injection middleware, AI firewall, or universal approval queue.
+The capability contract must not expose generic corpus browsing, arbitrary durable IDs as mutation handles, database queries, filesystem access, shell/process execution, package-manager authority, scraping or broad local write access. A host's wider OS authority remains the user's separate trust choice.
 
-## Setup, recovery, and local ownership
+Meaningful parity is expressed as typed high-level product intentions, not generic CRUD. An external assistant may, for example, create the same offer-derived application document workspace as the desktop without receiving the hidden candidature/document IDs. Setup mutations use the same application services and validation as the desktop and require explicit local authority where appropriate.
 
-The local workspace owns data, configuration, document source, and artifacts. Backup/recovery and configuration import/export remain normal product capabilities. Setup describes actual host access honestly and supports no-AI, local, remote, and free-chat guidance paths without requiring ordinary users to understand implementation protocols.
+VS Code is one optional adapter over the shared contract. It must not define the architecture or product navigation. Additional concrete adapters require demonstrated value; this does not authorize a generic plugin/provider framework.
 
-Development databases, fixtures, and fake workspaces are not compatibility commitments. Until an explicit Product Owner decision establishes a real-use baseline for actual user data, obsolete development-era schema may be corrected directly when required. The dormant baseline evidence record is technical history, not an active release or compatibility programme.
+## Setup, recovery and local ownership
 
-## Technical destinations
+The local workspace owns data, configuration, document source and artifacts. Backup/recovery and configuration import/export remain normal product capabilities.
 
-Implement capabilities through small coherent slices that make the product more useful:
+Setup uses one shared environment model. `installer.ai` projects workspace/local-rendering prerequisites and exposes AAAAT's fixed rendering self-test. `configurator.ai` projects optional AI configuration and validated operation coverage and can perform typed connection save/operation validation/validated default selection. These are normal AAAAT product capabilities, not copy/paste prompt artifacts.
 
-| Technical destination | Required technical outcome |
-| --- | --- |
-| Reliable local information and retrieval | Raw Sources, sparse user-maintainable information, editing, search, Focus projections, and draft protection work through normal local domain services. |
-| Context and operation boundaries | Wire contracts remain distinct from local state; context is deliberate and bounded; invalid or conflicting results cannot silently corrupt authoritative edits. |
-| Reusable documents | Independent document work, candidature-associated application material, portable source/output, and local rendering preserve user ownership. |
-| Accessible setup and recovery | Capabilities are described honestly; working software can be detected/reused; configuration and workspace recovery remain usable through normal product access. |
+Setup status is privacy-minimal and always readable. External mutation authority is separate and denied by default. The current workspace may explicitly allow installer and configurator actions independently; this grants only the documented typed AAAAT operations. No setup capability exposes arbitrary shell commands, package-manager input, filesystem selectors, generic database access, credentials, provider-specific arbitrary options or validation bypasses.
 
-These destinations are derived outcomes, not a prescribed user journey, Issue sequence, or pre-created backlog.
+## Verification
 
-## ADRs, evidence, and verification
+Tests should cover durable user journeys, domain invariants, privacy/security boundaries, data integrity and portable artifacts. They must not freeze rejected navigation labels, clipboard-prompt semantics, host-specific product meaning or other incidental implementation structure.
 
-Accepted ADRs record technical decisions within already-established product meaning. They may refine architecture and preserve evidence, but they cannot establish new product requirements. Historical Issue, milestone, or programme names are evidence only; do not revive a rejected workflow because it appears in an ADR or test.
+Outcome tests for the raw-offer journey must prove useful persisted document state when bounded AI is available, not merely creation of empty linked document records. Packaged-runtime verification must still prove the no-AI path remains complete.
 
-Tests demonstrate user-visible behavior, domain invariants, security/privacy/local-ownership boundaries, data integrity, and portable artifacts. They must not freeze incidental implementation mechanisms unless a concrete correctness boundary requires it.
-
-Verification is impact-selected. A successful check remains reusable when later changes cannot affect its behavior, platform path, fixture contract, environment assumption, or other premise. Follow `.github/workflows/verify.yml`; do not replay unrelated package, runtime, visual, or TeX evidence merely because documentation or another non-intersecting path changed.
-
-Current execution state, unresolved findings, active work, and evidence gaps belong in [CURRENT_MISSION.md](../.agentic/CURRENT_MISSION.md) and the linked live GitHub work item, not in this architecture document.
+Verification remains impact-selected through `.github/workflows/verify.yml`. Current execution state and evidence gaps belong in [CURRENT_MISSION.md](../.agentic/CURRENT_MISSION.md) and the live PR.

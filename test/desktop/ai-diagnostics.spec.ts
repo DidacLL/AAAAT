@@ -240,7 +240,7 @@ test("packaged Settings preserves an incompatible operation exchange while the c
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await running.page.getByRole("button", { name: "Create workspace" }).click();
     chooseLinuxDirectory();
-    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
 
     await running.page.getByRole("button", { name: "Settings" }).click();
     const overview = running.page.getByRole("region", { name: "Settings overview" });

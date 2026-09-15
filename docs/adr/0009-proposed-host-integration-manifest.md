@@ -1,27 +1,29 @@
-# ADR 0009 — Proposed host integration manifest
+# ADR 0009 — Host adapters sit over the shared bounded assistant contract
+
+**Status:** Amended by current Product Owner authority during PR #319
 
 ## Context
 
-M4 requires one demonstrated adaptive host integration, configuration portability, and structured setup knowledge. Host configuration contains machine-local executable and workspace paths, while portable AAAAT configuration must not become a plugin registry or silently activate external control.
+The original version of this ADR used VS Code as the first demonstrated MCP host and described that concrete adapter in product-level terms. Natural-use acceptance later established that this was implementation drift: AAAAT is provider- and host-agnostic. VS Code was useful evidence that the bounded integration could work, but it is not a privileged product dependency.
+
+The important architectural boundary is AAAAT's capability surface, not the host carrying it.
 
 ## Decision
 
-The first host integration supports VS Code only. AAAAT stores a versioned `integrations/vscode-mcp.json` manifest in the user-owned workspace. The manifest records only the demonstrated host, stdio transport, bounded application capability/tool names, permission scope, privacy disclosure, and one setup-recipe identifier. It contains no executable, workspace, project, credential, or other machine-local path.
+AAAAT maintains one small local bounded external-assistant contract. Compatible hosts may connect to that contract using a supported carrier such as the packaged MCP stdio entry point. The contract exposes meaningful AAAAT capabilities, not generic machine authority.
 
-The manifest is proposed material, not executable configuration. Activation validates the existing workspace, the AAAAT executable, the exact manifest, and a real official-SDK MCP connection by listing the expected tool surface before writing `.vscode/mcp.json` in the user-selected VS Code project. A compatible existing AAAAT server entry is accepted without replacement; a conflicting entry is refused. VS Code remains responsible for its own MCP trust and enablement decisions.
+Current bounded capabilities cover Source-backed candidature creation, locally selected opportunity-research context/Source retention, deliberately shared career/CV context, local CV rendering under explicit authorization, and privacy-minimal `installer.ai` / `configurator.ai` status.
 
-The setup recipe is one literal structured source of known AAAAT actions. It is not a generic installer engine, plugin model, host registry, or generated shell-program format.
+The contract does **not** expose generic database queries, filesystem access, shell/process execution, arbitrary package installation, corpus browsing, local entity IDs as mutation handles, or unrelated private workspace areas.
+
+VS Code remains one optional adapter. Its `integrations/vscode-mcp.json` manifest and `.vscode/mcp.json` activation path may continue to exist for users who want that host, but Settings must present it as an advanced adapter over the shared contract rather than the integration model itself.
+
+This decision does not authorize a generic plugin framework or executable adapter registry. Additional hosts should reuse the bounded contract and add only the minimum concrete adapter needed for demonstrated value.
 
 ## Consequences
 
-- The portable workspace records integration intent without embedding machine paths.
-- Moving the workspace or application requires regenerating the host file for that environment rather than editing the portable manifest.
-- Host activation proves the currently packaged MCP surface before changing host configuration.
-- Additional hosts remain separate demonstrated cases; this ADR does not authorize an adapter framework.
-
-## Alternatives rejected
-
-- Storing absolute host paths in the workspace manifest: not portable.
-- Automatically enabling or trusting the MCP server in VS Code: bypasses the host security boundary.
-- Replacing existing host configuration unconditionally: violates adaptive setup and user ownership.
-- Generic host/plugin/provider registries or executable setup recipes: premature and explicitly outside M4.
+- Product language is host/provider agnostic.
+- The shared MCP tool contract can be used by ChatGPT, Claude, local agents, editor hosts or other compatible environments without changing AAAAT domain authority.
+- VS Code-specific setup remains maintainable but secondary.
+- Security review focuses on the bounded AAAAT capability contract rather than assuming the host is trusted merely because it is a known editor.
+- Host-specific broader permissions remain the user's separate trust choice outside AAAAT.

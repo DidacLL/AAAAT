@@ -31,27 +31,36 @@ function snapshot(overrides: Partial<SetupEnvironmentSnapshot> = {}): SetupEnvir
   };
 }
 
-describe("setup free-chat guidance", () => {
-  it("preserves ready TeX and complete zero-AI use without disclosing unnecessary setup details", () => {
+describe("shared setup harness projection", () => {
+  it("models installation readiness without turning installer.ai into a prompt or generic machine authority", () => {
     const [installer, configurator] = buildSetupGuidance(snapshot());
 
-    expect(installer.name).toBe("installer.ai");
-    expect(installer.text).toContain("latexmk: available");
-    expect(installer.text).toContain("pdflatex: available");
-    expect(installer.text).toContain("no TeX installation is needed");
-    expect(installer.text).not.toContain("Sensitive Latexmk version");
-    expect(installer.text).not.toContain("Sensitive pdfTeX version");
+    expect(installer).toMatchObject({
+      name: "installer.ai",
+      state: "ready",
+      title: "Installation & local prerequisites",
+    });
+    expect(installer.checks.map((check) => [check.label, check.ready])).toEqual([
+      ["Workspace", true],
+      ["latexmk", true],
+      ["pdflatex", true],
+    ]);
+    expect(JSON.stringify(installer)).not.toContain("Sensitive Latexmk version");
+    expect(JSON.stringify(installer)).not.toContain("Sensitive pdfTeX version");
+    expect(installer.externalCapability).toMatch(/rendering self-test/i);
+    expect(installer.externalCapability).toMatch(/no shell/i);
 
-    expect(configurator.name).toBe("configurator.ai");
-    expect(configurator.text).toContain("0 configured AI connections");
-    expect(configurator.text).toContain("AI is optional");
-    expect(configurator.text).toContain("loopback HTTP endpoints");
-    expect(configurator.text).toContain("remote HTTPS endpoints whose authentication is already handled outside AAAAT");
-    expect(configurator.text).toContain("Opportunity review: no validated route");
-    expect(configurator.text).not.toContain("local loopback OpenAI-compatible endpoints");
+    expect(configurator).toMatchObject({
+      name: "configurator.ai",
+      state: "optional",
+      title: "Optional AI configuration",
+    });
+    expect(configurator.summary).toContain("AI is optional");
+    expect(configurator.externalCapability).toMatch(/save a typed name\/endpoint\/model connection/i);
+    expect(configurator.externalCapability).toMatch(/cannot bypass validation/i);
   });
 
-  it("identifies only missing TeX and validated operation status without connection-name disclosure", () => {
+  it("reports missing prerequisites and validated AI coverage without private connection names", () => {
     const [installer, configurator] = buildSetupGuidance(
       snapshot({
         tex: {
@@ -73,14 +82,10 @@ describe("setup free-chat guidance", () => {
       }),
     );
 
-    expect(installer.text).toContain("latexmk: missing");
-    expect(installer.text).toContain("pdflatex: available");
-    expect(installer.text).toContain("Guide only the missing prerequisite(s) above");
-    expect(installer.text).toContain("Ask which operating system/distribution they use");
-
-    expect(configurator.text).toContain("1 configured AI connection");
-    expect(configurator.text).toContain("Opportunity review: validated route available");
-    expect(configurator.text).toContain("Job extraction: no validated route");
-    expect(configurator.text).not.toContain("Private connection name");
+    expect(installer.state).toBe("attention");
+    expect(installer.checks.find((check) => check.label === "latexmk")?.ready).toBe(false);
+    expect(configurator.state).toBe("ready");
+    expect(configurator.checks.find((check) => check.label === "Opportunity review")?.ready).toBe(true);
+    expect(JSON.stringify(configurator)).not.toContain("Private connection name");
   });
 });

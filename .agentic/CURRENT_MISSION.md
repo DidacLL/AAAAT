@@ -1,56 +1,53 @@
 # Current execution state
 
-## Active bounded work
+## Active integrated recovery
 
-**Issue #314 — Rebuild Candidatures around two-state Focus, raw capture, direct editing and Tags — reopened for UX acceptance correction after real Windows owner review.**
+PR #319 is in Product Owner natural-use acceptance recovery. Accepted engineering baseline for this pass was `ce4ed10ac3b53d37c7d85fb354877db0eaaa66e0` on `product/dogfood-workspace-ai-context`.
 
-PR #316 merged the domain/state/persistence baseline into `main` as `81668a992a30fe393934f75cf19176addd7aa229`, but the visible renderer did not satisfy the recovered interaction/spatial/visual contract.
+Do not treat this as deployment polish. The current problem is interaction architecture.
 
-Do not revive the retired `product/rebuild-candidatures` branch. Start corrective implementation from current `main`.
+## Product authority for this pass
 
-## Required correction
+The primary ordinary journey is:
 
-Treat the post-merge owner acceptance comment on #314 as blocking scope. In particular:
+> I found a job → paste the raw offer → create a tailored CV, a cover letter, or both.
 
-- Candidatures first sight is retrieval/capture, not field-definition administration.
-- Corpus Focus owns the useful viewport; configuration must not push it below the fold.
-- Ordinary UI presents information/details, not schema/field-management language.
-- Field-definition capability remains user-owned but lives one deliberate step deeper in complete candidature work, close to the information it affects.
-- Direct candidature creation is low-friction and coherent, not a page-long sequence of isolated field editors with per-field Save buttons.
-- The two creation approaches remain explicit peers, but visible wording must be ordinary/user-facing rather than implementation vocabulary.
-- Use the available desktop window productively across constrained, default and maximized sizes; one principal task gets the useful area and fixed narrow centered layouts/excessive blank space are not acceptable.
-- First-run workspace selection must remain usable in constrained windows without clipping; branding must scale around the task.
-- Professional information is read-first; saved variations and privacy/AI disclosure are secondary until relevant.
-- AI disclosure is contextual, compact and understandable near the affected information, not permanent first-sight checkbox-console chrome or protocol/security jargon.
-- Local storage, Focus visibility and AI disclosure remain independent semantics without forcing the user to understand the internal model.
-- Visible UI follows `docs/UX_VISUAL_DIRECTION.md`: friendly worn retrofuturist field-terminal / paper-dossier character with professional information clarity, not generic SaaS card/form styling.
-- Empty/sparse states are intentionally composed and useful rather than controls floating in unused space.
+AAAAT may create and retain the underlying candidature/application context automatically. The user must not be forced to create/name/remember a candidature and then navigate elsewhere to rediscover or link it.
 
-## Preserve from #316
+Standalone CV/cover-letter work remains independently core. It should be organized around the document and relevant professional information, with variants/rules/source/disclosure/LaTeX ownership progressively accessible rather than first-sight administration.
 
-Do not regress the useful underlying work already merged:
+The shell must be intention-first. Current owner authority outranks historical renderer structure, tests, issues or ADR wording that fossilizes entity-shaped navigation.
 
-- two-state corpus → selected-candidature Focus behavior;
-- direct complete-candidature entry;
-- raw Source-first capture with explicit AI/manual continuations;
-- user-maintainable profession-specific candidature information definitions;
-- Tags as the shared glossary model;
-- local/manual/no-AI operation;
-- Sources/search/document handoffs/bounded AI/privacy semantics;
-- dirty-state protections and current-schema persistence/backup cleanup;
-- no lifecycle/status/priority/next-action architecture;
-- no obsolete global ToDo/Concept/migration-compatibility paths.
+## Preserve the sound foundation
 
-## UX authority
+Do not regress:
 
-Use current explicit Product Owner instruction first, then `PRODUCT_DEFINITION.md`, `docs/UX_DEFINITION.md`, `docs/UX_VISUAL_DIRECTION.md`, and relevant current product context.
+- Sources and raw capture;
+- flexible user-maintainable application information;
+- Tags and candidature recall;
+- reusable professional information;
+- document/LaTeX/rendering foundations and ownership;
+- demo workspace and workspace reset;
+- AI reliability, exchange diagnostics and effective prompt transparency;
+- partial proposal handling;
+- bounded context and disclosure controls;
+- local ownership/manual/no-AI operation;
+- backup/recovery and current-schema persistence.
 
-Do not treat merged renderer structure, historical mockups, component boundaries, existing CSS, or tests that merely assert visible text as design authority.
+## External assistants and setup
 
-Concrete viewport dimensions used by tests or screenshots are verification samples only. They do not define product meaning or a supported fixed/minimum window contract. The product contract is adaptive/resizable behavior: use available space well, stack/reflow/scroll when constrained, and avoid clipping.
+AAAAT is provider- and host-agnostic. VS Code is one optional demonstrated adapter only; it must not define navigation, product copy or architecture.
+
+Preserve meaningful bounded external capabilities and deny generic database/filesystem/shell/process authority. Do not build a generic plugin/provider/workflow framework.
+
+`installer.ai` and `configurator.ai` are shared AAAAT installation/configuration capability projections. The normal Settings UI and compatible external assistants should use the same structured setup state. They are not copy/paste free-chat prompts.
+
+## Visual/interaction direction
+
+Use the established worn-retrofuturist field-terminal / paper-dossier character to clarify work rather than decorate generic SaaS forms. Information/current work should dominate titles and actions. Use available desktop space; keep administration secondary.
+
+Prefer deletion/recomposition over explanation text.
 
 ## Completion boundary
 
-#314 is not complete again until the owner-visible UI is coherently recomposed around the recovered product intentions and remains genuinely usable across constrained, default and maximized desktop windows.
-
-Do not activate a successor product issue before this acceptance gap is closed.
+This recovery is complete only when ordinary intentions are discoverable without instructions, especially the raw-offer-to-document journey, standalone document work, saved application recall, professional information, and host-agnostic settings. Use impact-appropriate tests and produce a fresh packaged Windows artifact for owner acceptance. Do not merge PR #319 during this run.

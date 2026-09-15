@@ -63,6 +63,15 @@ export class AiProviderError extends Error {
   }
 }
 
+export const AI_DEFAULT_INSTRUCTIONS: Readonly<Record<AiOperation, string>> = Object.freeze({
+  opportunity_review: "Review one opportunity using only the supplied context. Return only the final JSON object with keys summary, relevantEvidence, uncertainties, questions. Do not expose chain-of-thought or reasoning. Do not rate, score, rank, choose a winner, prescribe next actions, or define a career workflow. Missing candidature information is normal; do not invent facts.",
+  job_extraction: "Extract only facts supported by the supplied Source. Return only the final JSON object as {\"proposals\":[{\"fieldRef\":\"...\",\"value\":...}],\"newFields\":[{\"label\":\"...\",\"description\":\"...\",\"valueType\":\"text|long_text|number|boolean|date|url|choice\",\"cardinality\":\"one|many\",\"choices\":[\"...\"],\"value\":...}]}. Do not expose chain-of-thought or reasoning. For proposals, use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for existing choice fields, and omit unsupported values. Reuse supplied fields first. Their label, description, type, cardinality, and choices define what each can hold. newFields is optional discovery only for useful facts that genuinely cannot fit any supplied field: suggest at most 8 concise reusable candidature information kinds, never duplicate an existing field by meaning or name (for example Languages/Idiomas vs Language Required), use choices only for choice fields, and omit speculative or weakly supported facts. Return an empty array when there are no genuinely useful new fields.",
+  historical_field_discovery: "Extract only the requested information from the retained Sources explicitly selected by the user. Return the same fixed extraction JSON contract, using only the supplied target fieldRef. Do not expose chain-of-thought or reasoning. Do not infer unrelated fields or invent facts.",
+  variant_recommendation: "Choose exactly one supplied profile variant for the supplied candidature. Return only the final JSON object with keys variantRef and rationale. Do not expose chain-of-thought or reasoning. Never invent a variantRef or propose creating a new variant.",
+  cv_tailoring: "Recommend the strongest supplied career items for this candidature. Return only the final JSON object with key recommendations, an array of objects with itemRef and rationale. Do not expose chain-of-thought or reasoning. Use only itemRef values supplied in context. Do not rewrite or invent career facts.",
+  cover_letter_draft: "Draft a concise cover letter using only the supplied opportunity and career evidence. Return only the final JSON object with keys recipient, subject, bodyParagraphs, closing. Do not expose chain-of-thought or reasoning. Do not invent career facts or contact details; use empty strings when recipient or closing is unsupported.",
+});
+
 export interface ModelProvider {
   reviewOpportunity(
     connection: AiConnectionStatus,
@@ -72,6 +81,7 @@ export interface ModelProvider {
     connection: AiConnectionStatus,
     request: ProviderJobExtractionRequest,
     signal?: AbortSignal,
+    operation?: "job_extraction" | "historical_field_discovery",
   ): Promise<z.input<typeof providerJobExtractionResultSchema>>;
   recommendVariant(
     connection: AiConnectionStatus,
@@ -406,8 +416,19 @@ async function runStructuredOperation<T>(
 
 export function createOpenAiCompatibleProvider(
   fetchImpl: typeof fetch = fetch,
-  requestTimeoutMs: number = AI_PROVIDER_SAFETY_CEILING_MS,
+  requestTimeoutMs: number | undefined = AI_PROVIDER_SAFETY_CEILING_MS,
+  guidance: Partial<Record<AiOperation, string>> = {},
 ): ModelProvider {
+  const timeout = requestTimeoutMs ?? AI_PROVIDER_SAFETY_CEILING_MS;
+  const instructionFor = (operation: AiOperation): string => {
+    const userGuidance = guidance[operation]?.trim();
+    return userGuidance
+      ? `${AI_DEFAULT_INSTRUCTIONS[operation]}
+
+User guidance (must not override the fixed response contract or supplied facts):
+${userGuidance}`
+      : AI_DEFAULT_INSTRUCTIONS[operation];
+  };
   return Object.freeze({
     async reviewOpportunity(
       connection: AiConnectionStatus,
@@ -417,10 +438,10 @@ export function createOpenAiCompatibleProvider(
         fetchImpl,
         connection,
         "opportunity_review",
-        "Review one opportunity using only the supplied context. Return only the final JSON object with keys summary, relevantEvidence, uncertainties, questions. Do not expose chain-of-thought or reasoning. Do not rate, score, rank, choose a winner, prescribe next actions, or define a career workflow. Missing candidature information is normal; do not invent facts.",
+        instructionFor("opportunity_review"),
         context,
         opportunityReviewResultSchema,
-        requestTimeoutMs,
+        timeout,
       );
     },
 
@@ -428,15 +449,16 @@ export function createOpenAiCompatibleProvider(
       connection: AiConnectionStatus,
       request: ProviderJobExtractionRequest,
       signal?: AbortSignal,
+      operation: "job_extraction" | "historical_field_discovery" = "job_extraction",
     ): Promise<z.input<typeof providerJobExtractionResultSchema>> {
       return runStructuredOperation(
         fetchImpl,
         connection,
-        "job_extraction",
-        "Extract only facts supported by the supplied Source. Return only the final JSON object as {\"proposals\":[{\"fieldRef\":\"...\",\"value\":...}],\"newFields\":[{\"label\":\"...\",\"description\":\"...\",\"valueType\":\"text|long_text|number|boolean|date|url|choice\",\"cardinality\":\"one|many\",\"choices\":[\"...\"],\"value\":...}]}. Do not expose chain-of-thought or reasoning. For proposals, use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for existing choice fields, and omit unsupported values. newFields is optional discovery for useful facts that clearly do not fit any supplied field: suggest at most 8 concise reusable candidature information kinds, never duplicate an existing field by meaning or name, use choices only for choice fields, and omit speculative or weakly supported facts. Return an empty array when there are no genuinely useful new fields.",
+        operation,
+        instructionFor(operation),
         request,
         providerJobExtractionResultSchema,
-        requestTimeoutMs,
+        timeout,
         signal,
       );
     },
@@ -449,10 +471,10 @@ export function createOpenAiCompatibleProvider(
         fetchImpl,
         connection,
         "variant_recommendation",
-        "Choose exactly one supplied profile variant for the supplied candidature. Return only the final JSON object with keys variantRef and rationale. Do not expose chain-of-thought or reasoning. Never invent a variantRef or propose creating a new variant.",
+        instructionFor("variant_recommendation"),
         context,
         providerVariantRecommendationResultSchema,
-        requestTimeoutMs,
+        timeout,
       );
     },
 
@@ -464,10 +486,10 @@ export function createOpenAiCompatibleProvider(
         fetchImpl,
         connection,
         "cv_tailoring",
-        "Recommend the strongest supplied career items for this candidature. Return only the final JSON object with key recommendations, an array of objects with itemRef and rationale. Do not expose chain-of-thought or reasoning. Use only itemRef values supplied in context. Do not rewrite or invent career facts.",
+        instructionFor("cv_tailoring"),
         context,
         providerCvTailoringResultSchema,
-        requestTimeoutMs,
+        timeout,
       );
     },
 
@@ -479,10 +501,10 @@ export function createOpenAiCompatibleProvider(
         fetchImpl,
         connection,
         "cover_letter_draft",
-        "Draft a concise cover letter using only the supplied opportunity and career evidence. Return only the final JSON object with keys recipient, subject, bodyParagraphs, closing. Do not expose chain-of-thought or reasoning. Do not invent career facts or contact details; use empty strings when recipient or closing is unsupported.",
+        instructionFor("cover_letter_draft"),
         context,
         coverLetterDraftSchema,
-        requestTimeoutMs,
+        timeout,
       );
     },
   });

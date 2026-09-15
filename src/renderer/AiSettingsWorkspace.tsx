@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { NamedAiConnection } from "../shared/ai-connection-contracts";
 import { AiConnectionValidationPanel } from "./AiConnectionValidationPanel";
+import { AiPromptTransparencyPanel } from "./AiPromptTransparencyPanel";
 import { clearAiTask } from "./ai-task-store";
 
 interface Draft {
@@ -304,6 +305,8 @@ export function AiSettingsWorkspace({
           <p className="compact-help">One visible check runs the remaining supported AI actions in sequence. Each action is still checked separately, and you can keep using AAAAT while it runs.</p>
         </div>
       ) : null}
+
+      {showConnections ? <AiPromptTransparencyPanel /> : null}
 
       {showPortability ? (
         <div className="profile-column">

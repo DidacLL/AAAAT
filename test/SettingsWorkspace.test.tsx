@@ -51,6 +51,11 @@ beforeEach(() => {
     configurable: true,
     value: {
       setupEnvironment: { current: async () => readyEnvironment, connectVscode },
+      setupAssistant: {
+        access: async () => ({ installerActionsAllowed: false, configuratorActionsAllowed: false }),
+        updateAccess: async (update: { installerActionsAllowed: boolean; configuratorActionsAllowed: boolean }) => update,
+        runRenderingSelfTest: async () => ({ passed: true }),
+      },
       workspaceRecovery: { backup, restore },
       aiConnections: {
         list,
@@ -72,7 +77,7 @@ afterEach(() => {
 });
 
 describe("Settings workspace", () => {
-  it("opens on status-first administration intentions and enters one task at a time", async () => {
+  it("opens on secondary administration intentions and enters one task at a time", async () => {
     const user = userEvent.setup();
     render(
       <SettingsWorkspace
@@ -88,7 +93,7 @@ describe("Settings workspace", () => {
     expect(screen.getByRole("button", { name: /Backup & recovery/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Document rendering/ })).toHaveTextContent("Available on this computer.");
     expect(screen.getByRole("button", { name: /AI connections/ })).toHaveTextContent("Optional; no connections configured.");
-    expect(screen.getByRole("button", { name: /Portability & external tools/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /External assistants & portability/ })).toBeInTheDocument();
     expect(screen.queryByLabelText("Connection name")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Document rendering/ }));
@@ -97,7 +102,7 @@ describe("Settings workspace", () => {
     expect(screen.getByRole("button", { name: "Back to Settings" })).toBeInTheDocument();
   });
 
-  it("connects only the demonstrated VS Code host through the narrow no-input desktop operation", async () => {
+  it("makes the bounded host-agnostic contract primary and keeps VS Code optional", async () => {
     const user = userEvent.setup();
     render(
       <SettingsWorkspace
@@ -108,14 +113,19 @@ describe("Settings workspace", () => {
       />,
     );
 
-    await user.click(await screen.findByRole("button", { name: /Portability & external tools/ }));
-    expect(screen.getByRole("region", { name: "VS Code external tool setup" })).toBeInTheDocument();
-    expect(screen.getByText(/one candidature you locally select for opportunity research/i)).toBeInTheDocument();
-    expect(screen.getByText(/cannot browse your local corpus/i)).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: /External assistants & portability/ }));
+    expect(screen.getByRole("heading", { name: "Use AAAAT from a compatible assistant" })).toBeInTheDocument();
+    expect(screen.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "installer.ai" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "configurator.ai" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "External setup action authority" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "VS Code external tool setup", hidden: true })).not.toBeVisible();
+
+    await user.click(screen.getByText("Optional VS Code adapter", { selector: "summary" }));
+    expect(screen.getByRole("region", { name: "VS Code external tool setup" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Connect VS Code project" }));
     expect(connectVscode).toHaveBeenCalledTimes(1);
     expect(connectVscode).toHaveBeenCalledWith();
-    expect(await screen.findByRole("status")).toHaveTextContent(/VS Code still controls whether to trust and enable/i);
   });
 
   it("keeps AI optional and protects a dirty connection draft before leaving its Settings detail", async () => {

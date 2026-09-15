@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import {
   aiConnectionStatusSchema,
   jobExtractionNewFieldSchema,
@@ -21,8 +19,10 @@ import {
   type CandidatureFieldConfiguration,
   type CandidatureRuntimeValue,
 } from "../shared/contracts";
+import { compactSourceText } from "../shared/source-text";
 import { requireAiConnectionForOperation } from "./ai-connection-service";
-import { AiProviderError, createOpenAiCompatibleProvider } from "./ai-provider";
+import { AiProviderError } from "./ai-provider";
+import { createWorkspaceAiProvider } from "./ai-prompt-service";
 import {
   listCandidatureFields,
   validateCandidatureFieldValueInDatabase,
@@ -41,25 +41,20 @@ interface CapturedExchange {
   readonly responseBody: string;
 }
 
-function operationScope(): string {
-  return `aaaat_discovery_${randomUUID()}`;
-}
-
 function discoveryWireRequest(
   request: JobExtractionRequest,
   fields: readonly CandidatureFieldConfiguration[],
 ): DiscoveryWireRequest {
-  const scope = operationScope();
   const fieldIds = new Map<string, string>();
   const fieldLabels = new Map<string, string>();
   const choiceIds = new Map<string, ReadonlyMap<string, string>>();
   const providerFields = fields.map((field, index) => {
-    const fieldRef = `${scope}_${index + 1}`;
+    const fieldRef = `aaaat_f${index + 1}`;
     fieldIds.set(fieldRef, field.definition.id);
     fieldLabels.set(fieldRef, field.definition.label);
     const choices = new Map<string, string>();
     const providerChoices = field.definition.choices.map((choice, choiceIndex) => {
-      const choiceRef = `${fieldRef}_${choiceIndex + 1}`;
+      const choiceRef = `${fieldRef}_c${choiceIndex + 1}`;
       choices.set(choiceRef, choice.id);
       return { choiceRef, label: choice.label };
     });
@@ -74,7 +69,11 @@ function discoveryWireRequest(
     };
   });
   return {
-    request: providerJobExtractionRequestSchema.parse({ ...request, fields: providerFields }),
+    request: providerJobExtractionRequestSchema.parse({
+      ...request,
+      sourceText: compactSourceText(request.sourceText),
+      fields: providerFields,
+    }),
     fieldIds,
     fieldLabels,
     choiceIds,
@@ -535,49 +534,87 @@ function normalizeNewField(
   };
 }
 
+const fieldAliasGroups = [
+  ["language", "languages", "idioma", "idiomas", "language required", "languages required", "required language", "required languages", "language requirement", "language requirements"],
+  ["organisation", "organization", "company", "employer"],
+  ["role", "position", "job role", "job title", "position title"],
+  ["location", "work location", "job location"],
+  ["compensation", "salary", "pay", "remuneration"],
+] as const;
+
+function normalizedFieldMeaning(label: string): string {
+  const normalized = label.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  for (const group of fieldAliasGroups) {
+    if (group.some((alias) => alias === normalized)) return group[0];
+  }
+  return normalized;
+}
+
+function valueForExistingField(
+  field: CandidatureFieldConfiguration,
+  proposed: CandidatureRuntimeValue,
+): unknown {
+  if (field.definition.valueType !== "choice") return proposed;
+  const mapOne = (value: unknown): unknown => {
+    if (typeof value !== "string") return value;
+    const choice = field.definition.choices.find(
+      (candidate) => candidate.label.trim().toLocaleLowerCase() === value.trim().toLocaleLowerCase(),
+    );
+    return choice?.id ?? value;
+  };
+  return Array.isArray(proposed) ? proposed.map(mapOne) : mapOne(proposed);
+}
+
 function validateNewFields(
+  rootPath: string,
   rawFields: readonly unknown[],
   existingFields: readonly CandidatureFieldConfiguration[],
 ): {
   readonly fields: JobExtractionNewField[];
+  readonly reused: Array<{ fieldId: string; value: CandidatureRuntimeValue }>;
   readonly issues: JobExtractionProposalIssue[];
 } {
   const fields: JobExtractionNewField[] = [];
+  const reused: Array<{ fieldId: string; value: CandidatureRuntimeValue }> = [];
   const issues: JobExtractionProposalIssue[] = [];
-  const labels = new Set(
-    existingFields.map((field) => field.definition.label.trim().toLocaleLowerCase()),
-  );
+  const meanings = new Set(existingFields.map((field) => normalizedFieldMeaning(field.definition.label)));
   for (const rawField of rawFields) {
     const normalized = normalizeNewField(rawField);
     if (!normalized.field) {
-      issues.push(
-        issue(
-          "new_field_invalid",
-          null,
-          normalized.label,
-          proposedValue(rawField),
-          normalized.reason ?? "AAAAT could not use this proposed information definition.",
-        ),
-      );
+      issues.push(issue("new_field_invalid", null, normalized.label, proposedValue(rawField),
+        normalized.reason ?? "AAAAT could not use this proposed information definition."));
       continue;
     }
-    const key = normalized.field.label.trim().toLocaleLowerCase();
-    if (labels.has(key)) {
-      issues.push(
-        issue(
-          "new_field_invalid",
-          null,
-          normalized.field.label,
-          normalized.field.value,
-          "AI proposed a new information definition that duplicates existing information.",
-        ),
-      );
+    const meaning = normalizedFieldMeaning(normalized.field.label);
+    const existing = existingFields.find(
+      (field) => normalizedFieldMeaning(field.definition.label) === meaning,
+    );
+    if (existing) {
+      try {
+        const cardinality = normalizeCardinality(
+          existing,
+          valueForExistingField(existing, normalized.field.value),
+        );
+        if (cardinality.reason) throw new Error(cardinality.reason);
+        const runtime = candidatureRuntimeValueSchema.parse(cardinality.value);
+        const value = withWorkspaceDatabase(rootPath, (database) =>
+          validateCandidatureFieldValueInDatabase(database, existing.definition.id, runtime),
+        );
+        if (value === null) throw new Error(`${existing.definition.label} did not contain a usable value.`);
+        reused.push({ fieldId: existing.definition.id, value });
+      } catch (reason) {
+        issues.push(issue("new_field_invalid", existing.definition.id, existing.definition.label,
+          normalized.field.value, reason instanceof Error ? reason.message :
+            "AI proposed duplicate information that could not be reused safely."));
+      }
       continue;
     }
-    labels.add(key);
+    if (meanings.has(meaning)) continue;
+    meanings.add(meaning);
     fields.push(normalized.field);
   }
-  return { fields, issues };
+  return { fields, reused, issues };
 }
 
 export async function extractJobWithPartialOutcomes(
@@ -605,7 +642,7 @@ export async function extractJobWithPartialOutcomes(
   }
   const wire = discoveryWireRequest(request, fields);
   const capture = capturingFetch(wire.request, signal);
-  const provider = createOpenAiCompatibleProvider(capture.fetchImpl);
+  const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);
 
   let rawResult: unknown;
   let providerValidationError = "";
@@ -631,7 +668,7 @@ export async function extractJobWithPartialOutcomes(
     throw new Error("The configured provider returned an invalid job extraction result envelope.");
   }
   const existing = validateExistingProposals(rootPath, wire, envelope.proposals);
-  const discovered = validateNewFields(envelope.newFields, listCandidatureFields(rootPath));
+  const discovered = validateNewFields(rootPath, envelope.newFields, listCandidatureFields(rootPath));
   const exchange = capturedExchange(
     connection,
     capture.snapshot(),
@@ -640,7 +677,12 @@ export async function extractJobWithPartialOutcomes(
   );
 
   return partialJobExtractionResultSchema.parse({
-    proposals: existing.proposals,
+    proposals: [
+      ...existing.proposals,
+      ...discovered.reused.filter(
+        (proposal) => !existing.proposals.some((existingProposal) => existingProposal.fieldId === proposal.fieldId),
+      ),
+    ],
     newFields: discovered.fields,
     issues: [...existing.issues, ...discovered.issues],
     ...(exchange ? { exchange } : {}),

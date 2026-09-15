@@ -1,189 +1,136 @@
 # AAAAT alpha user guide
 
-AAAAT is a private, local career/application information workspace and application-artifact generator. Your authoritative workspace stays in a folder you choose. Core use does not require AI.
+AAAAT is a private local career and application workspace. Your workspace is a folder you choose. Core use does not require AI.
 
-AAAAT is not an in-app job-discovery/search engine. You can bring material from anywhere, and external AI or other tools may participate in broader job-search or research work while using AAAAT through bounded capabilities.
+## Start with the thing you are trying to do
 
-## 1. Get and start AAAAT
+After opening a workspace, AAAAT puts ordinary intentions first:
 
-Current alpha builds are produced by the repository's successful `Verify` workflow. There is not yet a stable download channel, updater, code-signing setup, or notarization service.
+- **From a job offer** — paste a raw vacancy, recruiter message or useful fragments and create a tailored CV, a cover letter, or both. AAAAT retains the raw material as a Source and creates the underlying application context automatically. You do not need to create, name or remember a candidature first.
+- **CV & cover letter** — create or continue standalone documents without an application context.
+- **Saved applications** — recall retained opportunities/application contexts and inspect their Sources, information, Tags and linked material.
+- **My information** — maintain reusable experience, education, projects, skills, languages, links, preferences and other career information.
+- **Settings** — workspace ownership/recovery, local rendering, optional AI connections and bounded external-assistant setup.
 
-Current artifact formats are:
+The shell uses these intentions as navigation. Internal database entities do not define the normal journey.
 
-- Windows: ZIP containing the packaged AAAAT application;
-- macOS: ZIP containing `AAAAT.app`;
-- Debian/Ubuntu Linux: `.deb` package.
+## From a job offer to application documents
 
-The alpha builds are unsigned, so Windows or macOS may show normal platform trust warnings. AAAAT does not bypass those controls.
+Open **From a job offer**, paste the raw offer, and choose **Tailored CV**, **Cover letter**, or both. Select **Start application documents**.
 
-Developers may build the same artifacts with Node 24 and the repository checkout:
+AAAAT then:
 
-```text
-npm ci
-npm run make
-```
+1. retains the pasted material as the original local Source;
+2. creates the underlying application context without asking you to file it first;
+3. creates the selected local document project(s);
+4. links the documents to the application context;
+5. opens document work directly; and
+6. when the required AI routes are already validated and usable, starts the bounded preparation work automatically in the background: it extracts safe structured opportunity facts, keeps independently valid facts, selects relevant retained career evidence for the CV, and/or stores a grounded cover-letter draft.
 
-## 2. Create or open your local workspace
+Slow AI work does not block the rest of AAAAT. Progress and the final prepared state appear in the document itself; you do not need to discover another AI button. If AI is unavailable, unsupported, or produces no safe opportunity facts, the retained Source and created documents remain complete ordinary editable work rather than a failed application flow.
 
-On first launch AAAAT asks where it should keep the local workspace.
+The raw Source remains available later under **Saved applications**.
 
-- **Create workspace**: choose an empty folder.
-- **Open existing workspace**: choose a current compatible AAAAT v2 workspace.
-- **Restore workspace backup**: choose an AAAAT backup directory and then a separate empty destination.
+## Standalone CV and cover-letter work
 
-AAAAT shows the selected workspace while it is open and lets you switch deliberately. A non-empty folder that is not already a compatible current workspace is rejected rather than silently repurposed.
+Open **CV & cover letter** when there is no job offer or when you simply want to work on a document.
 
-If a previously used workspace was moved, deleted, or is unavailable, AAAAT asks you to choose another workspace or restore a backup instead of inventing replacement data.
+AAAAT uses reusable **My information** and keeps generated LaTeX projects user-owned. Document content remains editable without AI. Rendering is local when compatible TeX tools are available.
 
-## 3. Main product areas
+Inside a CV, the effective information actually used by the document is the primary view. Inside a cover letter, the letter text itself is primary. Saved variations, per-item inclusion/order/overrides, external-assistant access, source/LaTeX ownership and other advanced controls remain available through progressive disclosure instead of defining the normal editing model.
 
-The main workspace areas are **Candidatures**, **Professional information**, **CVs & letters**, and **Settings**. Candidatures, Professional information, and CVs & letters remain usable with no AI connection.
+## Saved applications and Sources
 
-### Candidatures
+**Saved applications** is primarily for recall. Applications may be sparse: a raw Source alone is valid.
 
-Use **Candidatures** for opportunities/application contexts you want AAAAT to retain. A candidature may contain almost nothing or a large amount of information; sparse or raw-only records are valid.
+Sources are first-class retained material such as job postings, recruiter messages, forms, notes or research. Tags provide reusable recognition/glossary information. Flexible application information remains user-maintainable rather than fixed to one profession.
 
-The rapid-retrieval experience has two Focus states:
+The complete application surface may expose richer information and advanced controls progressively, but the ordinary journey does not require understanding field/schema machinery.
 
-1. **Corpus Focus** shows multiple candidatures together so you can recognize the relevant one quickly. Search can use retained information, Source text, and Tags/aliases. No candidature is forced selected on entry.
-2. **Selected Focus** shows one candidature with the richer subset configured/useful for rapid recall. It is not a lifecycle dashboard, checklist, reminder board, or complete editor.
+## My information
 
-You can also open **complete candidature management** directly. Complete work exposes retained structured information, full Sources, Tags, candidature-linked application material, privacy/presentation controls, and secondary supporting data through progressive disclosure.
+Use **My information** for reusable career material. The normal view is the information itself. Saved variations, AI disclosure and other secondary controls appear only when relevant.
 
-Candidature fields are user-maintainable product data. Different professions can keep different field sets; for example, a pilot may care about flight hours or aircraft types while another profession may need unrelated fields. Users can add and edit field definitions instead of being limited to a developer-owned fixed ontology. Normal value editing stays simple; field-definition controls are secondary/progressively disclosed.
+AAAAT keeps local storage, presentation/Focus choices and AI disclosure as separate concepts. Information is not sent to an assistant merely because it is stored locally.
 
-**Tags** are the shared reusable keyword/glossary object. A Tag may have a canonical name, aliases, definition, notes, and candidature associations.
+## Workspaces, demo data and reset
 
-Formal lifecycle/status/priority/next-action tracking is not required for core AAAAT use. Archive remains secondary corpus organization rather than a mandatory lifecycle.
+On first launch:
 
-### Create a candidature
+- **Create workspace** chooses an empty local folder.
+- **Open existing workspace** opens a current compatible AAAAT workspace.
+- **Try with demo data** creates a clearly marked fake workspace without injecting fake records into real work.
+- **Restore a backup** restores into a separate empty destination.
 
-AAAAT exposes two direct creation approaches. Neither is canonical:
+Settings also provides **Reset workspace**, a destructive action scoped only to the current workspace and protected by confirmation.
 
-- **New candidature — fill fields**: create it by entering structured values directly.
-- **New candidature — paste raw material**: paste whatever offer/message/web/form/note material you have and retain it first as a Source.
+## Local PDF rendering
 
-The raw path requires only the raw material. It does not require a dedicated company, role, URL, title, source type, status, priority, or next action before saving.
+AAAAT owns document data and portable LaTeX source. Local PDF rendering uses compatible `latexmk` and `pdflatex` commands already available on the computer.
 
-After raw material is retained, AAAAT shows both continuations together:
+Open **Settings → Document rendering** for live status and AAAAT's rendering self-test. The self-test creates, renders and removes one temporary AAAAT-managed document through the fixed document pipeline. Missing rendering tools do not prevent editing or local ownership. AAAAT does not silently install packages or expose arbitrary command execution.
 
-- **Send to AI**: available only when a suitable validated `job_extraction` route exists. The extraction proposes values for the current configured candidature fields.
-- **Fill candidature yourself**: opens the retained raw Source beside editable candidature fields so you can copy/enter values manually with minimal context switching.
+## Optional AI inside AAAAT
 
-The manual side-by-side path is a first-class no-AI workflow, not an error fallback. At constrained window sizes it may stack/scroll instead of staying in literal columns, while keeping Source and fields available in the same task surface.
+AI connections are optional. AAAAT validates support per bounded operation, distinguishes reachability from operation compatibility, and keeps failed AI exchanges inspectable. Effective system instructions, user/context payloads and raw model responses remain available for diagnostics where appropriate.
 
-### Professional information
+One malformed proposal must not discard otherwise valid field proposals. AI output remains editable AAAAT data, not authority over the workspace.
 
-Use **Professional information** for reusable career material such as experience, education, projects, skills, certifications, languages, links, summaries, objectives/preferences/constraints and other information you want available across candidatures and documents.
+## `installer.ai` and `configurator.ai`
 
-Saved variations can give a role or market different emphasis without creating a second professional identity. Reusable information remains user-owned and editable.
+These names describe AAAAT's shared installation/configuration capabilities, not copy/paste prompt files and not read-only status cards.
 
-### CVs & letters
+- **`installer.ai`** exposes live workspace/rendering prerequisites and the bounded AAAAT rendering self-test.
+- **`configurator.ai`** exposes optional AI configuration coverage and, when explicitly authorized, typed connection save, per-operation capability validation and validated per-operation default selection.
 
-Use **CVs & letters** to create and edit CVs and cover letters from reusable professional information, optionally applying saved variations/differences. VCVGenerator is independently useful: you can work on a CV or cover letter without a candidature and without AI.
+Status inspection is always privacy-minimal. Mutating external setup actions are denied by default. In **Settings → External assistants & portability**, the user may separately enable **installer.ai actions** and **configurator.ai actions** for the current workspace. These switches grant only the documented AAAAT product actions; they do not grant shell, package-manager, arbitrary command, filesystem, database or generic provider authority. Resetting the workspace clears this local authority with the rest of the workspace data.
 
-AAAAT keeps document content editable and produces local user-owned LaTeX projects. Generated projects are intended to remain portable rather than depending on absolute paths back into the AAAAT repository.
+The desktop uses the same underlying setup services directly. External assistants do not receive a privileged bypass around normal validation.
 
-If managed TeX source was edited directly, AAAAT protects those edits instead of silently overwriting them; follow the application's manual-mode/recovery prompts before regenerating.
+## External assistants and hosts
 
-## 4. Local PDF rendering and TeX prerequisites
+AAAAT is provider- and host-agnostic. A compatible assistant may be ChatGPT, Claude, a local agent, an editor host or another environment chosen by the user.
 
-AAAAT generates portable LaTeX source itself, but local PDF rendering uses TeX tools installed on your computer.
+The packaged MCP stdio surface exposes bounded capabilities including:
 
-In **Settings**, **Local setup status** checks whether the current workspace is usable and whether `latexmk` and `pdflatex` are available. The check is read-only: AAAAT reuses working tools and does not silently install packages, replace a TeX distribution, edit `PATH`, or expose arbitrary process execution.
+- `candidature_create`
+- `application_documents_create`
+- `opportunity_research_context_read`
+- `candidature_source_add`
+- `career_context_read`
+- `cv_descriptions_read`
+- `cv_content_read`
+- `cv_render`
+- `installer_status_read`
+- `installer_rendering_self_test`
+- `configurator_status_read`
+- `configurator_ai_connection_save`
+- `configurator_ai_operation_validate`
+- `configurator_ai_operation_default`
 
-If the tools are missing, generated source remains available and the rest of AAAAT remains usable. Install compatible TeX tools through your normal operating-system/distribution method and refresh the environment status.
+`application_documents_create` expresses the same high-level offer → CV / cover letter / both intention as the desktop and returns only created/prepared booleans, never hidden application/document IDs or local paths. Setup mutation tools require the matching explicit local Settings authority. The configurator tools accept only typed AAAAT connection/operation inputs and continue to use normal endpoint and capability validation.
 
-## 5. Optional AI assistance
+These tools do not expose generic candidature/corpus browsing, database queries, filesystem access, shell/process execution, package installation, arbitrary local paths or unrelated private areas. AAAAT controls what its tools disclose; a host's own wider permissions remain a separate user trust choice.
 
-AI is optional. Settings can keep several named OpenAI-compatible connections. A loopback connection may use `http:`; a remote connection must use `https:`. The current connection definition stores the user-defined connection name, model name, and base URL. Credential/provider-account setup is outside this slice.
+### Optional VS Code adapter
 
-Before a configured connection is used for a bounded AI operation, validate that operation from **Settings**. Validation uses synthetic AAAAT data rather than your candidature, Sources, professional information, or documents.
+VS Code is one optional demonstrated adapter over the same MCP contract. It is not a product dependency and does not define AAAAT's integration model.
 
-Changing a connection endpoint or model clears its recorded operation validations because the capability boundary changed. Removing a connection clears defaults that depended on it. AAAAT does not silently scan other connections and fall back to another model.
-
-Contextual AI operations may include extraction, selected information discovery, opportunity review, CV tailoring, cover-letter drafting, and other bounded assistance supported by the configured route. AI output is not authoritative; retained results remain ordinary editable AAAAT data.
-
-For raw candidature capture, **Send to AI** sends the already-retained Source through the validated job-extraction route and returns proposals for the currently configured candidature fields. If no suitable route exists, the manual path remains fully available.
-
-For retained Source discovery, AAAAT requires an explicit Source selection and shows the material being sent. Returned values remain proposals until accepted through ordinary candidature services.
-
-## 6. Workspace backup
-
-Open **Settings → Workspace backup and restore** and choose **Back up workspace**. Select a separate existing empty folder, or create an empty folder in the system picker.
-
-A backup contains:
-
-- a consistent SQLite snapshot of the current product workspace;
-- relevant regular user-owned workspace files;
-- a manifest containing backup format/version, creation time, relative paths, file sizes/hashes, database size/hash, and declared exclusions.
-
-The manifest does **not** carry development migration ancestry. Backups are validated against the current product workspace schema.
-
-Machine-local/transient or secret-like material is excluded, including the local AI connection file, SQLite WAL/SHM sidecars, `.env` material, common private-key/certificate files, symbolic links, and special files.
-
-The packaged command remains available as a technical alternative:
-
-```text
-AAAAT --workspace-backup --workspace <existing-AAAAT-workspace> --destination <empty-backup-directory>
-```
-
-## 7. Workspace restore
-
-Choose **Restore workspace backup** from first-run/recovery or **Settings → Workspace backup and restore**. Select the backup directory first, then a separate empty destination.
-
-Before writing the destination, AAAAT validates the manifest, safe relative paths, file sizes/hashes, SQLite integrity, and compatibility with the current product workspace schema. Backup and destination may not overlap. Invalid or corrupted backups fail closed, and a failed activation removes partial restored state.
-
-After successful restore, AAAAT opens the restored workspace. If restore fails while another workspace is active, the previously active workspace remains the current one.
-
-The packaged command remains available as a technical alternative:
-
-```text
-AAAAT --workspace-restore --backup <backup-directory> --destination <empty-workspace-directory>
-```
-
-AI connection configuration is intentionally excluded from workspace backups. Export/import AI setup separately if you want those connection definitions on another machine; operation validations and per-operation defaults are not portable and must be re-established.
-
-## 8. Advanced optional external-AI integration
-
-External AI is a legitimate entrance into AAAAT, but it receives bounded capabilities rather than database/filesystem/process authority. An external assistant may be doing broader work such as job discovery or research outside AAAAT and then call AAAAT to retain or use local career/application information.
-
-The current demonstrated host integration is VS Code through AAAAT's MCP stdio server. The current bounded surface includes:
-
-- `candidature_create` — create one Source-backed candidature through the ordinary candidature service;
-- `opportunity_research_context_read` — read only the locally selected candidature projection permitted for that task;
-- `candidature_source_add` — retain one validated Source on the candidature locally selected for that external task;
-- `career_context_read` — read only non-empty career-preference values whose local external-AI disclosure is enabled;
-- `cv_descriptions_read` — read only explicitly saved AI-visible CV tags/notes under temporary labels;
-- `cv_content_read` — read the effective content of one CV explicitly authorized locally;
-- `cv_render` — request the normal local render for that same authorized CV when separate render authorization is enabled.
-
-These tools do not expose a generic corpus browser, arbitrary database query, filesystem, shell, process surface, local IDs, or unrelated private areas. AAAAT controls the data/capability boundary; it does not control an external host's broader operating-system permissions.
-
-Technical VS Code setup remains optional:
+Technical setup remains available for users who want it:
 
 ```text
 AAAAT --vscode-mcp-setup --workspace <existing-AAAAT-workspace> --project <VS-Code-project>
-```
-
-Then deliberately activate it:
-
-```text
 AAAAT --vscode-mcp-setup --workspace <existing-AAAAT-workspace> --project <VS-Code-project> --activate
 ```
 
-## 9. Troubleshooting
+## Backup and restore
 
-**The previous workspace is unavailable.** Choose another current compatible AAAAT v2 workspace, create a new one in an empty folder, or restore a compatible backup. AAAAT does not silently relocate the old workspace.
+Use **Settings → Backup & recovery** to create or restore a user-owned backup. Backups contain the current workspace database and relevant regular workspace files plus a validation manifest. Machine-local/transient and secret-like material is excluded.
 
-**A folder cannot be used as a workspace.** For **Create workspace**, choose an empty folder. For **Open existing workspace**, select a current compatible AAAAT v2 workspace.
+Restore validates paths, hashes, SQLite integrity and current-schema compatibility before activation. A failed restore does not silently replace the active workspace.
 
-**PDF rendering cannot start.** Check **Settings → Local setup status**. Install compatible `latexmk` and `pdflatex` tools if missing, refresh the environment status, and retry. Generated LaTeX source remains user-owned even when rendering fails.
-
-**AI actions fail or no AI is configured.** AI is optional. Validate the specific operation route in Settings. Manual Professional information, CVs & letters, candidature creation/editing, raw capture, search, and Source-based manual filling continue to work without AI.
-
-**Restore rejects a backup.** Do not bypass validation. Use an intact AAAAT backup directory and a separate empty destination. Restore may reject malformed/modified manifests, path traversal, file corruption, an incompatible current workspace schema, overlapping directories, symlinks, or special files.
+AI connection configuration is intentionally excluded from workspace backups. Export/import portable AI setup separately when needed; operation validations are machine/runtime-specific and must be re-established.
 
 ## Current alpha limitations
 
-The current release path does not include code signing/notarization, an updater, an automated GitHub Release publisher, a Windows installer, a macOS DMG, or RPM/AppImage/Snap/Flatpak packages. Setup guidance detects/explains capabilities but does not silently install software or mutate system/provider configuration.
+Current alpha builds are produced by the repository's successful Verify workflow and are unsigned. There is not yet a stable release channel, updater, code signing/notarization, Windows installer, macOS DMG, or broad Linux package portfolio.

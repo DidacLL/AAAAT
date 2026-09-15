@@ -136,6 +136,8 @@ function chooseLinuxDirectory(): void {
 async function createWorkspace(running: RunningApp): Promise<void> {
   await running.page.getByRole("button", { name: "Create workspace" }).click();
   chooseLinuxDirectory();
+  await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
+  await running.page.getByRole("button", { name: "Saved applications" }).click();
   await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 }
 
@@ -258,6 +260,8 @@ test("packaged candidature cancels slow local AI then auto-fills safe informatio
     });
 
     await running.page.reload();
+    await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
+    await running.page.getByRole("button", { name: "Saved applications" }).click();
     await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
@@ -327,11 +331,12 @@ test("packaged candidature cancels slow local AI then auto-fills safe informatio
     });
 
     await expect(complete.getByRole("region", { name: "Documents" })).toBeVisible();
-    await running.page.getByRole("button", { name: "Documents", exact: true }).click();
-    await expect(running.page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
-    await expect(running.page.getByLabel("Use information from")).toHaveValue("");
+    const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
+    await primary.getByRole("button", { name: "CV & cover letter" }).click();
+    await expect(running.page.getByRole("heading", { name: "What are you making?" })).toBeVisible();
+    await expect(running.page.getByRole("button", { name: /New CV/ })).toBeVisible();
 
-    await running.page.getByRole("button", { name: "My information", exact: true }).click();
+    await primary.getByRole("button", { name: "My information" }).click();
     await expect(running.page.getByRole("heading", { name: "My information", exact: true })).toBeVisible();
   } finally {
     if (running) await stopPackagedApp(running);

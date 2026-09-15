@@ -20,17 +20,18 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     (exitCode) => app.exit(exitCode),
     () => app.exit(2),
   );
-} else if (isVscodeMcpSetupInvocation(process.argv)) {
-  void runVscodeMcpSetupProcess(process.argv, process.execPath, process.stdout).then(
-    (exitCode) => app.exit(exitCode),
-    () => app.exit(2),
-  );
 } else if (isMcpInvocation(process.argv)) {
   try {
     runMcpProcess(process.argv);
   } catch {
     app.exit(2);
   }
+} else if (isVscodeMcpSetupInvocation(process.argv)) {
+  // VS Code is one optional adapter over the same host-agnostic bounded MCP surface.
+  void runVscodeMcpSetupProcess(process.argv, process.execPath, process.stdout).then(
+    (exitCode) => app.exit(exitCode),
+    () => app.exit(2),
+  );
 } else if (isExternalCommandInvocation(process.argv)) {
   void runExternalCommandProcess(process.argv, process.stdin, process.stdout).then(
     (exitCode) => app.exit(exitCode),
@@ -49,6 +50,8 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     import("./cv-descriptor-ipc"),
     import("./document-output-ipc"),
     import("./profile-ai-context-ipc"),
+    import("./ai-prompt-ipc"),
     import("./setup-environment-ipc"),
+    import("./setup-assistant-ipc"),
   ]).then(() => import("./main"));
 }

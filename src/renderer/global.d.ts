@@ -1,4 +1,5 @@
 import type { AiConnectionDesktopApi } from "../shared/ai-connection-contracts";
+import type { AiPromptDesktopApi } from "../shared/ai-prompt-contracts";
 import type { AiDesktopApi } from "../shared/ai-contracts";
 import type { AiTaskCancellationDesktopApi } from "../shared/ai-task-cancellation-contracts";
 import type { ArtifactDesktopApi } from "../shared/artifact-contracts";
@@ -12,6 +13,7 @@ import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-cont
 import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
 import type { DocumentOutputDesktopApi } from "../shared/document-output-contracts";
 import type { ProfileAiContextDesktopApi } from "../shared/profile-ai-context-contracts";
+import type { SetupAssistantDesktopApi } from "../shared/setup-assistant-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-contracts";
 
@@ -21,6 +23,7 @@ declare global {
       AiDesktopApi &
       AiTaskCancellationDesktopApi &
       AiConnectionDesktopApi &
+      AiPromptDesktopApi &
       ArtifactDesktopApi &
       CandidatureActivityDesktopApi &
       CandidatureOpportunityResearchAccessDesktopApi &
@@ -31,6 +34,7 @@ declare global {
       CvDescriptorDesktopApi &
       DocumentOutputDesktopApi &
       ProfileAiContextDesktopApi &
+      SetupAssistantDesktopApi &
       SetupEnvironmentDesktopApi &
       WorkspaceRecoveryDesktopApi;
   }

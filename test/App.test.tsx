@@ -6,6 +6,7 @@ import { App } from "../src/renderer/App";
 import type { AiConnectionDesktopApi } from "../src/shared/ai-connection-contracts";
 import type { CareerContextAiDisclosureDesktopApi } from "../src/shared/career-context-ai-disclosure-contracts";
 import type { CareerContext, DesktopApi, ProfileSnapshot, WorkspaceInfo } from "../src/shared/contracts";
+import type { SetupAssistantDesktopApi } from "../src/shared/setup-assistant-contracts";
 import type { SetupEnvironmentDesktopApi } from "../src/shared/setup-environment-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../src/shared/workspace-recovery-contracts";
 
@@ -52,6 +53,7 @@ const readyEnvironment = {
     ],
   },
 };
+
 const current = vi.fn<DesktopApi["workspace"]["current"]>();
 const choose = vi.fn<DesktopApi["workspace"]["choose"]>();
 const backup = vi.fn<WorkspaceRecoveryDesktopApi["workspaceRecovery"]["backup"]>();
@@ -62,14 +64,26 @@ const unavailable = async (): Promise<never> => {
 
 const desktopApi: DesktopApi &
   WorkspaceRecoveryDesktopApi &
+  SetupAssistantDesktopApi &
   SetupEnvironmentDesktopApi &
   AiConnectionDesktopApi &
   CareerContextAiDisclosureDesktopApi = {
   system: {
     info: async () => ({ appVersion: "2.0.0", electronVersion: "44.1.1", nodeVersion: "24.19.0" }),
   },
-  workspace: { current, choose },
+  workspace: {
+    current,
+    choose,
+    createDemo: async () => readyWorkspace,
+    reset: async () => readyWorkspace,
+    status: async () => ({ demo: false }),
+  },
   workspaceRecovery: { backup, restore },
+  setupAssistant: {
+    access: async () => ({ installerActionsAllowed: false, configuratorActionsAllowed: false }),
+    updateAccess: async (update) => update,
+    runRenderingSelfTest: async () => ({ passed: true }),
+  },
   setupEnvironment: {
     current: async () => readyEnvironment,
     connectVscode: async () => ({ status: "cancelled", message: "No project was changed." }),
@@ -140,7 +154,7 @@ const desktopApi: DesktopApi &
   },
 };
 
-describe("AAAAT workspace state", () => {
+describe("AAAAT intention-first shell", () => {
   beforeEach(() => {
     current.mockReset();
     choose.mockReset();
@@ -153,147 +167,97 @@ describe("AAAAT workspace state", () => {
     Object.defineProperty(window, "aaaat", { configurable: true, value: desktopApi });
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
-  it("creates a user-owned workspace with three plain primary destinations", async () => {
+  it("creates a local workspace and presents ordinary intentions rather than persisted entity destinations", async () => {
     const user = userEvent.setup();
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Choose where AAAAT should keep your career workspace." })).toBeInTheDocument();
-    expect(screen.getByText(/workspace data stays local/i)).toBeInTheDocument();
-    expect(screen.getByText(/works without AI/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create workspace" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open existing workspace" })).toBeInTheDocument();
-    expect(screen.getByText("Restore a backup", { selector: "summary" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try with demo data" })).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Create workspace" }));
     expect(choose).toHaveBeenCalledWith("create");
-    expect(await screen.findByText(readyWorkspace.rootPath)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Turn a job offer into application documents." })).toBeInTheDocument();
 
     const navigation = screen.getByRole("navigation", { name: "Primary work areas" });
     expect(within(navigation).getAllByRole("button").map((button) => button.textContent)).toEqual([
-      "Candidatures",
-      "Documents",
+      "From a job offer",
+      "CV & cover letter",
+      "Saved applications",
       "My information",
     ]);
-    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "ToDos" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reminders" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "AI assist" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Profile" })).not.toBeInTheDocument();
+    expect(within(navigation).queryByRole("button", { name: "Candidatures" })).not.toBeInTheDocument();
+    expect(within(navigation).queryByRole("button", { name: "Documents" })).not.toBeInTheDocument();
   });
 
-  it("keeps backup restore secondary but usable from the first-run surface", async () => {
+  it("opens remembered work on the job-offer journey instead of requiring candidature recall", async () => {
+    current.mockResolvedValueOnce(readyWorkspace);
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Turn a job offer into application documents." })).toBeInTheDocument();
+    expect(screen.getByLabelText("Job offer")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Tailored CV/ })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /Cover letter/ })).toBeChecked();
+  });
+
+  it("keeps standalone document work independently discoverable without exposing variants first", async () => {
+    current.mockResolvedValueOnce(readyWorkspace);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "CV & cover letter" }));
+
+    expect(await screen.findByRole("heading", { name: "What are you making?" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /New CV/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /New cover letter/ })).toBeInTheDocument();
+    expect(screen.getByText("Creation options", { selector: "summary" })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Saved variation/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Document assistance" })).not.toBeInTheDocument();
+  });
+
+  it("protects a pasted offer when the user tries to leave the journey", async () => {
+    current.mockResolvedValueOnce(readyWorkspace);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.type(await screen.findByLabelText("Job offer"), "Unsaved vacancy text");
+    await user.click(screen.getByRole("button", { name: "Saved applications" }));
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and leave this work?");
+    expect(screen.getByLabelText("Job offer")).toHaveValue("Unsaved vacancy text");
+    expect(screen.queryByRole("heading", { name: "Candidatures" })).not.toBeInTheDocument();
+  });
+
+  it("makes host-agnostic external assistance primary in Settings while retaining VS Code as optional", async () => {
+    current.mockResolvedValueOnce(readyWorkspace);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("button", { name: /External assistants & portability/ }));
+
+    expect(await screen.findByRole("heading", { name: "Use AAAAT from a compatible assistant" })).toBeInTheDocument();
+    expect(screen.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "External setup action authority" })).toBeInTheDocument();
+    expect(screen.getByText("Optional VS Code adapter", { selector: "summary" })).toBeInTheDocument();
+    expect(screen.queryByText(/Connect the demonstrated VS Code external tool/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps backup restore usable from first run", async () => {
     restore.mockResolvedValueOnce({ status: "restored", workspace: restoredWorkspace });
     const user = userEvent.setup();
     render(<App />);
 
     const restoreDisclosure = await screen.findByText("Restore a backup", { selector: "summary" });
-    expect(screen.getByRole("button", { name: "Create workspace" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open existing workspace" })).toBeInTheDocument();
-    const restoreDetails = restoreDisclosure.closest("details");
-    expect(restoreDetails).not.toBeNull();
-    expect(restoreDetails).not.toHaveAttribute("open");
-
     await user.click(restoreDisclosure);
-    expect(restoreDetails).toHaveAttribute("open");
     await user.click(screen.getByRole("button", { name: "Choose backup to restore" }));
+
     expect(restore).toHaveBeenCalledTimes(1);
     expect(await screen.findByText(restoredWorkspace.rootPath)).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Primary work areas" })).toBeInTheDocument();
-  });
-
-  it("keeps the first-run state when folder selection is cancelled", async () => {
-    choose.mockResolvedValueOnce(null);
-    const user = userEvent.setup();
-    render(<App />);
-    await user.click(await screen.findByRole("button", { name: "Open existing workspace" }));
-    expect(choose).toHaveBeenCalledWith("open");
-    expect(screen.getByRole("heading", { name: "Choose where AAAAT should keep your career workspace." })).toBeInTheDocument();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("shows the remembered workspace and opens Candidatures on restart", async () => {
-    current.mockResolvedValueOnce(readyWorkspace);
-    render(<App />);
-    expect(await screen.findByText(readyWorkspace.rootPath)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch workspace" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reminders" })).not.toBeInTheDocument();
-  });
-
-  it("keeps document AI contextual instead of adding destination-level AI chrome", async () => {
-    current.mockResolvedValueOnce(readyWorkspace);
-    const user = userEvent.setup();
-    render(<App />);
-    await user.click(await screen.findByRole("button", { name: "Documents" }));
-
-    expect(screen.queryByRole("heading", { name: "Document assistance" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Optional AI assistance" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Create a CV or cover letter." })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create CV" })).toBeInTheDocument();
-  });
-
-  it("exposes recovery through its Settings intention and keeps the current workspace when restore fails", async () => {
-    current.mockResolvedValueOnce(readyWorkspace);
-    restore.mockRejectedValueOnce(new Error("invalid backup"));
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(await screen.findByRole("button", { name: "Settings" }));
-    expect(await screen.findByRole("region", { name: "Settings overview" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Backup & recovery/ }));
-    expect(await screen.findByRole("button", { name: "Back up workspace" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Restore workspace backup" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("AAAAT could not restore that backup. The current workspace was not changed.");
-    expect(screen.getByText(readyWorkspace.rootPath)).toBeInTheDocument();
-  });
-
-  it("keeps a dirty My information editor mounted when global navigation is cancelled", async () => {
-    current.mockResolvedValueOnce(readyWorkspace);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(await screen.findByRole("button", { name: "My information" }));
-    await user.click(await screen.findByRole("button", { name: "Add information" }));
-    await user.type(await screen.findByLabelText("Title"), "Unsaved profile item");
-    await user.click(screen.getByRole("button", { name: "Documents" }));
-
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and leave this workspace area?");
-    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved profile item");
-    expect(screen.queryByRole("heading", { name: "Documents" })).not.toBeInTheDocument();
-  });
-
-  it("does not open the workspace picker while an editor discard is cancelled", async () => {
-    current.mockResolvedValueOnce(readyWorkspace);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(await screen.findByRole("button", { name: "My information" }));
-    await user.click(await screen.findByRole("button", { name: "Add information" }));
-    await user.type(await screen.findByLabelText("Title"), "Unsaved profile item");
-    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
-
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and switch workspaces?");
-    expect(choose).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved profile item");
-  });
-
-  it("keeps a draft mounted when the workspace picker is cancelled after confirmation", async () => {
-    current.mockResolvedValueOnce(readyWorkspace);
-    choose.mockResolvedValueOnce(null);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(await screen.findByRole("button", { name: "My information" }));
-    await user.click(await screen.findByRole("button", { name: "Add information" }));
-    await user.type(await screen.findByLabelText("Title"), "Draft retained after picker cancel");
-    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
-
-    expect(choose).toHaveBeenCalledWith("create");
-    expect(await screen.findByLabelText("Title")).toHaveValue("Draft retained after picker cancel");
+    expect(screen.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeInTheDocument();
   });
 });
