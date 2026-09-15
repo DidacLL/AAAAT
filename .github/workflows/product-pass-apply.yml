@@ -1,0 +1,47 @@
+name: Product pass applier
+
+on:
+  push:
+    branches:
+      - product/dogfood-workspace-ai-context
+    paths:
+      - scripts/product-pass-apply.py
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: product/dogfood-workspace-ai-context
+      - name: Apply product pass edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -f scripts/product-pass-apply.py ]] || exit 0
+          python scripts/product-pass-apply.py
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.15.0'
+          cache: npm
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Fast verification
+        run: npm run verify
+      - name: Commit applied edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "AAAAT product pass"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Implement dogfood source and AI context improvements"
+          git push origin HEAD:product/dogfood-workspace-ai-context
