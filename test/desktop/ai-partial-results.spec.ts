@@ -355,7 +355,7 @@ test("packaged candidature AI keeps partial results from an imperfect OpenAI-com
     await expect(ambiguousCard.getByText(/accepts one value, but AI proposed 2/i)).toBeVisible();
 
     const taskStatus = running.page.locator("details.shell-ai-task-status");
-    await taskStatus.locator("summary").click();
+    await taskStatus.locator(":scope > summary").click();
     const bulkTask = taskStatus.locator("article.shell-ai-task").filter({ hasText: "Fill missing information" });
     await bulkTask.getByText("Inspect AI exchange").click();
     await expect(bulkTask.getByText("Raw model response").locator("xpath=.." )).toContainText("English");
