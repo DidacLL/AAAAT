@@ -5,7 +5,7 @@ on:
     branches:
       - product/dogfood-workspace-ai-context
     paths:
-      - scripts/product-pass-apply-v1c.py
+      - scripts/product-pass-apply-v1d.py
       - .github/workflows/product-pass-apply.yml
 
 permissions:
@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
           ref: product/dogfood-workspace-ai-context
       - name: Apply product pass edits
-        run: python scripts/product-pass-apply-v1c.py
+        run: python scripts/product-pass-apply-v1d.py
       - uses: actions/setup-node@v6
         with:
           node-version: '24.15.0'
