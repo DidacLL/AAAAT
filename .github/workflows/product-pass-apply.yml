@@ -6,6 +6,7 @@ on:
       - product/dogfood-workspace-ai-context
     paths:
       - scripts/product-pass-apply-v2.py
+      - scripts/product-pass-postfix-v2.py
       - .github/workflows/product-pass-apply.yml
 
 permissions:
@@ -42,11 +43,6 @@ jobs:
               raise RuntimeError("robust extraction patch block not found")
           code = code.replace(old, new, 1)
 
-          old = '''replace(
-              "src/renderer/SettingsWorkspace.tsx",
-              'function WorkspaceLocationPanel({\\n',
-              ''' + "'''function ResetWorkspacePanel() {" + '''\n'''
-          # Replace the whole obsolete reset insertion block by locating its exact start/end.
           start = code.index('replace(\n    "src/renderer/SettingsWorkspace.tsx",\n    \'function WorkspaceLocationPanel({\\n\',')
           end_marker = "\n)\n# Add panel in workspace view after recovery panel occurrence."
           end = code.index(end_marker, start) + 2
@@ -73,6 +69,7 @@ jobs:
 
           exec(compile(code, str(script), "exec"), {"__file__": str(script), "__name__": "__main__"})
           PY
+          python scripts/product-pass-postfix-v2.py
       - uses: actions/setup-node@v6
         with:
           node-version: '24.15.0'
