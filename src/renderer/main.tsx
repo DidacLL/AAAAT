@@ -20,7 +20,10 @@ import type {
   ProfileAiContextDesktopApi,
   ProfileAiContextUpdate,
 } from "../shared/profile-ai-context-contracts";
-import type { SetupAssistantDesktopApi } from "../shared/setup-assistant-contracts";
+import type {
+  SetupAssistantAccessUpdate,
+  SetupAssistantDesktopApi,
+} from "../shared/setup-assistant-contracts";
 import type { SetupEnvironmentDesktopApi } from "../shared/setup-environment-contracts";
 import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-contracts";
 import { App } from "./App";
@@ -189,7 +192,7 @@ function createPreviewApi(): DesktopApi &
     }),
     setupAssistant: Object.freeze({
       access: async () => setupAssistantAccess,
-      updateAccess: async (update) => {
+      updateAccess: async (update: SetupAssistantAccessUpdate) => {
         setupAssistantAccess = update;
         return setupAssistantAccess;
       },

@@ -3,6 +3,7 @@ import {
   setupAssistantAccessUpdateSchema,
   setupAssistantChannels,
   setupRenderingSelfTestResultSchema,
+  type SetupAssistantAccessUpdate,
   type SetupAssistantDesktopApi,
 } from "../shared/setup-assistant-contracts";
 
@@ -13,7 +14,7 @@ export function createSetupAssistantDesktopApi(invoke: Invoke): SetupAssistantDe
     setupAssistant: Object.freeze({
       access: async () =>
         setupAssistantAccessSchema.parse(await invoke(setupAssistantChannels.accessCurrent)),
-      updateAccess: async (update) =>
+      updateAccess: async (update: SetupAssistantAccessUpdate) =>
         setupAssistantAccessSchema.parse(
           await invoke(
             setupAssistantChannels.accessUpdate,
