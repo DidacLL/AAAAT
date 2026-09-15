@@ -356,8 +356,9 @@ test("packaged Linux follows the raw-offer-to-document journey and keeps standal
 
     await primary.getByRole("button", { name: "CV & cover letter" }).click();
     await expect(running.page.getByRole("button", { name: "Application CV" })).toBeVisible();
-    await running.page.getByLabel("Title").fill("Standalone acceptance CV");
-    await running.page.getByRole("button", { name: "Create CV" }).click();
+    await running.page.locator("summary").filter({ hasText: "Creation options" }).click();
+    await running.page.getByLabel("Document title").fill("Standalone acceptance CV");
+    await running.page.getByRole("button", { name: /New CV/ }).click();
     await expect(running.page.getByRole("heading", { name: "Standalone acceptance CV" })).toBeVisible();
 
     const localNav = running.page.getByRole("tablist", { name: "Document work" });

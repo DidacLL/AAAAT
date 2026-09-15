@@ -333,8 +333,8 @@ test("packaged candidature cancels slow local AI then auto-fills safe informatio
     await expect(complete.getByRole("region", { name: "Documents" })).toBeVisible();
     const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
     await primary.getByRole("button", { name: "CV & cover letter" }).click();
-    await expect(running.page.getByRole("heading", { name: "Create a CV or cover letter." })).toBeVisible();
-    await expect(running.page.getByRole("button", { name: "Create CV" })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "What are you making?" })).toBeVisible();
+    await expect(running.page.getByRole("button", { name: /New CV/ })).toBeVisible();
 
     await primary.getByRole("button", { name: "My information" }).click();
     await expect(running.page.getByRole("heading", { name: "My information", exact: true })).toBeVisible();

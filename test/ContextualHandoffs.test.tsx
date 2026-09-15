@@ -25,6 +25,26 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", () => ({
   },
 }));
 
+vi.mock("../src/renderer/DocumentsStartWorkspace", () => ({
+  DocumentsStartWorkspace: () => {
+    const handoffs = useContextualHandoffs();
+    return (
+      <section aria-label="Mock documents">
+        <p>For standalone · document new</p>
+        <button type="button" onClick={() => handoffs.openProfessionalInformationItem("doc-1", "item-1")}>
+          Open reusable source
+        </button>
+        <button type="button" onClick={() => handoffs.openSettingsFor("rendering", "documents")}>
+          Open render settings
+        </button>
+        <button type="button" onClick={() => handoffs.openSettingsFor("ai", "documents")}>
+          Open AI settings
+        </button>
+      </section>
+    );
+  },
+}));
+
 vi.mock("../src/renderer/DocumentsWorkspace", () => ({
   DocumentsWorkspace: ({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) => {
     const handoffs = useContextualHandoffs();
