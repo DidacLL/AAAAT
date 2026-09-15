@@ -5,8 +5,7 @@ on:
     branches:
       - product/dogfood-workspace-ai-context
     paths:
-      - scripts/product-pass-apply-v2.py
-      - scripts/product-pass-postfix-v2.py
+      - scripts/product-pass-acceptance-v3.py
       - .github/workflows/product-pass-apply.yml
 
 permissions:
@@ -15,61 +14,14 @@ permissions:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: product/dogfood-workspace-ai-context
-      - name: Apply integrated product pass
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          script = Path("scripts/product-pass-apply-v2.py")
-          code = script.read_text(encoding="utf-8")
-
-          old = '''replace(
-              "src/main/robust-job-extraction.ts",
-              'import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";\\n',
-              'import { type ModelProvider } from "./ai-provider";\\nimport { createWorkspaceAiProvider } from "./ai-prompt-service";\\n',
-          )'''
-          new = '''replace(
-              "src/main/robust-job-extraction.ts",
-              'import { AiProviderError, createOpenAiCompatibleProvider } from "./ai-provider";\\n',
-              'import { AiProviderError } from "./ai-provider";\\nimport { createWorkspaceAiProvider } from "./ai-prompt-service";\\n',
-          )'''
-          if old not in code:
-              raise RuntimeError("robust extraction patch block not found")
-          code = code.replace(old, new, 1)
-
-          start = code.index('replace(\n    "src/renderer/SettingsWorkspace.tsx",\n    \'function WorkspaceLocationPanel({\\n\',')
-          end_marker = "\n)\n# Add panel in workspace view after recovery panel occurrence."
-          end = code.index(end_marker, start) + 2
-          replacement = r'''replace(
-              "src/renderer/SettingsWorkspace.tsx",
-              'export function SettingsWorkspace({\n',
-              ''' + "'''function ResetWorkspacePanel() {\n  const [busy, setBusy] = useState(false);\n  return (\n    <section className=\"profile-column destructive-settings\" aria-label=\"Reset workspace\">\n      <div className=\"section-heading\"><div><p className=\"eyebrow\">Current workspace only</p><h2>Reset workspace</h2></div></div>\n      <p>Remove the current workspace data and return this folder to a clean usable AAAAT state. Other workspaces are not affected.</p>\n      <button type=\"button\" className=\"compact-secondary\" disabled={busy} onClick={() => {\n        if (!window.confirm(\"Reset this workspace? This permanently removes its candidatures, Sources, Tags, professional information, documents, artifacts and workspace AI settings.\")) return;\n        setBusy(true);\n        void window.aaaat.workspace.reset().then(() => window.location.reload()).catch(() => setBusy(false));\n      }}>{busy ? \"Resetting…\" : \"Reset workspace\"}</button>\n    </section>\n  );\n}\n\nexport function SettingsWorkspace({\n'''" + ''',
-          )'''
-          code = code[:start] + replacement + code[end:]
-
-          old = '''replace(
-              "src/renderer/SettingsWorkspace.tsx",
-              '            <WorkspaceRecoveryPanel currentWorkspace={currentWorkspace} editorDirty={protectedWorkDirty} onRestored={onRestored} />\\n',
-              '            <WorkspaceRecoveryPanel currentWorkspace={currentWorkspace} editorDirty={protectedWorkDirty} onRestored={onRestored} />\\n            <ResetWorkspacePanel />\\n',
-          )'''
-          new = '''replace(
-              "src/renderer/SettingsWorkspace.tsx",
-              '          </div>\\n        </div>\\n      ) : null}\\n\\n      {view === "recovery" ? (\\n',
-              '          </div>\\n          <ResetWorkspacePanel />\\n        </div>\\n      ) : null}\\n\\n      {view === "recovery" ? (\\n',
-          )'''
-          if old not in code:
-              raise RuntimeError("settings reset placement patch block not found")
-          code = code.replace(old, new, 1)
-
-          exec(compile(code, str(script), "exec"), {"__file__": str(script), "__name__": "__main__"})
-          PY
-          python scripts/product-pass-postfix-v2.py
+      - name: Apply acceptance refinements
+        run: python scripts/product-pass-acceptance-v3.py
       - uses: actions/setup-node@v6
         with:
           node-version: '24.15.0'
@@ -86,5 +38,5 @@ jobs:
           if git diff --cached --quiet; then exit 0; fi
           git config user.name "AAAAT product pass"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Finish workspace demo reset and AI prompt transparency"
+          git commit -m "Tighten mutation-aware AI protocol verification"
           git push origin HEAD:product/dogfood-workspace-ai-context
