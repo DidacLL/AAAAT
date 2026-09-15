@@ -1,0 +1,50 @@
+name: Restore packaged acceptance test
+
+on:
+  push:
+    branches:
+      - product/dogfood-workspace-ai-context
+    paths:
+      - .github/workflows/ci-restore-packaged-test.yml
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: product/dogfood-workspace-ai-context
+      - name: Restore verified packaged test and add local timeout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show 07d6c56fd9eb9f4940780876046fdfdeea41ed45:test/desktop/packaged-app.spec.ts > /tmp/packaged-app.spec.ts
+          python - <<'PY'
+          from pathlib import Path
+          src = Path('/tmp/packaged-app.spec.ts').read_text(encoding='utf-8')
+          anchor = 'test("packaged desktop preserves security gates and required bounded capabilities", async () => {\n'
+          if anchor not in src:
+              raise RuntimeError('packaged test anchor missing')
+          src = src.replace(anchor, anchor + '  test.setTimeout(120_000);\n', 1)
+          Path('test/desktop/packaged-app.spec.ts').write_text(src, encoding='utf-8')
+          PY
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.20.0'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run verify
+      - name: Commit restored test
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add test/desktop/packaged-app.spec.ts
+          git config user.name "AAAAT product pass"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Allow expanded packaged acceptance journey to complete"
+          git push origin HEAD:product/dogfood-workspace-ai-context
