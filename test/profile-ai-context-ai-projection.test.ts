@@ -187,7 +187,7 @@ describe("professional information AI-use projection", () => {
 
   it("uses the same boolean semantics before cover-letter provider context", async () => {
     const root = await configuredWorkspace("cover_letter_draft");
-    const experience = addItem(root, {
+    addItem(root, {
       kind: "experience",
       title: "ALLOWED PLATFORM EXPERIENCE",
       description: "ALLOWED PLATFORM DETAIL",
