@@ -350,7 +350,7 @@ export function createOpenAiCompatibleProvider(
       : AI_DEFAULT_INSTRUCTIONS[operation];
   };
 
-  return Object.freeze({
+  const provider: ModelProvider = {
     async reviewOpportunity(connection, context) {
       return runStructuredOperation(fetchImpl, connection, "opportunity_review", instructionFor("opportunity_review"), context, opportunityReviewResultSchema, timeout);
     },
@@ -363,5 +363,6 @@ export function createOpenAiCompatibleProvider(
     async draftCoverLetter(connection, context) {
       return runStructuredOperation(fetchImpl, connection, "cover_letter_draft", instructionFor("cover_letter_draft"), context, coverLetterDraftSchema, timeout);
     },
-  });
+  };
+  return Object.freeze(provider);
 }
