@@ -31,12 +31,16 @@ export async function maybeStartApplicationDocumentPreparation(input: {
   readonly documents: readonly ApplicationDocumentRef[];
   readonly extract?: boolean;
 }): Promise<boolean> {
+  // `extract` is the explicit AI opt-in from application capture. Creating a
+  // CV or letter by itself must stay fully local/manual even when AI is configured.
+  if (input.extract !== true) return false;
+
   const [connections, profile] = await Promise.all([
     window.aaaat.aiConnections.list(),
     window.aaaat.profile.current(),
   ]);
   const hasEvidence = profile.items.some((item) => item.kind !== "identity" && item.kind !== "contact" && item.kind !== "link");
-  const extractionReady = input.extract === true && operationAvailable(connections, "job_extraction");
+  const extractionReady = operationAvailable(connections, "job_extraction");
   const cvDocument = input.documents.find((document) => document.kind === "cv");
   const coverLetterDocument = input.documents.find((document) => document.kind === "cover_letter");
   const cvReady = Boolean(cvDocument) && hasEvidence && operationAvailable(connections, "cv_tailoring");
