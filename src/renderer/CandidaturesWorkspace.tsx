@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -6,12 +6,11 @@ import type {
   CandidatureRecord,
   CandidatureRuntimeValue,
   CandidatureSource,
-  DocumentRecord,
   TagInput,
   TagRecord,
 } from "../shared/contracts";
+import type { DocumentCollections } from "../shared/document-domain-contracts";
 import { CandidatureActivityPanel } from "./CandidatureActivityPanel";
-import { CandidatureApplicationMaterialPanel } from "./CandidatureApplicationMaterialPanel";
 import { CandidatureBulkAiReview } from "./CandidatureBulkAiReview";
 import { CandidatureFieldAiState } from "./CandidatureFieldAiState";
 import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsPanel";
@@ -34,10 +33,10 @@ import "./owner-feedback-recovery.css";
 
 type CandidatureMode = "corpus" | "focus" | "detail";
 const emptyTag: TagInput = { name: "", definition: "", notes: "", aliases: [] };
+const emptyCollections: DocumentCollections = {
+  templates: [], workingCvs: [], renderedCvs: [], letters: [], applicationPackets: [],
+};
 
-function sameIds(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((id) => right.includes(id));
-}
 function aliasesFromText(value: string): string[] {
   return value.split(",").map((alias) => alias.trim()).filter(Boolean);
 }
@@ -54,11 +53,9 @@ export function CandidaturesWorkspace({
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
-  const previousDocumentHandoff = useRef(documentHandoff);
-  const handoffDocumentIds = useRef<ReadonlySet<string> | null>(null);
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
-  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
   const [focusSources, setFocusSources] = useState<CandidatureSource[]>([]);
   const [focusDocumentBusy, setFocusDocumentBusy] = useState<"cv" | "cover_letter" | null>(null);
   const [tags, setTags] = useState<TagRecord[]>([]);
@@ -67,7 +64,6 @@ export function CandidaturesWorkspace({
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{ readonly query: string; readonly ids: ReadonlySet<string> } | null>(null);
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState("");
@@ -84,12 +80,11 @@ export function CandidaturesWorkspace({
   const [error, setError] = useState<string | null>(null);
 
   const selected = records.find((record) => record.id === selectedId) ?? null;
-  const documentSelectionDirty = selected ? !sameIds(selected.documentIds, selectedDocumentIds) : false;
   const persistedTag = editingTagId ? tags.find((tag) => tag.id === editingTagId) ?? null : null;
   const tagEditorDirty = tagEditorOpen
     ? JSON.stringify({ ...tagEditorDraft, aliases: aliasesFromText(tagAliasesText) }) !== JSON.stringify(persistedTag ? tagDraft(persistedTag) : emptyTag)
     : false;
-  const hasUnsavedChanges = sourceDirty || documentSelectionDirty || tagEditorDirty || fieldDefinitionsDirty || valueEditorDirty.size > 0;
+  const hasUnsavedChanges = sourceDirty || tagEditorDirty || fieldDefinitionsDirty || valueEditorDirty.size > 0;
 
   useEffect(() => {
     onDirtyChange?.(hasUnsavedChanges);
@@ -97,66 +92,41 @@ export function CandidaturesWorkspace({
   }, [hasUnsavedChanges, onDirtyChange]);
 
   const resetEditorDrafts = useCallback((record?: CandidatureRecord) => {
-    setSelectedDocumentIds(record?.documentIds ?? []);
     setSelectedTagIds(record?.tagIds ?? []);
     setSelectedTagId(record?.tagIds[0] ?? null);
-    setTagQuery("");
-    setSourceDirty(false);
-    setValueEditorDirty(new Set());
-    setFieldDefinitionsDirty(false);
-    setDiscoveryFieldId(null);
-    setBulkInferenceOpen(false);
-    setTagEditorOpen(false);
-    setEditingTagId(null);
-    setTagEditorDraft(emptyTag);
-    setTagAliasesText("");
-    setActivityOpen(false);
+    setTagQuery(""); setSourceDirty(false); setValueEditorDirty(new Set());
+    setFieldDefinitionsDirty(false); setDiscoveryFieldId(null); setBulkInferenceOpen(false);
+    setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
+    setTagAliasesText(""); setActivityOpen(false);
   }, []);
 
   const hydrate = useCallback((record: CandidatureRecord) => {
-    setSelectedId(record.id);
-    resetEditorDrafts(record);
-    setError(null);
+    setSelectedId(record.id); resetEditorDrafts(record); setError(null);
   }, [resetEditorDrafts]);
+
+  const refreshCollections = useCallback(async () => {
+    try { setCollections(await window.aaaat.documentDomain.collections()); }
+    catch { setError("AAAAT could not refresh application documents."); }
+  }, []);
 
   useEffect(() => {
     let active = true;
     void Promise.all([
       window.aaaat.candidatures.list(),
       window.aaaat.candidatures.listFields(),
-      window.aaaat.documents.list(),
       window.aaaat.candidatures.listTags(),
-    ]).then(([nextRecords, nextFields, nextDocuments, nextTags]) => {
+      window.aaaat.documentDomain.collections(),
+    ]).then(([nextRecords, nextFields, nextTags, nextCollections]) => {
       if (!active) return;
-      setRecords(nextRecords); setFields(nextFields); setDocuments(nextDocuments); setTags(nextTags);
-    }).catch(() => { if (active) setError("AAAAT could not load candidatures."); });
+      setRecords(nextRecords); setFields(nextFields); setTags(nextTags); setCollections(nextCollections);
+    }).catch(() => { if (active) setError("AAAAT could not load applications."); });
     return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    const previous = previousDocumentHandoff.current;
-    previousDocumentHandoff.current = documentHandoff;
-    if (!previous?.candidatureId || documentHandoff !== null) return;
-    let active = true;
-    void Promise.all([window.aaaat.candidatures.list(), window.aaaat.documents.list()])
-      .then(([nextRecords, nextDocuments]) => {
-        if (!active) return;
-        setRecords(nextRecords); setDocuments(nextDocuments);
-        const refreshed = nextRecords.find((record) => record.id === previous.candidatureId);
-        if (refreshed) {
-          const beforeHandoff = handoffDocumentIds.current;
-          const availableDocumentIds = new Set(nextDocuments.map((document) => document.id));
-          const newlyAssociatedDocumentIds = beforeHandoff ? refreshed.documentIds.filter((id) => !beforeHandoff.has(id)) : [];
-          setSelectedDocumentIds((current) => {
-            const preserved = current.filter((id) => availableDocumentIds.has(id));
-            return [...preserved, ...newlyAssociatedDocumentIds.filter((id) => availableDocumentIds.has(id) && !preserved.includes(id))];
-          });
-          setSelectedId(refreshed.id); setMode("detail");
-        }
-        handoffDocumentIds.current = null;
-      }).catch(() => { if (active) setError("AAAAT could not refresh this candidature after returning."); });
-    return () => { active = false; };
-  }, [documentHandoff]);
+    if (documentHandoff !== null) return;
+    void refreshCollections();
+  }, [documentHandoff, refreshCollections]);
 
   const normalizedQuery = query.trim();
   useEffect(() => {
@@ -167,7 +137,7 @@ export function CandidaturesWorkspace({
       .catch(() => {
         if (!active) return;
         setSearchResult({ query: normalizedQuery, ids: new Set() });
-        setError("AAAAT could not search retained candidature information.");
+        setError("AAAAT could not search retained application information.");
       });
     return () => { active = false; };
   }, [normalizedQuery, records, fields, tags]);
@@ -186,7 +156,7 @@ export function CandidaturesWorkspace({
     return () => { active = false; };
   }, [focusedRecordId]);
 
-  const confirmDiscard = () => !hasUnsavedChanges || window.confirm("Discard unsaved candidature edits?");
+  const confirmDiscard = () => !hasUnsavedChanges || window.confirm("Discard unsaved application edits?");
   const storeRecord = (record: CandidatureRecord) => setRecords((current) => current.map((candidate) => candidate.id === record.id ? record : candidate));
   const openRecord = (record: CandidatureRecord, nextMode: Exclude<CandidatureMode, "corpus">) => {
     if (!confirmDiscard()) return;
@@ -195,7 +165,7 @@ export function CandidaturesWorkspace({
   };
   const returnToCorpus = () => {
     if (!confirmDiscard()) return;
-    setMode("corpus"); setSelectedId(null); handoffDocumentIds.current = null; resetEditorDrafts();
+    setMode("corpus"); setSelectedId(null); resetEditorDrafts();
   };
 
   const setEditorDirty = (fieldId: string, dirty: boolean) => setValueEditorDirty((current) => {
@@ -228,7 +198,7 @@ export function CandidaturesWorkspace({
     catch (reason) { replaceField(field); setError(reason instanceof Error ? reason.message : "AAAAT could not save this information setting."); throw reason; }
   };
   const refreshFields = async () => {
-    try { setFields(await window.aaaat.candidatures.listFields()); } catch { setError("AAAAT could not refresh candidature information."); }
+    try { setFields(await window.aaaat.candidatures.listFields()); } catch { setError("AAAAT could not refresh application information."); }
   };
   const refreshInformation = async () => {
     try {
@@ -238,16 +208,9 @@ export function CandidaturesWorkspace({
       setFields(nextFields); setRecords(nextRecords); setTags(nextTags);
       const refreshed = nextRecords.find((record) => record.id === selectedId);
       if (refreshed) setSelectedTagIds(refreshed.tagIds);
-    } catch { setError("AAAAT could not refresh AI-filled candidature information."); }
+    } catch { setError("AAAAT could not refresh AI-filled application information."); }
   };
 
-  const saveDocuments = async () => {
-    if (!selected) return;
-    try {
-      const updated = await window.aaaat.candidatures.setDocuments({ candidatureId: selected.id, documentIds: selectedDocumentIds });
-      storeRecord(updated); setSelectedDocumentIds(updated.documentIds);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save document associations."); }
-  };
   const persistTagIds = async (nextIds: string[]) => {
     if (!selected) return;
     try {
@@ -281,20 +244,24 @@ export function CandidaturesWorkspace({
 
   const handleSourcesChanged = useCallback(async () => {
     try { setRecords(await window.aaaat.candidatures.list()); setSourceDirty(false); }
-    catch { setError("AAAAT could not refresh the candidature after the Source changed."); }
+    catch { setError("AAAAT could not refresh the application after the Source changed."); }
   }, []);
-  const openDocument = (documentId?: string) => {
+  const openDocument = (documentId: string) => {
     if (!selected) return;
-    handoffDocumentIds.current = new Set(selected.documentIds); openDocumentFromCandidature(selected.id, documentId);
+    openDocumentFromCandidature(selected.id, documentId);
   };
   const createFocusDocument = async (kind: "cv" | "cover_letter") => {
     if (!selected || focusDocumentBusy) return;
     setFocusDocumentBusy(kind); setError(null);
     try {
-      const created = await createApplicationDocuments({ candidatureId: selected.id, sourceText: focusSources.map((source) => source.sourceText).filter(Boolean).join("\n\n") || selected.sourceSearchText, cv: kind === "cv", coverLetter: kind === "cover_letter", existingDocumentIds: selected.documentIds });
-      const document = created.find((candidate) => candidate.kind === kind);
-      if (!document) throw new Error("The document was not created.");
-      setDocuments((current) => [...current.filter((candidate) => candidate.id !== document.id), document]); openDocument(document.id);
+      const documents = await createApplicationDocuments({
+        candidatureId: selected.id,
+        sourceText: focusSources.map((source) => source.sourceText).filter(Boolean).join("\n\n") || selected.sourceSearchText,
+        cv: kind === "cv", coverLetter: kind === "cover_letter",
+      });
+      const created = documents.find((candidate) => candidate.kind === kind);
+      if (!created) throw new Error("The document was not created.");
+      await refreshCollections(); openDocument(created.id);
     } catch { setError(kind === "cv" ? "AAAAT could not create the application CV." : "AAAAT could not create the cover letter."); }
     finally { setFocusDocumentBusy(null); }
   };
@@ -305,7 +272,7 @@ export function CandidaturesWorkspace({
 
   if (mode === "corpus") {
     return (
-      <section className="candidatures-workspace candidature-corpus" aria-label="Candidatures">
+      <section className="candidatures-workspace candidature-corpus" aria-label="Applications">
         <header className="candidature-toolbar"><div><h2>{overview === "focus" ? "Focus" : "All applications"}</h2><span className="corpus-count">{visibleRecords.length} / {records.length}</span></div></header>
         <div className="candidature-corpus-tools">
           <label>Search<input type="search" value={query} maxLength={200} onChange={(event) => { setQuery(event.target.value); if (!event.target.value.trim()) setSearchResult(null); }} placeholder="Search anything you saved…" /></label>
@@ -317,10 +284,14 @@ export function CandidaturesWorkspace({
           : overview === "all" ? (
             <div className="application-data-table" role="table" aria-label="All application data">
               <div className="application-data-row application-data-head" role="row"><span role="columnheader">Application</span><span role="columnheader">Key information</span><span role="columnheader">Material</span><span role="columnheader">Updated</span></div>
-              {visibleRecords.map((record) => { const cues = candidatureRecognitionCues(record, fields, 4); return <button key={record.id} type="button" className="application-data-row" role="row" onClick={() => openRecord(record, "detail")}><strong role="cell">{record.label}</strong><span role="cell" className="application-data-cues">{cues.map((cue) => `${cue.label}: ${cue.value}`).join(" · ") || "Sparse record"}</span><span role="cell">{record.documentIds.length} doc{record.documentIds.length === 1 ? "" : "s"}{record.sourceSearchText.trim() ? " · source" : ""}</span><time role="cell" dateTime={record.updatedAt}>{new Date(record.updatedAt).toLocaleDateString()}</time></button>; })}
+              {visibleRecords.map((record) => {
+                const cues = candidatureRecognitionCues(record, fields, 4);
+                const materialCount = collections.workingCvs.filter((item) => item.candidatureId === record.id).length + collections.letters.filter((item) => item.candidatureId === record.id).length + collections.renderedCvs.filter((item) => item.candidatureId === record.id).length + collections.applicationPackets.filter((item) => item.candidatureId === record.id).length;
+                return <button key={record.id} type="button" className="application-data-row" role="row" onClick={() => openRecord(record, "detail")}><strong role="cell">{record.label}</strong><span role="cell" className="application-data-cues">{cues.map((cue) => `${cue.label}: ${cue.value}`).join(" · ") || "Sparse record"}</span><span role="cell">{materialCount} item{materialCount === 1 ? "" : "s"}{record.sourceSearchText.trim() ? " · source" : ""}</span><time role="cell" dateTime={record.updatedAt}>{new Date(record.updatedAt).toLocaleDateString()}</time></button>;
+              })}
             </div>
           ) : (
-            <div className="candidature-corpus-grid" aria-label="Candidature corpus Focus">
+            <div className="candidature-corpus-grid" aria-label="Application corpus Focus">
               {visibleRecords.map((record) => {
                 const searchMatchCue = normalizedQuery && textMatches?.has(record.id) ? candidatureSearchMatchCue(record, fields, tags, normalizedQuery) : null;
                 const recognitionCues = searchMatchCue ? [searchMatchCue] : candidatureRecognitionCues(record, fields, 3);
@@ -332,14 +303,14 @@ export function CandidaturesWorkspace({
     );
   }
 
-  if (!selected) return <section className="candidatures-workspace"><p className="error-message">The selected candidature is no longer available.</p><button type="button" onClick={returnToCorpus}>Back to applications</button></section>;
+  if (!selected) return <section className="candidatures-workspace"><p className="error-message">The selected application is no longer available.</p><button type="button" onClick={returnToCorpus}>Back to applications</button></section>;
 
   if (mode === "focus") {
     return (
-      <section className="candidatures-workspace candidature-selected-focus" aria-label="Candidature Focus">
+      <section className="candidatures-workspace candidature-selected-focus" aria-label="Application Focus">
         <div className="candidature-context-actions"><button type="button" className="compact-secondary" onClick={returnToCorpus}>← Applications</button><button type="button" className="compact-secondary" onClick={() => openRecord(selected, "detail")}>Full record</button></div>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
-        <CandidatureFocusPanel record={selected} fields={fields} tags={tags} sources={focusSources} documents={documents.filter((document) => selected.documentIds.includes(document.id))} documentBusy={focusDocumentBusy} selectedTagId={selectedTagId} onSelectTag={setSelectedTagId} onOpenDocument={openDocument} onCreateDocument={(kind) => void createFocusDocument(kind)} onSaveValue={setValue} onClearValue={clearValue} onDiscoverValue={setDiscoveryFieldId} onUpdatePreferences={updateFieldPreference} onDirtyChange={setEditorDirty} />
+        <CandidatureFocusPanel record={selected} fields={fields} tags={tags} sources={focusSources} workingCvs={collections.workingCvs} letters={collections.letters} documentBusy={focusDocumentBusy} selectedTagId={selectedTagId} onSelectTag={setSelectedTagId} onOpenDocument={openDocument} onCreateDocument={(kind) => void createFocusDocument(kind)} onSaveValue={setValue} onClearValue={clearValue} onDiscoverValue={setDiscoveryFieldId} onUpdatePreferences={updateFieldPreference} onDirtyChange={setEditorDirty} />
         {discoveryField?.definition.enabled && discoveryField.preferences.aiUseAllowed ? <CandidatureInferencePanel candidature={selected} fields={fields} targetFieldIds={[discoveryField.definition.id]} taskId={`candidature-inference:${selected.id}:${discoveryField.definition.id}`} title={`Fill ${discoveryField.definition.label}`} /> : null}
       </section>
     );
@@ -354,14 +325,28 @@ export function CandidaturesWorkspace({
     ? tags.some((tag) => [tag.name, ...tag.aliases].some((term) => normalizedTagText(term) === normalizedTagQuery))
     : false;
   const selectedTag = attachedTags.find((tag) => tag.id === selectedTagId) ?? null;
+  const applicationWorkingCvs = collections.workingCvs.filter((item) => item.candidatureId === selected.id);
+  const applicationLetters = collections.letters.filter((item) => item.candidatureId === selected.id);
+  const applicationRendered = collections.renderedCvs.filter((item) => item.candidatureId === selected.id);
+  const applicationPackets = collections.applicationPackets.filter((item) => item.candidatureId === selected.id);
+  const packetReadyCv = applicationRendered[0];
+  const packetReadyLetter = applicationLetters[0];
+
+  const createPacket = async () => {
+    if (!packetReadyCv || !packetReadyLetter) return;
+    try {
+      await window.aaaat.documentDomain.createPacket({ candidatureId: selected.id, renderedCvId: packetReadyCv.id, coverLetterId: packetReadyLetter.id });
+      await refreshCollections();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not create the application packet."); }
+  };
 
   return (
-    <section className="candidatures-workspace candidature-detail" aria-label="Complete candidature">
+    <section className="candidatures-workspace candidature-detail" aria-label="Complete application">
       <div className="candidature-editor-heading"><div><p className="eyebrow">Application record</p><h2>{selected.label}</h2></div><div className="button-row"><button type="button" className="compact-secondary" onClick={returnToCorpus}>Back</button><button type="button" className="compact-secondary" onClick={() => openRecord(selected, "focus")}>Focus</button><button type="button" className="compact-secondary" onClick={() => void setArchived(!selected.archived)}>{selected.archived ? "Restore" : "Archive"}</button></div></div>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
       <CandidatureOfferPanel candidatureId={selected.id} />
 
-      <section className="section-surface candidature-information-surface" aria-label="Candidature information">
+      <section className="section-surface candidature-information-surface" aria-label="Application information">
         <div className="candidature-editor-heading candidature-information-heading"><div><p className="eyebrow">Information</p><h3>Information</h3></div>{enabledMissingFields.length > 0 ? <button type="button" className="compact-secondary" onClick={() => setBulkInferenceOpen(true)}>Ask AI to fill missing information</button> : null}</div>
         <CandidatureBulkAiReview candidature={selected} fields={fields} onSaveValue={setValue} onRetry={() => setBulkInferenceOpen(true)} />
         {enabledFields.length === 0 ? <p className="compact-empty">No information fields are available yet. Add the first one below.</p> : (
@@ -389,41 +374,36 @@ export function CandidaturesWorkspace({
             </span>
           ))}
         </div>
-        <div className="tag-search-create">
-          <label>Find or create Tag<input type="search" value={tagQuery} onChange={(event) => setTagQuery(event.target.value)} placeholder="Search Tags…" /></label>
-          {normalizedTagQuery ? (
-            <div className="tag-search-results" aria-label="Tag search results">
-              {tagMatches.map((tag) => <button type="button" className="compact-secondary" key={tag.id} onClick={() => { void persistTagIds([...new Set([...selectedTagIds, tag.id])]); setSelectedTagId(tag.id); setTagQuery(""); }}>Attach {tag.name}</button>)}
-              {!exactTagMatch ? <button type="button" className="compact-secondary" onClick={() => startNewTag(tagQuery.trim())}>Create “{tagQuery.trim()}”</button> : null}
-              {tagMatches.length === 0 && exactTagMatch ? <span className="compact-help">That Tag is already attached.</span> : null}
-            </div>
-          ) : null}
+        <div className="tag-attach-control">
+          <label>Attach Tag<input type="search" value={tagQuery} onChange={(event) => setTagQuery(event.target.value)} placeholder="Search name or alias…" /></label>
+          {tagMatches.length > 0 ? <div className="tag-search-results">{tagMatches.map((tag) => <button type="button" key={tag.id} onClick={() => { void persistTagIds([...selectedTagIds, tag.id]); setTagQuery(""); }}>{tag.name}</button>)}</div> : null}
+          {normalizedTagQuery && !exactTagMatch ? <button type="button" className="compact-secondary" onClick={() => startNewTag(tagQuery.trim())}>Create “{tagQuery.trim()}”</button> : null}
         </div>
-
-        {selectedTag ? (
-          <article className="retained-information-card attached-tag-detail">
-            <strong>{selectedTag.name}</strong>
-            {selectedTag.definition ? <p>{selectedTag.definition}</p> : null}
-            {selectedTag.aliases.length ? <p className="compact-help">Aliases: {selectedTag.aliases.join(", ")}</p> : null}
-            {selectedTag.notes ? <p className="compact-help">{selectedTag.notes}</p> : null}
-            <button type="button" className="compact-secondary" onClick={() => editTag(selectedTag)}>Edit shared Tag</button>
-          </article>
-        ) : null}
-
-        {tagEditorOpen ? (
-          <div className="editor-card tag-editor">
-            <h4>{editingTagId ? "Edit Tag" : "New Tag"}</h4>
-            <label>Name<input value={tagEditorDraft.name} onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, name: event.target.value })} /></label>
-            <label>Aliases<input value={tagAliasesText} onChange={(event) => setTagAliasesText(event.target.value)} placeholder="Comma separated" /></label>
-            <label>Definition<textarea rows={4} required value={tagEditorDraft.definition} onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, definition: event.target.value })} /></label>
-            <label>Notes <span className="compact-help">optional</span><textarea rows={4} value={tagEditorDraft.notes ?? ""} onChange={(event) => setTagEditorDraft({ ...tagEditorDraft, notes: event.target.value })} /></label>
-            <div className="button-row"><button type="button" disabled={!tagEditorDraft.name.trim() || !tagEditorDraft.definition.trim()} onClick={() => void saveTag()}>Save Tag</button><button type="button" className="compact-secondary" onClick={() => { if (tagEditorDirty && !window.confirm("Discard unsaved Tag edits?")) return; setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag); setTagAliasesText(""); }}>Close</button></div>
-          </div>
-        ) : null}
+        {selectedTag ? <article className="selected-tag-definition"><strong>{selectedTag.name}</strong><p>{selectedTag.definition}</p>{selectedTag.aliases.length > 0 ? <p><strong>Aliases:</strong> {selectedTag.aliases.join(", ")}</p> : null}{selectedTag.notes ? <p><strong>Notes:</strong> {selectedTag.notes}</p> : null}<button type="button" className="compact-secondary" onClick={() => editTag(selectedTag)}>Edit shared Tag</button></article> : null}
+        {tagEditorOpen ? <form className="tag-editor" onSubmit={(event) => { event.preventDefault(); void saveTag(); }}>
+          <label>Name<input value={tagEditorDraft.name} maxLength={120} onChange={(event) => setTagEditorDraft((current) => ({ ...current, name: event.target.value }))} /></label>
+          <label>Aliases<input value={tagAliasesText} onChange={(event) => setTagAliasesText(event.target.value)} placeholder="Comma separated" /></label>
+          <label>Definition<textarea value={tagEditorDraft.definition} maxLength={3000} onChange={(event) => setTagEditorDraft((current) => ({ ...current, definition: event.target.value }))} /></label>
+          <label>Notes<textarea value={tagEditorDraft.notes ?? ""} maxLength={5000} onChange={(event) => setTagEditorDraft((current) => ({ ...current, notes: event.target.value }))} /></label>
+          <div className="button-row"><button type="submit" disabled={!tagEditorDraft.name.trim() || !tagEditorDraft.definition.trim()}>Save Tag</button><button type="button" className="compact-secondary" onClick={() => { setTagEditorOpen(false); setEditingTagId(null); }}>Close</button></div>
+        </form> : null}
       </section>
 
-      <CandidatureApplicationMaterialPanel candidature={selected} documents={documents} selectedDocumentIds={selectedDocumentIds} documentSelectionDirty={documentSelectionDirty} onDocumentSelectionChange={setSelectedDocumentIds} onSaveDocuments={() => void saveDocuments()} onOpenDocument={(documentId) => openDocument(documentId)} />
-      <details className="secondary-candidature-detail" onToggle={(event) => setActivityOpen(event.currentTarget.open)}><summary>Activity</summary>{activityOpen ? <CandidatureActivityPanel candidatureId={selected.id} /> : null}</details>
+      <section className="section-surface" aria-label="Application documents">
+        <div className="candidature-editor-heading"><div><p className="eyebrow">Application material</p><h3>CV, letter and retained output</h3></div><div className="button-row"><button type="button" className="compact-secondary" onClick={() => void createFocusDocument("cv")}>New CV</button><button type="button" className="compact-secondary" onClick={() => void createFocusDocument("cover_letter")}>New cover letter</button></div></div>
+        {applicationWorkingCvs.length + applicationLetters.length + applicationRendered.length + applicationPackets.length === 0 ? <p className="compact-empty">No application documents yet.</p> : <div className="document-intent-list">
+          {applicationWorkingCvs.map((document) => <button type="button" key={document.id} onClick={() => openDocument(document.id)}><span className="item-kind">Working CV</span><strong>{document.title}</strong><small>Edit</small></button>)}
+          {applicationLetters.map((document) => <button type="button" key={document.id} onClick={() => openDocument(document.id)}><span className="item-kind">Letter</span><strong>{document.title}</strong><small>Edit</small></button>)}
+          {applicationRendered.map((document) => <button type="button" key={document.id} onClick={() => void window.aaaat.documentDomain.openRenderedCv(document.id)}><span className="item-kind">Rendered CV</span><strong>{document.title}</strong><small>Open PDF</small></button>)}
+          {applicationPackets.map((packet) => <button type="button" key={packet.id} onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}><span className="item-kind">Packet</span><strong>{packet.title}</strong><small>Open PDF</small></button>)}
+        </div>}
+        {packetReadyCv && packetReadyLetter ? <button type="button" className="compact-secondary" onClick={() => void createPacket()}>Create application packet</button> : <p className="compact-help">Render an application CV and keep a cover letter here to create a combined packet.</p>}
+      </section>
+
+      <section className="section-surface candidature-secondary-controls" aria-label="Application history">
+        <button type="button" className="compact-secondary" onClick={() => setActivityOpen((open) => !open)}>{activityOpen ? "Hide history" : "Show history"}</button>
+        {activityOpen ? <CandidatureActivityPanel candidatureId={selected.id} /> : null}
+      </section>
     </section>
   );
 }
