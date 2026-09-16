@@ -37,8 +37,7 @@ const information: CandidatureFieldConfiguration = {
     focusOrder: 0,
     focusProminence: "normal",
     identityOrder: null,
-    aiDiscovery: false,
-    aiContextMode: "omit",
+    aiUseAllowed: true,
   },
 };
 
@@ -109,7 +108,7 @@ describe("complete candidature information editing", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps one field read-first with edit and AI affordances, then enters and exits inline edit mode", async () => {
+  it("keeps one field read-first with edit, eye and AI affordances, then enters and exits inline edit mode", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
@@ -124,13 +123,14 @@ describe("complete candidature information editing", () => {
 
     expect(within(card).getByText("October or November", { exact: true })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Edit Availability" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "AI may use this information" })).toHaveAttribute("aria-pressed", "true");
     expect(within(card).getByRole("button", { name: "Ask AI to fill Availability" })).toBeInTheDocument();
     expect(within(card).queryByLabelText("Value")).not.toBeInTheDocument();
 
     await user.click(within(card).getByRole("button", { name: "Edit Availability" }));
     const input = within(card).getByLabelText("Value");
     expect(within(card).getByRole("checkbox", { name: "Show in Focus" })).toBeInTheDocument();
-    expect(within(card).getByRole("checkbox", { name: "Allow AI to use this information" })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "AI may use this information" })).toBeInTheDocument();
     await user.clear(input);
     await user.type(input, "October through December");
 
@@ -144,7 +144,7 @@ describe("complete candidature information editing", () => {
     expect(within(card).queryByLabelText("Value")).not.toBeInTheDocument();
   });
 
-  it("changes Focus visibility from the field edit state without a separate settings panel", async () => {
+  it("changes Focus visibility without coupling it to the AI-use eye", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
@@ -163,7 +163,6 @@ describe("complete candidature information editing", () => {
 
     expect(updateFieldPreferences).toHaveBeenCalledWith({
       ...information.preferences,
-      aiDiscovery: true,
       focusVisible: false,
       fieldId,
     });
