@@ -58,19 +58,31 @@ afterEach(() => {
 });
 
 describe("loaded workspace shell", () => {
-  it("keeps Data, AI and PDF state in the persistent rail and leaves loaded Home free of duplicate environment widgets", async () => {
+  it("keeps a branded useful Home while persistent environment state stays in the rail", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     const home = await screen.findByRole("region", { name: "Home" });
+    expect(within(home).getByAltText("AAAAT explorer robot holding a magnifying glass")).toBeInTheDocument();
+    expect(home).toHaveTextContent("Your application work, on your computer.");
     expect(home).toHaveTextContent("rail-demo");
+    expect(within(home).getByRole("button", { name: /Open applications/ })).toBeInTheDocument();
+    expect(within(home).getByRole("button", { name: "Open CVs" })).toBeInTheDocument();
+    expect(within(home).getByRole("button", { name: "New workspace" })).toBeInTheDocument();
+    expect(within(home).getByRole("button", { name: "Open existing workspace" })).toBeInTheDocument();
+    expect(within(home).getByRole("button", { name: "Open demo" })).toBeInTheDocument();
     expect(within(home).queryByText(/Data:/)).not.toBeInTheDocument();
-    expect(within(home).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(home).queryByText(/AI:/)).not.toBeInTheDocument();
+    expect(within(home).queryByText(/PDF:/)).not.toBeInTheDocument();
 
     const status = await screen.findByLabelText("Environment status");
     expect(status).toHaveTextContent("Data: Demo");
     expect(status).toHaveTextContent("AI: Ready");
     expect(status).toHaveTextContent("PDF: Ready");
+
+    await user.click(within(home).getByRole("button", { name: /Open applications/ }));
+    expect(screen.getByText("Applications")).toBeVisible();
+    expect(screen.getByLabelText("Environment status")).toBe(status);
 
     await user.click(screen.getByRole("button", { name: "Settings" }));
     expect(await screen.findByRole("region", { name: "Mock settings" })).toBeInTheDocument();

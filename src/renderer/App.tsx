@@ -436,10 +436,25 @@ export function App() {
   );
 
   const loadedHomeContent = workspace ? (
-    <section className="loaded-workspace-home" aria-label="Home">
-      <p className="eyebrow">{demoWorkspace ? "Demo workspace" : "Local workspace"}</p>
-      <h1>Home</h1>
-      <p title={workspace.rootPath}>{folderName(workspace.rootPath)}</p>
+    <section className="loaded-workspace-home empty-state" aria-label="Home">
+      <img className="hero-logo" src={logo} alt="AAAAT explorer robot holding a magnifying glass" />
+      <p className="tagline">Your application work, on your computer.</p>
+      <h1>Welcome back</h1>
+      <p>
+        Working in <strong title={workspace.rootPath}>{folderName(workspace.rootPath)}</strong>
+        {demoWorkspace ? " · Demo workspace" : " · Local workspace"}
+      </p>
+      <div className="workspace-actions with-loaded-workspace">
+        <button className="primary-action" type="button" onClick={() => selectProductView("candidatures")}>
+          Open applications
+          <small>Continue your application work</small>
+        </button>
+        <button className="welcome-option" type="button" onClick={() => selectProductView("documents")}>Open CVs</button>
+        <button className="welcome-option" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>New workspace</button>
+        <button className="welcome-option" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open existing workspace</button>
+        <button className="welcome-option" type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Open demo</button>
+      </div>
+      <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />
     </section>
   ) : null;
 
