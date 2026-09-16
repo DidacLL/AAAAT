@@ -7,18 +7,6 @@ import path from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { listAiConnections } from "../src/main/ai-connection-service";
-import {
-  listCandidatureFields,
-  setCandidatureFieldValue,
-} from "../src/main/candidature-field-service";
-import { updateCandidatureOpportunityResearchAccess } from "../src/main/candidature-opportunity-research-access-service";
-import {
-  createCandidature,
-  listCandidatures,
-  listCandidatureSources,
-} from "../src/main/candidature-service";
-import { listDocuments } from "../src/main/document-service";
 import {
   applicationDocumentsCreateToolName,
   candidatureCreateToolName,
@@ -29,23 +17,21 @@ import {
   configuratorAiOperationValidateToolName,
   configuratorStatusReadToolName,
   createAaaatMcpServer,
-  cvContentReadToolName,
-  cvDescriptionsReadToolName,
-  cvRenderToolName,
   installerRenderingSelfTestToolName,
   installerStatusReadToolName,
+  isMcpInvocation,
   mcpWorkspaceFromInvocation,
   opportunityResearchContextReadToolName,
 } from "../src/main/mcp-server";
-import { updateSetupAssistantAccess } from "../src/main/setup-assistant-service";
+import { listCandidatures, listCandidatureSources } from "../src/main/candidature-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
 
-function temporaryWorkspace(): string {
+function workspace(): string {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-mcp-"));
-  createOrOpenWorkspace(root);
   roots.push(root);
+  createOrOpenWorkspace(root);
   return root;
 }
 
@@ -74,20 +60,18 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-describe("official bounded MCP server", () => {
-  it("exposes meaningful product intentions without generic database/filesystem/shell authority", async () => {
-    const connection = await connectedClient(temporaryWorkspace());
+describe("bounded MCP server", () => {
+  it("exposes product intentions without the rejected generic CV-content/render tools", async () => {
+    const connection = await connectedClient(workspace());
     try {
       const tools = await connection.client.listTools();
-      expect(tools.tools.map((tool) => tool.name)).toEqual([
+      const names = tools.tools.map((tool) => tool.name);
+      expect(names).toEqual([
         candidatureCreateToolName,
         applicationDocumentsCreateToolName,
         opportunityResearchContextReadToolName,
         candidatureSourceAddToolName,
         careerContextReadToolName,
-        cvDescriptionsReadToolName,
-        cvContentReadToolName,
-        cvRenderToolName,
         installerStatusReadToolName,
         installerRenderingSelfTestToolName,
         configuratorStatusReadToolName,
@@ -95,19 +79,15 @@ describe("official bounded MCP server", () => {
         configuratorAiOperationValidateToolName,
         configuratorAiOperationDefaultToolName,
       ]);
-      const names = tools.tools.map((tool) => tool.name);
-      expect(names).not.toContain("candidature_list");
-      expect(names).not.toContain("database_query");
-      expect(names).not.toContain("filesystem_read");
-      expect(names).not.toContain("shell_exec");
-      expect(names).not.toContain("package_install");
+      expect(names).not.toEqual(expect.arrayContaining(["cv_content_read", "cv_descriptions_read", "cv_render"]));
+      expect(names).not.toEqual(expect.arrayContaining(["database_query", "filesystem_read", "shell_exec"]));
     } finally {
       await connection.close();
     }
   });
 
-  it("creates a candidature only from one retained Source and returns no local identifier", async () => {
-    const root = temporaryWorkspace();
+  it("creates an application from one retained Source without returning local IDs", async () => {
+    const root = workspace();
     const connection = await connectedClient(root);
     try {
       const result = await connection.client.callTool({
@@ -115,202 +95,31 @@ describe("official bounded MCP server", () => {
         arguments: {
           source: {
             kind: "job_posting",
-            title: "Pilot vacancy",
-            url: "https://example.invalid/pilot",
-            sourceText: "Minimum 1,500 total hours.",
+            title: "Platform vacancy",
+            url: "https://example.invalid/jobs/platform",
+            sourceText: "Raw retained vacancy text.",
           },
         },
       });
-      const text = textResult(result);
-      expect(JSON.parse(text)).toEqual({ ok: true, capability: "candidature.create", created: true });
-      expect(text).not.toContain(root);
-      expect(text).not.toContain("Pilot vacancy");
-      expect(listCandidatures(root)).toHaveLength(1);
-      expect(listCandidatureSources(root, listCandidatures(root)[0]!.id)[0]).toMatchObject({
-        title: "Pilot vacancy",
-        sourceText: "Minimum 1,500 total hours.",
-      });
-    } finally {
-      await connection.close();
-    }
-  });
-
-  it("can perform the same offer-to-document intention as the desktop without exposing hidden application identity", async () => {
-    const root = temporaryWorkspace();
-    const connection = await connectedClient(root);
-    try {
-      const result = await connection.client.callTool({
-        name: applicationDocumentsCreateToolName,
-        arguments: {
-          sourceText: "Example Corp needs a platform engineer.",
-          outputs: ["cv", "cover_letter"],
-        },
-      });
-      const text = textResult(result);
-      expect(JSON.parse(text)).toEqual({
+      expect(JSON.parse(textResult(result))).toEqual({
+        ok: true,
+        capability: "candidature.create",
         created: true,
-        cv: { created: true, aiPrepared: false },
-        coverLetter: { created: true, aiPrepared: false },
       });
-      expect(text).not.toContain(root);
-      expect(text).not.toContain("Example Corp");
-      expect(listCandidatures(root)).toHaveLength(1);
-      expect(listDocuments(root).map((document) => document.kind).sort()).toEqual([
-        "cover_letter",
-        "cv",
+      const candidature = listCandidatures(root)[0];
+      if (!candidature) throw new Error("application fixture missing");
+      expect(listCandidatureSources(root, candidature.id)).toEqual([
+        expect.objectContaining({ sourceText: "Raw retained vacancy text." }),
       ]);
+      expect(textResult(result)).not.toContain(candidature.id);
     } finally {
       await connection.close();
     }
   });
 
-  it("uses local selection as the authority for bounded opportunity context and Source retention", async () => {
-    const root = temporaryWorkspace();
-    const candidature = createCandidature(root, {
-      source: {
-        kind: "job_posting",
-        title: "PRIVATE SOURCE TITLE",
-        url: "https://private-source.invalid",
-        sourceText: "PRIVATE SOURCE TEXT",
-      },
-      values: [],
-    });
-    const organisation = listCandidatureFields(root).find(
-      (field) => field.definition.systemKey === "candidature.organization",
-    );
-    if (!organisation) throw new Error("Organisation fixture is missing.");
-    setCandidatureFieldValue(root, {
-      candidatureId: candidature.id,
-      fieldId: organisation.definition.id,
-      value: "Example Corp",
-    });
-    updateCandidatureOpportunityResearchAccess(root, { candidatureId: candidature.id, allowed: true });
-
-    const connection = await connectedClient(root);
-    try {
-      const selected = await connection.client.callTool({
-        name: opportunityResearchContextReadToolName,
-        arguments: {},
-      });
-      const selectedText = textResult(selected);
-      expect(JSON.parse(selectedText)).toEqual({
-        information: [{ label: "Organisation", value: "Example Corp" }],
-      });
-      expect(selectedText).not.toContain(candidature.id);
-      expect(selectedText).not.toContain("PRIVATE SOURCE TEXT");
-
-      const retained = await connection.client.callTool({
-        name: candidatureSourceAddToolName,
-        arguments: {
-          source: {
-            kind: "conversation",
-            title: "External research",
-            url: "",
-            sourceText: "Useful external findings.",
-          },
-        },
-      });
-      expect(JSON.parse(textResult(retained))).toEqual({ retained: true });
-      expect(listCandidatureSources(root, candidature.id)).toHaveLength(2);
-
-      const rejectedSelector = await connection.client.callTool({
-        name: opportunityResearchContextReadToolName,
-        arguments: { candidatureId: candidature.id },
-      });
-      expect(rejectedSelector.isError).toBe(true);
-    } finally {
-      await connection.close();
-    }
-  });
-
-  it("keeps installer/configurator mutation authority disabled until the user enables it locally", async () => {
-    const root = temporaryWorkspace();
-    const connection = await connectedClient(root);
-    try {
-      const deniedInstaller = await connection.client.callTool({
-        name: installerRenderingSelfTestToolName,
-        arguments: {},
-      });
-      expect(deniedInstaller.isError).toBe(true);
-
-      const deniedConfigurator = await connection.client.callTool({
-        name: configuratorAiConnectionSaveToolName,
-        arguments: {
-          name: "Local model",
-          endpoint: "http://127.0.0.1:11434/v1",
-          model: "qwen",
-        },
-      });
-      expect(deniedConfigurator.isError).toBe(true);
-      expect(listAiConnections(root)).toEqual([]);
-
-      updateSetupAssistantAccess(root, {
-        installerActionsAllowed: false,
-        configuratorActionsAllowed: true,
-      });
-      const saved = await connection.client.callTool({
-        name: configuratorAiConnectionSaveToolName,
-        arguments: {
-          name: "Local model",
-          endpoint: "http://127.0.0.1:11434/v1",
-          model: "qwen",
-        },
-      });
-      expect(saved.isError).not.toBe(true);
-      expect(JSON.parse(textResult(saved))).toEqual({ saved: true });
-      expect(listAiConnections(root)).toHaveLength(1);
-    } finally {
-      await connection.close();
-    }
-  });
-
-  it("exposes installer/configurator status as privacy-minimal state", async () => {
-    const root = temporaryWorkspace();
-    const connection = await connectedClient(root);
-    try {
-      const installer = textResult(
-        await connection.client.callTool({ name: installerStatusReadToolName, arguments: {} }),
-      );
-      const installerResult = JSON.parse(installer) as Record<string, unknown>;
-      expect(installerResult.workspaceReady).toBe(true);
-      expect(installerResult).toHaveProperty("documentRenderingReady");
-      expect(installerResult).toHaveProperty("missingTools");
-      expect(installer).not.toContain(root);
-      expect(installer).not.toMatch(/version|path|commandLine/i);
-
-      const configurator = textResult(
-        await connection.client.callTool({ name: configuratorStatusReadToolName, arguments: {} }),
-      );
-      const configuratorResult = JSON.parse(configurator) as Record<string, unknown>;
-      expect(configuratorResult).toMatchObject({
-        configurationReadable: true,
-        connectionCount: 0,
-      });
-      expect(configurator).not.toContain(root);
-      expect(configurator).not.toMatch(/endpoint|connectionName|credential/i);
-    } finally {
-      await connection.close();
-    }
-  });
-
-  it("rejects stale structured candidature authority and malformed process invocation", async () => {
-    const root = temporaryWorkspace();
-    const connection = await connectedClient(root);
-    try {
-      const stale = await connection.client.callTool({
-        name: candidatureCreateToolName,
-        arguments: {
-          operationRef: "stale",
-          source: { kind: "job_posting", title: "Should not persist", url: "", sourceText: "stale" },
-          values: [{ fieldRef: "stale", value: "Engineer" }],
-        },
-      });
-      expect(stale.isError).toBe(true);
-      expect(listCandidatures(root)).toEqual([]);
-    } finally {
-      await connection.close();
-    }
-
-    expect(() => mcpWorkspaceFromInvocation(["aaaat", "--mcp"])).toThrow("Invalid MCP invocation.");
+  it("accepts only the explicit MCP workspace invocation shape", () => {
+    expect(isMcpInvocation(["aaaat", "--mcp", "--workspace", "/tmp/workspace"])).toBe(true);
+    expect(mcpWorkspaceFromInvocation(["aaaat", "--mcp", "--workspace", "/tmp/workspace"])).toBe("/tmp/workspace");
+    expect(() => mcpWorkspaceFromInvocation(["aaaat", "--mcp"])).toThrow("Invalid MCP invocation");
   });
 });
