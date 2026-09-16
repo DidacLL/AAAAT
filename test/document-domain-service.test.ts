@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -10,6 +11,7 @@ import { createCandidature } from "../src/main/candidature-service";
 import {
   createCoverLetter,
   createWorkingCv,
+  duplicateRenderedCv,
   listDocumentCollections,
   saveWorkingCvAsTemplate,
   saveWorkingCvItem,
@@ -17,7 +19,7 @@ import {
 } from "../src/main/document-domain-service";
 import { addProfileItem, getProfile } from "../src/main/profile-service";
 import { listProfileVariants } from "../src/main/profile-variant-service";
-import { createOrOpenWorkspace } from "../src/main/workspace";
+import { createOrOpenWorkspace, withWorkspaceDatabase } from "../src/main/workspace";
 
 function workspace(): string {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-document-domain-"));
@@ -127,6 +129,80 @@ describe("explicit document domain", () => {
       expect(template.name).toBe("Backend template");
       expect(template.sections).toHaveLength(working.sections.length);
       expect(listDocumentCollections(root).templates.map((item) => item.id)).toContain(template.id);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("duplicates an immutable Rendered CV after its live template and application associations disappear", () => {
+    const root = workspace();
+    try {
+      addProfileItem(root, {
+        kind: "experience",
+        title: "Reliability Engineer",
+        description: "Operated critical services.",
+      });
+      const candidature = createCandidature(root, { values: [] });
+      const seed = createWorkingCv(root, {
+        title: "Seed CV",
+        candidatureId: null,
+        source: { kind: "profile" },
+      });
+      const template = saveWorkingCvAsTemplate(root, {
+        workingCvId: seed.id,
+        name: "Reliability template",
+      });
+      const working = createWorkingCv(root, {
+        title: "Application CV",
+        candidatureId: candidature.id,
+        source: { kind: "template", templateId: template.id },
+      });
+      const renderedId = randomUUID();
+      const snapshot = {
+        title: working.title,
+        sourceTemplateId: template.id,
+        candidatureId: candidature.id,
+        sections: working.sections,
+      };
+
+      withWorkspaceDatabase(root, (database) => {
+        database.prepare(`INSERT INTO rendered_cvs(
+          id, working_cv_id, source_template_id, candidature_id, title, language,
+          snapshot_json, project_relative_path, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+          renderedId,
+          working.id,
+          template.id,
+          candidature.id,
+          working.title,
+          null,
+          JSON.stringify(snapshot),
+          `rendered-cvs/${renderedId}`,
+          new Date().toISOString(),
+        );
+        database.prepare("DELETE FROM cv_templates WHERE id = ?").run(template.id);
+        database.prepare("DELETE FROM candidatures WHERE id = ?").run(candidature.id);
+      });
+
+      const retained = listDocumentCollections(root).renderedCvs.find((item) => item.id === renderedId);
+      expect(retained).toMatchObject({
+        sourceTemplateId: null,
+        candidatureId: null,
+        snapshot: expect.objectContaining({
+          sourceTemplateId: template.id,
+          candidatureId: candidature.id,
+        }),
+      });
+
+      const duplicate = duplicateRenderedCv(root, renderedId);
+      expect(duplicate).toMatchObject({
+        title: "Application CV copy",
+        sourceTemplateId: null,
+        candidatureId: null,
+      });
+      expect(duplicate.sections.map((section) => section.name)).toEqual(
+        working.sections.map((section) => section.name),
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
