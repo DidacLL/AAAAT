@@ -25,8 +25,14 @@ describe("demo workspace and reset", () => {
     const documents = listDocumentCollections(root);
     expect(documents.workingCvs).toHaveLength(1);
     expect(documents.letters).toHaveLength(1);
-    expect(documents.workingCvs[0]?.candidatureId).toBe(candidatures[0]?.id);
-    expect(documents.letters[0]?.candidatureId).toBe(candidatures[0]?.id);
+    const documentCandidature = candidatures.find((candidature) =>
+      listCandidatureSources(root, candidature.id).some(
+        (source) => source.url === "https://example.test/northstar-platform",
+      ),
+    );
+    expect(documentCandidature).toBeDefined();
+    expect(documents.workingCvs[0]?.candidatureId).toBe(documentCandidature?.id);
+    expect(documents.letters[0]?.candidatureId).toBe(documentCandidature?.id);
     expect(listCandidatureFields(root).some((field) => field.definition.label === "Languages")).toBe(true);
 
     resetWorkspace(root);

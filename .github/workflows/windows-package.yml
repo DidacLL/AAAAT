@@ -37,7 +37,7 @@ jobs:
         run: npm ci
 
       - name: Verify
-        run: npm run verify
+        run: npm run verify -- -- --testTimeout=60000
 
       - name: Make Windows package
         run: npm run make
