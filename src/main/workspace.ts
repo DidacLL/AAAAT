@@ -66,17 +66,18 @@ const requiredSchemaObjects = Object.freeze([
 ] as const);
 
 const requiredColumns = Object.freeze({
-  profile_items: ["ai_context_mode"],
+  profile_items: ["ai_use_allowed"],
   candidatures: ["opportunity_research_selected"],
   career_context: [
-    "career_direction_external_ai_visible",
-    "objectives_external_ai_visible",
-    "constraints_external_ai_visible",
-    "target_roles_external_ai_visible",
-    "target_markets_locations_external_ai_visible",
-    "work_preferences_external_ai_visible",
-    "application_writing_preferences_external_ai_visible",
+    "career_direction_ai_use_allowed",
+    "objectives_ai_use_allowed",
+    "constraints_ai_use_allowed",
+    "target_roles_ai_use_allowed",
+    "target_markets_locations_ai_use_allowed",
+    "work_preferences_ai_use_allowed",
+    "application_writing_preferences_ai_use_allowed",
   ],
+  candidature_field_preferences: ["ai_use_allowed"],
   application_artifacts: [
     "cv_document_id",
     "cover_letter_document_id",
@@ -126,7 +127,6 @@ export function validateCurrentWorkspaceDatabase(database: DatabaseSync): void {
       throw new WorkspaceError("The workspace schema is incompatible.");
     }
   }
-
 
   for (const [tableName, columns] of Object.entries(requiredColumns)) {
     const rows = database
