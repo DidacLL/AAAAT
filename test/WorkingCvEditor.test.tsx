@@ -241,7 +241,7 @@ describe("Working CV editor", () => {
     await user.click(within(section).getByRole("button", { name: "Add custom content" }));
     expect(within(section).getByRole("article", { name: "New content CV item" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Save", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(updateWorkingCv).toHaveBeenCalled());
 
     await user.click(screen.getByRole("button", { name: "Render PDF" }));
