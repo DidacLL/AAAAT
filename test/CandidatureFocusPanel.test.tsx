@@ -62,8 +62,7 @@ const roleField: CandidatureFieldConfiguration = {
     focusOrder: 0,
     focusProminence: "normal",
     identityOrder: null,
-    aiDiscovery: false,
-    aiContextMode: "omit",
+    aiUseAllowed: true,
   },
 };
 
@@ -105,6 +104,7 @@ function renderFocus() {
   const onSaveValue = vi.fn().mockResolvedValue(undefined);
   const onClearValue = vi.fn().mockResolvedValue(undefined);
   const onDiscoverValue = vi.fn();
+  const onUpdatePreferences = vi.fn().mockResolvedValue(undefined);
   const onDirtyChange = vi.fn();
   const onOpenDocument = vi.fn();
   const onCreateDocument = vi.fn();
@@ -123,10 +123,11 @@ function renderFocus() {
       onSaveValue={onSaveValue}
       onClearValue={onClearValue}
       onDiscoverValue={onDiscoverValue}
+      onUpdatePreferences={onUpdatePreferences}
       onDirtyChange={onDirtyChange}
     />,
   );
-  return { onSelectTag, onSaveValue, onClearValue, onDiscoverValue, onDirtyChange, onCreateDocument };
+  return { onSelectTag, onSaveValue, onClearValue, onDiscoverValue, onUpdatePreferences, onDirtyChange, onCreateDocument };
 }
 
 afterEach(() => {
@@ -135,21 +136,25 @@ afterEach(() => {
 });
 
 describe("selected candidature Focus", () => {
-  it("shows only Focus-selected retained information and keeps displayed values lightweight-editable", async () => {
+  it("shows only Focus-selected retained information with the same AI-use eye", async () => {
     const user = userEvent.setup();
-    renderFocus();
+    const { onUpdatePreferences } = renderFocus();
 
     const focus = screen.getByRole("region", { name: "Selected candidature Focus" });
     expect(within(focus).getByRole("heading", { name: "Platform engineer" })).toBeInTheDocument();
     expect(within(focus).getByRole("heading", { name: "Role" })).toBeInTheDocument();
     expect(within(focus).getByText("Staff Platform Engineer")).toBeInTheDocument();
     expect(within(focus).queryByText("Private complete-edit detail")).not.toBeInTheDocument();
+    const eye = within(focus).getByRole("button", { name: "AI may use this information" });
+    expect(eye).toHaveAttribute("aria-pressed", "true");
+    await user.click(eye);
+    expect(onUpdatePreferences).toHaveBeenCalledWith(roleField, { aiUseAllowed: false });
 
     await user.click(within(focus).getByRole("button", { name: "Edit Role" }));
     expect(within(focus).getByRole("textbox")).toHaveValue("Staff Platform Engineer");
   });
 
-  it("surfaces associated Tag definition, aliases and notes without Concept-era maintenance UI", async () => {
+  it("surfaces associated Tag definition, aliases and notes without glossary maintenance UI", async () => {
     const { onSelectTag } = renderFocus();
 
     const tags = screen.getByRole("region", { name: "Tags" });
