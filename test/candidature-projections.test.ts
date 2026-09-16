@@ -44,8 +44,7 @@ const locationField: CandidatureFieldConfiguration = {
     focusOrder: null,
     focusProminence: "normal",
     identityOrder: null,
-    aiDiscovery: false,
-    aiContextMode: "omit",
+    aiUseAllowed: false,
   },
 };
 
