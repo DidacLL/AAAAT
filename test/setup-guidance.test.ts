@@ -7,7 +7,6 @@ const operations = [
   { operation: "opportunity_review" as const, available: false, connectionName: null },
   { operation: "job_extraction" as const, available: false, connectionName: null },
   { operation: "historical_field_discovery" as const, available: false, connectionName: null },
-  { operation: "variant_recommendation" as const, available: false, connectionName: null },
   { operation: "cv_tailoring" as const, available: false, connectionName: null },
   { operation: "cover_letter_draft" as const, available: false, connectionName: null },
 ];
