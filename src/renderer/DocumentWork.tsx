@@ -89,7 +89,7 @@ function WorkingCvEditor({
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, openProfessionalInformationItem, returnToCandidature } = useContextualHandoffs();
+  const { documentHandoff, openProfessionalInformationItem, openSettingsFor, returnToCandidature } = useContextualHandoffs();
   const [draft, setDraft] = useState<WorkingCvRecord>(document);
   const [sectionName, setSectionName] = useState("");
   const [templateName, setTemplateName] = useState("");
@@ -98,6 +98,7 @@ function WorkingCvEditor({
   const [tailoringMessage, setTailoringMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
   const dirty = JSON.stringify({ title: draft.title, language: draft.language, sections: draft.sections }) !== JSON.stringify({ title: document.title, language: document.language, sections: document.sections });
 
   useEffect(() => {
@@ -109,6 +110,7 @@ function WorkingCvEditor({
     setDraft(document);
     setTailoringNotes({});
     setTailoringMessage(null);
+    setRenderSettingsSuggested(false);
   }, [document.id]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
@@ -302,6 +304,7 @@ function WorkingCvEditor({
   const render = async () => {
     setBusy(true);
     setError(null);
+    setRenderSettingsSuggested(false);
     try {
       const saved = dirty ? await persistDraft() : draft;
       const rendered = await window.aaaat.documentDomain.renderCv(saved.id);
@@ -309,6 +312,7 @@ function WorkingCvEditor({
       await window.aaaat.documentDomain.openRenderedCv(rendered.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not render this CV.");
+      setRenderSettingsSuggested(true);
     } finally {
       setBusy(false);
     }
@@ -333,7 +337,12 @@ function WorkingCvEditor({
           <button type="button" disabled={busy} onClick={() => void render()}>Render PDF</button>
         </div>
       </header>
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
+      {error ? (
+        <div className="button-row">
+          <p className="error-message" role="alert">{error}</p>
+          {renderSettingsSuggested ? <button className="compact-secondary" type="button" onClick={() => openSettingsFor("documents", "documents")}>Open Document settings</button> : null}
+        </div>
+      ) : null}
       {tailoringMessage ? <p className="compact-note" role="status">{tailoringMessage}</p> : null}
 
       <div className="document-metadata-grid">
