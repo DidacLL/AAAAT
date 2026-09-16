@@ -131,12 +131,11 @@ export function CandidatureFieldValueEditor({
         return numbers;
       }
       if (definition.valueType === "boolean") {
-        const booleans = items.map((item) => {
+        return items.map((item) => {
           if (item === "true") return true;
           if (item === "false") return false;
           throw new Error("Enter true or false on each line.");
         });
-        return booleans;
       }
       return items;
     }
@@ -202,7 +201,7 @@ export function CandidatureFieldValueEditor({
   };
 
   const discover = async () => {
-    if (!onDiscover) return;
+    if (!onDiscover || !field.preferences.aiUseAllowed) return;
     setError(null);
     try {
       await onDiscover();
@@ -223,6 +222,20 @@ export function CandidatureFieldValueEditor({
       setBusy(false);
     }
   };
+
+  const aiEye = onUpdatePreferences ? (
+    <button
+      type="button"
+      className="candidature-icon-button candidature-ai-use-eye"
+      aria-label="AI may use this information"
+      aria-pressed={field.preferences.aiUseAllowed}
+      title={field.preferences.aiUseAllowed ? "AI may use this information" : "AI will not use this information"}
+      disabled={busy || !field.definition.enabled}
+      onClick={() => void updatePreferences({ aiUseAllowed: !field.preferences.aiUseAllowed })}
+    >
+      <span aria-hidden="true">{field.preferences.aiUseAllowed ? "◉" : "○"}</span>
+    </button>
+  ) : null;
 
   const cancel = () => {
     setText(textFor(value));
@@ -249,7 +262,8 @@ export function CandidatureFieldValueEditor({
           >
             <span aria-hidden="true">✎</span>
           </button>
-          {onDiscover ? (
+          {aiEye}
+          {onDiscover && field.preferences.aiUseAllowed ? (
             <button
               type="button"
               className="candidature-icon-button candidature-ai-button"
@@ -381,20 +395,10 @@ export function CandidatureFieldValueEditor({
             />
             Show in Focus
           </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={field.preferences.aiContextMode === "expose"}
-              disabled={busy}
-              onChange={(event) =>
-                void updatePreferences({ aiContextMode: event.target.checked ? "expose" : "omit" })
-              }
-            />
-            Allow AI to use this information
-          </label>
-          {field.preferences.aiContextMode === "token" ? (
-            <small>This field currently uses a local placeholder for AI context. Changing the toggle replaces that advanced setting.</small>
-          ) : null}
+          <span className="candidature-ai-use-inline">
+            {aiEye}
+            <span>AI may use this information</span>
+          </span>
         </div>
       ) : null}
 
@@ -408,7 +412,7 @@ export function CandidatureFieldValueEditor({
         <button type="button" className="compact-secondary" disabled={busy} onClick={cancel}>
           Cancel
         </button>
-        {onDiscover ? (
+        {onDiscover && field.preferences.aiUseAllowed ? (
           <button
             type="button"
             className="candidature-icon-button candidature-ai-button"
