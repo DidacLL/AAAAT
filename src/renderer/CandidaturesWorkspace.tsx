@@ -130,6 +130,8 @@ export function CandidaturesWorkspace({
 
   useEffect(() => {
     if (documentHandoff !== null) return;
+    // The refresh is asynchronous; state changes occur only after the IPC response.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshCollections();
   }, [documentHandoff, refreshCollections]);
 

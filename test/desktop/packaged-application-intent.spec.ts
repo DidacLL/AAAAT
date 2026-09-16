@@ -85,12 +85,8 @@ test("packaged host-neutral application intention creates complete manual docume
     const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
     try {
       expect(database.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 1 });
-      expect(database.prepare("SELECT COUNT(*) AS count FROM documents").get()).toEqual({ count: 2 });
-      expect(database.prepare("SELECT kind, title FROM documents ORDER BY kind").all()).toEqual([
-        { kind: "cover_letter", title: "Application cover letter" },
-        { kind: "cv", title: "Application CV" },
-      ]);
-      expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_documents").get()).toEqual({ count: 2 });
+      expect(database.prepare("SELECT COUNT(*) AS count FROM working_cvs WHERE candidature_id = (SELECT id FROM candidatures)").get()).toEqual({ count: 1 });
+      expect(database.prepare("SELECT COUNT(*) AS count FROM cover_letters WHERE candidature_id = (SELECT id FROM candidatures)").get()).toEqual({ count: 1 });
       expect(database.prepare("SELECT source_text AS sourceText FROM candidature_sources").get()).toEqual({
         sourceText: "Packaged intent offer: platform engineer working on reliable distributed systems.",
       });

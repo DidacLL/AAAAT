@@ -171,12 +171,12 @@ export function App() {
       setSettingsOpen(false);
       setProductView("candidatures");
       setWelcomeOpen(false);
-    } catch {
+    } catch (reason) {
       setWorkspacePhase(workspace ? "ready" : "idle");
       setWorkspaceError(
-        choice === "create"
-          ? "That folder cannot be used as an AAAAT workspace. Choose an empty folder or an existing AAAAT workspace."
-          : "That folder is not a compatible AAAAT workspace. Choose another folder.",
+        reason instanceof Error
+          ? reason.message
+          : "AAAAT could not open that workspace. Choose another folder.",
       );
     }
   };
@@ -252,13 +252,9 @@ export function App() {
       setSettingsOpen(false);
       setProductView("candidatures");
       setWelcomeOpen(false);
-    } catch (reason) {
+    } catch {
       setWorkspacePhase(workspace ? "ready" : "idle");
-      setWorkspaceError(
-        reason instanceof Error
-          ? reason.message
-          : "AAAAT could not create the demo workspace. Choose an empty folder.",
-      );
+      setWorkspaceError("AAAAT could not create the demo workspace. Choose an empty folder.");
     }
   };
 

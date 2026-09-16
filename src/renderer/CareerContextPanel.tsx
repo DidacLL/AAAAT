@@ -146,6 +146,7 @@ export function CareerContextPanel({
               </span>
               <span className="field-hint">{hint}</span>
               <textarea
+                aria-label={label}
                 value={draft[key]}
                 onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
               />

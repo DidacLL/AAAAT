@@ -107,11 +107,13 @@ function WorkingCvEditor({
   }, [dirty, onDirtyChange]);
 
   useEffect(() => {
+    // This editor deliberately resets its local draft when its selected document changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(document);
     setTailoringNotes({});
     setTailoringMessage(null);
     setRenderSettingsSuggested(false);
-  }, [document.id]);
+  }, [document]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
@@ -449,6 +451,8 @@ function LetterEditor({ document, onSaved, onDirtyChange }: { readonly document:
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // This editor deliberately resets its local draft when its selected document changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(document);
     setBody(document.bodyParagraphs.join("\n\n"));
   }, [document]);

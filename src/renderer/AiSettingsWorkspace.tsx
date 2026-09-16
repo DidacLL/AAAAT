@@ -244,7 +244,7 @@ export function AiSettingsWorkspace({
   };
 
   return (
-    <section className="profile-workspace" aria-label="AI settings">
+    <div className="profile-workspace">
       {showConnections ? (
         <div className="profile-column">
           {view === "all" ? <div className="section-heading"><div><h2>AI connections</h2></div></div> : null}
@@ -284,8 +284,8 @@ export function AiSettingsWorkspace({
                   onBlur={() => { if (draft.endpoint.trim()) setAddressError(addressIssue(draft.endpoint)); }}
                   placeholder="http://localhost:11434/v1 or https://provider.example/v1"
                 />
-                {addressError ? <small id="ai-address-error" className="error-message" role="alert">{addressError}</small> : null}
               </label>
+              {addressError ? <small id="ai-address-error" className="error-message wide-field" role="alert">{addressError}</small> : null}
               <div className="form-actions wide-field">
                 <button className="compact-primary" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save connection" : "Add connection"}</button>
                 {editing && view === "all" ? <button type="button" className="compact-secondary" onClick={beginNew}>Add another</button> : null}
@@ -350,6 +350,6 @@ export function AiSettingsWorkspace({
           {portabilityStatus ? <p role="status">{portabilityStatus}</p> : null}
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

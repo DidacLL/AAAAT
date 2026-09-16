@@ -152,8 +152,10 @@ describe("user-owned workspace", () => {
     try {
       mkdirSync(workspacePath);
       createOrOpenWorkspace(workspacePath);
-      mkdirSync(path.join(workspacePath, "documents"));
-      writeFileSync(path.join(workspacePath, "documents", "draft.txt"), "owned document");
+      mkdirSync(path.join(workspacePath, "rendered-cvs"));
+      mkdirSync(path.join(workspacePath, "application-packets"));
+      writeFileSync(path.join(workspacePath, "rendered-cvs", "draft.txt"), "owned render");
+      writeFileSync(path.join(workspacePath, "application-packets", "draft.txt"), "owned packet");
       writeFileSync(path.join(workspacePath, "keep.txt"), "unrelated file");
       rememberWorkspacePath(settingsPath, workspacePath);
 
@@ -162,7 +164,8 @@ describe("user-owned workspace", () => {
 
       expect(existsSync(workspacePath)).toBe(true);
       expect(existsSync(path.join(workspacePath, "workspace.sqlite"))).toBe(false);
-      expect(existsSync(path.join(workspacePath, "documents"))).toBe(false);
+      expect(existsSync(path.join(workspacePath, "rendered-cvs"))).toBe(false);
+      expect(existsSync(path.join(workspacePath, "application-packets"))).toBe(false);
       expect(existsSync(path.join(workspacePath, "keep.txt"))).toBe(true);
       expect(readLastWorkspacePath(settingsPath)).toBeNull();
       expect(() => openWorkspace(workspacePath)).toThrow();

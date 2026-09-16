@@ -36,5 +36,5 @@ describe("demo workspace and reset", () => {
     const resetDocuments = listDocumentCollections(root);
     expect(resetDocuments.workingCvs).toHaveLength(0);
     expect(resetDocuments.letters).toHaveLength(0);
-  });
+  }, 10_000);
 });

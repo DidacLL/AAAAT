@@ -39,7 +39,6 @@ const record = {
   label: "Pilot opportunity",
   sourceSearchText: "",
   values: [],
-  documentIds: [],
   tagIds: [],
 };
 

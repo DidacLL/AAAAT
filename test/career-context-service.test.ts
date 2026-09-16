@@ -57,8 +57,8 @@ describe("current career context", () => {
         expect(
           database
             .prepare(
-              `SELECT career_direction_external_ai_visible AS careerDirection,
-                      constraints_external_ai_visible AS constraints
+              `SELECT career_direction_ai_use_allowed AS careerDirection,
+                      constraints_ai_use_allowed AS constraints
                  FROM career_context WHERE id = 1`,
             )
             .get(),

@@ -8,6 +8,7 @@ export interface WorkspaceRailStatusProjection {
   readonly pdf: "Ready" | "Unavailable";
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function deriveWorkspaceRailStatus(
   demo: boolean,
   environment: SetupEnvironmentSnapshot | null,

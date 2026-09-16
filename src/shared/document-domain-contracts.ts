@@ -104,7 +104,7 @@ export type WorkingCvSaveTemplate = z.infer<typeof workingCvSaveTemplateSchema>;
 
 export const renderedCvSnapshotSchema = workingCvRecordSchema.pick({ title: true, language: true, sourceTemplateId: true, candidatureId: true, sections: true });
 export type RenderedCvSnapshot = z.infer<typeof renderedCvSnapshotSchema>;
-export const renderedCvRecordSchema = z.object({ id: z.string().uuid(), workingCvId: optionalUuidSchema, sourceTemplateId: optionalUuidSchema, candidatureId: optionalUuidSchema, title: z.string().min(1), language: optionalLanguageSchema, snapshot: renderedCvSnapshotSchema, createdAt: z.string().min(1), hasPdf: z.literal(true) }).strict();
+export const renderedCvRecordSchema = z.object({ id: z.string().uuid(), workingCvId: optionalUuidSchema, sourceTemplateId: optionalUuidSchema, candidatureId: optionalUuidSchema, title: z.string().min(1), language: optionalLanguageSchema, snapshot: renderedCvSnapshotSchema, createdAt: z.string().min(1), hasPdf: z.boolean() }).strict();
 export type RenderedCvRecord = z.infer<typeof renderedCvRecordSchema>;
 
 export const coverLetterInputSchema = z.object({ candidatureId: optionalUuidSchema, title: z.string().trim().min(1).max(200), language: optionalLanguageSchema, recipient: z.string().max(300).optional(), subject: z.string().max(300).optional(), bodyParagraphs: z.array(z.string().max(5000)).max(20).default([]), closing: z.string().max(500).optional() }).strict();
@@ -116,7 +116,7 @@ export type CoverLetterUpdate = z.infer<typeof coverLetterUpdateSchema>;
 
 export const applicationPacketCreateSchema = z.object({ candidatureId: z.string().uuid(), renderedCvId: z.string().uuid(), coverLetterId: z.string().uuid(), title: z.string().trim().min(1).max(200).optional() }).strict();
 export type ApplicationPacketCreate = z.infer<typeof applicationPacketCreateSchema>;
-export const applicationPacketRecordSchema = z.object({ id: z.string().uuid(), candidatureId: z.string().uuid(), renderedCvId: z.string().uuid(), coverLetterId: z.string().uuid(), title: z.string().min(1), createdAt: z.string().min(1), hasPdf: z.literal(true) }).strict();
+export const applicationPacketRecordSchema = z.object({ id: z.string().uuid(), candidatureId: z.string().uuid(), renderedCvId: z.string().uuid(), coverLetterId: z.string().uuid(), title: z.string().min(1), createdAt: z.string().min(1), hasPdf: z.boolean() }).strict();
 export type ApplicationPacketRecord = z.infer<typeof applicationPacketRecordSchema>;
 
 export const documentCollectionsSchema = z.object({ templates: z.array(cvTemplateRecordSchema), workingCvs: z.array(workingCvRecordSchema), renderedCvs: z.array(renderedCvRecordSchema), letters: z.array(coverLetterRecordSchema), applicationPackets: z.array(applicationPacketRecordSchema) }).strict();

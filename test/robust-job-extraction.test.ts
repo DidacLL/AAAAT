@@ -53,7 +53,7 @@ describe("robust job extraction", () => {
   it("sends a bounded shared Tag glossary, matches existing Tags, and requires definitions for new Tags", async () => {
     const root = workspace();
     const role = createCandidatureField(root, {
-      label: "Role",
+      label: "Target role",
       description: "Role named in the opportunity.",
       valueType: "text",
       cardinality: "one",
@@ -105,7 +105,7 @@ describe("robust job extraction", () => {
       expect(user.tags).toHaveLength(1);
 
       return modelResponse({
-        proposals: [{ fieldRef: user.fields[0]?.fieldRef, value: "Senior Platform Engineer" }],
+        proposals: [{ fieldRef: user.fields.find((field) => field.label === "Target role")?.fieldRef, value: "Senior Platform Engineer" }],
         existingTags: [{ tagRef: user.tags[0]?.tagRef, evidence: "platform team" }],
         newTags: [
           {

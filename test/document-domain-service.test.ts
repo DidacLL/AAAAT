@@ -231,4 +231,33 @@ describe("explicit document domain", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("rejects a tampered persisted Rendered CV path instead of resolving it outside its managed root", () => {
+    const root = workspace();
+    try {
+      const working = createWorkingCv(root, {
+        title: "Stored CV",
+        candidatureId: null,
+        source: { kind: "profile" },
+      });
+      const id = randomUUID();
+      withWorkspaceDatabase(root, (database) => {
+        database.prepare(`INSERT INTO rendered_cvs(
+          id, working_cv_id, source_template_id, candidature_id, title, language,
+          snapshot_json, project_relative_path, created_at
+        ) VALUES (?, ?, NULL, NULL, ?, NULL, ?, ?, ?)`).run(
+          id,
+          working.id,
+          working.title,
+          JSON.stringify({ title: working.title, sourceTemplateId: null, candidatureId: null, sections: working.sections }),
+          "../outside",
+          new Date().toISOString(),
+        );
+      });
+
+      expect(() => listDocumentCollections(root)).toThrow("Stored generated document path is invalid.");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

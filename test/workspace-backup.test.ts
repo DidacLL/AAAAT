@@ -57,10 +57,10 @@ function fixture() {
   });
 
   const files = new Map([
-    ["documents/cv.tex", "user cv"],
-    ["artifacts/cv.pdf", "rendered artifact"],
+    ["rendered-cvs/current/build/main.pdf", "rendered cv"],
+    ["application-packets/current/build/main.pdf", "application packet"],
     ["templates/custom.tex", "template"],
-    ["integrations/connection-note.json", '{"state":"proposed"}'],
+    ["notes/connection-note.json", '{"state":"proposed"}'],
     ["exports/candidatures.json", "export"],
   ]);
   for (const [relative, contents] of files) {
@@ -127,7 +127,7 @@ describe("workspace backup and restore", () => {
   it("rejects corruption, traversal and occupied destinations before activation", async () => {
     const first = fixture();
     await createWorkspaceBackup(first.workspace, first.backup);
-    writeFileSync(path.join(first.backup, "files", "documents", "cv.tex"), "tampered", "utf8");
+    writeFileSync(path.join(first.backup, "files", "rendered-cvs", "current", "build", "main.pdf"), "tampered", "utf8");
     expect(() => restoreWorkspaceBackup(first.backup, first.restore)).toThrow();
     expectEmpty(first.restore);
 
@@ -182,7 +182,7 @@ describe("workspace backup and restore", () => {
 
     const payloadFixture = fixture();
     await createWorkspaceBackup(payloadFixture.workspace, payloadFixture.backup);
-    const payload = path.join(payloadFixture.backup, "files", "documents", "cv.tex");
+    const payload = path.join(payloadFixture.backup, "files", "rendered-cvs", "current", "build", "main.pdf");
     const outsidePayload = path.join(payloadFixture.root, "outside-cv.tex");
     copyFileSync(payload, outsidePayload);
     unlinkSync(payload);
@@ -191,10 +191,10 @@ describe("workspace backup and restore", () => {
 
     const directoryFixture = fixture();
     await createWorkspaceBackup(directoryFixture.workspace, directoryFixture.backup);
-    const documents = path.join(directoryFixture.backup, "files", "documents");
-    const outsideDocuments = path.join(directoryFixture.root, "outside-documents");
-    renameSync(documents, outsideDocuments);
-    symlinkSync(outsideDocuments, documents, "dir");
+    const renderedCvs = path.join(directoryFixture.backup, "files", "rendered-cvs");
+    const outsideRenderedCvs = path.join(directoryFixture.root, "outside-rendered-cvs");
+    renameSync(renderedCvs, outsideRenderedCvs);
+    symlinkSync(outsideRenderedCvs, renderedCvs, "dir");
     expect(() => restoreWorkspaceBackup(directoryFixture.backup, directoryFixture.restore)).toThrow(/symbolic-link/);
   });
 
