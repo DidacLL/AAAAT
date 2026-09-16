@@ -67,6 +67,14 @@ describe("Working CV and cover-letter AI provider operations", () => {
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
   });
 
+  it("accepts a valid no-change CV tailoring result", async () => {
+    const provider = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockResolvedValue(response({ recommendations: [] })),
+    );
+
+    await expect(provider.tailorCv(connection, context)).resolves.toEqual({ recommendations: [] });
+  });
+
   it("validates structured cover-letter drafts", async () => {
     const provider = createOpenAiCompatibleProvider(
       vi.fn<typeof fetch>().mockResolvedValue(
