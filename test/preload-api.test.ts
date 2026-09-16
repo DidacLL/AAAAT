@@ -27,8 +27,7 @@ const configuration = {
     focusOrder: null,
     focusProminence: "normal" as const,
     identityOrder: null,
-    aiDiscovery: true,
-    aiContextMode: "expose" as const,
+    aiUseAllowed: true,
   },
 };
 
