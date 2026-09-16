@@ -144,6 +144,12 @@ Example: if a candidature uses `Spring Boot`, selected Focus can expose the stor
 
 A competing `Concepts` product vocabulary is not justified. Historical `Concept` code/schema names are implementation evidence to reconcile, not product meaning.
 
+Applications contain associations to shared Tags. They never own independent copies of Tag definitions. Attaching a Tag therefore changes only the candidature-to-Tag association; editing the Tag changes the one shared canonical name/aliases/definition/notes seen wherever it is attached.
+
+Tag interaction must scale to a large glossary. Ordinary candidature work shows only attached Tags plus compact search/autocomplete for attaching an existing Tag and a create-new path when no match exists. It must never render the complete glossary as a permanent checkbox/button selection list.
+
+Optional AI extraction may use the existing Tag glossary as bounded context. It may match existing Tags or propose new candidates, but every new candidate needs a proposed definition and remains reviewable before it becomes shared workspace data.
+
 ## Notes and lightweight reminders
 
 Small candidature-attached notes or checkable reminders may be useful secondary information.
@@ -165,6 +171,28 @@ The ordinary product concept is:
 not internal profile architecture.
 
 Saved variations may express reusable alternate emphasis. Document-specific differences may intentionally diverge from the reusable information. Neither should create cloned competing identities or force the user to understand patch/rule machinery for normal use.
+
+Every reusable professional-information item has one ordinary AI visibility choice: **AI may use this information**. The same meaning applies to candidature fields. When enabled, an empty candidature field may be requested during Source extraction and a populated value may be disclosed as bounded context; when disabled, it is neither requested nor disclosed. Internal implementation may separate mechanics only where a demonstrated product behavior requires it; ordinary UI and durable product meaning remain one user choice.
+
+## CV templates, working CVs and rendered artifacts
+
+Document concepts are intentionally distinct:
+
+- **My information** is the reusable career record.
+- **Profile variant** is saved alternative wording/emphasis for reusable career information.
+- **CV template** is a reusable ordered composition of sections and selected information.
+- **Working CV** is one editable CV derived from a template, a candidature, My information, or a blank start.
+- **Rendered CV** is a generated PDF plus the content/composition snapshot that produced it.
+- **Cover letter** is normally owned by one candidature.
+- **Application packet** is a generated CV plus cover letter combination.
+
+A CV template is not a rendered CV and a PDF is not a template section. A template owns ordered sections; section names/order; selected/reordered reusable profile items; optional custom content; and, per item, a source mode of current My information, a saved profile variant, or a template-specific override. Common structures such as Profile, Experience, Projects/Selected work, Education, Skills, Languages and Links are useful section defaults, not a closed template ontology.
+
+Excluding an item from a template never removes it from My information. A profile-loaded template item follows the current reusable value. A template-specific override never mutates My information automatically. A working-document override never mutates the template or My information automatically. Where an edited value creates a real ownership decision, explicit contextual actions may save it to the template, save a new template, save a profile variant, or update My information.
+
+Rendering is an action on current working composition. It creates a separate artifact record containing the generated output and enough content/composition snapshot to inspect, duplicate, or reproduce that rendered CV. A rendered artifact may reference the template it came from but does not require a saved template relationship; unsaved document-specific changes can be rendered without silently changing reusable state.
+
+Letters remain discoverable in the document collection, but a letter created from a candidature is candidature-owned and must surface there immediately. The existing combined CV+letter behavior is an Application packet when its semantics match this meaning; AAAAT does not need a second packet engine.
 
 ## VCVGenerator / CVs and letters
 
