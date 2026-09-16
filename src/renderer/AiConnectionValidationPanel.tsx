@@ -13,6 +13,7 @@ import { aiTaskFailure, startAiTask, useAiTask } from "./ai-task-store";
 interface Props {
   readonly connection: NamedAiConnection;
   readonly onConnections: (connections: NamedAiConnection[]) => void;
+  readonly onValidationState?: (connectionName: string, needsAttention: boolean) => void;
   readonly checkRequest?: number | null;
 }
 
@@ -54,9 +55,15 @@ function isProviderLevelFailure(exchange: AiExchangeDiagnostic | undefined): boo
     || exchange?.failureKind === "provider_envelope_invalid";
 }
 
-export function AiConnectionValidationPanel({ connection, onConnections, checkRequest = null }: Props) {
+export function AiConnectionValidationPanel({
+  connection,
+  onConnections,
+  onValidationState,
+  checkRequest = null,
+}: Props) {
   const task = useAiTask<ValidationResult>(taskKey(connection.id));
   const lastCheckRequest = useRef<number | null>(null);
+  const lastValidationReport = useRef<string | null>(null);
   const [routingBusy, setRoutingBusy] = useState<AiOperation | null>(null);
   const active = task?.status === "queued" || task?.status === "working";
   const allValidated = aiOperations.every((operation) =>
@@ -78,6 +85,19 @@ export function AiConnectionValidationPanel({ connection, onConnections, checkRe
       mounted = false;
     };
   }, [onConnections, task?.result, task?.status]);
+
+  useEffect(() => {
+    if (task?.status === "queued" || task?.status === "working") {
+      lastValidationReport.current = null;
+      return;
+    }
+    if (task?.status !== "completed" && task?.status !== "failed") return;
+    const needsAttention = task.status === "failed" || (task.result?.failures.length ?? 0) > 0;
+    const report = `${task.status}:${needsAttention ? "attention" : "ready"}:${task.detail ?? ""}:${task.error ?? ""}`;
+    if (lastValidationReport.current === report) return;
+    lastValidationReport.current = report;
+    onValidationState?.(connection.name, needsAttention);
+  }, [connection.name, onValidationState, task?.detail, task?.error, task?.result, task?.status]);
 
   const validate = useCallback(() => {
     startAiTask<ValidationResult>(
@@ -212,35 +232,35 @@ export function AiConnectionValidationPanel({ connection, onConnections, checkRe
 
       <details className="ai-validation-details">
         <summary>AI feature details · {validatedCount}/{aiOperations.length} ready</summary>
-      <div className="ai-capability-list" aria-label={`Capabilities for ${connection.name}`}>
-        {aiOperations.map((operation) => {
-          const validated = connection.validatedOperations.includes(operation);
-          const operationDefault = connection.defaultForOperations.includes(operation);
-          const failure = failuresByOperation.get(operation);
-          return (
-            <div key={operation} className="ai-capability-entry">
-              <div className="ai-readiness-line">
-                <span>{aiOperationLabels[operation]}</span>
-                <span>
-                  {validated
-                    ? operationDefault
-                      ? "Ready · selected"
-                      : "Ready"
-                    : failure
-                      ? capabilityFailureLabel(failure)
-                      : "Not yet validated"}
-                </span>
-              </div>
-              {failure ? (
-                <div className="ai-task-failure" role="alert">
-                  <p>{failure.message}</p>
-                  {failure.exchange ? <AiExchangeInspector exchange={failure.exchange} /> : null}
+        <div className="ai-capability-list" aria-label={`Capabilities for ${connection.name}`}>
+          {aiOperations.map((operation) => {
+            const validated = connection.validatedOperations.includes(operation);
+            const operationDefault = connection.defaultForOperations.includes(operation);
+            const failure = failuresByOperation.get(operation);
+            return (
+              <div key={operation} className="ai-capability-entry">
+                <div className="ai-readiness-line">
+                  <span>{aiOperationLabels[operation]}</span>
+                  <span>
+                    {validated
+                      ? operationDefault
+                        ? "Ready · selected"
+                        : "Ready"
+                      : failure
+                        ? capabilityFailureLabel(failure)
+                        : "Not yet validated"}
+                  </span>
                 </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
+                {failure ? (
+                  <div className="ai-task-failure" role="alert">
+                    <p>{failure.message}</p>
+                    {failure.exchange ? <AiExchangeInspector exchange={failure.exchange} /> : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       </details>
 
       {connection.validatedOperations.some(

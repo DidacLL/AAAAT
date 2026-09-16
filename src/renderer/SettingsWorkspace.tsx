@@ -1,62 +1,92 @@
 import { useEffect, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
-import type { ExternalAssistantConnection, SetupEnvironmentSnapshot } from "../shared/setup-environment-contracts";
+import type { ExternalAssistantConnection } from "../shared/setup-environment-contracts";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
-export type SettingsView =
-  | "overview"
-  | "workspace"
-  | "recovery"
-  | "rendering"
-  | "ai"
-  | "portability";
+export type SettingsView = "workspace" | "ai" | "documents" | "backup";
 
 interface SettingsWorkspaceProps {
   readonly currentWorkspace: WorkspaceInfo;
+  readonly demoWorkspace: boolean;
   readonly initialView?: SettingsView;
   readonly onChooseWorkspace: (choice: WorkspaceChoice) => void;
   readonly onDirtyChange: (dirty: boolean) => void;
+  readonly onEnvironmentChange: () => void;
+  readonly onAiValidationState: (connectionName: string, needsAttention: boolean) => void;
   readonly onRestored: (workspace: WorkspaceInfo) => void;
+  readonly onWorkspaceReset: (workspace: WorkspaceInfo) => void;
   readonly onWorkspaceDeleted: () => void;
   readonly protectedWorkDirty?: boolean;
 }
 
-const settingsLabels: Record<Exclude<SettingsView, "overview">, string> = {
+const tabs: readonly SettingsView[] = ["workspace", "ai", "documents", "backup"];
+const settingsLabels: Readonly<Record<SettingsView, string>> = {
   workspace: "Workspace",
-  recovery: "Backup & recovery",
-  rendering: "Document rendering",
-  ai: "AI connections",
-  portability: "External assistants & portability",
+  ai: "AI",
+  documents: "Documents",
+  backup: "Backup",
 };
+
+function folderName(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
+}
 
 function ExternalAssistantConnectionPanel() {
   const [connection, setConnection] = useState<ExternalAssistantConnection | null>(null);
   const [failed, setFailed] = useState(false);
+
   useEffect(() => {
     let active = true;
     void window.aaaat.setupEnvironment.externalConnection()
-      .then((next) => { if (active) setConnection(next); })
-      .catch(() => { if (active) setFailed(true); });
-    return () => { active = false; };
+      .then((next) => {
+        if (active) setConnection(next);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
+
   return (
     <section className="settings-portability-intro" aria-label="Connect a local assistant">
-      <h3>Connect a local assistant</h3>
       {failed ? <p className="error-message">AAAAT could not read this workspace's connection details.</p> : null}
       {!connection && !failed ? <p>Reading connection details…</p> : null}
       {connection?.packaged ? (
         <>
-          <p>In a compatible assistant's local tool settings, use this command and these arguments for AAAAT's bounded workspace capabilities.</p>
+          <p>For a compatible assistant that can start a local tool, use:</p>
           <dl className="external-connection-details">
             <dt>Command</dt><dd><code>{connection.executablePath}</code></dd>
             <dt>Arguments</dt><dd><code>--mcp --workspace "{connection.workspacePath}"</code></dd>
           </dl>
-          <p>The assistant host must support starting a local tool. AAAAT shares only the result of the specific capability used.</p>
         </>
       ) : connection ? <p>Connection details are available from the packaged desktop app.</p> : null}
+    </section>
+  );
+}
+
+function ResetWorkspacePanel({ onReset }: { readonly onReset: (workspace: WorkspaceInfo) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <section className="profile-column destructive-settings" aria-label="Reset workspace">
+      <div className="section-heading"><div><p className="eyebrow">Destructive</p><h2>Reset workspace data</h2></div></div>
+      <p>Erase this workspace's saved AAAAT data and keep the workspace folder ready for fresh use.</p>
+      <button type="button" className="compact-secondary" disabled={busy} onClick={() => {
+        if (!window.confirm("Reset this workspace? This permanently removes saved applications, Sources, Tags, professional information, documents, PDFs and AI connections in this folder.")) return;
+        setBusy(true);
+        setError(null);
+        void window.aaaat.workspace.reset().then(onReset).catch((reason: unknown) => {
+          setError(reason instanceof Error ? reason.message : "AAAAT could not reset this workspace.");
+          setBusy(false);
+        });
+      }}>{busy ? "Resetting…" : "Reset workspace data"}</button>
+      {error ? <p className="error-message" role="alert">{error}</p> : null}
     </section>
   );
 }
@@ -64,10 +94,11 @@ function ExternalAssistantConnectionPanel() {
 function DeleteWorkspacePanel({ onDeleted }: { readonly onDeleted: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   return (
     <section className="profile-column destructive-settings" aria-label="Delete workspace">
-      <div className="section-heading"><div><p className="eyebrow">Current workspace only</p><h2>Delete workspace data</h2></div></div>
-      <p>Remove AAAAT's data from this folder and return to Welcome. The empty folder remains on your computer; other workspaces are untouched.</p>
+      <div className="section-heading"><div><p className="eyebrow">Destructive</p><h2>Delete workspace data</h2></div></div>
+      <p>Remove AAAAT's data from this folder and return to Welcome. The empty folder remains on your computer.</p>
       <button type="button" className="compact-secondary" disabled={busy} onClick={() => {
         if (!window.confirm("Delete this workspace's AAAAT data? This permanently removes saved applications, Sources, Tags, professional information, documents, PDFs and AI connections in this folder.")) return;
         setBusy(true);
@@ -84,37 +115,24 @@ function DeleteWorkspacePanel({ onDeleted }: { readonly onDeleted: () => void })
 
 export function SettingsWorkspace({
   currentWorkspace,
-  initialView = "overview",
+  demoWorkspace,
+  initialView = "workspace",
   onChooseWorkspace,
   onDirtyChange,
+  onEnvironmentChange,
+  onAiValidationState,
   onRestored,
+  onWorkspaceReset,
   onWorkspaceDeleted,
   protectedWorkDirty = false,
 }: SettingsWorkspaceProps) {
   const [view, setView] = useState<SettingsView>(initialView);
   const [detailDirty, setDetailDirty] = useState(false);
-  const [environment, setEnvironment] = useState<SetupEnvironmentSnapshot | null>(null);
-  const [environmentFailed, setEnvironmentFailed] = useState(false);
 
   useEffect(() => {
     onDirtyChange(detailDirty);
     return () => onDirtyChange(false);
   }, [detailDirty, onDirtyChange]);
-
-  useEffect(() => {
-    let active = true;
-    void window.aaaat.setupEnvironment
-      .current()
-      .then((snapshot) => {
-        if (active) setEnvironment(snapshot);
-      })
-      .catch(() => {
-        if (active) setEnvironmentFailed(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const selectView = (next: SettingsView) => {
     if (next === view) return;
@@ -123,108 +141,71 @@ export function SettingsWorkspace({
     setView(next);
   };
 
-  const renderingSummary = environmentFailed
-    ? "Status check failed; document editing remains available."
-    : environment
-      ? environment.tex.documentRenderingReady
-        ? "Available on this computer."
-        : "Unavailable; document editing still works."
-      : "Checking local rendering status…";
-
-  const aiSummary = environmentFailed
-    ? "Status check failed; AI remains optional."
-    : environment
-      ? environment.ai.configurationReadable
-        ? environment.ai.connectionCount === 0
-          ? "Optional; no connections configured."
-          : `${String(environment.ai.connectionCount)} connection${environment.ai.connectionCount === 1 ? "" : "s"} configured.`
-        : "Connection status unavailable; AI remains optional."
-      : "Checking optional connection status…";
-
-  if (view === "overview") {
-    return (
-      <section className="settings-workspace" aria-label="Settings overview">
-        <div className="settings-intention-list">
-          <button className="settings-intention" type="button" onClick={() => selectView("workspace")}>
-            <strong>Workspace</strong>
-            <span title={currentWorkspace.rootPath}>{currentWorkspace.rootPath}</span>
-          </button>
-          <button className="settings-intention" type="button" onClick={() => selectView("recovery")}>
-            <strong>Backup &amp; recovery</strong>
-            <span>Create or restore a user-owned workspace backup.</span>
-          </button>
-          <button className="settings-intention" type="button" onClick={() => selectView("rendering")}>
-            <strong>Document rendering</strong>
-            <span>{renderingSummary}</span>
-          </button>
-          <button className="settings-intention" type="button" onClick={() => selectView("ai")}>
-            <strong>AI connections</strong>
-            <span>{aiSummary}</span>
-          </button>
-          <button className="settings-intention" type="button" onClick={() => selectView("portability")}>
-            <strong>External assistants &amp; portability</strong>
-            <span>Use bounded AAAAT capabilities from compatible assistants and move portable AI setup.</span>
-          </button>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className="settings-workspace settings-detail" aria-label={`${settingsLabels[view]} settings`}>
-      <div className="settings-detail-heading">
-        <button className="compact-secondary" type="button" onClick={() => selectView("overview")}>
-          Back to Settings
-        </button>
-        <h2>{settingsLabels[view]}</h2>
-      </div>
+    <section className="settings-workspace" aria-label="Settings">
+      <nav className="settings-tab-strip" aria-label="Settings sections">
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            className={view === tab ? "active-settings-tab" : ""}
+            aria-current={view === tab ? "page" : undefined}
+            onClick={() => selectView(tab)}
+          >
+            {settingsLabels[tab]}
+          </button>
+        ))}
+      </nav>
 
-      {view === "workspace" ? (
-        <div className="profile-workspace">
-          <div className="profile-column">
-            <div className="section-heading">
-              <div><p className="eyebrow">Local ownership</p><h3>Current workspace</h3></div>
+      <section className="settings-active-panel" aria-label={`${settingsLabels[view]} settings`}>
+        {view === "workspace" ? (
+          <div className="profile-workspace">
+            <div className="profile-column">
+              <div className="section-heading"><div><p className="eyebrow">{demoWorkspace ? "Demo data" : "Local data"}</p><h2>Current workspace</h2></div></div>
+              <div className="settings-workspace-identity" title={currentWorkspace.rootPath}>
+                <strong>{folderName(currentWorkspace.rootPath)}</strong>
+                <span>Data: {demoWorkspace ? "Demo" : "Local"}</span>
+                <code>{currentWorkspace.rootPath}</code>
+              </div>
+              <div className="button-row">
+                <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("create")}>Create another workspace</button>
+                <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("open")}>Open another workspace</button>
+              </div>
             </div>
-            <p>AAAAT keeps this workspace on your computer under your control.</p>
-            <code className="settings-path">{currentWorkspace.rootPath}</code>
-            <div className="button-row">
-              <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("create")}>Create another workspace</button>
-              <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("open")}>Open another workspace</button>
+            <div className="settings-destructive-stack">
+              <ResetWorkspacePanel onReset={onWorkspaceReset} />
+              <DeleteWorkspacePanel onDeleted={onWorkspaceDeleted} />
             </div>
           </div>
-          <DeleteWorkspacePanel onDeleted={onWorkspaceDeleted} />
-        </div>
-      ) : null}
+        ) : null}
 
-      {view === "recovery" ? (
-        <WorkspaceRecoveryPanel
-          currentWorkspace={currentWorkspace}
-          editorDirty={detailDirty || protectedWorkDirty}
-          onRestored={onRestored}
-        />
-      ) : null}
+        {view === "ai" ? (
+          <>
+            <AiSettingsWorkspace
+              view="all"
+              onDirtyChange={setDetailDirty}
+              onEnvironmentChange={onEnvironmentChange}
+              onValidationState={onAiValidationState}
+            />
+            <details className="settings-advanced-disclosure">
+              <summary>Advanced: connect an external assistant</summary>
+              <ExternalAssistantConnectionPanel />
+            </details>
+          </>
+        ) : null}
 
-      {view === "rendering" ? <SetupEnvironmentPanel view="rendering" /> : null}
+        {view === "documents" ? (
+          <SetupEnvironmentPanel view="rendering" onEnvironmentChange={onEnvironmentChange} />
+        ) : null}
 
-      {view === "ai" ? <AiSettingsWorkspace view="connections" onDirtyChange={setDetailDirty} /> : null}
-
-      {view === "portability" ? (
-        <div className="settings-portability-stack">
-          <section className="settings-portability-intro" aria-label="Bounded external assistants">
-            <p className="eyebrow">Host agnostic</p>
-            <h3>Use AAAAT from a compatible assistant</h3>
-            <p>
-              AAAAT exposes a small local capability surface for tasks such as retaining an opportunity, reading deliberately shared career/CV context, requesting a CV render, and inspecting setup status. It does not grant generic database, filesystem, shell, process or browsing authority.
-            </p>
-            <p>
-              The host is your choice. Any assistant that can start a local tool may use the same bounded contract.
-            </p>
-          </section>
-          <ExternalAssistantConnectionPanel />
-          <SetupEnvironmentPanel view="guidance" />
-          <AiSettingsWorkspace view="portability" />
-        </div>
-      ) : null}
+        {view === "backup" ? (
+          <WorkspaceRecoveryPanel
+            currentWorkspace={currentWorkspace}
+            editorDirty={detailDirty || protectedWorkDirty}
+            onRestored={onRestored}
+          />
+        ) : null}
+      </section>
     </section>
   );
 }

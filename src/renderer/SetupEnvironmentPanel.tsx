@@ -74,7 +74,13 @@ function SetupActionAuthority({
   );
 }
 
-export function SetupEnvironmentPanel({ view = "all" }: { readonly view?: SetupEnvironmentView }) {
+export function SetupEnvironmentPanel({
+  view = "all",
+  onEnvironmentChange,
+}: {
+  readonly view?: SetupEnvironmentView;
+  readonly onEnvironmentChange?: () => void;
+}) {
   const [snapshot, setSnapshot] = useState<SetupEnvironmentSnapshot | null>(null);
   const [access, setAccess] = useState<SetupAssistantAccess | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,6 +99,7 @@ export function SetupEnvironmentPanel({ view = "all" }: { readonly view?: SetupE
       ]);
       setSnapshot(nextSnapshot);
       setAccess(nextAccess);
+      onEnvironmentChange?.();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not inspect the current setup environment.");
     } finally {
@@ -143,13 +150,14 @@ export function SetupEnvironmentPanel({ view = "all" }: { readonly view?: SetupE
       await window.aaaat.setupAssistant.runRenderingSelfTest();
       setSelfTestResult("Rendering self-test passed. AAAAT created, rendered and removed its temporary test document.");
       setSnapshot(await window.aaaat.setupEnvironment.current());
+      onEnvironmentChange?.();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT's rendering self-test failed.");
+      onEnvironmentChange?.();
     } finally {
       setSelfTesting(false);
     }
   };
-
 
   const harnesses = snapshot ? buildSetupGuidance(snapshot) : null;
   const authority = access ? (
@@ -190,8 +198,9 @@ export function SetupEnvironmentPanel({ view = "all" }: { readonly view?: SetupE
     return (
       <section className="profile-workspace" aria-label="Setup environment">
         <div className="profile-column">
-          <div className="section-heading"><div><p className="eyebrow">Document rendering</p><h2>{snapshot?.tex.documentRenderingReady ? "Rendering available" : "Rendering status"}</h2></div><button type="button" className="compact-secondary" disabled={loading} onClick={() => void load()}>{loading ? "Checking…" : "Refresh status"}</button></div>
-          <p>{snapshot ? snapshot.tex.documentRenderingReady ? "Local TeX rendering is available on this computer." : "Document editing remains available, but local rendering needs compatible latexmk and pdflatex tools." : loading ? "Checking local rendering capability…" : "Rendering status is unavailable."}</p>
+          <div className="section-heading"><div><p className="eyebrow">PDF rendering</p><h2>{snapshot?.tex.documentRenderingReady ? "PDF Ready" : "PDF status"}</h2></div><button type="button" className="compact-secondary" disabled={loading} onClick={() => void load()}>{loading ? "Checking…" : "Refresh status"}</button></div>
+          <p>{snapshot ? snapshot.tex.documentRenderingReady ? "Local PDF rendering is ready on this computer." : "Document editing remains available, but PDF rendering needs both latexmk and pdflatex." : loading ? "Checking local rendering capability…" : "Rendering status is unavailable."}</p>
+          {snapshot && !snapshot.tex.documentRenderingReady ? <p className="compact-help">Install a TeX distribution that makes <code>latexmk</code> and <code>pdflatex</code> available on your system PATH, then refresh this status.</p> : null}
           <div className="button-row"><button type="button" disabled={selfTesting} onClick={() => void runSelfTest()}>{selfTesting ? "Running self-test…" : "Run rendering self-test"}</button></div>
           {selfTestResult ? <p className="document-notice" role="status">{selfTestResult}</p> : null}
           {error ? <p className="error-message" role="alert">{error}</p> : null}

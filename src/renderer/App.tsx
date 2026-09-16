@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
-import type { SetupEnvironmentSnapshot } from "../shared/setup-environment-contracts";
 import { AiTaskStatus } from "./AiTaskStatus";
 import logo from "./assets/aaaat-logo-light.png";
 import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
@@ -18,7 +17,9 @@ import "./intent-recovery.css";
 import "./owner-feedback-recovery.css";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 import { SettingsWorkspace } from "./SettingsWorkspace";
+import "./settings-rail-recovery.css";
 import "./shell.css";
+import { WorkspaceRailStatus } from "./WorkspaceRailStatus";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
@@ -72,7 +73,6 @@ export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [recentWorkspacePath, setRecentWorkspacePath] = useState<string | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
-  const [welcomeStatus, setWelcomeStatus] = useState<SetupEnvironmentSnapshot | null>(null);
   const [demoWorkspace, setDemoWorkspace] = useState(false);
   const [productView, setProductView] = useState<ProductView>("candidatures");
   const [welcomeOpen, setWelcomeOpen] = useState(true);
@@ -83,10 +83,30 @@ export function App() {
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [candidatureWorkspaceRevision, setCandidatureWorkspaceRevision] = useState(0);
   const [documentWorkspaceRevision, setDocumentWorkspaceRevision] = useState(0);
+  const [workspaceContentRevision, setWorkspaceContentRevision] = useState(0);
+  const [railStatusRevision, setRailStatusRevision] = useState(0);
+  const [aiAttentionConnectionName, setAiAttentionConnectionName] = useState<string | null>(null);
   const [documentHandoff, setDocumentHandoff] = useState<DocumentHandoff | null>(null);
   const [professionalInformationHandoff, setProfessionalInformationHandoff] =
     useState<ProfessionalInformationHandoff | null>(null);
   const [settingsHandoff, setSettingsHandoff] = useState<SettingsHandoff | null>(null);
+
+  const refreshRailStatus = useCallback(() => {
+    setRailStatusRevision((current) => current + 1);
+  }, []);
+
+  const reportAiValidationState = useCallback((connectionName: string, needsAttention: boolean) => {
+    setAiAttentionConnectionName((current) => {
+      if (needsAttention) return connectionName;
+      return current === connectionName ? null : current;
+    });
+    refreshRailStatus();
+  }, [refreshRailStatus]);
+
+  const resetEnvironmentProjection = useCallback(() => {
+    setAiAttentionConnectionName(null);
+    refreshRailStatus();
+  }, [refreshRailStatus]);
 
   useEffect(() => {
     let active = true;
@@ -97,8 +117,13 @@ export function App() {
         setRecentWorkspacePath(recentPath);
         setWorkspacePhase(currentWorkspace ? "ready" : "idle");
         if (currentWorkspace) {
-          const status = (window.aaaat.workspace as typeof window.aaaat.workspace & { status?: () => Promise<{ demo: boolean }> }).status;
-          if (status) void status().then((next) => { if (active) setDemoWorkspace(next.demo); }).catch(() => { if (active) setDemoWorkspace(false); });
+          void window.aaaat.workspace.status()
+            .then((next) => {
+              if (active) setDemoWorkspace(next.demo);
+            })
+            .catch(() => {
+              if (active) setDemoWorkspace(false);
+            });
         }
       })
       .catch(() => {
@@ -109,15 +134,6 @@ export function App() {
       });
     return () => { active = false; };
   }, []);
-
-  useEffect(() => {
-    if (!welcomeOpen || !workspace) return;
-    let active = true;
-    void window.aaaat.setupEnvironment.current()
-      .then((snapshot) => { if (active) setWelcomeStatus(snapshot); })
-      .catch(() => { if (active) setWelcomeStatus(null); });
-    return () => { active = false; };
-  }, [welcomeOpen, workspace]);
 
   const protectedWorkDirty = candidatureDirty || documentDirty || professionalInformationDirty;
   const anyDirty = protectedWorkDirty || settingsDirty;
@@ -147,10 +163,10 @@ export function App() {
       }
       resetDirty();
       resetHandoffs();
+      resetEnvironmentProjection();
       setWorkspace(selectedWorkspace);
       setRecentWorkspacePath(selectedWorkspace.rootPath);
-      const status = (window.aaaat.workspace as typeof window.aaaat.workspace & { status?: () => Promise<{ demo: boolean }> }).status;
-      setDemoWorkspace(status ? await status().then((next) => next.demo).catch(() => false) : false);
+      setDemoWorkspace(await window.aaaat.workspace.status().then((next) => next.demo).catch(() => false));
       setWorkspacePhase("ready");
       setSettingsOpen(false);
       setProductView("candidatures");
@@ -171,6 +187,7 @@ export function App() {
     try {
       const selected = await window.aaaat.workspace.continueRecent();
       if (!selected) throw new Error("No previous workspace is available.");
+      resetEnvironmentProjection();
       setWorkspace(selected);
       setDemoWorkspace((await window.aaaat.workspace.status()).demo);
       setWorkspacePhase("ready");
@@ -192,11 +209,27 @@ export function App() {
   const afterWorkspaceDeleted = () => {
     resetDirty();
     resetHandoffs();
+    setAiAttentionConnectionName(null);
     setWorkspace(null);
     setRecentWorkspacePath(null);
     setSettingsOpen(false);
     setWorkspacePhase("idle");
     setWelcomeOpen(true);
+  };
+
+  const afterWorkspaceReset = (resetWorkspace: WorkspaceInfo) => {
+    resetDirty();
+    resetHandoffs();
+    setWorkspaceError(null);
+    setWorkspace(resetWorkspace);
+    setRecentWorkspacePath(resetWorkspace.rootPath);
+    setDemoWorkspace(false);
+    setWorkspaceContentRevision((current) => current + 1);
+    setAiAttentionConnectionName(null);
+    refreshRailStatus();
+    setWorkspacePhase("ready");
+    setSettingsOpen(true);
+    setWelcomeOpen(false);
   };
 
   const createDemoWorkspace = async () => {
@@ -211,6 +244,7 @@ export function App() {
       }
       resetDirty();
       resetHandoffs();
+      resetEnvironmentProjection();
       setWorkspace(selected);
       setRecentWorkspacePath(selected.rootPath);
       setDemoWorkspace(true);
@@ -235,6 +269,8 @@ export function App() {
     setWorkspace(restoredWorkspace);
     setRecentWorkspacePath(restoredWorkspace.rootPath);
     setDemoWorkspace(false);
+    setWorkspaceContentRevision((current) => current + 1);
+    resetEnvironmentProjection();
     setWorkspacePhase("ready");
     setSettingsOpen(false);
     setProductView("candidatures");
@@ -382,28 +418,19 @@ export function App() {
       <img className="hero-logo" src={logo} alt="AAAAT explorer robot holding a magnifying glass" />
       <p className="tagline">Your application work, on your computer.</p>
       <h1>{loading ? "Checking your workspace…" : "Welcome to AAAAT"}</h1>
-      {!workspace ? <p>Open your saved work or start a local workspace.</p> : null}
-      {workspace ? (
-        <div className="welcome-status" aria-label="Workspace status">
-          <span><strong>Data</strong> {demoWorkspace ? "Demo" : "Local"}</span>
-          <span><strong>AI</strong> {welcomeStatus?.ai.configurationReadable
-            ? welcomeStatus.ai.connectionCount === 0 ? "Off" : welcomeStatus.ai.operations.some((operation) => operation.available) ? "Configured" : "Needs attention"
-            : "Status unavailable"}</span>
-          <span><strong>PDF</strong> {welcomeStatus ? welcomeStatus.tex.documentRenderingReady ? "Ready" : "Unavailable" : "Checking"}</span>
-        </div>
-      ) : null}
+      <p>Open your saved work or start a local workspace.</p>
       {loading ? null : (
         <>
-          <div className={workspace ? "workspace-actions with-loaded-workspace" : "workspace-actions"}>
+          <div className="workspace-actions">
             {recentWorkspacePath ? (
-              <button className="primary-action" type="button" disabled={choosing} onClick={() => workspace ? setWelcomeOpen(false) : void continueRecentWorkspace()}>
-                {workspace ? `Open ${demoWorkspace ? "demo" : folderName(workspace.rootPath)}` : choosing ? "Opening…" : "Continue previous workspace"}
-                <small title={workspace?.rootPath ?? recentWorkspacePath}>{workspace ? "Applications" : folderName(recentWorkspacePath)}</small>
+              <button className="primary-action" type="button" disabled={choosing} onClick={() => void continueRecentWorkspace()}>
+                {choosing ? "Opening…" : "Continue previous workspace"}
+                <small title={recentWorkspacePath}>{folderName(recentWorkspacePath)}</small>
               </button>
             ) : null}
-            <button className={workspace ? "welcome-option" : "primary-action"} type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing folder..." : "New workspace"}</button>
-            <button className={workspace ? "welcome-option" : "secondary-action"} type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open folder</button>
-            <button className={workspace ? "welcome-option" : "secondary-action"} type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Open demo</button>
+            <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing folder..." : "New workspace"}</button>
+            <button className="secondary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open folder</button>
+            <button className="secondary-action" type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Open demo</button>
           </div>
           <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />
         </>
@@ -411,6 +438,14 @@ export function App() {
       {workspaceError ? <p className="error-message" role="alert">{workspaceError}</p> : null}
     </>
   );
+
+  const loadedHomeContent = workspace ? (
+    <section className="loaded-workspace-home" aria-label="Home">
+      <p className="eyebrow">{demoWorkspace ? "Demo workspace" : "Local workspace"}</p>
+      <h1>Home</h1>
+      <p title={workspace.rootPath}>{folderName(workspace.rootPath)}</p>
+    </section>
+  ) : null;
 
   return (
     <ContextualHandoffContext.Provider value={handoffApi}>
@@ -428,7 +463,7 @@ export function App() {
             <div className="work-shell">
               <aside className="work-rail" aria-label="Workspace controls">
                 <div className="rail-workspace" title={workspace.rootPath}>
-                  <span>{demoWorkspace ? "DEMO" : "LOCAL"}</span>
+                  <span>WORKSPACE</span>
                   <strong>{folderName(workspace.rootPath)}</strong>
                 </div>
                 <nav className="primary-work-nav" aria-label="Primary work areas">
@@ -438,14 +473,20 @@ export function App() {
                   <button type="button" className={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>My information</button>
                   <button type="button" className={settingsOpen ? "active-work-destination" : ""} aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings</button>
                 </nav>
+                <WorkspaceRailStatus
+                  key={workspace.rootPath}
+                  demo={demoWorkspace}
+                  refreshRevision={railStatusRevision}
+                  attentionConnectionName={aiAttentionConnectionName}
+                />
                 <AiTaskStatus />
               </aside>
 
               <section className="work-surface">
-                {welcomeOpen ? <section className="empty-state workspace-home-view">{welcomeContent}</section> : null}
+                {welcomeOpen ? loadedHomeContent : null}
 
                 {!welcomeOpen && settingsOpen ? (
-                  <div className="settings-area" key={`settings-${workspace.rootPath}-${settingsHandoff?.view ?? "overview"}`}>
+                  <div className="settings-area" key={`settings-${workspace.rootPath}-${String(workspaceContentRevision)}-${settingsHandoff?.view ?? "workspace"}`}>
                     {settingsHandoff ? <div className="shell-section-heading">
                       <h1 className="visually-hidden">Settings</h1>
                       <button className="compact-secondary" type="button" onClick={handoffApi.returnFromSettings}>
@@ -454,10 +495,14 @@ export function App() {
                     </div> : null}
                     <SettingsWorkspace
                       currentWorkspace={workspace}
-                      initialView={settingsHandoff?.view ?? "overview"}
+                      demoWorkspace={demoWorkspace}
+                      initialView={settingsHandoff?.view ?? "workspace"}
                       onChooseWorkspace={(choice) => void chooseWorkspace(choice)}
                       onDirtyChange={setSettingsDirty}
+                      onEnvironmentChange={refreshRailStatus}
+                      onAiValidationState={reportAiValidationState}
                       onRestored={openRestoredWorkspace}
+                      onWorkspaceReset={afterWorkspaceReset}
                       onWorkspaceDeleted={afterWorkspaceDeleted}
                       protectedWorkDirty={protectedWorkDirty}
                     />
@@ -467,7 +512,7 @@ export function App() {
                 {keepCandidaturesMounted ? (
                   <div hidden={welcomeOpen || settingsOpen || productView !== "candidatures"}>
                     <CandidaturesArea
-                      key={`candidatures-${workspace.rootPath}-${String(candidatureWorkspaceRevision)}`}
+                      key={`candidatures-${workspace.rootPath}-${String(workspaceContentRevision)}-${String(candidatureWorkspaceRevision)}`}
                       onDirtyChange={setCandidatureDirty}
                     />
                   </div>
@@ -477,11 +522,11 @@ export function App() {
                   <div hidden={welcomeOpen || settingsOpen || productView !== "documents"}>
                     {documentDetailActive ? (
                       <DocumentsArea
-                        key={`documents-${workspace.rootPath}-${String(documentWorkspaceRevision)}`}
+                        key={`documents-${workspace.rootPath}-${String(workspaceContentRevision)}-${String(documentWorkspaceRevision)}`}
                         onDirtyChange={setDocumentDirty}
                       />
                     ) : (
-                      <DocumentsStartWorkspace onOpenDocument={openStandaloneDocument} />
+                      <DocumentsStartWorkspace key={`document-start-${workspace.rootPath}-${String(workspaceContentRevision)}`} onOpenDocument={openStandaloneDocument} />
                     )}
                   </div>
                 ) : null}
@@ -497,7 +542,7 @@ export function App() {
                       </div>
                     ) : null}
                     <ProfileArea
-                      key={`professional-information-${workspace.rootPath}`}
+                      key={`professional-information-${workspace.rootPath}-${String(workspaceContentRevision)}`}
                       initialItemId={professionalInformationHandoff?.itemId}
                       onDirtyChange={setProfessionalInformationDirty}
                     />

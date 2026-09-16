@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { NamedAiConnection } from "../shared/ai-connection-contracts";
 import { AiConnectionValidationPanel } from "./AiConnectionValidationPanel";
@@ -43,15 +43,21 @@ function editable(connection: NamedAiConnection): Draft {
 
 export function AiSettingsWorkspace({
   onDirtyChange,
+  onEnvironmentChange,
+  onValidationState,
   view = "all",
+  initialFormOpen,
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
+  readonly onEnvironmentChange?: () => void;
+  readonly onValidationState?: (connectionName: string, needsAttention: boolean) => void;
   readonly view?: AiSettingsView;
+  readonly initialFormOpen?: boolean;
 }) {
   const [connections, setConnections] = useState<NamedAiConnection[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [formOpen, setFormOpen] = useState(view === "all");
+  const [formOpen, setFormOpen] = useState(initialFormOpen ?? view === "all");
   const [error, setError] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
@@ -69,6 +75,11 @@ export function AiSettingsWorkspace({
   const defaultConnection = connections.find((connection) => connection.isDefault) ?? null;
   const showConnections = view !== "portability";
   const showPortability = view !== "connections";
+
+  const acceptConnections = useCallback((next: NamedAiConnection[]) => {
+    setConnections(next);
+    onEnvironmentChange?.();
+  }, [onEnvironmentChange]);
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -131,7 +142,7 @@ export function AiSettingsWorkspace({
         ...(editingId ? { id: editingId } : {}),
         ...draft,
       });
-      setConnections(saved);
+      acceptConnections(saved);
       const savedConnection = editingId
         ? saved.find((connection) => connection.id === editingId)
         : saved.find(
@@ -161,7 +172,7 @@ export function AiSettingsWorkspace({
     setError(null);
     setPortabilityStatus(null);
     try {
-      setConnections(await window.aaaat.aiConnections.setDefault(connection.id));
+      acceptConnections(await window.aaaat.aiConnections.setDefault(connection.id));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not change the default AI connection.");
     }
@@ -174,7 +185,7 @@ export function AiSettingsWorkspace({
     try {
       const next = await window.aaaat.aiConnections.remove(connection.id);
       clearAiTask(`ai-validation:${connection.id}`);
-      setConnections(next);
+      acceptConnections(next);
       if (connection.id === editingId) {
         setEditingId(null);
         setDraft(emptyDraft);
@@ -217,10 +228,10 @@ export function AiSettingsWorkspace({
       const result = await window.aaaat.aiConnections.importPortable();
       if (result.status === "imported") {
         for (const connection of connections) clearAiTask(`ai-validation:${connection.id}`);
-        setConnections(result.connections);
+        acceptConnections(result.connections);
         setEditingId(null);
         setDraft(emptyDraft);
-        setFormOpen(view === "all");
+        setFormOpen(initialFormOpen ?? view === "all");
         setPortabilityStatus(
           "Portable AI setup imported. Validate AI capabilities on this computer before using AI assistance.",
         );
@@ -251,7 +262,7 @@ export function AiSettingsWorkspace({
             >
               <div className="section-heading wide-field">
                 <div><h3>{editing ? "Edit connection" : "Add connection"}</h3></div>
-                {view === "connections" ? (
+                {(view === "connections" || initialFormOpen === false) ? (
                   <button type="button" className="compact-secondary" onClick={closeForm}>Cancel</button>
                 ) : null}
               </div>
@@ -309,7 +320,12 @@ export function AiSettingsWorkspace({
                     <button type="button" className="compact-secondary" onClick={() => beginEdit(connection)} aria-label={`Edit ${connection.name}`}>Edit</button>
                     <button type="button" className="compact-secondary" onClick={() => void remove(connection)} aria-label={`Remove ${connection.name}`}>Remove</button>
                   </div>
-                  <AiConnectionValidationPanel connection={connection} onConnections={setConnections} checkRequest={autoCheck?.id === connection.id ? autoCheck.request : null} />
+                  <AiConnectionValidationPanel
+                    connection={connection}
+                    onConnections={acceptConnections}
+                    onValidationState={onValidationState}
+                    checkRequest={autoCheck?.id === connection.id ? autoCheck.request : null}
+                  />
                 </article>
               ))}
             </div>

@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useContextualHandoffs } from "../src/renderer/contextual-handoffs";
 import type { WorkspaceInfo } from "../src/shared/contracts";
 
+vi.mock("../src/renderer/WorkspaceRailStatus", () => ({
+  WorkspaceRailStatus: () => <section aria-label="Mock rail status">Rail status</section>,
+}));
+
 vi.mock("../src/renderer/CandidaturesAiWorkspace", () => ({
   CandidaturesAiWorkspace: ({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) => {
     const handoffs = useContextualHandoffs();
@@ -34,8 +38,8 @@ vi.mock("../src/renderer/DocumentsStartWorkspace", () => ({
         <button type="button" onClick={() => handoffs.openProfessionalInformationItem("doc-1", "item-1")}>
           Open reusable source
         </button>
-        <button type="button" onClick={() => handoffs.openSettingsFor("rendering", "documents")}>
-          Open render settings
+        <button type="button" onClick={() => handoffs.openSettingsFor("documents", "documents")}>
+          Open document settings
         </button>
         <button type="button" onClick={() => handoffs.openSettingsFor("ai", "documents")}>
           Open AI settings
@@ -59,8 +63,8 @@ vi.mock("../src/renderer/DocumentsWorkspace", () => ({
         <button type="button" onClick={() => handoffs.openProfessionalInformationItem("doc-1", "item-1")}>
           Open reusable source
         </button>
-        <button type="button" onClick={() => handoffs.openSettingsFor("rendering", "documents")}>
-          Open render settings
+        <button type="button" onClick={() => handoffs.openSettingsFor("documents", "documents")}>
+          Open document settings
         </button>
         <button type="button" onClick={() => handoffs.openSettingsFor("ai", "documents")}>
           Open AI settings
@@ -88,7 +92,7 @@ vi.mock("../src/renderer/ProfileWorkspace", () => ({
 
 vi.mock("../src/renderer/SettingsWorkspace", () => ({
   SettingsWorkspace: ({ initialView }: { initialView?: string }) => (
-    <section aria-label="Mock settings">Settings detail {initialView ?? "overview"}</section>
+    <section aria-label="Mock settings">Settings detail {initialView ?? "workspace"}</section>
   ),
 }));
 
@@ -109,8 +113,12 @@ function installApi() {
   Object.defineProperty(window, "aaaat", {
     configurable: true,
     value: {
-      workspace: { current: async () => workspace, recent: async () => workspace.rootPath, choose: async () => workspace, status: async () => ({ demo: false }) },
-      setupEnvironment: { current: async () => ({ ai: { configurationReadable: true, connectionCount: 0, operations: [] }, tex: { documentRenderingReady: false } }) },
+      workspace: {
+        current: async () => workspace,
+        recent: async () => workspace.rootPath,
+        choose: async () => workspace,
+        status: async () => ({ demo: false }),
+      },
       profile: { current: async () => ({ items: [] }) },
       profileVariants: { list: async () => [] },
       documentDomain: { collections: async () => ({ templates: [], workingCvs: [], renderedCvs: [], letters: [], applicationPackets: [] }) },
@@ -119,13 +127,11 @@ function installApi() {
 }
 
 async function openSavedApplications(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: /Open contextual-handoffs/ }));
   await user.click(await screen.findByRole("button", { name: "Applications" }));
   return screen.findByRole("region", { name: "Mock candidatures" });
 }
 
 async function openDocuments(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: /Open contextual-handoffs/ }));
   await user.click(await screen.findByRole("button", { name: "CVs" }));
   return screen.findByRole("region", { name: "Mock documents" });
 }
@@ -173,15 +179,15 @@ describe("contextual handoff coordination", () => {
     expect(screen.getByRole("region", { name: "Mock documents" })).toHaveTextContent("document doc-1");
   });
 
-  it("enters the requested Settings detail and returns to the mounted document work", async () => {
+  it("enters the requested Settings tab and returns to the mounted document work", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await openSavedApplications(user);
     await user.click(screen.getByRole("button", { name: "Open linked document" }));
     const documentRegion = screen.getByRole("region", { name: "Mock documents" });
-    await user.click(screen.getByRole("button", { name: "Open render settings" }));
-    expect(screen.getByRole("region", { name: "Mock settings" })).toHaveTextContent("Settings detail rendering");
+    await user.click(screen.getByRole("button", { name: "Open document settings" }));
+    expect(screen.getByRole("region", { name: "Mock settings" })).toHaveTextContent("Settings detail documents");
     await user.click(screen.getByRole("button", { name: "Return to document" }));
     expect(screen.getByRole("region", { name: "Mock documents" })).toBe(documentRegion);
 
