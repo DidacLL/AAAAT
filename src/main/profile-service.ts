@@ -11,6 +11,7 @@ import {
   type ProfileItemUpdate,
   type ProfileSnapshot,
 } from "../shared/contracts";
+import { cvTemplateReferencesProfileItem } from "./cv-template-references";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface ProfileItemRow {
@@ -172,6 +173,11 @@ export function removeProfileItem(rootPath: string, itemId: string): ProfileSnap
     const now = new Date().toISOString();
     transact(database, () => {
       requireItem(database, id);
+      if (cvTemplateReferencesProfileItem(database, id)) {
+        throw new ProfileServiceError(
+          "This My information item is used by a reusable CV template. Change the template before removing it.",
+        );
+      }
       database.prepare("DELETE FROM profile_items WHERE id = ?").run(id);
       recordActivity(database, "item.removed", id, now);
     });
