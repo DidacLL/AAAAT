@@ -29,7 +29,14 @@ function extractionResult(task: AiTaskSnapshot): PartialJobExtractionResult | nu
   if (!task.result || typeof task.result !== "object" || !("proposals" in task.result)) return null;
   const result = task.result as PartialJobExtractionResult;
   return Array.isArray(result.proposals)
-    ? { proposals: result.proposals, newFields: result.newFields ?? [], issues: result.issues ?? [], ...(result.exchange ? { exchange: result.exchange } : {}) }
+    ? {
+        proposals: result.proposals,
+        newFields: result.newFields ?? [],
+        existingTags: result.existingTags ?? [],
+        newTags: result.newTags ?? [],
+        issues: result.issues ?? [],
+        ...(result.exchange ? { exchange: result.exchange } : {}),
+      }
     : null;
 }
 
