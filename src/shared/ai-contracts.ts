@@ -203,7 +203,7 @@ export type DocumentAiContext = z.infer<typeof documentAiContextSchema>;
 
 export const cvTailoringResultSchema = z
   .object({
-    recommendations: z.array(z.object({ itemId: z.string().uuid(), rationale: z.string().trim().min(1).max(1000) }).strict()).min(1).max(12),
+    recommendations: z.array(z.object({ itemId: z.string().uuid(), rationale: z.string().trim().min(1).max(1000) }).strict()).max(12),
   })
   .strict()
   .refine((value) => new Set(value.recommendations.map((item) => item.itemId)).size === value.recommendations.length, { message: "Each CV recommendation must reference an item once." });
@@ -293,7 +293,7 @@ export const providerDocumentAiContextSchema = z
 export type ProviderDocumentAiContext = z.infer<typeof providerDocumentAiContextSchema>;
 export const providerCvTailoringResultSchema = z
   .object({
-    recommendations: z.array(z.object({ itemRef: operationReferenceSchema, rationale: z.string().trim().min(1).max(1000) }).strict()).min(1).max(12),
+    recommendations: z.array(z.object({ itemRef: operationReferenceSchema, rationale: z.string().trim().min(1).max(1000) }).strict()).max(12),
   })
   .strict()
   .refine((value) => new Set(value.recommendations.map((item) => item.itemRef)).size === value.recommendations.length, { message: "Each CV recommendation must reference an item once." });
