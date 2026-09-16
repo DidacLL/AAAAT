@@ -51,6 +51,7 @@ function extractionRequest(): ProviderJobExtractionRequest {
         choices: [],
       },
     ],
+    tags: [],
   };
 }
 
@@ -170,6 +171,8 @@ describe("OpenAI-compatible provider", () => {
     await expect(pending).resolves.toEqual({
       proposals: [{ fieldRef, value: 1500 }],
       newFields: [],
+      existingTags: [],
+      newTags: [],
     });
   });
 
@@ -225,6 +228,8 @@ describe("OpenAI-compatible provider", () => {
           value: "Madrid",
         },
       ],
+      existingTags: [],
+      newTags: [],
     });
     const [, init] = fetchImpl.mock.calls[0] ?? [];
     const body = JSON.parse(String(init?.body)) as {
