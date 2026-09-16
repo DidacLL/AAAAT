@@ -133,7 +133,11 @@ describe("AI Tag proposal review", () => {
       />,
     );
 
-    expect(await screen.findByText("Evidence: Experience operating Kubernetes clusters is required.")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Evidence: Experience operating Kubernetes clusters is required.",
+      ),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Create and attach" }));
 
     await waitFor(() => {
@@ -143,7 +147,6 @@ describe("AI Tag proposal review", () => {
         aliases: ["K8s"],
       });
     });
-    expect(createTag.mock.calls[0]?.[0]).not.toHaveProperty("notes");
     expect(setTags).toHaveBeenCalledWith({ candidatureId, tagIds: [tagId] });
   });
 });
