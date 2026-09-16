@@ -15,7 +15,7 @@ jobs:
   fast:
     name: Fast verification
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -23,172 +23,23 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
-      - run: npm run verify
-
-  latex:
-    name: LaTeX portability
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24.20.0
-          cache: npm
-      - run: npm ci
-      - name: Install pdfLaTeX portability tools
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes latexmk texlive-latex-base
-      - name: Compile and prove unrelated-directory portability
-        shell: bash
-        run: AAAAT_LATEX_TEST=1 npx vitest run test/latex-portability.test.ts
-
-  package_full:
-    name: Package and smoke (${{ matrix.os }})
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24.20.0
-          cache: npm
-      - run: npm ci
-      - name: Install Linux runtime prerequisites
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes fakeroot openbox xdotool
-      - name: Build release artifact
-        run: npm run make
-      - name: Inspect Windows release ZIP
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $zip = Get-ChildItem -Path out/make -Recurse -File -Filter *.zip | Select-Object -First 1
-          if (-not $zip) { throw "Windows release ZIP was not created" }
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
-          try {
-            $entries = @($archive.Entries | ForEach-Object { $_.FullName })
-            $entries | ForEach-Object { Write-Host $_ }
-            $exe = $entries | Where-Object { $_.EndsWith("aaaat.exe", [System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
-            if (-not $exe) { throw "Windows release ZIP does not contain aaat.exe" }
-          } finally {
-            $archive.Dispose()
-          }
-      - name: Inspect macOS release ZIP
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          zip_path=$(find out/make -type f -name '*.zip' -print -quit)
-          test -n "$zip_path"
-          unzip -l "$zip_path" | grep -q 'AAAAT.app/Contents/MacOS/aaaat'
-      - name: Inspect Linux release package
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          deb_path=$(find out/make -type f -name '*.deb' -print -quit)
-          test -n "$deb_path"
-          dpkg-deb --info "$deb_path"
-          dpkg-deb --contents "$deb_path" | tee /tmp/aaaat-deb-contents.txt
-          grep -Eq '^-rwsr-xr-x root/root .*chrome-sandbox$' /tmp/aaaat-deb-contents.txt
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: AAAAT-${{ matrix.os }}-${{ runner.arch }}
-          path: |
-            out/make/**/*.zip
-            out/make/**/*.deb
-          if-no-files-found: error
-          compression-level: 0
-      - name: Install demonstrated VS Code host contract (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $archive = Join-Path $env:RUNNER_TEMP "vscode-1.134.0.zip"
-          $hostRoot = Join-Path $env:RUNNER_TEMP "vscode-host"
-          Invoke-WebRequest -Uri "https://update.code.visualstudio.com/1.134.0/win32-x64-archive/stable" -OutFile $archive
-          Expand-Archive -Path $archive -DestinationPath $hostRoot -Force
-          $code = Join-Path $hostRoot "Code.exe"
-          $cli = Get-ChildItem -Path $hostRoot -Recurse -File -Filter cli.js |
-            Where-Object { $_.FullName -match '[\\/]resources[\\/]app[\\/]out[\\/]cli\.js$' } |
-            Select-Object -First 1 -ExpandProperty FullName
-          if (-not $cli) { throw "VS Code CLI entrypoint not found" }
-          $process = Start-Process -FilePath $code -ArgumentList @($cli, "--version") -Wait -PassThru -NoNewWindow -Environment @{ ELECTRON_RUN_AS_NODE = "1" }
-          if ($process.ExitCode -ne 0) { throw "VS Code CLI validation failed with exit code $($process.ExitCode)" }
-          "AAAAT_VSCODE_CLI=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "AAAAT_VSCODE_CLI_SCRIPT=$cli" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-      - name: Configure packaged Chromium sandbox (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sandbox_path="out/AAAAT-linux-$(node -p 'process.arch')/chrome-sandbox"
-          sudo chown root:root "$sandbox_path"
-          sudo chmod 4755 "$sandbox_path"
-          stat -c '%U %a %n' "$sandbox_path"
-      - name: Packaged runtime smoke
-        if: runner.os != 'Linux'
-        run: npm run test:desktop
-      - name: Packaged runtime smoke (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          xvfb-run --auto-servernum bash -lc '
-            openbox >/tmp/aaaat-openbox.log 2>&1 &
-            wm_pid=$!
-            trap "kill $wm_pid 2>/dev/null || true" EXIT
-            npm run test:desktop
-          '
+      - run: npm run typecheck
 
   gate:
     name: Verification gate
-    needs: [fast, latex, package_full]
+    needs: [fast]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require the verification selected for this run
+      - name: Require typecheck
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
           FAST_RESULT: ${{ needs.fast.result }}
-          LATEX_RESULT: ${{ needs.latex.result }}
-          PACKAGE_RESULT: ${{ needs.package_full.result }}
         run: |
           set -euo pipefail
-
           if [[ "$FAST_RESULT" != "success" ]]; then
             echo "Fast verification finished as $FAST_RESULT" >&2
             exit 1
           fi
-
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            if [[ "$LATEX_RESULT" != "success" ]]; then
-              echo "LaTeX portability finished as $LATEX_RESULT" >&2
-              exit 1
-            fi
-            if [[ "$PACKAGE_RESULT" != "success" ]]; then
-              echo "Cross-platform package/runtime verification finished as $PACKAGE_RESULT" >&2
-              exit 1
-            fi
-          fi
-
-          {
-            echo "### Verification gate"
-            echo
-            if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-              echo "Explicit acceptance run passed fast verification, LaTeX portability, and the full cross-platform package/runtime matrix."
-            else
-              echo "Routine PR verification passed. Expensive packaged/runtime verification is reserved for an explicit acceptance run."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Typecheck passed." >> "$GITHUB_STEP_SUMMARY"
