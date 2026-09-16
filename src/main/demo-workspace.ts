@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readdirSync } from "node:fs";
 
-import { createDocument } from "./document-service";
+import { createCoverLetter, createWorkingCv } from "./document-domain-service";
 import { createOrOpenWorkspace, withWorkspaceDatabase } from "./workspace";
 
 const orgField = "00000000-0000-4000-8000-000000000101";
@@ -11,9 +11,7 @@ const compensationField = "00000000-0000-4000-8000-000000000104";
 const notesField = "00000000-0000-4000-8000-000000000106";
 
 export function createDemoWorkspace(rootPath: string) {
-  if (readdirSync(rootPath).length > 0) {
-    throw new Error("Demo data can only be created in an empty folder.");
-  }
+  if (readdirSync(rootPath).length > 0) throw new Error("Demo data can only be created in an empty folder.");
   const workspace = createOrOpenWorkspace(rootPath);
   const now = new Date().toISOString();
   const first = randomUUID();
@@ -28,15 +26,14 @@ export function createDemoWorkspace(rootPath: string) {
   withWorkspaceDatabase(workspace.rootPath, (database) => {
     database.exec("BEGIN IMMEDIATE");
     try {
-      database.prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
-        .run("workspace.demo", "1");
+      database.prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)").run("workspace.demo", "1");
       database.prepare(`INSERT INTO candidature_fields(
         id, system_key, label, description, value_type, cardinality, options_json, enabled, created_at, updated_at
       ) VALUES (?, NULL, ?, ?, 'text', 'many', '[]', 1, ?, ?)`)
         .run(languageField, "Languages", "Languages required or useful for the opportunity.", now, now);
       database.prepare(`INSERT INTO candidature_field_preferences(
-        field_id, focus_visible, focus_order, focus_prominence, identity_order, ai_discovery, ai_context_mode
-      ) VALUES (?, 1, 4, 'compact', NULL, 1, 'expose')`).run(languageField);
+        field_id, focus_visible, focus_order, focus_prominence, identity_order, ai_use_allowed
+      ) VALUES (?, 1, 4, 'compact', NULL, 1)`).run(languageField);
 
       const insertCandidature = database.prepare(
         "INSERT INTO candidatures(id, archived, opportunity_research_selected, created_at, updated_at) VALUES (?, 0, 0, ?, ?)",
@@ -52,11 +49,11 @@ export function createDemoWorkspace(rootPath: string) {
       setValues(first, [
         [orgField, "Northstar Labs"], [roleField, "Platform Engineer"], [locationField, "Spain · Remote"],
         [compensationField, "€55k–€70k"], [languageField, ["English", "Spanish"]],
-        [notesField, "Fictional demo candidature. Recruiter screen expected next week."],
+        [notesField, "Fictional demo application. Recruiter screen expected next week."],
       ]);
       setValues(second, [
         [orgField, "Lumen Health"], [roleField, "ML Product Engineer"], [locationField, "Barcelona · Hybrid"],
-        [languageField, ["English"]], [notesField, "Fictional demo candidature. Portfolio link requested."],
+        [languageField, ["English"]], [notesField, "Fictional demo application. Portfolio link requested."],
       ]);
       const source = database.prepare(`INSERT INTO candidature_sources(
         id, candidature_id, kind, title, url, source_text, created_at, updated_at
@@ -84,9 +81,7 @@ export function createDemoWorkspace(rootPath: string) {
         const location = locations[index % locations.length]!;
         insertCandidature.run(id, date, date);
         setValues(id, [
-          [orgField, organisation],
-          [roleField, role],
-          [locationField, location],
+          [orgField, organisation], [roleField, role], [locationField, location],
           ...(index % 4 === 0 ? [[compensationField, `€${String(42 + (index % 8) * 4)}k–€${String(52 + (index % 8) * 4)}k`] as [string, unknown]] : []),
           [languageField, index % 3 === 0 ? ["English", "Spanish"] : ["English"]],
           ...(index % 5 === 0 ? [[notesField, `Demo note ${String(index + 1)}: follow up on team scope and ownership.`] as [string, unknown]] : []),
@@ -103,8 +98,8 @@ export function createDemoWorkspace(rootPath: string) {
       for (const [index, id] of demoIds.entries()) assignTag.run(id, tags[index % tags.length]!.id);
 
       const profile = database.prepare(`INSERT INTO profile_items(
-        id, kind, title, subtitle, description, start_date, end_date, url, sort_order, ai_context_mode, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, 'expose', ?, ?)`);
+        id, kind, title, subtitle, description, start_date, end_date, url, sort_order, ai_use_allowed, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, 1, ?, ?)`);
       profile.run(randomUUID(), "identity", "Alex Morgan", "Software engineer", "Backend systems, developer tooling and practical ML products.", 0, now, now);
       profile.run(randomUUID(), "contact", "alex.morgan@example.test", "Email", "Madrid, Spain", 1, now, now);
       profile.run(randomUUID(), "experience", "Software Engineer", "Example Cooperative", "Built TypeScript services, PostgreSQL data flows and internal automation used by distributed teams.", 2, now, now);
@@ -120,18 +115,23 @@ export function createDemoWorkspace(rootPath: string) {
     }
   });
 
-  const cv = createDocument(workspace.rootPath, {
-    kind: "cv", title: "Demo CV", variantId: null, language: "en", engine: "pdflatex", bodyParagraphs: [],
+  createWorkingCv(workspace.rootPath, {
+    title: "Demo application CV",
+    language: "en",
+    candidatureId: first,
+    source: { kind: "profile" },
   });
-  const letter = createDocument(workspace.rootPath, {
-    kind: "cover_letter", title: "Demo cover letter", variantId: null, language: "en", engine: "pdflatex",
-    recipient: "Hiring team", subject: "Platform Engineer application",
-    bodyParagraphs: ["I am interested in the fictional Platform Engineer role because it matches my backend and developer-tooling experience.", "My recent work includes TypeScript services, PostgreSQL workflows and production automation for distributed teams."],
+  createCoverLetter(workspace.rootPath, {
+    candidatureId: first,
+    title: "Demo cover letter",
+    language: "en",
+    recipient: "Hiring team",
+    subject: "Platform Engineer application",
+    bodyParagraphs: [
+      "I am interested in the fictional Platform Engineer role because it matches my backend and developer-tooling experience.",
+      "My recent work includes TypeScript services, PostgreSQL workflows and production automation for distributed teams.",
+    ],
     closing: "Kind regards",
-  });
-  withWorkspaceDatabase(workspace.rootPath, (database) => {
-    database.prepare("INSERT INTO candidature_documents(candidature_id, document_id) VALUES (?, ?)").run(first, cv.id);
-    database.prepare("INSERT INTO candidature_documents(candidature_id, document_id) VALUES (?, ?)").run(first, letter.id);
   });
   return workspace;
 }
