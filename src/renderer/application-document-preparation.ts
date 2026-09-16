@@ -1,6 +1,5 @@
 import type { NamedAiConnection } from "../shared/ai-connection-contracts";
-import type { DocumentRecord } from "../shared/contracts";
-import { cvTailoringSelection } from "../shared/application-material";
+import type { ApplicationDocumentRef } from "./create-application-documents";
 import { startAiTask } from "./ai-task-store";
 
 export interface ApplicationPreparationResult {
@@ -29,7 +28,7 @@ function operationAvailable(
 export async function maybeStartApplicationDocumentPreparation(input: {
   readonly candidatureId: string;
   readonly sourceText: string;
-  readonly documents: readonly DocumentRecord[];
+  readonly documents: readonly ApplicationDocumentRef[];
   readonly extract?: boolean;
 }): Promise<boolean> {
   const [connections, profile] = await Promise.all([
@@ -96,24 +95,24 @@ export async function maybeStartApplicationDocumentPreparation(input: {
       if (cvDocument && cvReady) {
         updateDetail("Tailoring the CV evidence to this opportunity.");
         try {
-          const baseline = (await window.aaaat.documents.list()).find((document) => document.id === cvDocument.id);
-          const tailored = await window.aaaat.ai.tailorCv({
-            candidatureId: input.candidatureId,
-            documentId: cvDocument.id,
-          });
-          const current = (await window.aaaat.documents.list()).find((document) => document.id === cvDocument.id);
-          if (!signal.aborted && baseline && current && JSON.stringify(current.rules) === JSON.stringify(baseline.rules)) {
-          const selection = cvTailoringSelection(
-            profile.items,
-            tailored.recommendations.map((recommendation) => recommendation.itemId),
-          );
-          await window.aaaat.documents.applySelection({
-            documentId: cvDocument.id,
-            expectedRules: current.rules,
-            includedItemIds: [...selection.includedItemIds],
-            orderedItemIds: [...selection.orderedItemIds],
-          });
-          cvPrepared = true;
+          const collections = await window.aaaat.documentDomain.collections();
+          const current = collections.workingCvs.find((document) => document.id === cvDocument.id);
+          if (current) {
+            const tailored = await window.aaaat.ai.tailorCv({ candidatureId: input.candidatureId, workingCvId: current.id });
+            const rank = new Map(tailored.recommendations.map((recommendation, index) => [recommendation.itemId, index]));
+            const sections = current.sections.map((section) => ({
+              ...section,
+              items: [...section.items].sort((left, right) => (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER)),
+            }));
+            if (!signal.aborted) {
+              await window.aaaat.documentDomain.updateWorkingCv({
+                id: current.id,
+                title: current.title,
+                language: current.language,
+                sections,
+              });
+              cvPrepared = true;
+            }
           }
         } catch { preparationIssues += 1; }
       }
@@ -123,29 +122,22 @@ export async function maybeStartApplicationDocumentPreparation(input: {
       if (coverLetterDocument && letterReady) {
         updateDetail("Drafting the cover letter from the opportunity and your retained evidence.");
         try {
-          const baseline = (await window.aaaat.documents.list()).find((document) => document.id === coverLetterDocument.id);
-          const draft = await window.aaaat.ai.draftCoverLetter({
-            candidatureId: input.candidatureId,
-            documentId: coverLetterDocument.id,
-          });
-          const current = (await window.aaaat.documents.list()).find((document) => document.id === coverLetterDocument.id);
-          const unchanged = baseline && current &&
-            current.title === baseline.title && current.language === baseline.language &&
-            current.recipient === baseline.recipient && current.subject === baseline.subject &&
-            current.closing === baseline.closing &&
-            JSON.stringify(current.bodyParagraphs) === JSON.stringify(baseline.bodyParagraphs);
-          if (!signal.aborted && unchanged && current) {
-          await window.aaaat.documents.update({
-            id: current.id,
-            title: current.title,
-            language: current.language,
-            engine: current.engine,
-            recipient: draft.recipient,
-            subject: draft.subject,
-            bodyParagraphs: draft.bodyParagraphs,
-            closing: draft.closing,
-          });
-          coverLetterPrepared = true;
+          const collections = await window.aaaat.documentDomain.collections();
+          const current = collections.letters.find((document) => document.id === coverLetterDocument.id);
+          if (current) {
+            const draft = await window.aaaat.ai.draftCoverLetter({ coverLetterId: current.id });
+            if (!signal.aborted) {
+              await window.aaaat.documentDomain.updateLetter({
+                id: current.id,
+                title: current.title,
+                language: current.language,
+                recipient: draft.recipient || undefined,
+                subject: draft.subject || undefined,
+                bodyParagraphs: draft.bodyParagraphs,
+                closing: draft.closing || undefined,
+              });
+              coverLetterPrepared = true;
+            }
           }
         } catch { preparationIssues += 1; }
       }
@@ -158,7 +150,7 @@ export async function maybeStartApplicationDocumentPreparation(input: {
         .filter(Boolean)
         .join(" and ");
       if (!prepared && result.extractedValues === 0) {
-        return "Offer retained · local drafts are ready to edit · optional AI preparation did not add material";
+        return "Application retained · local drafts are ready to edit · optional AI preparation did not add material";
       }
       const retained = result.extractedValues > 0 ? ` · ${result.extractedValues} offer detail${result.extractedValues === 1 ? "" : "s"} retained` : "";
       const review = result.extractionIssues + result.preparationIssues > 0 ? " · some optional suggestions could not be applied" : "";
