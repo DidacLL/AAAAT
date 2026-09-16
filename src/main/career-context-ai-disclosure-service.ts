@@ -21,13 +21,13 @@ interface DisclosureRow {
 function readDisclosure(database: DatabaseSync): CareerContextAiDisclosure {
   const row = database
     .prepare(
-      `SELECT career_direction_external_ai_visible AS careerDirection,
-              objectives_external_ai_visible AS objectives,
-              constraints_external_ai_visible AS constraints,
-              target_roles_external_ai_visible AS targetRoles,
-              target_markets_locations_external_ai_visible AS targetMarketsLocations,
-              work_preferences_external_ai_visible AS workPreferences,
-              application_writing_preferences_external_ai_visible AS applicationWritingPreferences
+      `SELECT career_direction_ai_use_allowed AS careerDirection,
+              objectives_ai_use_allowed AS objectives,
+              constraints_ai_use_allowed AS constraints,
+              target_roles_ai_use_allowed AS targetRoles,
+              target_markets_locations_ai_use_allowed AS targetMarketsLocations,
+              work_preferences_ai_use_allowed AS workPreferences,
+              application_writing_preferences_ai_use_allowed AS applicationWritingPreferences
        FROM career_context
        WHERE id = 1`,
     )
@@ -63,13 +63,13 @@ export function updateCareerContextAiDisclosure(
       database
         .prepare(
           `UPDATE career_context
-           SET career_direction_external_ai_visible = ?,
-               objectives_external_ai_visible = ?,
-               constraints_external_ai_visible = ?,
-               target_roles_external_ai_visible = ?,
-               target_markets_locations_external_ai_visible = ?,
-               work_preferences_external_ai_visible = ?,
-               application_writing_preferences_external_ai_visible = ?,
+           SET career_direction_ai_use_allowed = ?,
+               objectives_ai_use_allowed = ?,
+               constraints_ai_use_allowed = ?,
+               target_roles_ai_use_allowed = ?,
+               target_markets_locations_ai_use_allowed = ?,
+               work_preferences_ai_use_allowed = ?,
+               application_writing_preferences_ai_use_allowed = ?,
                updated_at = ?
            WHERE id = 1`,
         )
@@ -88,7 +88,7 @@ export function updateCareerContextAiDisclosure(
           `INSERT INTO career_context_activity(occurred_at, action)
            VALUES (?, ?)`,
         )
-        .run(occurredAt, "career-context.ai-disclosure-updated");
+        .run(occurredAt, "career-context.ai-use-updated");
       const result = readDisclosure(database);
       database.exec("COMMIT");
       return result;
