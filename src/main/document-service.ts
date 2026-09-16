@@ -21,6 +21,7 @@ import {
   documentListSchema,
   documentRecordSchema,
   documentReorderSchema,
+  documentSelectionSchema,
   documentUpdateSchema,
   profileItemContentPatchSchema,
   resolvedDocumentSchema,
@@ -29,6 +30,7 @@ import {
   type DocumentItemRuleInput,
   type DocumentRecord,
   type DocumentReorder,
+  type DocumentSelection,
   type DocumentUpdate,
   type ProfileItem,
   type ProfileItemContentPatch,
@@ -488,6 +490,52 @@ export function configureDocumentItem(
       recordActivity(database, rule.documentId, "document.item.configure");
     });
     return readDocument(database, rootPath, rule.documentId);
+  });
+}
+
+export function applyDocumentSelection(
+  rootPath: string,
+  rawSelection: DocumentSelection,
+): DocumentRecord {
+  const selection = documentSelectionSchema.parse(rawSelection);
+  const document = getDocument(rootPath, selection.documentId);
+  if (document.kind !== "cv") throw new DocumentServiceError("Only a CV can use this evidence selection.");
+  const baseIds = baseItemsForDocument(rootPath, document).map((item) => item.id);
+  const included = new Set(selection.includedItemIds);
+  const ordered = selection.orderedItemIds;
+  if (ordered.length !== baseIds.length || new Set(ordered).size !== baseIds.length ||
+      baseIds.some((id) => !ordered.includes(id)) ||
+      selection.includedItemIds.some((id) => !baseIds.includes(id))) {
+    throw new DocumentServiceError("CV selection must use the available professional information exactly once.");
+  }
+
+  return withWorkspaceDatabase(rootPath, (database) => {
+    transact(database, () => {
+      const current = readDocument(database, rootPath, selection.documentId);
+      if (JSON.stringify(current.rules) !== JSON.stringify(selection.expectedRules)) {
+        throw new DocumentServiceError("This CV changed while automatic preparation was running. Its saved edits were kept.");
+      }
+      const rankById = new Map(ordered.map((itemId, rank) => [itemId, rank]));
+      baseIds.forEach((itemId, baseRank) => {
+        const rank = rankById.get(itemId);
+        if (rank === undefined) throw new DocumentServiceError("CV selection is incomplete.");
+        const excluded = included.has(itemId) ? 0 : 1;
+        const orderRank = rank === baseRank ? null : rank;
+        if (excluded === 0 && orderRank === null) {
+          database.prepare("DELETE FROM document_item_rules WHERE document_id = ? AND item_id = ?")
+            .run(selection.documentId, itemId);
+        } else {
+          database.prepare(
+            `INSERT INTO document_item_rules(document_id, item_id, excluded, content_patch_json, order_rank)
+             VALUES (?, ?, ?, NULL, ?)
+             ON CONFLICT(document_id, item_id) DO UPDATE SET
+               excluded = excluded.excluded, content_patch_json = NULL, order_rank = excluded.order_rank`,
+          ).run(selection.documentId, itemId, excluded, orderRank);
+        }
+      });
+      recordActivity(database, selection.documentId, "document.selection.apply");
+    });
+    return readDocument(database, rootPath, selection.documentId);
   });
 }
 

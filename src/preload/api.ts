@@ -52,6 +52,7 @@ import {
   documentListSchema,
   documentRecordSchema,
   documentReorderSchema,
+  documentSelectionSchema,
   documentUpdateSchema,
   optionalWorkspaceInfoSchema,
   profileItemInputSchema,
@@ -73,6 +74,7 @@ import {
   workspaceChoiceSchema,
   workspaceInfoSchema,
   workspaceStatusSchema,
+  recentWorkspacePathSchema,
   type DesktopApi,
 } from "../shared/contracts";
 
@@ -87,6 +89,10 @@ export function createDesktopApi(
 
   const workspace = Object.freeze({
     current: async () => optionalWorkspaceInfoSchema.parse(await invoke(channels.workspaceCurrent)),
+    recent: async () => recentWorkspacePathSchema.parse(await invoke(channels.workspaceRecent)),
+    continueRecent: async () => optionalWorkspaceInfoSchema.parse(await invoke(channels.workspaceContinue)),
+    close: async () => { await invoke(channels.workspaceClose); },
+    delete: async () => { await invoke(channels.workspaceDelete); },
     choose: async (choice: "create" | "open") =>
       optionalWorkspaceInfoSchema.parse(
         await invoke(channels.workspaceChoose, workspaceChoiceSchema.parse(choice)),
@@ -182,6 +188,10 @@ export function createDesktopApi(
           channels.documentConfigureItem,
           documentItemRuleInputSchema.parse(rule),
         ),
+      ),
+    applySelection: async (selection: Parameters<DesktopApi["documents"]["applySelection"]>[0]) =>
+      documentRecordSchema.parse(
+        await invoke(channels.documentApplySelection, documentSelectionSchema.parse(selection)),
       ),
     reorder: async (reorder: Parameters<DesktopApi["documents"]["reorder"]>[0]) =>
       documentRecordSchema.parse(

@@ -330,7 +330,7 @@ export function DocumentWork({
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selected || preparationActive) return;
+    if (!selected) return;
     setError(null);
     setNotice(null);
     try {
@@ -342,7 +342,7 @@ export function DocumentWork({
   };
 
   const prepareCurrentDocumentForAi = async (): Promise<DocumentRecord | null> => {
-    if (!selected || preparationActive) return null;
+    if (!selected) return null;
     if (!editorDirty) return selected;
     if (!window.confirm("Save current document changes before using AI assistance?")) return null;
     setError(null);
@@ -382,7 +382,7 @@ export function DocumentWork({
   };
 
   const remove = async () => {
-    if (!selected || preparationActive) return;
+    if (!selected) return;
     const confirmed = window.confirm(
       editorDirty || descriptorDirty || assistanceDirty
         ? "Remove this document and discard its unsaved edits?"
@@ -411,7 +411,7 @@ export function DocumentWork({
   };
 
   const render = async () => {
-    if (!selected || preparationActive) return;
+    if (!selected) return;
     if (editorDirty) {
       setError("Save document changes before rendering.");
       return;
@@ -455,7 +455,7 @@ export function DocumentWork({
   };
 
   const exportProject = async () => {
-    if (!selected || preparationActive) return;
+    if (!selected) return;
     if (editorDirty) {
       setError("Save document changes before exporting the portable project.");
       return;
@@ -471,7 +471,7 @@ export function DocumentWork({
   };
 
   const regenerate = async () => {
-    if (!selected || preparationActive) return;
+    if (!selected) return;
     if (editorDirty) {
       setError("Save document changes before replacing generated source.");
       return;
@@ -512,7 +512,7 @@ export function DocumentWork({
 
   const applyItem = async (event: FormEvent<HTMLFormElement>, item: ProfileItem) => {
     event.preventDefault();
-    if (!selected || preparationActive) return;
+    if (!selected) return;
     const data = new FormData(event.currentTarget);
     const included = data.get("included") === "on";
     const overrideTitle = String(data.get("overrideTitle") ?? "").trim();
@@ -539,7 +539,7 @@ export function DocumentWork({
   };
 
   const moveItem = async (itemId: string, offset: -1 | 1) => {
-    if (!selected || preparationActive) return;
+    if (!selected) return;
     const ids = orderedItems.map((item) => item.id);
     const index = ids.indexOf(itemId);
     const target = index + offset;
@@ -580,21 +580,21 @@ export function DocumentWork({
     return (
       <form className="document-item-adjustment" key={formKey} onSubmit={(event) => void applyItem(event, item)}>
         <label className="include-control">
-          <input name="included" type="checkbox" defaultChecked={included} disabled={preparationActive} />
+          <input name="included" type="checkbox" defaultChecked={included}  />
           Use in this document
         </label>
         <label>
           Document-specific title
-          <input name="overrideTitle" defaultValue={rule?.contentPatch?.title ?? ""} disabled={preparationActive} />
+          <input name="overrideTitle" defaultValue={rule?.contentPatch?.title ?? ""}  />
         </label>
         <label>
           Document-specific description
-          <textarea name="overrideDescription" rows={4} defaultValue={rule?.contentPatch?.description ?? ""} disabled={preparationActive} />
+          <textarea name="overrideDescription" rows={4} defaultValue={rule?.contentPatch?.description ?? ""}  />
         </label>
         <div className="document-item-actions">
-          <button type="submit" disabled={preparationActive}>Apply</button>
-          <button type="button" disabled={preparationActive || index === 0} onClick={() => void moveItem(item.id, -1)}>Up</button>
-          <button type="button" disabled={preparationActive || index === orderedItems.length - 1} onClick={() => void moveItem(item.id, 1)}>Down</button>
+          <button type="submit" >Apply</button>
+          <button type="button" disabled={index === 0} onClick={() => void moveItem(item.id, -1)}>Up</button>
+          <button type="button" disabled={index === orderedItems.length - 1} onClick={() => void moveItem(item.id, 1)}>Down</button>
           <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(selected.id, item.id)}>
             Edit reusable information
           </button>
@@ -615,7 +615,7 @@ export function DocumentWork({
         </div>
 
         <form className="document-create" onSubmit={(event) => void create(event)}>
-          {contextCandidature ? <p className="document-notice">New work will stay with this application.</p> : null}
+          {contextCandidature ? <p className="document-notice">This document stays with the application.</p> : null}
           <label>
             Type
             <select value={newKind} onChange={(event) => setNewKind(event.target.value as DocumentKind)}>
@@ -688,7 +688,7 @@ export function DocumentWork({
               <section className="document-preparation-status" aria-label="Automatic application preparation" role="status">
                 <strong>Preparing this application in the background</strong>
                 <p>{preparationTask?.detail ?? "Reading the retained offer and your professional information…"}</p>
-                <small>You can use the rest of AAAAT while this runs. This document unlocks when the bounded AI work finishes.</small>
+                <small>You can use the rest of AAAAT while this runs. You can edit the local draft now. Later AI changes are skipped when you have saved your own edits.</small>
               </section>
             ) : preparationTask?.status === "failed" ? (
               <section className="document-preparation-status preparation-failed" role="alert">
@@ -721,28 +721,28 @@ export function DocumentWork({
                 <form className="document-writing-sheet" onSubmit={(event) => void save(event)}>
                   <label>
                     Recipient
-                    <input value={recipient} disabled={preparationActive} onChange={(event) => setRecipient(event.target.value)} />
+                    <input value={recipient}  onChange={(event) => setRecipient(event.target.value)} />
                   </label>
                   <label>
                     Subject
-                    <input value={subject} disabled={preparationActive} onChange={(event) => setSubject(event.target.value)} />
+                    <input value={subject}  onChange={(event) => setSubject(event.target.value)} />
                   </label>
                   <label className="letter-body-field">
                     Letter
-                    <textarea rows={15} value={body} disabled={preparationActive} onChange={(event) => setBody(event.target.value)} placeholder="Write the letter here. Separate paragraphs with a blank line." />
+                    <textarea rows={15} value={body}  onChange={(event) => setBody(event.target.value)} placeholder="Write the letter here. Separate paragraphs with a blank line." />
                   </label>
                   <label>
                     Closing
-                    <input value={closing} disabled={preparationActive} onChange={(event) => setClosing(event.target.value)} />
+                    <input value={closing}  onChange={(event) => setClosing(event.target.value)} />
                   </label>
                   <details className="document-advanced document-metadata">
                     <summary>Document details</summary>
                     <div className="document-fields">
-                      <label>Document name<input required value={title} disabled={preparationActive} onChange={(event) => setTitle(event.target.value)} /></label>
-                      <label>Language<input value={language} disabled={preparationActive} onChange={(event) => setLanguage(event.target.value)} /></label>
+                      <label>Document name<input required value={title}  onChange={(event) => setTitle(event.target.value)} /></label>
+                      <label>Language<input value={language}  onChange={(event) => setLanguage(event.target.value)} /></label>
                     </div>
                   </details>
-                  <div className="document-actions"><button className="compact-primary" type="submit" disabled={preparationActive}>Save letter</button></div>
+                  <div className="document-actions"><button className="compact-primary" type="submit" >Save letter</button></div>
                 </form>
               ) : (
                 <div className="document-cv-content">
@@ -768,9 +768,9 @@ export function DocumentWork({
                   <details className="document-advanced document-metadata">
                     <summary>Document details</summary>
                     <form className="document-fields" onSubmit={(event) => void save(event)}>
-                      <label>Document name<input required value={title} disabled={preparationActive} onChange={(event) => setTitle(event.target.value)} /></label>
-                      <label>Language<input value={language} disabled={preparationActive} onChange={(event) => setLanguage(event.target.value)} /></label>
-                      <div className="document-actions wide-field"><button className="compact-primary" type="submit" disabled={preparationActive}>Save details</button></div>
+                      <label>Document name<input required value={title}  onChange={(event) => setTitle(event.target.value)} /></label>
+                      <label>Language<input value={language}  onChange={(event) => setLanguage(event.target.value)} /></label>
+                      <div className="document-actions wide-field"><button className="compact-primary" type="submit" >Save details</button></div>
                     </form>
                   </details>
                 </div>
@@ -885,7 +885,7 @@ export function DocumentWork({
                 </div>
                 <div className="document-actions document-advanced-actions">
                   <button type="button" onClick={() => void openSourceProject()}>Open source project</button>
-                  <button type="button" disabled={preparationActive} onClick={() => void remove()}>Remove document</button>
+                  <button type="button"  onClick={() => void remove()}>Remove document</button>
                 </div>
               </details>
 

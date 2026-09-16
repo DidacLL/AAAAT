@@ -11,7 +11,6 @@ import type { SetupEnvironmentDesktopApi } from "../src/shared/setup-environment
 import type { WorkspaceRecoveryDesktopApi } from "../src/shared/workspace-recovery-contracts";
 
 const readyWorkspace: WorkspaceInfo = { rootPath: "/tmp/aaaat-workspace" };
-const restoredWorkspace: WorkspaceInfo = { rootPath: "/tmp/restored-aaaat-workspace" };
 const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
 const emptyCareerContext: CareerContext = {
   careerDirection: "",
@@ -55,6 +54,9 @@ const readyEnvironment = {
 };
 
 const current = vi.fn<DesktopApi["workspace"]["current"]>();
+const recent = vi.fn<DesktopApi["workspace"]["recent"]>();
+const continueRecent = vi.fn<DesktopApi["workspace"]["continueRecent"]>();
+const deleteWorkspace = vi.fn<DesktopApi["workspace"]["delete"]>();
 const choose = vi.fn<DesktopApi["workspace"]["choose"]>();
 const backup = vi.fn<WorkspaceRecoveryDesktopApi["workspaceRecovery"]["backup"]>();
 const restore = vi.fn<WorkspaceRecoveryDesktopApi["workspaceRecovery"]["restore"]>();
@@ -73,6 +75,10 @@ const desktopApi: DesktopApi &
   },
   workspace: {
     current,
+    recent,
+    continueRecent,
+    close: async () => undefined,
+    delete: deleteWorkspace,
     choose,
     createDemo: async () => readyWorkspace,
     reset: async () => readyWorkspace,
@@ -86,7 +92,7 @@ const desktopApi: DesktopApi &
   },
   setupEnvironment: {
     current: async () => readyEnvironment,
-    connectVscode: async () => ({ status: "cancelled", message: "No project was changed." }),
+    externalConnection: async () => ({ packaged: false, executablePath: "electron", workspacePath: "/workspace" }),
   },
   aiConnections: {
     list: async () => [],
@@ -124,6 +130,7 @@ const desktopApi: DesktopApi &
     update: unavailable,
     remove: async () => [],
     configureItem: unavailable,
+    applySelection: unavailable,
     reorder: unavailable,
     resolve: unavailable,
     render: unavailable,
@@ -154,110 +161,70 @@ const desktopApi: DesktopApi &
   },
 };
 
-describe("AAAAT intention-first shell", () => {
+describe("AAAAT workspace shell", () => {
   beforeEach(() => {
     current.mockReset();
+    recent.mockReset();
+    continueRecent.mockReset();
+    deleteWorkspace.mockReset();
     choose.mockReset();
     backup.mockReset();
     restore.mockReset();
     current.mockResolvedValue(null);
+    recent.mockResolvedValue(null);
+    continueRecent.mockResolvedValue(readyWorkspace);
+    deleteWorkspace.mockResolvedValue(undefined);
     choose.mockResolvedValue(readyWorkspace);
     backup.mockResolvedValue({ status: "backed_up" });
     restore.mockResolvedValue({ status: "cancelled" });
     Object.defineProperty(window, "aaaat", { configurable: true, value: desktopApi });
   });
 
-  afterEach(() => {
-    cleanup();
-    vi.restoreAllMocks();
-  });
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-  it("creates a local workspace and presents ordinary intentions rather than persisted entity destinations", async () => {
+  it("shows Welcome first with a remembered workspace and enters the saved-applications grid", async () => {
+    current.mockResolvedValueOnce(readyWorkspace);
+    recent.mockResolvedValueOnce(readyWorkspace.rootPath);
     const user = userEvent.setup();
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Choose where AAAAT should keep your career workspace." })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create workspace" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Try with demo data" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Create workspace" }));
-    expect(choose).toHaveBeenCalledWith("create");
-    expect(await screen.findByRole("heading", { name: "Turn a job offer into application documents." })).toBeInTheDocument();
-
+    expect(await screen.findByRole("heading", { name: "Welcome to AAAAT" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("Workspace status")).toHaveTextContent("Workspace");
+    expect(screen.getByRole("button", { name: /Enter workspace/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open existing workspace" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Enter workspace/ }));
+    expect(await screen.findByRole("button", { name: "New application" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Candidatures" })).toBeInTheDocument();
     const navigation = screen.getByRole("navigation", { name: "Primary work areas" });
     expect(within(navigation).getAllByRole("button").map((button) => button.textContent)).toEqual([
-      "From a job offer",
-      "CV & cover letter",
-      "Saved applications",
-      "My information",
+      "Applications", "CVs", "My information",
     ]);
-    expect(within(navigation).queryByRole("button", { name: "Candidatures" })).not.toBeInTheDocument();
-    expect(within(navigation).queryByRole("button", { name: "Documents" })).not.toBeInTheDocument();
   });
 
-  it("opens remembered work on the job-offer journey instead of requiring candidature recall", async () => {
+  it("keeps reusable CV creation in CVs and application creation in Applications", async () => {
     current.mockResolvedValueOnce(readyWorkspace);
-    render(<App />);
-
-    expect(await screen.findByRole("heading", { name: "Turn a job offer into application documents." })).toBeInTheDocument();
-    expect(screen.getByLabelText("Job offer")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /Tailored CV/ })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: /Cover letter/ })).toBeChecked();
-  });
-
-  it("keeps standalone document work independently discoverable without exposing variants first", async () => {
-    current.mockResolvedValueOnce(readyWorkspace);
+    recent.mockResolvedValueOnce(readyWorkspace.rootPath);
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole("button", { name: "CV & cover letter" }));
-
-    expect(await screen.findByRole("heading", { name: "What are you making?" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /New CV/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /New cover letter/ })).toBeInTheDocument();
-    expect(screen.getByText("Creation options", { selector: "summary" })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Saved variation/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Document assistance" })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: /Enter workspace/ }));
+    expect(screen.queryByRole("button", { name: /New CV/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "CVs" }));
+    expect(await screen.findByRole("button", { name: /New CV/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /New standalone letter/ })).not.toBeVisible();
   });
 
-  it("protects a pasted offer when the user tries to leave the journey", async () => {
+  it("returns to Welcome without a deleted workspace entrance", async () => {
     current.mockResolvedValueOnce(readyWorkspace);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    recent.mockResolvedValueOnce(readyWorkspace.rootPath);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     render(<App />);
-
-    await user.type(await screen.findByLabelText("Job offer"), "Unsaved vacancy text");
-    await user.click(screen.getByRole("button", { name: "Saved applications" }));
-
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and leave this work?");
-    expect(screen.getByLabelText("Job offer")).toHaveValue("Unsaved vacancy text");
-    expect(screen.queryByRole("heading", { name: "Candidatures" })).not.toBeInTheDocument();
-  });
-
-  it("makes host-agnostic external assistance primary in Settings while retaining VS Code as optional", async () => {
-    current.mockResolvedValueOnce(readyWorkspace);
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(await screen.findByRole("button", { name: "Settings" }));
-    await user.click(screen.getByRole("button", { name: /External assistants & portability/ }));
-
-    expect(await screen.findByRole("heading", { name: "Use AAAAT from a compatible assistant" })).toBeInTheDocument();
-    expect(screen.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "External setup action authority" })).toBeInTheDocument();
-    expect(screen.getByText("Optional VS Code adapter", { selector: "summary" })).toBeInTheDocument();
-    expect(screen.queryByText(/Connect the demonstrated VS Code external tool/i)).not.toBeInTheDocument();
-  });
-
-  it("keeps backup restore usable from first run", async () => {
-    restore.mockResolvedValueOnce({ status: "restored", workspace: restoredWorkspace });
-    const user = userEvent.setup();
-    render(<App />);
-
-    const restoreDisclosure = await screen.findByText("Restore a backup", { selector: "summary" });
-    await user.click(restoreDisclosure);
-    await user.click(screen.getByRole("button", { name: "Choose backup to restore" }));
-
-    expect(restore).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText(restoredWorkspace.rootPath)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: /Enter workspace/ }));
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("button", { name: /Workspace/ }));
+    await user.click(screen.getByRole("button", { name: "Delete workspace data" }));
+    expect(deleteWorkspace).toHaveBeenCalledOnce();
+    expect(await screen.findByRole("heading", { name: "Welcome to AAAAT" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Enter workspace/ })).not.toBeInTheDocument();
   });
 });

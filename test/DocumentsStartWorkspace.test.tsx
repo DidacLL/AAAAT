@@ -51,6 +51,7 @@ beforeEach(() => {
     value: {
       profile: { current: async () => profile },
       documents: { list: async () => [existing], create },
+      candidatures: { list: async () => [] },
     },
   });
 });
@@ -62,15 +63,16 @@ describe("standalone document start", () => {
     const user = userEvent.setup();
     render(<DocumentsStartWorkspace onOpenDocument={() => undefined} />);
 
-    expect(await screen.findByRole("heading", { name: "What are you making?" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "CVs" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /New CV/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /New cover letter/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Existing CV/ })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Saved variation/)).not.toBeVisible();
+    expect(await screen.findByRole("button", { name: /Existing CV/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Professional information/)).not.toBeVisible();
 
-    await user.click(screen.getByText("Creation options", { selector: "summary" }));
-    expect(screen.getByLabelText(/Document title/)).toBeVisible();
-    expect(screen.getByLabelText(/Saved variation/)).toBeVisible();
+    await user.click(screen.getByText("New CV options", { selector: "summary" }));
+    expect(screen.getByLabelText(/Title/)).toBeVisible();
+    expect(screen.getByLabelText(/Professional information/)).toBeVisible();
+    await user.click(screen.getByText("Standalone letters", { selector: "summary" }));
+    expect(screen.getByRole("button", { name: /New standalone letter/ })).toBeVisible();
   });
 
   it("creates a plain CV without requiring a title or variation and opens it immediately", async () => {

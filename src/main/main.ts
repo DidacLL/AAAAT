@@ -61,8 +61,10 @@ import {
   documentListSchema,
   documentRecordSchema,
   documentReorderSchema,
+  documentSelectionSchema,
   documentUpdateSchema,
   optionalWorkspaceInfoSchema,
+  recentWorkspacePathSchema,
   profileItemInputSchema,
   profileItemSchema,
   profileItemUpdateSchema,
@@ -127,6 +129,7 @@ import {
 import { getCareerContext, updateCareerContext } from "./career-context-service";
 import {
   configureDocumentItem,
+  applyDocumentSelection,
   createDocument,
   exportDocumentProject,
   listDocuments,
@@ -155,6 +158,8 @@ import { createDemoWorkspace } from "./demo-workspace";
 import { createWorkspaceBackup, restoreWorkspaceBackup } from "./workspace-backup";
 import {
   createOrOpenWorkspace,
+  deleteWorkspace,
+  forgetWorkspacePath,
   openWorkspace,
   readLastWorkspacePath,
   rememberWorkspacePath,
@@ -185,9 +190,8 @@ function currentOrRememberedWorkspace(): WorkspaceInfo | null {
 }
 
 function requireWorkspaceRoot(): string {
-  const workspace = currentOrRememberedWorkspace();
-  if (!workspace) throw new Error("Choose an AAAAT workspace first.");
-  return workspace.rootPath;
+  if (!currentWorkspace) throw new Error("Open an AAAAT workspace first.");
+  return currentWorkspace.rootPath;
 }
 
 async function chooseWorkspace(
@@ -300,6 +304,24 @@ function registerIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(channels.workspaceCurrent, (event) => {
     assertTrustedSender(event, mainWindow);
     return optionalWorkspaceInfoSchema.parse(currentOrRememberedWorkspace());
+  });
+  ipcMain.handle(channels.workspaceRecent, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return recentWorkspacePathSchema.parse(readLastWorkspacePath(workspaceSettingsPath()));
+  });
+  ipcMain.handle(channels.workspaceContinue, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return optionalWorkspaceInfoSchema.parse(currentOrRememberedWorkspace());
+  });
+  ipcMain.handle(channels.workspaceClose, (event) => {
+    assertTrustedSender(event, mainWindow);
+    currentWorkspace = null;
+  });
+  ipcMain.handle(channels.workspaceDelete, (event) => {
+    assertTrustedSender(event, mainWindow);
+    deleteWorkspace(requireWorkspaceRoot());
+    currentWorkspace = null;
+    forgetWorkspacePath(workspaceSettingsPath());
   });
   ipcMain.handle(channels.workspaceChoose, async (event, choice: unknown) => {
     assertTrustedSender(event, mainWindow);
@@ -428,6 +450,12 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return documentRecordSchema.parse(
       configureDocumentItem(requireWorkspaceRoot(), documentItemRuleInputSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(channels.documentApplySelection, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return documentRecordSchema.parse(
+      applyDocumentSelection(requireWorkspaceRoot(), documentSelectionSchema.parse(input)),
     );
   });
   ipcMain.handle(channels.documentReorder, (event, input: unknown) => {

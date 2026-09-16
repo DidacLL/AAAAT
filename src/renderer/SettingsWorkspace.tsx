@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
-import type { SetupEnvironmentSnapshot } from "../shared/setup-environment-contracts";
+import type { ExternalAssistantConnection, SetupEnvironmentSnapshot } from "../shared/setup-environment-contracts";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
-import { VscodeExternalToolSetup } from "./VscodeExternalToolSetup";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
 export type SettingsView =
@@ -21,6 +20,7 @@ interface SettingsWorkspaceProps {
   readonly onChooseWorkspace: (choice: WorkspaceChoice) => void;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onRestored: (workspace: WorkspaceInfo) => void;
+  readonly onWorkspaceDeleted: () => void;
   readonly protectedWorkDirty?: boolean;
 }
 
@@ -32,17 +32,52 @@ const settingsLabels: Record<Exclude<SettingsView, "overview">, string> = {
   portability: "External assistants & portability",
 };
 
-function ResetWorkspacePanel() {
-  const [busy, setBusy] = useState(false);
+function ExternalAssistantConnectionPanel() {
+  const [connection, setConnection] = useState<ExternalAssistantConnection | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void window.aaaat.setupEnvironment.externalConnection()
+      .then((next) => { if (active) setConnection(next); })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, []);
   return (
-    <section className="profile-column destructive-settings" aria-label="Reset workspace">
-      <div className="section-heading"><div><p className="eyebrow">Current workspace only</p><h2>Reset workspace</h2></div></div>
-      <p>Remove the current workspace data and return this folder to a clean usable AAAAT state. Other workspaces are not affected.</p>
+    <section className="settings-portability-intro" aria-label="Connect a local assistant">
+      <h3>Connect a local assistant</h3>
+      {failed ? <p className="error-message">AAAAT could not read this workspace's connection details.</p> : null}
+      {!connection && !failed ? <p>Reading connection details…</p> : null}
+      {connection?.packaged ? (
+        <>
+          <p>In a compatible assistant's local tool settings, use this command and these arguments for AAAAT's bounded workspace capabilities.</p>
+          <dl className="external-connection-details">
+            <dt>Command</dt><dd><code>{connection.executablePath}</code></dd>
+            <dt>Arguments</dt><dd><code>--mcp --workspace "{connection.workspacePath}"</code></dd>
+          </dl>
+          <p>The assistant host must support starting a local tool. AAAAT shares only the result of the specific capability used.</p>
+        </>
+      ) : connection ? <p>Connection details are available from the packaged desktop app.</p> : null}
+    </section>
+  );
+}
+
+function DeleteWorkspacePanel({ onDeleted }: { readonly onDeleted: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <section className="profile-column destructive-settings" aria-label="Delete workspace">
+      <div className="section-heading"><div><p className="eyebrow">Current workspace only</p><h2>Delete workspace data</h2></div></div>
+      <p>Remove AAAAT's data from this folder and return to Welcome. The empty folder remains on your computer; other workspaces are untouched.</p>
       <button type="button" className="compact-secondary" disabled={busy} onClick={() => {
-        if (!window.confirm("Reset this workspace? This permanently removes its candidatures, Sources, Tags, professional information, documents, artifacts and workspace AI settings.")) return;
+        if (!window.confirm("Delete this workspace's AAAAT data? This permanently removes saved applications, Sources, Tags, professional information, documents, PDFs and AI connections in this folder.")) return;
         setBusy(true);
-        void window.aaaat.workspace.reset().then(() => window.location.reload()).catch(() => setBusy(false));
-      }}>{busy ? "Resetting…" : "Reset workspace"}</button>
+        setError(null);
+        void window.aaaat.workspace.delete().then(onDeleted).catch((reason: unknown) => {
+          setError(reason instanceof Error ? reason.message : "AAAAT could not delete this workspace.");
+          setBusy(false);
+        });
+      }}>{busy ? "Deleting…" : "Delete workspace data"}</button>
+      {error ? <p className="error-message" role="alert">{error}</p> : null}
     </section>
   );
 }
@@ -53,6 +88,7 @@ export function SettingsWorkspace({
   onChooseWorkspace,
   onDirtyChange,
   onRestored,
+  onWorkspaceDeleted,
   protectedWorkDirty = false,
 }: SettingsWorkspaceProps) {
   const [view, setView] = useState<SettingsView>(initialView);
@@ -108,9 +144,6 @@ export function SettingsWorkspace({
   if (view === "overview") {
     return (
       <section className="settings-workspace" aria-label="Settings overview">
-        <p className="settings-intro">
-          Keep workspace ownership, rendering, optional AI and external-assistant setup here. Ordinary application and document work does not depend on these settings.
-        </p>
         <div className="settings-intention-list">
           <button className="settings-intention" type="button" onClick={() => selectView("workspace")}>
             <strong>Workspace</strong>
@@ -159,7 +192,7 @@ export function SettingsWorkspace({
               <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("open")}>Open another workspace</button>
             </div>
           </div>
-          <ResetWorkspacePanel />
+          <DeleteWorkspacePanel onDeleted={onWorkspaceDeleted} />
         </div>
       ) : null}
 
@@ -184,15 +217,12 @@ export function SettingsWorkspace({
               AAAAT exposes a small local capability surface for tasks such as retaining an opportunity, reading deliberately shared career/CV context, requesting a CV render, and inspecting setup status. It does not grant generic database, filesystem, shell, process or browsing authority.
             </p>
             <p>
-              The host is your choice: ChatGPT, Claude, local agents, editors and other compatible tools can use the same bounded contract when their environment supports it. Host-specific adapters are conveniences, not product dependencies.
+              The host is your choice. Any assistant that can start a local tool may use the same bounded contract.
             </p>
           </section>
+          <ExternalAssistantConnectionPanel />
           <SetupEnvironmentPanel view="guidance" />
           <AiSettingsWorkspace view="portability" />
-          <details className="optional-host-adapter">
-            <summary>Optional VS Code adapter</summary>
-            <VscodeExternalToolSetup />
-          </details>
         </div>
       ) : null}
     </section>

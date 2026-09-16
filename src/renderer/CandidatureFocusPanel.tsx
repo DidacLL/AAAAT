@@ -6,6 +6,7 @@ import type {
 } from "../shared/contracts";
 import { CandidatureFieldAiState } from "./CandidatureFieldAiState";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
+import { candidatureRecognitionCues } from "./candidature-projections";
 
 interface Props {
   readonly record: CandidatureRecord;
@@ -84,9 +85,14 @@ export function CandidatureFocusPanel({
           })}
         </div>
       ) : (
-        <p className="compact-empty">
-          No retained information is currently selected for Focus. Edit a candidature field to show it here.
-        </p>
+        <div className="focus-sparse-source">
+          {candidatureRecognitionCues(record, fields, 1).map((cue) => (
+            <p key={cue.label}><strong>{cue.label}</strong> · {cue.value}</p>
+          ))}
+          <p>{record.sourceSearchText.trim()
+            ? "The original material is saved. Read original and details to see it in full, or add a useful detail here."
+            : "No information is selected for quick recall yet. Read everything to see what is saved."}</p>
+        </div>
       )}
 
       {associatedTags.length > 0 ? (

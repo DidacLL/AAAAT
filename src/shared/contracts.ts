@@ -3,6 +3,10 @@ import { z } from "zod";
 export const channels = Object.freeze({
   systemInfo: "aaaat:system-info",
   workspaceCurrent: "aaaat:workspace-current",
+  workspaceRecent: "aaaat:workspace-recent",
+  workspaceContinue: "aaaat:workspace-continue",
+  workspaceClose: "aaaat:workspace-close",
+  workspaceDelete: "aaaat:workspace-delete",
   workspaceChoose: "aaaat:workspace-choose",
   workspaceCreateDemo: "aaaat:workspace-create-demo",
   workspaceReset: "aaaat:workspace-reset",
@@ -24,6 +28,7 @@ export const channels = Object.freeze({
   documentUpdate: "aaaat:document-update",
   documentRemove: "aaaat:document-remove",
   documentConfigureItem: "aaaat:document-configure-item",
+  documentApplySelection: "aaaat:document-apply-selection",
   documentReorder: "aaaat:document-reorder",
   documentResolve: "aaaat:document-resolve",
   documentRender: "aaaat:document-render",
@@ -65,6 +70,7 @@ export type WorkspaceChoice = z.infer<typeof workspaceChoiceSchema>;
 
 export const workspaceInfoSchema = z.object({ rootPath: z.string().min(1) }).strict();
 export const optionalWorkspaceInfoSchema = workspaceInfoSchema.nullable();
+export const recentWorkspacePathSchema = z.string().min(1).nullable();
 export type WorkspaceInfo = z.infer<typeof workspaceInfoSchema>;
 export const workspaceStatusSchema = z.object({ demo: z.boolean() }).strict();
 export type WorkspaceStatus = z.infer<typeof workspaceStatusSchema>;
@@ -85,18 +91,8 @@ export type CareerContext = z.infer<typeof careerContextSchema>;
 export const careerContextUpdateSchema = careerContextSchema;
 export type CareerContextUpdate = z.infer<typeof careerContextUpdateSchema>;
 
-export const profileItemKindSchema = z.enum([
-  "identity",
-  "contact",
-  "summary",
-  "experience",
-  "education",
-  "project",
-  "skill",
-  "certification",
-  "language",
-  "link",
-]);
+// Suggested categories are UI defaults. A user's profession may need others.
+export const profileItemKindSchema = z.string().trim().min(1).max(80);
 export type ProfileItemKind = z.infer<typeof profileItemKindSchema>;
 
 const optionalShortText = z.string().max(300).optional();
@@ -273,6 +269,14 @@ export const documentItemRuleInputSchema = z
   })
   .strict();
 export type DocumentItemRuleInput = z.infer<typeof documentItemRuleInputSchema>;
+
+export const documentSelectionSchema = z.object({
+  documentId: z.string().uuid(),
+  expectedRules: z.array(documentItemRuleSchema),
+  includedItemIds: z.array(z.string().uuid()),
+  orderedItemIds: z.array(z.string().uuid()).min(1),
+}).strict();
+export type DocumentSelection = z.infer<typeof documentSelectionSchema>;
 
 export const documentReorderSchema = z
   .object({ documentId: z.string().uuid(), itemIds: z.array(z.string().uuid()).min(1) })
@@ -561,6 +565,10 @@ export interface DesktopApi {
   readonly system: { readonly info: () => Promise<SystemInfo> };
   readonly workspace: {
     readonly current: () => Promise<WorkspaceInfo | null>;
+    readonly recent: () => Promise<string | null>;
+    readonly continueRecent: () => Promise<WorkspaceInfo | null>;
+    readonly close: () => Promise<void>;
+    readonly delete: () => Promise<void>;
     readonly choose: (choice: WorkspaceChoice) => Promise<WorkspaceInfo | null>;
     readonly createDemo: () => Promise<WorkspaceInfo | null>;
     readonly reset: () => Promise<WorkspaceInfo>;
@@ -588,6 +596,7 @@ export interface DesktopApi {
     readonly update: (update: DocumentUpdate) => Promise<DocumentRecord>;
     readonly remove: (documentId: string) => Promise<DocumentRecord[]>;
     readonly configureItem: (rule: DocumentItemRuleInput) => Promise<DocumentRecord>;
+    readonly applySelection: (selection: DocumentSelection) => Promise<DocumentRecord>;
     readonly reorder: (reorder: DocumentReorder) => Promise<DocumentRecord>;
     readonly resolve: (documentId: string) => Promise<ResolvedDocument>;
     readonly render: (documentId: string) => Promise<DocumentRecord>;

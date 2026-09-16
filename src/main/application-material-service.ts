@@ -4,15 +4,14 @@ import {
   type ExternalApplicationDocumentsInput,
   type ExternalApplicationDocumentsResult,
 } from "../shared/external-action-contracts";
-import { cvTailoringSelection } from "../shared/application-material";
+import { cvTailoringSelection, localCoverLetterDraft, localCvSelection } from "../shared/application-material";
 import { getAiConnectionForOperation } from "./ai-connection-service";
 import { draftCoverLetter, tailorCv } from "./ai-service";
 import { setCandidatureFieldValue } from "./candidature-field-service";
 import { createCandidature, setCandidatureDocuments } from "./candidature-service";
 import {
-  configureDocumentItem,
+  applyDocumentSelection,
   createDocument,
-  reorderDocument,
   updateDocument,
 } from "./document-service";
 import { getProfile } from "./profile-service";
@@ -32,6 +31,7 @@ export async function createApplicationDocuments(
     },
     values: [],
   });
+  const profile = getProfile(rootPath);
   const cv = input.outputs.includes("cv")
     ? createDocument(rootPath, {
         kind: "cv",
@@ -41,28 +41,39 @@ export async function createApplicationDocuments(
         bodyParagraphs: [],
       })
     : null;
+  const localLetter = localCoverLetterDraft(profile.items, input.sourceText);
   const coverLetter = input.outputs.includes("cover_letter")
     ? createDocument(rootPath, {
         kind: "cover_letter",
         title: "Application cover letter",
         variantId: null,
         engine: "pdflatex",
-        bodyParagraphs: [],
+        ...localLetter,
+        bodyParagraphs: [...localLetter.bodyParagraphs],
       })
     : null;
+  let selectedCv = cv;
+  if (cv && profile.items.length > 0) {
+    const selection = localCvSelection(profile.items, input.sourceText);
+    selectedCv = applyDocumentSelection(rootPath, {
+      documentId: cv.id,
+      expectedRules: cv.rules,
+      includedItemIds: [...selection.includedItemIds],
+      orderedItemIds: [...selection.orderedItemIds],
+    });
+  }
   setCandidatureDocuments(rootPath, {
     candidatureId: candidature.id,
     documentIds: [cv?.id, coverLetter?.id].filter((id): id is string => Boolean(id)),
   });
 
-  let extractedValues = 0;
-  const profile = getProfile(rootPath);
   const extractionReady = getAiConnectionForOperation(rootPath, "job_extraction") !== null;
-  const cvReady = cv !== null && getAiConnectionForOperation(rootPath, "cv_tailoring") !== null;
+  const hasEvidence = profile.items.some((item) => item.kind !== "identity" && item.kind !== "contact" && item.kind !== "link");
+  const cvReady = cv !== null && hasEvidence && getAiConnectionForOperation(rootPath, "cv_tailoring") !== null;
   const letterReady =
-    coverLetter !== null && getAiConnectionForOperation(rootPath, "cover_letter_draft") !== null;
+    coverLetter !== null && hasEvidence && getAiConnectionForOperation(rootPath, "cover_letter_draft") !== null;
 
-  if (profile.items.length > 0 && extractionReady && (cvReady || letterReady)) {
+  if (extractionReady) {
     try {
       const extraction = await extractJobWithPartialOutcomes(rootPath, {
         sourceTitle: "",
@@ -76,18 +87,17 @@ export async function createApplicationDocuments(
             fieldId: proposal.fieldId,
             value: proposal.value,
           });
-          extractedValues += 1;
         } catch {
           // Independent proposal failure must not hide or invalidate other useful extraction results.
         }
       }
     } catch {
-      extractedValues = 0;
+      // A failed optional AI exchange does not invalidate the saved application.
     }
   }
 
   let cvPrepared = false;
-  if (cv && cvReady && extractedValues > 0) {
+  if (cv && cvReady) {
     try {
       const tailored = await tailorCv(rootPath, {
         candidatureId: candidature.id,
@@ -97,21 +107,12 @@ export async function createApplicationDocuments(
         profile.items,
         tailored.recommendations.map((recommendation) => recommendation.itemId),
       );
-      const included = new Set(selection.includedItemIds);
-      for (const item of profile.items) {
-        configureDocumentItem(rootPath, {
-          documentId: cv.id,
-          itemId: item.id,
-          included: included.has(item.id),
-          contentPatch: null,
-        });
-      }
-      if (selection.orderedItemIds.length > 0) {
-        reorderDocument(rootPath, {
-          documentId: cv.id,
-          itemIds: [...selection.orderedItemIds],
-        });
-      }
+      applyDocumentSelection(rootPath, {
+        documentId: cv.id,
+        expectedRules: selectedCv?.rules ?? [],
+        includedItemIds: [...selection.includedItemIds],
+        orderedItemIds: [...selection.orderedItemIds],
+      });
       cvPrepared = true;
     } catch {
       cvPrepared = false;
@@ -119,7 +120,7 @@ export async function createApplicationDocuments(
   }
 
   let coverLetterPrepared = false;
-  if (coverLetter && letterReady && extractedValues > 0) {
+  if (coverLetter && letterReady) {
     try {
       const draft = await draftCoverLetter(rootPath, {
         candidatureId: candidature.id,

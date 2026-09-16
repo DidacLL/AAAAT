@@ -92,19 +92,19 @@ describe("My information workspace", () => {
 
     expect(await screen.findByRole("heading", { name: "My information" })).toBeInTheDocument();
     expect(screen.getByText(/No information yet/)).toBeInTheDocument();
-    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("What information do you want to keep?")).not.toBeInTheDocument();
     expect(screen.queryByText("Canonical profile")).not.toBeInTheDocument();
     expect(screen.queryByText("Focused variants")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add information" }));
     expect(screen.getByRole("heading", { name: "Add information" })).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText("Type"), "skill");
-    await user.type(screen.getByLabelText("Title"), "TypeScript");
+    expect(screen.getByText("Organize or add dates and a link (optional)", { selector: "summary" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("What information do you want to keep?"), "TypeScript");
     expect(screen.queryByLabelText("Choose how AI may use this information")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add information" }));
 
     expect(addItem).toHaveBeenCalledWith({
-      kind: "skill",
+      kind: "other",
       title: "TypeScript",
       subtitle: undefined,
       description: undefined,
@@ -125,14 +125,14 @@ describe("My information workspace", () => {
     if (!firstItem) throw new Error("Expected My information item");
     await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
 
-    expect(screen.getByLabelText("Title")).toHaveValue("Professional summary");
+    expect(screen.getByLabelText("What information do you want to keep?")).toHaveValue("Professional summary");
     await user.click(await screen.findByLabelText("Choose how AI may use this information"));
     expect(await screen.findByText(/does not hide, remove or change your local information/i)).toBeInTheDocument();
     await user.selectOptions(screen.getByRole("combobox", { name: "AI may" }), "omit");
 
     expect(updateAiContext).toHaveBeenCalledWith({ itemId: itemA.id, aiContextMode: "omit" });
     expect(updateItem).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Title")).toHaveValue("Professional summary");
+    expect(screen.getByLabelText("What information do you want to keep?")).toHaveValue("Professional summary");
   });
 
   it("keeps saved variations optional and applies differences in ordinary terms", async () => {
@@ -197,8 +197,7 @@ describe("My information workspace", () => {
     await user.click(screen.getByRole("button", { name: "Back to My information" }));
     expect(confirm).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Add information" }));
-    await user.selectOptions(screen.getByLabelText("Type"), "skill");
-    await user.type(screen.getByLabelText("Title"), "TypeScript");
+    await user.type(screen.getByLabelText("What information do you want to keep?"), "TypeScript");
     await user.click(screen.getByRole("button", { name: "Add information" }));
 
     await user.click(screen.getByRole("button", { name: /Saved variations/ }));
@@ -218,13 +217,13 @@ describe("My information workspace", () => {
     const firstItem = within(list).getByText("Professional summary").closest("article");
     if (!firstItem) throw new Error("Expected My information item");
     await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
-    const title = screen.getByLabelText("Title");
+    const title = screen.getByLabelText("What information do you want to keep?");
     await user.clear(title);
     await user.type(title, "Unsaved professional edit");
 
     await user.click(screen.getByRole("button", { name: "Back to My information" }));
     expect(confirm).toHaveBeenCalledWith("Discard unsaved information edits?");
-    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved professional edit");
+    expect(screen.getByLabelText("What information do you want to keep?")).toHaveValue("Unsaved professional edit");
     expect(screen.getByRole("heading", { name: "Edit information" })).toBeInTheDocument();
     confirm.mockRestore();
   });

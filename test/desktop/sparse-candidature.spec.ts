@@ -190,8 +190,8 @@ async function createWorkspace(running: RunningApp): Promise<void> {
   await running.page.getByRole("button", { name: "Create workspace" }).click();
   chooseLinuxDirectory();
   await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
-  await running.page.getByRole("button", { name: "Saved applications" }).click();
-  await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+  await running.page.getByRole("button", { name: "Applications" }).click();
+  await expect(running.page.getByRole("heading", { name: "Focus", exact: true })).toBeVisible();
 }
 
 test("packaged sparse candidature accepts a runtime field and survives close/reopen", async () => {
@@ -235,13 +235,12 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     });
 
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
-    expect(existsSync(path.join(ownedWorkspace, "integrations", "vscode-mcp.json"))).toBe(false);
 
     await stopPackagedApp(running);
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
-    await running.page.getByRole("button", { name: "Saved applications" }).click();
-    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+    await running.page.getByRole("button", { name: "Applications" }).click();
+    await expect(running.page.getByRole("heading", { name: "Focus", exact: true })).toBeVisible();
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     const focusEntry = corpus.locator("button.candidature-focus-entry").first();
@@ -251,7 +250,7 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
     await expect(selectedFocus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
     await expect(selectedFocus).toContainText("1500");
-    await running.page.getByRole("button", { name: "All details" }).click();
+    await running.page.getByRole("button", { name: "Read everything" }).click();
 
     const complete = running.page.getByRole("region", { name: "Complete candidature" });
     const sources = complete.getByRole("region", { name: "Sources" });

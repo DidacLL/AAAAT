@@ -15,7 +15,7 @@ describe("demo workspace and reset", () => {
     createDemoWorkspace(root);
     expect(workspaceIsDemo(root)).toBe(true);
     const candidatures = listCandidatures(root);
-    expect(candidatures).toHaveLength(2);
+    expect(candidatures).toHaveLength(128);
     const rawSources = candidatures.flatMap((candidature) =>
       listCandidatureSources(root, candidature.id).map((source) => source.sourceText),
     );

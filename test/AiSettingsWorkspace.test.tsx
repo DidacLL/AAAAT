@@ -105,6 +105,7 @@ describe("AI settings workspace", () => {
     save
       .mockResolvedValueOnce([first])
       .mockResolvedValueOnce([first, second]);
+    list.mockImplementation(async () => save.mock.calls.length < 1 ? [] : save.mock.calls.length < 2 ? [first] : [first, second]);
     setDefault.mockResolvedValue([
       { ...first, isDefault: false },
       { ...second, isDefault: true },
@@ -113,10 +114,11 @@ describe("AI settings workspace", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<AiSettingsWorkspace />);
-    expect(await screen.findByText(/No AI connections are configured yet\./)).toBeInTheDocument();
+    expect(await screen.findByText("No saved connections.")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Connection name"), "Fast local");
     await user.type(screen.getByLabelText("Model"), "fast-model");
+    await user.type(screen.getByLabelText("Model server address"), "http://localhost:11434/v1");
     await user.click(screen.getByRole("button", { name: "Add connection" }));
     expect(save).toHaveBeenCalledWith({
       name: "Fast local",
@@ -124,11 +126,12 @@ describe("AI settings workspace", () => {
       model: "fast-model",
     });
     expect(await screen.findByText("General default connection")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validate AI capabilities" })).toBeInTheDocument();
+    expect(screen.getByText(/Connection saved. AAAAT is checking/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Add another" }));
+    await user.click(screen.getByRole("button", { name: "Add connection" }));
     await user.type(screen.getByLabelText("Connection name"), "Deep local");
     await user.type(screen.getByLabelText("Model"), "deep-model");
+    await user.type(screen.getByLabelText("Model server address"), "http://localhost:11434/v1");
     await user.click(screen.getByRole("button", { name: "Add connection" }));
 
     await user.click(screen.getByRole("button", { name: "Use Deep local as the general default" }));
@@ -164,12 +167,12 @@ describe("AI settings workspace", () => {
     });
 
     render(<AiSettingsWorkspace />);
-    await user.click(await screen.findByRole("button", { name: "Validate AI capabilities" }));
+    await user.click(await screen.findByRole("button", { name: "Check connection" }));
 
     expect(
       await screen.findByText(/Queued|Validating Opportunity review/),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validation running…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Checking connection…" })).toBeDisabled();
 
     firstValidation.resolve([{
       ...first,
@@ -200,12 +203,13 @@ describe("AI settings workspace", () => {
     });
 
     render(<AiSettingsWorkspace />);
-    await user.click(await screen.findByRole("button", { name: "Validate AI capabilities" }));
+    await user.click(await screen.findByRole("button", { name: "Check connection" }));
 
     expect(await screen.findByText("Connected")).toBeInTheDocument();
+    await user.click(screen.getByText(/AI feature details/));
     expect(screen.getByText("Incompatible · failed validation")).toBeInTheDocument();
     expect(screen.getByText(`${aiOperations.length - 1}/${aiOperations.length} ready`)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry failed validation" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Retry connection check" })).toBeEnabled();
     expect(screen.getByText("Inspect AI exchange")).toBeInTheDocument();
     expect(screen.getByText("{\"summary\":42}")).toBeInTheDocument();
     expect(screen.getByText(/summary must be a string/)).toBeInTheDocument();
@@ -231,6 +235,42 @@ describe("AI settings workspace", () => {
       endpoint: "http://localhost:11434/v1",
       model: "fast-model-2",
     });
+  });
+
+  it("shows a wrong address inline and checks a saved address without another user step", async () => {
+    const user = userEvent.setup();
+    save.mockResolvedValue([first]);
+    list.mockResolvedValue([first]);
+    const unreachable = {
+      id: "00000000-0000-4000-8000-000000000a98",
+      operation: aiOperations[0],
+      endpoint: first.endpoint,
+      model: first.model,
+      systemInstruction: "",
+      userPayload: "",
+      rawModelResponse: "",
+      validationError: "Cannot reach the model server.",
+      failureKind: "connection_unreachable",
+      structuredOutputMode: "json_schema",
+    };
+    validateOperation.mockRejectedValue(new Error(`Cannot reach the model server.\n${AI_EXCHANGE_DIAGNOSTIC_MARKER}${btoa(JSON.stringify(unreachable))}`));
+
+    render(<AiSettingsWorkspace />);
+    await user.type(screen.getByLabelText("Connection name"), "Fast local");
+    await user.type(screen.getByLabelText("Model"), "fast-model");
+    await user.type(screen.getByLabelText("Model server address"), "localhost:11434/v1");
+    await user.click(screen.getByRole("button", { name: "Add connection" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Start the address with http:// or https://.");
+    expect(save).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByRole("textbox", { name: /Model server address/ }));
+    await user.type(screen.getByRole("textbox", { name: /Model server address/ }), first.endpoint);
+    await user.click(screen.getByRole("button", { name: "Add connection" }));
+    expect(save).toHaveBeenCalledOnce();
+    expect(await screen.findByText(/Connection saved. AAAAT is checking/)).toBeInTheDocument();
+    expect(await screen.findByText(/Cannot reach this model server/)).toBeInTheDocument();
+    expect(screen.getAllByText(first.endpoint).length).toBeGreaterThan(0);
+    expect(validateOperation).toHaveBeenCalled();
   });
 
   it("exports portable setup and requires explicit confirmation before replacing imported connections", async () => {
@@ -267,7 +307,7 @@ describe("AI settings workspace", () => {
     expect(importPortable).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Imported local")).toBeInTheDocument();
     expect(screen.queryByText("Fast local")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validate AI capabilities" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check connection" })).toBeInTheDocument();
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Validate AI capabilities on this computer",
     );

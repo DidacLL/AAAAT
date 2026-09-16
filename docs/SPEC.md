@@ -20,7 +20,7 @@ SQLite workspace and user-owned files
 
 The renderer remains sandboxed, context-isolated and unprivileged. Durable mutations enter through normal application services whether their input originated in the UI, an import, direct optional AI, or a bounded external integration.
 
-Persisted domain objects do not define the desktop interaction architecture. The shell is composed around user intentions and may create/link domain objects automatically. In particular, the raw-offer-to-document journey may retain a Source, create an application context and link document projects without surfacing those intermediate objects as required steps.
+Persisted domain objects do not define the desktop interaction architecture. Welcome is first; closing it enters Focus over the application corpus. The same application area offers a dense complete-data register and one New screen for sparse raw material and/or direct field entry. Saving local information is complete work before any optional parsing or document creation. Dedicated CVs and cover letters are linked to that application. The CV area centres reusable CVs; standalone letter creation is secondary.
 
 ## Domain and information architecture
 
@@ -36,7 +36,7 @@ VCVGenerator uses canonical reusable professional information, optional differen
 
 The normal document surface is about the document being produced and information relevant to it. For a CV, effective included evidence is primary. For a cover letter, the editable letter text is primary. Variants, per-document overrides, ordering, LaTeX/source ownership and external disclosure remain available, but they are secondary controls rather than the creation mental model.
 
-When the user starts application documents from a raw offer and validated AI routes already exist, the renderer may start one bounded non-blocking preparation task automatically. That task reuses the existing robust job-extraction and document-AI operations sequentially, applies only independently valid existing-field proposals, then persists the resulting CV inclusion/order rules and/or cover-letter fields through normal document services. Failure or absence of AI never invalidates the retained Source or the created editable documents.
+When the user selects optional AI parsing or application documents while saving an application, AAAAT saves the application first, creates selected local document projects and links them to it. Validated AI routes may start bounded background preparation for the selected work. Extracted proposals do not replace explicit user-entered values. CV inclusion/order selection is one bounded document mutation. Failure or absence of AI never invalidates the retained application or editable local documents.
 
 The portable boundary is:
 
@@ -71,7 +71,7 @@ The capability contract must not expose generic corpus browsing, arbitrary durab
 
 Meaningful parity is expressed as typed high-level product intentions, not generic CRUD. An external assistant may, for example, create the same offer-derived application document workspace as the desktop without receiving the hidden candidature/document IDs. Setup mutations use the same application services and validation as the desktop and require explicit local authority where appropriate.
 
-VS Code is one optional adapter over the shared contract. It must not define the architecture or product navigation. Additional concrete adapters require demonstrated value; this does not authorize a generic plugin/provider framework.
+The packaged app exposes the shared bounded local tool entry point. Hosts that can start a local tool may use it without changing AAAAT's domain authority. This does not authorize a generic plugin/provider framework.
 
 ## Setup, recovery and local ownership
 

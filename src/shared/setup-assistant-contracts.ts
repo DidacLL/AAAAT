@@ -22,6 +22,7 @@ export const setupRenderingSelfTestResultSchema = z
   .strict();
 export type SetupRenderingSelfTestResult = z.infer<typeof setupRenderingSelfTestResultSchema>;
 
+
 export interface SetupAssistantDesktopApi {
   readonly setupAssistant: {
     readonly access: () => Promise<SetupAssistantAccess>;

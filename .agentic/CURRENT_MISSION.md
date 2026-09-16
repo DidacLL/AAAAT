@@ -8,15 +8,13 @@ Do not treat this as deployment polish. The current problem is interaction archi
 
 ## Product authority for this pass
 
-The primary ordinary journey is:
+AAAAT has no primary or canonical journey. Focus, complete application maintenance, sparse application capture, reusable CV work, application-owned letter work, reusable professional information and Settings are direct peer intentions.
 
-> I found a job → paste the raw offer → create a tailored CV, a cover letter, or both.
+Focus and All data are presentations of the same application corpus. Focus supports rapid recognition and selected-context recall; All data exposes the compact complete register. They never classify applications or create separate collections.
 
-AAAAT may create and retain the underlying candidature/application context automatically. The user must not be forced to create/name/remember a candidature and then navigate elsewhere to rediscover or link it.
+New application keeps raw material and editable fields together, accepts sparse data, saves locally first, and may optionally parse with AI or prepare an application-linked CV or cover letter. Cover letters normally belong to their application. The global CV area centres reusable CVs and progressively discloses standalone letters.
 
-Standalone CV/cover-letter work remains independently core. It should be organized around the document and relevant professional information, with variants/rules/source/disclosure/LaTeX ownership progressively accessible rather than first-sight administration.
-
-The shell must be intention-first. Current owner authority outranks historical renderer structure, tests, issues or ADR wording that fossilizes entity-shaped navigation.
+The shell must remain compact, data-dense and legible, with the worn physical-console character serving hierarchy rather than creating website cards. Current owner authority outranks historical renderer structure, tests, issues or ADR wording.
 
 ## Preserve the sound foundation
 
@@ -36,7 +34,7 @@ Do not regress:
 
 ## External assistants and setup
 
-AAAAT is provider- and host-agnostic. VS Code is one optional demonstrated adapter only; it must not define navigation, product copy or architecture.
+AAAAT is provider- and host-agnostic. No editor or host may define navigation, product copy or architecture.
 
 Preserve meaningful bounded external capabilities and deny generic database/filesystem/shell/process authority. Do not build a generic plugin/provider/workflow framework.
 
@@ -51,3 +49,11 @@ Prefer deletion/recomposition over explanation text.
 ## Completion boundary
 
 This recovery is complete only when ordinary intentions are discoverable without instructions, especially the raw-offer-to-document journey, standalone document work, saved application recall, professional information, and host-agnostic settings. Use impact-appropriate tests and produce a fresh packaged Windows artifact for owner acceptance. Do not merge PR #319 during this run.
+
+## Development path after this candidate
+
+1. Product Owner natural-use acceptance on the single Windows candidate decides product meaning. Record only concrete observed friction or failures; do not defend current screens through tests or history.
+2. Repair accepted blockers on this branch as coherent journeys. Keep application-owned letters, the single corpus, sparse saving, local ownership and bounded optional AI intact.
+3. After owner acceptance, run Windows regression plus Linux/macOS and release verification. Cross-platform work must not redesign the interaction architecture.
+4. Subsequent document-editor and professional-information refinement must remove implementation vocabulary and compress ordinary editing before adding capability. Do not introduce workflows, registries, provider platforms, compatibility layers or new frameworks.
+5. Before every agent change, compare the live PR head with this mission and the current explicit owner instruction. Push a coherent reviewed head; never report dispatched work or CI as accepted product evidence.

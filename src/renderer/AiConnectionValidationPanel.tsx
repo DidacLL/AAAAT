@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   aiOperationLabels,
@@ -13,6 +13,7 @@ import { aiTaskFailure, startAiTask, useAiTask } from "./ai-task-store";
 interface Props {
   readonly connection: NamedAiConnection;
   readonly onConnections: (connections: NamedAiConnection[]) => void;
+  readonly checkRequest?: number | null;
 }
 
 interface ValidationFailure {
@@ -53,8 +54,9 @@ function isProviderLevelFailure(exchange: AiExchangeDiagnostic | undefined): boo
     || exchange?.failureKind === "provider_envelope_invalid";
 }
 
-export function AiConnectionValidationPanel({ connection, onConnections }: Props) {
+export function AiConnectionValidationPanel({ connection, onConnections, checkRequest = null }: Props) {
   const task = useAiTask<ValidationResult>(taskKey(connection.id));
+  const lastCheckRequest = useRef<number | null>(null);
   const [routingBusy, setRoutingBusy] = useState<AiOperation | null>(null);
   const active = task?.status === "queued" || task?.status === "working";
   const allValidated = aiOperations.every((operation) =>
@@ -77,7 +79,7 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
     };
   }, [onConnections, task?.result, task?.status]);
 
-  const validate = () => {
+  const validate = useCallback(() => {
     startAiTask<ValidationResult>(
       taskKey(connection.id),
       async (updateDetail) => {
@@ -121,7 +123,13 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
           ? `Validation completed · ${result.failures.length} capability${result.failures.length === 1 ? "" : "ies"} need attention`
           : "Validation completed",
     );
-  };
+  }, [connection.id, connection.name]);
+
+  useEffect(() => {
+    if (checkRequest === null || checkRequest === lastCheckRequest.current) return;
+    lastCheckRequest.current = checkRequest;
+    validate();
+  }, [checkRequest, validate]);
 
   const setOperationDefault = async (operation: AiOperation) => {
     setRoutingBusy(operation);
@@ -155,12 +163,12 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
     : hasUnreachableFailure
       ? "Unreachable / timed out"
       : hasProviderFailure
-        ? "Connected · provider response needs attention"
+        ? "Address or server response needs attention"
         : validatedCount > 0 || failureList.length > 0
           ? "Connected"
           : task?.status === "failed"
             ? "Needs attention"
-            : "Configured · not checked";
+            : "Saved · not checked";
 
   return (
     <section className="ai-validation-card" aria-label={`AI readiness for ${connection.name}`}>
@@ -181,8 +189,9 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
         <p role="status" className="ai-task-state">{task.detail ?? "Validation completed."}</p>
       ) : task?.status === "failed" ? (
         <div className="ai-task-failure" role="alert">
-          <strong>Validation stopped</strong>
+          <strong>{hasUnreachableFailure ? "Cannot reach this model server" : hasProviderFailure ? "Model server returned an error" : "AI check stopped"}</strong>
           <p>{task.error}</p>
+          {hasUnreachableFailure || hasProviderFailure ? <p>Saved address: <code>{connection.endpoint}</code>. Check it against your model server.</p> : null}
           {task.exchange ? <AiExchangeInspector exchange={task.exchange} /> : null}
         </div>
       ) : null}
@@ -190,17 +199,19 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
       {!allValidated ? (
         <button type="button" disabled={active} onClick={validate}>
           {active
-            ? "Validation running…"
+            ? "Checking connection…"
             : task?.status === "failed" || failureList.length > 0
-              ? "Retry failed validation"
+              ? "Retry connection check"
               : validatedCount > 0
-                ? "Continue validation"
-                : "Validate AI capabilities"}
+                ? "Check remaining AI features"
+                : "Check connection"}
         </button>
       ) : (
         <p className="compact-help"><strong>AI ready.</strong> All bounded AAAAT AI capabilities have been validated for this connection.</p>
       )}
 
+      <details className="ai-validation-details">
+        <summary>AI feature details · {validatedCount}/{aiOperations.length} ready</summary>
       <div className="ai-capability-list" aria-label={`Capabilities for ${connection.name}`}>
         {aiOperations.map((operation) => {
           const validated = connection.validatedOperations.includes(operation);
@@ -230,6 +241,7 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
           );
         })}
       </div>
+      </details>
 
       {connection.validatedOperations.some(
         (operation) => !connection.defaultForOperations.includes(operation),

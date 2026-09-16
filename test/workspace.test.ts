@@ -2,6 +2,7 @@
 
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   rmSync,
   writeFileSync,
@@ -14,6 +15,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   createOrOpenWorkspace,
+  deleteWorkspace,
+  forgetWorkspacePath,
   openWorkspace,
   readLastWorkspacePath,
   rememberWorkspacePath,
@@ -36,30 +39,10 @@ describe("user-owned workspace", () => {
       const database = new DatabaseSync(databasePath);
       try {
         expect(
-          database.prepare("SELECT name FROM sqlite_schema WHERE name = 'schema_migrations'").get(),
-        ).toBeUndefined();
-        expect(
-          database.prepare("SELECT name FROM sqlite_schema WHERE name = 'todos'").get(),
-        ).toBeUndefined();
-        expect(
           database
             .prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.initialized_at'")
             .get(),
         ).toMatchObject({ value: expect.any(String) });
-        expect(
-          database
-            .prepare(
-              "SELECT opportunity_research_selected AS selected FROM candidatures LIMIT 0",
-            )
-            .all(),
-        ).toEqual([]);
-        expect(
-          database
-            .prepare(
-              "SELECT cv_document_id, cover_letter_document_id, kind FROM application_artifacts LIMIT 0",
-            )
-            .all(),
-        ).toEqual([]);
         database.exec("CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;");
         database
           .prepare("INSERT INTO persistence_probe(value) VALUES (?)")
@@ -122,56 +105,6 @@ describe("user-owned workspace", () => {
     }
   });
 
-  it("rejects a development-era migration table instead of treating it as compatibility state", () => {
-    const directory = temporaryDirectory();
-    const databasePath = path.join(directory, "workspace.sqlite");
-    try {
-      createOrOpenWorkspace(directory);
-      const database = new DatabaseSync(databasePath);
-      try {
-        database.exec(
-          "CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;",
-        );
-      } finally {
-        database.close();
-      }
-      expect(() => openWorkspace(directory)).toThrow(
-        "The selected folder is not a compatible AAAAT workspace.",
-      );
-      const unchanged = new DatabaseSync(databasePath, { readOnly: true });
-      try {
-        expect(
-          unchanged.prepare("SELECT name FROM sqlite_schema WHERE name = 'schema_migrations'").get(),
-        ).toEqual({ name: "schema_migrations" });
-      } finally {
-        unchanged.close();
-      }
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
-
-  it("rejects the removed global ToDo schema instead of carrying it forward", () => {
-    const directory = temporaryDirectory();
-    const databasePath = path.join(directory, "workspace.sqlite");
-    try {
-      createOrOpenWorkspace(directory);
-      const database = new DatabaseSync(databasePath);
-      try {
-        database.exec(
-          "CREATE TABLE todos(id TEXT PRIMARY KEY, body TEXT NOT NULL, done INTEGER NOT NULL) STRICT;",
-        );
-      } finally {
-        database.close();
-      }
-      expect(() => openWorkspace(directory)).toThrow(
-        "The selected folder is not a compatible AAAAT workspace.",
-      );
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
-
   it("rejects a workspace missing current schema objects without repairing it", () => {
     const directory = temporaryDirectory();
     const databasePath = path.join(directory, "workspace.sqlite");
@@ -207,6 +140,33 @@ describe("user-owned workspace", () => {
       expect(readLastWorkspacePath(settingsPath)).toBeNull();
       rememberWorkspacePath(settingsPath, workspacePath);
       expect(readLastWorkspacePath(settingsPath)).toBe(workspacePath);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("deletes managed workspace data without recreating the old workspace", () => {
+    const directory = temporaryDirectory();
+    const workspacePath = path.join(directory, "workspace");
+    const settingsPath = path.join(directory, "workspace-settings.json");
+    try {
+      mkdirSync(workspacePath);
+      createOrOpenWorkspace(workspacePath);
+      mkdirSync(path.join(workspacePath, "documents"));
+      writeFileSync(path.join(workspacePath, "documents", "draft.txt"), "owned document");
+      writeFileSync(path.join(workspacePath, "keep.txt"), "unrelated file");
+      rememberWorkspacePath(settingsPath, workspacePath);
+
+      deleteWorkspace(workspacePath);
+      forgetWorkspacePath(settingsPath);
+
+      expect(existsSync(workspacePath)).toBe(true);
+      expect(existsSync(path.join(workspacePath, "workspace.sqlite"))).toBe(false);
+      expect(existsSync(path.join(workspacePath, "documents"))).toBe(false);
+      expect(existsSync(path.join(workspacePath, "keep.txt"))).toBe(true);
+      expect(readLastWorkspacePath(settingsPath)).toBeNull();
+      expect(() => openWorkspace(workspacePath)).toThrow();
+      expect(existsSync(path.join(workspacePath, "workspace.sqlite"))).toBe(false);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

@@ -127,11 +127,6 @@ export function validateCurrentWorkspaceDatabase(database: DatabaseSync): void {
     }
   }
 
-  for (const obsoleteName of ["schema_migrations", "todos"]) {
-    if (schemaRows.some((row) => row.name === obsoleteName)) {
-      throw new WorkspaceError("The workspace schema is incompatible.");
-    }
-  }
 
   for (const [tableName, columns] of Object.entries(requiredColumns)) {
     const rows = database
@@ -269,6 +264,11 @@ export function openWorkspace(rootPath: string): WorkspaceInfo {
 }
 
 export function resetWorkspace(rootPath: string): WorkspaceInfo {
+  const canonicalPath = removeWorkspaceData(rootPath);
+  return initializeNewWorkspace(canonicalPath);
+}
+
+function removeWorkspaceData(rootPath: string): string {
   const canonicalPath = canonicalizeWorkspaceRoot(rootPath);
   verifyExistingWorkspace(canonicalPath);
   for (const target of [
@@ -281,7 +281,11 @@ export function resetWorkspace(rootPath: string): WorkspaceInfo {
   ]) {
     rmSync(target, { recursive: true, force: true });
   }
-  return initializeNewWorkspace(canonicalPath);
+  return canonicalPath;
+}
+
+export function deleteWorkspace(rootPath: string): void {
+  removeWorkspaceData(rootPath);
 }
 
 export function workspaceIsDemo(rootPath: string): boolean {
@@ -331,4 +335,8 @@ export function rememberWorkspacePath(
 ): void {
   const settings: WorkspaceSettings = { lastWorkspacePath: rootPath };
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8");
+}
+
+export function forgetWorkspacePath(settingsPath: string): void {
+  rmSync(settingsPath, { force: true });
 }

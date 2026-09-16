@@ -156,11 +156,11 @@ test("packaged saved-application document handoff returns to complete applicatio
       });
     });
     await running.page.reload();
-    await running.page.getByRole("button", { name: "Saved applications" }).click();
+    await running.page.getByRole("button", { name: "Applications" }).click();
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Handoff opportunity" });
-    await card.getByRole("button", { name: "All details" }).click();
+    await card.getByRole("button", { name: "Full record" }).click();
     await expect(running.page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
 
     const complete = running.page.getByRole("region", { name: "Complete candidature" });
@@ -168,7 +168,7 @@ test("packaged saved-application document handoff returns to complete applicatio
     await material.getByRole("button", { name: "Create CV or letter" }).click();
 
     const documents = running.page.getByRole("region", { name: "Documents" });
-    await expect(documents).toContainText("New work will be linked to Handoff opportunity.");
+    await expect(documents).toContainText("This document stays with the application.");
     await documents.locator(".document-create").getByLabel("Title").fill("Handoff CV");
     await documents.getByRole("button", { name: "Create CV" }).click();
     await expect(documents.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
@@ -178,7 +178,7 @@ test("packaged saved-application document handoff returns to complete applicatio
     await expect(returnedComplete).toBeVisible();
     await expect(running.page.getByRole("tablist", { name: "Candidature sections" })).toHaveCount(0);
     const returnedMaterial = returnedComplete.getByRole("region", { name: "Documents" });
-    const working = returnedMaterial.getByRole("region", { name: "CVs and letters for this candidature" });
+    const working = returnedMaterial.getByRole("region", { name: "Application documents" });
     await expect(working.getByRole("heading", { name: "Handoff CV" })).toBeVisible();
 
     const association = await running.page.evaluate(async () => {

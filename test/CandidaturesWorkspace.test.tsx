@@ -187,7 +187,7 @@ describe("rebuilt candidature workspace", () => {
   it("opens on corpus Focus with no forced selection and makes sparse candidatures recognizable", async () => {
     render(<CandidaturesWorkspace />);
 
-    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Focus" })).toBeInTheDocument();
     expect(screen.getByText("Regional Air", { selector: "strong" })).toBeInTheDocument();
     expect(screen.getByText("Nimbus Labs", { selector: "strong" })).toBeInTheDocument();
     expect(screen.getByText("Remote platform role in Barcelona")).toBeInTheDocument();
@@ -220,13 +220,13 @@ describe("rebuilt candidature workspace", () => {
     });
 
     await user.click(within(selected).getByRole("button", { name: "Back" }));
-    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Focus" })).toBeInTheDocument();
   });
 
   it("shows retained and missing fields in one collection with no ordinary customization panel", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "Full record" }))[0]!);
 
     const information = screen.getByRole("region", { name: "Candidature information" });
     expect(within(information).getByRole("heading", { name: "Organisation" })).toBeInTheDocument();
@@ -239,7 +239,7 @@ describe("rebuilt candidature workspace", () => {
   it("adds a new kind of information from the field collection with the + flow", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "Full record" }))[0]!);
 
     await user.click(screen.getByRole("button", { name: "Add information" }));
     const form = screen.getByRole("form", { name: "Add information" });
@@ -264,7 +264,7 @@ describe("rebuilt candidature workspace", () => {
   it("updates Focus visibility inline from the field edit state", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "Full record" }))[0]!);
 
     const information = screen.getByRole("region", { name: "Candidature information" });
     const fieldCard = within(information).getByRole("heading", { name: "Minimum flight hours" }).closest("article");
@@ -285,7 +285,7 @@ describe("rebuilt candidature workspace", () => {
   it("keeps Tag notes editable in complete maintenance", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "All details" }))[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "Full record" }))[0]!);
 
     const tags = screen.getByRole("region", { name: "Tags" });
     await user.click(within(tags).getByRole("button", { name: "Edit Tag" }));

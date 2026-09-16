@@ -37,19 +37,3 @@ export const externalAssistantMcpContract = Object.freeze({
   privacyDisclosure:
     "The external assistant receives only the payload of the bounded capability it invokes. Application creation accepts retained offer text and requested output kinds and returns only created/prepared booleans, never local IDs or paths. Opportunity, Career and CV reads remain locally selected/disclosed as before. installer_status_read and configurator_status_read remain privacy-minimal. installer_rendering_self_test accepts no path, command or package-manager input and is denied unless installer.ai actions are enabled in AAAAT Settings. configurator AI mutations accept only connection name/endpoint/model and typed AAAAT operation names, use the same endpoint validation and capability validation as the desktop, expose no credentials, and are denied unless configurator.ai actions are enabled in Settings. No tool exposes generic database, filesystem, process, network, browse, search, query, package-manager or command authority. A host with broader machine access remains the user's separate trust choice outside AAAAT's tool boundary." as const,
 });
-
-export const vscodeMcpSetupRecipe = Object.freeze({
-  id: "vscode.mcp" as const,
-  host: "vscode" as const,
-  transport: externalAssistantMcpContract.transport,
-  capabilityNames: externalAssistantMcpContract.capabilityNames,
-  toolNames: externalAssistantMcpContract.toolNames,
-  permissionScope: externalAssistantMcpContract.permissionScope,
-  privacyDisclosure: externalAssistantMcpContract.privacyDisclosure,
-  actions: Object.freeze([
-    "validate-workspace",
-    "validate-executable",
-    "verify-mcp-tools",
-    "write-vscode-mcp-config",
-  ] as const),
-});

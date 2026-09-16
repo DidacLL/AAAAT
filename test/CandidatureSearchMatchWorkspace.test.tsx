@@ -68,7 +68,7 @@ describe("candidature corpus search recognition", () => {
   it("shows the buried Source or Tag reason returned by authoritative search", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await screen.findByRole("heading", { name: "Candidatures" });
+    await screen.findByRole("heading", { name: "Focus" });
 
     const searchInput = screen.getByRole("searchbox", { name: "Search" });
     await user.type(searchInput, "security clearance");

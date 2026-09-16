@@ -235,11 +235,11 @@ async function proveIntentShell(page: Page, width: number, height: number): Prom
   expect(resizeLinuxAppWindow(width, height)).toEqual({ width, height });
   await page.waitForTimeout(150);
   const primary = page.getByRole("navigation", { name: "Primary work areas" });
-  for (const label of ["From a job offer", "CV & cover letter", "Saved applications", "My information"]) {
+  for (const label of ["Applications", "CVs", "My information"]) {
     await expect(primary.getByRole("button", { name: label })).toBeVisible();
   }
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Change workspace" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Welcome / switch" })).toBeVisible();
   const geometry = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
@@ -289,7 +289,7 @@ test("packaged desktop keeps the sandboxed boundary and first-run ownership choi
   try {
     running = await startPackagedApp(isolatedUserData);
     await expect(running.page).toHaveTitle("AAAAT");
-    await expect(running.page.getByRole("heading", { name: "Choose where AAAAT should keep your career workspace." })).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Welcome to AAAAT" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Create workspace" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Open existing workspace" })).toBeVisible();
     await expect(running.page.getByRole("button", { name: "Try with demo data" })).toBeVisible();
@@ -313,6 +313,54 @@ test("packaged desktop keeps the sandboxed boundary and first-run ownership choi
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+});
+
+test("packaged Windows opens Welcome first and saves sparse applications and linked documents", async () => {
+  test.skip(process.platform !== "win32", "Windows acceptance smoke uses an isolated remembered workspace");
+  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-windows-owner-use-"));
+  const workspaceRoot = mkdtempSync(path.join(tmpdir(), "aaaat-windows-workspace-"));
+  const database = new DatabaseSync(path.join(workspaceRoot, "workspace.sqlite"));
+  try {
+    database.exec(readFileSync(path.resolve("src/main/schema.sql"), "utf8"));
+    database.prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
+      .run("workspace.initialized_at", "2026-09-16T00:00:00.000Z");
+  } finally { database.close(); }
+  writeFileSync(path.join(isolatedUserData, "workspace-settings.json"), JSON.stringify({ lastWorkspacePath: workspaceRoot }), "utf8");
+  let running: RunningApp | undefined;
+  try {
+    running = await startPackagedApp(isolatedUserData);
+    const page = running.page;
+    await expect(page.getByRole("heading", { name: "Welcome to AAAAT" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Enter workspace/ })).toBeVisible();
+    await page.getByRole("button", { name: /Enter workspace/ }).click();
+    await expect(page.getByRole("region", { name: "Candidatures" })).toBeVisible();
+
+    await page.getByRole("button", { name: "New application" }).click();
+    await page.getByRole("textbox", { name: "Application notes or offer" }).fill("Aster Aviation offers a captain role.");
+    await page.getByRole("button", { name: "Save application" }).click();
+    await expect.poll(() => page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(1);
+
+    await page.getByRole("button", { name: "New application" }).click();
+    const manualToggle = page.getByRole("button", { name: "Show fields" });
+    if (await manualToggle.isVisible()) await manualToggle.click();
+    await page.getByRole("textbox", { name: "Organisation" }).fill("Example Company");
+    await page.getByRole("button", { name: "Save application" }).click();
+    await expect.poll(() => page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(2);
+
+    await page.getByRole("button", { name: "New application" }).click();
+    await page.getByRole("textbox", { name: "Application notes or offer" }).fill("Example Company seeks a platform engineer.");
+    await page.getByRole("checkbox", { name: "Dedicated CV" }).check();
+    await page.getByRole("checkbox", { name: "Cover letter" }).check();
+    await page.getByRole("button", { name: "Save application" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "documents ready" })).toBeVisible();
+    const records = await page.evaluate(() => window.aaaat.candidatures.list());
+    expect(records).toHaveLength(3);
+    expect(records.some((record) => record.documentIds.length === 2)).toBe(true);
+  } finally {
+    if (running) await stopPackagedApp(running);
+    rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(workspaceRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
@@ -350,7 +398,7 @@ test("packaged Linux follows the raw-offer-to-document journey and keeps standal
     }
 
     const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
-    await primary.getByRole("button", { name: "Saved applications" }).click();
+    await primary.getByRole("button", { name: "Applications" }).click();
     await running.page.getByRole("searchbox", { name: "Search" }).fill("Acme");
     await expect(running.page.locator('[aria-label="Candidature corpus Focus"]')).toBeVisible();
 
@@ -375,8 +423,7 @@ test("packaged Linux follows the raw-offer-to-document journey and keeps standal
     await expect(running.page.getByRole("heading", { name: "Use AAAAT from a compatible assistant" })).toBeVisible();
     await expect(running.page.getByRole("article", { name: "installer.ai" })).toBeVisible();
     await expect(running.page.getByRole("article", { name: "configurator.ai" })).toBeVisible();
-    await expect(running.page.locator("summary").filter({ hasText: "Optional VS Code adapter" })).toBeVisible();
-    await expect(running.page.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeVisible();
+    await expect(running.page.getByRole("heading", { name: "Connect a local assistant" })).toBeVisible();
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
@@ -399,7 +446,7 @@ test("packaged demo remains isolated and reset returns the workspace to a clean 
 
     await expect(running.page.getByText("Demo workspace", { exact: true })).toBeVisible();
     await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
-    await running.page.getByRole("button", { name: "Saved applications" }).click();
+    await running.page.getByRole("button", { name: "Applications" }).click();
     await expect(running.page.locator('[aria-label="Candidature corpus Focus"]').getByRole("button", { name: /Northstar Labs/i }).first()).toBeVisible();
 
     await running.page.getByRole("button", { name: "Settings" }).click();

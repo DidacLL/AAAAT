@@ -150,6 +150,7 @@ export function SetupEnvironmentPanel({ view = "all" }: { readonly view?: SetupE
     }
   };
 
+
   const harnesses = snapshot ? buildSetupGuidance(snapshot) : null;
   const authority = access ? (
     <SetupActionAuthority access={access} saving={savingAccess} onChange={(next) => void updateAccess(next)} />

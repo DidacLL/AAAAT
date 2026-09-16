@@ -119,7 +119,7 @@ describe("candidature Documents", () => {
     const user = userEvent.setup();
     const { onOpenDocument } = renderPanel();
 
-    const linked = await screen.findByRole("region", { name: "CVs and letters for this candidature" });
+    const linked = await screen.findByRole("region", { name: "Application documents" });
     expect(within(linked).getByRole("heading", { name: "Platform CV" })).toBeInTheDocument();
     expect(within(linked).getByText("CV")).toBeInTheDocument();
     expect(within(linked).getByText("Editable document")).toBeInTheDocument();
@@ -183,7 +183,7 @@ describe("candidature Documents", () => {
     const user = userEvent.setup();
     const { rerender, onDocumentSelectionChange, onSaveDocuments, onOpenDocument } = renderPanel();
 
-    await screen.findByRole("region", { name: "CVs and letters for this candidature" });
+    await screen.findByRole("region", { name: "Application documents" });
     await user.click(screen.getByText("Link an existing CV or letter", { selector: "summary" }));
     await user.click(screen.getByRole("checkbox", { name: "General letter (cover letter)" }));
     expect(onDocumentSelectionChange).toHaveBeenCalledWith([workingDocument.id, otherDocument.id]);
@@ -210,7 +210,7 @@ describe("candidature Documents", () => {
     renderPanel({ record: sparse, selectedDocumentIds: [] });
 
     expect(await screen.findByText("No documents are linked to this candidature yet.")).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "CVs and letters for this candidature" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Application documents" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Saved application PDFs" })).not.toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Platform CV (CV)" })).not.toBeVisible();
     expect(screen.getByText("Link an existing CV or letter", { selector: "summary" })).toBeVisible();

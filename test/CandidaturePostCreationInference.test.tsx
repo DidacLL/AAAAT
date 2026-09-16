@@ -165,7 +165,7 @@ function installApi(
 
 async function openDetails(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByLabelText("Candidature corpus Focus");
-  await user.click(screen.getByRole("button", { name: "All details" }));
+  await user.click(screen.getByRole("button", { name: "Full record" }));
   return screen.findByRole("region", { name: "Complete candidature" });
 }
 
@@ -206,17 +206,17 @@ describe("post-creation candidature AI inference", () => {
     expect(extractJob).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Focus" })).toBeInTheDocument();
 
     extraction.resolve({
       proposals: [{ fieldId: roleId, value: "Senior Captain" }],
       newFields: [],
       issues: [],
     });
-    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Focus" })).toBeInTheDocument();
     expect(setFieldValue).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "All details" }));
+    await user.click(screen.getByRole("button", { name: "Full record" }));
     detail = await screen.findByRole("region", { name: "Complete candidature" });
     const reopenedRole = within(detail).getByRole("heading", { name: "Role" }).closest("article");
     if (!reopenedRole) throw new Error("Reopened Role card missing");

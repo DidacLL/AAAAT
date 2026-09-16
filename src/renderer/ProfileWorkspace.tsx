@@ -12,7 +12,7 @@ import type {
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { ProfileItemAiDisclosureControl } from "./ProfileItemAiDisclosureControl";
 
-const itemKinds: readonly ProfileItemKind[] = [
+const suggestedCategories: readonly ProfileItemKind[] = [
   "identity",
   "contact",
   "summary",
@@ -23,6 +23,7 @@ const itemKinds: readonly ProfileItemKind[] = [
   "certification",
   "language",
   "link",
+  "other",
 ];
 
 type ProfessionalInformationView = "overview" | "item" | "variations";
@@ -45,7 +46,7 @@ interface VariantFormState {
 }
 
 const emptyItem: ItemFormState = {
-  kind: "summary",
+  kind: "other",
   title: "",
   subtitle: "",
   description: "",
@@ -484,7 +485,7 @@ export function ProfileWorkspace({
               {snapshot.items.map((item) => (
                 <article className="profile-item" key={item.id}>
                   <div>
-                    <span className="item-kind">{item.kind}</span>
+                    {item.kind !== "other" ? <span className="item-kind">{item.kind}</span> : null}
                     <h3>{item.title}</h3>
                     {item.subtitle ? <p>{item.subtitle}</p> : null}
                     {item.description ? <p>{item.description}</p> : null}
@@ -498,7 +499,9 @@ export function ProfileWorkspace({
             </div>
           )}
 
-          <section className="professional-information-secondary" aria-label="Saved variations">
+          {snapshot.items.length > 0 ? <details className="professional-information-secondary" aria-label="Saved variations">
+            <summary>Saved variations (optional)</summary>
+            <section>
             <div>
               <strong>Saved variations</strong>
               <p>
@@ -511,7 +514,8 @@ export function ProfileWorkspace({
                 : `Saved variations (${String(snapshot.variants.length)})`}
             </button>
             {variantDirty ? <span>Unsaved variation changes</span> : null}
-          </section>
+            </section>
+          </details> : null}
         </div>
       ) : null}
 
@@ -529,38 +533,30 @@ export function ProfileWorkspace({
           </div>
           <form className="editor-card" onSubmit={(event) => void submitItem(event)}>
             <label>
-              Type
-              <select
-                value={itemState.kind}
-                onChange={(event) => setItemState({ ...itemState, kind: event.target.value as ProfileItemKind })}
-              >
-                {itemKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
-              </select>
-            </label>
-            <label>
-              Title
-              <input required value={itemState.title} onChange={(event) => setItemState({ ...itemState, title: event.target.value })} />
-            </label>
-            <label>
-              Subtitle
-              <input value={itemState.subtitle} onChange={(event) => setItemState({ ...itemState, subtitle: event.target.value })} />
+              What information do you want to keep?
+              <input required value={itemState.title} onChange={(event) => setItemState({ ...itemState, title: event.target.value })} placeholder="e.g. Flight hours, project, language, qualification" />
             </label>
             <label className="wide-field">
-              Description
+              Details
               <textarea value={itemState.description} onChange={(event) => setItemState({ ...itemState, description: event.target.value })} />
             </label>
-            <label>
-              Start
-              <input value={itemState.startDate} onChange={(event) => setItemState({ ...itemState, startDate: event.target.value })} />
-            </label>
-            <label>
-              End
-              <input value={itemState.endDate} onChange={(event) => setItemState({ ...itemState, endDate: event.target.value })} />
-            </label>
-            <label className="wide-field">
-              URL
-              <input type="url" value={itemState.url} onChange={(event) => setItemState({ ...itemState, url: event.target.value })} />
-            </label>
+            <details className="wide-field information-more-details">
+              <summary>Organize or add dates and a link (optional)</summary>
+              <div className="information-more-grid">
+                <label>
+                  Group with similar information
+                  <input value={itemState.kind} list="professional-information-categories" maxLength={80} required onChange={(event) => setItemState({ ...itemState, kind: event.target.value })} />
+                  <datalist id="professional-information-categories">
+                    {suggestedCategories.map((category) => <option key={category} value={category} />)}
+                  </datalist>
+                  <small>Use a suggested group or any label that makes sense to you.</small>
+                </label>
+                <label>Subtitle<input value={itemState.subtitle} onChange={(event) => setItemState({ ...itemState, subtitle: event.target.value })} /></label>
+                <label>Start date<input value={itemState.startDate} onChange={(event) => setItemState({ ...itemState, startDate: event.target.value })} /></label>
+                <label>End date<input value={itemState.endDate} onChange={(event) => setItemState({ ...itemState, endDate: event.target.value })} /></label>
+                <label className="wide-field">Link<input type="url" value={itemState.url} onChange={(event) => setItemState({ ...itemState, url: event.target.value })} /></label>
+              </div>
+            </details>
             <div className="form-actions wide-field">
               <button className="compact-primary" type="submit">
                 {editingItemId ? "Save information" : "Add information"}

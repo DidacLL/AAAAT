@@ -192,6 +192,7 @@ function projectCandidature(
   rootPath: string,
   candidatureId: string,
   additionalForbidden: readonly string[] = [],
+  includeSourceForDocument = false,
 ): Projection<AiProjectedCandidature> {
   const candidature = getCandidature(rootPath, candidatureId);
   const fieldConfigurations = listCandidatureFields(rootPath);
@@ -226,7 +227,13 @@ function projectCandidature(
     context: aiProjectedCandidatureSchema.parse({
       label: "Candidature",
       information,
-      sources: [],
+      sources: includeSourceForDocument
+        ? retainedSources.slice(0, 1).map((source) => ({
+            title: source.title,
+            url: source.url,
+            sourceText: compactSourceText(source.sourceText).slice(0, 12000),
+          }))
+        : [],
     }),
     tokenMap,
   };
@@ -563,15 +570,9 @@ export async function recommendVariant(
   });
 }
 
-const documentEvidenceKinds = new Set([
-  "summary",
-  "experience",
-  "education",
-  "project",
-  "skill",
-  "certification",
-  "language",
-]);
+function isDocumentEvidence(kind: string): boolean {
+  return kind !== "identity" && kind !== "contact" && kind !== "link";
+}
 
 function requireDocument(rootPath: string, documentId: string) {
   const document = listDocuments(rootPath).find((candidate) => candidate.id === documentId);
@@ -598,7 +599,7 @@ function projectDocumentContext(
     ...corpus,
   ]);
   const evidence = items.flatMap((item) => {
-    if (!documentEvidenceKinds.has(item.kind)) return [];
+    if (!isDocumentEvidence(item.kind)) return [];
     const projected = projectedItem(item, modes.get(item.id) ?? "expose", token);
     if (!projected) return [];
     return [
@@ -657,7 +658,7 @@ function currentDocumentEvidenceIds(rootPath: string, documentId: string): Reado
   if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
   return new Set(
     documentBaseItems(rootPath, document)
-      .filter((item) => documentEvidenceKinds.has(item.kind))
+      .filter((item) => isDocumentEvidence(item.kind))
       .map((item) => item.id),
   );
 }
@@ -677,6 +678,7 @@ export async function tailorCv(
     rootPath,
     request.candidatureId,
     profileItemStrings(items),
+    true,
   );
   const projection = projectDocumentContext(rootPath, candidatureProjection, items);
   const providerContext = providerDocumentContext(rootPath, projection.context, "cv");
@@ -712,6 +714,7 @@ export async function draftCoverLetter(
     rootPath,
     request.candidatureId,
     profileItemStrings(items),
+    true,
   );
   const projection = projectDocumentContext(rootPath, candidatureProjection, items);
   const providerContext = providerDocumentContext(rootPath, projection.context, "cover-letter");

@@ -103,7 +103,7 @@ export function CandidatureApplicationMaterialPanel({
         <div>
           <p className="eyebrow">Documents</p>
           <h3>Documents</h3>
-          <p>CVs and letters are edited in Documents. This shows the documents linked to this candidature and PDFs you saved from them.</p>
+          <p>The CV and cover letter for this application stay here with any PDFs you saved from them.</p>
         </div>
         <button type="button" onClick={() => onOpenDocument()}>
           Create CV or letter
@@ -117,8 +117,8 @@ export function CandidatureApplicationMaterialPanel({
       ) : null}
 
       {associatedDocuments.length > 0 ? (
-        <section aria-label="CVs and letters for this candidature">
-          <h4>CVs &amp; letters for this candidature</h4>
+        <section aria-label="Application documents">
+          <h4>Application documents</h4>
           <div className="document-association-list">
             {associatedDocuments.map((document) => (
               <article className="retained-information-card" key={document.id}>

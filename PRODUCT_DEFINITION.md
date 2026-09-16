@@ -170,6 +170,8 @@ Saved variations may express reusable alternate emphasis. Document-specific diff
 
 CV/cover-letter work is independently core.
 
+A cover letter normally belongs to one candidature and should be created, found and edited from that candidature. Reusable CVs have a direct collection because one CV may serve several candidatures. Standalone cover-letter work remains possible, but it is a secondary exception rather than a peer global collection.
+
 A valid AAAAT session is simply:
 
 ```text

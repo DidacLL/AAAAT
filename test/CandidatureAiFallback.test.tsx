@@ -132,8 +132,8 @@ describe("candidature AI Settings fallback", () => {
       </ContextualHandoffContext.Provider>,
     );
 
-    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "All details" }));
+    expect(await screen.findByRole("heading", { name: "Focus" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Full record" }));
 
     const information = screen.getByRole("region", { name: "Candidature information" });
     const role = within(information).getByRole("heading", { name: "Role" }).closest("article");

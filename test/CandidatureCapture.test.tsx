@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -134,95 +134,32 @@ function installApi(aiAvailable = false) {
   Object.defineProperty(window, "aaaat", { configurable: true, value: api });
 }
 
-describe("candidature creation", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    installApi();
-  });
+describe("application capture", () => {
+  beforeEach(() => { vi.clearAllMocks(); installApi(); });
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-  afterEach(() => {
-    cleanup();
-    vi.restoreAllMocks();
-  });
-
-  it("offers direct field entry and raw-material capture as peer entrances", async () => {
-    render(<CandidaturesAiWorkspace />);
-
-    await screen.findByRole("heading", { name: "Candidatures" });
-    const creation = screen.getByRole("group", { name: "Create candidature" });
-    expect(within(creation).getByRole("button", { name: "Fill fields directly" })).toBeVisible();
-    expect(within(creation).getByRole("button", { name: "Paste raw material" })).toBeVisible();
-  });
-
-  it("keeps raw capture transient until raw material is explicitly retained", async () => {
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("saves pasted material without requiring a CV, cover letter, or field", async () => {
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
-
-    await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "Paste raw material" }));
-
-    expect(create).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Save Source" })).toBeDisabled();
-    await user.type(screen.getByLabelText("Raw material"), phrase);
-    expect(screen.getByRole("button", { name: "Save Source" })).toBeEnabled();
-
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(confirm).toHaveBeenCalledWith("Discard this unsaved candidature capture?");
-    expect(create).not.toHaveBeenCalled();
-  });
-
-  it("retains raw material then shows explicit AI and manual continuations together", async () => {
-    installApi(true);
-    const user = userEvent.setup();
-    render(<CandidaturesAiWorkspace />);
-
-    await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "Paste raw material" }));
-    await user.type(screen.getByLabelText("Raw material"), phrase);
-    await user.click(screen.getByRole("button", { name: "Save Source" }));
-
+    await user.click(await screen.findByRole("button", { name: "New application" }));
+    await user.type(screen.getByRole("textbox", { name: "Application notes or offer" }), phrase);
+    expect(screen.getByRole("checkbox", { name: "Dedicated CV" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Cover letter" })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Save application" }));
     expect(create).toHaveBeenCalledWith({
       source: { kind: "other", title: "", url: "", sourceText: phrase },
       values: [],
     });
-    const choice = await screen.findByRole("region", { name: "Raw candidature saved" });
-    const continuations = within(choice).getByRole("group", { name: "Continue from saved Source" });
-    expect(within(continuations).getByRole("button", { name: "Send to AI" })).toBeEnabled();
-    expect(within(continuations).getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
-    expect(within(choice).getByText(phrase)).toBeVisible();
+    expect(await screen.findByRole("button", { name: "New application" })).toBeInTheDocument();
   });
 
-  it("keeps manual post-paste filling complete while making missing AI setup actionable", async () => {
+  it("saves a single manually entered detail with no pasted material", async () => {
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
-
-    await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "Paste raw material" }));
-    await user.type(screen.getByLabelText("Raw material"), phrase);
-    await user.click(screen.getByRole("button", { name: "Save Source" }));
-
-    const choice = await screen.findByRole("region", { name: "Raw candidature saved" });
-    expect(within(choice).getByRole("button", { name: "Set up AI suggestions" })).toBeEnabled();
-    expect(within(choice).getByText(/validated connection/i)).toBeInTheDocument();
-    await user.click(within(choice).getByRole("button", { name: "Fill candidature yourself" }));
-
-    const manual = await screen.findByRole("region", { name: "Fill candidature yourself" });
-    expect(within(manual).getByRole("region", { name: "Pasted candidature material" })).toHaveTextContent(phrase);
-    expect(within(manual).getByRole("form", { name: "Candidature information" })).toBeVisible();
-  });
-
-  it("supports direct field-by-field creation without requiring a Source", async () => {
-    const user = userEvent.setup();
-    render(<CandidaturesAiWorkspace />);
-
-    await screen.findByRole("heading", { name: "Candidatures" });
-    await user.click(screen.getByRole("button", { name: "Fill fields directly" }));
-
-    const manual = await screen.findByRole("region", { name: "Fill fields directly" });
-    await user.type(within(manual).getByRole("textbox"), "Captain");
-    await user.click(within(manual).getByRole("button", { name: "Save candidature" }));
-
+    await user.click(await screen.findByRole("button", { name: "New application" }));
+    await user.type(await screen.findByRole("textbox", { name: "Role" }), "Captain");
+    await user.click(screen.getByRole("button", { name: "Save application" }));
     expect(create).toHaveBeenCalledWith({ values: [{ fieldId, value: "Captain" }] });
+    expect(await screen.findByRole("button", { name: "New application" })).toBeInTheDocument();
   });
 });

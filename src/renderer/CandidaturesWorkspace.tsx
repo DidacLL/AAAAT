@@ -55,8 +55,10 @@ function tagDraft(tag: TagRecord): TagInput {
 }
 
 export function CandidaturesWorkspace({
+  overview = "focus",
   onDirtyChange,
 }: {
+  readonly overview?: "focus" | "all";
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
@@ -451,9 +453,8 @@ export function CandidaturesWorkspace({
       <section className="candidatures-workspace candidature-corpus" aria-label="Candidatures">
         <header className="candidature-toolbar">
           <div>
-            <p className="eyebrow">Focus</p>
-            <h2>Candidatures</h2>
-            <p>Find the candidature you need in seconds.</p>
+            <h2>{overview === "focus" ? "Focus" : "All applications"}</h2>
+            <span className="corpus-count">{visibleRecords.length} / {records.length}</span>
           </div>
         </header>
 
@@ -468,7 +469,7 @@ export function CandidaturesWorkspace({
                 setQuery(event.target.value);
                 if (!event.target.value.trim()) setSearchResult(null);
               }}
-              placeholder="Company, role, Source text, Tag…"
+              placeholder="Search anything you saved…"
             />
           </label>
           <label>
@@ -504,11 +505,31 @@ export function CandidaturesWorkspace({
 
         {records.length === 0 ? (
           <div className="candidature-empty-state">
-            <h3>No candidatures yet</h3>
+            <h3>No saved applications yet</h3>
             <p>Enter a few details or paste whatever material you already have.</p>
           </div>
         ) : visibleRecords.length === 0 ? (
-          <p className="compact-empty">No candidatures match this search.</p>
+          <p className="compact-empty">No saved applications match this search.</p>
+        ) : overview === "all" ? (
+          <div className="application-data-table" role="table" aria-label="All application data">
+            <div className="application-data-row application-data-head" role="row">
+              <span role="columnheader">Application</span>
+              <span role="columnheader">Key information</span>
+              <span role="columnheader">Material</span>
+              <span role="columnheader">Updated</span>
+            </div>
+            {visibleRecords.map((record) => {
+              const cues = candidatureRecognitionCues(record, fields, 4);
+              return (
+                <button key={record.id} type="button" className="application-data-row" role="row" onClick={() => openRecord(record, "detail")}>
+                  <strong role="cell">{record.label}</strong>
+                  <span role="cell" className="application-data-cues">{cues.map((cue) => `${cue.label}: ${cue.value}`).join(" · ") || "Sparse record"}</span>
+                  <span role="cell">{record.documentIds.length} doc{record.documentIds.length === 1 ? "" : "s"}{record.sourceSearchText.trim() ? " · source" : ""}</span>
+                  <time role="cell" dateTime={record.updatedAt}>{new Date(record.updatedAt).toLocaleDateString()}</time>
+                </button>
+              );
+            })}
+          </div>
         ) : (
           <div className="candidature-corpus-grid" aria-label="Candidature corpus Focus">
             {visibleRecords.map((record) => {
@@ -537,7 +558,7 @@ export function CandidaturesWorkspace({
                         ))}
                       </span>
                     ) : (
-                      <span className="compact-help">Sparse candidature</span>
+                      <span className="compact-help">Saved with only a little information</span>
                     )}
                   </button>
                   <button
@@ -545,7 +566,7 @@ export function CandidaturesWorkspace({
                     className="compact-secondary candidature-direct-edit"
                     onClick={() => openRecord(record, "detail")}
                   >
-                    All details
+                    Full record
                   </button>
                 </article>
               );
@@ -560,7 +581,7 @@ export function CandidaturesWorkspace({
     return (
       <section className="candidatures-workspace">
         <p className="error-message">The selected candidature is no longer available.</p>
-        <button type="button" onClick={returnToCorpus}>Back to candidatures</button>
+        <button type="button" onClick={returnToCorpus}>Back to applications</button>
       </section>
     );
   }
@@ -570,7 +591,7 @@ export function CandidaturesWorkspace({
       <section className="candidatures-workspace candidature-selected-focus" aria-label="Candidature Focus">
         <div className="candidature-context-actions">
           <button type="button" className="compact-secondary" onClick={returnToCorpus}>Back</button>
-          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "detail")}>All details</button>
+          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "detail")}>{selected.sourceSearchText.trim() ? "Read original and details" : "Read everything"}</button>
         </div>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
         <CandidatureFocusPanel
@@ -601,9 +622,9 @@ export function CandidaturesWorkspace({
     <section className="candidatures-workspace candidature-detail" aria-label="Complete candidature">
       <div className="candidature-editor-heading">
         <div>
-          <p className="eyebrow">Candidature</p>
+          <p className="eyebrow">Application record</p>
           <h2>{selected.label}</h2>
-          <p>Everything you have kept for this candidature.</p>
+          <p>Everything retained for this application.</p>
         </div>
         <div className="button-row">
           <button type="button" className="compact-secondary" onClick={returnToCorpus}>Back</button>

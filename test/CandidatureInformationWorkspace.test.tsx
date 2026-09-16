@@ -115,7 +115,7 @@ describe("complete candidature information editing", () => {
     render(<CandidaturesWorkspace />);
 
     await screen.findByLabelText("Candidature corpus Focus");
-    await user.click(screen.getByRole("button", { name: "All details" }));
+    await user.click(screen.getByRole("button", { name: "Full record" }));
 
     const complete = await screen.findByRole("region", { name: "Complete candidature" });
     const informationRegion = within(complete).getByRole("region", { name: "Candidature information" });
@@ -149,7 +149,7 @@ describe("complete candidature information editing", () => {
     render(<CandidaturesWorkspace />);
 
     await screen.findByLabelText("Candidature corpus Focus");
-    await user.click(screen.getByRole("button", { name: "All details" }));
+    await user.click(screen.getByRole("button", { name: "Full record" }));
     const card = screen.getByRole("heading", { name: "Availability" }).closest("article");
     if (!card) throw new Error("Availability card missing");
 

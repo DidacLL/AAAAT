@@ -29,24 +29,24 @@ const snapshot = {
 };
 
 describe("setup environment preload API", () => {
-  it("exposes bounded environment status and a no-input VS Code setup action", async () => {
+  it("exposes bounded environment status and local connection details", async () => {
     const invoke = vi.fn(async (channel: string) =>
       channel === setupEnvironmentChannels.current
         ? snapshot
-        : { status: "configured", message: "Connected." },
+        : { packaged: true, executablePath: "C:\\Apps\\AAAAT.exe", workspacePath: "C:\\Data\\AAAAT" },
     );
     const api = createSetupEnvironmentDesktopApi(invoke);
 
     await expect(api.setupEnvironment.current()).resolves.toEqual(snapshot);
-    await expect(api.setupEnvironment.connectVscode()).resolves.toEqual({ status: "configured", message: "Connected." });
+    await expect(api.setupEnvironment.externalConnection()).resolves.toEqual({ packaged: true, executablePath: "C:\\Apps\\AAAAT.exe", workspacePath: "C:\\Data\\AAAAT" });
     expect(invoke).toHaveBeenNthCalledWith(1, setupEnvironmentChannels.current);
-    expect(invoke).toHaveBeenNthCalledWith(2, setupEnvironmentChannels.connectVscode);
+    expect(invoke).toHaveBeenNthCalledWith(2, setupEnvironmentChannels.externalConnection);
   });
 
   it("rejects malformed privileged output", async () => {
-    const invoke = vi.fn(async () => ({ status: "configured", path: "/arbitrary" }));
+    const invoke = vi.fn(async () => ({ packaged: true, executablePath: "AAAAT", path: "/arbitrary" }));
     const api = createSetupEnvironmentDesktopApi(invoke);
 
-    await expect(api.setupEnvironment.connectVscode()).rejects.toThrow();
+    await expect(api.setupEnvironment.externalConnection()).rejects.toThrow();
   });
 });

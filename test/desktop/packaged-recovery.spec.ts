@@ -85,7 +85,7 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
   mkdirSync(path.join(workspace, "integrations"));
   writeFileSync(path.join(workspace, "documents", "cv.tex"), "portable cv", "utf8");
   writeFileSync(
-    path.join(workspace, "integrations", "vscode-mcp.json"),
+    path.join(workspace, "integrations", "connection-note.json"),
     '{"state":"proposed"}\n',
     "utf8",
   );
@@ -117,7 +117,7 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
       "portable cv",
     );
     expect(
-      readFileSync(path.join(backup, "files", "integrations", "vscode-mcp.json"), "utf8"),
+      readFileSync(path.join(backup, "files", "integrations", "connection-note.json"), "utf8"),
     ).toBe('{"state":"proposed"}\n');
     expect(existsSync(path.join(backup, "files", "ai-connection.json"))).toBe(false);
     expect(existsSync(path.join(backup, "files", ".env"))).toBe(false);
@@ -140,7 +140,7 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
     });
     expect(readFileSync(path.join(restored, "documents", "cv.tex"), "utf8")).toBe("portable cv");
     expect(
-      readFileSync(path.join(restored, "integrations", "vscode-mcp.json"), "utf8"),
+      readFileSync(path.join(restored, "integrations", "connection-note.json"), "utf8"),
     ).toBe('{"state":"proposed"}\n');
     expect(existsSync(path.join(restored, "ai-connection.json"))).toBe(false);
 

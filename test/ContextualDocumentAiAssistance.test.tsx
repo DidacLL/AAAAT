@@ -350,7 +350,7 @@ describe("contextual document AI assistance", () => {
     await screen.findByRole("heading", { name: "Current CV" });
     await waitFor(() => expect(setupEnvironmentCurrent).toHaveBeenCalled());
     expect(screen.queryByText("AI assistance")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save details" })).toBeInTheDocument();
   });
 
   it("retains the existing failure handoff to AI Settings when a validated route disappears", async () => {

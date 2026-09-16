@@ -6,10 +6,6 @@ import {
 } from "./external-command";
 import { isMcpInvocation, runMcpProcess } from "./mcp-server";
 import {
-  isVscodeMcpSetupInvocation,
-  runVscodeMcpSetupProcess,
-} from "./vscode-mcp-setup";
-import {
   isWorkspaceBackupInvocation,
   isWorkspaceRestoreInvocation,
   runWorkspaceRecoveryProcess,
@@ -26,12 +22,6 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
   } catch {
     app.exit(2);
   }
-} else if (isVscodeMcpSetupInvocation(process.argv)) {
-  // VS Code is one optional adapter over the same host-agnostic bounded MCP surface.
-  void runVscodeMcpSetupProcess(process.argv, process.execPath, process.stdout).then(
-    (exitCode) => app.exit(exitCode),
-    () => app.exit(2),
-  );
 } else if (isExternalCommandInvocation(process.argv)) {
   void runExternalCommandProcess(process.argv, process.stdin, process.stdout).then(
     (exitCode) => app.exit(exitCode),

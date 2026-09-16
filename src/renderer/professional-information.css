@@ -36,7 +36,7 @@
 
 .professional-information-empty {
   display: grid;
-  min-height: min(34vh, 270px);
+  min-height: 130px;
   place-content: center;
   gap: 5px;
   padding: 24px 18px;
@@ -47,6 +47,36 @@
     linear-gradient(135deg, rgb(145 115 78 / 4%) 0 1px, transparent 1px 12px),
     #f7eedf;
   text-align: center;
+}
+
+.information-more-details {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.information-more-details summary {
+  color: var(--muted-ink);
+  cursor: pointer;
+}
+
+.information-more-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.information-more-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.information-more-grid small {
+  color: var(--muted-ink);
+}
+
+@media (max-width: 640px) {
+  .information-more-grid { grid-template-columns: 1fr; }
 }
 
 .professional-information-empty h3 {
@@ -114,14 +144,25 @@
 }
 
 .professional-information-secondary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
+  display: block;
   margin-top: 12px;
   padding: 9px 2px 0;
   border-top: 1px solid var(--line);
   color: var(--muted-ink);
+}
+
+.professional-information-secondary > section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0.6rem 0 0;
+}
+
+.professional-information-secondary summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .professional-information-secondary strong {
@@ -137,7 +178,7 @@
   line-height: 1.4;
 }
 
-.professional-information-secondary > span {
+.professional-information-secondary > section > span {
   color: var(--muted-ink);
   font-size: 12px;
 }
@@ -288,13 +329,13 @@
 }
 
 @media (max-width: 720px) {
-  .professional-information-secondary,
+  .professional-information-secondary > section,
   .professional-information-overview .section-heading {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .professional-information-secondary > button,
+  .professional-information-secondary > section > button,
   .professional-information-overview .section-heading > button {
     width: 100%;
   }
@@ -321,6 +362,6 @@
 
 @media (max-height: 640px) {
   .professional-information-empty {
-    min-height: 160px;
+    min-height: 130px;
   }
 }

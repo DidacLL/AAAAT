@@ -53,6 +53,7 @@ function registerSetupAssistantIpc(mainWindow: BrowserWindow): void {
       await runRenderingSelfTest(requireWorkspaceRoot()),
     );
   });
+
 }
 
 app.on("browser-window-created", (_event, mainWindow) => registerSetupAssistantIpc(mainWindow));

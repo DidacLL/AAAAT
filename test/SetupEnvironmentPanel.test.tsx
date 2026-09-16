@@ -122,4 +122,5 @@ describe("setup environment panel", () => {
     await user.click(screen.getByRole("button", { name: "Refresh environment" }));
     expect(current).toHaveBeenCalledTimes(2);
   });
+
 });

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,7 +35,8 @@ const backup = vi.fn();
 const restore = vi.fn();
 const list = vi.fn();
 const save = vi.fn();
-const connectVscode = vi.fn();
+const externalConnection = vi.fn();
+const deleteWorkspace = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -43,14 +44,13 @@ beforeEach(() => {
   save.mockResolvedValue([]);
   backup.mockResolvedValue({ status: "backed_up" });
   restore.mockResolvedValue({ status: "cancelled" });
-  connectVscode.mockResolvedValue({
-    status: "configured",
-    message: "Connected. VS Code still controls whether to trust and enable the AAAAT tool.",
-  });
+  externalConnection.mockResolvedValue({ packaged: true, executablePath: "C:\\Apps\\AAAAT.exe", workspacePath: workspace.rootPath });
+  deleteWorkspace.mockResolvedValue(undefined);
   Object.defineProperty(window, "aaaat", {
     configurable: true,
     value: {
-      setupEnvironment: { current: async () => readyEnvironment, connectVscode },
+      workspace: { delete: deleteWorkspace },
+      setupEnvironment: { current: async () => readyEnvironment, externalConnection },
       setupAssistant: {
         access: async () => ({ installerActionsAllowed: false, configuratorActionsAllowed: false }),
         updateAccess: async (update: { installerActionsAllowed: boolean; configuratorActionsAllowed: boolean }) => update,
@@ -84,7 +84,7 @@ describe("Settings workspace", () => {
         currentWorkspace={workspace}
         onChooseWorkspace={choose}
         onDirtyChange={dirty}
-        onRestored={restored}
+        onRestored={restored} onWorkspaceDeleted={vi.fn()}
       />,
     );
 
@@ -102,30 +102,25 @@ describe("Settings workspace", () => {
     expect(screen.getByRole("button", { name: "Back to Settings" })).toBeInTheDocument();
   });
 
-  it("makes the bounded host-agnostic contract primary and keeps VS Code optional", async () => {
+  it("shows a concrete local tool connection for a compatible host", async () => {
     const user = userEvent.setup();
     render(
       <SettingsWorkspace
         currentWorkspace={workspace}
         onChooseWorkspace={choose}
         onDirtyChange={dirty}
-        onRestored={restored}
+        onRestored={restored} onWorkspaceDeleted={vi.fn()}
       />,
     );
 
     await user.click(await screen.findByRole("button", { name: /External assistants & portability/ }));
     expect(screen.getByRole("heading", { name: "Use AAAAT from a compatible assistant" })).toBeInTheDocument();
-    expect(screen.getByText(/ChatGPT, Claude, local agents, editors/i)).toBeInTheDocument();
+    expect(await screen.findByText("C:\\Apps\\AAAAT.exe")).toBeInTheDocument();
+    expect(screen.getByText(/--mcp --workspace/)).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "installer.ai" })).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "configurator.ai" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "External setup action authority" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "VS Code external tool setup", hidden: true })).not.toBeVisible();
-
-    await user.click(screen.getByText("Optional VS Code adapter", { selector: "summary" }));
-    expect(screen.getByRole("region", { name: "VS Code external tool setup" })).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Connect VS Code project" }));
-    expect(connectVscode).toHaveBeenCalledTimes(1);
-    expect(connectVscode).toHaveBeenCalledWith();
+    expect(externalConnection).toHaveBeenCalledTimes(1);
   });
 
   it("keeps AI optional and protects a dirty connection draft before leaving its Settings detail", async () => {
@@ -136,12 +131,12 @@ describe("Settings workspace", () => {
         currentWorkspace={workspace}
         onChooseWorkspace={choose}
         onDirtyChange={dirty}
-        onRestored={restored}
+        onRestored={restored} onWorkspaceDeleted={vi.fn()}
       />,
     );
 
     await user.click(await screen.findByRole("button", { name: /AI connections/ }));
-    expect(screen.getByText(/AAAAT works fully without AI/i)).toBeInTheDocument();
+    expect(screen.getByText(/AI is optional/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Connection name")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add connection" }));
     await user.type(screen.getByLabelText("Connection name"), "Unsaved local route");
@@ -160,7 +155,7 @@ describe("Settings workspace", () => {
         currentWorkspace={workspace}
         onChooseWorkspace={choose}
         onDirtyChange={dirty}
-        onRestored={restored}
+        onRestored={restored} onWorkspaceDeleted={vi.fn()}
       />,
     );
 
@@ -172,5 +167,18 @@ describe("Settings workspace", () => {
     await user.click(screen.getByRole("button", { name: /Backup & recovery/ }));
     expect(screen.getByRole("button", { name: "Back up workspace" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Restore workspace backup" })).toBeInTheDocument();
+  });
+
+  it("returns to Welcome after deleting the selected workspace's data", async () => {
+    const user = userEvent.setup();
+    const onDeleted = vi.fn();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<SettingsWorkspace currentWorkspace={workspace} onChooseWorkspace={choose} onDirtyChange={dirty} onRestored={restored} onWorkspaceDeleted={onDeleted} />);
+
+    await user.click(await screen.findByRole("button", { name: /Workspace/ }));
+    await user.click(screen.getByRole("button", { name: "Delete workspace data" }));
+
+    expect(deleteWorkspace).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
   });
 });

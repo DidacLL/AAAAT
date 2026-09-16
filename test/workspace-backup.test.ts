@@ -9,14 +9,12 @@ import {
   readdirSync,
   renameSync,
   rmSync,
-  statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -62,7 +60,7 @@ function fixture() {
     ["documents/cv.tex", "user cv"],
     ["artifacts/cv.pdf", "rendered artifact"],
     ["templates/custom.tex", "template"],
-    ["integrations/vscode-mcp.json", '{"state":"proposed"}'],
+    ["integrations/connection-note.json", '{"state":"proposed"}'],
     ["exports/candidatures.json", "export"],
   ]);
   for (const [relative, contents] of files) {
@@ -85,14 +83,6 @@ function manifest(backup: string): MutableBackupManifest {
 
 function writeManifest(backup: string, value: unknown): void {
   writeFileSync(path.join(backup, "manifest.json"), `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
-function refreshDatabaseManifest(backup: string): void {
-  const databasePath = path.join(backup, "workspace.sqlite");
-  const changed = manifest(backup);
-  changed.database.size = statSync(databasePath).size;
-  changed.database.sha256 = createHash("sha256").update(readFileSync(databasePath)).digest("hex");
-  writeManifest(backup, changed);
 }
 
 function expectEmpty(directory: string): void {
@@ -134,7 +124,7 @@ describe("workspace backup and restore", () => {
     }
   });
 
-  it("rejects corruption, traversal, obsolete workspace schema and occupied destinations before activation", async () => {
+  it("rejects corruption, traversal and occupied destinations before activation", async () => {
     const first = fixture();
     await createWorkspaceBackup(first.workspace, first.backup);
     writeFileSync(path.join(first.backup, "files", "documents", "cv.tex"), "tampered", "utf8");
@@ -148,21 +138,6 @@ describe("workspace backup and restore", () => {
     writeManifest(second.backup, traversing);
     expect(() => restoreWorkspaceBackup(second.backup, second.restore)).toThrow(/unsafe path/);
     expectEmpty(second.restore);
-
-    const third = fixture();
-    await createWorkspaceBackup(third.workspace, third.backup);
-    const databasePath = path.join(third.backup, "workspace.sqlite");
-    const database = new DatabaseSync(databasePath);
-    try {
-      database.exec(
-        "CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;",
-      );
-    } finally {
-      database.close();
-    }
-    refreshDatabaseManifest(third.backup);
-    expect(() => restoreWorkspaceBackup(third.backup, third.restore)).toThrow(/workspace schema/i);
-    expectEmpty(third.restore);
 
     const fourth = fixture();
     await createWorkspaceBackup(fourth.workspace, fourth.backup);

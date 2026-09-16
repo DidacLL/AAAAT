@@ -22,7 +22,7 @@ When a CV is selected, AAAAT resolves it through the existing authoritative docu
 
 The external wire schema is separate from the local `ProfileItem` schema. Oversized or malformed effective content fails closed; AAAAT does not truncate, invent or silently normalize the shared CV.
 
-VS Code setup discloses the new `cv_content.read` / `cv_content_read` capability as part of the exact live MCP surface and retains the existing pre-activation cardinality/name check. Host configuration still contains executable/workspace paths so shell-capable host authority remains an explicit trust decision outside the bounded tool payload.
+The packaged MCP entry point exposes `cv_content_read` as one bounded capability. A compatible host supplies the executable and workspace paths in its own local tool configuration; broader host authority remains a separate user trust decision.
 
 ## Consequences
 

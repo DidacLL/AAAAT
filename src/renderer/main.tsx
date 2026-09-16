@@ -12,7 +12,7 @@ import type {
   CareerContextAiDisclosureDesktopApi,
   CareerContextAiDisclosureUpdate,
 } from "../shared/career-context-ai-disclosure-contracts";
-import type { CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
+import type { CandidatureFieldConfiguration, CandidatureInput, CandidatureRecord, CandidatureUpdate, CareerContext, DesktopApi, ProfileSnapshot } from "../shared/contracts";
 import type { CvContentAccessDesktopApi } from "../shared/cv-content-access-contracts";
 import type { CvDescriptorDesktopApi } from "../shared/cv-descriptor-contracts";
 import type { DocumentOutputDesktopApi } from "../shared/document-output-contracts";
@@ -54,6 +54,47 @@ const previewUnavailable = async (): Promise<never> => {
   throw new Error("Create preview data in the desktop app for this operation.");
 };
 
+const previewFieldIds = {
+  organisation: "00000000-0000-4000-8000-000000000101",
+  role: "00000000-0000-4000-8000-000000000102",
+  location: "00000000-0000-4000-8000-000000000103",
+  compensation: "00000000-0000-4000-8000-000000000104",
+} as const;
+
+function previewFields(): CandidatureFieldConfiguration[] {
+  const now = new Date().toISOString();
+  return [
+    [previewFieldIds.organisation, "organisation", "Organisation", "Company or organisation", 0],
+    [previewFieldIds.role, "role", "Role", "Position or opportunity", 1],
+    [previewFieldIds.location, "location", "Location", "Location and working arrangement", 2],
+    [previewFieldIds.compensation, "compensation", "Compensation", "Salary or compensation information", 3],
+  ].map(([id, systemKey, label, description, order]) => ({
+    definition: { id: String(id), systemKey: String(systemKey), label: String(label), description: String(description), valueType: "text" as const, cardinality: "one" as const, choices: [], enabled: true, createdAt: now, updatedAt: now },
+    preferences: { fieldId: String(id), focusVisible: true, focusOrder: Number(order), focusProminence: "normal" as const, identityOrder: Number(order), aiDiscovery: true, aiContextMode: "expose" as const },
+  }));
+}
+
+function previewDemoApplications(): CandidatureRecord[] {
+  const organisations = ["Aster Dynamics", "Boreal Systems", "Cinder Works", "Deepfield Research", "Eon Transit", "Faro Robotics", "Granite Health", "Helix Energy", "Ion Cartography", "Juniper Studio", "Kepler Tools", "Morrow Labs"];
+  const roles = ["Backend Engineer", "Platform Engineer", "Product Engineer", "Data Engineer", "Systems Engineer", "Developer Tools Engineer", "ML Engineer", "Technical Product Specialist"];
+  const locations = ["Madrid · Hybrid", "Barcelona · On site", "Spain · Remote", "Remote EU", "Valencia · Hybrid", "Bilbao · On site"];
+  return Array.from({ length: 128 }, (_, index) => {
+    const suffix = String(index + 1).padStart(12, "0");
+    const id = `00000000-0000-4000-8000-${suffix}`;
+    const createdAt = new Date(Date.now() - index * 3_600_000).toISOString();
+    const organisation = organisations[index % organisations.length]!;
+    const role = roles[index % roles.length]!;
+    const location = locations[index % locations.length]!;
+    const values = [
+      [previewFieldIds.organisation, organisation],
+      [previewFieldIds.role, role],
+      [previewFieldIds.location, location],
+      ...(index % 4 === 0 ? [[previewFieldIds.compensation, `€${String(42 + (index % 8) * 4)}k–€${String(52 + (index % 8) * 4)}k`]] : []),
+    ].map(([fieldId, value]) => ({ candidatureId: id, fieldId: String(fieldId), value: String(value), createdAt, updatedAt: createdAt }));
+    return { id, archived: false, createdAt, updatedAt: createdAt, label: `${organisation} · ${role}`, sourceSearchText: index % 3 === 0 ? `${role} opportunity at ${organisation}. ${location}.` : "", values, documentIds: index < 2 ? [`10000000-0000-4000-8000-${suffix}`] : [], tagIds: [] };
+  });
+}
+
 function createPreviewApi(): DesktopApi &
   AiConnectionDesktopApi &
   AiPromptDesktopApi &
@@ -74,6 +115,11 @@ function createPreviewApi(): DesktopApi &
     installerActionsAllowed: false,
     configuratorActionsAllowed: false,
   };
+  let previewWorkspace: { rootPath: string } | null = null;
+  let previewRecentPath: string | null = null;
+  const fields = previewFields();
+  let applications: CandidatureRecord[] = [];
+  let previewDemo = false;
   return Object.freeze({
     system: Object.freeze({
       info: async () => ({
@@ -83,11 +129,30 @@ function createPreviewApi(): DesktopApi &
       }),
     }),
     workspace: Object.freeze({
-      current: async () => null,
-      choose: async () => ({ rootPath: "/Users/example/AAAAT Workspace" }),
-      createDemo: async () => ({ rootPath: "/Users/example/AAAAT Demo Workspace" }),
+      current: async () => previewWorkspace,
+      recent: async () => previewRecentPath,
+      continueRecent: async () => {
+        previewWorkspace = previewRecentPath ? { rootPath: previewRecentPath } : null;
+        return previewWorkspace;
+      },
+      close: async () => { previewWorkspace = null; },
+      delete: async () => { previewWorkspace = null; previewRecentPath = null; },
+      choose: async () => {
+        previewRecentPath = "/Users/example/AAAAT Workspace";
+        previewWorkspace = { rootPath: previewRecentPath };
+        previewDemo = false;
+        applications = [];
+        return previewWorkspace;
+      },
+      createDemo: async () => {
+        previewRecentPath = "/Users/example/AAAAT Demo Workspace";
+        previewWorkspace = { rootPath: previewRecentPath };
+        previewDemo = true;
+        applications = previewDemoApplications();
+        return previewWorkspace;
+      },
       reset: async () => ({ rootPath: "/Users/example/AAAAT Workspace" }),
-      status: async () => ({ demo: false }),
+      status: async () => ({ demo: previewDemo }),
     }),
     profile: Object.freeze({
       current: async () => emptyProfile,
@@ -122,6 +187,7 @@ function createPreviewApi(): DesktopApi &
       update: previewUnavailable,
       remove: async () => [],
       configureItem: previewUnavailable,
+      applySelection: previewUnavailable,
       reorder: previewUnavailable,
       resolve: previewUnavailable,
       render: previewUnavailable,
@@ -142,11 +208,27 @@ function createPreviewApi(): DesktopApi &
       update: previewUnavailable,
     }),
     candidatures: Object.freeze({
-      list: async () => [],
-      create: previewUnavailable,
-      update: previewUnavailable,
-      filter: async () => [],
-      listFields: async () => [],
+      list: async () => applications,
+      create: async (input: CandidatureInput) => {
+        const now = new Date().toISOString();
+        const id = crypto.randomUUID();
+        const values = input.values.map((item) => ({ ...item, candidatureId: id, createdAt: now, updatedAt: now }));
+        const organisation = values.find((item) => item.fieldId === previewFieldIds.organisation)?.value;
+        const role = values.find((item) => item.fieldId === previewFieldIds.role)?.value;
+        const label = [organisation, role].filter((value): value is string => typeof value === "string" && Boolean(value)).join(" · ") || "Saved application";
+        const created: CandidatureRecord = { id, archived: false, createdAt: now, updatedAt: now, label, sourceSearchText: input.source ? `${input.source.title} ${input.source.url} ${input.source.sourceText}` : "", values, documentIds: [], tagIds: [] };
+        applications = [created, ...applications];
+        return created;
+      },
+      update: async ({ id, archived }: CandidatureUpdate) => {
+        const current = applications.find((item) => item.id === id);
+        if (!current) throw new Error("Application not found");
+        const updated = { ...current, archived, updatedAt: new Date().toISOString() };
+        applications = applications.map((item) => item.id === id ? updated : item);
+        return updated;
+      },
+      filter: async () => applications.map((application) => application.id),
+      listFields: async () => fields,
       createField: previewUnavailable,
       updateField: previewUnavailable,
       deleteField: async () => [],
@@ -200,7 +282,7 @@ function createPreviewApi(): DesktopApi &
     }),
     setupEnvironment: Object.freeze({
       current: previewUnavailable,
-      connectVscode: previewUnavailable,
+      externalConnection: previewUnavailable,
     }),
     workspaceRecovery: Object.freeze({
       backup: previewUnavailable,

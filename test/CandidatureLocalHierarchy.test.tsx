@@ -91,10 +91,10 @@ describe("complete candidature maintenance", () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    expect(await screen.findByRole("heading", { name: "Candidatures" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Focus" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Complete candidature" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "All details" }));
+    await user.click(screen.getByRole("button", { name: "Full record" }));
 
     const complete = screen.getByRole("region", { name: "Complete candidature" });
     expect(within(complete).getByRole("heading", { name: "Regional Air" })).toBeInTheDocument();
@@ -112,7 +112,7 @@ describe("complete candidature maintenance", () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    await user.click(await screen.findByRole("button", { name: "All details" }));
+    await user.click(await screen.findByRole("button", { name: "Full record" }));
 
     const tags = screen.getByRole("region", { name: "Tags" });
     await user.click(within(tags).getByRole("checkbox", { name: "Platform" }));

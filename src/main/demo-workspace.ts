@@ -70,9 +70,37 @@ export function createDemoWorkspace(rootPath: string) {
         database.prepare(`INSERT INTO tags(id, name, definition, notes, aliases_json, created_at, updated_at)
           VALUES (?, ?, ?, '', '[]', ?, ?)`).run(tag.id, tag.name, tag.definition, now, now);
       }
+
+      const organisations = ["Aster Dynamics", "Boreal Systems", "Cinder Works", "Deepfield Research", "Eon Transit", "Faro Robotics", "Granite Health", "Helix Energy", "Ion Cartography", "Juniper Studio", "Kepler Tools", "Morrow Labs"];
+      const roles = ["Backend Engineer", "Platform Engineer", "Product Engineer", "Data Engineer", "Systems Engineer", "Developer Tools Engineer", "ML Engineer", "Technical Product Specialist"];
+      const locations = ["Madrid · Hybrid", "Barcelona · On site", "Spain · Remote", "Remote EU", "Valencia · Hybrid", "Bilbao · On site"];
+      const demoIds: string[] = [];
+      for (let index = 0; index < 126; index += 1) {
+        const id = randomUUID();
+        demoIds.push(id);
+        const date = new Date(Date.now() - (index + 2) * 3_600_000).toISOString();
+        const organisation = organisations[index % organisations.length]!;
+        const role = roles[index % roles.length]!;
+        const location = locations[index % locations.length]!;
+        insertCandidature.run(id, date, date);
+        setValues(id, [
+          [orgField, organisation],
+          [roleField, role],
+          [locationField, location],
+          ...(index % 4 === 0 ? [[compensationField, `€${String(42 + (index % 8) * 4)}k–€${String(52 + (index % 8) * 4)}k`] as [string, unknown]] : []),
+          [languageField, index % 3 === 0 ? ["English", "Spanish"] : ["English"]],
+          ...(index % 5 === 0 ? [[notesField, `Demo note ${String(index + 1)}: follow up on team scope and ownership.`] as [string, unknown]] : []),
+        ]);
+        if (index % 3 === 0) {
+          source.run(randomUUID(), id, `${role} — ${organisation}`, `https://example.test/demo-${String(index + 1)}`,
+            `<article><h1>${role}</h1><p>${organisation} is hiring for its product engineering group.</p><p>Work from ${location}. The role values practical delivery, clear communication and reliable systems.</p></article>`, date, date);
+        }
+      }
       database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(first, tags[0]!.id);
       database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(first, tags[1]!.id);
       database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(second, tags[2]!.id);
+      const assignTag = database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)");
+      for (const [index, id] of demoIds.entries()) assignTag.run(id, tags[index % tags.length]!.id);
 
       const profile = database.prepare(`INSERT INTO profile_items(
         id, kind, title, subtitle, description, start_date, end_date, url, sort_order, ai_context_mode, created_at, updated_at

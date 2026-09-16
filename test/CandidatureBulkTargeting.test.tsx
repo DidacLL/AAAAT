@@ -110,7 +110,7 @@ describe("bulk candidature mutation targeting", () => {
     render(<CandidaturesWorkspace />);
 
     await screen.findByLabelText("Candidature corpus Focus");
-    await user.click(screen.getByRole("button", { name: "All details" }));
+    await user.click(screen.getByRole("button", { name: "Full record" }));
     const detail = await screen.findByRole("region", { name: "Complete candidature" });
     await user.click(within(detail).getByRole("button", { name: "Ask AI to fill missing information" }));
 

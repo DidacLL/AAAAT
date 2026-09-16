@@ -137,8 +137,8 @@ async function createWorkspace(running: RunningApp): Promise<void> {
   await running.page.getByRole("button", { name: "Create workspace" }).click();
   chooseLinuxDirectory();
   await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
-  await running.page.getByRole("button", { name: "Saved applications" }).click();
-  await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+  await running.page.getByRole("button", { name: "Applications" }).click();
+  await expect(running.page.getByRole("heading", { name: "Focus", exact: true })).toBeVisible();
 }
 
 interface ProviderContext {
@@ -261,13 +261,13 @@ test("packaged candidature cancels slow local AI then auto-fills safe informatio
 
     await running.page.reload();
     await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
-    await running.page.getByRole("button", { name: "Saved applications" }).click();
-    await expect(running.page.getByRole("heading", { name: "Candidatures", exact: true })).toBeVisible();
+    await running.page.getByRole("button", { name: "Applications" }).click();
+    await expect(running.page.getByRole("heading", { name: "Focus", exact: true })).toBeVisible();
 
     const corpus = running.page.getByLabel("Candidature corpus Focus");
     let card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
     await expect(card).toBeVisible();
-    await card.getByRole("button", { name: "All details" }).click();
+    await card.getByRole("button", { name: "Full record" }).click();
 
     let complete = running.page.getByRole("region", { name: "Complete candidature" });
     await expect(complete.getByRole("heading", { name: "Work arrangement" })).toBeVisible();
@@ -301,7 +301,7 @@ test("packaged candidature cancels slow local AI then auto-fills safe informatio
 
     await expect(running.page.getByText(/AI tasks · 1 completed/)).toBeVisible({ timeout: 10_000 });
     card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Senior Captain" }).first();
-    await card.getByRole("button", { name: "All details" }).click();
+    await card.getByRole("button", { name: "Full record" }).click();
     complete = running.page.getByRole("region", { name: "Complete candidature" });
 
     const organisationCard = complete.getByRole("heading", { name: "Organisation" }).locator("xpath=ancestor::article[1]");

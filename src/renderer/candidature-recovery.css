@@ -140,7 +140,7 @@
 
 .candidature-empty-state {
   display: grid;
-  min-height: min(42vh, 330px);
+  min-height: 150px;
   place-content: center;
   justify-items: center;
   gap: 5px;
@@ -416,3 +416,20 @@
     min-height: 180px;
   }
 }
+
+/* Dense corpus and complete-data register */
+.candidature-toolbar > div { display: flex; align-items: baseline; gap: 9px; }
+.candidature-toolbar h2 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: .045em; }
+.corpus-count { color: var(--muted-ink); font-family: "Cascadia Code", Consolas, monospace; font-size: 10px; }
+.candidature-corpus-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: .38rem; }
+.candidature-corpus-card { padding: .3rem; border-radius: 1px; box-shadow: none; }
+.application-data-table { min-width: 720px; overflow: hidden; border: 1px solid #666c62; background: var(--paper-strong); }
+.application-data-row { display: grid; grid-template-columns: minmax(170px, 1.1fr) minmax(260px, 2fr) minmax(120px, .7fr) 92px; width: 100%; min-height: 31px; align-items: center; gap: 8px; padding: 5px 8px; border: 0; border-bottom: 1px solid var(--line-soft); color: var(--ink); background: transparent; font-size: 11px; text-align: left; }
+button.application-data-row:hover, button.application-data-row:focus-visible { background: #d6d2b9; box-shadow: inset 3px 0 0 var(--accent); }
+.application-data-head { color: #e9dfc8; background: #3e463f; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.application-data-cues { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.application-data-row time, .application-data-row > span:nth-last-child(2) { color: var(--muted-ink); }
+@media (max-width: 850px) { .application-data-table { overflow-x: auto; } }
+
+.application-data-head > span { color: #e9dfc8 !important; }
+.candidature-corpus-card .candidature-direct-edit { margin-left: .5rem; padding: 2px 3px; border: 0; color: #59625d; background: transparent; font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; box-shadow: none; }

@@ -109,7 +109,8 @@ function installApi() {
   Object.defineProperty(window, "aaaat", {
     configurable: true,
     value: {
-      workspace: { current: async () => workspace, choose: async () => workspace },
+      workspace: { current: async () => workspace, recent: async () => workspace.rootPath, choose: async () => workspace, status: async () => ({ demo: false }) },
+      setupEnvironment: { current: async () => ({ ai: { configurationReadable: true, connectionCount: 0, operations: [] }, tex: { documentRenderingReady: false } }) },
       profile: { current: async () => ({ items: [], variants: [] }) },
       documents: { list: async () => [] },
     },
@@ -117,12 +118,14 @@ function installApi() {
 }
 
 async function openSavedApplications(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: "Saved applications" }));
+  await user.click(await screen.findByRole("button", { name: /Enter workspace/ }));
+  await user.click(await screen.findByRole("button", { name: "Applications" }));
   return screen.findByRole("region", { name: "Mock candidatures" });
 }
 
 async function openDocuments(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: "CV & cover letter" }));
+  await user.click(await screen.findByRole("button", { name: /Enter workspace/ }));
+  await user.click(await screen.findByRole("button", { name: "CVs" }));
   return screen.findByRole("region", { name: "Mock documents" });
 }
 
@@ -146,13 +149,13 @@ describe("contextual handoff coordination", () => {
     expect(screen.getByRole("region", { name: "Mock candidatures" })).toBe(candidatureRegion);
   });
 
-  it("treats primary Saved applications navigation as a fresh corpus instead of a contextual return", async () => {
+  it("treats primary Applications navigation as a fresh corpus instead of a contextual return", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     const candidatureRegion = await openSavedApplications(user);
     await user.click(screen.getByRole("button", { name: "Open linked document" }));
-    await user.click(screen.getByRole("button", { name: "Saved applications" }));
+    await user.click(screen.getByRole("button", { name: "Applications" }));
 
     expect(screen.getByRole("region", { name: "Mock candidatures" })).not.toBe(candidatureRegion);
   });

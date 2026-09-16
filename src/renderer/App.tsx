@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
+import type { SetupEnvironmentSnapshot } from "../shared/setup-environment-contracts";
 import { AiTaskStatus } from "./AiTaskStatus";
 import logo from "./assets/aaaat-logo-light.png";
 import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
@@ -13,7 +14,6 @@ import {
 } from "./contextual-handoffs";
 import { DocumentsStartWorkspace } from "./DocumentsStartWorkspace";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
-import { JobOfferToDocumentsWorkspace } from "./JobOfferToDocumentsWorkspace";
 import "./intent-recovery.css";
 import "./owner-feedback-recovery.css";
 import { ProfileWorkspace } from "./ProfileWorkspace";
@@ -22,7 +22,11 @@ import "./shell.css";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
 type WorkspacePhase = "loading" | "idle" | "choosing" | "ready";
-type ProductView = "job-offer" | "documents" | "candidatures" | "professional-information";
+type ProductView = "documents" | "candidatures" | "professional-information";
+
+function folderName(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
+}
 
 function ProfileArea({
   initialItemId,
@@ -66,11 +70,13 @@ function DocumentsArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: bool
 export function App() {
   const [workspacePhase, setWorkspacePhase] = useState<WorkspacePhase>("loading");
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
+  const [recentWorkspacePath, setRecentWorkspacePath] = useState<string | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [welcomeStatus, setWelcomeStatus] = useState<SetupEnvironmentSnapshot | null>(null);
   const [demoWorkspace, setDemoWorkspace] = useState(false);
-  const [productView, setProductView] = useState<ProductView>("job-offer");
+  const [productView, setProductView] = useState<ProductView>("candidatures");
+  const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [jobOfferDirty, setJobOfferDirty] = useState(false);
   const [candidatureDirty, setCandidatureDirty] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
   const [professionalInformationDirty, setProfessionalInformationDirty] = useState(false);
@@ -84,11 +90,11 @@ export function App() {
 
   useEffect(() => {
     let active = true;
-    void window.aaaat.workspace
-      .current()
-      .then((currentWorkspace) => {
+    void Promise.all([window.aaaat.workspace.current(), window.aaaat.workspace.recent()])
+      .then(([currentWorkspace, recentPath]) => {
         if (!active) return;
         setWorkspace(currentWorkspace);
+        setRecentWorkspacePath(recentPath);
         setWorkspacePhase(currentWorkspace ? "ready" : "idle");
         if (currentWorkspace) {
           const status = (window.aaaat.workspace as typeof window.aaaat.workspace & { status?: () => Promise<{ demo: boolean }> }).status;
@@ -104,8 +110,16 @@ export function App() {
     return () => { active = false; };
   }, []);
 
-  const protectedWorkDirty =
-    jobOfferDirty || candidatureDirty || documentDirty || professionalInformationDirty;
+  useEffect(() => {
+    if (!welcomeOpen || !workspace) return;
+    let active = true;
+    void window.aaaat.setupEnvironment.current()
+      .then((snapshot) => { if (active) setWelcomeStatus(snapshot); })
+      .catch(() => { if (active) setWelcomeStatus(null); });
+    return () => { active = false; };
+  }, [welcomeOpen, workspace]);
+
+  const protectedWorkDirty = candidatureDirty || documentDirty || professionalInformationDirty;
   const anyDirty = protectedWorkDirty || settingsDirty;
 
   const resetHandoffs = () => {
@@ -115,7 +129,6 @@ export function App() {
   };
 
   const resetDirty = () => {
-    setJobOfferDirty(false);
     setCandidatureDirty(false);
     setDocumentDirty(false);
     setProfessionalInformationDirty(false);
@@ -135,11 +148,13 @@ export function App() {
       resetDirty();
       resetHandoffs();
       setWorkspace(selectedWorkspace);
+      setRecentWorkspacePath(selectedWorkspace.rootPath);
       const status = (window.aaaat.workspace as typeof window.aaaat.workspace & { status?: () => Promise<{ demo: boolean }> }).status;
       setDemoWorkspace(status ? await status().then((next) => next.demo).catch(() => false) : false);
       setWorkspacePhase("ready");
       setSettingsOpen(false);
-      setProductView("job-offer");
+      setProductView("candidatures");
+      setWelcomeOpen(false);
     } catch {
       setWorkspacePhase(workspace ? "ready" : "idle");
       setWorkspaceError(
@@ -148,6 +163,39 @@ export function App() {
           : "That folder is not a compatible AAAAT workspace. Choose another folder.",
       );
     }
+  };
+
+  const continueRecentWorkspace = async () => {
+    setWorkspacePhase("choosing");
+    setWorkspaceError(null);
+    try {
+      const selected = await window.aaaat.workspace.continueRecent();
+      if (!selected) throw new Error("No previous workspace is available.");
+      setWorkspace(selected);
+      setDemoWorkspace((await window.aaaat.workspace.status()).demo);
+      setWorkspacePhase("ready");
+      setWelcomeOpen(false);
+      setSettingsOpen(false);
+    } catch (reason) {
+      setWorkspacePhase("idle");
+      setWorkspaceError(reason instanceof Error ? reason.message : "AAAAT could not open that workspace. Choose another folder.");
+    }
+  };
+
+  const closeWorkspace = () => {
+    if (anyDirty && !window.confirm("Discard unsaved edits and return to welcome?")) return;
+    setSettingsOpen(false);
+    setWelcomeOpen(true);
+  };
+
+  const afterWorkspaceDeleted = () => {
+    resetDirty();
+    resetHandoffs();
+    setWorkspace(null);
+    setRecentWorkspacePath(null);
+    setSettingsOpen(false);
+    setWorkspacePhase("idle");
+    setWelcomeOpen(true);
   };
 
   const createDemoWorkspace = async () => {
@@ -163,10 +211,12 @@ export function App() {
       resetDirty();
       resetHandoffs();
       setWorkspace(selected);
+      setRecentWorkspacePath(selected.rootPath);
       setDemoWorkspace(true);
       setWorkspacePhase("ready");
       setSettingsOpen(false);
-      setProductView("job-offer");
+      setProductView("candidatures");
+      setWelcomeOpen(false);
     } catch (reason) {
       setWorkspacePhase(workspace ? "ready" : "idle");
       setWorkspaceError(
@@ -182,10 +232,12 @@ export function App() {
     resetHandoffs();
     setWorkspaceError(null);
     setWorkspace(restoredWorkspace);
+    setRecentWorkspacePath(restoredWorkspace.rootPath);
     setDemoWorkspace(false);
     setWorkspacePhase("ready");
     setSettingsOpen(false);
-    setProductView("job-offer");
+    setProductView("candidatures");
+    setWelcomeOpen(false);
   };
 
   const leaveSettings = () => {
@@ -247,7 +299,6 @@ export function App() {
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
         setDocumentHandoff({ candidatureId, ...(documentId ? { documentId } : {}) });
-        setJobOfferDirty(false);
         setProductView("documents");
       },
       returnToCandidature: () => {
@@ -305,7 +356,7 @@ export function App() {
     ],
   );
 
-  const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
+  const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null && !welcomeOpen;
   const choosing = workspacePhase === "choosing";
   const loading = workspacePhase === "loading";
   const keepCandidaturesMounted = productView === "candidatures" || Boolean(documentHandoff?.candidatureId);
@@ -316,6 +367,12 @@ export function App() {
   const keepProfessionalInformationMounted = productView === "professional-information";
   const documentDetailActive =
     documentHandoff !== null || professionalInformationHandoff !== null || settingsHandoff?.origin === "documents";
+  const applicationContextActive =
+    !settingsOpen &&
+    (productView === "candidatures" ||
+      (productView === "documents" && Boolean(documentHandoff?.candidatureId)));
+  const cvContextActive =
+    !settingsOpen && productView === "documents" && !documentHandoff?.candidatureId;
 
   return (
     <ContextualHandoffContext.Provider value={handoffApi}>
@@ -328,10 +385,10 @@ export function App() {
           {ready ? (
             <div className="shell-utilities">
               <span className="workspace-chip" title={workspace.rootPath}>
-                <span>{demoWorkspace ? "Demo workspace" : "Workspace"}</span><code>{workspace.rootPath}</code>
+                <span>{demoWorkspace ? "Demo" : "Workspace"}</span><code>{folderName(workspace.rootPath)}</code>
               </span>
-              <button className="compact-secondary" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>
-                {choosing ? "Choosing…" : "Change workspace"}
+              <button className="compact-secondary" type="button" disabled={choosing} onClick={closeWorkspace}>
+                Welcome / switch
               </button>
               <button className={settingsOpen ? "shell-settings active-shell-utility" : "shell-settings"} type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>
                 Settings
@@ -346,9 +403,8 @@ export function App() {
             <div className="work-shell">
               <aside className="work-rail" aria-label="Workspace controls">
                 <nav className="primary-work-nav" aria-label="Primary work areas">
-                  <button type="button" className={!settingsOpen && productView === "job-offer" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "job-offer" ? "page" : undefined} onClick={() => selectProductView("job-offer")}>From a job offer</button>
-                  <button type="button" className={!settingsOpen && productView === "documents" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "documents" ? "page" : undefined} onClick={() => selectProductView("documents")}>CV &amp; cover letter</button>
-                  <button type="button" className={!settingsOpen && productView === "candidatures" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "candidatures" ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Saved applications</button>
+                  <button type="button" className={applicationContextActive ? "active-work-destination" : ""} aria-current={applicationContextActive ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Applications</button>
+                  <button type="button" className={cvContextActive ? "active-work-destination" : ""} aria-current={cvContextActive ? "page" : undefined} onClick={() => selectProductView("documents")}>CVs</button>
                   <button type="button" className={!settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>My information</button>
                 </nav>
                 <AiTaskStatus />
@@ -358,7 +414,7 @@ export function App() {
                 {settingsOpen ? (
                   <div className="settings-area" key={`settings-${workspace.rootPath}-${settingsHandoff?.view ?? "overview"}`}>
                     <div className="shell-section-heading">
-                      <h1>Settings</h1>
+                      <h1 className="visually-hidden">Settings</h1>
                       <button className="compact-secondary" type="button" onClick={settingsHandoff ? handoffApi.returnFromSettings : closeSettings}>
                         {settingsHandoff?.origin === "documents"
                           ? "Return to document"
@@ -373,14 +429,11 @@ export function App() {
                       onChooseWorkspace={(choice) => void chooseWorkspace(choice)}
                       onDirtyChange={setSettingsDirty}
                       onRestored={openRestoredWorkspace}
+                      onWorkspaceDeleted={afterWorkspaceDeleted}
                       protectedWorkDirty={protectedWorkDirty}
                     />
                   </div>
                 ) : null}
-
-                <div hidden={settingsOpen || productView !== "job-offer"}>
-                  <JobOfferToDocumentsWorkspace onDirtyChange={setJobOfferDirty} />
-                </div>
 
                 {keepCandidaturesMounted ? (
                   <div hidden={settingsOpen || productView !== "candidatures"}>
@@ -427,16 +480,30 @@ export function App() {
         ) : (
           <main className="empty-state">
             <img className="hero-logo" src={logo} alt="AAAAT explorer robot holding a magnifying glass" />
-            <p className="tagline">Your career workspace, on your computer.</p>
-            <p>Your workspace data stays local and under your control. AAAAT works without AI; AI is optional.</p>
-            <span className="accent-line" aria-hidden="true" />
-            <h1>{loading ? "Opening your workspace..." : "Choose where AAAAT should keep your career workspace."}</h1>
+            <p className="tagline">Your application work, on your computer.</p>
+            <h1>{loading ? "Checking your workspace…" : "Welcome to AAAAT"}</h1>
+            <p>{workspace ? "Your local workspace is ready to open." : "Open your saved work or start a local workspace."}</p>
+            {workspace ? (
+              <div className="welcome-status" aria-label="Workspace status">
+                <span><strong>Workspace</strong> {demoWorkspace ? "Demo" : "Loaded"}</span>
+                <span><strong>AI</strong> {welcomeStatus?.ai.configurationReadable
+                  ? welcomeStatus.ai.connectionCount === 0 ? "Off" : welcomeStatus.ai.operations.some((operation) => operation.available) ? "Configured · check connection in Settings" : "Needs connection check"
+                  : "Status unavailable"}</span>
+                <span><strong>PDF</strong> {welcomeStatus ? welcomeStatus.tex.documentRenderingReady ? "Ready" : "Unavailable" : "Checking"}</span>
+              </div>
+            ) : null}
             {loading ? null : (
               <>
-                <div className="workspace-actions">
-                  <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing workspace..." : "Create workspace"}</button>
-                  <button className="secondary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open existing workspace</button>
-                  <button className="secondary-action" type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Try with demo data</button>
+                <div className={workspace ? "workspace-actions with-loaded-workspace" : "workspace-actions"}>
+                  {recentWorkspacePath ? (
+                    <button className="primary-action" type="button" disabled={choosing} onClick={() => workspace ? setWelcomeOpen(false) : void continueRecentWorkspace()}>
+                      {workspace ? "Enter workspace" : choosing ? "Opening…" : "Continue previous workspace"}
+                      <small title={workspace?.rootPath ?? recentWorkspacePath}>{folderName(workspace?.rootPath ?? recentWorkspacePath)}</small>
+                    </button>
+                  ) : null}
+                  <button className={workspace ? "welcome-option" : "primary-action"} type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing workspace..." : "Create workspace"}</button>
+                  <button className={workspace ? "welcome-option" : "secondary-action"} type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open existing workspace</button>
+                  <button className={workspace ? "welcome-option" : "secondary-action"} type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Try with demo data</button>
                 </div>
                 <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />
               </>

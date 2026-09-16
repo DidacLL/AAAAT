@@ -1,52 +1,14 @@
 # AAAAT alpha user guide
 
-AAAAT is a private local career and application workspace. Your workspace is a folder you choose. Core use does not require AI.
+AAAAT keeps applications, reusable professional information, CVs and cover letters in a local folder you choose. AI is optional.
 
-## Start with the thing you are trying to do
+Welcome appears first. It shows your last workspace and compact setup status. You can continue with it or open another folder. After Welcome, the saved-applications grid is the ordinary landing.
 
-After opening a workspace, AAAAT puts ordinary intentions first:
+Use **New application** to paste an offer, message or note and/or fill the details you know. Save works with one company name or a single pasted fragment. In the same screen you may select **Parse with AI**, **Dedicated CV** and **Cover letter**. AAAAT saves the application first, then performs only the optional work you selected. A failed or unavailable AI connection does not lose the application. Linked documents remain available from that application.
 
-- **From a job offer** — paste a raw vacancy, recruiter message or useful fragments and create a tailored CV, a cover letter, or both. AAAAT retains the raw material as a Source and creates the underlying application context automatically. You do not need to create, name or remember a candidature first.
-- **CV & cover letter** — create or continue standalone documents without an application context.
-- **Saved applications** — recall retained opportunities/application contexts and inspect their Sources, information, Tags and linked material.
-- **My information** — maintain reusable experience, education, projects, skills, languages, links, preferences and other career information.
-- **Settings** — workspace ownership/recovery, local rendering, optional AI connections and bounded external-assistant setup.
+**Applications** opens Focus over everything you retained. **All data** shows the same applications as a compact register. **CVs** is for reusable CV work; cover letters normally stay with their application, while standalone letters remain available as a secondary option. **My information** keeps reusable professional facts. **Settings** handles workspace recovery, optional AI connections, PDF readiness and bounded external assistance.
 
-The shell uses these intentions as navigation. Internal database entities do not define the normal journey.
-
-## From a job offer to application documents
-
-Open **From a job offer**, paste the raw offer, and choose **Tailored CV**, **Cover letter**, or both. Select **Start application documents**.
-
-AAAAT then:
-
-1. retains the pasted material as the original local Source;
-2. creates the underlying application context without asking you to file it first;
-3. creates the selected local document project(s);
-4. links the documents to the application context;
-5. opens document work directly; and
-6. when the required AI routes are already validated and usable, starts the bounded preparation work automatically in the background: it extracts safe structured opportunity facts, keeps independently valid facts, selects relevant retained career evidence for the CV, and/or stores a grounded cover-letter draft.
-
-Slow AI work does not block the rest of AAAAT. Progress and the final prepared state appear in the document itself; you do not need to discover another AI button. If AI is unavailable, unsupported, or produces no safe opportunity facts, the retained Source and created documents remain complete ordinary editable work rather than a failed application flow.
-
-The raw Source remains available later under **Saved applications**.
-
-## Standalone CV and cover-letter work
-
-Open **CV & cover letter** when there is no job offer or when you simply want to work on a document.
-
-AAAAT uses reusable **My information** and keeps generated LaTeX projects user-owned. Document content remains editable without AI. Rendering is local when compatible TeX tools are available.
-
-Inside a CV, the effective information actually used by the document is the primary view. Inside a cover letter, the letter text itself is primary. Saved variations, per-item inclusion/order/overrides, external-assistant access, source/LaTeX ownership and other advanced controls remain available through progressive disclosure instead of defining the normal editing model.
-
-## Saved applications and Sources
-
-**Saved applications** is primarily for recall. Applications may be sparse: a raw Source alone is valid.
-
-Sources are first-class retained material such as job postings, recruiter messages, forms, notes or research. Tags provide reusable recognition/glossary information. Flexible application information remains user-maintainable rather than fixed to one profession.
-
-The complete application surface may expose richer information and advanced controls progressively, but the ordinary journey does not require understanding field/schema machinery.
-
+The application grid can search retained notes, Sources and useful details. Opening an application shows what you saved and its linked CV or letter. Empty fields are fine. An offer is one possible input, never a required workflow.
 ## My information
 
 Use **My information** for reusable career material. The normal view is the information itself. Saved variations, AI disclosure and other secondary controls appear only when relevant.
@@ -112,16 +74,7 @@ The packaged MCP stdio surface exposes bounded capabilities including:
 
 These tools do not expose generic candidature/corpus browsing, database queries, filesystem access, shell/process execution, package installation, arbitrary local paths or unrelated private areas. AAAAT controls what its tools disclose; a host's own wider permissions remain a separate user trust choice.
 
-### Optional VS Code adapter
-
-VS Code is one optional demonstrated adapter over the same MCP contract. It is not a product dependency and does not define AAAAT's integration model.
-
-Technical setup remains available for users who want it:
-
-```text
-AAAAT --vscode-mcp-setup --workspace <existing-AAAAT-workspace> --project <VS-Code-project>
-AAAAT --vscode-mcp-setup --workspace <existing-AAAAT-workspace> --project <VS-Code-project> --activate
-```
+In the packaged app, **Settings → External assistants & portability** shows the exact executable and workspace arguments to use in a compatible host's local tool settings. The host must support starting a local tool; AAAAT does not require a particular editor or provider.
 
 ## Backup and restore
 
@@ -133,4 +86,4 @@ AI connection configuration is intentionally excluded from workspace backups. Ex
 
 ## Current alpha limitations
 
-Current alpha builds are produced by the repository's successful Verify workflow and are unsigned. There is not yet a stable release channel, updater, code signing/notarization, Windows installer, macOS DMG, or broad Linux package portfolio.
+Current alpha builds are unsigned. A Windows package is produced locally for natural-use acceptance before cross-platform and release verification. There is not yet a stable release channel, updater or code signing.

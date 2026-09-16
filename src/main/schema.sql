@@ -5,20 +5,7 @@ CREATE TABLE workspace_metadata (
 
 CREATE TABLE profile_items (
   id TEXT PRIMARY KEY,
-  kind TEXT NOT NULL CHECK (
-    kind IN (
-      'identity',
-      'contact',
-      'summary',
-      'experience',
-      'education',
-      'project',
-      'skill',
-      'certification',
-      'language',
-      'link'
-    )
-  ),
+  kind TEXT NOT NULL CHECK (length(trim(kind)) BETWEEN 1 AND 80),
   title TEXT NOT NULL,
   subtitle TEXT,
   description TEXT,

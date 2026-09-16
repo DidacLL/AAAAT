@@ -15,9 +15,23 @@ type AiSettingsView = "all" | "connections" | "portability";
 
 const emptyDraft: Draft = {
   name: "",
-  endpoint: "http://localhost:11434/v1",
+  endpoint: "",
   model: "",
 };
+
+function addressIssue(value: string): string | null {
+  if (!value.trim()) return "Enter the model server address.";
+  if (!/^https?:\/\//i.test(value.trim())) return "Start the address with http:// or https://.";
+  try {
+    const address = new URL(value.trim());
+    if (!address.hostname) return "Enter a complete server address.";
+    if (address.username || address.password || address.search || address.hash) return "Use a plain server address without a password, query or fragment.";
+    if (address.protocol === "http:" && !["localhost", "127.0.0.1", "[::1]"].includes(address.hostname)) return "Remote model servers need an https:// address.";
+  } catch {
+    return "This is not a valid server address. Check spelling and punctuation.";
+  }
+  return null;
+}
 
 function editable(connection: NamedAiConnection): Draft {
   return {
@@ -39,6 +53,9 @@ export function AiSettingsWorkspace({
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [formOpen, setFormOpen] = useState(view === "all");
   const [error, setError] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const [autoCheck, setAutoCheck] = useState<{ readonly id: string; readonly request: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [portabilityBusy, setPortabilityBusy] = useState<"export" | "import" | null>(null);
   const [portabilityStatus, setPortabilityStatus] = useState<string | null>(null);
@@ -99,8 +116,12 @@ export function AiSettingsWorkspace({
   };
 
   const save = async () => {
+    const issue = addressIssue(draft.endpoint);
+    if (issue) { setAddressError(issue); return; }
     setSaving(true);
     setError(null);
+    setAddressError(null);
+    setSaveNotice(null);
     setPortabilityStatus(null);
     try {
       const previous = editingId
@@ -121,16 +142,16 @@ export function AiSettingsWorkspace({
           previous !== null &&
           (previous.endpoint !== savedConnection.endpoint || previous.model !== savedConnection.model);
         if (capabilityBoundaryChanged) clearAiTask(`ai-validation:${savedConnection.id}`);
-        setEditingId(savedConnection.id);
-        setDraft(editable(savedConnection));
+        if (!previous || capabilityBoundaryChanged) setAutoCheck((current) => ({ id: savedConnection.id, request: (current?.request ?? 0) + 1 }));
       }
-      if (view === "connections") setFormOpen(false);
+      setEditingId(null);
+      setDraft(emptyDraft);
+      setFormOpen(false);
+      setSaveNotice("Connection saved. AAAAT is checking the address and model in the background; see its status below.");
     } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "AAAAT could not save this AI connection.",
-      );
+      const message = reason instanceof Error ? reason.message : "AAAAT could not save this AI connection.";
+      if (/endpoint|address|url|https?|loopback/i.test(message)) setAddressError(message);
+      else setError(message);
     } finally {
       setSaving(false);
     }
@@ -215,21 +236,10 @@ export function AiSettingsWorkspace({
     <section className="profile-workspace" aria-label="AI settings">
       {showConnections ? (
         <div className="profile-column">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Optional assistance</p>
-              <h2>AI connections</h2>
-            </div>
-            <span>Optional</span>
-          </div>
-          <p>
-            Connect a local or remote OpenAI-compatible model when you want AI assistance. AAAAT works
-            fully without AI. Connection checks use synthetic test data, not your candidature or
-            professional information. Slow local models may take minutes; the check stays visible while
-            you continue working. HTTP is accepted only for a loopback endpoint. Remote endpoints must
-            use HTTPS and handle authentication outside AAAAT.
-          </p>
+          {view === "all" ? <div className="section-heading"><div><h2>AI connections</h2></div></div> : null}
+          <p>Connect a model server for help with offers, CVs and letters. AI is optional.</p>
           {error ? <p className="error-message" role="alert">{error}</p> : null}
+          {saveNotice ? <p className="document-notice" role="status">{saveNotice}</p> : null}
 
           {formOpen ? (
             <form
@@ -254,12 +264,16 @@ export function AiSettingsWorkspace({
                 <input value={draft.model} onChange={(event) => setDraft({ ...draft, model: event.target.value })} placeholder="model-name" />
               </label>
               <label className="wide-field">
-                Connection address
+                Model server address
                 <input
                   value={draft.endpoint}
-                  onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })}
+                  aria-invalid={Boolean(addressError)}
+                  aria-describedby={addressError ? "ai-address-error" : undefined}
+                  onChange={(event) => { setDraft({ ...draft, endpoint: event.target.value }); setAddressError(null); setSaveNotice(null); }}
+                  onBlur={() => { if (draft.endpoint.trim()) setAddressError(addressIssue(draft.endpoint)); }}
                   placeholder="http://localhost:11434/v1 or https://provider.example/v1"
                 />
+                {addressError ? <small id="ai-address-error" className="error-message" role="alert">{addressError}</small> : null}
               </label>
               <div className="form-actions wide-field">
                 <button className="compact-primary" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save connection" : "Add connection"}</button>
@@ -275,19 +289,19 @@ export function AiSettingsWorkspace({
       {showConnections ? (
         <div className="profile-column">
           <div className="section-heading">
-            <div><p className="eyebrow">Connections</p><h2>Configured connections</h2></div>
+            <div><h2>Saved connections</h2></div>
             <span>{connections.length}/16</span>
           </div>
 
           {connections.length === 0 ? (
-            <p>No AI connections are configured yet. Manual product operation is complete without one.</p>
+            <p>No saved connections.</p>
           ) : (
             <div className="document-list">
               {connections.map((connection) => (
                 <article key={connection.id} className="document-card">
                   <div>
                     <h3>{connection.name}</h3>
-                    <p><code>{connection.model}</code> · <code>{connection.endpoint}</code></p>
+                    <p>Model: {connection.model} · Address: <code>{connection.endpoint}</code></p>
                     {connection.isDefault ? <p><strong>General default connection</strong></p> : null}
                   </div>
                   <div className="button-row">
@@ -295,7 +309,7 @@ export function AiSettingsWorkspace({
                     <button type="button" className="compact-secondary" onClick={() => beginEdit(connection)} aria-label={`Edit ${connection.name}`}>Edit</button>
                     <button type="button" className="compact-secondary" onClick={() => void remove(connection)} aria-label={`Remove ${connection.name}`}>Remove</button>
                   </div>
-                  <AiConnectionValidationPanel connection={connection} onConnections={setConnections} />
+                  <AiConnectionValidationPanel connection={connection} onConnections={setConnections} checkRequest={autoCheck?.id === connection.id ? autoCheck.request : null} />
                 </article>
               ))}
             </div>

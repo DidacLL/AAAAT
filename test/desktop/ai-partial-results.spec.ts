@@ -331,10 +331,10 @@ test("packaged candidature AI keeps partial results from an imperfect OpenAI-com
 
     const primary = running.page.getByRole("navigation", { name: "Primary work areas" });
     await primary.getByRole("button", { name: "CV & cover letter" }).click();
-    await primary.getByRole("button", { name: "Saved applications" }).click();
+    await primary.getByRole("button", { name: "Applications" }).click();
     const search = running.page.getByRole("searchbox", { name: "Search" });
     await search.fill("Partial result packaged acceptance");
-    await running.page.getByRole("button", { name: "All details" }).click();
+    await running.page.getByRole("button", { name: "Full record" }).click();
     const complete = running.page.getByRole("region", { name: "Complete candidature" });
     await expect(complete).toBeVisible();
 

@@ -119,16 +119,15 @@ afterEach(() => {
 });
 
 describe("document AI services", () => {
-  it("tailors a CV from resolved non-sensitive career evidence without implicit Source disclosure", async () => {
+  it("tailors a candidature CV using its offer while excluding private contact details", async () => {
     const { root, candidature, cv, skill } = await fixture();
     const tailor = vi.fn<ModelProvider["tailorCv"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain("Private Person");
       expect(serialized).not.toContain("private@example.test");
-      expect(serialized).not.toContain("Private vacancy source");
-      expect(serialized).not.toContain("private-job-source");
-      expect(serialized).not.toContain("SOURCE-ONLY-SECRET");
-      expect(context.candidature.sources).toEqual([]);
+      expect(serialized).toContain("Private vacancy source");
+      expect(serialized).toContain("SOURCE-ONLY-SECRET");
+      expect(context.candidature.sources).toHaveLength(1);
       expect(context.candidature.label).toBe("Candidature");
       expect(serialized).toContain("TypeScript");
       expect(serialized).not.toContain(skill.id);
@@ -192,15 +191,14 @@ describe("document AI services", () => {
     ).rejects.toThrow("profile item that no longer exists");
   });
 
-  it("drafts a cover letter without implicit Source disclosure or state mutation", async () => {
+  it("drafts a candidature cover letter from its offer without state mutation", async () => {
     const { root, candidature, cover } = await fixture();
     const draft = vi.fn<ModelProvider["draftCoverLetter"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
-      expect(context.candidature.sources).toEqual([]);
+      expect(context.candidature.sources).toHaveLength(1);
       expect(context.candidature.label).toBe("Candidature");
-      expect(serialized).not.toContain("Private vacancy source");
-      expect(serialized).not.toContain("private-job-source");
-      expect(serialized).not.toContain("SOURCE-ONLY-SECRET");
+      expect(serialized).toContain("Private vacancy source");
+      expect(serialized).toContain("SOURCE-ONLY-SECRET");
       expect(serialized).toContain("Platform Engineer");
       return {
         recipient: "Hiring team",

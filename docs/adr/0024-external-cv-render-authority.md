@@ -29,9 +29,7 @@ Add one zero-input MCP operation, `cv_render`. It does not accept document IDs, 
 
 The external adapter does not implement rendering itself and receives no generic filesystem/process authority. Existing managed/manual source ownership, render conflict behavior, TeX invocation boundaries, artifact paths and document activity remain owned by the normal document service. The acknowledgement never exposes document identity, source/PDF paths, TeX/PDF bytes, process output, command details or local environment information.
 
-The demonstrated VS Code MCP setup expands to the exact five-tool surface and retains live tool-name/cardinality verification before host configuration is written.
-
-Correct development-era `003_documents.sql` directly to add the render flag and invariants. Do not add a compatibility migration or schema adapter solely for pre-use development databases.
+The packaged MCP entry point exposes `cv_render` under the same local authorization as the desktop document service.
 
 ## Consequences
 

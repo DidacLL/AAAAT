@@ -81,7 +81,7 @@ describe("candidature local corpus search UI", () => {
     });
 
     render(<CandidaturesWorkspace />);
-    await screen.findByRole("heading", { name: "Candidatures" });
+    await screen.findByRole("heading", { name: "Focus" });
     const input = screen.getByRole("searchbox", { name: "Search" });
 
     fireEvent.change(input, { target: { value: "first" } });
