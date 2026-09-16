@@ -36,10 +36,26 @@ function templateSections(working: WorkingCvRecord): CvTemplateSection[] {
     name: section.name,
     items: section.items.map((item): CvTemplateItem => {
       const id = item.templateItemId ?? crypto.randomUUID();
-      if (item.sourceMode === "custom" || item.profileItemId === null) return { id, sourceMode: "custom", content: item.content };
-      if (item.sourceMode === "variant" && item.profileVariantId) return { id, sourceMode: "variant", profileItemId: item.profileItemId, profileVariantId: item.profileVariantId };
-      if (item.sourceMode === "current") return { id, sourceMode: "current", profileItemId: item.profileItemId };
-      return { id, sourceMode: "override", profileItemId: item.profileItemId, content: item.content };
+      if (item.sourceMode === "custom" || item.profileItemId === null) {
+        return { id, sourceMode: "custom", content: item.content };
+      }
+      if (item.sourceMode === "variant" && item.profileVariantId) {
+        return {
+          id,
+          sourceMode: "variant",
+          profileItemId: item.profileItemId,
+          profileVariantId: item.profileVariantId,
+        };
+      }
+      if (item.sourceMode === "current") {
+        return { id, sourceMode: "current", profileItemId: item.profileItemId };
+      }
+      return {
+        id,
+        sourceMode: "override",
+        profileItemId: item.profileItemId,
+        content: item.content,
+      };
     }),
   }));
 }
@@ -51,7 +67,8 @@ function move<T>(items: readonly T[], index: number, offset: -1 | 1): T[] {
   const current = next[index];
   const other = next[target];
   if (current === undefined || other === undefined) return next;
-  next[index] = other; next[target] = current;
+  next[index] = other;
+  next[target] = current;
   return next;
 }
 
@@ -77,93 +94,252 @@ function WorkingCvEditor({
   const [sectionName, setSectionName] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [variantNameByItem, setVariantNameByItem] = useState<Record<string, string>>({});
+  const [tailoringNotes, setTailoringNotes] = useState<Record<string, string>>({});
+  const [tailoringMessage, setTailoringMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dirty = JSON.stringify({ title: draft.title, language: draft.language, sections: draft.sections }) !== JSON.stringify({ title: document.title, language: document.language, sections: document.sections });
 
-  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
-  useEffect(() => { setDraft(document); }, [document]);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    setDraft(document);
+    setTailoringNotes({});
+    setTailoringMessage(null);
+  }, [document.id]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
-  const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => setSections(draft.sections.map((section) => section.id === sectionId ? update(section) : section));
-  const updateItem = (sectionId: string, itemId: string, update: (item: WorkingCvItem) => WorkingCvItem) => updateSection(sectionId, (section) => ({ ...section, items: section.items.map((item) => item.id === itemId ? update(item) : item) }));
+  const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
+    setSections(draft.sections.map((section) => section.id === sectionId ? update(section) : section));
+  };
+  const updateItem = (sectionId: string, itemId: string, update: (item: WorkingCvItem) => WorkingCvItem) => {
+    updateSection(sectionId, (section) => ({
+      ...section,
+      items: section.items.map((item) => item.id === itemId ? update(item) : item),
+    }));
+  };
+
+  const persistDraft = async (): Promise<WorkingCvRecord> => {
+    const saved = await window.aaaat.documentDomain.updateWorkingCv({
+      id: draft.id,
+      title: draft.title,
+      language: draft.language,
+      sections: draft.sections,
+    });
+    setDraft(saved);
+    onSaved(saved);
+    return saved;
+  };
 
   const save = async (): Promise<WorkingCvRecord> => {
-    setBusy(true); setError(null);
+    setBusy(true);
+    setError(null);
     try {
-      const saved = await window.aaaat.documentDomain.updateWorkingCv({ id: draft.id, title: draft.title, language: draft.language, sections: draft.sections });
-      setDraft(saved); onSaved(saved); return saved;
+      return await persistDraft();
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "AAAAT could not save this Working CV.";
-      setError(message); throw reason;
-    } finally { setBusy(false); }
+      setError(message);
+      throw reason;
+    } finally {
+      setBusy(false);
+    }
   };
 
   const addSection = () => {
-    const name = sectionName.trim(); if (!name) return;
-    setSections([...draft.sections, { id: crypto.randomUUID(), name, items: [] }]); setSectionName("");
+    const name = sectionName.trim();
+    if (!name) return;
+    setSections([...draft.sections, { id: crypto.randomUUID(), name, items: [] }]);
+    setSectionName("");
   };
+
   const addProfileItem = (sectionId: string, itemId: string) => {
-    const item = profile.find((candidate) => candidate.id === itemId); if (!item) return;
-    updateSection(sectionId, (section) => ({ ...section, items: [...section.items, { id: crypto.randomUUID(), templateItemId: null, sourceMode: "current", profileItemId: item.id, profileVariantId: null, content: profileContent(item) }] }));
+    const item = profile.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    updateSection(sectionId, (section) => ({
+      ...section,
+      items: [
+        ...section.items,
+        {
+          id: crypto.randomUUID(),
+          templateItemId: null,
+          sourceMode: "current",
+          profileItemId: item.id,
+          profileVariantId: null,
+          content: profileContent(item),
+        },
+      ],
+    }));
   };
-  const addCustomItem = (sectionId: string) => updateSection(sectionId, (section) => ({ ...section, items: [...section.items, { id: crypto.randomUUID(), templateItemId: null, sourceMode: "custom", profileItemId: null, profileVariantId: null, content: { kind: "other", title: "New content" } }] }));
+
+  const addCustomItem = (sectionId: string) => {
+    updateSection(sectionId, (section) => ({
+      ...section,
+      items: [
+        ...section.items,
+        {
+          id: crypto.randomUUID(),
+          templateItemId: null,
+          sourceMode: "custom",
+          profileItemId: null,
+          profileVariantId: null,
+          content: { kind: "other", title: "New content" },
+        },
+      ],
+    }));
+  };
 
   const chooseSource = (sectionId: string, item: WorkingCvItem, value: string) => {
     if (!item.profileItemId) return;
-    const base = profile.find((candidate) => candidate.id === item.profileItemId); if (!base) return;
+    const base = profile.find((candidate) => candidate.id === item.profileItemId);
+    if (!base) return;
     if (value === "current") {
-      updateItem(sectionId, item.id, (current) => ({ ...current, sourceMode: "current", profileVariantId: null, content: profileContent(base) })); return;
+      updateItem(sectionId, item.id, (current) => ({
+        ...current,
+        sourceMode: "current",
+        profileVariantId: null,
+        content: profileContent(base),
+      }));
+      return;
     }
     const variant = variants.find((candidate) => candidate.id === value && candidate.itemId === base.id);
-    if (variant) updateItem(sectionId, item.id, (current) => ({ ...current, sourceMode: "variant", profileVariantId: variant.id, content: { kind: base.kind, ...variant.content } }));
+    if (variant) {
+      updateItem(sectionId, item.id, (current) => ({
+        ...current,
+        sourceMode: "variant",
+        profileVariantId: variant.id,
+        content: { kind: base.kind, ...variant.content },
+      }));
+    }
   };
 
   const saveOwnership = async (item: WorkingCvItem, target: "template" | "profile_variant" | "profile") => {
+    setError(null);
     try {
-      const saved = dirty ? await save() : draft;
-      const refreshed = await window.aaaat.documentDomain.saveWorkingItem({ workingCvId: saved.id, itemId: item.id, target, ...(target === "profile_variant" ? { variantName: variantNameByItem[item.id]?.trim() || "CV wording" } : {}) });
-      setDraft(refreshed); onSaved(refreshed);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save that reusable value."); }
+      const saved = dirty ? await persistDraft() : draft;
+      const refreshed = await window.aaaat.documentDomain.saveWorkingItem({
+        workingCvId: saved.id,
+        itemId: item.id,
+        target,
+        ...(target === "profile_variant" ? {
+          variantName: variantNameByItem[item.id]?.trim() || "CV wording",
+        } : {}),
+      });
+      setDraft(refreshed);
+      onSaved(refreshed);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save that reusable value.");
+    }
   };
 
   const saveCompositionToTemplate = async () => {
     if (!draft.sourceTemplateId) return;
-    const template = collections.templates.find((candidate) => candidate.id === draft.sourceTemplateId); if (!template) return;
+    const template = collections.templates.find((candidate) => candidate.id === draft.sourceTemplateId);
+    if (!template) return;
+    setError(null);
     try {
-      const saved = dirty ? await save() : draft;
-      onCollections(await window.aaaat.documentDomain.updateTemplate({ id: template.id, name: template.name, language: saved.language, sections: templateSections(saved) }));
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not update the template."); }
+      const saved = dirty ? await persistDraft() : draft;
+      onCollections(await window.aaaat.documentDomain.updateTemplate({
+        id: template.id,
+        name: template.name,
+        language: saved.language,
+        sections: templateSections(saved),
+      }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not update the template.");
+    }
   };
 
   const saveAsTemplate = async () => {
-    const name = templateName.trim(); if (!name) return;
+    const name = templateName.trim();
+    if (!name) return;
+    setError(null);
     try {
-      const saved = dirty ? await save() : draft;
+      const saved = dirty ? await persistDraft() : draft;
       await window.aaaat.documentDomain.saveWorkingAsTemplate({ workingCvId: saved.id, name });
-      onCollections(await window.aaaat.documentDomain.collections()); setTemplateName("");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save the new template."); }
+      onCollections(await window.aaaat.documentDomain.collections());
+      setTemplateName("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save the new template.");
+    }
+  };
+
+  const askAiToTailor = async () => {
+    if (!draft.candidatureId || busy) return;
+    setBusy(true);
+    setError(null);
+    setTailoringMessage(null);
+    try {
+      const saved = dirty ? await persistDraft() : draft;
+      const result = await window.aaaat.ai.tailorCv({
+        candidatureId: saved.candidatureId!,
+        workingCvId: saved.id,
+      });
+      const rank = new Map(result.recommendations.map((recommendation, index) => [recommendation.itemId, index]));
+      const notes = Object.fromEntries(result.recommendations.map((recommendation) => [recommendation.itemId, recommendation.rationale]));
+      const sections = saved.sections.map((section) => ({
+        ...section,
+        items: [...section.items].sort(
+          (left, right) => (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+        ),
+      }));
+      setDraft({ ...saved, sections });
+      setTailoringNotes(notes);
+      setTailoringMessage(
+        result.recommendations.length > 0
+          ? "AI suggestions are applied only to this Working CV draft. Review them, then Save or keep editing."
+          : "AI did not recommend a different emphasis for this Working CV.",
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not tailor this Working CV with AI.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const render = async () => {
-    setBusy(true); setError(null);
+    setBusy(true);
+    setError(null);
     try {
-      const saved = dirty ? await save() : draft;
+      const saved = dirty ? await persistDraft() : draft;
       const rendered = await window.aaaat.documentDomain.renderCv(saved.id);
       onCollections(await window.aaaat.documentDomain.collections());
       await window.aaaat.documentDomain.openRenderedCv(rendered.id);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not render this CV."); }
-    finally { setBusy(false); }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not render this CV.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <section className="document-work" aria-label="Working CV">
       <header className="document-console-heading">
-        <div><p className="eyebrow">Working CV</p><h1>{draft.title}</h1>{draft.candidatureId ? <small>Owned by this application</small> : <small>Standalone CV</small>}</div>
-        <div className="button-row">{documentHandoff?.candidatureId ? <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button> : null}<button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button><button type="button" disabled={busy} onClick={() => void render()}>Render PDF</button></div>
+        <div>
+          <p className="eyebrow">Working CV</p>
+          <h1>{draft.title}</h1>
+          {draft.candidatureId ? <small>Owned by this application</small> : <small>Standalone CV</small>}
+        </div>
+        <div className="button-row">
+          {documentHandoff?.candidatureId ? (
+            <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button>
+          ) : null}
+          {draft.candidatureId ? (
+            <button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAiToTailor()}>Ask AI to tailor</button>
+          ) : null}
+          <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
+          <button type="button" disabled={busy} onClick={() => void render()}>Render PDF</button>
+        </div>
       </header>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
-      <div className="document-metadata-grid"><label>Title<input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label><label>Language<input value={draft.language ?? ""} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value.trim() || undefined }))} placeholder="Optional" /></label></div>
+      {tailoringMessage ? <p className="compact-note" role="status">{tailoringMessage}</p> : null}
+
+      <div className="document-metadata-grid">
+        <label>Title<input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
+        <label>Language<input value={draft.language ?? ""} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value.trim() || undefined }))} placeholder="Optional" /></label>
+      </div>
 
       <section className="section-surface" aria-label="CV composition">
         <div className="section-heading"><div><p className="eyebrow">Composition</p><h2>Sections and information</h2></div></div>
@@ -173,30 +349,84 @@ function WorkingCvEditor({
             <article key={section.id} className="working-cv-section">
               <div className="working-cv-section-heading">
                 <input aria-label="Section name" value={section.name} onChange={(event) => updateSection(section.id, (current) => ({ ...current, name: event.target.value }))} />
-                <div className="button-row"><button type="button" className="compact-secondary" disabled={sectionIndex === 0} onClick={() => setSections(move(draft.sections, sectionIndex, -1))}>↑</button><button type="button" className="compact-secondary" disabled={sectionIndex === draft.sections.length - 1} onClick={() => setSections(move(draft.sections, sectionIndex, 1))}>↓</button><button type="button" className="compact-secondary" onClick={() => setSections(draft.sections.filter((candidate) => candidate.id !== section.id))}>Remove</button></div>
+                <div className="button-row">
+                  <button type="button" className="compact-secondary" disabled={sectionIndex === 0} onClick={() => setSections(move(draft.sections, sectionIndex, -1))}>↑</button>
+                  <button type="button" className="compact-secondary" disabled={sectionIndex === draft.sections.length - 1} onClick={() => setSections(move(draft.sections, sectionIndex, 1))}>↓</button>
+                  <button type="button" className="compact-secondary" onClick={() => setSections(draft.sections.filter((candidate) => candidate.id !== section.id))}>Remove</button>
+                </div>
               </div>
               <div className="working-cv-items">
                 {section.items.map((item, itemIndex) => {
                   const itemVariants = item.profileItemId ? variants.filter((variant) => variant.itemId === item.profileItemId) : [];
-                  return <article key={item.id} className="working-cv-item">
-                    <div className="working-cv-item-heading"><strong>{item.content.title}</strong><div className="button-row"><button type="button" className="compact-secondary" disabled={itemIndex === 0} onClick={() => updateSection(section.id, (current) => ({ ...current, items: move(current.items, itemIndex, -1) }))}>↑</button><button type="button" className="compact-secondary" disabled={itemIndex === section.items.length - 1} onClick={() => updateSection(section.id, (current) => ({ ...current, items: move(current.items, itemIndex, 1) }))}>↓</button><button type="button" className="compact-secondary" onClick={() => updateSection(section.id, (current) => ({ ...current, items: current.items.filter((candidate) => candidate.id !== item.id) }))}>Remove</button></div></div>
-                    {item.profileItemId ? <div className="working-source-row"><label>Source<select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : item.sourceMode === "current" ? "current" : "override"} onChange={(event) => chooseSource(section.id, item, event.target.value)}><option value="current">Current My information</option>{itemVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}<option value="override" disabled>Document override</option></select></label><button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button></div> : <span className="item-kind">Custom content</span>}
-                    <div className="document-item-editor"><label>Kind<input value={item.content.kind} onChange={(event) => updateItem(section.id, item.id, (current) => ({ ...current, sourceMode: current.sourceMode === "custom" ? "custom" : "override", profileVariantId: null, content: { ...current.content, kind: event.target.value } }))} /></label><label>Title<input value={item.content.title} onChange={(event) => updateItem(section.id, item.id, (current) => ({ ...current, sourceMode: current.sourceMode === "custom" ? "custom" : "override", profileVariantId: null, content: { ...current.content, title: event.target.value } }))} /></label><label>Subtitle<input value={item.content.subtitle ?? ""} onChange={(event) => updateItem(section.id, item.id, (current) => ({ ...current, sourceMode: current.sourceMode === "custom" ? "custom" : "override", profileVariantId: null, content: { ...current.content, subtitle: event.target.value || undefined } }))} /></label><label>Description<textarea rows={4} value={item.content.description ?? ""} onChange={(event) => updateItem(section.id, item.id, (current) => ({ ...current, sourceMode: current.sourceMode === "custom" ? "custom" : "override", profileVariantId: null, content: { ...current.content, description: event.target.value || undefined } }))} /></label></div>
-                    {item.profileItemId && item.sourceMode === "override" ? <div className="ownership-actions"><span>This wording differs only in this Working CV.</span>{draft.sourceTemplateId && item.templateItemId ? <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "template")}>Save to template</button> : null}<label>Variant name<input value={variantNameByItem[item.id] ?? ""} onChange={(event) => setVariantNameByItem((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="e.g. Leadership emphasis" /></label><button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile_variant")}>Save as profile variant</button><button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile")}>Update My information</button></div> : null}
-                  </article>;
+                  return (
+                    <article key={item.id} className="working-cv-item">
+                      <div className="working-cv-item-heading">
+                        <strong>{item.content.title}</strong>
+                        <div className="button-row">
+                          <button type="button" className="compact-secondary" disabled={itemIndex === 0} onClick={() => updateSection(section.id, (current) => ({ ...current, items: move(current.items, itemIndex, -1) }))}>↑</button>
+                          <button type="button" className="compact-secondary" disabled={itemIndex === section.items.length - 1} onClick={() => updateSection(section.id, (current) => ({ ...current, items: move(current.items, itemIndex, 1) }))}>↓</button>
+                          <button type="button" className="compact-secondary" onClick={() => updateSection(section.id, (current) => ({ ...current, items: current.items.filter((candidate) => candidate.id !== item.id) }))}>Remove</button>
+                        </div>
+                      </div>
+                      {tailoringNotes[item.id] ? <p className="compact-note"><strong>AI:</strong> {tailoringNotes[item.id]}</p> : null}
+                      {item.profileItemId ? (
+                        <div className="working-source-row">
+                          <label>
+                            Source
+                            <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : item.sourceMode === "current" ? "current" : "override"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
+                              <option value="current">Current My information</option>
+                              {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}
+                              <option value="override" disabled>Document override</option>
+                            </select>
+                          </label>
+                          <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
+                        </div>
+                      ) : <span className="item-kind">Custom content</span>}
+                      <div className="document-item-editor">
+                        <label>Kind<input value={item.content.kind} onChange={(event) => updateItem(section.id, item.id, (current) => ({ ...current, sourceMode: current.sourceMode === "custom" ? "custom" : "override", profileVariantId: null, content: { ...current.content, kind: event.target.value } }))} /></label>
+                        <label>Title<input value={item.content.title} onChange={(event) => updateItem(section.id, item.id, (current) => ({ ...current, sourceMode: current.sourceMode === "custom" ? "custom" : "override", profileVariantId: null, content: { ...current.content, title: event.target.value } }))} /></label>
+                        <label>Subtitle<input value={item.content.subtitle ?? ""} onChange={(event) => updateItem(section.id, item.id, (current) => ({ ...current, sourceMode: current.sourceMode === "custom" ? "custom" : "override", profileVariantId: null, content: { ...current.content, subtitle: event.target.value || undefined } }))} /></label>
+                        <label>Description<textarea rows={4} value={item.content.description ?? ""} onChange={(event) => updateItem(section.id, item.id, (current) => ({ ...current, sourceMode: current.sourceMode === "custom" ? "custom" : "override", profileVariantId: null, content: { ...current.content, description: event.target.value || undefined } }))} /></label>
+                      </div>
+                      {item.profileItemId && item.sourceMode === "override" ? (
+                        <div className="ownership-actions">
+                          <span>This wording differs only in this Working CV.</span>
+                          {draft.sourceTemplateId && item.templateItemId ? <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "template")}>Save to template</button> : null}
+                          <label>Variant name<input value={variantNameByItem[item.id] ?? ""} onChange={(event) => setVariantNameByItem((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="e.g. Leadership emphasis" /></label>
+                          <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile_variant")}>Save as profile variant</button>
+                          <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile")}>Update My information</button>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
                 })}
               </div>
-              <div className="working-cv-add-row"><label>Add My information<select defaultValue="" onChange={(event) => { if (event.target.value) addProfileItem(section.id, event.target.value); event.target.value = ""; }}><option value="">Choose…</option>{profile.filter((item) => !section.items.some((current) => current.profileItemId === item.id)).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label><button type="button" className="compact-secondary" onClick={() => addCustomItem(section.id)}>Add custom content</button></div>
+              <div className="working-cv-add-row">
+                <label>
+                  Add My information
+                  <select defaultValue="" onChange={(event) => { if (event.target.value) addProfileItem(section.id, event.target.value); event.target.value = ""; }}>
+                    <option value="">Choose…</option>
+                    {profile.filter((item) => !section.items.some((current) => current.profileItemId === item.id)).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+                  </select>
+                </label>
+                <button type="button" className="compact-secondary" onClick={() => addCustomItem(section.id)}>Add custom content</button>
+              </div>
             </article>
           ))}
         </div>
-        <div className="working-cv-add-section"><label>New section<input value={sectionName} onChange={(event) => setSectionName(event.target.value)} placeholder="Experience" /></label><button type="button" className="compact-secondary" disabled={!sectionName.trim()} onClick={addSection}>Add section</button></div>
+        <div className="working-cv-add-section">
+          <label>New section<input value={sectionName} onChange={(event) => setSectionName(event.target.value)} placeholder="Experience" /></label>
+          <button type="button" className="compact-secondary" disabled={!sectionName.trim()} onClick={addSection}>Add section</button>
+        </div>
       </section>
 
       <section className="section-surface" aria-label="Reusable CV ownership">
         <div className="section-heading"><div><p className="eyebrow">Reuse</p><h2>Template ownership</h2></div></div>
         {draft.sourceTemplateId ? <button type="button" className="compact-secondary" onClick={() => void saveCompositionToTemplate()}>Save current composition to source template</button> : null}
-        <div className="working-cv-template-save"><label>Save as new template<input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" /></label><button type="button" className="compact-secondary" disabled={!templateName.trim()} onClick={() => void saveAsTemplate()}>Save template</button></div>
+        <div className="working-cv-template-save">
+          <label>Save as new template<input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" /></label>
+          <button type="button" className="compact-secondary" disabled={!templateName.trim()} onClick={() => void saveAsTemplate()}>Save template</button>
+        </div>
       </section>
     </section>
   );
@@ -208,29 +438,87 @@ function LetterEditor({ document, onSaved, onDirtyChange }: { readonly document:
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { setDraft(document); setBody(document.bodyParagraphs.join("\n\n")); }, [document]);
+
+  useEffect(() => {
+    setDraft(document);
+    setBody(document.bodyParagraphs.join("\n\n"));
+  }, [document]);
+
   const bodyParagraphs = body.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
   const dirty = JSON.stringify({ ...draft, bodyParagraphs }) !== JSON.stringify(document);
-  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
 
   const save = async () => {
-    setBusy(true); setError(null);
+    setBusy(true);
+    setError(null);
     try {
-      const saved = await window.aaaat.documentDomain.updateLetter({ id: draft.id, title: draft.title, language: draft.language, recipient: draft.recipient, subject: draft.subject, bodyParagraphs, closing: draft.closing });
-      setDraft(saved); setBody(saved.bodyParagraphs.join("\n\n")); onSaved(saved);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save this cover letter."); }
-    finally { setBusy(false); }
+      const saved = await window.aaaat.documentDomain.updateLetter({
+        id: draft.id,
+        title: draft.title,
+        language: draft.language,
+        recipient: draft.recipient,
+        subject: draft.subject,
+        bodyParagraphs,
+        closing: draft.closing,
+      });
+      setDraft(saved);
+      setBody(saved.bodyParagraphs.join("\n\n"));
+      onSaved(saved);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save this cover letter.");
+    } finally {
+      setBusy(false);
+    }
   };
+
   const askAi = async () => {
-    setBusy(true); setError(null);
+    setBusy(true);
+    setError(null);
     try {
       const suggestion = await window.aaaat.ai.draftCoverLetter({ coverLetterId: draft.id });
-      setDraft((current) => ({ ...current, recipient: suggestion.recipient || undefined, subject: suggestion.subject || undefined, closing: suggestion.closing || undefined }));
+      setDraft((current) => ({
+        ...current,
+        recipient: suggestion.recipient || undefined,
+        subject: suggestion.subject || undefined,
+        closing: suggestion.closing || undefined,
+      }));
       setBody(suggestion.bodyParagraphs.join("\n\n"));
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not draft this cover letter with AI."); }
-    finally { setBusy(false); }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not draft this cover letter with AI.");
+    } finally {
+      setBusy(false);
+    }
   };
-  return <section className="document-work" aria-label="Cover letter"><header className="document-console-heading"><div><p className="eyebrow">Cover letter</p><h1>{draft.title}</h1><small>{draft.candidatureId ? "Owned by this application" : "Standalone letter"}</small></div><div className="button-row">{documentHandoff?.candidatureId ? <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button> : null}<button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAi()}>Ask AI to draft</button><button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button></div></header>{error ? <p className="error-message" role="alert">{error}</p> : null}<div className="letter-editor"><label>Title<input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label><label>Language<input value={draft.language ?? ""} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value.trim() || undefined }))} /></label><label>Recipient<input value={draft.recipient ?? ""} onChange={(event) => setDraft((current) => ({ ...current, recipient: event.target.value || undefined }))} /></label><label>Subject<input value={draft.subject ?? ""} onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value || undefined }))} /></label><label>Body<textarea rows={18} value={body} onChange={(event) => setBody(event.target.value)} /></label><label>Closing<input value={draft.closing ?? ""} onChange={(event) => setDraft((current) => ({ ...current, closing: event.target.value || undefined }))} /></label></div></section>;
+
+  return (
+    <section className="document-work" aria-label="Cover letter">
+      <header className="document-console-heading">
+        <div>
+          <p className="eyebrow">Cover letter</p>
+          <h1>{draft.title}</h1>
+          <small>{draft.candidatureId ? "Owned by this application" : "Standalone letter"}</small>
+        </div>
+        <div className="button-row">
+          {documentHandoff?.candidatureId ? <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button> : null}
+          <button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAi()}>Ask AI to draft</button>
+          <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
+        </div>
+      </header>
+      {error ? <p className="error-message" role="alert">{error}</p> : null}
+      <div className="letter-editor">
+        <label>Title<input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
+        <label>Language<input value={draft.language ?? ""} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value.trim() || undefined }))} /></label>
+        <label>Recipient<input value={draft.recipient ?? ""} onChange={(event) => setDraft((current) => ({ ...current, recipient: event.target.value || undefined }))} /></label>
+        <label>Subject<input value={draft.subject ?? ""} onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value || undefined }))} /></label>
+        <label>Body<textarea rows={18} value={body} onChange={(event) => setBody(event.target.value)} /></label>
+        <label>Closing<input value={draft.closing ?? ""} onChange={(event) => setDraft((current) => ({ ...current, closing: event.target.value || undefined }))} /></label>
+      </div>
+    </section>
+  );
 }
 
 export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirty: boolean) => void }) {
@@ -242,20 +530,37 @@ export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirt
 
   useEffect(() => {
     let active = true;
-    void Promise.all([window.aaaat.documentDomain.collections(), window.aaaat.profile.current(), window.aaaat.profileVariants.list()])
-      .then(([nextCollections, nextProfile, nextVariants]) => { if (!active) return; setCollections(nextCollections); setProfile(nextProfile.items); setVariants(nextVariants); })
-      .catch(() => { if (active) setError("AAAAT could not load this document."); });
+    void Promise.all([
+      window.aaaat.documentDomain.collections(),
+      window.aaaat.profile.current(),
+      window.aaaat.profileVariants.list(),
+    ])
+      .then(([nextCollections, nextProfile, nextVariants]) => {
+        if (!active) return;
+        setCollections(nextCollections);
+        setProfile(nextProfile.items);
+        setVariants(nextVariants);
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not load this document.");
+      });
     return () => { active = false; };
   }, [documentHandoff?.documentId]);
 
   const id = documentHandoff?.documentId ?? null;
   const working = useMemo(() => collections.workingCvs.find((candidate) => candidate.id === id) ?? null, [collections, id]);
   const letter = useMemo(() => collections.letters.find((candidate) => candidate.id === id) ?? null, [collections, id]);
-  const storeWorking = (saved: WorkingCvRecord) => setCollections((current) => ({ ...current, workingCvs: current.workingCvs.map((candidate) => candidate.id === saved.id ? saved : candidate) }));
-  const storeLetter = (saved: CoverLetterRecord) => setCollections((current) => ({ ...current, letters: current.letters.map((candidate) => candidate.id === saved.id ? saved : candidate) }));
+  const storeWorking = (saved: WorkingCvRecord) => setCollections((current) => ({
+    ...current,
+    workingCvs: current.workingCvs.map((candidate) => candidate.id === saved.id ? saved : candidate),
+  }));
+  const storeLetter = (saved: CoverLetterRecord) => setCollections((current) => ({
+    ...current,
+    letters: current.letters.map((candidate) => candidate.id === saved.id ? saved : candidate),
+  }));
 
   if (error) return <section className="document-work"><p className="error-message" role="alert">{error}</p></section>;
-  if (!id) return <section className="document-work"><p className="compact-empty">Choose a Working CV or letter from the collection.</p></section>;
+  if (!id) return <section className="document-work"><p className="compact-empty">Choose a Working CV or letter to edit.</p></section>;
   if (working) return <WorkingCvEditor document={working} profile={profile} variants={variants} collections={collections} onSaved={storeWorking} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
   if (letter) return <LetterEditor document={letter} onSaved={storeLetter} onDirtyChange={onDirtyChange} />;
   return <section className="document-work"><p className="error-message" role="alert">This editable document no longer exists.</p></section>;
