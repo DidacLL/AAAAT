@@ -144,12 +144,12 @@ describe("partial-safe job extraction", () => {
     const root = await configuredWorkspace();
     const allowed = aiField(root, "Allowed information", "text", true);
     const disabled = aiField(root, "Disabled information", "text", false);
-    let payload: ReturnType<typeof userPayload> | null = null;
+    const payloads: ReturnType<typeof userPayload>[] = [];
 
     vi.stubGlobal(
       "fetch",
       vi.fn<typeof fetch>(async (_input, init) => {
-        payload = userPayload(init);
+        payloads.push(userPayload(init));
         return modelResponse({ proposals: [], newFields: [], existingTags: [], newTags: [] });
       }),
     );
@@ -160,9 +160,11 @@ describe("partial-safe job extraction", () => {
       sourceText: "Some supported facts.",
     });
 
-    expect(payload?.fields.map((field) => field.label)).toContain("Allowed information");
-    expect(payload?.fields.map((field) => field.label)).not.toContain("Disabled information");
-    expect(JSON.stringify(payload)).not.toContain(disabled.definition.id);
+    const sent = payloads.at(-1);
+    expect(sent).toBeDefined();
+    expect(sent?.fields.map((field) => field.label)).toContain("Allowed information");
+    expect(sent?.fields.map((field) => field.label)).not.toContain("Disabled information");
+    expect(JSON.stringify(sent)).not.toContain(disabled.definition.id);
 
     await expect(
       extractJobWithPartialOutcomes(
@@ -184,12 +186,13 @@ describe("partial-safe job extraction", () => {
       aliases: ["TS"],
       notes: "Local note is not provider context.",
     });
-    let payload: ReturnType<typeof userPayload> | null = null;
+    const payloads: ReturnType<typeof userPayload>[] = [];
 
     vi.stubGlobal(
       "fetch",
       vi.fn<typeof fetch>(async (_input, init) => {
-        payload = userPayload(init);
+        const payload = userPayload(init);
+        payloads.push(payload);
         const tagRef = payload.tags.find((tag) => tag.name === "TypeScript")?.tagRef ?? "";
         return modelResponse({
           proposals: [],
@@ -213,14 +216,16 @@ describe("partial-safe job extraction", () => {
       sourceText: "TypeScript is required for distributed services.",
     });
 
-    expect(payload?.tags).toEqual([
+    const sent = payloads.at(-1);
+    expect(sent).toBeDefined();
+    expect(sent?.tags).toEqual([
       expect.objectContaining({
         name: "TypeScript",
         aliases: ["TS"],
         definition: existing.definition,
       }),
     ]);
-    expect(JSON.stringify(payload)).not.toContain("Local note is not provider context");
+    expect(JSON.stringify(sent)).not.toContain("Local note is not provider context");
     expect(result.existingTags).toEqual([
       { tagId: existing.id, name: "TypeScript", evidence: "The offer requires TypeScript." },
     ]);
