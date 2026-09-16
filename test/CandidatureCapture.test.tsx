@@ -41,8 +41,7 @@ const roleField: CandidatureFieldConfiguration = {
     focusOrder: 0,
     focusProminence: "normal",
     identityOrder: 0,
-    aiDiscovery: true,
-    aiContextMode: "expose",
+    aiUseAllowed: true,
   },
 };
 
