@@ -111,8 +111,9 @@ function installApi() {
     value: {
       workspace: { current: async () => workspace, recent: async () => workspace.rootPath, choose: async () => workspace, status: async () => ({ demo: false }) },
       setupEnvironment: { current: async () => ({ ai: { configurationReadable: true, connectionCount: 0, operations: [] }, tex: { documentRenderingReady: false } }) },
-      profile: { current: async () => ({ items: [], variants: [] }) },
-      documents: { list: async () => [] },
+      profile: { current: async () => ({ items: [] }) },
+      profileVariants: { list: async () => [] },
+      documentDomain: { collections: async () => ({ templates: [], workingCvs: [], renderedCvs: [], letters: [], applicationPackets: [] }) },
     },
   });
 }
