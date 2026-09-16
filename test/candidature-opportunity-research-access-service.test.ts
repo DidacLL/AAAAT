@@ -114,7 +114,7 @@ describe("external opportunity-research task access", () => {
     }
   });
 
-  it("projects flexible task context through existing AI privacy preferences without leaking local corpus data", () => {
+  it("projects only application information whose single AI-use eye is enabled", () => {
     const root = workspace();
     const candidature = createCandidature(root, {
       source: {
@@ -155,7 +155,7 @@ describe("external opportunity-research task access", () => {
     });
     updateCandidatureFieldPreferences(root, {
       ...compensation.preferences,
-      aiContextMode: "token",
+      aiUseAllowed: false,
     });
 
     const custom = createCandidatureField(root, {
@@ -168,7 +168,7 @@ describe("external opportunity-research task access", () => {
     });
     updateCandidatureFieldPreferences(root, {
       ...custom.preferences,
-      aiContextMode: "expose",
+      aiUseAllowed: true,
     });
     setCandidatureFieldValue(root, {
       candidatureId: candidature.id,
@@ -187,7 +187,7 @@ describe("external opportunity-research task access", () => {
     });
     updateCandidatureFieldPreferences(root, {
       ...choice.preferences,
-      aiContextMode: "expose",
+      aiUseAllowed: true,
     });
     setCandidatureFieldValue(root, {
       candidatureId: candidature.id,
@@ -210,7 +210,7 @@ describe("external opportunity-research task access", () => {
     expect(json).not.toContain(choiceId);
     expect(json).not.toContain("PRIVATE NOTES");
     expect(json).not.toContain("€90k");
-    expect(json).toMatch(/AAAT_PRIVATE_/);
+    expect(json).not.toContain("AAAT_PRIVATE_");
     expect(json).not.toContain("SOURCE SECRET TITLE");
     expect(json).not.toContain("source-secret.invalid");
     expect(json).not.toContain("SOURCE SECRET BODY");
