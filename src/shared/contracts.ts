@@ -328,9 +328,6 @@ export const candidatureFieldCardinalitySchema = z.enum(["one", "many"]);
 export type CandidatureFieldCardinality = z.infer<typeof candidatureFieldCardinalitySchema>;
 export const focusProminenceSchema = z.enum(["compact", "normal", "wide"]);
 export type FocusProminence = z.infer<typeof focusProminenceSchema>;
-/** Provider-context disclosure preference, separate from ordinary persistence rules. */
-export const aiContextModeSchema = z.enum(["expose", "omit", "token"]);
-export type AiContextMode = z.infer<typeof aiContextModeSchema>;
 
 export const candidatureChoiceDefinitionSchema = z
   .object({ id: z.string().uuid(), label: z.string().trim().min(1).max(120) })
@@ -360,8 +357,7 @@ export const candidatureFieldPreferencesSchema = z
     focusOrder: z.number().int().nonnegative().nullable(),
     focusProminence: focusProminenceSchema,
     identityOrder: z.number().int().nonnegative().nullable(),
-    aiDiscovery: z.boolean(),
-    aiContextMode: aiContextModeSchema,
+    aiUseAllowed: z.boolean(),
   })
   .strict();
 export type CandidatureFieldPreferences = z.infer<typeof candidatureFieldPreferencesSchema>;
