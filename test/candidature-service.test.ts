@@ -151,15 +151,13 @@ describe("candidature information service", () => {
         focusOrder: 4,
         focusProminence: "wide",
         identityOrder: null,
-        aiDiscovery: true,
-        aiContextMode: "expose",
+        aiUseAllowed: true,
       });
       expect(configured.preferences).toMatchObject({
         focusVisible: true,
         focusOrder: 4,
         focusProminence: "wide",
-        aiDiscovery: true,
-        aiContextMode: "expose",
+        aiUseAllowed: true,
       });
 
       clearCandidatureFieldValue(root, first.id, hours.definition.id);
