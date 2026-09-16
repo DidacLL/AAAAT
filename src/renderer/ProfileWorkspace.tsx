@@ -12,21 +12,50 @@ import type {
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { ProfileItemAiDisclosureControl } from "./ProfileItemAiDisclosureControl";
 
-const suggestedCategories: readonly ProfileItemKind[] = [
-  "identity",
-  "contact",
-  "summary",
-  "experience",
-  "education",
-  "project",
-  "skill",
-  "certification",
-  "language",
-  "link",
-  "other",
+type ProfessionalInformationView = "overview" | "item" | "variations";
+
+interface CareerSectionDefinition {
+  readonly kind: ProfileItemKind;
+  readonly section: string;
+  readonly addLabel: string;
+  readonly titleLabel: string;
+  readonly titlePlaceholder: string;
+  readonly subtitleLabel?: string;
+  readonly subtitlePlaceholder?: string;
+  readonly descriptionLabel: string;
+  readonly supportsDates?: boolean;
+  readonly supportsLink?: boolean;
+}
+
+const careerSections: readonly CareerSectionDefinition[] = [
+  { kind: "identity", section: "Personal details", addLabel: "Personal details", titleLabel: "Name", titlePlaceholder: "Full name", subtitleLabel: "Professional headline", descriptionLabel: "About me" },
+  { kind: "contact", section: "Personal details", addLabel: "Contact detail", titleLabel: "Email, phone or location", titlePlaceholder: "name@example.com", subtitleLabel: "Label", subtitlePlaceholder: "Email", descriptionLabel: "Additional detail" },
+  { kind: "summary", section: "Profile", addLabel: "Summary", titleLabel: "Heading", titlePlaceholder: "Professional summary", descriptionLabel: "Summary" },
+  { kind: "experience", section: "Work experience", addLabel: "Work experience", titleLabel: "Role", titlePlaceholder: "Product engineer", subtitleLabel: "Organisation", descriptionLabel: "Work and achievements", supportsDates: true, supportsLink: true },
+  { kind: "education", section: "Education", addLabel: "Education", titleLabel: "Qualification or course", titlePlaceholder: "Computer Science", subtitleLabel: "Institution", descriptionLabel: "Subjects and results", supportsDates: true, supportsLink: true },
+  { kind: "project", section: "Projects", addLabel: "Project", titleLabel: "Project", titlePlaceholder: "Project name", subtitleLabel: "Role or client", descriptionLabel: "What I built or contributed", supportsDates: true, supportsLink: true },
+  { kind: "skill", section: "Skills", addLabel: "Skill", titleLabel: "Skill", titlePlaceholder: "TypeScript", subtitleLabel: "Level or context", descriptionLabel: "Evidence and detail" },
+  { kind: "language", section: "Languages", addLabel: "Language", titleLabel: "Language", titlePlaceholder: "English", subtitleLabel: "Level", subtitlePlaceholder: "Professional working proficiency", descriptionLabel: "Additional detail" },
+  { kind: "certification", section: "Qualifications", addLabel: "Qualification", titleLabel: "Qualification", titlePlaceholder: "Certification or licence", subtitleLabel: "Issuer", descriptionLabel: "Credential detail", supportsDates: true, supportsLink: true },
+  { kind: "link", section: "Links", addLabel: "Link", titleLabel: "Link name", titlePlaceholder: "Portfolio", descriptionLabel: "What this link contains", supportsLink: true },
+  { kind: "other", section: "Other career information", addLabel: "Other career detail", titleLabel: "Title", titlePlaceholder: "Career information", subtitleLabel: "Context", descriptionLabel: "Details", supportsDates: true, supportsLink: true },
 ];
 
-type ProfessionalInformationView = "overview" | "item" | "variations";
+const sectionOrder = [...new Set(careerSections.map((definition) => definition.section))];
+
+function careerSection(kind: ProfileItemKind): CareerSectionDefinition {
+  return careerSections.find((definition) => definition.kind === kind) ?? {
+    kind,
+    section: "Other career information",
+    addLabel: "Career detail",
+    titleLabel: "Title",
+    titlePlaceholder: "Career information",
+    subtitleLabel: "Context",
+    descriptionLabel: "Details",
+    supportsDates: true,
+    supportsLink: true,
+  };
+}
 
 interface ItemFormState {
   kind: ProfileItemKind;
@@ -45,15 +74,15 @@ interface VariantFormState {
   preferredLanguage: string;
 }
 
-const emptyItem: ItemFormState = {
-  kind: "other",
+const emptyItem = (kind: ProfileItemKind = "other"): ItemFormState => ({
+  kind,
   title: "",
   subtitle: "",
   description: "",
   startDate: "",
   endDate: "",
   url: "",
-};
+});
 
 const emptyVariant: VariantFormState = {
   name: "",
@@ -135,7 +164,7 @@ export function ProfileWorkspace({
   const [resolved, setResolved] = useState<ResolvedProfile | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [itemState, setItemState] = useState<ItemFormState>(emptyItem);
+  const [itemState, setItemState] = useState<ItemFormState>(() => emptyItem());
   const [variantState, setVariantState] = useState<VariantFormState>(emptyVariant);
   const [view, setView] = useState<ProfessionalInformationView>("overview");
   const [error, setError] = useState<string | null>(null);
@@ -158,7 +187,7 @@ export function ProfileWorkspace({
   const editedItem = editingItemId
     ? snapshot?.items.find((item) => item.id === editingItemId) ?? null
     : null;
-  const itemDirty = JSON.stringify(itemState) !== JSON.stringify(editedItem ? itemForm(editedItem) : emptyItem);
+  const itemDirty = JSON.stringify(itemState) !== JSON.stringify(editedItem ? itemForm(editedItem) : emptyItem());
   const itemEditorDirty = itemDirty || aiDisclosureDirty;
 
   useEffect(() => {
@@ -169,10 +198,10 @@ export function ProfileWorkspace({
   const confirmItemDiscard = () =>
     !itemEditorDirty || window.confirm("Discard unsaved information edits?");
 
-  const startNewItem = () => {
+  const startNewItem = (kind: ProfileItemKind) => {
     if (!confirmItemDiscard()) return;
     setEditingItemId(null);
-    setItemState(emptyItem);
+    setItemState(emptyItem(kind));
     setAiDisclosureDirty(false);
     setError(null);
     setView("item");
@@ -190,7 +219,7 @@ export function ProfileWorkspace({
   const cancelItemEdit = () => {
     if (!confirmItemDiscard()) return;
     setEditingItemId(null);
-    setItemState(emptyItem);
+    setItemState(emptyItem());
     setAiDisclosureDirty(false);
     setError(null);
     setView("overview");
@@ -302,7 +331,7 @@ export function ProfileWorkspace({
         ? await window.aaaat.profile.updateItem({ id: editingItemId, item: itemInput(itemState) })
         : await window.aaaat.profile.addItem(itemInput(itemState));
       setEditingItemId(null);
-      setItemState(emptyItem);
+      setItemState(emptyItem());
       setAiDisclosureDirty(false);
       await acceptSnapshot(next, selectedVariantId, true);
       setView("overview");
@@ -323,7 +352,7 @@ export function ProfileWorkspace({
       await acceptSnapshot(await window.aaaat.profile.removeItem(item.id), selectedVariantId, true);
       if (editingItemId === item.id) {
         setEditingItemId(null);
-        setItemState(emptyItem);
+        setItemState(emptyItem());
         setAiDisclosureDirty(false);
         setView("overview");
       }
@@ -456,6 +485,14 @@ export function ProfileWorkspace({
     );
   }
 
+  const activeCareerSection = careerSection(itemState.kind);
+  const populatedSections = sectionOrder
+    .map((section) => ({
+      section,
+      items: snapshot.items.filter((item) => careerSection(item.kind).section === section),
+    }))
+    .filter((group) => group.items.length > 0);
+
   return (
     <section className="profile-workspace" aria-label="My information">
       {error ? <p className="error-message" role="alert">{error}</p> : null}
@@ -464,37 +501,50 @@ export function ProfileWorkspace({
         <div className="profile-column professional-information-overview">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Used in your documents</p>
+              <p className="eyebrow">Career profile</p>
               <h2>My information</h2>
-              <p className="profile-intro">
-                Keep experience, skills, education and other career facts here once. CVs and letters can reuse them.
-              </p>
             </div>
-            <button className="compact-primary" type="button" onClick={startNewItem}>
-              Add information
-            </button>
+            <details className="career-add-menu">
+              <summary className="compact-primary">+ Add</summary>
+              <div className="career-add-options" aria-label="Add to career profile">
+                {careerSections.map((definition) => (
+                  <button type="button" key={definition.kind} onClick={() => startNewItem(definition.kind)}>
+                    {definition.addLabel}
+                  </button>
+                ))}
+              </div>
+            </details>
           </div>
 
           {snapshot.items.length === 0 ? (
             <div className="professional-information-empty">
-              <h3>No information yet.</h3>
-              <p>Add one useful thing to start. There is no completeness requirement.</p>
+              <h3>Your career profile is empty</h3>
             </div>
           ) : (
-            <div className="item-list" aria-label="My information items">
-              {snapshot.items.map((item) => (
-                <article className="profile-item" key={item.id}>
-                  <div>
-                    {item.kind !== "other" ? <span className="item-kind">{item.kind}</span> : null}
-                    <h3>{item.title}</h3>
-                    {item.subtitle ? <p>{item.subtitle}</p> : null}
-                    {item.description ? <p>{item.description}</p> : null}
+            <div className="career-record" aria-label="Career profile sections">
+              {populatedSections.map((group) => (
+                <section className="career-record-section" key={group.section} aria-label={group.section}>
+                  <header>
+                    <h3>{group.section}</h3>
+                    <span>{group.items.length}</span>
+                  </header>
+                  <div className="item-list">
+                    {group.items.map((item) => (
+                      <article className="profile-item" key={item.id}>
+                        <div>
+                          <h4>{item.title}</h4>
+                          {item.subtitle ? <p className="profile-item-subtitle">{item.subtitle}</p> : null}
+                          {item.description ? <p>{item.description}</p> : null}
+                          {item.startDate || item.endDate ? <time>{[item.startDate, item.endDate].filter(Boolean).join(" – ")}</time> : null}
+                        </div>
+                        <div className="row-actions">
+                          <button type="button" title={`Edit ${item.title}`} aria-label={`Edit ${item.title}`} onClick={() => startItemEdit(item)}>✎</button>
+                          <button type="button" title={`Remove ${item.title}`} aria-label={`Remove ${item.title}`} onClick={() => void removeItem(item)}>×</button>
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                  <div className="row-actions">
-                    <button type="button" onClick={() => startItemEdit(item)}>Edit</button>
-                    <button type="button" onClick={() => void removeItem(item)}>Remove</button>
-                  </div>
-                </article>
+                </section>
               ))}
             </div>
           )}
@@ -504,9 +554,6 @@ export function ProfileWorkspace({
             <section>
             <div>
               <strong>Saved variations</strong>
-              <p>
-                Optional differences for a recurring role, language or emphasis. My information already works without a variation.
-              </p>
             </div>
             <button className="compact-secondary" type="button" onClick={() => setView("variations")}>
               {snapshot.variants.length === 0
@@ -522,55 +569,49 @@ export function ProfileWorkspace({
       {view === "item" ? (
         <div className="profile-column professional-information-editor">
           <button className="compact-secondary professional-information-back" type="button" onClick={cancelItemEdit}>
-            {professionalInformationHandoff ? "Return to document" : "Back to My information"}
+            {professionalInformationHandoff ? "Return to document" : "← All information"}
           </button>
           <div className="section-heading">
             <div>
-              <p className="eyebrow">My information</p>
-              <h2>{editingItemId ? "Edit information" : "Add information"}</h2>
+              <p className="eyebrow">{activeCareerSection.section}</p>
+              <h2>{editingItemId ? `Edit ${itemState.title || activeCareerSection.addLabel}` : `Add ${activeCareerSection.addLabel.toLowerCase()}`}</h2>
             </div>
             {itemEditorDirty ? <span>Unsaved changes</span> : null}
           </div>
           <form className="editor-card" onSubmit={(event) => void submitItem(event)}>
             <label>
-              What information do you want to keep?
-              <input required value={itemState.title} onChange={(event) => setItemState({ ...itemState, title: event.target.value })} placeholder="e.g. Flight hours, project, language, qualification" />
+              {activeCareerSection.titleLabel}
+              <input required value={itemState.title} onChange={(event) => setItemState({ ...itemState, title: event.target.value })} placeholder={activeCareerSection.titlePlaceholder} />
             </label>
+            {activeCareerSection.subtitleLabel ? <label>
+              {activeCareerSection.subtitleLabel}
+              <input value={itemState.subtitle} onChange={(event) => setItemState({ ...itemState, subtitle: event.target.value })} placeholder={activeCareerSection.subtitlePlaceholder} />
+            </label> : null}
             <label className="wide-field">
-              Details
+              {activeCareerSection.descriptionLabel}
               <textarea value={itemState.description} onChange={(event) => setItemState({ ...itemState, description: event.target.value })} />
             </label>
-            <details className="wide-field information-more-details">
-              <summary>Organize or add dates and a link (optional)</summary>
+            {activeCareerSection.supportsDates || activeCareerSection.supportsLink ? <details className="wide-field information-more-details">
+              <summary title="Add optional dates or a related link">More</summary>
               <div className="information-more-grid">
-                <label>
-                  Group with similar information
-                  <input value={itemState.kind} list="professional-information-categories" maxLength={80} required onChange={(event) => setItemState({ ...itemState, kind: event.target.value })} />
-                  <datalist id="professional-information-categories">
-                    {suggestedCategories.map((category) => <option key={category} value={category} />)}
-                  </datalist>
-                  <small>Use a suggested group or any label that makes sense to you.</small>
-                </label>
-                <label>Subtitle<input value={itemState.subtitle} onChange={(event) => setItemState({ ...itemState, subtitle: event.target.value })} /></label>
-                <label>Start date<input value={itemState.startDate} onChange={(event) => setItemState({ ...itemState, startDate: event.target.value })} /></label>
-                <label>End date<input value={itemState.endDate} onChange={(event) => setItemState({ ...itemState, endDate: event.target.value })} /></label>
-                <label className="wide-field">Link<input type="url" value={itemState.url} onChange={(event) => setItemState({ ...itemState, url: event.target.value })} /></label>
+                {activeCareerSection.supportsDates ? <>
+                  <label>From<input value={itemState.startDate} onChange={(event) => setItemState({ ...itemState, startDate: event.target.value })} /></label>
+                  <label>To<input value={itemState.endDate} onChange={(event) => setItemState({ ...itemState, endDate: event.target.value })} /></label>
+                </> : null}
+                {activeCareerSection.supportsLink ? <label className="wide-field">Link<input type="url" value={itemState.url} onChange={(event) => setItemState({ ...itemState, url: event.target.value })} /></label> : null}
               </div>
-            </details>
+            </details> : null}
             <div className="form-actions wide-field">
               <button className="compact-primary" type="submit">
-                {editingItemId ? "Save information" : "Add information"}
+                {editingItemId ? "Save" : `Add ${activeCareerSection.addLabel.toLowerCase()}`}
               </button>
               <button className="compact-secondary" type="button" onClick={cancelItemEdit}>Cancel</button>
             </div>
           </form>
-          {editingItemId ? (
-            <ProfileItemAiDisclosureControl
-              key={editingItemId}
-              itemId={editingItemId}
-              onDirtyChange={setAiDisclosureDirty}
-            />
-          ) : null}
+          {editingItemId ? <details className="career-editor-advanced">
+            <summary title="Choose whether this item may be included when AI helps with a document">AI use</summary>
+            <ProfileItemAiDisclosureControl key={editingItemId} itemId={editingItemId} onDirtyChange={setAiDisclosureDirty} />
+          </details> : null}
         </div>
       ) : null}
 
@@ -581,15 +622,12 @@ export function ProfileWorkspace({
             type="button"
             onClick={() => setView("overview")}
           >
-            Back to My information
+            ← Career profile
           </button>
           <div className="section-heading">
             <div>
               <p className="eyebrow">Optional reuse</p>
               <h2>Saved variations</h2>
-              <p className="profile-intro">
-                Keep only what differs from My information. Everything else continues to use the default facts above.
-              </p>
             </div>
             <span>{snapshot.variants.length}</span>
           </div>
@@ -616,7 +654,7 @@ export function ProfileWorkspace({
                   <input required value={variantState.name} onChange={(event) => setVariantState({ ...variantState, name: event.target.value })} />
                 </label>
                 <label>
-                  Preferred language
+                  Writing language (optional)
                   <input value={variantState.preferredLanguage} onChange={(event) => setVariantState({ ...variantState, preferredLanguage: event.target.value })} />
                 </label>
                 <label className="wide-field">
@@ -670,15 +708,12 @@ export function ProfileWorkspace({
             </>
           ) : (
             <form className="editor-card" onSubmit={(event) => void createVariant(event)}>
-              <p className="wide-field profile-intro">
-                A saved variation is optional. With no differences, it simply uses My information.
-              </p>
               <label>
                 Name
                 <input required value={variantState.name} onChange={(event) => setVariantState({ ...variantState, name: event.target.value })} />
               </label>
               <label>
-                Preferred language
+                Writing language (optional)
                 <input value={variantState.preferredLanguage} onChange={(event) => setVariantState({ ...variantState, preferredLanguage: event.target.value })} />
               </label>
               <label className="wide-field">

@@ -105,10 +105,12 @@ export function createDemoWorkspace(rootPath: string) {
       const profile = database.prepare(`INSERT INTO profile_items(
         id, kind, title, subtitle, description, start_date, end_date, url, sort_order, ai_context_mode, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, 'expose', ?, ?)`);
-      profile.run(randomUUID(), "summary", "Fictional demo profile", null, "Software engineer focused on backend systems, developer tooling and practical ML products.", 0, now, now);
-      profile.run(randomUUID(), "experience", "Software Engineer", "Example Cooperative", "Built TypeScript services, PostgreSQL data flows and internal automation used by distributed teams.", 1, now, now);
-      profile.run(randomUUID(), "skill", "Backend engineering", null, "TypeScript, Python, SQL, API design, testing and observability.", 2, now, now);
-      profile.run(randomUUID(), "language", "English", "Professional", "Fictional demo proficiency.", 3, now, now);
+      profile.run(randomUUID(), "identity", "Alex Morgan", "Software engineer", "Backend systems, developer tooling and practical ML products.", 0, now, now);
+      profile.run(randomUUID(), "contact", "alex.morgan@example.test", "Email", "Madrid, Spain", 1, now, now);
+      profile.run(randomUUID(), "experience", "Software Engineer", "Example Cooperative", "Built TypeScript services, PostgreSQL data flows and internal automation used by distributed teams.", 2, now, now);
+      profile.run(randomUUID(), "education", "BSc Computer Science", "Example University", "Software engineering and distributed systems.", 3, now, now);
+      profile.run(randomUUID(), "skill", "Backend engineering", null, "TypeScript, Python, SQL, API design, testing and observability.", 4, now, now);
+      profile.run(randomUUID(), "language", "English", "Professional working proficiency", null, 5, now, now);
       database.prepare(`UPDATE career_context SET career_direction = ?, objectives = ?, constraints_text = ?, target_roles = ?, target_markets_locations = ?, work_preferences = ?, application_writing_preferences = ?, updated_at = ? WHERE id = 1`)
         .run("Backend/platform or ML product engineering.", "Find a product team with strong engineering ownership.", "Prefer Spain or remote EU roles.", "Backend Engineer; Platform Engineer; ML Product Engineer", "Spain; Remote EU", "Small-to-medium product teams; pragmatic engineering culture.", "Concise, concrete, avoid inflated claims.", now);
       database.exec("COMMIT");

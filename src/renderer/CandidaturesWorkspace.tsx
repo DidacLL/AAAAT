@@ -5,6 +5,7 @@ import type {
   CandidatureFieldUpdate,
   CandidatureRecord,
   CandidatureRuntimeValue,
+  CandidatureSource,
   DocumentRecord,
   TagInput,
   TagRecord,
@@ -20,6 +21,7 @@ import { CandidatureInferencePanel } from "./CandidatureInferencePanel";
 import { CandidatureOfferPanel } from "./CandidatureOfferPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
+import { createApplicationDocuments } from "./create-application-documents";
 import {
   candidatureRecognitionCues,
   candidatureSearchMatchCue,
@@ -67,6 +69,8 @@ export function CandidaturesWorkspace({
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [focusSources, setFocusSources] = useState<CandidatureSource[]>([]);
+  const [focusDocumentBusy, setFocusDocumentBusy] = useState<"cv" | "cover_letter" | null>(null);
   const [tags, setTags] = useState<TagRecord[]>([]);
   const [mode, setMode] = useState<CandidatureMode>("corpus");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -230,6 +234,16 @@ export function CandidaturesWorkspace({
     [records, archiveFilter, textMatches],
   );
 
+  const focusedRecordId = mode === "focus" ? selectedId : null;
+  useEffect(() => {
+    if (!focusedRecordId) return;
+    let active = true;
+    void window.aaaat.candidatures.listSources(focusedRecordId)
+      .then((next) => { if (active) setFocusSources(next); })
+      .catch(() => { if (active) setFocusSources([]); });
+    return () => { active = false; };
+  }, [focusedRecordId]);
+
   const confirmDiscard = () =>
     !hasUnsavedChanges || window.confirm("Discard unsaved candidature edits?");
 
@@ -241,6 +255,7 @@ export function CandidaturesWorkspace({
 
   const openRecord = (record: CandidatureRecord, nextMode: Exclude<CandidatureMode, "corpus">) => {
     if (!confirmDiscard()) return;
+    if (nextMode === "focus") setFocusSources([]);
     hydrate(record);
     setMode(nextMode);
   };
@@ -440,6 +455,29 @@ export function CandidaturesWorkspace({
     openDocumentFromCandidature(selected.id, documentId);
   };
 
+  const createFocusDocument = async (kind: "cv" | "cover_letter") => {
+    if (!selected || focusDocumentBusy) return;
+    setFocusDocumentBusy(kind);
+    setError(null);
+    try {
+      const created = await createApplicationDocuments({
+        candidatureId: selected.id,
+        sourceText: focusSources.map((source) => source.sourceText).filter(Boolean).join("\n\n") || selected.sourceSearchText,
+        cv: kind === "cv",
+        coverLetter: kind === "cover_letter",
+        existingDocumentIds: selected.documentIds,
+      });
+      const document = created.find((candidate) => candidate.kind === kind);
+      if (!document) throw new Error("The document was not created.");
+      setDocuments((current) => [...current.filter((candidate) => candidate.id !== document.id), document]);
+      openDocument(document.id);
+    } catch {
+      setError(kind === "cv" ? "AAAAT could not create the application CV." : "AAAAT could not create the cover letter.");
+    } finally {
+      setFocusDocumentBusy(null);
+    }
+  };
+
   const enabledFields = fields.filter((field) => field.definition.enabled);
   const enabledMissingFields = selected
     ? enabledFields.filter(
@@ -561,13 +599,6 @@ export function CandidaturesWorkspace({
                       <span className="compact-help">Saved with only a little information</span>
                     )}
                   </button>
-                  <button
-                    type="button"
-                    className="compact-secondary candidature-direct-edit"
-                    onClick={() => openRecord(record, "detail")}
-                  >
-                    Full record
-                  </button>
                 </article>
               );
             })}
@@ -590,16 +621,21 @@ export function CandidaturesWorkspace({
     return (
       <section className="candidatures-workspace candidature-selected-focus" aria-label="Candidature Focus">
         <div className="candidature-context-actions">
-          <button type="button" className="compact-secondary" onClick={returnToCorpus}>Back</button>
-          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "detail")}>{selected.sourceSearchText.trim() ? "Read original and details" : "Read everything"}</button>
+          <button type="button" className="compact-secondary" onClick={returnToCorpus}>← Applications</button>
+          <button type="button" className="compact-secondary" onClick={() => openRecord(selected, "detail")}>Full record</button>
         </div>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
         <CandidatureFocusPanel
           record={selected}
           fields={fields}
           tags={tags}
+          sources={focusSources}
+          documents={documents.filter((document) => selected.documentIds.includes(document.id))}
+          documentBusy={focusDocumentBusy}
           selectedTagId={selectedTagId}
           onSelectTag={setSelectedTagId}
+          onOpenDocument={openDocument}
+          onCreateDocument={(kind) => void createFocusDocument(kind)}
           onSaveValue={setValue}
           onClearValue={clearValue}
           onDiscoverValue={setDiscoveryFieldId}
@@ -624,7 +660,6 @@ export function CandidaturesWorkspace({
         <div>
           <p className="eyebrow">Application record</p>
           <h2>{selected.label}</h2>
-          <p>Everything retained for this application.</p>
         </div>
         <div className="button-row">
           <button type="button" className="compact-secondary" onClick={returnToCorpus}>Back</button>

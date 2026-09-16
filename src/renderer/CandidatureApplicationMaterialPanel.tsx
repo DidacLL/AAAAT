@@ -103,7 +103,6 @@ export function CandidatureApplicationMaterialPanel({
         <div>
           <p className="eyebrow">Documents</p>
           <h3>Documents</h3>
-          <p>The CV and cover letter for this application stay here with any PDFs you saved from them.</p>
         </div>
         <button type="button" onClick={() => onOpenDocument()}>
           Create CV or letter

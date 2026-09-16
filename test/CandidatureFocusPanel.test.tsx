@@ -6,6 +6,7 @@ import { CandidatureFocusPanel } from "../src/renderer/CandidatureFocusPanel";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
+  CandidatureSource,
   TagRecord,
 } from "../src/shared/contracts";
 
@@ -88,26 +89,44 @@ const tag: TagRecord = {
   aliases: ["IR"],
 };
 
+const source: CandidatureSource = {
+  id: "00000000-0000-4000-8000-000000000601",
+  candidatureId,
+  kind: "job_posting",
+  title: "Platform Engineer offer",
+  url: "",
+  sourceText: "Build reliable platform services and improve developer tooling.",
+  createdAt: timestamp,
+  updatedAt: timestamp,
+};
+
 function renderFocus() {
   const onSelectTag = vi.fn();
   const onSaveValue = vi.fn().mockResolvedValue(undefined);
   const onClearValue = vi.fn().mockResolvedValue(undefined);
   const onDiscoverValue = vi.fn();
   const onDirtyChange = vi.fn();
+  const onOpenDocument = vi.fn();
+  const onCreateDocument = vi.fn();
   render(
     <CandidatureFocusPanel
       record={candidature}
       fields={[roleField, hiddenField]}
       tags={[tag]}
+      sources={[source]}
+      documents={[]}
+      documentBusy={null}
       selectedTagId={tagId}
       onSelectTag={onSelectTag}
+      onOpenDocument={onOpenDocument}
+      onCreateDocument={onCreateDocument}
       onSaveValue={onSaveValue}
       onClearValue={onClearValue}
       onDiscoverValue={onDiscoverValue}
       onDirtyChange={onDirtyChange}
     />,
   );
-  return { onSelectTag, onSaveValue, onClearValue, onDiscoverValue, onDirtyChange };
+  return { onSelectTag, onSaveValue, onClearValue, onDiscoverValue, onDirtyChange, onCreateDocument };
 }
 
 afterEach(() => {
@@ -147,12 +166,11 @@ describe("selected candidature Focus", () => {
     expect(onSelectTag).toHaveBeenCalledWith(tagId);
   });
 
-  it("does not reintroduce Sources, reminders, documents or Activity as default Focus blocks", () => {
-    renderFocus();
+  it("keeps the offer and application document shortcuts in the compact dossier", async () => {
+    const { onCreateDocument } = renderFocus();
 
-    expect(screen.queryByRole("region", { name: "Sources" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Reminders" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Application material" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Activity" })).not.toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Offer" })).toHaveTextContent("Build reliable platform services");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Create cover letter" }));
+    expect(onCreateDocument).toHaveBeenCalledWith("cover_letter");
   });
 });

@@ -189,15 +189,15 @@ describe("AAAAT workspace shell", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Welcome to AAAAT" })).toBeInTheDocument();
-    expect(await screen.findByLabelText("Workspace status")).toHaveTextContent("Workspace");
-    expect(screen.getByRole("button", { name: /Enter workspace/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open existing workspace" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Enter workspace/ }));
+    expect(await screen.findByLabelText("Workspace status")).toHaveTextContent("Data");
+    expect(screen.getByRole("button", { name: /Open aaaat-workspace/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open folder" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Open aaaat-workspace/ }));
     expect(await screen.findByRole("button", { name: "New application" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Candidatures" })).toBeInTheDocument();
     const navigation = screen.getByRole("navigation", { name: "Primary work areas" });
     expect(within(navigation).getAllByRole("button").map((button) => button.textContent)).toEqual([
-      "Applications", "CVs", "My information",
+      "Home", "Applications", "CVs", "My information", "Settings",
     ]);
   });
 
@@ -206,7 +206,7 @@ describe("AAAAT workspace shell", () => {
     recent.mockResolvedValueOnce(readyWorkspace.rootPath);
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole("button", { name: /Enter workspace/ }));
+    await user.click(await screen.findByRole("button", { name: /Open aaaat-workspace/ }));
     expect(screen.queryByRole("button", { name: /New CV/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "CVs" }));
     expect(await screen.findByRole("button", { name: /New CV/ })).toBeInTheDocument();
@@ -219,12 +219,12 @@ describe("AAAAT workspace shell", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole("button", { name: /Enter workspace/ }));
+    await user.click(await screen.findByRole("button", { name: /Open aaaat-workspace/ }));
     await user.click(screen.getByRole("button", { name: "Settings" }));
     await user.click(screen.getByRole("button", { name: /Workspace/ }));
     await user.click(screen.getByRole("button", { name: "Delete workspace data" }));
     expect(deleteWorkspace).toHaveBeenCalledOnce();
     expect(await screen.findByRole("heading", { name: "Welcome to AAAAT" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Enter workspace/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open aaaat-workspace/ })).not.toBeInTheDocument();
   });
 });

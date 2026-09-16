@@ -134,14 +134,14 @@ describe("candidature dirty navigation", () => {
     await user.clear(value);
     await user.type(value, "Unsaved Regional Air");
 
-    await user.click(within(selectedFocus).getByRole("button", { name: "Read original and details" }));
+    await user.click(within(selectedFocus).getByRole("button", { name: "Full record" }));
 
     expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits?");
     expect(screen.getByRole("region", { name: /^Candidature Focus$/ })).toBeInTheDocument();
     expect(value).toHaveValue("Unsaved Regional Air");
 
     confirm.mockReturnValue(true);
-    await user.click(screen.getByRole("button", { name: "Read original and details" }));
+    await user.click(screen.getByRole("button", { name: "Full record" }));
 
     expect(screen.getByRole("region", { name: "Complete candidature" })).toBeInTheDocument();
   });
@@ -152,7 +152,7 @@ describe("candidature dirty navigation", () => {
     render(<CandidaturesWorkspace />);
 
     await user.click(await screen.findByRole("button", { name: /Regional Air/ }));
-    await user.click(await screen.findByRole("button", { name: "Read original and details" }));
+    await user.click(await screen.findByRole("button", { name: "Full record" }));
     const tags = screen.getByRole("region", { name: "Tags" });
     const platform = within(tags).getByRole("checkbox", { name: /Platform/ });
     expect(platform).toBeChecked();
@@ -171,7 +171,7 @@ describe("candidature dirty navigation", () => {
 
     confirm.mockClear();
     confirm.mockReturnValue(false);
-    await user.click(screen.getByRole("button", { name: "Read original and details" }));
+    await user.click(screen.getByRole("button", { name: "Full record" }));
 
     expect(confirm).not.toHaveBeenCalled();
     const restoredTags = screen.getByRole("region", { name: "Tags" });

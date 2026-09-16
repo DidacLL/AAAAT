@@ -321,6 +321,43 @@
   flex: 0 0 auto;
 }
 
+.career-add-menu { position: relative; }
+.career-add-menu > summary { list-style: none; cursor: pointer; }
+.career-add-menu > summary::-webkit-details-marker { display: none; }
+.career-add-options {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(145px, 1fr));
+  width: min(370px, 80vw);
+  margin-top: 4px;
+  padding: 7px;
+  border: 1px solid #4d574f;
+  border-radius: 10px 3px 10px 3px;
+  background: #39423c;
+  box-shadow: 3px 4px 0 rgb(43 38 30 / 22%);
+}
+.career-add-options button { padding: 7px 8px; border: 0; border-radius: 6px 2px 6px 2px; color: #f2e8d3; background: transparent; text-align: left; }
+.career-add-options button:hover, .career-add-options button:focus-visible { background: #566158; }
+.career-record { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.career-record-section { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 10px 3px 10px 3px; background: var(--paper); }
+.career-record-section > header { display: flex; align-items: center; justify-content: space-between; padding: 5px 9px; color: #eee4ce; background: #414b44; }
+.career-record-section > header h3 { margin: 0; font-size: 10px; letter-spacing: .09em; text-transform: uppercase; }
+.career-record-section > header span { color: #d7a36c; font: 700 10px "Cascadia Code", Consolas, monospace; }
+.professional-information-overview .career-record-section .item-list { display: block; }
+.professional-information-overview .career-record-section .profile-item { padding: 8px 9px; border: 0; border-bottom: 1px solid var(--line-soft); border-radius: 0; background: transparent; box-shadow: none; }
+.professional-information-overview .career-record-section .profile-item:last-child { border-bottom: 0; }
+.professional-information-overview .profile-item h4 { margin: 0; font-size: 13px; }
+.professional-information-overview .profile-item p { margin: 2px 0 0; font-size: 11px; line-height: 1.35; }
+.professional-information-overview .profile-item time { display: block; margin-top: 3px; color: var(--muted-ink); font-size: 10px; }
+.professional-information-overview .profile-item .row-actions { opacity: .55; }
+.professional-information-overview .profile-item:hover .row-actions, .professional-information-overview .profile-item:focus-within .row-actions { opacity: 1; }
+.career-editor-advanced { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); }
+.career-editor-advanced > summary { width: fit-content; cursor: pointer; color: var(--muted-ink); font-size: 12px; font-weight: 700; }
+
+@media (max-width: 820px) { .career-record { grid-template-columns: 1fr; } }
+
 @media (max-width: 900px) {
   .professional-information-overview .item-list,
   .saved-variations-workspace .variant-rule-list {

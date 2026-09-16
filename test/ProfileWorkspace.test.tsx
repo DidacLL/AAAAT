@@ -91,20 +91,20 @@ describe("My information workspace", () => {
     render(<ProfileWorkspace />);
 
     expect(await screen.findByRole("heading", { name: "My information" })).toBeInTheDocument();
-    expect(screen.getByText(/No information yet/)).toBeInTheDocument();
+    expect(screen.getByText(/career profile is empty/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("What information do you want to keep?")).not.toBeInTheDocument();
     expect(screen.queryByText("Canonical profile")).not.toBeInTheDocument();
     expect(screen.queryByText("Focused variants")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Add information" }));
-    expect(screen.getByRole("heading", { name: "Add information" })).toBeInTheDocument();
-    expect(screen.getByText("Organize or add dates and a link (optional)", { selector: "summary" })).toBeInTheDocument();
-    await user.type(screen.getByLabelText("What information do you want to keep?"), "TypeScript");
+    await user.click(screen.getByText("+ Add"));
+    await user.click(screen.getByRole("button", { name: "Skill" }));
+    expect(screen.getByRole("heading", { name: "Add skill" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Skill"), "TypeScript");
     expect(screen.queryByLabelText("Choose how AI may use this information")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Add information" }));
+    await user.click(screen.getByRole("button", { name: "Add skill" }));
 
     expect(addItem).toHaveBeenCalledWith({
-      kind: "other",
+      kind: "skill",
       title: "TypeScript",
       subtitle: undefined,
       description: undefined,
@@ -123,16 +123,16 @@ describe("My information workspace", () => {
     const list = await screen.findByRole("region", { name: "My information" });
     const firstItem = within(list).getByText("Professional summary").closest("article");
     if (!firstItem) throw new Error("Expected My information item");
-    await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
+    await user.click(within(firstItem).getByRole("button", { name: "Edit Professional summary" }));
 
-    expect(screen.getByLabelText("What information do you want to keep?")).toHaveValue("Professional summary");
+    expect(screen.getByLabelText("Heading")).toHaveValue("Professional summary");
     await user.click(await screen.findByLabelText("Choose how AI may use this information"));
     expect(await screen.findByText(/does not hide, remove or change your local information/i)).toBeInTheDocument();
     await user.selectOptions(screen.getByRole("combobox", { name: "AI may" }), "omit");
 
     expect(updateAiContext).toHaveBeenCalledWith({ itemId: itemA.id, aiContextMode: "omit" });
     expect(updateItem).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("What information do you want to keep?")).toHaveValue("Professional summary");
+    expect(screen.getByLabelText("Heading")).toHaveValue("Professional summary");
   });
 
   it("keeps saved variations optional and applies differences in ordinary terms", async () => {
@@ -141,7 +141,6 @@ describe("My information workspace", () => {
     render(<ProfileWorkspace />);
 
     await screen.findByText("Professional summary");
-    expect(screen.getByText(/My information already works without a variation/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Create saved variation" }));
     expect(screen.getByRole("heading", { name: "Saved variations" })).toBeInTheDocument();
     expect(screen.queryByText("Difference-only")).not.toBeInTheDocument();
@@ -150,7 +149,7 @@ describe("My information workspace", () => {
     await user.type(screen.getByLabelText("Name"), "Platform focus");
     await user.type(screen.getByLabelText("Intended focus"), "Platform roles");
     await user.type(screen.getByLabelText("Context tags"), "platform");
-    await user.type(screen.getByLabelText("Preferred language"), "en");
+    await user.type(screen.getByLabelText("Writing language (optional)"), "en");
     await user.click(screen.getByRole("button", { name: "Create saved variation" }));
 
     expect(createVariant).toHaveBeenCalledWith({
@@ -194,11 +193,12 @@ describe("My information workspace", () => {
     await user.type(screen.getByLabelText("Name"), "New focus");
     await user.type(screen.getByLabelText("Intended focus"), "Unsaved new variation");
 
-    await user.click(screen.getByRole("button", { name: "Back to My information" }));
+    await user.click(screen.getByRole("button", { name: "← Career profile" }));
     expect(confirm).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Add information" }));
-    await user.type(screen.getByLabelText("What information do you want to keep?"), "TypeScript");
-    await user.click(screen.getByRole("button", { name: "Add information" }));
+    await user.click(screen.getByText("+ Add"));
+    await user.click(screen.getByRole("button", { name: "Skill" }));
+    await user.type(screen.getByLabelText("Skill"), "TypeScript");
+    await user.click(screen.getByRole("button", { name: "Add skill" }));
 
     await user.click(screen.getByRole("button", { name: /Saved variations/ }));
     expect(screen.getByLabelText("Name")).toHaveValue("New focus");
@@ -216,15 +216,15 @@ describe("My information workspace", () => {
     const list = await screen.findByRole("region", { name: "My information" });
     const firstItem = within(list).getByText("Professional summary").closest("article");
     if (!firstItem) throw new Error("Expected My information item");
-    await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
-    const title = screen.getByLabelText("What information do you want to keep?");
+    await user.click(within(firstItem).getByRole("button", { name: "Edit Professional summary" }));
+    const title = screen.getByLabelText("Heading");
     await user.clear(title);
     await user.type(title, "Unsaved professional edit");
 
-    await user.click(screen.getByRole("button", { name: "Back to My information" }));
+    await user.click(screen.getByRole("button", { name: "← All information" }));
     expect(confirm).toHaveBeenCalledWith("Discard unsaved information edits?");
-    expect(screen.getByLabelText("What information do you want to keep?")).toHaveValue("Unsaved professional edit");
-    expect(screen.getByRole("heading", { name: "Edit information" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Heading")).toHaveValue("Unsaved professional edit");
+    expect(screen.getByRole("heading", { name: "Edit Unsaved professional edit" })).toBeInTheDocument();
     confirm.mockRestore();
   });
 });

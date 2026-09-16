@@ -182,9 +182,10 @@ export function App() {
     }
   };
 
-  const closeWorkspace = () => {
-    if (anyDirty && !window.confirm("Discard unsaved edits and return to welcome?")) return;
+  const openHome = () => {
+    if (anyDirty && !window.confirm("Discard unsaved edits and return home?")) return;
     setSettingsOpen(false);
+    setSettingsHandoff(null);
     setWelcomeOpen(true);
   };
 
@@ -250,6 +251,11 @@ export function App() {
   };
 
   const selectProductView = (next: ProductView) => {
+    if (welcomeOpen) {
+      setWelcomeOpen(false);
+      setSettingsOpen(false);
+      setSettingsHandoff(null);
+    }
     if (next === productView && !settingsOpen) {
       if (next === "documents" && documentHandoff) {
         if (protectedWorkDirty && !window.confirm("Discard unsaved edits and leave this work?")) return;
@@ -281,12 +287,9 @@ export function App() {
 
   const openSettings = () => {
     if (settingsOpen) return;
+    setWelcomeOpen(false);
     setSettingsHandoff(null);
     setSettingsOpen(true);
-  };
-
-  const closeSettings = () => {
-    if (!leaveSettings()) return;
   };
 
   const handoffApi = useMemo(
@@ -356,7 +359,7 @@ export function App() {
     ],
   );
 
-  const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null && !welcomeOpen;
+  const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
   const choosing = workspacePhase === "choosing";
   const loading = workspacePhase === "loading";
   const keepCandidaturesMounted = productView === "candidatures" || Boolean(documentHandoff?.candidatureId);
@@ -368,11 +371,46 @@ export function App() {
   const documentDetailActive =
     documentHandoff !== null || professionalInformationHandoff !== null || settingsHandoff?.origin === "documents";
   const applicationContextActive =
-    !settingsOpen &&
+    !welcomeOpen && !settingsOpen &&
     (productView === "candidatures" ||
       (productView === "documents" && Boolean(documentHandoff?.candidatureId)));
   const cvContextActive =
-    !settingsOpen && productView === "documents" && !documentHandoff?.candidatureId;
+    !welcomeOpen && !settingsOpen && productView === "documents" && !documentHandoff?.candidatureId;
+
+  const welcomeContent = (
+    <>
+      <img className="hero-logo" src={logo} alt="AAAAT explorer robot holding a magnifying glass" />
+      <p className="tagline">Your application work, on your computer.</p>
+      <h1>{loading ? "Checking your workspace…" : "Welcome to AAAAT"}</h1>
+      {!workspace ? <p>Open your saved work or start a local workspace.</p> : null}
+      {workspace ? (
+        <div className="welcome-status" aria-label="Workspace status">
+          <span><strong>Data</strong> {demoWorkspace ? "Demo" : "Local"}</span>
+          <span><strong>AI</strong> {welcomeStatus?.ai.configurationReadable
+            ? welcomeStatus.ai.connectionCount === 0 ? "Off" : welcomeStatus.ai.operations.some((operation) => operation.available) ? "Configured" : "Needs attention"
+            : "Status unavailable"}</span>
+          <span><strong>PDF</strong> {welcomeStatus ? welcomeStatus.tex.documentRenderingReady ? "Ready" : "Unavailable" : "Checking"}</span>
+        </div>
+      ) : null}
+      {loading ? null : (
+        <>
+          <div className={workspace ? "workspace-actions with-loaded-workspace" : "workspace-actions"}>
+            {recentWorkspacePath ? (
+              <button className="primary-action" type="button" disabled={choosing} onClick={() => workspace ? setWelcomeOpen(false) : void continueRecentWorkspace()}>
+                {workspace ? `Open ${demoWorkspace ? "demo" : folderName(workspace.rootPath)}` : choosing ? "Opening…" : "Continue previous workspace"}
+                <small title={workspace?.rootPath ?? recentWorkspacePath}>{workspace ? "Applications" : folderName(recentWorkspacePath)}</small>
+              </button>
+            ) : null}
+            <button className={workspace ? "welcome-option" : "primary-action"} type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing folder..." : "New workspace"}</button>
+            <button className={workspace ? "welcome-option" : "secondary-action"} type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open folder</button>
+            <button className={workspace ? "welcome-option" : "secondary-action"} type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Open demo</button>
+          </div>
+          <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />
+        </>
+      )}
+      {workspaceError ? <p className="error-message" role="alert">{workspaceError}</p> : null}
+    </>
+  );
 
   return (
     <ContextualHandoffContext.Provider value={handoffApi}>
@@ -382,19 +420,6 @@ export function App() {
             <img className="brand-mark" src={logo} alt="" />
             <span className="brand-name">AAAAT</span>
           </div>
-          {ready ? (
-            <div className="shell-utilities">
-              <span className="workspace-chip" title={workspace.rootPath}>
-                <span>{demoWorkspace ? "Demo" : "Workspace"}</span><code>{folderName(workspace.rootPath)}</code>
-              </span>
-              <button className="compact-secondary" type="button" disabled={choosing} onClick={closeWorkspace}>
-                Welcome / switch
-              </button>
-              <button className={settingsOpen ? "shell-settings active-shell-utility" : "shell-settings"} type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>
-                Settings
-              </button>
-            </div>
-          ) : null}
         </header>
 
         {ready ? (
@@ -402,27 +427,31 @@ export function App() {
             {workspaceError ? <p className="error-message shell-error" role="alert">{workspaceError}</p> : null}
             <div className="work-shell">
               <aside className="work-rail" aria-label="Workspace controls">
+                <div className="rail-workspace" title={workspace.rootPath}>
+                  <span>{demoWorkspace ? "DEMO" : "LOCAL"}</span>
+                  <strong>{folderName(workspace.rootPath)}</strong>
+                </div>
                 <nav className="primary-work-nav" aria-label="Primary work areas">
+                  <button type="button" className={welcomeOpen ? "active-work-destination" : ""} aria-current={welcomeOpen ? "page" : undefined} onClick={openHome}>Home</button>
                   <button type="button" className={applicationContextActive ? "active-work-destination" : ""} aria-current={applicationContextActive ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Applications</button>
                   <button type="button" className={cvContextActive ? "active-work-destination" : ""} aria-current={cvContextActive ? "page" : undefined} onClick={() => selectProductView("documents")}>CVs</button>
-                  <button type="button" className={!settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>My information</button>
+                  <button type="button" className={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>My information</button>
+                  <button type="button" className={settingsOpen ? "active-work-destination" : ""} aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings</button>
                 </nav>
                 <AiTaskStatus />
               </aside>
 
               <section className="work-surface">
-                {settingsOpen ? (
+                {welcomeOpen ? <section className="empty-state workspace-home-view">{welcomeContent}</section> : null}
+
+                {!welcomeOpen && settingsOpen ? (
                   <div className="settings-area" key={`settings-${workspace.rootPath}-${settingsHandoff?.view ?? "overview"}`}>
-                    <div className="shell-section-heading">
+                    {settingsHandoff ? <div className="shell-section-heading">
                       <h1 className="visually-hidden">Settings</h1>
-                      <button className="compact-secondary" type="button" onClick={settingsHandoff ? handoffApi.returnFromSettings : closeSettings}>
-                        {settingsHandoff?.origin === "documents"
-                          ? "Return to document"
-                          : settingsHandoff?.origin === "candidatures"
-                            ? "Return to application"
-                            : "Return to work"}
+                      <button className="compact-secondary" type="button" onClick={handoffApi.returnFromSettings}>
+                        {settingsHandoff.origin === "documents" ? "Return to document" : "Return to application"}
                       </button>
-                    </div>
+                    </div> : null}
                     <SettingsWorkspace
                       currentWorkspace={workspace}
                       initialView={settingsHandoff?.view ?? "overview"}
@@ -436,7 +465,7 @@ export function App() {
                 ) : null}
 
                 {keepCandidaturesMounted ? (
-                  <div hidden={settingsOpen || productView !== "candidatures"}>
+                  <div hidden={welcomeOpen || settingsOpen || productView !== "candidatures"}>
                     <CandidaturesArea
                       key={`candidatures-${workspace.rootPath}-${String(candidatureWorkspaceRevision)}`}
                       onDirtyChange={setCandidatureDirty}
@@ -445,7 +474,7 @@ export function App() {
                 ) : null}
 
                 {keepDocumentsMounted ? (
-                  <div hidden={settingsOpen || productView !== "documents"}>
+                  <div hidden={welcomeOpen || settingsOpen || productView !== "documents"}>
                     {documentDetailActive ? (
                       <DocumentsArea
                         key={`documents-${workspace.rootPath}-${String(documentWorkspaceRevision)}`}
@@ -458,7 +487,7 @@ export function App() {
                 ) : null}
 
                 {keepProfessionalInformationMounted ? (
-                  <div hidden={settingsOpen || productView !== "professional-information"}>
+                  <div hidden={welcomeOpen || settingsOpen || productView !== "professional-information"}>
                     {professionalInformationHandoff ? (
                       <div className="contextual-return-bar" role="status">
                         <span>Editing My information used by this document.</span>
@@ -478,38 +507,7 @@ export function App() {
             </div>
           </main>
         ) : (
-          <main className="empty-state">
-            <img className="hero-logo" src={logo} alt="AAAAT explorer robot holding a magnifying glass" />
-            <p className="tagline">Your application work, on your computer.</p>
-            <h1>{loading ? "Checking your workspace…" : "Welcome to AAAAT"}</h1>
-            <p>{workspace ? "Your local workspace is ready to open." : "Open your saved work or start a local workspace."}</p>
-            {workspace ? (
-              <div className="welcome-status" aria-label="Workspace status">
-                <span><strong>Workspace</strong> {demoWorkspace ? "Demo" : "Loaded"}</span>
-                <span><strong>AI</strong> {welcomeStatus?.ai.configurationReadable
-                  ? welcomeStatus.ai.connectionCount === 0 ? "Off" : welcomeStatus.ai.operations.some((operation) => operation.available) ? "Configured · check connection in Settings" : "Needs connection check"
-                  : "Status unavailable"}</span>
-                <span><strong>PDF</strong> {welcomeStatus ? welcomeStatus.tex.documentRenderingReady ? "Ready" : "Unavailable" : "Checking"}</span>
-              </div>
-            ) : null}
-            {loading ? null : (
-              <>
-                <div className={workspace ? "workspace-actions with-loaded-workspace" : "workspace-actions"}>
-                  {recentWorkspacePath ? (
-                    <button className="primary-action" type="button" disabled={choosing} onClick={() => workspace ? setWelcomeOpen(false) : void continueRecentWorkspace()}>
-                      {workspace ? "Enter workspace" : choosing ? "Opening…" : "Continue previous workspace"}
-                      <small title={workspace?.rootPath ?? recentWorkspacePath}>{folderName(workspace?.rootPath ?? recentWorkspacePath)}</small>
-                    </button>
-                  ) : null}
-                  <button className={workspace ? "welcome-option" : "primary-action"} type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing workspace..." : "Create workspace"}</button>
-                  <button className={workspace ? "welcome-option" : "secondary-action"} type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open existing workspace</button>
-                  <button className={workspace ? "welcome-option" : "secondary-action"} type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Try with demo data</button>
-                </div>
-                <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />
-              </>
-            )}
-            {workspaceError ? <p className="error-message" role="alert">{workspaceError}</p> : null}
-          </main>
+          <main className="empty-state">{welcomeContent}</main>
         )}
       </div>
     </ContextualHandoffContext.Provider>

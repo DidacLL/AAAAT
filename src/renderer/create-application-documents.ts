@@ -6,6 +6,7 @@ export async function createApplicationDocuments(input: {
   readonly sourceText: string;
   readonly cv: boolean;
   readonly coverLetter: boolean;
+  readonly existingDocumentIds?: readonly string[];
 }): Promise<DocumentRecord[]> {
   const profile = await window.aaaat.profile.current();
   const documents: DocumentRecord[] = [];
@@ -44,7 +45,10 @@ export async function createApplicationDocuments(input: {
     if (documents.length > 0) {
       await window.aaaat.candidatures.setDocuments({
         candidatureId: input.candidatureId,
-        documentIds: documents.map((document) => document.id),
+        documentIds: [...new Set([
+          ...(input.existingDocumentIds ?? []),
+          ...documents.map((document) => document.id),
+        ])],
       });
     }
   }

@@ -118,13 +118,13 @@ function installApi() {
 }
 
 async function openSavedApplications(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: /Enter workspace/ }));
+  await user.click(await screen.findByRole("button", { name: /Open contextual-handoffs/ }));
   await user.click(await screen.findByRole("button", { name: "Applications" }));
   return screen.findByRole("region", { name: "Mock candidatures" });
 }
 
 async function openDocuments(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: /Enter workspace/ }));
+  await user.click(await screen.findByRole("button", { name: /Open contextual-handoffs/ }));
   await user.click(await screen.findByRole("button", { name: "CVs" }));
   return screen.findByRole("region", { name: "Mock documents" });
 }

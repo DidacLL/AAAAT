@@ -174,6 +174,10 @@ function installApi() {
 }
 
 describe("rebuilt candidature workspace", () => {
+  async function openRegionalRecord(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("button", { name: /Regional Air/ }));
+    await user.click(screen.getByRole("button", { name: "Full record" }));
+  }
   beforeEach(() => {
     vi.clearAllMocks();
     installApi();
@@ -226,7 +230,7 @@ describe("rebuilt candidature workspace", () => {
   it("shows retained and missing fields in one collection with no ordinary customization panel", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "Full record" }))[0]!);
+    await openRegionalRecord(user);
 
     const information = screen.getByRole("region", { name: "Candidature information" });
     expect(within(information).getByRole("heading", { name: "Organisation" })).toBeInTheDocument();
@@ -239,7 +243,7 @@ describe("rebuilt candidature workspace", () => {
   it("adds a new kind of information from the field collection with the + flow", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "Full record" }))[0]!);
+    await openRegionalRecord(user);
 
     await user.click(screen.getByRole("button", { name: "Add information" }));
     const form = screen.getByRole("form", { name: "Add information" });
@@ -264,7 +268,7 @@ describe("rebuilt candidature workspace", () => {
   it("updates Focus visibility inline from the field edit state", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "Full record" }))[0]!);
+    await openRegionalRecord(user);
 
     const information = screen.getByRole("region", { name: "Candidature information" });
     const fieldCard = within(information).getByRole("heading", { name: "Minimum flight hours" }).closest("article");
@@ -285,7 +289,7 @@ describe("rebuilt candidature workspace", () => {
   it("keeps Tag notes editable in complete maintenance", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
-    await user.click((await screen.findAllByRole("button", { name: "Full record" }))[0]!);
+    await openRegionalRecord(user);
 
     const tags = screen.getByRole("region", { name: "Tags" });
     await user.click(within(tags).getByRole("button", { name: "Edit Tag" }));
