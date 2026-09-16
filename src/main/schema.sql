@@ -13,8 +13,7 @@ CREATE TABLE profile_items (
   end_date TEXT,
   url TEXT,
   sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
-  ai_context_mode TEXT NOT NULL DEFAULT 'expose'
-    CHECK (ai_context_mode IN ('expose', 'omit', 'token')),
+  ai_use_allowed INTEGER NOT NULL DEFAULT 1 CHECK (ai_use_allowed IN (0, 1)),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE(sort_order)
@@ -172,20 +171,20 @@ CREATE TABLE career_context (
   target_markets_locations TEXT NOT NULL DEFAULT '',
   work_preferences TEXT NOT NULL DEFAULT '',
   application_writing_preferences TEXT NOT NULL DEFAULT '',
-  career_direction_external_ai_visible INTEGER NOT NULL DEFAULT 1
-    CHECK (career_direction_external_ai_visible IN (0, 1)),
-  objectives_external_ai_visible INTEGER NOT NULL DEFAULT 1
-    CHECK (objectives_external_ai_visible IN (0, 1)),
-  constraints_external_ai_visible INTEGER NOT NULL DEFAULT 1
-    CHECK (constraints_external_ai_visible IN (0, 1)),
-  target_roles_external_ai_visible INTEGER NOT NULL DEFAULT 1
-    CHECK (target_roles_external_ai_visible IN (0, 1)),
-  target_markets_locations_external_ai_visible INTEGER NOT NULL DEFAULT 1
-    CHECK (target_markets_locations_external_ai_visible IN (0, 1)),
-  work_preferences_external_ai_visible INTEGER NOT NULL DEFAULT 1
-    CHECK (work_preferences_external_ai_visible IN (0, 1)),
-  application_writing_preferences_external_ai_visible INTEGER NOT NULL DEFAULT 1
-    CHECK (application_writing_preferences_external_ai_visible IN (0, 1)),
+  career_direction_ai_use_allowed INTEGER NOT NULL DEFAULT 1
+    CHECK (career_direction_ai_use_allowed IN (0, 1)),
+  objectives_ai_use_allowed INTEGER NOT NULL DEFAULT 1
+    CHECK (objectives_ai_use_allowed IN (0, 1)),
+  constraints_ai_use_allowed INTEGER NOT NULL DEFAULT 1
+    CHECK (constraints_ai_use_allowed IN (0, 1)),
+  target_roles_ai_use_allowed INTEGER NOT NULL DEFAULT 1
+    CHECK (target_roles_ai_use_allowed IN (0, 1)),
+  target_markets_locations_ai_use_allowed INTEGER NOT NULL DEFAULT 1
+    CHECK (target_markets_locations_ai_use_allowed IN (0, 1)),
+  work_preferences_ai_use_allowed INTEGER NOT NULL DEFAULT 1
+    CHECK (work_preferences_ai_use_allowed IN (0, 1)),
+  application_writing_preferences_ai_use_allowed INTEGER NOT NULL DEFAULT 1
+    CHECK (application_writing_preferences_ai_use_allowed IN (0, 1)),
   updated_at TEXT NOT NULL DEFAULT ''
 ) STRICT;
 
@@ -236,10 +235,7 @@ CREATE TABLE candidature_field_preferences (
     focus_prominence IN ('compact', 'normal', 'wide')
   ),
   identity_order INTEGER,
-  ai_discovery INTEGER NOT NULL DEFAULT 0 CHECK (ai_discovery IN (0, 1)),
-  ai_context_mode TEXT NOT NULL DEFAULT 'omit' CHECK (
-    ai_context_mode IN ('expose', 'omit', 'token')
-  )
+  ai_use_allowed INTEGER NOT NULL DEFAULT 1 CHECK (ai_use_allowed IN (0, 1))
 ) STRICT;
 
 CREATE TABLE candidature_field_values (
@@ -288,11 +284,11 @@ INSERT INTO candidature_fields(
   ('00000000-0000-4000-8000-000000000106', 'candidature.notes', 'Notes', 'Free-form user notes about the candidature.', 'long_text', 'one', '[]', 1, '2026-09-04T00:00:00.000Z', '2026-09-04T00:00:00.000Z');
 
 INSERT INTO candidature_field_preferences(
-  field_id, focus_visible, focus_order, focus_prominence, identity_order, ai_discovery, ai_context_mode
+  field_id, focus_visible, focus_order, focus_prominence, identity_order, ai_use_allowed
 ) VALUES
-  ('00000000-0000-4000-8000-000000000101', 1, 0, 'normal', 0, 1, 'expose'),
-  ('00000000-0000-4000-8000-000000000102', 1, 1, 'normal', 1, 1, 'expose'),
-  ('00000000-0000-4000-8000-000000000103', 1, 2, 'compact', NULL, 1, 'expose'),
-  ('00000000-0000-4000-8000-000000000104', 1, 3, 'compact', NULL, 1, 'expose'),
-  ('00000000-0000-4000-8000-000000000105', 0, NULL, 'compact', NULL, 0, 'omit'),
-  ('00000000-0000-4000-8000-000000000106', 0, NULL, 'wide', NULL, 0, 'omit');
+  ('00000000-0000-4000-8000-000000000101', 1, 0, 'normal', 0, 1),
+  ('00000000-0000-4000-8000-000000000102', 1, 1, 'normal', 1, 1),
+  ('00000000-0000-4000-8000-000000000103', 1, 2, 'compact', NULL, 1),
+  ('00000000-0000-4000-8000-000000000104', 1, 3, 'compact', NULL, 1),
+  ('00000000-0000-4000-8000-000000000105', 0, NULL, 'compact', NULL, 0),
+  ('00000000-0000-4000-8000-000000000106', 0, NULL, 'wide', NULL, 0);
