@@ -10,17 +10,9 @@ import {
   externalCandidatureSourceAddResultSchema,
   externalCareerContextRequestSchema,
   externalCareerContextSchema,
-  externalCvContentRequestSchema,
-  externalCvContentSchema,
-  externalCvDescriptionsRequestSchema,
-  externalCvDescriptionsSchema,
-  externalCvRenderRequestSchema,
-  externalCvRenderResultSchema,
   externalOpportunityResearchContextRequestSchema,
   externalOpportunityResearchContextSchema,
   type ExternalCareerContext,
-  type ExternalCvContent,
-  type ExternalCvDescriptions,
 } from "../shared/external-assistant-contracts";
 import {
   externalApplicationDocumentsInputSchema,
@@ -46,11 +38,6 @@ import { createCandidature } from "./candidature-service";
 import { getCareerContextAiDisclosure } from "./career-context-ai-disclosure-service";
 import { getCareerContext } from "./career-context-service";
 import {
-  renderExternallyAuthorizedCv,
-  selectedCvContentItems,
-} from "./cv-content-access-service";
-import { listAiVisibleCvDescriptors } from "./cv-descriptor-service";
-import {
   requireConfiguratorActionsAllowed,
   requireInstallerActionsAllowed,
   runRenderingSelfTest,
@@ -67,9 +54,6 @@ export const applicationDocumentsCreateToolName = "application_documents_create"
 export const opportunityResearchContextReadToolName = "opportunity_research_context_read";
 export const candidatureSourceAddToolName = "candidature_source_add";
 export const careerContextReadToolName = "career_context_read";
-export const cvDescriptionsReadToolName = "cv_descriptions_read";
-export const cvContentReadToolName = "cv_content_read";
-export const cvRenderToolName = "cv_render";
 export const installerStatusReadToolName = "installer_status_read";
 export const installerRenderingSelfTestToolName = "installer_rendering_self_test";
 export const configuratorStatusReadToolName = "configurator_status_read";
@@ -88,15 +72,9 @@ function projectCareerContext(rootPath: string): ExternalCareerContext {
     ...(disclosure.careerDirection && context.careerDirection.trim()
       ? { careerDirection: context.careerDirection }
       : {}),
-    ...(disclosure.objectives && context.objectives.trim()
-      ? { objectives: context.objectives }
-      : {}),
-    ...(disclosure.constraints && context.constraints.trim()
-      ? { constraints: context.constraints }
-      : {}),
-    ...(disclosure.targetRoles && context.targetRoles.trim()
-      ? { targetRoles: context.targetRoles }
-      : {}),
+    ...(disclosure.objectives && context.objectives.trim() ? { objectives: context.objectives } : {}),
+    ...(disclosure.constraints && context.constraints.trim() ? { constraints: context.constraints } : {}),
+    ...(disclosure.targetRoles && context.targetRoles.trim() ? { targetRoles: context.targetRoles } : {}),
     ...(disclosure.targetMarketsLocations && context.targetMarketsLocations.trim()
       ? { targetMarketsLocations: context.targetMarketsLocations }
       : {}),
@@ -106,32 +84,6 @@ function projectCareerContext(rootPath: string): ExternalCareerContext {
     ...(disclosure.applicationWritingPreferences && context.applicationWritingPreferences.trim()
       ? { applicationWritingPreferences: context.applicationWritingPreferences }
       : {}),
-  });
-}
-
-function projectCvDescriptions(rootPath: string): ExternalCvDescriptions {
-  return externalCvDescriptionsSchema.parse({
-    cvs: listAiVisibleCvDescriptors(rootPath).map((descriptor, index) => ({
-      label: `CV ${index + 1}`,
-      tags: descriptor.tags,
-      ...(descriptor.notes ? { notes: descriptor.notes } : {}),
-    })),
-  });
-}
-
-function projectCvContent(rootPath: string): ExternalCvContent {
-  const items = selectedCvContentItems(rootPath);
-  if (items === null) return null;
-  return externalCvContentSchema.parse({
-    items: items.map((item) => ({
-      kind: item.kind,
-      title: item.title,
-      ...(item.subtitle !== undefined ? { subtitle: item.subtitle } : {}),
-      ...(item.description !== undefined ? { description: item.description } : {}),
-      ...(item.startDate !== undefined ? { startDate: item.startDate } : {}),
-      ...(item.endDate !== undefined ? { endDate: item.endDate } : {}),
-      ...(item.url !== undefined ? { url: item.url } : {}),
-    })),
   });
 }
 
@@ -151,11 +103,8 @@ export function mcpWorkspaceFromInvocation(argv: readonly string[]): string {
   if (!exactlyOne(argv, mcpFlag) || !exactlyOne(argv, workspaceFlag)) {
     throw new Error("Invalid MCP invocation.");
   }
-
   const workspacePath = argv[argv.indexOf(workspaceFlag) + 1];
-  if (!workspacePath || workspacePath.startsWith("--")) {
-    throw new Error("Invalid MCP invocation.");
-  }
+  if (!workspacePath || workspacePath.startsWith("--")) throw new Error("Invalid MCP invocation.");
   return workspacePath;
 }
 
@@ -165,7 +114,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     candidatureCreateToolName,
     {
-      description: "Create one new candidature from one retained Source in the configured AAAAT workspace.",
+      description: "Create one new application from one retained Source in the configured AAAAT workspace.",
       inputSchema: externalCandidatureCreateInputSchema,
     },
     async (input) => {
@@ -180,7 +129,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     applicationDocumentsCreateToolName,
     {
-      description: "Create a real AAAAT application from retained job-offer text and create the requested CV, cover letter, or both. When the workspace has validated job-extraction and document-AI routes, AAAAT uses its normal bounded services to prepare useful document state; otherwise the created documents remain fully editable manual work. Returns no local IDs or paths.",
+      description: "Create a retained AAAAT application from job-offer text and immediately create its requested Working CV, cover letter, or both. Optional configured AI may prepare them, while manual editing remains complete. Returns no local IDs or paths.",
       inputSchema: externalApplicationDocumentsInputSchema,
     },
     async (input) => {
@@ -194,7 +143,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     opportunityResearchContextReadToolName,
     {
-      description: "Read only the AI-permitted retained information of the single candidature the user locally selected for the external opportunity-research task. Returns null when none is selected. Accepts no candidature, field, query, path, or corpus selector and does not expose Sources, other candidatures, professional information, Career preferences, documents, Concepts, ToDos, activity, IDs, or paths.",
+      description: "Read only the AI-permitted retained information of the single application the user locally selected for the external opportunity-research task. Returns null when none is selected.",
       inputSchema: externalOpportunityResearchContextRequestSchema,
     },
     async (input) => {
@@ -207,7 +156,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     candidatureSourceAddToolName,
     {
-      description: "Retain one Source on the single candidature the user locally selected for the external opportunity-research task. Accepts only Source material, no candidature selector or local ID, and returns only a bounded acknowledgement or null when no candidature is selected.",
+      description: "Retain one Source on the single application the user locally selected for external opportunity research. Accepts no application selector or local ID.",
       inputSchema: externalCandidatureSourceAddInputSchema,
     },
     async (input) => {
@@ -221,7 +170,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     careerContextReadToolName,
     {
-      description: "Read only the non-empty user-written AAAAT Career preferences locally permitted for external career assistance. Does not expose hidden Career preferences, candidatures, professional information, documents, local IDs, or workspace paths.",
+      description: "Read only non-empty user-written Career preferences locally permitted for external career assistance.",
       inputSchema: externalCareerContextRequestSchema,
     },
     async (input) => {
@@ -231,47 +180,9 @@ function createServerForWorkspace(rootPath: string): McpServer {
   );
 
   server.registerTool(
-    cvDescriptionsReadToolName,
-    {
-      description: "Read only user-authored AI-visible CV tags and notes under response-local labels so an external assistant can help with existing CV material. Does not expose CV titles, document content, local IDs, file paths, professional information, or candidature history.",
-      inputSchema: externalCvDescriptionsRequestSchema,
-    },
-    async (input) => {
-      externalCvDescriptionsRequestSchema.parse(input);
-      return { content: [{ type: "text" as const, text: JSON.stringify(projectCvDescriptions(rootPath)) }] };
-    },
-  );
-
-  server.registerTool(
-    cvContentReadToolName,
-    {
-      description: "Read only the effective resolved professional-information content of the single CV the user has explicitly allowed for external content access. Returns null when no CV is allowed. Does not accept document selectors or expose titles, local IDs, paths, raw TeX/PDF, descriptors, or candidature history.",
-      inputSchema: externalCvContentRequestSchema,
-    },
-    async (input) => {
-      externalCvContentRequestSchema.parse(input);
-      return { content: [{ type: "text" as const, text: JSON.stringify(projectCvContent(rootPath)) }] };
-    },
-  );
-
-  server.registerTool(
-    cvRenderToolName,
-    {
-      description: "Request AAAAT's normal local PDF render for the one content-selected CV only when the user has separately authorized external rendering. Returns null when no CV is authorized. Accepts no document selector, path, engine, command, or output control.",
-      inputSchema: externalCvRenderRequestSchema,
-    },
-    async (input) => {
-      externalCvRenderRequestSchema.parse(input);
-      const rendered = await renderExternallyAuthorizedCv(rootPath);
-      const result = externalCvRenderResultSchema.parse(rendered ? { rendered: true } : null);
-      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
-    },
-  );
-
-  server.registerTool(
     installerStatusReadToolName,
     {
-      description: "Read AAAAT's privacy-minimal installation/prerequisite status: current-workspace readiness, local document-rendering readiness and only the names of missing known TeX tools. This capability cannot install software, execute commands, browse the filesystem or read career/application data.",
+      description: "Read AAAAT's privacy-minimal local workspace and PDF-rendering prerequisite status.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
@@ -290,7 +201,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     installerRenderingSelfTestToolName,
     {
-      description: "Run AAAAT's own bounded local document-rendering self-test. This creates and removes one temporary AAAAT-managed document and invokes only AAAAT's fixed rendering pipeline. It never accepts commands, package-manager arguments, paths or filesystem selectors. The user must enable installer.ai actions in AAAAT Settings first.",
+      description: "Check AAAAT's bounded local document-rendering readiness. The user must enable installer.ai actions in Settings first.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
@@ -304,7 +215,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     configuratorStatusReadToolName,
     {
-      description: "Read AAAAT's privacy-minimal optional AI configuration coverage: whether configuration is readable, connection count and per-operation validated-route availability. It exposes no connection names, endpoints, credentials, prompts, career/application data or mutation authority.",
+      description: "Read privacy-minimal optional AI configuration coverage and per-operation validated-route availability.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
@@ -323,7 +234,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     configuratorAiConnectionSaveToolName,
     {
-      description: "Create or update one named AAAAT AI connection using only name, endpoint and model. Endpoint/model changes clear stale capability validation through AAAAT's normal service. No credentials, arbitrary headers or provider-specific options are accepted. The user must enable configurator.ai actions in AAAAT Settings first.",
+      description: "Create or update one named AAAAT AI connection using only name, endpoint and model. The user must enable configurator.ai actions in Settings first.",
       inputSchema: externalConfiguratorConnectionInputSchema,
     },
     async (input) => {
@@ -341,7 +252,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     configuratorAiOperationValidateToolName,
     {
-      description: "Ask AAAAT to validate one named configured connection for one typed AAAAT AI operation using the same capability validation as Settings. The user must enable configurator.ai actions in AAAAT Settings first.",
+      description: "Validate one named configured connection for one typed AAAAT AI operation. The user must enable configurator.ai actions first.",
       inputSchema: externalConfiguratorOperationInputSchema,
     },
     async (input) => {
@@ -357,7 +268,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     configuratorAiOperationDefaultToolName,
     {
-      description: "Choose one already validated named connection as the default for one typed AAAAT AI operation. It cannot bypass validation. The user must enable configurator.ai actions in AAAAT Settings first.",
+      description: "Choose one already validated named connection as the default for one typed AAAAT AI operation.",
       inputSchema: externalConfiguratorOperationInputSchema,
     },
     async (input) => {

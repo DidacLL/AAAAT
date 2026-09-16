@@ -6,19 +6,16 @@ export const aiOperationSchema = z.enum([
   "opportunity_review",
   "job_extraction",
   "historical_field_discovery",
-  "variant_recommendation",
   "cv_tailoring",
   "cover_letter_draft",
 ]);
 export type AiOperation = z.infer<typeof aiOperationSchema>;
-
 export const aiOperations = aiOperationSchema.options;
 
 export const aiOperationLabels: Readonly<Record<AiOperation, string>> = Object.freeze({
   opportunity_review: "Opportunity review",
   job_extraction: "Job extraction",
   historical_field_discovery: "Historical field discovery",
-  variant_recommendation: "Variant recommendation",
   cv_tailoring: "CV tailoring",
   cover_letter_draft: "Cover-letter drafting",
 });
@@ -35,12 +32,8 @@ export const aiConnectionManagementChannels = Object.freeze({
 } as const);
 
 export const aiConnectionIdSchema = z.string().uuid();
-
 export const aiConnectionOperationInputSchema = z
-  .object({
-    connectionId: aiConnectionIdSchema,
-    operation: aiOperationSchema,
-  })
+  .object({ connectionId: aiConnectionIdSchema, operation: aiOperationSchema })
   .strict();
 export type AiConnectionOperationInput = z.infer<typeof aiConnectionOperationInputSchema>;
 
@@ -58,7 +51,6 @@ export const namedAiConnectionSchema = aiConnectionInputSchema
   })
   .strict();
 export type NamedAiConnection = z.infer<typeof namedAiConnectionSchema>;
-
 export const namedAiConnectionListSchema = z.array(namedAiConnectionSchema).max(16);
 export type NamedAiConnectionList = z.infer<typeof namedAiConnectionListSchema>;
 
@@ -86,12 +78,8 @@ export type PortableAiSetup = z.infer<typeof portableAiSetupSchema>;
 
 export const portableAiSetupExportResultSchema = z.enum(["exported", "cancelled"]);
 export type PortableAiSetupExportResult = z.infer<typeof portableAiSetupExportResultSchema>;
-
 export const portableAiSetupImportResultSchema = z
-  .object({
-    status: z.enum(["imported", "cancelled"]),
-    connections: namedAiConnectionListSchema,
-  })
+  .object({ status: z.enum(["imported", "cancelled"]), connections: namedAiConnectionListSchema })
   .strict();
 export type PortableAiSetupImportResult = z.infer<typeof portableAiSetupImportResultSchema>;
 

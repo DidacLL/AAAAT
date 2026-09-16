@@ -4,17 +4,16 @@ import {
   type ExternalApplicationDocumentsInput,
   type ExternalApplicationDocumentsResult,
 } from "../shared/external-action-contracts";
-import { cvTailoringSelection, localCoverLetterDraft, localCvSelection } from "../shared/application-material";
 import { getAiConnectionForOperation } from "./ai-connection-service";
 import { draftCoverLetter, tailorCv } from "./ai-service";
 import { setCandidatureFieldValue } from "./candidature-field-service";
-import { createCandidature, setCandidatureDocuments } from "./candidature-service";
+import { createCandidature } from "./candidature-service";
 import {
-  applyDocumentSelection,
-  createDocument,
-  updateDocument,
-} from "./document-service";
-import { getProfile } from "./profile-service";
+  createCoverLetter,
+  createWorkingCv,
+  updateCoverLetter,
+  updateWorkingCv,
+} from "./document-domain-service";
 import { extractJobWithPartialOutcomes } from "./robust-job-extraction";
 
 export async function createApplicationDocuments(
@@ -31,49 +30,26 @@ export async function createApplicationDocuments(
     },
     values: [],
   });
-  const profile = getProfile(rootPath);
-  const cv = input.outputs.includes("cv")
-    ? createDocument(rootPath, {
-        kind: "cv",
+
+  let cv = input.outputs.includes("cv")
+    ? createWorkingCv(rootPath, {
         title: "Application CV",
-        variantId: null,
-        engine: "pdflatex",
-        bodyParagraphs: [],
+        candidatureId: candidature.id,
+        source: { kind: "profile" },
       })
     : null;
-  const localLetter = localCoverLetterDraft(profile.items, input.sourceText);
-  const coverLetter = input.outputs.includes("cover_letter")
-    ? createDocument(rootPath, {
-        kind: "cover_letter",
+  let coverLetter = input.outputs.includes("cover_letter")
+    ? createCoverLetter(rootPath, {
+        candidatureId: candidature.id,
         title: "Application cover letter",
-        variantId: null,
-        engine: "pdflatex",
-        ...localLetter,
-        bodyParagraphs: [...localLetter.bodyParagraphs],
+        recipient: "",
+        subject: "",
+        bodyParagraphs: [],
+        closing: "",
       })
     : null;
-  let selectedCv = cv;
-  if (cv && profile.items.length > 0) {
-    const selection = localCvSelection(profile.items, input.sourceText);
-    selectedCv = applyDocumentSelection(rootPath, {
-      documentId: cv.id,
-      expectedRules: cv.rules,
-      includedItemIds: [...selection.includedItemIds],
-      orderedItemIds: [...selection.orderedItemIds],
-    });
-  }
-  setCandidatureDocuments(rootPath, {
-    candidatureId: candidature.id,
-    documentIds: [cv?.id, coverLetter?.id].filter((id): id is string => Boolean(id)),
-  });
 
-  const extractionReady = getAiConnectionForOperation(rootPath, "job_extraction") !== null;
-  const hasEvidence = profile.items.some((item) => item.kind !== "identity" && item.kind !== "contact" && item.kind !== "link");
-  const cvReady = cv !== null && hasEvidence && getAiConnectionForOperation(rootPath, "cv_tailoring") !== null;
-  const letterReady =
-    coverLetter !== null && hasEvidence && getAiConnectionForOperation(rootPath, "cover_letter_draft") !== null;
-
-  if (extractionReady) {
+  if (getAiConnectionForOperation(rootPath, "job_extraction") !== null) {
     try {
       const extraction = await extractJobWithPartialOutcomes(rootPath, {
         sourceTitle: "",
@@ -88,49 +64,49 @@ export async function createApplicationDocuments(
             value: proposal.value,
           });
         } catch {
-          // Independent proposal failure must not hide or invalidate other useful extraction results.
+          // One optional proposal must not invalidate the retained application.
         }
       }
     } catch {
-      // A failed optional AI exchange does not invalidate the saved application.
+      // Optional AI failure leaves the manual application complete and editable.
     }
   }
 
   let cvPrepared = false;
-  if (cv && cvReady) {
+  if (cv && getAiConnectionForOperation(rootPath, "cv_tailoring") !== null) {
     try {
       const tailored = await tailorCv(rootPath, {
         candidatureId: candidature.id,
-        documentId: cv.id,
+        workingCvId: cv.id,
       });
-      const selection = cvTailoringSelection(
-        profile.items,
-        tailored.recommendations.map((recommendation) => recommendation.itemId),
-      );
-      applyDocumentSelection(rootPath, {
-        documentId: cv.id,
-        expectedRules: selectedCv?.rules ?? [],
-        includedItemIds: [...selection.includedItemIds],
-        orderedItemIds: [...selection.orderedItemIds],
+      const rank = new Map(tailored.recommendations.map((item, index) => [item.itemId, index]));
+      cv = updateWorkingCv(rootPath, {
+        id: cv.id,
+        title: cv.title,
+        ...(cv.language ? { language: cv.language } : {}),
+        sections: cv.sections.map((section) => ({
+          ...section,
+          items: [...section.items].sort(
+            (left, right) =>
+              (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+              (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+          ),
+        })),
       });
-      cvPrepared = true;
+      cvPrepared = tailored.recommendations.length > 0;
     } catch {
       cvPrepared = false;
     }
   }
 
   let coverLetterPrepared = false;
-  if (coverLetter && letterReady) {
+  if (coverLetter && getAiConnectionForOperation(rootPath, "cover_letter_draft") !== null) {
     try {
-      const draft = await draftCoverLetter(rootPath, {
-        candidatureId: candidature.id,
-        documentId: coverLetter.id,
-      });
-      updateDocument(rootPath, {
+      const draft = await draftCoverLetter(rootPath, { coverLetterId: coverLetter.id });
+      coverLetter = updateCoverLetter(rootPath, {
         id: coverLetter.id,
         title: coverLetter.title,
-        language: coverLetter.language,
-        engine: coverLetter.engine,
+        ...(coverLetter.language ? { language: coverLetter.language } : {}),
         recipient: draft.recipient,
         subject: draft.subject,
         bodyParagraphs: draft.bodyParagraphs,

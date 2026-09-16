@@ -11,9 +11,10 @@ import {
 
 import {
   aiChannels,
+  coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
+  cvTailoringRequestSchema,
   cvTailoringResultSchema,
-  documentAiRequestSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
@@ -22,8 +23,6 @@ import {
   opportunityReviewRequestSchema,
   opportunityReviewResultSchema,
   optionalAiConnectionStatusSchema,
-  variantRecommendationRequestSchema,
-  variantRecommendationResultSchema,
 } from "../shared/ai-contracts";
 import {
   aiTaskCancellationChannels,
@@ -33,7 +32,6 @@ import {
   cancellableJobExtractionResultSchema,
 } from "../shared/ai-task-cancellation-contracts";
 import {
-  candidatureDocumentSelectionSchema,
   candidatureFieldCreateSchema,
   candidatureFieldDefinitionSchema,
   candidatureFieldFilterSchema,
@@ -55,27 +53,12 @@ import {
   careerContextSchema,
   careerContextUpdateSchema,
   channels,
-  documentExportResultSchema,
-  documentInputSchema,
-  documentItemRuleInputSchema,
-  documentListSchema,
-  documentRecordSchema,
-  documentReorderSchema,
-  documentSelectionSchema,
-  documentUpdateSchema,
   optionalWorkspaceInfoSchema,
-  recentWorkspacePathSchema,
   profileItemInputSchema,
   profileItemSchema,
   profileItemUpdateSchema,
   profileSnapshotSchema,
-  profileVariantInputSchema,
-  profileVariantItemRuleInputSchema,
-  profileVariantReorderSchema,
-  profileVariantSchema,
-  profileVariantUpdateSchema,
-  resolvedDocumentSchema,
-  resolvedProfileSchema,
+  recentWorkspacePathSchema,
   systemInfoSchema,
   tagInputSchema,
   tagListSchema,
@@ -97,7 +80,6 @@ import {
   getAiConnection,
   previewOpportunityReview,
   reviewOpportunity,
-  recommendVariant,
   tailorCv,
 } from "./ai-service";
 import {
@@ -121,40 +103,20 @@ import {
   listCandidatureSources,
   listCandidatures,
   removeCandidatureSource,
-  setCandidatureDocuments,
   setCandidatureTags,
   updateCandidature,
   updateCandidatureSource,
 } from "./candidature-service";
 import { getCareerContext, updateCareerContext } from "./career-context-service";
-import {
-  configureDocumentItem,
-  applyDocumentSelection,
-  createDocument,
-  exportDocumentProject,
-  listDocuments,
-  regenerateDocument,
-  removeDocument,
-  renderDocument,
-  reorderDocument,
-  resolveDocument,
-  updateDocument,
-} from "./document-service";
+import { createDemoWorkspace } from "./demo-workspace";
 import {
   addProfileItem,
-  configureProfileVariantItem,
-  createProfileVariant,
   getProfile,
   removeProfileItem,
-  removeProfileVariant,
-  reorderProfileVariant,
-  resolveProfileVariant,
   updateProfileItem,
-  updateProfileVariant,
 } from "./profile-service";
 import { createTag, listTags, updateTag } from "./tag-service";
 import { createWindowOptions } from "./window-options";
-import { createDemoWorkspace } from "./demo-workspace";
 import { createWorkspaceBackup, restoreWorkspaceBackup } from "./workspace-backup";
 import {
   createOrOpenWorkspace,
@@ -266,22 +228,6 @@ async function restoreWorkspace(mainWindow: BrowserWindow) {
   return { status: "restored" as const, workspace };
 }
 
-async function exportDocument(mainWindow: BrowserWindow, documentId: string) {
-  const selection = await dialog.showOpenDialog(mainWindow, {
-    title: "Export portable document project",
-    buttonLabel: "Export here",
-    properties: ["openDirectory", "createDirectory"],
-  });
-  if (selection.canceled || !selection.filePaths[0]) return null;
-  return {
-    exportedPath: exportDocumentProject(
-      requireWorkspaceRoot(),
-      documentId,
-      selection.filePaths[0],
-    ),
-  };
-}
-
 function registerIpc(mainWindow: BrowserWindow): void {
   for (const channel of [
     ...Object.values(channels),
@@ -373,45 +319,6 @@ function registerIpc(mainWindow: BrowserWindow): void {
       removeProfileItem(requireWorkspaceRoot(), profileItemSchema.shape.id.parse(itemId)),
     );
   });
-  ipcMain.handle(channels.profileCreateVariant, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return profileSnapshotSchema.parse(
-      createProfileVariant(requireWorkspaceRoot(), profileVariantInputSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(channels.profileUpdateVariant, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return profileSnapshotSchema.parse(
-      updateProfileVariant(requireWorkspaceRoot(), profileVariantUpdateSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(channels.profileRemoveVariant, (event, variantId: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return profileSnapshotSchema.parse(
-      removeProfileVariant(requireWorkspaceRoot(), profileVariantSchema.shape.id.parse(variantId)),
-    );
-  });
-  ipcMain.handle(channels.profileConfigureVariantItem, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return profileSnapshotSchema.parse(
-      configureProfileVariantItem(
-        requireWorkspaceRoot(),
-        profileVariantItemRuleInputSchema.parse(input),
-      ),
-    );
-  });
-  ipcMain.handle(channels.profileReorderVariant, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return profileSnapshotSchema.parse(
-      reorderProfileVariant(requireWorkspaceRoot(), profileVariantReorderSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(channels.profileResolveVariant, (event, variantId: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return resolvedProfileSchema.parse(
-      resolveProfileVariant(requireWorkspaceRoot(), profileVariantSchema.shape.id.parse(variantId)),
-    );
-  });
 
   ipcMain.handle(channels.careerContextCurrent, (event) => {
     assertTrustedSender(event, mainWindow);
@@ -421,71 +328,6 @@ function registerIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return careerContextSchema.parse(
       updateCareerContext(requireWorkspaceRoot(), careerContextUpdateSchema.parse(input)),
-    );
-  });
-
-  ipcMain.handle(channels.documentList, (event) => {
-    assertTrustedSender(event, mainWindow);
-    return documentListSchema.parse(listDocuments(requireWorkspaceRoot()));
-  });
-  ipcMain.handle(channels.documentCreate, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return documentRecordSchema.parse(
-      createDocument(requireWorkspaceRoot(), documentInputSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(channels.documentUpdate, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return documentRecordSchema.parse(
-      updateDocument(requireWorkspaceRoot(), documentUpdateSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(channels.documentRemove, (event, documentId: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return documentListSchema.parse(
-      removeDocument(requireWorkspaceRoot(), documentRecordSchema.shape.id.parse(documentId)),
-    );
-  });
-  ipcMain.handle(channels.documentConfigureItem, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return documentRecordSchema.parse(
-      configureDocumentItem(requireWorkspaceRoot(), documentItemRuleInputSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(channels.documentApplySelection, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return documentRecordSchema.parse(
-      applyDocumentSelection(requireWorkspaceRoot(), documentSelectionSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(channels.documentReorder, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return documentRecordSchema.parse(
-      reorderDocument(requireWorkspaceRoot(), documentReorderSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(channels.documentResolve, (event, documentId: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return resolvedDocumentSchema.parse(
-      resolveDocument(requireWorkspaceRoot(), documentRecordSchema.shape.id.parse(documentId)),
-    );
-  });
-  ipcMain.handle(channels.documentRender, async (event, documentId: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return documentRecordSchema.parse(
-      await renderDocument(requireWorkspaceRoot(), documentRecordSchema.shape.id.parse(documentId)),
-    );
-  });
-  ipcMain.handle(channels.documentRegenerate, (event, documentId: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return documentRecordSchema.parse(
-      regenerateDocument(requireWorkspaceRoot(), documentRecordSchema.shape.id.parse(documentId)),
-    );
-  });
-  ipcMain.handle(channels.documentExport, async (event, documentId: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return documentExportResultSchema.parse(
-      await exportDocument(mainWindow, documentRecordSchema.shape.id.parse(documentId)),
     );
   });
 
@@ -584,15 +426,6 @@ function registerIpc(mainWindow: BrowserWindow): void {
       removeCandidatureSource(requireWorkspaceRoot(), candidatureSourceRemoveSchema.parse(input)),
     );
   });
-  ipcMain.handle(channels.candidatureSetDocuments, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return candidatureRecordSchema.parse(
-      setCandidatureDocuments(
-        requireWorkspaceRoot(),
-        candidatureDocumentSelectionSchema.parse(input),
-      ),
-    );
-  });
   ipcMain.handle(channels.candidatureListTags, (event) => {
     assertTrustedSender(event, mainWindow);
     return tagListSchema.parse(listTags(requireWorkspaceRoot()));
@@ -663,25 +496,16 @@ function registerIpc(mainWindow: BrowserWindow): void {
       ),
     );
   });
-  ipcMain.handle(aiChannels.variantRecommend, async (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return variantRecommendationResultSchema.parse(
-      await recommendVariant(
-        requireWorkspaceRoot(),
-        variantRecommendationRequestSchema.parse(input),
-      ),
-    );
-  });
   ipcMain.handle(aiChannels.cvTailor, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return cvTailoringResultSchema.parse(
-      await tailorCv(requireWorkspaceRoot(), documentAiRequestSchema.parse(input)),
+      await tailorCv(requireWorkspaceRoot(), cvTailoringRequestSchema.parse(input)),
     );
   });
   ipcMain.handle(aiChannels.coverLetterDraft, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return coverLetterDraftSchema.parse(
-      await draftCoverLetter(requireWorkspaceRoot(), documentAiRequestSchema.parse(input)),
+      await draftCoverLetter(requireWorkspaceRoot(), coverLetterDraftRequestSchema.parse(input)),
     );
   });
 }

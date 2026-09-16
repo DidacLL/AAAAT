@@ -3,11 +3,9 @@ import {
   opportunityReviewResultSchema,
   providerCvTailoringResultSchema,
   providerDocumentAiContextSchema,
-  providerOpportunityReviewContextSchema,
   providerJobExtractionRequestSchema,
   providerJobExtractionResultSchema,
-  providerVariantRecommendationContextSchema,
-  providerVariantRecommendationResultSchema,
+  providerOpportunityReviewContextSchema,
   type AiConnectionStatus,
 } from "../shared/ai-contracts";
 import type { AiOperation } from "../shared/ai-connection-contracts";
@@ -15,14 +13,8 @@ import { aiExchangeDiagnosticSchema } from "../shared/ai-diagnostics";
 import { AiProviderError, type ModelProvider } from "./ai-provider";
 
 const fieldRef = "aaaat_validation_field";
-const variantRef = "aaaat_validation_variant";
 const itemRef = "aaaat_validation_item";
-
-const candidature = {
-  label: "Validation opportunity",
-  information: [],
-  sources: [],
-};
+const candidature = { label: "Validation opportunity", information: [], sources: [] };
 
 async function validateExtraction(
   connection: AiConnectionStatus,
@@ -42,10 +34,9 @@ async function validateExtraction(
         choices: [],
       },
     ],
+    tags: [],
   });
-  const result = providerJobExtractionResultSchema.parse(
-    await provider.extractJob(connection, request),
-  );
+  const result = providerJobExtractionResultSchema.parse(await provider.extractJob(connection, request));
   if (result.proposals.some((proposal) => proposal.fieldRef !== fieldRef)) {
     throw new Error("The configured provider returned an out-of-scope validation field reference.");
   }
@@ -82,10 +73,7 @@ export async function validateAiOperation(
   await runValidation(async () => {
     switch (operation) {
       case "opportunity_review": {
-        const context = providerOpportunityReviewContextSchema.parse({
-          candidature,
-          profileItems: [],
-        });
+        const context = providerOpportunityReviewContextSchema.parse({ candidature, profileItems: [] });
         opportunityReviewResultSchema.parse(await provider.reviewOpportunity(connection, context));
         return;
       }
@@ -93,26 +81,6 @@ export async function validateAiOperation(
       case "historical_field_discovery":
         await validateExtraction(connection, provider);
         return;
-      case "variant_recommendation": {
-        const context = providerVariantRecommendationContextSchema.parse({
-          candidature,
-          variants: [
-            {
-              variantRef,
-              name: "Validation variant",
-              focus: "Synthetic validation only",
-              targetTags: [],
-            },
-          ],
-        });
-        const result = providerVariantRecommendationResultSchema.parse(
-          await provider.recommendVariant(connection, context),
-        );
-        if (result.variantRef !== variantRef) {
-          throw new Error("The configured provider returned an out-of-scope validation variant reference.");
-        }
-        return;
-      }
       case "cv_tailoring": {
         const context = providerDocumentAiContextSchema.parse({
           candidature,
@@ -125,9 +93,7 @@ export async function validateAiOperation(
             },
           ],
         });
-        const result = providerCvTailoringResultSchema.parse(
-          await provider.tailorCv(connection, context),
-        );
+        const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(connection, context));
         if (result.recommendations.some((recommendation) => recommendation.itemRef !== itemRef)) {
           throw new Error("The configured provider returned an out-of-scope validation item reference.");
         }

@@ -30,17 +30,14 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
 } else {
   void Promise.all([
     import("./ai-connection-ipc"),
-    import("./artifact-ipc"),
+    import("./ai-prompt-ipc"),
     import("./candidature-activity-ipc"),
     import("./candidature-opportunity-research-access-ipc"),
     import("./candidature-search-ipc"),
     import("./career-context-ai-disclosure-ipc"),
-    import("./combined-document-ipc"),
-    import("./cv-content-access-ipc"),
-    import("./cv-descriptor-ipc"),
-    import("./document-output-ipc"),
+    import("./document-domain-ipc"),
     import("./profile-ai-context-ipc"),
-    import("./ai-prompt-ipc"),
+    import("./profile-variant-ipc"),
     import("./setup-environment-ipc"),
     import("./setup-assistant-ipc"),
   ]).then(() => import("./main"));

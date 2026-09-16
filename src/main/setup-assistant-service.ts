@@ -6,7 +6,7 @@ import {
   type SetupAssistantAccessUpdate,
   type SetupRenderingSelfTestResult,
 } from "../shared/setup-assistant-contracts";
-import { createDocument, removeDocument, renderDocument } from "./document-service";
+import { getSetupEnvironmentSnapshot } from "./setup-environment-service";
 import { withWorkspaceDatabase } from "./workspace";
 
 const installerKey = "assistant.setup.installer_actions_allowed";
@@ -68,17 +68,8 @@ export function requireConfiguratorActionsAllowed(rootPath: string): void {
 }
 
 export async function runRenderingSelfTest(rootPath: string): Promise<SetupRenderingSelfTestResult> {
-  const temporary = createDocument(rootPath, {
-    kind: "cover_letter",
-    title: "AAAAT rendering self-test",
-    variantId: null,
-    engine: "pdflatex",
-    bodyParagraphs: ["AAAAT rendering self-test."],
+  const snapshot = await getSetupEnvironmentSnapshot(rootPath);
+  return setupRenderingSelfTestResultSchema.parse({
+    passed: snapshot.tex.documentRenderingReady,
   });
-  try {
-    await renderDocument(rootPath, temporary.id);
-    return setupRenderingSelfTestResultSchema.parse({ passed: true });
-  } finally {
-    removeDocument(rootPath, temporary.id);
-  }
 }

@@ -4,10 +4,10 @@ import {
   aiConnectionInputSchema,
   aiConnectionStatusSchema,
   aiProjectedCandidatureSchema,
+  coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
+  cvTailoringRequestSchema,
   cvTailoringResultSchema,
-  documentAiContextSchema,
-  documentAiRequestSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
@@ -22,18 +22,14 @@ import {
   providerJobExtractionResultSchema,
   providerOpportunityReviewCandidatureSchema,
   providerOpportunityReviewContextSchema,
-  providerVariantRecommendationContextSchema,
-  providerVariantRecommendationResultSchema,
-  variantRecommendationContextSchema,
-  variantRecommendationRequestSchema,
-  variantRecommendationResultSchema,
   type AiConnectionInput,
   type AiConnectionStatus,
   type AiProjectedCandidature,
   type AiProjectedProfileItem,
   type CoverLetterDraft,
+  type CoverLetterDraftRequest,
+  type CvTailoringRequest,
   type CvTailoringResult,
-  type DocumentAiRequest,
   type HistoricalFieldDiscoveryRequest,
   type HistoricalFieldDiscoveryResult,
   type JobExtractionRequest,
@@ -44,16 +40,14 @@ import {
   type ProviderDocumentAiContext,
   type ProviderJobExtractionRequest,
   type ProviderOpportunityReviewCandidature,
-  type VariantRecommendationRequest,
-  type VariantRecommendationResult,
 } from "../shared/ai-contracts";
 import type { AiOperation } from "../shared/ai-connection-contracts";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRuntimeValue,
-  DocumentRecord,
   ProfileItem,
 } from "../shared/contracts";
+import type { WorkingCvItem } from "../shared/document-domain-contracts";
 import { compactSourceText } from "../shared/source-text";
 import {
   getDefaultAiConnection,
@@ -67,9 +61,10 @@ import {
   validateCandidatureFieldValueInDatabase,
 } from "./candidature-field-service";
 import { getCandidature, listCandidatureSources } from "./candidature-service";
-import { listDocuments, resolveDocument } from "./document-service";
+import { listDocumentCollections } from "./document-domain-service";
 import { listProfileItemAiContextPreferences } from "./profile-ai-context-service";
-import { getProfile, resolveProfileVariant } from "./profile-service";
+import { getProfile } from "./profile-service";
+import { listTags } from "./tag-service";
 import { withWorkspaceDatabase } from "./workspace";
 
 export class AiServiceError extends Error {
@@ -82,19 +77,13 @@ export class AiServiceError extends Error {
 function statusFor(connection: AiConnectionStatus): AiConnectionStatus {
   return aiConnectionStatusSchema.parse(connection);
 }
-
 function requireStoredConnection(rootPath: string, operation: AiOperation): AiConnectionStatus {
   return requireAiConnectionForOperation(rootPath, operation);
 }
-
 export function getAiConnection(rootPath: string): AiConnectionStatus | null {
   return getDefaultAiConnection(rootPath);
 }
-
-export function saveAiConnection(
-  rootPath: string,
-  rawInput: AiConnectionInput,
-): AiConnectionStatus {
+export function saveAiConnection(rootPath: string, rawInput: AiConnectionInput): AiConnectionStatus {
   return saveDefaultAiConnection(rootPath, aiConnectionInputSchema.parse(rawInput));
 }
 
@@ -106,7 +95,6 @@ function profileAiUse(rootPath: string): ReadonlyMap<string, boolean> {
     ]),
   );
 }
-
 function projectProfileItem(item: ProfileItem): AiProjectedProfileItem {
   return {
     kind: item.kind,
@@ -124,24 +112,15 @@ function projectCandidature(
   includeSourceForDocument = false,
 ): AiProjectedCandidature {
   const candidature = getCandidature(rootPath, candidatureId);
-  const fields = new Map(
-    listCandidatureFields(rootPath).map((field) => [field.definition.id, field]),
-  );
+  const fields = new Map(listCandidatureFields(rootPath).map((field) => [field.definition.id, field]));
   const retainedSources = listCandidatureSources(rootPath, candidatureId).slice(0, 20);
   const information = candidature.values.flatMap((retained) => {
     const field = fields.get(retained.fieldId);
     if (!field?.preferences.aiUseAllowed) return [];
-    return [
-      {
-        fieldId: field.definition.id,
-        label: field.definition.label,
-        value: retained.value,
-      },
-    ];
+    return [{ fieldId: field.definition.id, label: field.definition.label, value: retained.value }];
   });
-
   return aiProjectedCandidatureSchema.parse({
-    label: "Candidature",
+    label: candidature.label,
     information,
     sources: includeSourceForDocument
       ? retainedSources.slice(0, 1).map((source) => ({
@@ -153,6 +132,9 @@ function projectCandidature(
   });
 }
 
+function emptyCandidature(label: string): AiProjectedCandidature {
+  return aiProjectedCandidatureSchema.parse({ label, information: [], sources: [] });
+}
 function operationScope(kind: string): string {
   return `aaaat_${kind.replace(/[^a-z]/g, "")}`;
 }
@@ -167,20 +149,16 @@ function providerCandidature(
       new Map(field.definition.choices.map((choice) => [choice.id, choice.label])),
     ]),
   );
-
   const localChoiceLabels = (
     fieldId: string,
     value: CandidatureRuntimeValue,
   ): CandidatureRuntimeValue => {
     const choices = choicesByFieldId.get(fieldId);
     if (!choices || choices.size === 0) return value;
-
     const label = (candidate: string | number | boolean) =>
       typeof candidate === "string" ? (choices.get(candidate) ?? candidate) : candidate;
-
     return Array.isArray(value) ? value.map(label) : label(value);
   };
-
   return providerOpportunityReviewCandidatureSchema.parse({
     label: candidature.label,
     information: candidature.information.map((information) => ({
@@ -203,12 +181,10 @@ function projectOpportunityReviewContext(
   rootPath: string,
   request: OpportunityReviewRequest,
 ): z.infer<typeof opportunityReviewProjectedContextSchema> {
-  const profile = getProfile(rootPath).items;
   const permissions = profileAiUse(rootPath);
-  const profileItems = profile
+  const profileItems = getProfile(rootPath).items
     .filter((item) => permissions.get(item.id) ?? true)
     .map(projectProfileItem);
-
   return opportunityReviewProjectedContextSchema.parse({
     candidature: projectCandidature(rootPath, request.candidatureId),
     profileItems,
@@ -221,11 +197,9 @@ export function previewOpportunityReview(
 ): OpportunityReviewPreview {
   const request = opportunityReviewRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "opportunity_review");
-  const projectedContext = projectOpportunityReviewContext(rootPath, request);
-
   return opportunityReviewPreviewSchema.parse({
     connection: statusFor(stored),
-    projectedContext,
+    projectedContext: projectOpportunityReviewContext(rootPath, request),
   });
 }
 
@@ -241,7 +215,6 @@ export async function reviewOpportunity(
     candidature: providerCandidature(rootPath, projectedContext.candidature),
     profileItems: projectedContext.profileItems,
   });
-
   return opportunityReviewResultSchema.parse(
     await provider.reviewOpportunity(statusFor(stored), providerContext),
   );
@@ -257,9 +230,11 @@ interface DiscoveryWireRequest {
   readonly request: ProviderJobExtractionRequest;
   readonly fieldIds: ReadonlyMap<string, string>;
   readonly choiceIds: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  readonly tagRefs: ReadonlySet<string>;
 }
 
 function discoveryWireRequest(
+  rootPath: string,
   request: JobExtractionRequest,
   fields: readonly CandidatureFieldConfiguration[],
 ): DiscoveryWireRequest {
@@ -269,7 +244,6 @@ function discoveryWireRequest(
   const providerFields = fields.map((field, index) => {
     const fieldRef = `${scope}_${index + 1}`;
     fieldIds.set(fieldRef, field.definition.id);
-
     const choices = new Map<string, string>();
     const providerChoices = field.definition.choices.map((choice, choiceIndex) => {
       const choiceRef = `${fieldRef}_${choiceIndex + 1}`;
@@ -277,7 +251,6 @@ function discoveryWireRequest(
       return { choiceRef, label: choice.label };
     });
     choiceIds.set(fieldRef, choices);
-
     return {
       fieldRef,
       label: field.definition.label,
@@ -287,15 +260,17 @@ function discoveryWireRequest(
       choices: providerChoices,
     };
   });
-
+  const tags = listTags(rootPath).slice(0, 300).map((tag, index) => ({
+    tagRef: `${scope}_tag_${index + 1}`,
+    name: tag.name,
+    aliases: tag.aliases.slice(0, 8),
+    definition: tag.definition.slice(0, 500),
+  }));
   return {
-    request: providerJobExtractionRequestSchema.parse({
-      ...request,
-      fields: providerFields,
-      tags: [],
-    }),
+    request: providerJobExtractionRequestSchema.parse({ ...request, fields: providerFields, tags }),
     fieldIds,
     choiceIds,
+    tagRefs: new Set(tags.map((tag) => tag.tagRef)),
   };
 }
 
@@ -306,14 +281,12 @@ function localChoiceValue(
 ): CandidatureRuntimeValue {
   const choices = choiceIds.get(fieldRef);
   if (!choices || choices.size === 0) return value;
-
   const resolve = (candidate: string | number | boolean): string | number | boolean => {
     if (typeof candidate !== "string" || !choices.has(candidate)) {
       throw new AiServiceError("The model proposed a choice outside the requested field.");
     }
     return choices.get(candidate) ?? candidate;
   };
-
   return Array.isArray(value) ? value.map(resolve) : resolve(value);
 }
 
@@ -323,19 +296,18 @@ function validateDiscoveryResult(
   result: unknown,
 ): JobExtractionResult {
   const providerResult = providerJobExtractionResultSchema.parse(result);
+  if (providerResult.existingTags.some((tag) => !wire.tagRefs.has(tag.tagRef))) {
+    throw new AiServiceError("The model proposed a Tag that was not in the supplied glossary.");
+  }
   const proposals = providerResult.proposals.flatMap((proposal) => {
     const fieldId = wire.fieldIds.get(proposal.fieldRef);
-    if (!fieldId) {
-      throw new AiServiceError("The model proposed a candidature field that was not requested.");
-    }
-
+    if (!fieldId) throw new AiServiceError("The model proposed a candidature field that was not requested.");
     const field = listCandidatureFields(rootPath).find(
       (candidate) => candidate.definition.id === fieldId,
     );
     if (!field?.preferences.aiUseAllowed) {
       throw new AiServiceError("The proposed information is no longer available to AI.");
     }
-
     const normalized = withWorkspaceDatabase(rootPath, (database) =>
       validateCandidatureFieldValueInDatabase(
         database,
@@ -345,11 +317,7 @@ function validateDiscoveryResult(
     );
     return normalized === null ? [] : [{ fieldId, value: normalized }];
   });
-
-  return jobExtractionResultSchema.parse({
-    proposals,
-    newFields: providerResult.newFields,
-  });
+  return jobExtractionResultSchema.parse({ proposals, newFields: providerResult.newFields });
 }
 
 export async function extractJob(
@@ -361,14 +329,10 @@ export async function extractJob(
   const stored = requireStoredConnection(rootPath, "job_extraction");
   const fields = discoveryFields(rootPath);
   if (fields.length === 0) {
-    throw new AiServiceError(
-      "Allow AI use for at least one candidature information item first.",
-    );
+    throw new AiServiceError("Allow AI use for at least one candidature information item first.");
   }
-
-  const wire = discoveryWireRequest(request, fields);
-  const result = await provider.extractJob(statusFor(stored), wire.request);
-  return validateDiscoveryResult(rootPath, wire, result);
+  const wire = discoveryWireRequest(rootPath, request, fields);
+  return validateDiscoveryResult(rootPath, wire, await provider.extractJob(statusFor(stored), wire.request));
 }
 
 export async function discoverCandidatureFieldFromSources(
@@ -385,35 +349,23 @@ export async function discoverCandidatureFieldFromSources(
   if (!field || !field.definition.enabled || !field.preferences.aiUseAllowed) {
     throw new AiServiceError("Choose candidature information that AI may use.");
   }
-
   const sourceMap = new Map(
     listCandidatureSources(rootPath, request.candidatureId).map((source) => [source.id, source]),
   );
   const selected = request.sourceIds.map((sourceId) => {
     const source = sourceMap.get(sourceId);
-    if (!source) {
-      throw new AiServiceError("A selected Source no longer belongs to this candidature.");
-    }
+    if (!source) throw new AiServiceError("A selected Source no longer belongs to this candidature.");
     return source;
   });
   const sourceText = selected
-    .map(
-      (source) =>
-        `Source: ${source.title}\nURL: ${source.url}\n${compactSourceText(source.sourceText)}`,
-    )
+    .map((source) => `Source: ${source.title}\nURL: ${source.url}\n${compactSourceText(source.sourceText)}`)
     .join("\n\n---\n\n")
     .slice(0, 50000)
     .trim();
-  if (!sourceText) {
-    throw new AiServiceError("The selected Sources contain no text to analyze.");
-  }
-
+  if (!sourceText) throw new AiServiceError("The selected Sources contain no text to analyze.");
   const wire = discoveryWireRequest(
-    {
-      sourceText,
-      sourceTitle: "Retained AAAAT Sources",
-      sourceUrl: "",
-    },
+    rootPath,
+    { sourceText, sourceTitle: "Retained AAAAT Sources", sourceUrl: "" },
     [field],
   );
   const rawResult = await provider.extractJob(
@@ -423,67 +375,9 @@ export async function discoverCandidatureFieldFromSources(
     "historical_field_discovery",
   );
   const result = validateDiscoveryResult(rootPath, wire, rawResult);
-
   return historicalFieldDiscoveryResultSchema.parse({
     proposal: result.proposals[0] ?? null,
     existingValuePresent: candidature.values.some((value) => value.fieldId === request.fieldId),
-  });
-}
-
-export async function recommendVariant(
-  rootPath: string,
-  rawRequest: VariantRecommendationRequest,
-  provider: ModelProvider = createWorkspaceAiProvider(rootPath),
-): Promise<VariantRecommendationResult> {
-  const request = variantRecommendationRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath, "variant_recommendation");
-  requireCandidature(rootPath, request.candidatureId);
-
-  const variants = getProfile(rootPath).variants;
-  if (variants.length === 0) {
-    throw new AiServiceError("Create a profile variant before requesting a recommendation.");
-  }
-
-  const candidature = projectCandidature(rootPath, request.candidatureId);
-  const context = variantRecommendationContextSchema.parse({
-    candidature,
-    variants: variants.map((variant) => ({
-      id: variant.id,
-      name: variant.name,
-      focus: variant.focus,
-      targetTags: variant.targetTags,
-      ...(variant.preferredLanguage ? { preferredLanguage: variant.preferredLanguage } : {}),
-    })),
-  });
-  const scope = operationScope("variant");
-  const variantIds = new Map<string, string>();
-  const providerContext = providerVariantRecommendationContextSchema.parse({
-    candidature: providerCandidature(rootPath, context.candidature),
-    variants: context.variants.map((variant, index) => {
-      const variantRef = `${scope}_${index + 1}`;
-      variantIds.set(variantRef, variant.id);
-      return {
-        variantRef,
-        name: variant.name,
-        focus: variant.focus,
-        targetTags: variant.targetTags,
-        ...(variant.preferredLanguage
-          ? { preferredLanguage: variant.preferredLanguage }
-          : {}),
-      };
-    }),
-  });
-  const providerResult = providerVariantRecommendationResultSchema.parse(
-    await provider.recommendVariant(statusFor(stored), providerContext),
-  );
-  const variantId = variantIds.get(providerResult.variantRef);
-  if (!variantId || !getProfile(rootPath).variants.some((variant) => variant.id === variantId)) {
-    throw new AiServiceError("The model recommended a profile variant that no longer exists.");
-  }
-
-  return variantRecommendationResultSchema.parse({
-    variantId,
-    rationale: providerResult.rationale,
   });
 }
 
@@ -491,48 +385,37 @@ function isDocumentEvidence(kind: string): boolean {
   return kind !== "identity" && kind !== "contact" && kind !== "link";
 }
 
-function requireDocument(rootPath: string, documentId: string) {
-  const document = listDocuments(rootPath).find((candidate) => candidate.id === documentId);
-  if (!document) {
-    throw new AiServiceError("The selected document no longer exists.");
-  }
-  return document;
-}
-
-function documentBaseItems(rootPath: string, document: DocumentRecord): ProfileItem[] {
-  return document.variantId === null
-    ? getProfile(rootPath).items
-    : resolveProfileVariant(rootPath, document.variantId).items;
+interface AiCvItem {
+  readonly id: string;
+  readonly profileItemId: string | null;
+  readonly content: WorkingCvItem["content"];
 }
 
 function projectDocumentContext(
   rootPath: string,
   candidature: AiProjectedCandidature,
-  items: readonly ProfileItem[],
+  items: readonly AiCvItem[],
 ): z.infer<typeof documentAiContextSchema> {
   const permissions = profileAiUse(rootPath);
   const evidence = items.flatMap((item) => {
-    if (!isDocumentEvidence(item.kind) || !(permissions.get(item.id) ?? true)) {
+    if (
+      item.profileItemId === null ||
+      !(permissions.get(item.profileItemId) ?? true) ||
+      !isDocumentEvidence(item.content.kind)
+    ) {
       return [];
     }
-
-    return [
-      {
-        id: item.id,
-        kind: item.kind,
-        title: item.title,
-        ...(item.subtitle ? { subtitle: item.subtitle } : {}),
-        ...(item.description ? { description: item.description } : {}),
-      },
-    ];
+    return [{
+      id: item.id,
+      kind: item.content.kind,
+      title: item.content.title,
+      ...(item.content.subtitle ? { subtitle: item.content.subtitle } : {}),
+      ...(item.content.description ? { description: item.content.description } : {}),
+    }];
   });
-
   if (evidence.length === 0) {
-    throw new AiServiceError(
-      "Allow AI use for at least one career item before requesting document assistance.",
-    );
+    throw new AiServiceError("Allow AI use for at least one professional-information item used by this CV first.");
   }
-
   return documentAiContextSchema.parse({ candidature, items: evidence });
 }
 
@@ -540,13 +423,9 @@ function providerDocumentContext(
   rootPath: string,
   context: z.infer<typeof documentAiContextSchema>,
   kind: string,
-): {
-  readonly context: ProviderDocumentAiContext;
-  readonly itemIds: ReadonlyMap<string, string>;
-} {
+): { readonly context: ProviderDocumentAiContext; readonly itemIds: ReadonlyMap<string, string> } {
   const scope = operationScope(kind);
   const itemIds = new Map<string, string>();
-
   return {
     context: providerDocumentAiContextSchema.parse({
       candidature: providerCandidature(rootPath, context.candidature),
@@ -566,83 +445,74 @@ function providerDocumentContext(
   };
 }
 
-function currentDocumentEvidenceIds(rootPath: string, documentId: string): ReadonlySet<string> {
-  const document = requireDocument(rootPath, documentId);
-  if (document.kind !== "cv") {
-    throw new AiServiceError("Choose a CV document for CV tailoring.");
-  }
-
-  const permissions = profileAiUse(rootPath);
-  return new Set(
-    documentBaseItems(rootPath, document)
-      .filter(
-        (item) => isDocumentEvidence(item.kind) && (permissions.get(item.id) ?? true),
-      )
-      .map((item) => item.id),
-  );
-}
-
 export async function tailorCv(
   rootPath: string,
-  rawRequest: DocumentAiRequest,
+  rawRequest: CvTailoringRequest,
   provider: ModelProvider = createWorkspaceAiProvider(rootPath),
 ): Promise<CvTailoringResult> {
-  const request = documentAiRequestSchema.parse(rawRequest);
+  const request = cvTailoringRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "cv_tailoring");
   requireCandidature(rootPath, request.candidatureId);
-
-  const document = requireDocument(rootPath, request.documentId);
-  if (document.kind !== "cv") {
-    throw new AiServiceError("Choose a CV document for CV tailoring.");
+  const workingCv = listDocumentCollections(rootPath).workingCvs.find(
+    (candidate) => candidate.id === request.workingCvId,
+  );
+  if (!workingCv) throw new AiServiceError("The selected Working CV no longer exists.");
+  if (workingCv.candidatureId && workingCv.candidatureId !== request.candidatureId) {
+    throw new AiServiceError("This Working CV belongs to a different application.");
   }
-
-  const items = documentBaseItems(rootPath, document);
-  const candidature = projectCandidature(rootPath, request.candidatureId, true);
-  const context = projectDocumentContext(rootPath, candidature, items);
+  const items = workingCv.sections.flatMap((section) => section.items);
+  const context = projectDocumentContext(
+    rootPath,
+    projectCandidature(rootPath, request.candidatureId, true),
+    items,
+  );
   const providerContext = providerDocumentContext(rootPath, context, "cv");
   const result = providerCvTailoringResultSchema.parse(
     await provider.tailorCv(statusFor(stored), providerContext.context),
   );
-  const allowed = currentDocumentEvidenceIds(rootPath, request.documentId);
-  if (
-    result.recommendations.some(
-      (item) => !allowed.has(providerContext.itemIds.get(item.itemRef) ?? ""),
-    )
-  ) {
-    throw new AiServiceError(
-      "The model recommended a profile item that no longer exists or is not available to AI.",
-    );
+  const allowed = new Set(context.items.map((item) => item.id));
+  const recommendations = result.recommendations.map((item) => ({
+    itemId: providerContext.itemIds.get(item.itemRef) ?? "",
+    rationale: item.rationale,
+  }));
+  if (recommendations.some((item) => !allowed.has(item.itemId))) {
+    throw new AiServiceError("The model recommended CV content that is not available to AI.");
   }
-
-  return cvTailoringResultSchema.parse({
-    recommendations: result.recommendations.map((item) => ({
-      itemId: providerContext.itemIds.get(item.itemRef) ?? "",
-      rationale: item.rationale,
-    })),
-  });
+  return cvTailoringResultSchema.parse({ recommendations });
 }
 
 export async function draftCoverLetter(
   rootPath: string,
-  rawRequest: DocumentAiRequest,
+  rawRequest: CoverLetterDraftRequest,
   provider: ModelProvider = createWorkspaceAiProvider(rootPath),
 ): Promise<CoverLetterDraft> {
-  const request = documentAiRequestSchema.parse(rawRequest);
+  const request = coverLetterDraftRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "cover_letter_draft");
-  requireCandidature(rootPath, request.candidatureId);
-
-  const document = requireDocument(rootPath, request.documentId);
-  if (document.kind !== "cover_letter") {
-    throw new AiServiceError(
-      "Choose a cover-letter document for cover-letter drafting.",
-    );
-  }
-
-  const items = resolveDocument(rootPath, document.id).items;
-  const candidature = projectCandidature(rootPath, request.candidatureId, true);
+  const letter = listDocumentCollections(rootPath).letters.find(
+    (candidate) => candidate.id === request.coverLetterId,
+  );
+  if (!letter) throw new AiServiceError("The selected cover letter no longer exists.");
+  const candidature = letter.candidatureId
+    ? projectCandidature(rootPath, letter.candidatureId, true)
+    : emptyCandidature("Standalone cover letter");
+  const permissions = profileAiUse(rootPath);
+  const items: AiCvItem[] = getProfile(rootPath).items
+    .filter((item) => isDocumentEvidence(item.kind) && (permissions.get(item.id) ?? true))
+    .map((item) => ({
+      id: item.id,
+      profileItemId: item.id,
+      content: {
+        kind: item.kind,
+        title: item.title,
+        ...(item.subtitle ? { subtitle: item.subtitle } : {}),
+        ...(item.description ? { description: item.description } : {}),
+        ...(item.startDate ? { startDate: item.startDate } : {}),
+        ...(item.endDate ? { endDate: item.endDate } : {}),
+        ...(item.url ? { url: item.url } : {}),
+      },
+    }));
   const context = projectDocumentContext(rootPath, candidature, items);
-  const providerContext = providerDocumentContext(rootPath, context, "cover-letter");
-
+  const providerContext = providerDocumentContext(rootPath, context, "coverletter");
   return coverLetterDraftSchema.parse(
     await provider.draftCoverLetter(statusFor(stored), providerContext.context),
   );
