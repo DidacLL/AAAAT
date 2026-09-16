@@ -5,31 +5,31 @@ import { profileAiContextChannels } from "../src/shared/profile-ai-context-contr
 
 const itemId = "00000000-0000-4000-8000-000000000701";
 
-describe("professional-information AI disclosure preload API", () => {
+describe("professional-information AI-use preload API", () => {
   it("validates bounded read and update operations", async () => {
     const invoke = vi.fn(async (channel: string) => ({
       itemId,
-      aiContextMode: channel === profileAiContextChannels.current ? "expose" : "token",
+      aiUseAllowed: channel === profileAiContextChannels.current,
     }));
     const api = createProfileAiContextDesktopApi(invoke);
 
     await expect(api.profileAiContext.current(itemId)).resolves.toEqual({
       itemId,
-      aiContextMode: "expose",
+      aiUseAllowed: true,
     });
     await expect(
-      api.profileAiContext.update({ itemId, aiContextMode: "token" }),
-    ).resolves.toEqual({ itemId, aiContextMode: "token" });
+      api.profileAiContext.update({ itemId, aiUseAllowed: false }),
+    ).resolves.toEqual({ itemId, aiUseAllowed: false });
 
     expect(invoke).toHaveBeenNthCalledWith(1, profileAiContextChannels.current, itemId);
     expect(invoke).toHaveBeenNthCalledWith(2, profileAiContextChannels.update, {
       itemId,
-      aiContextMode: "token",
+      aiUseAllowed: false,
     });
   });
 
   it("rejects invalid renderer input and malformed privileged output", async () => {
-    const invoke = vi.fn(async () => ({ itemId, aiContextMode: "private" }));
+    const invoke = vi.fn(async () => ({ itemId, aiUseAllowed: "private" }));
     const api = createProfileAiContextDesktopApi(invoke);
 
     await expect(api.profileAiContext.current("not-a-uuid")).rejects.toThrow();
