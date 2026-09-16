@@ -157,14 +157,14 @@ describe("AI service over live candidature information", () => {
       ],
     });
 
-    const preview = previewOpportunityReview(root, {
-      candidatureId: candidature.id,
-      identityPrivacy: "omit",
-      contactPrivacy: "omit",
-    });
+    const preview = previewOpportunityReview(root, { candidatureId: candidature.id });
     expect(preview.projectedContext.candidature.sources).toEqual([]);
     expect(preview.projectedContext.candidature.information).toEqual([
-      { fieldId: allowed.definition.id, label: "Allowed application fact", value: "VISIBLE VALUE" },
+      {
+        fieldId: allowed.definition.id,
+        label: "Allowed application fact",
+        value: "VISIBLE VALUE",
+      },
     ]);
     expect(JSON.stringify(preview.projectedContext)).not.toContain("HIDDEN VALUE");
     expect(JSON.stringify(preview.projectedContext)).not.toContain("PRIVATE SOURCE");
@@ -182,30 +182,30 @@ describe("AI service over live candidature information", () => {
         questions: [],
       };
     });
+
     await expect(
       reviewOpportunity(
         root,
-        { candidatureId: candidature.id, identityPrivacy: "omit", contactPrivacy: "omit" },
+        { candidatureId: candidature.id },
         provider({ reviewOpportunity: review }),
       ),
     ).resolves.toMatchObject({ relevantEvidence: ["VISIBLE VALUE"] });
   });
 
-  it("keeps operation-specific identity privacy separate from the reusable-information eye", async () => {
+  it("supplies enabled identity and contact information normally", async () => {
     const root = await configuredWorkspace("opportunity_review");
     const candidature = createCandidature(root, { values: [] });
     addProfileItem(root, { kind: "identity", title: "Didac Example" });
+    addProfileItem(root, { kind: "contact", title: "didac@example.test" });
 
-    const preview = previewOpportunityReview(root, {
-      candidatureId: candidature.id,
-      identityPrivacy: "token",
-      contactPrivacy: "omit",
-    });
-    const projectedIdentity = preview.projectedContext.profileItems.find(
-      (item) => item.kind === "identity",
-    )?.title;
-    expect(projectedIdentity).toMatch(/AAAT_PRIVATE_/);
-    expect(JSON.stringify(preview.projectedContext)).not.toContain("Didac Example");
+    const preview = previewOpportunityReview(root, { candidatureId: candidature.id });
+    expect(preview.projectedContext.profileItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "identity", title: "Didac Example" }),
+        expect.objectContaining({ kind: "contact", title: "didac@example.test" }),
+      ]),
+    );
+    expect(JSON.stringify(preview.projectedContext)).not.toContain("AAAT_PRIVATE_");
   });
 
   it("builds extraction requests only from current fields allowed for AI use", async () => {
@@ -236,7 +236,9 @@ describe("AI service over live candidature information", () => {
     });
 
     const extract = vi.fn<ModelProvider["extractJob"]>(async (_connection, request) => {
-      const configured = request.fields.find((field) => field.label === "Minimum flight hours");
+      const configured = request.fields.find(
+        (field) => field.label === "Minimum flight hours",
+      );
       expect(configured).toMatchObject({
         label: "Minimum flight hours",
         valueType: "number",
@@ -302,7 +304,9 @@ describe("AI service over live candidature information", () => {
       expect(request.fields[0]?.label).toBe("Type rating");
       expect(request.sourceText).toContain("A320 type rating");
       expect(request.sourceText).not.toContain("unrelated retained Source");
-      return { proposals: [{ fieldRef: request.fields[0]?.fieldRef ?? "", value: "A320" }] };
+      return {
+        proposals: [{ fieldRef: request.fields[0]?.fieldRef ?? "", value: "A320" }],
+      };
     });
 
     const result = await discoverCandidatureFieldFromSources(
@@ -361,10 +365,11 @@ describe("AI service over live candidature information", () => {
         questions: [],
       };
     });
+
     await expect(
       reviewOpportunity(
         root,
-        { candidatureId: candidature.id, identityPrivacy: "omit", contactPrivacy: "omit" },
+        { candidatureId: candidature.id },
         provider({ reviewOpportunity: review }),
       ),
     ).resolves.toMatchObject({ summary: "Choice projected." });

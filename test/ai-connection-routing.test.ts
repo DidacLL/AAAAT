@@ -65,11 +65,7 @@ describe("AI operation connection routing", () => {
     const second = secondSave.find((connection) => connection.name === "Second local");
     if (!second) throw new Error("second connection fixture missing");
     const modelProvider = provider();
-    const request = {
-      candidatureId: candidature.id,
-      identityPrivacy: "omit" as const,
-      contactPrivacy: "omit" as const,
-    };
+    const request = { candidatureId: candidature.id };
 
     await expect(reviewOpportunity(root, request, modelProvider)).rejects.toThrow(
       "Validate and choose a connection for Opportunity review",
@@ -94,7 +90,10 @@ describe("AI operation connection routing", () => {
       summary: "First local",
     });
 
-    setAiOperationDefault(root, { connectionId: second.id, operation: "opportunity_review" });
+    setAiOperationDefault(root, {
+      connectionId: second.id,
+      operation: "opportunity_review",
+    });
     await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
       summary: "Second local",
     });

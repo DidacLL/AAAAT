@@ -21,7 +21,6 @@ const record: CandidatureRecord = {
   tagIds: [],
 };
 
-const projectedPrivateValue = "opaque local replacement";
 const previewOpportunityReview = vi.fn();
 const reviewOpportunity = vi.fn();
 const setupCurrent = vi.fn();
@@ -71,7 +70,7 @@ describe("candidature opportunity-review panel", () => {
           sources: [],
         },
         profileItems: [
-          { kind: "identity", title: projectedPrivateValue },
+          { kind: "identity", title: "Ada Example" },
           { kind: "skill", title: "TypeScript" },
         ],
       },
@@ -96,38 +95,36 @@ describe("candidature opportunity-review panel", () => {
 
   afterEach(() => cleanup());
 
-  it("shows the projected payload and ordinary local connection identity before the read-only review", async () => {
+  it("uses the per-information AI-use projection with no competing privacy selectors", async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    expect(screen.getByText(/saved candidature snapshot/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Identity fields")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Contact fields")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Replace with local tokens/i)).not.toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Preview what AI will receive" }));
 
-    expect(previewOpportunityReview).toHaveBeenCalledWith({
-      candidatureId: record.id,
-      identityPrivacy: "token",
-      contactPrivacy: "token",
-    });
+    expect(previewOpportunityReview).toHaveBeenCalledWith({ candidatureId: record.id });
     expect(screen.getByText(/AI connection: Local fixture · local on this computer/)).toBeInTheDocument();
     expect(screen.queryByText("http://localhost:11434/v1")).not.toBeInTheDocument();
     expect(screen.queryByText("fixture-model")).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        (content, element) => element?.tagName === "PRE" && content.includes(projectedPrivateValue),
+        (content, element) =>
+          element?.tagName === "PRE" &&
+          content.includes("Ada Example") &&
+          content.includes("TypeScript"),
       ),
     ).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Ask AI for an opportunity review" }));
 
-    expect(reviewOpportunity).toHaveBeenCalledWith({
-      candidatureId: record.id,
-      identityPrivacy: "token",
-      contactPrivacy: "token",
-    });
+    expect(reviewOpportunity).toHaveBeenCalledWith({ candidatureId: record.id });
     expect(await screen.findByText("Relevant TypeScript experience is retained.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Relevant evidence" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Uncertainties" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Questions" })).toBeInTheDocument();
-    expect(screen.queryByText(/strong fit/i)).not.toBeInTheDocument();
   });
 
   it("identifies a remote HTTPS connection without exposing endpoint or model detail", async () => {

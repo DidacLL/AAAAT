@@ -93,35 +93,46 @@ afterEach(() => {
 });
 
 describe("professional information AI-use projection", () => {
-  it("omits disabled reusable information from opportunity review while allowed information is disclosed", async () => {
+  it("applies the same eye permission to identity, experience, and other opportunity-review information", async () => {
     const root = await configuredWorkspace("opportunity_review");
-    const identity = addItem(root, { kind: "identity", title: "PRIVATE IDENTITY" });
-    const experience = addItem(root, {
+    const disabledIdentity = addItem(root, {
+      kind: "identity",
+      title: "PRIVATE IDENTITY",
+    });
+    const disabledExperience = addItem(root, {
       kind: "experience",
       title: "PRIVATE EXPERIENCE",
       description: "PRIVATE EXPERIENCE DETAIL",
     });
+    addItem(root, { kind: "identity", title: "VISIBLE IDENTITY" });
+    addItem(root, { kind: "contact", title: "visible@example.test" });
     addItem(root, { kind: "skill", title: "Public TypeScript" });
     const candidature = createCandidature(root, { values: [] });
 
-    updateProfileItemAiContextPreference(root, { itemId: identity.id, aiUseAllowed: false });
-    updateProfileItemAiContextPreference(root, { itemId: experience.id, aiUseAllowed: false });
-
-    const preview = previewOpportunityReview(root, {
-      candidatureId: candidature.id,
-      identityPrivacy: "expose",
-      contactPrivacy: "expose",
+    updateProfileItemAiContextPreference(root, {
+      itemId: disabledIdentity.id,
+      aiUseAllowed: false,
     });
+    updateProfileItemAiContextPreference(root, {
+      itemId: disabledExperience.id,
+      aiUseAllowed: false,
+    });
+
+    const preview = previewOpportunityReview(root, { candidatureId: candidature.id });
     const previewJson = JSON.stringify(preview.projectedContext);
     expect(previewJson).not.toContain("PRIVATE IDENTITY");
     expect(previewJson).not.toContain("PRIVATE EXPERIENCE");
     expect(previewJson).not.toContain("PRIVATE EXPERIENCE DETAIL");
+    expect(previewJson).toContain("VISIBLE IDENTITY");
+    expect(previewJson).toContain("visible@example.test");
     expect(previewJson).toContain("Public TypeScript");
 
     const review = vi.fn<ModelProvider["reviewOpportunity"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain("PRIVATE IDENTITY");
       expect(serialized).not.toContain("PRIVATE EXPERIENCE");
+      expect(serialized).toContain("VISIBLE IDENTITY");
+      expect(serialized).toContain("visible@example.test");
       expect(serialized).toContain("Public TypeScript");
       return {
         summary: "Relevant evidence found.",
@@ -134,11 +145,7 @@ describe("professional information AI-use projection", () => {
     await expect(
       reviewOpportunity(
         root,
-        {
-          candidatureId: candidature.id,
-          identityPrivacy: "expose",
-          contactPrivacy: "expose",
-        },
+        { candidatureId: candidature.id },
         provider({ reviewOpportunity: review }),
       ),
     ).resolves.toMatchObject({ relevantEvidence: ["Public TypeScript"] });
@@ -161,7 +168,10 @@ describe("professional information AI-use projection", () => {
       bodyParagraphs: [],
     });
 
-    updateProfileItemAiContextPreference(root, { itemId: experience.id, aiUseAllowed: false });
+    updateProfileItemAiContextPreference(root, {
+      itemId: experience.id,
+      aiUseAllowed: false,
+    });
 
     const tailor = vi.fn<ModelProvider["tailorCv"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
@@ -202,7 +212,10 @@ describe("professional information AI-use projection", () => {
       bodyParagraphs: [],
     });
 
-    updateProfileItemAiContextPreference(root, { itemId: skill.id, aiUseAllowed: false });
+    updateProfileItemAiContextPreference(root, {
+      itemId: skill.id,
+      aiUseAllowed: false,
+    });
 
     const draft = vi.fn<ModelProvider["draftCoverLetter"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);

@@ -78,7 +78,10 @@ describe("desktop preload API", () => {
             endpoint: "https://models.example.test/v1",
             model: "review-model",
           },
-          projectedContext: { candidature: { label: "Candidature", information: [], sources: [] }, profileItems: [] },
+          projectedContext: {
+            candidature: { label: "Candidature", information: [], sources: [] },
+            profileItems: [],
+          },
         };
       }
       if (channel === aiChannels.opportunityReview) {
@@ -134,19 +137,9 @@ describe("desktop preload API", () => {
       }),
     ).resolves.toEqual({ proposals: [{ fieldId, value: 1500 }], newFields: [] });
     await expect(
-      api.ai.previewOpportunityReview({
-        candidatureId,
-        identityPrivacy: "omit",
-        contactPrivacy: "omit",
-      }),
+      api.ai.previewOpportunityReview({ candidatureId }),
     ).resolves.toMatchObject({ connection: { name: "Remote provider" } });
-    await expect(
-      api.ai.reviewOpportunity({
-        candidatureId,
-        identityPrivacy: "omit",
-        contactPrivacy: "omit",
-      }),
-    ).resolves.toEqual({
+    await expect(api.ai.reviewOpportunity({ candidatureId })).resolves.toEqual({
       summary: "The supplied information is relevant evidence.",
       relevantEvidence: ["TypeScript"],
       uncertainties: [],
@@ -177,13 +170,9 @@ describe("desktop preload API", () => {
     });
     expect(invoke).toHaveBeenCalledWith(aiChannels.opportunityReviewPreview, {
       candidatureId,
-      identityPrivacy: "omit",
-      contactPrivacy: "omit",
     });
     expect(invoke).toHaveBeenCalledWith(aiChannels.opportunityReview, {
       candidatureId,
-      identityPrivacy: "omit",
-      contactPrivacy: "omit",
     });
   });
 
