@@ -49,8 +49,7 @@ function field(id: string, label: string): CandidatureFieldConfiguration {
       focusOrder: 0,
       focusProminence: "normal",
       identityOrder: null,
-      aiDiscovery: true,
-      aiContextMode: "expose",
+      aiUseAllowed: true,
     },
   };
 }
@@ -77,6 +76,12 @@ function deferred<T>() {
     resolve = resolvePromise;
   });
   return { promise, resolve };
+}
+
+function extractionResult(
+  proposals: PartialJobExtractionResult["proposals"],
+): PartialJobExtractionResult {
+  return { proposals, newFields: [], existingTags: [], newTags: [], issues: [] };
 }
 
 function installApi(
@@ -208,11 +213,7 @@ describe("post-creation candidature AI inference", () => {
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByRole("heading", { name: "Focus" })).toBeInTheDocument();
 
-    extraction.resolve({
-      proposals: [{ fieldId: roleId, value: "Senior Captain" }],
-      newFields: [],
-      issues: [],
-    });
+    extraction.resolve(extractionResult([{ fieldId: roleId, value: "Senior Captain" }]));
     expect(await screen.findByRole("heading", { name: "Focus" })).toBeInTheDocument();
     expect(setFieldValue).not.toHaveBeenCalled();
 
@@ -260,15 +261,11 @@ describe("post-creation candidature AI inference", () => {
     const detail = await openDetails(user);
     await user.click(within(detail).getByRole("button", { name: "Ask AI to fill missing information" }));
 
-    extraction.resolve({
-      proposals: [
-        { fieldId: organisationId, value: "Aster Aviation" },
-        { fieldId: locationId, value: "Madrid" },
-        { fieldId: roleId, value: "Senior Captain" },
-      ],
-      newFields: [],
-      issues: [],
-    });
+    extraction.resolve(extractionResult([
+      { fieldId: organisationId, value: "Aster Aviation" },
+      { fieldId: locationId, value: "Madrid" },
+      { fieldId: roleId, value: "Senior Captain" },
+    ]));
 
     await waitFor(() => expect(setFieldValue).toHaveBeenCalledTimes(2));
     expect(setFieldValue).toHaveBeenCalledWith({ candidatureId, fieldId: organisationId, value: "Aster Aviation" });
@@ -311,7 +308,7 @@ describe("post-creation candidature AI inference", () => {
     const locationCard = within(detail).getByRole("heading", { name: "Location" }).closest("article");
     if (!locationCard) throw new Error("Location card missing");
     await user.click(within(locationCard).getByRole("button", { name: "Ask AI to fill Location" }));
-    extraction.resolve({ proposals: [], newFields: [], issues: [] });
+    extraction.resolve(extractionResult([]));
 
     expect(await within(locationCard).findByText("AI finished but did not find a usable value.")).toBeInTheDocument();
     expect(getAiTask(`candidature-inference:${candidatureId}:${locationId}`)?.detail).toBe(
