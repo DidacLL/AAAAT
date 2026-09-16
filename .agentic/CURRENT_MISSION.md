@@ -4,84 +4,70 @@
 
 PR #319 remains open and unmerged on `product/dogfood-workspace-ai-context`.
 
-The accepted engineering head after the document-domain pass is `65ce825adc17f19d9e10a2c5fc80a90d57dc2cb8`.
+The accepted product implementation head before the final audit correction is `7a3892648c06cc75d0fb156e7e655a65b4709d70`.
 
-This is still product interaction architecture recovery, not deployment polish.
+The application/Tags/AI-visibility/document/rail/Settings architecture is accepted for owner natural-use testing. Do not start another feature or interaction redesign.
 
 ## Product authority
 
-Read authority in `AGENTS.md` order. Current `PRODUCT_DEFINITION.md` and `docs/UX_DEFINITION.md` contain the settled product model. Existing schema, tests and visible UI are implementation evidence only when they conflict with that model.
-
-AAAAT has no canonical workflow. Applications, reusable professional information, reusable CV/document work and Settings are direct peer intentions.
+Read authority in `AGENTS.md` order. Current `PRODUCT_DEFINITION.md` and `docs/UX_DEFINITION.md` contain the settled product model. Active user/operator documentation and derived technical architecture must match that model; historical ADRs and owner-source material may remain historical evidence.
 
 ## Accepted work to preserve
 
 Do not regress:
 
-- sparse applications, Sources/raw capture and manual/no-AI use;
+- sparse applications, first-class Sources and manual/no-AI use;
+- Focus / All data over one application corpus;
 - flexible user-maintainable application information;
-- shared Tags with scalable attach/search/create/edit interaction and reviewed AI Tag proposals;
-- the single persistent `AI may use this information` permission across application fields, professional information and career-context information;
-- Opportunity Review using the same permission model with projected-context preview;
-- AI reliability, operation validation, provider diagnostics, inspectable exchanges and bounded prompt/context behavior;
-- demo workspace/reset, local ownership and backup/recovery;
-- the corrected document domain now present at the accepted head:
-  - item-level profile variants;
-  - section-based CV templates with current/variant/override/custom sources;
-  - editable Working CVs with explicit ownership actions;
-  - separate immutable Rendered CV snapshots;
-  - application-owned cover letters;
-  - Application packets;
-  - visible Templates / Rendered CVs / Letters / Application packets collections;
-  - no generic `documents`, CV descriptor, document external-access, permanent PDF-tab or raw-path UI architecture.
+- shared Tags with scalable attach/search/create/edit and reviewed AI Tag proposals;
+- one persistent `AI may use this information` permission for application fields, professional information and career-context information;
+- Opportunity Review with that same permission model and projected-context preview;
+- AI reliability, typed operation validation, provider diagnostics, inspectable exchanges and bounded prompt/context behavior;
+- item-level profile variants, CV templates, Working CVs, immutable Rendered CV snapshots, application-owned cover letters and Application packets;
+- visible Templates / Rendered CVs / Letters / Application packets collections;
+- persistent rail Data / AI / PDF status;
+- four Settings tabs only: Workspace / AI / Documents / Backup;
+- demo/reset, local ownership, backup/recovery and bounded external capabilities.
 
-Routine PR CI is intentionally lightweight: dependency install plus TypeScript typecheck. Focused tests are evidence for changed behavior where useful. Full package/LaTeX/cross-platform verification remains acceptance/release evidence, not an iterative implementation gate.
+Routine PR CI remains dependency install plus TypeScript typecheck. Full package/LaTeX/cross-platform verification is later acceptance/release evidence.
 
-## Current owned area: persistent rail + Settings
+## Current owned area: final audit correction only
 
-Recompose the loaded-workspace shell so environment state is continuously legible without duplicating it in Home.
+The independent whole-PR audit found three bounded coherence defects. Correct these and nothing broader.
 
-The persistent rail must appear on Home, Applications, CVs, My information and Settings and own three compact statuses:
+### 1. Restore visible authorization for bounded setup actions
 
-- **Data: Demo / Local** from the actual loaded workspace;
-- **AI: Off / Ready / Needs attention**;
-- **PDF: Ready / Unavailable**.
+`installer.ai` and `configurator.ai` mutation authority still exists in the services/MCP boundary and is denied by default, but the four-tab Settings rewrite removed the user's visible controls for enabling it.
 
-`AI: Off` means no configured connection. `AI: Ready` means configured AI has a usable validated route for supported AAAAT assistance. `AI: Needs attention` covers configured-but-not-usable state such as invalid/unreadable configuration, missing usable validation/default routing, or a failed/unreachable configured connection surfaced by the existing validation flow. Do not equate merely having a saved connection with Ready.
+Restore the two explicit local switches as secondary/advanced controls under **Settings → AI**. Keep external-assistant setup subordinate; do not recreate `External assistants & portability`, a setup dashboard, or a fifth Settings tab.
 
-Do not add a monitoring framework. Derive this compact projection from the existing workspace/setup/AI connection state and refresh it after relevant Settings changes or validation results.
+Preserve the existing semantics:
 
-Home must stop duplicating these environment badges and must not introduce a competing `Open demo` / `Applications` primary workflow CTA. Navigation already lives in the rail.
+- status inspection remains privacy-minimal/readable;
+- `installer.ai actions` only authorize AAAAT's fixed rendering self-test;
+- `configurator.ai actions` only authorize typed connection save, operation validation and validated default selection;
+- no shell, arbitrary command, filesystem, database or provider-option authority.
 
-Settings must become a conventional compact tabbed surface with one unmistakably active panel. The product tabs are:
+Prefer reusing/extracting the existing `SetupActionAuthority` behavior rather than duplicating permission state.
 
-- **Workspace**
-- **AI**
-- **Documents**
-- **Backup**
+### 2. Correct active user and technical documentation
 
-Map existing capabilities into those four tabs instead of preserving the current launcher/overview, `Backup & recovery`, `Document rendering`, and `External assistants & portability` as peer destinations.
+`docs/USER_GUIDE.md` still names removed Settings destinations and removed MCP tools. Bring it into exact alignment with the current four-tab product and actual `mcp-server.ts` tool surface. Do not document capabilities that do not exist.
 
-Expected ownership:
+`docs/SPEC.md` still describes the rejected generic/document-source architecture. Update its derived document section to the accepted domain: item-level profile variants, CV templates, Working CVs, Rendered CV snapshots, application-owned cover letters and Application packets. LaTeX is an internal rendering technology; remove claims that ordinary architecture centres editable blueprints, descriptors, generic external disclosure or old document projects.
 
-- Workspace: current workspace, create/open/switch, demo/local identity, destructive workspace reset/delete where appropriate;
-- AI: connection editing, endpoint/model validation, operation capability state, prompt transparency and AI setup portability;
-- Documents: PDF/TeX readiness and practical rendering setup/status; advanced portable document-project concerns only if still justified;
-- Backup: create/restore workspace backup and recovery.
+Historical ADRs/owner-source files can remain as history and must not be bulk-rewritten merely for terminology.
 
-Bounded external-assistant setup is secondary configuration. Keep meaningful host-agnostic capability setup where it still serves the product, but do not make it a fifth top-level Settings destination or let MCP/assistant vocabulary dominate normal configuration.
+### 3. Remove one stale rejected durable AI key
 
-An invalid AI endpoint must show a concrete inline error beside the endpoint/control. A saved but unreachable/incompatible configuration must remain a valid saved connection while the rail reports `AI: Needs attention`; do not collapse connection reachability and per-operation capability validation.
+`src/main/ai-connection-service.ts` still accepts `variant_recommendation` inside `operationDefaultsSchema` even though that operation no longer exists in `aiOperationSchema` and the aggregate profile-variant recommendation architecture was deleted.
 
-Keep the established compact worn physical-console / paper-dossier visual direction. Do not replace the launcher with four oversized cards; use tabs and one active content panel.
+Remove that stale key and any active test/fixture dependency on it. AAAAT is pre-user; do not add migration, compatibility or version-shim machinery to preserve rejected development configuration.
 
-Do not change the accepted document, Tag or AI-permission domain models in this pass except for minimal status-refresh/API integration.
+## Verification boundary
 
-## Next after rail + Settings acceptance
+Run focused checks/typecheck as practical. Search active code and current operator docs for stale current references to `variant_recommendation`, `cv_descriptions_read`, `cv_content_read`, `cv_render`, `External assistants & portability`, `Document rendering`, and `Backup & recovery`. Remaining occurrences are acceptable only where clearly historical/non-authoritative.
 
-1. Audit this shell/Settings pass and correct only material gaps.
-2. Independent final product/architecture audit of PR #319.
-3. Owner natural-use acceptance on a fresh packaged Windows candidate.
-4. Only after owner acceptance, run impact-appropriate Windows regression plus Linux/macOS/release verification.
+Do not package yet. After this correction the orchestrator will re-audit the exact head and, if clean, request one fresh packaged Windows candidate for Product Owner natural-use acceptance.
 
 Never merge PR #319 during this recovery.
