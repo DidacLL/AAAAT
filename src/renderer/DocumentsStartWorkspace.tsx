@@ -129,6 +129,25 @@ export function DocumentsStartWorkspace({ onOpenDocument }: { readonly onOpenDoc
     } finally { setBusy(false); }
   };
 
+  const renameTemplate = async (templateId: string) => {
+    if (busy) return;
+    const template = collections.templates.find((candidate) => candidate.id === templateId);
+    if (!template) return;
+    const proposed = window.prompt("Template name", template.name)?.trim();
+    if (!proposed || proposed === template.name) return;
+    setBusy(true); setError(null);
+    try {
+      setCollections(await window.aaaat.documentDomain.updateTemplate({
+        id: template.id,
+        name: proposed,
+        language: template.language,
+        sections: template.sections,
+      }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not rename this template.");
+    } finally { setBusy(false); }
+  };
+
   const createLetter = async () => {
     if (busy) return;
     setBusy(true); setError(null);
@@ -180,7 +199,16 @@ export function DocumentsStartWorkspace({ onOpenDocument }: { readonly onOpenDoc
 
       <section className="document-intent-existing" aria-label="CV templates">
         <div className="section-heading"><div><p className="eyebrow">Reusable composition</p><h2>Templates</h2></div><span>{collections.templates.length}</span></div>
-        {collections.templates.length === 0 ? <p className="document-intent-empty">No templates yet. Save a Working CV as a template when its composition is reusable.</p> : <div className="document-intent-list">{collections.templates.map((template) => <button type="button" key={template.id} disabled={busy} onClick={() => void openTemplate(template.id, template.name)}><span className="item-kind">Template</span><strong>{template.name}</strong><small>Use as a new Working CV</small></button>)}</div>}
+        {collections.templates.length === 0 ? <p className="document-intent-empty">No templates yet. Save a Working CV as a template when its composition is reusable.</p> : (
+          <div className="document-intent-list">
+            {collections.templates.map((template) => (
+              <article key={template.id} className="document-intent-row">
+                <button type="button" disabled={busy} onClick={() => void openTemplate(template.id, template.name)}><span className="item-kind">Template</span><strong>{template.name}</strong><small>{template.language ? `${template.language} · ` : ""}Use as a new Working CV</small></button>
+                <button type="button" className="compact-secondary" disabled={busy} onClick={() => void renameTemplate(template.id)}>Rename</button>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="document-intent-existing" aria-label="Rendered CVs">
