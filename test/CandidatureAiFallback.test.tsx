@@ -57,8 +57,7 @@ const field: CandidatureFieldConfiguration = {
     focusOrder: 0,
     focusProminence: "normal",
     identityOrder: null,
-    aiDiscovery: true,
-    aiContextMode: "expose",
+    aiUseAllowed: true,
   },
 };
 
