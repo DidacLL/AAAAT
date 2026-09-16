@@ -260,8 +260,6 @@ describe("AI service over live candidature information", () => {
     ).resolves.toEqual({
       proposals: [{ fieldId: hours.definition.id, value: 1500 }],
       newFields: [],
-      existingTags: [],
-      newTags: [],
     });
     expect(listCandidatures(root)).toEqual([]);
   });
