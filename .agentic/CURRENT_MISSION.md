@@ -4,13 +4,13 @@
 
 PR #319 remains open and unmerged on `product/dogfood-workspace-ai-context`.
 
-The accepted product candidate implementation is `78772750bd15d9c1a8a2b8bf5930f3ebceddbbff`.
+The accepted product implementation is `78772750bd15d9c1a8a2b8bf5930f3ebceddbbff`. The audited packaging workflow was added afterward without product-code changes.
 
-The independent whole-PR product/architecture audit and its bounded correction are complete. Do not start another feature, domain or interaction redesign unless owner natural-use testing exposes a concrete defect.
+The independent whole-PR product/architecture audit and bounded correction are complete. Do not start another feature, domain or interaction redesign unless Product Owner natural-use testing exposes a concrete defect.
 
 ## Product authority
 
-Read authority in `AGENTS.md` order. Current `PRODUCT_DEFINITION.md` and `docs/UX_DEFINITION.md` contain the settled product model. Active user/operator documentation and `docs/SPEC.md` have been reconciled to the implementation; historical ADRs, old desktop tests and owner-source material remain evidence only.
+Read authority in `AGENTS.md` order. Current `PRODUCT_DEFINITION.md` and `docs/UX_DEFINITION.md` contain the settled product model. Active user/operator documentation and `docs/SPEC.md` match the accepted implementation; historical ADRs, old desktop tests and owner-source material are evidence only.
 
 ## Accepted implementation to preserve
 
@@ -20,9 +20,9 @@ Do not regress:
 - Focus / All data over one application corpus;
 - flexible user-maintainable application information;
 - shared Tags with scalable attach/search/create/edit and reviewed AI Tag proposals;
-- one persistent `AI may use this information` permission for application fields, professional information and career-context information;
-- Opportunity Review with the same permission model and projected-context preview;
-- bounded AI operations, typed capability validation, provider diagnostics and inspectable exchanges;
+- one persistent `AI may use this information` permission for application fields and reusable professional information;
+- Opportunity Review with the same bounded permission model;
+- bounded AI operations, typed capability validation, diagnostics and inspectable exchanges;
 - item-level Profile variants;
 - CV templates, Working CVs, immutable Rendered CV snapshots, application-owned cover letters and Application packets;
 - Templates / Rendered CVs / Letters / Application packets collections;
@@ -31,52 +31,55 @@ Do not regress:
 - advanced bounded external-assistant connection plus explicit installer/configurator action authority under Settings → AI;
 - demo/reset, local ownership and backup/recovery.
 
-Routine PR CI at the candidate SHA is green. The final-audit correction removed the stale `variant_recommendation` runtime key and reconciled the active MCP/user documentation with the registered bounded tool surface.
+## Windows candidate produced
 
-## Current gate: fresh packaged Windows candidate
+A fresh Windows x64 candidate was produced by GitHub Actions from exact SHA `74b9259d882534571acd65cd129f1bdcdaf309d7` using workflow `Windows package candidate`, run `35138407909`.
 
-Produce one fresh Windows package from exact accepted candidate `78772750bd15d9c1a8a2b8bf5930f3ebceddbbff` for Product Owner natural-use acceptance.
+The only repository change between the prior acceptance-state head and this packaging SHA is `.github/workflows/windows-package.yml`.
 
-This is acceptance evidence, not a new implementation pass.
+Packaging evidence:
 
-On a Windows environment with the repository checked out at that exact SHA:
+- Node `24.20.0`;
+- npm `11.19.0`;
+- `npm ci` passed;
+- `npm run typecheck` passed;
+- `npm run make` passed;
+- Verify run at the same SHA passed;
+- package `AAAAT-win32-x64-2.0.0-alpha.0.zip`;
+- package size `160169616` bytes;
+- package SHA-256 `a7e67e56a796f43a3c0deafd8ba2d099cef58e1a3c21beff0597965ac7b5a36d`;
+- GitHub Actions artifact `10463274901` contains that package plus `windows-package-metadata.txt`.
 
-1. use the repository-pinned Node/npm versions from `package.json`;
-2. run `npm ci`;
-3. confirm `npm run typecheck`;
-4. create the distributable with `npm run make` (Electron Forge Windows zip maker);
-5. launch the packaged application, not the development renderer;
-6. perform only a short packaging/runtime smoke sufficient to prove the package starts, loads/creates a workspace and exposes the current shell; do not substitute automation for owner natural-use acceptance;
-7. provide the resulting Windows ZIP artifact, exact SHA, file size and SHA-256 checksum to the Product Owner.
+This is an unsigned alpha package. Packaging success is build evidence only, not Product Owner acceptance.
 
-If packaging itself fails because of a concrete packaging/runtime defect, fix only that demonstrated blocker on this same branch, rerun the smallest relevant checks, and report the new SHA. Do not opportunistically change product UX or domain behavior.
+## Current gate: Product Owner natural-use acceptance
 
-Do not use stale historical Playwright expectations as authority. `npm run verify:package` may be useful evidence only where its current tests still match the accepted product; a historical UI assertion is not permission to revert the product.
+Do not perform additional implementation, cross-platform packaging or release work until the Product Owner reports natural-use findings from the Windows candidate.
 
-## Owner natural-use acceptance
+Owner testing should use the packaged application normally, not the development renderer. Useful coverage includes:
 
-The Product Owner should use the fresh packaged Windows candidate normally, with special attention to:
-
-- new sparse/raw application capture and optional CV/letter creation;
+- sparse/raw application capture and optional CV/letter creation;
 - Focus and complete application work;
 - shared Tag attach/search/create/edit behavior;
-- the single AI-use eye and AI diagnostics;
+- the single AI-use eye, AI connection validation and diagnostics;
 - My information item variants;
 - template → Working CV → Rendered CV ownership behavior;
 - application-owned letters and Application packets;
 - persistent Data/AI/PDF rail status;
-- four-tab Settings, including concrete AI endpoint errors and advanced external-assistant authorization;
+- four-tab Settings, endpoint errors and advanced external-assistant authorization;
 - demo/reset and backup/recovery.
 
-Do not merge on packaging success alone.
+Treat observed owner friction, wrong behavior, data loss, broken document ownership, misleading privacy/AI disclosure, or packaged-runtime failures as evidence. Do not invent speculative cleanup during acceptance.
 
-## After owner acceptance
+## After owner findings
+
+If owner testing finds a material defect, make one coherent correction pass scoped to demonstrated findings, then rebuild the Windows candidate as needed.
 
 Only after explicit Product Owner natural-use acceptance:
 
 1. run impact-appropriate Windows regression/package evidence;
 2. run Linux/macOS packaging or cross-platform verification appropriate to release readiness;
 3. resolve only demonstrated release blockers;
-4. prepare final merge/release decision.
+4. prepare the final merge/release decision.
 
 Never merge PR #319 without explicit Product Owner direction.
