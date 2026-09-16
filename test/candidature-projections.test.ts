@@ -20,7 +20,6 @@ function record(id: string, archived = false): CandidatureRecord {
     label: `Candidature ${id}`,
     sourceSearchText: "",
     values: [],
-    documentIds: [],
     tagIds: [],
   };
 }
