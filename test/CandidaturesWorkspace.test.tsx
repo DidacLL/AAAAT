@@ -43,8 +43,7 @@ function field(
       focusOrder: focusVisible ? 0 : null,
       focusProminence: "normal",
       identityOrder: null,
-      aiDiscovery: false,
-      aiContextMode: "omit",
+      aiUseAllowed: true,
     },
   };
 }
@@ -93,14 +92,17 @@ const nimbus: CandidatureRecord = {
 
 const list = vi.fn();
 const listFields = vi.fn();
+const listTags = vi.fn();
 const setFieldValue = vi.fn();
 const createField = vi.fn();
 const updateFieldPreferences = vi.fn();
 const updateTag = vi.fn();
+const setTags = vi.fn();
 
-function installApi() {
+function installApi(tags: readonly TagRecord[] = [platformTag]) {
   list.mockResolvedValue([regional, nimbus]);
   listFields.mockResolvedValue([organisation, hours]);
+  listTags.mockResolvedValue([...tags]);
   setFieldValue.mockImplementation(async ({ candidatureId, fieldId, value }) => {
     const base = candidatureId === regionalId ? regional : nimbus;
     return {
@@ -126,6 +128,10 @@ function installApi() {
     };
   });
   updateTag.mockImplementation(async (input) => input);
+  setTags.mockImplementation(async ({ candidatureId, tagIds }) => ({
+    ...(candidatureId === regionalId ? regional : nimbus),
+    tagIds,
+  }));
 
   const api = {
     candidatures: {
@@ -154,10 +160,10 @@ function installApi() {
       updateSource: vi.fn(),
       removeSource: vi.fn(),
       setDocuments: vi.fn(),
-      listTags: vi.fn().mockResolvedValue([platformTag]),
+      listTags,
       createTag: vi.fn(),
       updateTag,
-      setTags: vi.fn(),
+      setTags,
     },
     candidatureSearch: { search: vi.fn().mockResolvedValue([regionalId, nimbusId]) },
     documents: { list: vi.fn().mockResolvedValue([]) },
@@ -261,11 +267,11 @@ describe("rebuilt candidature workspace", () => {
     });
     expect(updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
       fieldId: addedId,
-      aiDiscovery: true,
+      aiUseAllowed: true,
     }));
   });
 
-  it("updates Focus visibility inline from the field edit state", async () => {
+  it("updates Focus visibility inline without changing AI-use permission", async () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
     await openRegionalRecord(user);
@@ -280,20 +286,51 @@ describe("rebuilt candidature workspace", () => {
 
     expect(updateFieldPreferences).toHaveBeenCalledWith({
       ...hours.preferences,
-      aiDiscovery: true,
       focusVisible: true,
       fieldId: hoursId,
     });
   });
 
-  it("keeps Tag notes editable in complete maintenance", async () => {
+  it("renders only attached Tags until the user searches a glossary of hundreds", async () => {
+    cleanup();
+    vi.clearAllMocks();
+    const manyTags: TagRecord[] = Array.from({ length: 400 }, (_, index) => ({
+      id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+      name: `Skill ${String(index + 1).padStart(3, "0")}`,
+      definition: `Definition ${index + 1}`,
+      notes: "",
+      aliases: [`alias-${index + 1}`],
+    }));
+    installApi([platformTag, ...manyTags]);
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
     await openRegionalRecord(user);
 
     const tags = screen.getByRole("region", { name: "Tags" });
-    await user.click(within(tags).getByRole("button", { name: "Edit Tag" }));
-    const notes = within(tags).getByLabelText("Notes");
+    const attached = within(tags).getByLabelText("Attached Tags");
+    expect(within(attached).getByRole("button", { name: "Platform" })).toBeInTheDocument();
+    expect(within(tags).queryByText("Skill 001")).not.toBeInTheDocument();
+    expect(within(tags).queryAllByRole("checkbox")).toHaveLength(0);
+
+    await user.type(within(tags).getByRole("searchbox", { name: "Find or create Tag" }), "Skill");
+    const results = within(tags).getByLabelText("Tag search results");
+    expect(within(results).getAllByRole("button", { name: /^Attach Skill/ })).toHaveLength(8);
+    expect(within(tags).queryByText("Skill 009")).not.toBeInTheDocument();
+
+    await user.clear(within(tags).getByRole("searchbox", { name: "Find or create Tag" }));
+    await user.type(within(tags).getByRole("searchbox", { name: "Find or create Tag" }), "Novel capability");
+    expect(within(tags).getByRole("button", { name: "Create “Novel capability”" })).toBeInTheDocument();
+  });
+
+  it("keeps the attached shared Tag editable from the application", async () => {
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+    await openRegionalRecord(user);
+
+    const tags = screen.getByRole("region", { name: "Tags" });
+    await user.click(within(tags).getByRole("button", { name: "Platform" }));
+    await user.click(within(tags).getByRole("button", { name: "Edit shared Tag" }));
+    const notes = within(tags).getByLabelText(/Notes/);
     expect(notes).toHaveValue("Remember the ownership boundaries.");
     await user.clear(notes);
     await user.type(notes, "Ask how platform ownership is divided.");
