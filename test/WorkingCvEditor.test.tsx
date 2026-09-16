@@ -253,15 +253,19 @@ describe("Working CV editor", () => {
     const user = userEvent.setup();
     renderEditor();
 
-    expect(screen.queryByRole("button", { name: "Save current composition to source template" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "Save as new template" })).not.toBeInTheDocument();
+    const summary = screen.getByText("Reuse this CV");
+    const reuse = summary.closest("details");
+    expect(reuse).not.toBeNull();
+    expect(reuse).not.toHaveAttribute("open");
+    expect(within(reuse!).getByRole("button", { name: "Save current composition to source template" })).toBeInTheDocument();
+    expect(within(reuse!).getByRole("textbox", { name: "Save as new template" })).toBeInTheDocument();
 
-    await user.click(screen.getByText("Reuse this CV"));
+    await user.click(summary);
+    expect(reuse).toHaveAttribute("open");
 
-    expect(screen.getByRole("button", { name: "Save current composition to source template" })).toBeVisible();
-    const templateName = screen.getByRole("textbox", { name: "Save as new template" });
+    const templateName = within(reuse!).getByRole("textbox", { name: "Save as new template" });
     await user.type(templateName, "Application base");
-    await user.click(screen.getByRole("button", { name: "Save template" }));
+    await user.click(within(reuse!).getByRole("button", { name: "Save template" }));
     await waitFor(() => expect(saveWorkingAsTemplate).toHaveBeenCalledWith({
       workingCvId: ids.working,
       name: "Application base",

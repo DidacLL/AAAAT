@@ -81,7 +81,7 @@ describe("loaded workspace shell", () => {
     expect(status).toHaveTextContent("PDF: Ready");
 
     await user.click(within(home).getByRole("button", { name: /Open applications/ }));
-    expect(screen.getByText("Applications")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Applications" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByLabelText("Environment status")).toBe(status);
 
     await user.click(screen.getByRole("button", { name: "Settings" }));
