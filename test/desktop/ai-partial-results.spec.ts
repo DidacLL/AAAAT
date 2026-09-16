@@ -308,8 +308,7 @@ test("packaged candidature AI keeps partial results from an imperfect OpenAI-com
         await window.aaaat.candidatures.updateFieldPreferences({
           ...created.preferences,
           fieldId: created.definition.id,
-          aiDiscovery: true,
-          aiContextMode: "expose",
+          aiUseAllowed: true,
         });
         return created.definition.id;
       };
