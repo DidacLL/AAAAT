@@ -10,6 +10,7 @@ import {
   type ProfileVariantRecord,
   type ProfileVariantUpdate,
 } from "../shared/profile-variant-contracts";
+import { cvTemplateReferencesProfileVariant } from "./cv-template-references";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface VariantRow {
@@ -49,4 +50,14 @@ export function listProfileVariants(rootPath: string): ProfileVariantRecord[] { 
 export function getProfileVariant(rootPath: string, variantId: string): ProfileVariantRecord { return withWorkspaceDatabase(rootPath, (database) => toRecord(requireRow(database, variantId))); }
 export function createProfileVariant(rootPath: string, rawInput: ProfileVariantInput): ProfileVariantRecord { const input = profileVariantInputSchema.parse(rawInput); return withWorkspaceDatabase(rootPath, (database) => { requireItem(database, input.itemId); const id = randomUUID(); const now = new Date().toISOString(); database.prepare(`INSERT INTO profile_variants(id, item_id, name, title, subtitle, description, start_date, end_date, url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, input.itemId, input.name, input.content.title, nullable(input.content.subtitle), nullable(input.content.description), nullable(input.content.startDate), nullable(input.content.endDate), nullable(input.content.url), now, now); return toRecord(requireRow(database, id)); }); }
 export function updateProfileVariant(rootPath: string, rawInput: ProfileVariantUpdate): ProfileVariantRecord { const input = profileVariantUpdateSchema.parse(rawInput); return withWorkspaceDatabase(rootPath, (database) => { requireRow(database, input.id); database.prepare(`UPDATE profile_variants SET name = ?, title = ?, subtitle = ?, description = ?, start_date = ?, end_date = ?, url = ?, updated_at = ? WHERE id = ?`).run(input.name, input.content.title, nullable(input.content.subtitle), nullable(input.content.description), nullable(input.content.startDate), nullable(input.content.endDate), nullable(input.content.url), new Date().toISOString(), input.id); return toRecord(requireRow(database, input.id)); }); }
-export function removeProfileVariant(rootPath: string, variantId: string): void { withWorkspaceDatabase(rootPath, (database) => { requireRow(database, variantId); database.prepare("DELETE FROM profile_variants WHERE id = ?").run(variantId); }); }
+export function removeProfileVariant(rootPath: string, variantId: string): void {
+  withWorkspaceDatabase(rootPath, (database) => {
+    requireRow(database, variantId);
+    if (cvTemplateReferencesProfileVariant(database, variantId)) {
+      throw new ProfileVariantServiceError(
+        "This saved variation is used by a reusable CV template. Change the template before removing it.",
+      );
+    }
+    database.prepare("DELETE FROM profile_variants WHERE id = ?").run(variantId);
+  });
+}
