@@ -37,8 +37,7 @@ const field: CandidatureFieldConfiguration = {
     focusOrder: null,
     focusProminence: "normal",
     identityOrder: null,
-    aiDiscovery: true,
-    aiContextMode: "expose",
+    aiUseAllowed: true,
   },
 };
 const contactFieldId = "00000000-0000-4000-8000-000000000903";
@@ -103,7 +102,7 @@ function extractionResult(
   proposals: PartialJobExtractionResult["proposals"],
   issues: PartialJobExtractionResult["issues"] = [],
 ): PartialJobExtractionResult {
-  return { proposals, newFields: [], issues };
+  return { proposals, newFields: [], existingTags: [], newTags: [], issues };
 }
 
 describe("saved Source extraction", () => {
