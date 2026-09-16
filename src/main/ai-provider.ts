@@ -18,10 +18,7 @@ import {
   providerJobExtractionResultSchema,
   providerVariantRecommendationResultSchema,
 } from "../shared/ai-contracts";
-import {
-  aiOperationLabels,
-  type AiOperation,
-} from "../shared/ai-connection-contracts";
+import { aiOperationLabels, type AiOperation } from "../shared/ai-connection-contracts";
 import {
   AI_EXCHANGE_DIAGNOSTIC_MARKER,
   aiExchangeDiagnosticSchema,
@@ -32,30 +29,18 @@ import {
 
 const providerResponseSchema = z
   .object({
-    choices: z
-      .array(
-        z
-          .object({
-            message: z.object({ content: z.string().min(1) }).passthrough(),
-          })
-          .passthrough(),
-      )
-      .min(1),
+    choices: z.array(z.object({ message: z.object({ content: z.string().min(1) }).passthrough() }).passthrough()).min(1),
   })
   .passthrough();
 
 export const AI_PROVIDER_SAFETY_CEILING_MS = 15 * 60 * 1000;
 
 function diagnosticSuffix(diagnostic: AiExchangeDiagnostic): string {
-  return `${AI_EXCHANGE_DIAGNOSTIC_MARKER}${Buffer.from(
-    JSON.stringify(aiExchangeDiagnosticSchema.parse(diagnostic)),
-    "utf8",
-  ).toString("base64url")}`;
+  return `${AI_EXCHANGE_DIAGNOSTIC_MARKER}${Buffer.from(JSON.stringify(aiExchangeDiagnosticSchema.parse(diagnostic)), "utf8").toString("base64url")}`;
 }
 
 export class AiProviderError extends Error {
   readonly diagnostic?: AiExchangeDiagnostic;
-
   constructor(message: string, diagnostic?: AiExchangeDiagnostic) {
     super(diagnostic ? `${message}\n${diagnosticSuffix(diagnostic)}` : message);
     this.name = "AiProviderError";
@@ -65,7 +50,7 @@ export class AiProviderError extends Error {
 
 export const AI_DEFAULT_INSTRUCTIONS: Readonly<Record<AiOperation, string>> = Object.freeze({
   opportunity_review: "Review one opportunity using only the supplied context. Return only the final JSON object with keys summary, relevantEvidence, uncertainties, questions. Do not expose chain-of-thought or reasoning. Do not rate, score, rank, choose a winner, prescribe next actions, or define a career workflow. Missing candidature information is normal; do not invent facts.",
-  job_extraction: "Extract only facts supported by the supplied Source. Return only the final JSON object as {\"proposals\":[{\"fieldRef\":\"...\",\"value\":...}],\"newFields\":[{\"label\":\"...\",\"description\":\"...\",\"valueType\":\"text|long_text|number|boolean|date|url|choice\",\"cardinality\":\"one|many\",\"choices\":[\"...\"],\"value\":...}]}. Do not expose chain-of-thought or reasoning. For proposals, use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for existing choice fields, and omit unsupported values. Reuse supplied fields first. Their label, description, type, cardinality, and choices define what each can hold. newFields is optional discovery only for useful facts that genuinely cannot fit any supplied field: suggest at most 8 concise reusable candidature information kinds, never duplicate an existing field by meaning or name (for example Languages/Idiomas vs Language Required), use choices only for choice fields, and omit speculative or weakly supported facts. Return an empty array when there are no genuinely useful new fields.",
+  job_extraction: "Extract only facts supported by the supplied Source. Return only the final JSON object as {\"proposals\":[{\"fieldRef\":\"...\",\"value\":...}],\"newFields\":[...],\"existingTags\":[{\"tagRef\":\"...\",\"evidence\":\"optional source evidence\"}],\"newTags\":[{\"name\":\"...\",\"definition\":\"...\",\"aliases\":[\"...\"],\"evidence\":\"optional source evidence\"}]}. Do not expose chain-of-thought or reasoning. For proposals, use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for existing choice fields, and omit unsupported values. Reuse supplied fields first. newFields is optional discovery only for useful facts that genuinely cannot fit any supplied field: suggest at most 8 concise reusable candidature information kinds and never duplicate an existing field by meaning or name. For Tags, match the supplied glossary by canonical name, aliases and definition and use existingTags with only supplied tagRef values. Propose a new Tag only when no existing Tag fits; every new Tag must have a concise canonical name and a non-empty reusable definition, with optional aliases and evidence. Do not persist anything; all proposals are reviewed by the user. Use empty arrays when there are no supported proposals.",
   historical_field_discovery: "Extract only the requested information from the retained Sources explicitly selected by the user. Return the same fixed extraction JSON contract, using only the supplied target fieldRef. Do not expose chain-of-thought or reasoning. Do not infer unrelated fields or invent facts.",
   variant_recommendation: "Choose exactly one supplied profile variant for the supplied candidature. Return only the final JSON object with keys variantRef and rationale. Do not expose chain-of-thought or reasoning. Never invent a variantRef or propose creating a new variant.",
   cv_tailoring: "Recommend the strongest supplied career items for this candidature. Return only the final JSON object with key recommendations, an array of objects with itemRef and rationale. Do not expose chain-of-thought or reasoning. Use only itemRef values supplied in context. Do not rewrite or invent career facts.",
@@ -73,28 +58,11 @@ export const AI_DEFAULT_INSTRUCTIONS: Readonly<Record<AiOperation, string>> = Ob
 });
 
 export interface ModelProvider {
-  reviewOpportunity(
-    connection: AiConnectionStatus,
-    context: ProviderOpportunityReviewContext,
-  ): Promise<OpportunityReviewResult>;
-  extractJob(
-    connection: AiConnectionStatus,
-    request: ProviderJobExtractionRequest,
-    signal?: AbortSignal,
-    operation?: "job_extraction" | "historical_field_discovery",
-  ): Promise<z.input<typeof providerJobExtractionResultSchema>>;
-  recommendVariant(
-    connection: AiConnectionStatus,
-    context: ProviderVariantRecommendationContext,
-  ): Promise<ProviderVariantRecommendationResult>;
-  tailorCv(
-    connection: AiConnectionStatus,
-    context: ProviderDocumentAiContext,
-  ): Promise<ProviderCvTailoringResult>;
-  draftCoverLetter(
-    connection: AiConnectionStatus,
-    context: ProviderDocumentAiContext,
-  ): Promise<CoverLetterDraft>;
+  reviewOpportunity(connection: AiConnectionStatus, context: ProviderOpportunityReviewContext): Promise<OpportunityReviewResult>;
+  extractJob(connection: AiConnectionStatus, request: ProviderJobExtractionRequest, signal?: AbortSignal, operation?: "job_extraction" | "historical_field_discovery"): Promise<z.input<typeof providerJobExtractionResultSchema>>;
+  recommendVariant(connection: AiConnectionStatus, context: ProviderVariantRecommendationContext): Promise<ProviderVariantRecommendationResult>;
+  tailorCv(connection: AiConnectionStatus, context: ProviderDocumentAiContext): Promise<ProviderCvTailoringResult>;
+  draftCoverLetter(connection: AiConnectionStatus, context: ProviderDocumentAiContext): Promise<CoverLetterDraft>;
 }
 
 function chatCompletionsUrl(baseUrl: string): string {
@@ -129,24 +97,12 @@ function diagnostic(
   structuredOutputMode: AiStructuredOutputMode,
 ): AiExchangeDiagnostic {
   return aiExchangeDiagnosticSchema.parse({
-    id: randomUUID(),
-    operation,
-    endpoint: endpointForDiagnostic(connection.endpoint),
-    model: connection.model,
-    systemInstruction: instruction,
-    userPayload,
-    rawModelResponse,
-    validationError,
-    failureKind,
-    structuredOutputMode,
+    id: randomUUID(), operation, endpoint: endpointForDiagnostic(connection.endpoint), model: connection.model,
+    systemInstruction: instruction, userPayload, rawModelResponse, validationError, failureKind, structuredOutputMode,
   });
 }
 
-interface ProviderContent {
-  readonly content: string;
-  readonly structuredOutputMode: AiStructuredOutputMode;
-}
-
+interface ProviderContent { readonly content: string; readonly structuredOutputMode: AiStructuredOutputMode; }
 type RequestProfile = "structured_no_thinking" | "structured" | "plain_json";
 
 function requestBody<T>(
@@ -161,35 +117,15 @@ function requestBody<T>(
   return {
     model: connection.model,
     temperature: 0,
-    ...(profile === "structured_no_thinking"
-      ? {
-          reasoning_effort: "none",
-          chat_template_kwargs: { enable_thinking: false },
-        }
-      : {}),
-    ...(structured
-      ? {
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: `aaaat_${operation}`,
-              strict: true,
-              schema: z.toJSONSchema(schema),
-            },
-          },
-        }
-      : {}),
-    messages: [
-      { role: "system", content: instruction },
-      { role: "user", content: userPayload },
-    ],
+    ...(profile === "structured_no_thinking" ? { reasoning_effort: "none", chat_template_kwargs: { enable_thinking: false } } : {}),
+    ...(structured ? { response_format: { type: "json_schema", json_schema: { name: `aaaat_${operation}`, strict: true, schema: z.toJSONSchema(schema) } } } : {}),
+    messages: [{ role: "system", content: instruction }, { role: "user", content: userPayload }],
   };
 }
 
 function mayRejectRequestOption(status: number): boolean {
   return status === 400 || status === 404 || status === 415 || status === 422;
 }
-
 function outputMode(profile: RequestProfile): AiStructuredOutputMode {
   return profile === "plain_json" ? "plain_json_fallback" : "json_schema";
 }
@@ -206,72 +142,33 @@ async function requestContent<T>(
 ): Promise<ProviderContent> {
   const userPayload = JSON.stringify(context);
   const timeoutSignal = AbortSignal.timeout(requestTimeoutMs);
-  const signal = externalSignal
-    ? AbortSignal.any([externalSignal, timeoutSignal])
-    : timeoutSignal;
-
+  const signal = externalSignal ? AbortSignal.any([externalSignal, timeoutSignal]) : timeoutSignal;
   const attempt = async (profile: RequestProfile): Promise<{ response: Response; raw: string }> => {
     let response: Response;
     try {
       response = await fetchImpl(chatCompletionsUrl(connection.endpoint), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        redirect: "error",
-        signal,
-        body: JSON.stringify(
-          requestBody(connection, operation, instruction, userPayload, schema, profile),
-        ),
+        method: "POST", headers: { "content-type": "application/json" }, redirect: "error", signal,
+        body: JSON.stringify(requestBody(connection, operation, instruction, userPayload, schema, profile)),
       });
     } catch (reason) {
-      if (externalSignal?.aborted) {
-        throw new AiProviderError("AI task cancelled.");
-      }
+      if (externalSignal?.aborted) throw new AiProviderError("AI task cancelled.");
       if (timeoutFailure(reason)) {
         throw new AiProviderError(
           "The AI provider did not finish before AAAAT's 15-minute safety limit. The model may still be healthy; retry the task or inspect the local provider if it remains stuck.",
-          diagnostic(
-            connection,
-            operation,
-            instruction,
-            userPayload,
-            "",
-            "The request exceeded AAAAT's provider safety timeout.",
-            "connection_unreachable",
-            outputMode(profile),
-          ),
+          diagnostic(connection, operation, instruction, userPayload, "", "The request exceeded AAAAT's provider safety timeout.", "connection_unreachable", outputMode(profile)),
         );
       }
       throw new AiProviderError(
         "AAAAT could not reach the configured AI provider. Check that the endpoint is running and reachable, then retry.",
-        diagnostic(
-          connection,
-          operation,
-          instruction,
-          userPayload,
-          "",
-          reason instanceof Error ? reason.message : "Network request failed before an HTTP response was received.",
-          "connection_unreachable",
-          outputMode(profile),
-        ),
+        diagnostic(connection, operation, instruction, userPayload, "", reason instanceof Error ? reason.message : "Network request failed before an HTTP response was received.", "connection_unreachable", outputMode(profile)),
       );
     }
-
     let raw: string;
-    try {
-      raw = await response.text();
-    } catch (reason) {
+    try { raw = await response.text(); }
+    catch (reason) {
       throw new AiProviderError(
         "The configured provider returned an unreadable response envelope.",
-        diagnostic(
-          connection,
-          operation,
-          instruction,
-          userPayload,
-          "",
-          reason instanceof Error ? reason.message : "The provider response body could not be read.",
-          "provider_envelope_invalid",
-          outputMode(profile),
-        ),
+        diagnostic(connection, operation, instruction, userPayload, "", reason instanceof Error ? reason.message : "The provider response body could not be read.", "provider_envelope_invalid", outputMode(profile)),
       );
     }
     return { response, raw };
@@ -279,47 +176,22 @@ async function requestContent<T>(
 
   let profile: RequestProfile = "structured_no_thinking";
   let current = await attempt(profile);
-  if (!current.response.ok && mayRejectRequestOption(current.response.status)) {
-    profile = "structured";
-    current = await attempt(profile);
-  }
-  if (!current.response.ok && mayRejectRequestOption(current.response.status)) {
-    profile = "plain_json";
-    current = await attempt(profile);
-  }
+  if (!current.response.ok && mayRejectRequestOption(current.response.status)) { profile = "structured"; current = await attempt(profile); }
+  if (!current.response.ok && mayRejectRequestOption(current.response.status)) { profile = "plain_json"; current = await attempt(profile); }
 
   if (!current.response.ok) {
     throw new AiProviderError(
       `The configured AI provider returned HTTP ${current.response.status}. The endpoint is reachable, but the request was rejected.`,
-      diagnostic(
-        connection,
-        operation,
-        instruction,
-        userPayload,
-        current.raw,
-        `HTTP ${current.response.status} ${current.response.statusText}`.trim(),
-        "provider_http_failure",
-        outputMode(profile),
-      ),
+      diagnostic(connection, operation, instruction, userPayload, current.raw, `HTTP ${current.response.status} ${current.response.statusText}`.trim(), "provider_http_failure", outputMode(profile)),
     );
   }
 
   let payload: unknown;
-  try {
-    payload = JSON.parse(current.raw) as unknown;
-  } catch (reason) {
+  try { payload = JSON.parse(current.raw) as unknown; }
+  catch (reason) {
     throw new AiProviderError(
       "The configured provider returned a malformed OpenAI-compatible response envelope.",
-      diagnostic(
-        connection,
-        operation,
-        instruction,
-        userPayload,
-        current.raw,
-        reason instanceof Error ? reason.message : "The provider envelope was not valid JSON.",
-        "provider_envelope_invalid",
-        outputMode(profile),
-      ),
+      diagnostic(connection, operation, instruction, userPayload, current.raw, reason instanceof Error ? reason.message : "The provider envelope was not valid JSON.", "provider_envelope_invalid", outputMode(profile)),
     );
   }
 
@@ -328,18 +200,7 @@ async function requestContent<T>(
   if (!content) {
     throw new AiProviderError(
       "The configured provider returned a malformed OpenAI-compatible response envelope.",
-      diagnostic(
-        connection,
-        operation,
-        instruction,
-        userPayload,
-        current.raw,
-        parsed.success
-          ? "The provider response did not contain choices[0].message.content."
-          : z.prettifyError(parsed.error),
-        "provider_envelope_invalid",
-        outputMode(profile),
-      ),
+      diagnostic(connection, operation, instruction, userPayload, current.raw, parsed.success ? "The provider response did not contain choices[0].message.content." : z.prettifyError(parsed.error), "provider_envelope_invalid", outputMode(profile)),
     );
   }
   return { content, structuredOutputMode: outputMode(profile) };
@@ -355,37 +216,18 @@ function parseJson<T>(
 ): T {
   const userPayload = JSON.stringify(context);
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(response.content) as unknown;
-  } catch (reason) {
+  try { parsed = JSON.parse(response.content) as unknown; }
+  catch (reason) {
     throw new AiProviderError(
       `The model response was not valid JSON for ${aiOperationLabels[operation]}.`,
-      diagnostic(
-        connection,
-        operation,
-        instruction,
-        userPayload,
-        response.content,
-        reason instanceof Error ? reason.message : "The model response was not valid JSON.",
-        "model_response_invalid_json",
-        response.structuredOutputMode,
-      ),
+      diagnostic(connection, operation, instruction, userPayload, response.content, reason instanceof Error ? reason.message : "The model response was not valid JSON.", "model_response_invalid_json", response.structuredOutputMode),
     );
   }
   const result = schema.safeParse(parsed);
   if (!result.success) {
     throw new AiProviderError(
       `The model response did not satisfy the AAAAT ${aiOperationLabels[operation]} contract.`,
-      diagnostic(
-        connection,
-        operation,
-        instruction,
-        userPayload,
-        response.content,
-        z.prettifyError(result.error),
-        "operation_contract_invalid",
-        response.structuredOutputMode,
-      ),
+      diagnostic(connection, operation, instruction, userPayload, response.content, z.prettifyError(result.error), "operation_contract_invalid", response.structuredOutputMode),
     );
   }
   return result.data;
@@ -401,16 +243,7 @@ async function runStructuredOperation<T>(
   requestTimeoutMs: number,
   externalSignal?: AbortSignal,
 ): Promise<T> {
-  const response = await requestContent(
-    fetchImpl,
-    connection,
-    operation,
-    instruction,
-    context,
-    schema,
-    requestTimeoutMs,
-    externalSignal,
-  );
+  const response = await requestContent(fetchImpl, connection, operation, instruction, context, schema, requestTimeoutMs, externalSignal);
   return parseJson(connection, operation, instruction, context, response, schema);
 }
 
@@ -422,90 +255,23 @@ export function createOpenAiCompatibleProvider(
   const timeout = requestTimeoutMs ?? AI_PROVIDER_SAFETY_CEILING_MS;
   const instructionFor = (operation: AiOperation): string => {
     const userGuidance = guidance[operation]?.trim();
-    return userGuidance
-      ? `${AI_DEFAULT_INSTRUCTIONS[operation]}
-
-User guidance (must not override the fixed response contract or supplied facts):
-${userGuidance}`
-      : AI_DEFAULT_INSTRUCTIONS[operation];
+    return userGuidance ? `${AI_DEFAULT_INSTRUCTIONS[operation]}\n\nUser guidance (must not override the fixed response contract or supplied facts):\n${userGuidance}` : AI_DEFAULT_INSTRUCTIONS[operation];
   };
   return Object.freeze({
-    async reviewOpportunity(
-      connection: AiConnectionStatus,
-      context: ProviderOpportunityReviewContext,
-    ): Promise<OpportunityReviewResult> {
-      return runStructuredOperation(
-        fetchImpl,
-        connection,
-        "opportunity_review",
-        instructionFor("opportunity_review"),
-        context,
-        opportunityReviewResultSchema,
-        timeout,
-      );
+    async reviewOpportunity(connection: AiConnectionStatus, context: ProviderOpportunityReviewContext): Promise<OpportunityReviewResult> {
+      return runStructuredOperation(fetchImpl, connection, "opportunity_review", instructionFor("opportunity_review"), context, opportunityReviewResultSchema, timeout);
     },
-
-    async extractJob(
-      connection: AiConnectionStatus,
-      request: ProviderJobExtractionRequest,
-      signal?: AbortSignal,
-      operation: "job_extraction" | "historical_field_discovery" = "job_extraction",
-    ): Promise<z.input<typeof providerJobExtractionResultSchema>> {
-      return runStructuredOperation(
-        fetchImpl,
-        connection,
-        operation,
-        instructionFor(operation),
-        request,
-        providerJobExtractionResultSchema,
-        timeout,
-        signal,
-      );
+    async extractJob(connection: AiConnectionStatus, request: ProviderJobExtractionRequest, signal?: AbortSignal, operation: "job_extraction" | "historical_field_discovery" = "job_extraction"): Promise<z.input<typeof providerJobExtractionResultSchema>> {
+      return runStructuredOperation(fetchImpl, connection, operation, instructionFor(operation), request, providerJobExtractionResultSchema, timeout, signal);
     },
-
-    async recommendVariant(
-      connection: AiConnectionStatus,
-      context: ProviderVariantRecommendationContext,
-    ): Promise<ProviderVariantRecommendationResult> {
-      return runStructuredOperation(
-        fetchImpl,
-        connection,
-        "variant_recommendation",
-        instructionFor("variant_recommendation"),
-        context,
-        providerVariantRecommendationResultSchema,
-        timeout,
-      );
+    async recommendVariant(connection: AiConnectionStatus, context: ProviderVariantRecommendationContext): Promise<ProviderVariantRecommendationResult> {
+      return runStructuredOperation(fetchImpl, connection, "variant_recommendation", instructionFor("variant_recommendation"), context, providerVariantRecommendationResultSchema, timeout);
     },
-
-    async tailorCv(
-      connection: AiConnectionStatus,
-      context: ProviderDocumentAiContext,
-    ): Promise<ProviderCvTailoringResult> {
-      return runStructuredOperation(
-        fetchImpl,
-        connection,
-        "cv_tailoring",
-        instructionFor("cv_tailoring"),
-        context,
-        providerCvTailoringResultSchema,
-        timeout,
-      );
+    async tailorCv(connection: AiConnectionStatus, context: ProviderDocumentAiContext): Promise<ProviderCvTailoringResult> {
+      return runStructuredOperation(fetchImpl, connection, "cv_tailoring", instructionFor("cv_tailoring"), context, providerCvTailoringResultSchema, timeout);
     },
-
-    async draftCoverLetter(
-      connection: AiConnectionStatus,
-      context: ProviderDocumentAiContext,
-    ): Promise<CoverLetterDraft> {
-      return runStructuredOperation(
-        fetchImpl,
-        connection,
-        "cover_letter_draft",
-        instructionFor("cover_letter_draft"),
-        context,
-        coverLetterDraftSchema,
-        timeout,
-      );
+    async draftCoverLetter(connection: AiConnectionStatus, context: ProviderDocumentAiContext): Promise<CoverLetterDraft> {
+      return runStructuredOperation(fetchImpl, connection, "cover_letter_draft", instructionFor("cover_letter_draft"), context, coverLetterDraftSchema, timeout);
     },
   });
 }
