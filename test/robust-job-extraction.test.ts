@@ -16,6 +16,7 @@ import {
   createCandidatureField,
   updateCandidatureFieldPreferences,
 } from "../src/main/candidature-field-service";
+import { createTag } from "../src/main/tag-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
@@ -53,17 +54,46 @@ async function configuredWorkspace(): Promise<string> {
   return root;
 }
 
-function discoveryField(
+function aiField(
   root: string,
-  input: Parameters<typeof createCandidatureField>[1],
+  label: string,
+  valueType: "text" | "number" = "text",
+  aiUseAllowed = true,
 ) {
-  const created = createCandidatureField(root, input);
-  updateCandidatureFieldPreferences(root, {
-    ...created.preferences,
-    aiDiscovery: true,
-    aiContextMode: "expose",
+  const created = createCandidatureField(root, {
+    label,
+    description: `${label} description`,
+    valueType,
+    cardinality: "one",
+    choices: [],
+    enabled: true,
   });
-  return created;
+  return updateCandidatureFieldPreferences(root, {
+    ...created.preferences,
+    aiUseAllowed,
+  });
+}
+
+function userPayload(init: RequestInit | undefined): {
+  fields: Array<{ fieldRef: string; label: string }>;
+  tags: Array<{ tagRef: string; name: string; aliases: string[]; definition: string }>;
+} {
+  const body = JSON.parse(String(init?.body)) as {
+    messages: Array<{ role: string; content: string }>;
+  };
+  return JSON.parse(
+    body.messages.find((message) => message.role === "user")?.content ?? "{}",
+  ) as {
+    fields: Array<{ fieldRef: string; label: string }>;
+    tags: Array<{ tagRef: string; name: string; aliases: string[]; definition: string }>;
+  };
+}
+
+function modelResponse(result: unknown): Response {
+  return new Response(
+    JSON.stringify({ choices: [{ message: { content: JSON.stringify(result) } }] }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
 }
 
 afterEach(() => {
@@ -73,347 +103,134 @@ afterEach(() => {
 });
 
 describe("partial-safe job extraction", () => {
-  it("keeps valid siblings, normalizes safe cardinality mismatches, and isolates invalid or stale proposals", async () => {
+  it("keeps a valid sibling when another proposed field value is incompatible", async () => {
     const root = await configuredWorkspace();
-    const organisation = discoveryField(root, {
-      label: "Organisation partial test",
-      description: "Employer name.",
-      valueType: "text",
-      cardinality: "one",
-      choices: [],
-      enabled: true,
-    });
-    const languages = discoveryField(root, {
-      label: "Idiomas",
-      description: "Languages requested by the opportunity.",
-      valueType: "text",
-      cardinality: "many",
-      choices: [],
-      enabled: true,
-    });
-    const location = discoveryField(root, {
-      label: "Location partial test",
-      description: "Opportunity location.",
-      valueType: "text",
-      cardinality: "one",
-      choices: [],
-      enabled: true,
-    });
-    const salary = discoveryField(root, {
-      label: "Salary partial test",
-      description: "Compensation amount.",
-      valueType: "number",
-      cardinality: "one",
-      choices: [],
-      enabled: true,
-    });
-    const applyUrl = discoveryField(root, {
-      label: "Apply URL partial test",
-      description: "Application URL.",
-      valueType: "url",
-      cardinality: "one",
-      choices: [],
-      enabled: true,
-    });
-    const workMode = discoveryField(root, {
-      label: "Work mode partial test",
-      description: "Allowed working mode.",
-      valueType: "choice",
-      cardinality: "one",
-      choices: [
-        { id: "00000000-0000-4000-8000-000000009901", label: "Remote" },
-        { id: "00000000-0000-4000-8000-000000009902", label: "On site" },
-      ],
-      enabled: true,
-    });
+    const organisation = aiField(root, "Organisation partial test");
+    const salary = aiField(root, "Salary partial test", "number");
 
-    let sentBody: Record<string, unknown> | null = null;
-    const fetchMock = vi.fn<typeof fetch>(async (_input, init) => {
-      sentBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      const messages = sentBody.messages as Array<{ role: string; content: string }>;
-      const userPayload = JSON.parse(
-        messages.find((message) => message.role === "user")?.content ?? "{}",
-      ) as {
-        fields: Array<{
-          fieldRef: string;
-          label: string;
-          choices: Array<{ choiceRef: string }>;
-        }>;
-      };
-      const ref = (label: string) =>
-        userPayload.fields.find((field) => field.label === label)?.fieldRef ?? "";
-
-      const modelResult = {
-        proposals: [
-          { fieldRef: ref("Organisation partial test"), value: "Aster Aviation" },
-          { fieldRef: ref("Idiomas"), value: "English" },
-          { fieldRef: ref("Location partial test"), value: ["Madrid"] },
-          { fieldRef: ref("Salary partial test"), value: "50000" },
-          { fieldRef: ref("Apply URL partial test"), value: "not a URL" },
-          { fieldRef: ref("Work mode partial test"), value: "aaaat_unknown_choice" },
-          { fieldRef: "aaaat_stale_field_1", value: "stale" },
-        ],
-        newFields: [
-          {
-            label: "Seniority partial test",
-            description: "Seniority named by the offer.",
-            valueType: "text",
-            cardinality: "one",
-            choices: [],
-            value: "Senior",
-          },
-          {
-            label: "Broken extra",
-            description: "Deliberately malformed local-model suggestion.",
-            valueType: "text",
-            cardinality: "one",
-            choices: ["Should not exist for text"],
-            value: "x",
-          },
-        ],
-      };
-      return new Response(
-        JSON.stringify({ choices: [{ message: { content: JSON.stringify(modelResult) } }] }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_input, init) => {
+        const payload = userPayload(init);
+        const ref = (label: string) =>
+          payload.fields.find((field) => field.label === label)?.fieldRef ?? "";
+        return modelResponse({
+          proposals: [
+            { fieldRef: ref("Organisation partial test"), value: "Aster Aviation" },
+            { fieldRef: ref("Salary partial test"), value: "not-a-number" },
+          ],
+          newFields: [],
+          existingTags: [],
+          newTags: [],
+        });
+      }),
+    );
 
     const result = await extractJobWithPartialOutcomes(root, {
       sourceTitle: "Aster vacancy",
-      sourceUrl: "https://example.invalid/jobs/aster",
-      sourceText: "Aster Aviation seeks a Senior candidate in Madrid. English is required.",
+      sourceUrl: "",
+      sourceText: "Aster Aviation offers a competitive salary.",
     });
 
-    expect(result.proposals).toEqual(
-      expect.arrayContaining([
-        { fieldId: organisation.definition.id, value: "Aster Aviation" },
-        { fieldId: languages.definition.id, value: ["English"] },
-        { fieldId: location.definition.id, value: "Madrid" },
-      ]),
-    );
-    expect(result.proposals).toHaveLength(3);
-    expect(result.newFields).toMatchObject([{ label: "Seniority partial test", value: "Senior" }]);
-    expect(result.issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ fieldId: salary.definition.id, kind: "invalid" }),
-        expect.objectContaining({ fieldId: applyUrl.definition.id, kind: "invalid" }),
-        expect.objectContaining({ fieldId: workMode.definition.id, kind: "invalid" }),
-        expect.objectContaining({ fieldId: null, kind: "stale" }),
-        expect.objectContaining({ fieldLabel: "Broken extra", kind: "new_field_invalid" }),
-      ]),
-    );
-
-    expect(result.exchange?.rawModelResponse).toContain("English");
-    expect(result.exchange?.systemInstruction).toContain("obey each field type and cardinality");
-    expect(result.exchange?.userPayload).toContain("Idiomas");
-    expect(result.exchange?.providerValidationError).not.toBe("");
-
-    const capturedBody = sentBody as unknown as Record<string, unknown> | null;
-    const responseFormat = capturedBody?.response_format as {
-      json_schema?: { schema?: { properties?: { proposals?: { items?: unknown } } } };
-    };
-    const items = responseFormat.json_schema?.schema?.properties?.proposals?.items as {
-      anyOf?: Array<{
-        properties?: { fieldRef?: { const?: string }; value?: { type?: string; items?: unknown } };
-      }>;
-    };
-    const parsedPayload = JSON.parse(result.exchange?.userPayload ?? "{}") as {
-      fields: Array<{ label: string; fieldRef: string }>;
-    };
-    const languageWireRef = parsedPayload.fields.find(
-      (candidate) => candidate.label === "Idiomas",
-    )?.fieldRef;
-    const locationWireRef = parsedPayload.fields.find(
-      (candidate) => candidate.label === "Location partial test",
-    )?.fieldRef;
-    expect(
-      items.anyOf?.find((candidate) => candidate.properties?.fieldRef?.const === languageWireRef)
-        ?.properties?.value?.type,
-    ).toBe("array");
-    expect(
-      items.anyOf?.find((candidate) => candidate.properties?.fieldRef?.const === locationWireRef)
-        ?.properties?.value?.type,
-    ).toBe("string");
+    expect(result.proposals).toEqual([
+      { fieldId: organisation.definition.id, value: "Aster Aviation" },
+    ]);
+    expect(result.issues).toEqual([
+      expect.objectContaining({ fieldId: salary.definition.id, kind: "invalid" }),
+    ]);
   });
 
-  it("marks one-value multi-item arrays incompatible without discarding usable siblings", async () => {
+  it("requests only empty information whose single AI-use eye is enabled", async () => {
     const root = await configuredWorkspace();
-    const role = discoveryField(root, {
-      label: "Role partial test",
-      description: "Role title.",
-      valueType: "text",
-      cardinality: "one",
-      choices: [],
-      enabled: true,
-    });
-    const location = discoveryField(root, {
-      label: "Location single-value partial test",
-      description: "Location.",
-      valueType: "text",
-      cardinality: "one",
-      choices: [],
-      enabled: true,
-    });
+    const allowed = aiField(root, "Allowed information", "text", true);
+    const disabled = aiField(root, "Disabled information", "text", false);
+    let payload: ReturnType<typeof userPayload> | null = null;
 
     vi.stubGlobal(
       "fetch",
       vi.fn<typeof fetch>(async (_input, init) => {
-        const body = JSON.parse(String(init?.body)) as {
-          messages: Array<{ role: string; content: string }>;
-        };
-        const payload = JSON.parse(
-          body.messages.find((message) => message.role === "user")?.content ?? "{}",
-        ) as { fields: Array<{ fieldRef: string; label: string }> };
-        const ref = (label: string) =>
-          payload.fields.find((field) => field.label === label)?.fieldRef ?? "";
-        const modelResult = {
-          proposals: [
-            { fieldRef: ref("Role partial test"), value: ["Engineer", "Architect"] },
-            { fieldRef: ref("Location single-value partial test"), value: "Madrid" },
-          ],
+        payload = userPayload(init);
+        return modelResponse({ proposals: [], newFields: [], existingTags: [], newTags: [] });
+      }),
+    );
+
+    await extractJobWithPartialOutcomes(root, {
+      sourceTitle: "Targeted offer",
+      sourceUrl: "",
+      sourceText: "Some supported facts.",
+    });
+
+    expect(payload?.fields.map((field) => field.label)).toContain("Allowed information");
+    expect(payload?.fields.map((field) => field.label)).not.toContain("Disabled information");
+    expect(JSON.stringify(payload)).not.toContain(disabled.definition.id);
+
+    await expect(
+      extractJobWithPartialOutcomes(
+        root,
+        { sourceTitle: "Targeted", sourceUrl: "", sourceText: "Some supported facts." },
+        undefined,
+        [disabled.definition.id],
+      ),
+    ).rejects.toThrow("The requested information is no longer available for AI use.");
+    expect(allowed.preferences.aiUseAllowed).toBe(true);
+  });
+
+  it("supplies a bounded shared Tag glossary and returns existing matches plus defined new Tags for review", async () => {
+    const root = await configuredWorkspace();
+    aiField(root, "Role");
+    const existing = createTag(root, {
+      name: "TypeScript",
+      definition: "Use of TypeScript in professional software work.",
+      aliases: ["TS"],
+      notes: "Local note is not provider context.",
+    });
+    let payload: ReturnType<typeof userPayload> | null = null;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_input, init) => {
+        payload = userPayload(init);
+        const tagRef = payload.tags.find((tag) => tag.name === "TypeScript")?.tagRef ?? "";
+        return modelResponse({
+          proposals: [],
           newFields: [],
-        };
-        return new Response(
-          JSON.stringify({ choices: [{ message: { content: JSON.stringify(modelResult) } }] }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
+          existingTags: [{ tagRef, evidence: "The offer requires TypeScript." }],
+          newTags: [
+            {
+              name: "Distributed systems",
+              definition: "Design and operation of software spanning multiple networked components.",
+              aliases: ["distributed architecture"],
+              evidence: "The role owns distributed services.",
+            },
+          ],
+        });
       }),
     );
 
     const result = await extractJobWithPartialOutcomes(root, {
-      sourceTitle: "",
+      sourceTitle: "Platform role",
       sourceUrl: "",
-      sourceText: "Engineer or Architect wording appears near Madrid.",
+      sourceText: "TypeScript is required for distributed services.",
     });
 
-    expect(result.proposals).toEqual([{ fieldId: location.definition.id, value: "Madrid" }]);
-    expect(result.issues).toEqual([
+    expect(payload?.tags).toEqual([
       expect.objectContaining({
-        fieldId: role.definition.id,
-        kind: "invalid",
-        proposedValue: ["Engineer", "Architect"],
+        name: "TypeScript",
+        aliases: ["TS"],
+        definition: existing.definition,
       }),
     ]);
-  });
-
-  it("sends only explicitly targeted fields with compact task-local references", async () => {
-    const root = await configuredWorkspace();
-    const target = discoveryField(root, {
-      label: "Target language",
-      description: "Language required by the opportunity.",
-      valueType: "text",
-      cardinality: "many",
-      choices: [],
-      enabled: true,
-    });
-    discoveryField(root, {
-      label: "Unrelated notice period",
-      description: "Notice period if supplied.",
-      valueType: "text",
-      cardinality: "one",
-      choices: [],
-      enabled: true,
-    });
-
-    let payload: { fields: Array<{ fieldRef: string; label: string; description: string; cardinality: string }> } | null = null;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn<typeof fetch>(async (_input, init) => {
-        const body = JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> };
-        payload = JSON.parse(body.messages.find((message) => message.role === "user")?.content ?? "{}") as typeof payload;
-        return new Response(
-          JSON.stringify({ choices: [{ message: { content: JSON.stringify({ proposals: [], newFields: [] }) } }] }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }),
-    );
-
-    await extractJobWithPartialOutcomes(
-      root,
-      { sourceTitle: "Targeted", sourceUrl: "", sourceText: "English required." },
-      undefined,
-      [target.definition.id],
-    );
-
-    expect((payload as unknown as { fields: unknown[] }).fields).toEqual([
-      expect.objectContaining({
-        fieldRef: "aaaat_f1",
-        label: "Target language",
-        description: "Language required by the opportunity.",
-        cardinality: "many",
-      }),
+    expect(JSON.stringify(payload)).not.toContain("Local note is not provider context");
+    expect(result.existingTags).toEqual([
+      { tagId: existing.id, name: "TypeScript", evidence: "The offer requires TypeScript." },
     ]);
-    expect(JSON.stringify(payload)).not.toContain("Unrelated notice period");
-    expect(JSON.stringify(payload)).not.toContain(target.definition.id);
-  });
-
-  it("reuses Idiomas for Language Required and still allows genuinely unrelated new information", async () => {
-    const root = await configuredWorkspace();
-    const idiomas = discoveryField(root, {
-      label: "Idiomas",
-      description: "Languages required or useful for the opportunity.",
-      valueType: "text",
-      cardinality: "many",
-      choices: [],
-      enabled: true,
-    });
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn<typeof fetch>(async (_input, init) => {
-        const body = JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> };
-        const payload = JSON.parse(
-          body.messages.find((message) => message.role === "user")?.content ?? "{}",
-        ) as { fields: Array<{ fieldRef: string; label: string; description: string; cardinality: string }> };
-        expect(payload.fields).toEqual([
-          expect.objectContaining({
-            fieldRef: "aaaat_f1",
-            label: "Idiomas",
-            description: "Languages required or useful for the opportunity.",
-            cardinality: "many",
-          }),
-        ]);
-        const modelResult = {
-          proposals: [],
-          newFields: [
-            {
-              label: "Language Required",
-              description: "Language required by the offer.",
-              valueType: "text",
-              cardinality: "many",
-              choices: [],
-              value: "English",
-            },
-            {
-              label: "Interview format",
-              description: "Interview format stated by the offer.",
-              valueType: "text",
-              cardinality: "one",
-              choices: [],
-              value: "Panel interview",
-            },
-          ],
-        };
-        return new Response(
-          JSON.stringify({ choices: [{ message: { content: JSON.stringify(modelResult) } }] }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }),
-    );
-
-    const result = await extractJobWithPartialOutcomes(
-      root,
-      { sourceTitle: "Reuse", sourceUrl: "", sourceText: "English required. Panel interview." },
-      undefined,
-      [idiomas.definition.id],
-    );
-
-    expect(result.proposals).toContainEqual({ fieldId: idiomas.definition.id, value: ["English"] });
-    expect(result.newFields).toEqual([
-      expect.objectContaining({ label: "Interview format", value: "Panel interview" }),
+    expect(result.newTags).toEqual([
+      {
+        name: "Distributed systems",
+        definition: "Design and operation of software spanning multiple networked components.",
+        aliases: ["distributed architecture"],
+        evidence: "The role owns distributed services.",
+      },
     ]);
-    expect(result.newFields.some((field) => field.label === "Language Required")).toBe(false);
   });
-
 });
