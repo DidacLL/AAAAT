@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import type { DocumentCollections } from "../shared/document-domain-contracts";
+import type { DocumentCollections, RenderedCvRecord } from "../shared/document-domain-contracts";
 
 const emptyCollections: DocumentCollections = {
   templates: [], workingCvs: [], renderedCvs: [], letters: [], applicationPackets: [],
@@ -14,10 +14,68 @@ function nextCvTitle(collections: DocumentCollections): string {
   return `CV ${String(index)}`;
 }
 
+function RenderedCvInspection({
+  document,
+  busy,
+  onDuplicate,
+}: {
+  readonly document: RenderedCvRecord;
+  readonly busy: boolean;
+  readonly onDuplicate: (id: string) => void;
+}) {
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+
+  const exportProject = async () => {
+    setExportMessage(null);
+    try {
+      const result = await window.aaaat.documentDomain.exportRenderedCv(document.id);
+      setExportMessage(result ? "Portable project exported." : null);
+    } catch (reason) {
+      setExportMessage(reason instanceof Error ? reason.message : "AAAAT could not export this project.");
+    }
+  };
+
+  return (
+    <article className="section-surface rendered-cv-inspection" aria-label={`Rendered CV snapshot: ${document.title}`}>
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Immutable rendered snapshot</p>
+          <h3>{document.title}</h3>
+          <small>{document.language ? `Language: ${document.language}` : "No language set"}{document.candidatureId ? " · Application-owned" : " · Standalone"}</small>
+        </div>
+        <div className="button-row">
+          <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedCv(document.id)}>Open PDF</button>
+          <button type="button" className="compact-secondary" disabled={busy} onClick={() => onDuplicate(document.id)}>Duplicate to edit</button>
+          <button type="button" className="compact-secondary" onClick={() => void exportProject()}>Export project</button>
+        </div>
+      </div>
+      {document.snapshot.sections.length === 0 ? <p className="compact-empty">This rendered CV was produced from a blank composition.</p> : (
+        <div className="working-cv-sections">
+          {document.snapshot.sections.map((section) => (
+            <section key={section.id} className="working-cv-section">
+              <h4>{section.name}</h4>
+              {section.items.length === 0 ? <p className="compact-empty">No content in this section.</p> : section.items.map((item) => (
+                <article key={item.id} className="working-cv-item">
+                  <span className="item-kind">{item.content.kind}</span>
+                  <strong>{item.content.title}</strong>
+                  {item.content.subtitle ? <small>{item.content.subtitle}</small> : null}
+                  {item.content.description ? <p>{item.content.description}</p> : null}
+                </article>
+              ))}
+            </section>
+          ))}
+        </div>
+      )}
+      {exportMessage ? <p className="compact-note" role="status">{exportMessage}</p> : null}
+    </article>
+  );
+}
+
 export function DocumentsStartWorkspace({ onOpenDocument }: { readonly onOpenDocument: (documentId: string) => void }) {
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
   const [title, setTitle] = useState("");
-  const [source, setSource] = useState<"profile" | "blank">("profile");
+  const [sourceKey, setSourceKey] = useState("profile");
+  const [inspectedRenderedId, setInspectedRenderedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,16 +87,28 @@ export function DocumentsStartWorkspace({ onOpenDocument }: { readonly onOpenDoc
     return () => { active = false; };
   }, []);
 
+  const inspectedRendered = useMemo(
+    () => collections.renderedCvs.find((document) => document.id === inspectedRenderedId) ?? null,
+    [collections.renderedCvs, inspectedRenderedId],
+  );
+
   const createWorkingCv = async () => {
     if (busy) return;
     setBusy(true); setError(null);
     try {
+      const templateId = sourceKey.startsWith("template:") ? sourceKey.slice("template:".length) : null;
+      const source = templateId
+        ? { kind: "template" as const, templateId }
+        : sourceKey === "blank"
+          ? { kind: "blank" as const }
+          : { kind: "profile" as const };
       const created = await window.aaaat.documentDomain.createWorkingCv({
         title: title.trim() || nextCvTitle(collections),
         candidatureId: null,
-        source: { kind: source },
+        source,
       });
-      setTitle(""); onOpenDocument(created.id);
+      setTitle("");
+      onOpenDocument(created.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not create the Working CV.");
     } finally { setBusy(false); }
@@ -93,25 +163,30 @@ export function DocumentsStartWorkspace({ onOpenDocument }: { readonly onOpenDoc
         <summary>New CV options</summary>
         <div className="document-start-options-grid">
           <label>Title <small>Optional</small><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="CV" /></label>
-          <label>Start from<select value={source} onChange={(event) => setSource(event.target.value as "profile" | "blank")}><option value="profile">My information</option><option value="blank">Blank CV</option></select></label>
+          <label>Start from<select value={sourceKey} onChange={(event) => setSourceKey(event.target.value)}><option value="profile">My information</option><option value="blank">Blank CV</option>{collections.templates.map((template) => <option key={template.id} value={`template:${template.id}`}>Template · {template.name}</option>)}</select></label>
         </div>
       </details>
+
+      {collections.workingCvs.length > 0 ? (
+        <details className="document-start-options" aria-label="Continue editing CVs">
+          <summary>Continue editing ({collections.workingCvs.length})</summary>
+          <div className="document-intent-list">
+            {collections.workingCvs.map((document) => <button type="button" key={document.id} onClick={() => onOpenDocument(document.id)}><span className="item-kind">Working CV</span><strong>{document.title}</strong><small>{document.candidatureId ? "Application-owned" : "Standalone"}</small></button>)}
+          </div>
+        </details>
+      ) : null}
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
       <section className="document-intent-existing" aria-label="CV templates">
         <div className="section-heading"><div><p className="eyebrow">Reusable composition</p><h2>Templates</h2></div><span>{collections.templates.length}</span></div>
-        {collections.templates.length === 0 ? <p className="document-intent-empty">No templates yet. Save a Working CV as a template when its composition is reusable.</p> : <div className="document-intent-list">{collections.templates.map((template) => <button type="button" key={template.id} disabled={busy} onClick={() => void openTemplate(template.id, template.name)}><span className="item-kind">Template</span><strong>{template.name}</strong><small>Open as Working CV</small></button>)}</div>}
-      </section>
-
-      <section className="document-intent-existing" aria-label="Working CVs">
-        <div className="section-heading"><div><p className="eyebrow">Editable drafts</p><h2>Working CVs</h2></div><span>{collections.workingCvs.length}</span></div>
-        {collections.workingCvs.length === 0 ? <p className="document-intent-empty">No Working CVs yet.</p> : <div className="document-intent-list">{collections.workingCvs.map((document) => <button type="button" key={document.id} onClick={() => onOpenDocument(document.id)}><span className="item-kind">Working CV</span><strong>{document.title}</strong><small>{document.candidatureId ? "Application-owned" : "Standalone"}</small></button>)}</div>}
+        {collections.templates.length === 0 ? <p className="document-intent-empty">No templates yet. Save a Working CV as a template when its composition is reusable.</p> : <div className="document-intent-list">{collections.templates.map((template) => <button type="button" key={template.id} disabled={busy} onClick={() => void openTemplate(template.id, template.name)}><span className="item-kind">Template</span><strong>{template.name}</strong><small>Use as a new Working CV</small></button>)}</div>}
       </section>
 
       <section className="document-intent-existing" aria-label="Rendered CVs">
         <div className="section-heading"><div><p className="eyebrow">Generated snapshots</p><h2>Rendered CVs</h2></div><span>{collections.renderedCvs.length}</span></div>
-        {collections.renderedCvs.length === 0 ? <p className="document-intent-empty">No rendered PDFs yet.</p> : <div className="document-intent-list">{collections.renderedCvs.map((document) => <article key={document.id} className="document-intent-row"><button type="button" onClick={() => void window.aaaat.documentDomain.openRenderedCv(document.id)}><span className="item-kind">Rendered CV</span><strong>{document.title}</strong><small>Open PDF</small></button><button type="button" className="compact-secondary" disabled={busy} onClick={() => void duplicateRendered(document.id)}>Duplicate to edit</button></article>)}</div>}
+        {collections.renderedCvs.length === 0 ? <p className="document-intent-empty">No rendered PDFs yet.</p> : <div className="document-intent-list">{collections.renderedCvs.map((document) => <article key={document.id} className="document-intent-row"><button type="button" onClick={() => setInspectedRenderedId((current) => current === document.id ? null : document.id)}><span className="item-kind">Rendered CV</span><strong>{document.title}</strong><small>{inspectedRenderedId === document.id ? "Hide snapshot" : "Inspect snapshot"}</small></button><button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedCv(document.id)}>Open PDF</button><button type="button" className="compact-secondary" disabled={busy} onClick={() => void duplicateRendered(document.id)}>Duplicate to edit</button></article>)}</div>}
+        {inspectedRendered ? <RenderedCvInspection document={inspectedRendered} busy={busy} onDuplicate={(id) => void duplicateRendered(id)} /> : null}
       </section>
 
       <section className="document-intent-existing" aria-label="Letters">
