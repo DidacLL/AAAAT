@@ -79,10 +79,7 @@ async function configuredWorkspace(...operations: readonly AiOperation[]): Promi
   return root;
 }
 
-function addItem(
-  root: string,
-  input: Parameters<typeof addProfileItem>[1],
-) {
+function addItem(root: string, input: Parameters<typeof addProfileItem>[1]) {
   const snapshot = addProfileItem(root, input);
   const item = snapshot.items.find(
     (candidate) => candidate.kind === input.kind && candidate.title === input.title,
@@ -95,8 +92,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-describe("professional information AI disclosure projection", () => {
-  it("lets persisted privacy strengthen but never weaken opportunity-review disclosure", async () => {
+describe("professional information AI-use projection", () => {
+  it("omits disabled reusable information from opportunity review while allowed information is disclosed", async () => {
     const root = await configuredWorkspace("opportunity_review");
     const identity = addItem(root, { kind: "identity", title: "PRIVATE IDENTITY" });
     const experience = addItem(root, {
@@ -107,14 +104,8 @@ describe("professional information AI disclosure projection", () => {
     addItem(root, { kind: "skill", title: "Public TypeScript" });
     const candidature = createCandidature(root, { values: [] });
 
-    updateProfileItemAiContextPreference(root, {
-      itemId: identity.id,
-      aiContextMode: "omit",
-    });
-    updateProfileItemAiContextPreference(root, {
-      itemId: experience.id,
-      aiContextMode: "token",
-    });
+    updateProfileItemAiContextPreference(root, { itemId: identity.id, aiUseAllowed: false });
+    updateProfileItemAiContextPreference(root, { itemId: experience.id, aiUseAllowed: false });
 
     const preview = previewOpportunityReview(root, {
       candidatureId: candidature.id,
@@ -126,22 +117,15 @@ describe("professional information AI disclosure projection", () => {
     expect(previewJson).not.toContain("PRIVATE EXPERIENCE");
     expect(previewJson).not.toContain("PRIVATE EXPERIENCE DETAIL");
     expect(previewJson).toContain("Public TypeScript");
-    const projectedExperience = preview.projectedContext.profileItems.find(
-      (item) => item.kind === "experience",
-    );
-    expect(projectedExperience).toBeDefined();
-    expect(projectedExperience?.title).not.toBe("PRIVATE EXPERIENCE");
 
     const review = vi.fn<ModelProvider["reviewOpportunity"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain("PRIVATE IDENTITY");
       expect(serialized).not.toContain("PRIVATE EXPERIENCE");
-      expect(serialized).not.toContain("PRIVATE EXPERIENCE DETAIL");
       expect(serialized).toContain("Public TypeScript");
-      const tokenized = context.profileItems.find((item) => item.kind === "experience");
       return {
         summary: "Relevant evidence found.",
-        relevantEvidence: [tokenized?.title ?? ""],
+        relevantEvidence: ["Public TypeScript"],
         uncertainties: [],
         questions: [],
       };
@@ -157,19 +141,17 @@ describe("professional information AI disclosure projection", () => {
         },
         provider({ reviewOpportunity: review }),
       ),
-    ).resolves.toMatchObject({
-      relevantEvidence: ["PRIVATE EXPERIENCE"],
-    });
+    ).resolves.toMatchObject({ relevantEvidence: ["Public TypeScript"] });
   });
 
-  it("omits and tokenizes professional evidence before CV-tailoring provider context", async () => {
+  it("omits disabled professional evidence before CV-tailoring provider context", async () => {
     const root = await configuredWorkspace("cv_tailoring");
     const experience = addItem(root, {
       kind: "experience",
       title: "OMITTED EXPERIENCE",
       description: "OMITTED DETAIL",
     });
-    const skill = addItem(root, { kind: "skill", title: "TOKENIZED TYPESCRIPT" });
+    const skill = addItem(root, { kind: "skill", title: "ALLOWED TYPESCRIPT" });
     const candidature = createCandidature(root, { values: [] });
     const cv = createDocument(root, {
       kind: "cv",
@@ -179,26 +161,17 @@ describe("professional information AI disclosure projection", () => {
       bodyParagraphs: [],
     });
 
-    updateProfileItemAiContextPreference(root, {
-      itemId: experience.id,
-      aiContextMode: "omit",
-    });
-    updateProfileItemAiContextPreference(root, {
-      itemId: skill.id,
-      aiContextMode: "token",
-    });
+    updateProfileItemAiContextPreference(root, { itemId: experience.id, aiUseAllowed: false });
 
     const tailor = vi.fn<ModelProvider["tailorCv"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
       expect(serialized).not.toContain("OMITTED EXPERIENCE");
       expect(serialized).not.toContain("OMITTED DETAIL");
-      expect(serialized).not.toContain("TOKENIZED TYPESCRIPT");
+      expect(serialized).toContain("ALLOWED TYPESCRIPT");
       expect(context.items).toHaveLength(1);
       const item = context.items[0];
       if (!item) throw new Error("projected CV item missing");
-      return {
-        recommendations: [{ itemRef: item.itemRef, rationale: item.title }],
-      };
+      return { recommendations: [{ itemRef: item.itemRef, rationale: item.title }] };
     });
 
     await expect(
@@ -208,16 +181,16 @@ describe("professional information AI disclosure projection", () => {
         provider({ tailorCv: tailor }),
       ),
     ).resolves.toEqual({
-      recommendations: [{ itemId: skill.id, rationale: "TOKENIZED TYPESCRIPT" }],
+      recommendations: [{ itemId: skill.id, rationale: "ALLOWED TYPESCRIPT" }],
     });
   });
 
-  it("omits and tokenizes professional evidence before cover-letter provider context", async () => {
+  it("uses the same boolean semantics before cover-letter provider context", async () => {
     const root = await configuredWorkspace("cover_letter_draft");
     const experience = addItem(root, {
       kind: "experience",
-      title: "TOKENIZED PLATFORM EXPERIENCE",
-      description: "TOKENIZED PLATFORM DETAIL",
+      title: "ALLOWED PLATFORM EXPERIENCE",
+      description: "ALLOWED PLATFORM DETAIL",
     });
     const skill = addItem(root, { kind: "skill", title: "OMITTED PRIVATE SKILL" });
     const candidature = createCandidature(root, { values: [] });
@@ -229,19 +202,12 @@ describe("professional information AI disclosure projection", () => {
       bodyParagraphs: [],
     });
 
-    updateProfileItemAiContextPreference(root, {
-      itemId: experience.id,
-      aiContextMode: "token",
-    });
-    updateProfileItemAiContextPreference(root, {
-      itemId: skill.id,
-      aiContextMode: "omit",
-    });
+    updateProfileItemAiContextPreference(root, { itemId: skill.id, aiUseAllowed: false });
 
     const draft = vi.fn<ModelProvider["draftCoverLetter"]>(async (_connection, context) => {
       const serialized = JSON.stringify(context);
-      expect(serialized).not.toContain("TOKENIZED PLATFORM EXPERIENCE");
-      expect(serialized).not.toContain("TOKENIZED PLATFORM DETAIL");
+      expect(serialized).toContain("ALLOWED PLATFORM EXPERIENCE");
+      expect(serialized).toContain("ALLOWED PLATFORM DETAIL");
       expect(serialized).not.toContain("OMITTED PRIVATE SKILL");
       expect(context.items).toHaveLength(1);
       const item = context.items[0];
@@ -261,7 +227,7 @@ describe("professional information AI disclosure projection", () => {
         provider({ draftCoverLetter: draft }),
       ),
     ).resolves.toMatchObject({
-      bodyParagraphs: ["TOKENIZED PLATFORM EXPERIENCE"],
+      bodyParagraphs: ["ALLOWED PLATFORM EXPERIENCE"],
     });
   });
 });
