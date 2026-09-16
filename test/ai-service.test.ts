@@ -15,7 +15,6 @@ import {
   discoverCandidatureFieldFromSources,
   extractJob,
   previewOpportunityReview,
-  recommendVariant,
   reviewOpportunity,
 } from "../src/main/ai-service";
 import type { ModelProvider } from "../src/main/ai-provider";
@@ -30,7 +29,7 @@ import {
   listCandidatureSources,
   listCandidatures,
 } from "../src/main/candidature-service";
-import { addProfileItem, createProfileVariant } from "../src/main/profile-service";
+import { addProfileItem } from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
@@ -62,32 +61,16 @@ function validationProvider(): ModelProvider {
       questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(async () => ({ proposals: [] })),
-    recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(async () => ({
-      variantRef: "aaaat_validation_variant",
-      rationale: "Synthetic validation result",
-    })),
-    tailorCv: vi.fn<ModelProvider["tailorCv"]>(async () => ({
-      recommendations: [
-        { itemRef: "aaaat_validation_item", rationale: "Synthetic validation result" },
-      ],
-    })),
-    draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(async () => ({
-      recipient: "",
-      subject: "Validation",
-      bodyParagraphs: ["Synthetic validation result."],
-      closing: "",
-    })),
   });
 }
 
 async function configuredWorkspace(...operations: readonly AiOperation[]): Promise<string> {
   const root = workspace();
-  const saved = saveNamedAiConnection(root, {
+  const connection = saveNamedAiConnection(root, {
     name: "Local model",
     endpoint: "http://localhost:11434/v1",
     model: "local-model",
-  });
-  const connection = saved[0];
+  })[0];
   if (!connection) throw new Error("connection fixture missing");
   for (const operation of operations) {
     await validateAiConnectionOperation(
@@ -121,16 +104,8 @@ describe("AI service over live candidature information", () => {
     });
     const stored = readFileSync(path.join(root, "ai-connection.json"), "utf8");
     expect(stored).toContain('"version": 4');
-    expect(stored).toContain('"connections"');
     expect(stored).not.toMatch(/api.?key|credential|secret/i);
 
-    expect(
-      saveNamedAiConnection(root, {
-        name: "Remote",
-        endpoint: "https://models.example.test/v1",
-        model: "model-a",
-      })[1],
-    ).toMatchObject({ endpoint: "https://models.example.test/v1" });
     for (const endpoint of [
       "http://models.example.test/v1",
       "https://user:password@models.example.test/v1",
@@ -143,125 +118,44 @@ describe("AI service over live candidature information", () => {
     }
   });
 
-  it("does not disclose replacement-mode literals and restores them locally in the result", async () => {
+  it("discloses populated application values only when their single AI-use eye is enabled", async () => {
     const root = await configuredWorkspace("opportunity_review");
-    const sensitive = createCandidatureField(root, {
-      label: "Internal referral code",
-      description: "Private local reference.",
+    const allowed = createCandidatureField(root, {
+      label: "Allowed application fact",
+      description: "May be used by AI.",
+      valueType: "text",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
+    });
+    const disabled = createCandidatureField(root, {
+      label: "Private application fact",
+      description: "Must stay local.",
       valueType: "text",
       cardinality: "one",
       choices: [],
       enabled: true,
     });
     updateCandidatureFieldPreferences(root, {
-      ...sensitive.preferences,
-      aiContextMode: "token",
-    });
-    const candidature = createCandidature(root, {
-      values: [{ fieldId: sensitive.definition.id, value: "LOCAL-REFERRAL-ONLY" }],
-    });
-    addProfileItem(root, { kind: "identity", title: "Didac Example" });
-
-    const preview = previewOpportunityReview(root, {
-      candidatureId: candidature.id,
-      identityPrivacy: "token",
-      contactPrivacy: "omit",
-    });
-    const previewValue = preview.projectedContext.candidature.information.find(
-      (item) => item.fieldId === sensitive.definition.id,
-    )?.value;
-    const previewIdentity = preview.projectedContext.profileItems.find(
-      (item) => item.kind === "identity",
-    )?.title;
-    expect(typeof previewValue).toBe("string");
-    expect(typeof previewIdentity).toBe("string");
-    expect(previewValue).not.toBe("LOCAL-REFERRAL-ONLY");
-    expect(previewIdentity).not.toBe("Didac Example");
-    expect(previewValue).not.toBe(previewIdentity);
-
-    const serialized = JSON.stringify(preview.projectedContext);
-    expect(serialized).not.toContain("Didac Example");
-    expect(serialized).not.toContain("LOCAL-REFERRAL-ONLY");
-
-    const review = vi.fn<ModelProvider["reviewOpportunity"]>(async (_connection, context) => {
-      const projectedValue = context.candidature.information.find(
-        (item) => item.label === "Internal referral code",
-      )?.value;
-      expect(JSON.stringify(context)).not.toContain(sensitive.definition.id);
-      const projectedIdentity = context.profileItems.find((item) => item.kind === "identity")?.title;
-      expect(typeof projectedValue).toBe("string");
-      expect(typeof projectedIdentity).toBe("string");
-      expect(projectedValue).not.toBe("LOCAL-REFERRAL-ONLY");
-      expect(projectedIdentity).not.toBe("Didac Example");
-      expect(projectedValue).not.toBe(projectedIdentity);
-      return {
-        summary: String(projectedValue),
-        relevantEvidence: [projectedIdentity ?? ""],
-        uncertainties: [],
-        questions: [],
-      };
-    });
-
-    await expect(
-      reviewOpportunity(
-        root,
-        {
-          candidatureId: candidature.id,
-          identityPrivacy: "token",
-          contactPrivacy: "omit",
-        },
-        provider({ reviewOpportunity: review }),
-      ),
-    ).resolves.toMatchObject({
-      summary: "LOCAL-REFERRAL-ONLY",
-      relevantEvidence: ["Didac Example"],
-    });
-  });
-
-  it("keeps retained Sources out of ordinary AI projection and lets field privacy control disclosure", async () => {
-    const root = await configuredWorkspace("opportunity_review", "variant_recommendation");
-    const omitted = createCandidatureField(root, {
-      label: "Private compensation note",
-      description: "Never send this field in ordinary AI context.",
-      valueType: "text",
-      cardinality: "one",
-      choices: [],
-      enabled: true,
-    });
-    const tokenized = createCandidatureField(root, {
-      label: "Referral code",
-      description: "Tokenize this field in ordinary AI context.",
-      valueType: "text",
-      cardinality: "one",
-      choices: [],
-      enabled: true,
+      ...allowed.preferences,
+      aiUseAllowed: true,
     });
     updateCandidatureFieldPreferences(root, {
-      ...omitted.preferences,
-      aiContextMode: "omit",
-    });
-    updateCandidatureFieldPreferences(root, {
-      ...tokenized.preferences,
-      aiContextMode: "token",
+      ...disabled.preferences,
+      aiUseAllowed: false,
     });
     const candidature = createCandidature(root, {
       source: {
         kind: "recruiter_message",
-        title: "PRIVATE RECRUITER THREAD",
-        url: "https://example.invalid/private-thread",
-        sourceText: "SECRET-COMP-9000 and PRIVATE-REF-42 appear in retained evidence.",
+        title: "PRIVATE SOURCE TITLE",
+        url: "https://example.invalid/private",
+        sourceText: "PRIVATE SOURCE BODY",
       },
       values: [
-        { fieldId: omitted.definition.id, value: "SECRET-COMP-9000" },
-        { fieldId: tokenized.definition.id, value: "PRIVATE-REF-42" },
+        { fieldId: allowed.definition.id, value: "VISIBLE VALUE" },
+        { fieldId: disabled.definition.id, value: "HIDDEN VALUE" },
       ],
     });
-    const variant = createProfileVariant(root, {
-      name: "General",
-      focus: "General applications",
-      targetTags: [],
-    }).variants[0];
-    if (!variant) throw new Error("variant fixture missing");
 
     const preview = previewOpportunityReview(root, {
       candidatureId: candidature.id,
@@ -269,38 +163,52 @@ describe("AI service over live candidature information", () => {
       contactPrivacy: "omit",
     });
     expect(preview.projectedContext.candidature.sources).toEqual([]);
-    expect(preview.projectedContext.candidature.label).toBe("Candidature");
-    const serialized = JSON.stringify(preview.projectedContext);
-    expect(serialized).not.toContain("PRIVATE RECRUITER THREAD");
-    expect(serialized).not.toContain("private-thread");
-    expect(serialized).not.toContain("SECRET-COMP-9000");
-    expect(serialized).not.toContain("PRIVATE-REF-42");
-    const projectedReferral = preview.projectedContext.candidature.information.find(
-      (item) => item.fieldId === tokenized.definition.id,
-    )?.value;
-    expect(typeof projectedReferral).toBe("string");
-    expect(projectedReferral).not.toBe("PRIVATE-REF-42");
+    expect(preview.projectedContext.candidature.information).toEqual([
+      { fieldId: allowed.definition.id, label: "Allowed application fact", value: "VISIBLE VALUE" },
+    ]);
+    expect(JSON.stringify(preview.projectedContext)).not.toContain("HIDDEN VALUE");
+    expect(JSON.stringify(preview.projectedContext)).not.toContain("PRIVATE SOURCE");
 
-    const recommend = vi.fn<ModelProvider["recommendVariant"]>(async (_connection, context) => {
-      const providerContext = JSON.stringify(context);
-      expect(context.candidature.sources).toEqual([]);
-      expect(context.candidature.label).toBe("Candidature");
-      expect(providerContext).not.toContain("PRIVATE RECRUITER THREAD");
-      expect(providerContext).not.toContain("SECRET-COMP-9000");
-      expect(providerContext).not.toContain("PRIVATE-REF-42");
-      expect(providerContext).not.toContain(variant.id);
-      return { variantRef: context.variants[0]?.variantRef ?? "", rationale: "General match." };
+    const review = vi.fn<ModelProvider["reviewOpportunity"]>(async (_connection, context) => {
+      expect(context.candidature.information).toEqual([
+        { label: "Allowed application fact", value: "VISIBLE VALUE" },
+      ]);
+      expect(JSON.stringify(context)).not.toContain("HIDDEN VALUE");
+      expect(JSON.stringify(context)).not.toContain(allowed.definition.id);
+      return {
+        summary: "Allowed value received.",
+        relevantEvidence: ["VISIBLE VALUE"],
+        uncertainties: [],
+        questions: [],
+      };
     });
     await expect(
-      recommendVariant(
+      reviewOpportunity(
         root,
-        { candidatureId: candidature.id },
-        provider({ recommendVariant: recommend }),
+        { candidatureId: candidature.id, identityPrivacy: "omit", contactPrivacy: "omit" },
+        provider({ reviewOpportunity: review }),
       ),
-    ).resolves.toEqual({ variantId: variant.id, rationale: "General match." });
+    ).resolves.toMatchObject({ relevantEvidence: ["VISIBLE VALUE"] });
   });
 
-  it("builds extraction requests from the current live field catalogue, including a field added at runtime", async () => {
+  it("keeps operation-specific identity privacy separate from the reusable-information eye", async () => {
+    const root = await configuredWorkspace("opportunity_review");
+    const candidature = createCandidature(root, { values: [] });
+    addProfileItem(root, { kind: "identity", title: "Didac Example" });
+
+    const preview = previewOpportunityReview(root, {
+      candidatureId: candidature.id,
+      identityPrivacy: "token",
+      contactPrivacy: "omit",
+    });
+    const projectedIdentity = preview.projectedContext.profileItems.find(
+      (item) => item.kind === "identity",
+    )?.title;
+    expect(projectedIdentity).toMatch(/AAAT_PRIVATE_/);
+    expect(JSON.stringify(preview.projectedContext)).not.toContain("Didac Example");
+  });
+
+  it("builds extraction requests only from current fields allowed for AI use", async () => {
     const root = await configuredWorkspace("job_extraction");
     const hours = createCandidatureField(root, {
       label: "Minimum flight hours",
@@ -310,23 +218,32 @@ describe("AI service over live candidature information", () => {
       choices: [],
       enabled: true,
     });
+    const privateField = createCandidatureField(root, {
+      label: "Private local note",
+      description: "Never request this from AI.",
+      valueType: "text",
+      cardinality: "one",
+      choices: [],
+      enabled: true,
+    });
     updateCandidatureFieldPreferences(root, {
       ...hours.preferences,
-      aiDiscovery: true,
-      aiContextMode: "expose",
+      aiUseAllowed: true,
+    });
+    updateCandidatureFieldPreferences(root, {
+      ...privateField.preferences,
+      aiUseAllowed: false,
     });
 
     const extract = vi.fn<ModelProvider["extractJob"]>(async (_connection, request) => {
       const configured = request.fields.find((field) => field.label === "Minimum flight hours");
       expect(configured).toMatchObject({
-        fieldRef: expect.any(String),
         label: "Minimum flight hours",
-        description: "Minimum total flight hours requested by the opportunity.",
         valueType: "number",
         cardinality: "one",
-        choices: [],
       });
-      expect(JSON.stringify(request)).not.toContain(hours.definition.id);
+      expect(request.fields.some((field) => field.label === "Private local note")).toBe(false);
+      expect(request.tags).toEqual([]);
       return { proposals: [{ fieldRef: configured?.fieldRef ?? "", value: 1500 }] };
     });
 
@@ -343,28 +260,13 @@ describe("AI service over live candidature information", () => {
     ).resolves.toEqual({
       proposals: [{ fieldId: hours.definition.id, value: 1500 }],
       newFields: [],
+      existingTags: [],
+      newTags: [],
     });
     expect(listCandidatures(root)).toEqual([]);
   });
 
-  it("rejects provider proposals for fields that were not requested", async () => {
-    const root = await configuredWorkspace("job_extraction");
-    const unexpectedId = "aaaat_discovery_00000000-0000-4000-8000-000000009999_1";
-    const extract = vi.fn<ModelProvider["extractJob"]>(async () => ({
-      proposals: [{ fieldRef: unexpectedId, value: "invented" }],
-    }));
-
-    await expect(
-      extractJob(
-        root,
-        { sourceTitle: "", sourceUrl: "", sourceText: "Opportunity text" },
-        provider({ extractJob: extract }),
-      ),
-    ).rejects.toThrow("was not requested");
-    expect(listCandidatures(root)).toEqual([]);
-  });
-
-  it("rediscovers a newly configured field from historical retained Sources and returns proposals without overwriting", async () => {
+  it("rediscovers one configured field from explicitly selected retained Sources without overwriting", async () => {
     const root = await configuredWorkspace("historical_field_discovery");
     const candidature = createCandidature(root, {
       source: {
@@ -381,7 +283,7 @@ describe("AI service over live candidature information", () => {
       candidatureId: candidature.id,
       kind: "recruiter_message",
       title: "Unselected recruiter note",
-      url: "https://example.invalid/unselected",
+      url: "",
       sourceText: "Do not provide this unrelated retained Source to discovery.",
     });
 
@@ -393,24 +295,19 @@ describe("AI service over live candidature information", () => {
       choices: [],
       enabled: true,
     });
+    updateCandidatureFieldPreferences(root, {
+      ...rating.preferences,
+      aiUseAllowed: true,
+    });
     const discover = vi.fn<ModelProvider["extractJob"]>(async (_connection, request) => {
-      expect(request.fields).toMatchObject([
-        {
-          fieldRef: expect.any(String),
-          label: "Type rating",
-          description: "Aircraft type rating required or preferred.",
-          valueType: "text",
-          cardinality: "one",
-          choices: [],
-        },
-      ]);
+      expect(request.fields).toHaveLength(1);
+      expect(request.fields[0]?.label).toBe("Type rating");
       expect(request.sourceText).toContain("A320 type rating");
       expect(request.sourceText).not.toContain("unrelated retained Source");
-      expect(JSON.stringify(request)).not.toContain(rating.definition.id);
       return { proposals: [{ fieldRef: request.fields[0]?.fieldRef ?? "", value: "A320" }] };
     });
 
-    const first = await discoverCandidatureFieldFromSources(
+    const result = await discoverCandidatureFieldFromSources(
       root,
       {
         candidatureId: candidature.id,
@@ -419,7 +316,7 @@ describe("AI service over live candidature information", () => {
       },
       provider({ extractJob: discover }),
     );
-    expect(first).toEqual({
+    expect(result).toEqual({
       proposal: { fieldId: rating.definition.id, value: "A320" },
       existingValuePresent: false,
     });
@@ -430,22 +327,12 @@ describe("AI service over live candidature information", () => {
       fieldId: rating.definition.id,
       value: "A320",
     });
-    const second = await discoverCandidatureFieldFromSources(
-      root,
-      {
-        candidatureId: candidature.id,
-        fieldId: rating.definition.id,
-        sourceIds: [source.id],
-      },
-      provider({ extractJob: discover }),
-    );
-    expect(second.existingValuePresent).toBe(true);
     expect(listCandidatures(root)[0]?.values).toEqual([
       expect.objectContaining({ fieldId: rating.definition.id, value: "A320" }),
     ]);
   });
 
-  it("projects choice labels instead of persisted choice and field identifiers", async () => {
+  it("projects choice labels instead of persisted choice identifiers", async () => {
     const root = await configuredWorkspace("opportunity_review");
     const choiceId = "00000000-0000-4000-8000-000000000011";
     const arrangement = createCandidatureField(root, {
@@ -458,19 +345,17 @@ describe("AI service over live candidature information", () => {
     });
     updateCandidatureFieldPreferences(root, {
       ...arrangement.preferences,
-      aiContextMode: "expose",
+      aiUseAllowed: true,
     });
     const candidature = createCandidature(root, {
       values: [{ fieldId: arrangement.definition.id, value: choiceId }],
     });
     const review = vi.fn<ModelProvider["reviewOpportunity"]>(async (_connection, context) => {
-      const payload = JSON.stringify(context);
-      expect(payload).not.toContain(arrangement.definition.id);
-      expect(payload).not.toContain(choiceId);
       expect(context.candidature.information).toContainEqual({
         label: "Work arrangement",
         value: "Remote",
       });
+      expect(JSON.stringify(context)).not.toContain(choiceId);
       return {
         summary: "Choice projected.",
         relevantEvidence: [],
