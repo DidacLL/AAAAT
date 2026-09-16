@@ -14,7 +14,7 @@ function configuredField(
   label: string,
   systemKey: string | null,
   valueType: CandidatureFieldConfiguration["definition"]["valueType"] = "text",
-  aiDiscovery = false,
+  aiUseAllowed = false,
 ): CandidatureFieldConfiguration {
   return {
     definition: {
@@ -35,8 +35,7 @@ function configuredField(
       focusOrder: null,
       focusProminence: "normal",
       identityOrder: null,
-      aiDiscovery,
-      aiContextMode: "omit",
+      aiUseAllowed,
     },
   };
 }
@@ -107,7 +106,7 @@ describe("candidature information creation", () => {
     expect(within(creator).queryByText("reusable field definitions", { exact: false })).not.toBeInTheDocument();
   });
 
-  it("adds profession-specific information and makes it available to AI discovery by default", async () => {
+  it("adds profession-specific information with AI use enabled by default", async () => {
     const user = userEvent.setup();
     const changed = vi.fn();
     render(<CandidatureFieldDefinitionsPanel onChanged={changed} />);
@@ -127,7 +126,7 @@ describe("candidature information creation", () => {
     }));
     expect(updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
       fieldId: flightHoursId,
-      aiDiscovery: true,
+      aiUseAllowed: true,
     }));
     expect(changed).toHaveBeenCalled();
   });
