@@ -16,6 +16,7 @@ const hybridId = "00000000-0000-4000-8000-000000000903";
 function field(
   valueType: CandidatureFieldConfiguration["definition"]["valueType"],
   cardinality: CandidatureFieldConfiguration["definition"]["cardinality"] = "one",
+  aiUseAllowed = true,
 ): CandidatureFieldConfiguration {
   return {
     definition: {
@@ -42,8 +43,7 @@ function field(
       focusOrder: null,
       focusProminence: "normal",
       identityOrder: null,
-      aiDiscovery: false,
-      aiContextMode: "omit",
+      aiUseAllowed,
     },
   };
 }
@@ -62,9 +62,10 @@ function StatefulEditor({
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [value, setValue] = useState<CandidatureRuntimeValue | undefined>(initialValue);
+  const [currentField, setCurrentField] = useState(configuration);
   return (
     <CandidatureFieldValueEditor
-      field={configuration}
+      field={currentField}
       value={value}
       onSave={async (next) => setValue(next)}
       onClear={async () => {
@@ -72,7 +73,12 @@ function StatefulEditor({
         setValue(undefined);
       }}
       onDiscover={onDiscover}
-      onUpdatePreferences={async () => undefined}
+      onUpdatePreferences={async (patch) => {
+        setCurrentField((current) => ({
+          ...current,
+          preferences: { ...current.preferences, ...patch },
+        }));
+      }}
       onDirtyChange={onDirtyChange}
     />
   );
@@ -95,13 +101,27 @@ describe("read-first candidature information value", () => {
     const input = screen.getByLabelText("Value");
     expect(input).toHaveValue("October or November");
     expect(screen.getByRole("checkbox", { name: "Show in Focus" })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Allow AI to use this information" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "AI may use this information" })).toHaveAttribute("aria-pressed", "true");
     await user.clear(input);
     await user.type(input, "October through December");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.queryByLabelText("Value")).not.toBeInTheDocument();
     expect(screen.getByText("October through December", { exact: true })).toBeInTheDocument();
+  });
+
+  it("uses the same eye to control whether empty information may be requested from AI", async () => {
+    const user = userEvent.setup();
+    const discover = vi.fn(async () => undefined);
+    render(<StatefulEditor configuration={field("text", "one", true)} initialValue="October" onDiscover={discover} />);
+
+    const eye = screen.getByRole("button", { name: "AI may use this information" });
+    expect(eye).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Ask AI to fill Availability" })).toBeInTheDocument();
+
+    await user.click(eye);
+    expect(screen.getByRole("button", { name: "AI may use this information" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("button", { name: "Ask AI to fill Availability" })).not.toBeInTheDocument();
   });
 
   it("renders choice labels and booleans rather than storage-shaped values", () => {
