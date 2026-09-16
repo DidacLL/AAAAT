@@ -79,7 +79,7 @@ describe("My information workspace", () => {
     configureVariantItem.mockResolvedValue(variedProfile);
     reorderVariant.mockResolvedValue(variedProfile);
     resolveVariant.mockResolvedValue({ variant, items: [itemA, itemB] });
-    currentAiContext.mockImplementation(async (itemId) => ({ itemId, aiContextMode: "expose" }));
+    currentAiContext.mockImplementation(async (itemId) => ({ itemId, aiUseAllowed: true }));
     updateAiContext.mockImplementation(async (input) => input);
     installApi();
   });
@@ -100,7 +100,7 @@ describe("My information workspace", () => {
     await user.click(screen.getByRole("button", { name: "Skill" }));
     expect(screen.getByRole("heading", { name: "Add skill" })).toBeInTheDocument();
     await user.type(screen.getByLabelText("Skill"), "TypeScript");
-    expect(screen.queryByLabelText("Choose how AI may use this information")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "AI may use this information" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add skill" }));
 
     expect(addItem).toHaveBeenCalledWith({
@@ -115,7 +115,7 @@ describe("My information workspace", () => {
     expect(await screen.findByRole("heading", { name: "My information" })).toBeInTheDocument();
   });
 
-  it("keeps contextual AI use independent from local reusable content", async () => {
+  it("uses one eye for reusable information without changing local content", async () => {
     current.mockResolvedValueOnce(baseProfile);
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
@@ -126,11 +126,12 @@ describe("My information workspace", () => {
     await user.click(within(firstItem).getByRole("button", { name: "Edit Professional summary" }));
 
     expect(screen.getByLabelText("Heading")).toHaveValue("Professional summary");
-    await user.click(await screen.findByLabelText("Choose how AI may use this information"));
-    expect(await screen.findByText(/does not hide, remove or change your local information/i)).toBeInTheDocument();
-    await user.selectOptions(screen.getByRole("combobox", { name: "AI may" }), "omit");
+    await user.click(screen.getByText("AI use", { selector: "summary" }));
+    const eye = await screen.findByRole("button", { name: "AI may use this information" });
+    expect(eye).toHaveAttribute("aria-pressed", "true");
+    await user.click(eye);
 
-    expect(updateAiContext).toHaveBeenCalledWith({ itemId: itemA.id, aiContextMode: "omit" });
+    expect(updateAiContext).toHaveBeenCalledWith({ itemId: itemA.id, aiUseAllowed: false });
     expect(updateItem).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Heading")).toHaveValue("Professional summary");
   });
