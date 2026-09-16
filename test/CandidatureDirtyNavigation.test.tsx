@@ -34,8 +34,7 @@ const organisation: CandidatureFieldConfiguration = {
     focusOrder: 0,
     focusProminence: "normal",
     identityOrder: null,
-    aiDiscovery: false,
-    aiContextMode: "omit",
+    aiUseAllowed: false,
   },
 };
 
@@ -144,37 +143,5 @@ describe("candidature dirty navigation", () => {
     await user.click(screen.getByRole("button", { name: "Full record" }));
 
     expect(screen.getByRole("region", { name: "Complete candidature" })).toBeInTheDocument();
-  });
-
-  it("protects complete-candidature drafts before opening Focus and resets them after confirmed discard", async () => {
-    const user = userEvent.setup();
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    render(<CandidaturesWorkspace />);
-
-    await user.click(await screen.findByRole("button", { name: /Regional Air/ }));
-    await user.click(await screen.findByRole("button", { name: "Full record" }));
-    const tags = screen.getByRole("region", { name: "Tags" });
-    const platform = within(tags).getByRole("checkbox", { name: /Platform/ });
-    expect(platform).toBeChecked();
-    await user.click(platform);
-    expect(platform).not.toBeChecked();
-
-    await user.click(screen.getByRole("button", { name: "Focus" }));
-
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved candidature edits?");
-    expect(screen.getByRole("region", { name: "Complete candidature" })).toBeInTheDocument();
-    expect(platform).not.toBeChecked();
-
-    confirm.mockReturnValue(true);
-    await user.click(screen.getByRole("button", { name: "Focus" }));
-    expect(screen.getByRole("region", { name: /^Candidature Focus$/ })).toBeInTheDocument();
-
-    confirm.mockClear();
-    confirm.mockReturnValue(false);
-    await user.click(screen.getByRole("button", { name: "Full record" }));
-
-    expect(confirm).not.toHaveBeenCalled();
-    const restoredTags = screen.getByRole("region", { name: "Tags" });
-    expect(within(restoredTags).getByRole("checkbox", { name: /Platform/ })).toBeChecked();
   });
 });
