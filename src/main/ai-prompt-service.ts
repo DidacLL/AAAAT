@@ -8,16 +8,14 @@ const contextSummary: Readonly<Record<AiOperation, string>> = {
   opportunity_review: "AI-visible candidature information plus career context allowed for this review. Retained Sources are not added implicitly.",
   job_extraction: "Only the supplied Source text plus the requested eligible field definitions. Single-field requests contain only that target; bulk requests contain only eligible missing targets.",
   historical_field_discovery: "Only the retained Sources selected by the user plus the one target field.",
-  variant_recommendation: "Bounded AI-visible candidature information plus saved variant descriptors.",
-  cv_tailoring: "Bounded AI-visible candidature information plus shareable evidence from the selected CV context.",
-  cover_letter_draft: "Bounded AI-visible candidature information plus shareable evidence from the selected cover-letter context.",
+  cv_tailoring: "Bounded AI-visible application information plus AI-visible professional evidence from the selected Working CV.",
+  cover_letter_draft: "Bounded AI-visible application information plus AI-visible reusable professional evidence for the selected cover letter.",
 };
 
 const responseExpectation: Readonly<Record<AiOperation, string>> = {
   opportunity_review: "JSON: summary, relevant evidence, uncertainties and questions. Read-only review; no workflow decisions.",
   job_extraction: "JSON proposals keyed by task-local field references, with optional new fields only when existing information cannot fit.",
   historical_field_discovery: "JSON proposal for the one requested field; no other candidature mutation authority.",
-  variant_recommendation: "JSON selecting one supplied task-local variant reference plus rationale.",
   cv_tailoring: "JSON recommendations using only supplied task-local evidence references.",
   cover_letter_draft: "JSON recipient, subject, body paragraphs and closing; no invented career facts.",
 };
