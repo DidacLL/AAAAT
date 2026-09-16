@@ -86,9 +86,12 @@ export function ProfileWorkspace({ initialItemId, onDirtyChange }: { readonly in
     const input = itemInput(draft); if (!input.title) return;
     setBusy(true); setError(null);
     try {
-      const next = creating || !selected ? await window.aaaat.profile.addItem(input) : await window.aaaat.profile.updateItem({ id: selected.id, item: input });
+      const selectedItemId = selected?.id ?? null;
+      const next = creating || !selectedItemId
+        ? await window.aaaat.profile.addItem(input)
+        : await window.aaaat.profile.updateItem({ id: selectedItemId, item: input });
       setSnapshot(next);
-      const saved = creating ? next.items.at(-1) ?? null : next.items.find((item) => item.id === selected.id) ?? null;
+      const saved = creating ? next.items.at(-1) ?? null : next.items.find((item) => item.id === selectedItemId) ?? null;
       setCreating(false); setSelectedId(saved?.id ?? null); setDraft(itemForm(saved ?? undefined));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save this information."); }
     finally { setBusy(false); }
