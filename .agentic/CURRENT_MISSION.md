@@ -4,7 +4,7 @@
 
 PR #319 remains open and unmerged on `product/dogfood-workspace-ai-context`.
 
-The accepted product implementation head before the final audit correction is `7a3892648c06cc75d0fb156e7e655a65b4709d70`.
+The accepted product implementation baseline is `7a3892648c06cc75d0fb156e7e655a65b4709d70`; orchestration-only mission updates advance the live branch beyond that baseline.
 
 The application/Tags/AI-visibility/document/rail/Settings architecture is accepted for owner natural-use testing. Do not start another feature or interaction redesign.
 
