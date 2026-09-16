@@ -36,7 +36,6 @@ function provider(): ModelProvider {
       questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(),
-    recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(),
     tailorCv: vi.fn<ModelProvider["tailorCv"]>(),
     draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(),
   };
@@ -71,32 +70,15 @@ describe("AI operation connection routing", () => {
       "Validate and choose a connection for Opportunity review",
     );
 
-    await validateAiConnectionOperation(
-      root,
-      { connectionId: first.id, operation: "opportunity_review" },
-      modelProvider,
-    );
+    await validateAiConnectionOperation(root, { connectionId: first.id, operation: "opportunity_review" }, modelProvider);
     setDefaultAiConnection(root, second.id);
-    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
-      summary: "First local",
-    });
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({ summary: "First local" });
 
-    await validateAiConnectionOperation(
-      root,
-      { connectionId: second.id, operation: "opportunity_review" },
-      modelProvider,
-    );
-    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
-      summary: "First local",
-    });
+    await validateAiConnectionOperation(root, { connectionId: second.id, operation: "opportunity_review" }, modelProvider);
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({ summary: "First local" });
 
-    setAiOperationDefault(root, {
-      connectionId: second.id,
-      operation: "opportunity_review",
-    });
-    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
-      summary: "Second local",
-    });
+    setAiOperationDefault(root, { connectionId: second.id, operation: "opportunity_review" });
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({ summary: "Second local" });
 
     removeAiConnection(root, second.id);
     await expect(reviewOpportunity(root, request, modelProvider)).rejects.toThrow(
