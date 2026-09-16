@@ -48,7 +48,7 @@ Preserve the existing semantics:
 - `configurator.ai actions` only authorize typed connection save, operation validation and validated default selection;
 - no shell, arbitrary command, filesystem, database or provider-option authority.
 
-Prefer reusing/extracting the existing `SetupActionAuthority` behavior rather than duplicating permission state.
+Prefer extracting/reusing the existing `SetupActionAuthority` behavior as a compact control inside the current advanced external-assistant disclosure rather than rendering the old setup harness/dashboard again.
 
 ### 2. Correct active user and technical documentation
 
