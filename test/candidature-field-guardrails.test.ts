@@ -7,7 +7,6 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  MAX_AI_DISCOVERY_FIELDS,
   MAX_ENABLED_CANDIDATURE_FIELDS,
   clearCandidatureFieldValue,
   createCandidatureField,
@@ -56,30 +55,41 @@ describe("live candidature field guardrails", () => {
     }
   });
 
-  it("enforces the AI-discovery bound independently from Focus and field enablement", () => {
+  it("stores one AI-use choice independently from Focus and disables it when a field is retired", () => {
     const root = workspace();
     try {
-      let discoveryCount = listCandidatureFields(root).filter(
-        (field) => field.definition.enabled && field.preferences.aiDiscovery,
-      ).length;
-      while (discoveryCount < MAX_AI_DISCOVERY_FIELDS) {
-        const field = textField(root, `Discoverable field ${discoveryCount}`);
-        updateCandidatureFieldPreferences(root, {
-          ...field.preferences,
-          focusVisible: discoveryCount % 2 === 0,
-          focusOrder: discoveryCount,
-          aiDiscovery: true,
-          aiContextMode: "expose",
-        });
-        discoveryCount += 1;
-      }
-      const extra = textField(root, "Non-discoverable extra field");
-      expect(() =>
-        updateCandidatureFieldPreferences(root, {
-          ...extra.preferences,
-          aiDiscovery: true,
-        }),
-      ).toThrow(`at most ${MAX_AI_DISCOVERY_FIELDS} AI-discovery candidature fields`);
+      const field = textField(root, "Private note");
+      const hiddenFromAi = updateCandidatureFieldPreferences(root, {
+        ...field.preferences,
+        focusVisible: true,
+        focusOrder: 2,
+        aiUseAllowed: false,
+      });
+      expect(hiddenFromAi.preferences).toMatchObject({
+        focusVisible: true,
+        focusOrder: 2,
+        aiUseAllowed: false,
+      });
+
+      const visibleToAi = updateCandidatureFieldPreferences(root, {
+        ...hiddenFromAi.preferences,
+        aiUseAllowed: true,
+      });
+      expect(visibleToAi.preferences.aiUseAllowed).toBe(true);
+
+      updateCandidatureField(root, {
+        id: field.definition.id,
+        label: field.definition.label,
+        description: field.definition.description,
+        valueType: field.definition.valueType,
+        cardinality: field.definition.cardinality,
+        choices: field.definition.choices,
+        enabled: false,
+      });
+      const retired = listCandidatureFields(root).find(
+        (candidate) => candidate.definition.id === field.definition.id,
+      );
+      expect(retired?.preferences.aiUseAllowed).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
