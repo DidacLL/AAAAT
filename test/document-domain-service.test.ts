@@ -115,10 +115,15 @@ describe("explicit document domain", () => {
     }
   });
 
-  it("saves Working CV composition as a reusable template", () => {
+  it("saves Working CV composition as a reusable template without flattening current My information into overrides", () => {
     const root = workspace();
     try {
-      addProfileItem(root, { kind: "skill", title: "TypeScript", description: "Production TypeScript." });
+      const profileItem = addProfileItem(root, {
+        kind: "skill",
+        title: "TypeScript",
+        description: "Production TypeScript.",
+      }).items[0];
+      if (!profileItem) throw new Error("Profile item missing");
       const working = createWorkingCv(root, {
         title: "Reusable CV",
         candidatureId: null,
@@ -128,20 +133,27 @@ describe("explicit document domain", () => {
       const template = saveWorkingCvAsTemplate(root, { workingCvId: working.id, name: "Backend template" });
       expect(template.name).toBe("Backend template");
       expect(template.sections).toHaveLength(working.sections.length);
+      expect(template.sections.flatMap((section) => section.items)).toEqual([
+        expect.objectContaining({
+          sourceMode: "current",
+          profileItemId: profileItem.id,
+        }),
+      ]);
       expect(listDocumentCollections(root).templates.map((item) => item.id)).toContain(template.id);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("duplicates an immutable Rendered CV after its live template and application associations disappear", () => {
+  it("duplicates an immutable Rendered CV after its live reusable sources and application associations disappear", () => {
     const root = workspace();
     try {
-      addProfileItem(root, {
+      const profileItem = addProfileItem(root, {
         kind: "experience",
         title: "Reliability Engineer",
         description: "Operated critical services.",
-      });
+      }).items[0];
+      if (!profileItem) throw new Error("Profile item missing");
       const candidature = createCandidature(root, { values: [] });
       const seed = createWorkingCv(root, {
         title: "Seed CV",
@@ -182,6 +194,7 @@ describe("explicit document domain", () => {
         );
         database.prepare("DELETE FROM cv_templates WHERE id = ?").run(template.id);
         database.prepare("DELETE FROM candidatures WHERE id = ?").run(candidature.id);
+        database.prepare("DELETE FROM profile_items WHERE id = ?").run(profileItem.id);
       });
 
       const retained = listDocumentCollections(root).renderedCvs.find((item) => item.id === renderedId);
@@ -203,6 +216,17 @@ describe("explicit document domain", () => {
       expect(duplicate.sections.map((section) => section.name)).toEqual(
         working.sections.map((section) => section.name),
       );
+      expect(duplicate.sections.flatMap((section) => section.items)).toEqual([
+        expect.objectContaining({
+          sourceMode: "custom",
+          profileItemId: null,
+          profileVariantId: null,
+          content: expect.objectContaining({
+            title: "Reliability Engineer",
+            description: "Operated critical services.",
+          }),
+        }),
+      ]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
