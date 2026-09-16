@@ -4,82 +4,44 @@
 
 PR #319 remains open and unmerged on `product/dogfood-workspace-ai-context`.
 
-The accepted product implementation is `78772750bd15d9c1a8a2b8bf5930f3ebceddbbff`. The audited packaging workflow was added afterward without product-code changes.
+The accepted product architecture remains the model in `PRODUCT_DEFINITION.md` and `docs/UX_DEFINITION.md`, but Product Owner natural-use testing of Windows candidate `74b9259d882534571acd65cd129f1bdcdaf309d7` proved the implementation is not yet acceptance-ready. Do not merge.
 
-The independent whole-PR product/architecture audit and bounded correction are complete. Do not start another feature, domain or interaction redesign unless Product Owner natural-use testing exposes a concrete defect.
+This mission supersedes the earlier narrow packaging/acceptance gate. The next implementation pass is one integrated runtime-coherence recovery, not a sequence of one-button patches.
 
 ## Product authority
 
-Read authority in `AGENTS.md` order. Current `PRODUCT_DEFINITION.md` and `docs/UX_DEFINITION.md` contain the settled product model. Active user/operator documentation and `docs/SPEC.md` match the accepted implementation; historical ADRs, old desktop tests and owner-source material are evidence only.
+Read authority in `AGENTS.md` order. Preserve the settled product model: sparse applications and Sources; Focus / All data; shared Tags; one AI-use permission; item-level Profile variants; CV templates / Working CVs / immutable Rendered CV snapshots / application-owned cover letters / Application packets; persistent Data / AI / PDF rail; exactly Workspace / AI / Documents / Backup Settings; demo/reset/backup/recovery; bounded external capabilities.
 
-## Accepted implementation to preserve
+Do not reintroduce rejected generic documents, aggregate profile variants, workflow architecture, migration/compatibility machinery, provider frameworks, or obsolete UI destinations.
 
-Do not regress:
+## Confirmed integration defects from the audit
 
-- sparse applications, first-class Sources and complete manual/no-AI use;
-- Focus / All data over one application corpus;
-- flexible user-maintainable application information;
-- shared Tags with scalable attach/search/create/edit and reviewed AI Tag proposals;
-- one persistent `AI may use this information` permission for application fields and reusable professional information;
-- Opportunity Review with the same bounded permission model;
-- bounded AI operations, typed capability validation, diagnostics and inspectable exchanges;
-- item-level Profile variants;
-- CV templates, Working CVs, immutable Rendered CV snapshots, application-owned cover letters and Application packets;
-- Templates / Rendered CVs / Letters / Application packets collections;
-- persistent rail Data / AI / PDF status;
-- exactly four Settings tabs: Workspace / AI / Documents / Backup;
-- advanced bounded external-assistant connection plus explicit installer/configurator action authority under Settings → AI;
-- demo/reset, local ownership and backup/recovery.
+The first packaged operation exposed a broader stale/current split around the document-domain replacement.
 
-## Windows candidate produced
+1. `src/main/schema.sql` is the current schema, but `src/main/workspace.ts::validateCurrentWorkspaceDatabase()` still requires deleted schema objects such as `profile_variant_item_rules`, `documents`, `document_item_rules`, `document_activity`, `candidature_documents`, `application_artifacts`, `documents_one_ai_content_visible_cv`, and old `application_artifacts` columns. Fresh workspaces and demo workspaces therefore create the current database and immediately reject it as incompatible.
 
-A fresh Windows x64 candidate was produced by GitHub Actions from exact SHA `74b9259d882534571acd65cd129f1bdcdaf309d7` using workflow `Windows package candidate`, run `35138407909`.
+2. `removeWorkspaceData()` still removes obsolete `documents/` and `artifacts/` directories while current generated projects live in `rendered-cvs/` and `application-packets/`. Reset/delete can therefore leave current AAAAT-generated files behind after deleting the database that owns them.
 
-The only repository change between the prior acceptance-state head and this packaging SHA is `.github/workflows/windows-package.yml`.
+3. Welcome error handling is not truthful enough: New workspace maps every create failure to a folder-selection message, masking initialization/runtime failures; demo currently exposes the raw Electron remote-method error prefix. Correct this minimally without redesigning Welcome or creating an error framework.
 
-Packaging evidence:
+4. Current document collection records hard-code `hasPdf: true` for Rendered CVs and Application packets without checking the retained file. The UI then offers Open PDF unconditionally. A user-owned/missing file can therefore be represented as present until the open operation fails.
 
-- Node `24.20.0`;
-- npm `11.19.0`;
-- `npm ci` passed;
-- `npm run typecheck` passed;
-- `npm run make` passed;
-- Verify run at the same SHA passed;
-- package `AAAAT-win32-x64-2.0.0-alpha.0.zip`;
-- package size `160169616` bytes;
-- package SHA-256 `a7e67e56a796f43a3c0deafd8ba2d099cef58e1a3c21beff0597965ac7b5a36d`;
-- GitHub Actions artifact `10463274901` contains that package plus `windows-package-metadata.txt`.
+5. Persisted `project_relative_path` values are joined to the workspace root without enforcing that they remain inside the current managed generated-project roots. Current generated-artifact path handling must be bounded to the workspace and expected roots.
 
-This is an unsigned alpha package. Packaging success is build evidence only, not Product Owner acceptance.
+6. Current tests contain stale architecture evidence: `test/workspace.test.ts` checks obsolete cleanup directories; `test/workspace-backup.test.ts` and `test/desktop/packaged-recovery.spec.ts` use obsolete document/integration fixture paths; `test/preload-api.test.ts` still supplies removed `documentIds`; `test/desktop/packaged-application-intent.spec.ts` asserts deleted `documents` / `candidature_documents` tables. Other desktop tests include historical superseded UI/AI evidence and must be classified rather than treated as authority.
 
-## Current gate: Product Owner natural-use acceptance
+7. Candidate gating was insufficient. Routine `.github/workflows/verify.yml` is intentionally lightweight, but `.github/workflows/windows-package.yml` also ran only install/typecheck/make. The repository already had fresh-workspace and demo tests that would have caught the blocker. A candidate artifact must run a strong current non-desktop verification gate before packaging.
 
-Do not perform additional implementation, cross-platform packaging or release work until the Product Owner reports natural-use findings from the Windows candidate.
+## Required next pass
 
-Owner testing should use the packaged application normally, not the development renderer. Useful coverage includes:
+Use one executable agent session. Before editing, run the full current non-desktop verification (`npm run verify`) and inventory every failure. Then audit active `src/main`, `src/preload`, `src/shared`, renderer entry paths, workspace persistence/backup/reset, and current tests for stale rejected-model references and current contract mismatches. Fix all material current-runtime/integrity issues found in that pass coherently.
 
-- sparse/raw application capture and optional CV/letter creation;
-- Focus and complete application work;
-- shared Tag attach/search/create/edit behavior;
-- the single AI-use eye, AI connection validation and diagnostics;
-- My information item variants;
-- template → Working CV → Rendered CV ownership behavior;
-- application-owned letters and Application packets;
-- persistent Data/AI/PDF rail status;
-- four-tab Settings, endpoint errors and advanced external-assistant authorization;
-- demo/reset and backup/recovery.
+Do not weaken current tests to get green. Update/delete only tests that encode rejected architecture; preserve meaningful current behavior tests. `vitest.config.mts` already excludes `test/desktop/**`, so the non-desktop suite can be made an authoritative candidate gate without dragging historical packaged UI tests into routine unit verification.
 
-Treat observed owner friction, wrong behavior, data loss, broken document ownership, misleading privacy/AI disclosure, or packaged-runtime failures as evidence. Do not invent speculative cleanup during acceptance.
+The Windows candidate workflow should run `npm run verify` (or an equivalent full current non-desktop gate) before `npm run make`. Reconcile and run a small set of current packaged-runtime tests appropriate to first-run/workspace/recovery/application-document behavior; do not resurrect obsolete desktop expectations.
 
-## After owner findings
+Work locally through the whole pass and push one coherent final implementation commit rather than one commit/CI loop per symptom. After local verification is green, push once and let GitHub produce one corrected Windows candidate. Return exact SHA, full verification results, packaged-runtime evidence, artifact metadata/checksum, and remaining explicitly classified risks.
 
-If owner testing finds a material defect, make one coherent correction pass scoped to demonstrated findings, then rebuild the Windows candidate as needed.
+## Acceptance
 
-Only after explicit Product Owner natural-use acceptance:
-
-1. run impact-appropriate Windows regression/package evidence;
-2. run Linux/macOS packaging or cross-platform verification appropriate to release readiness;
-3. resolve only demonstrated release blockers;
-4. prepare the final merge/release decision.
-
-Never merge PR #319 without explicit Product Owner direction.
+Product Owner natural-use testing restarts only after that integrated pass and corrected Windows artifact exist. Packaging success alone is not merge authorization. Never merge PR #319 without explicit Product Owner direction.
