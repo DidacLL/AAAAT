@@ -224,7 +224,7 @@ export function DocumentsStartWorkspace({ onOpenDocument }: { readonly onOpenDoc
       </section>
 
       <section className="document-intent-existing" aria-label="Application packets">
-        <div className="section-heading"><div><p className="eyebrow">Combined retained output</p><h2>Application packets</h2></div><span>{collections.applicationPackets.length}</span></div>
+        <div className="section-heading"><div><p className="eyebrow">Retained application output</p><h2>Application packets</h2></div><span>{collections.applicationPackets.length}</span></div>
         {collections.applicationPackets.length === 0 ? <p className="document-intent-empty">No application packets yet.</p> : <div className="document-intent-list">{collections.applicationPackets.map((packet) => <button type="button" key={packet.id} onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}><span className="item-kind">Packet</span><strong>{packet.title}</strong><small>Open PDF</small></button>)}</div>}
       </section>
     </section>
