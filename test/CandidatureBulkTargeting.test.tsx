@@ -12,13 +12,8 @@ vi.mock("../src/renderer/CandidatureFocusPanel", () => ({ CandidatureFocusPanel:
 vi.mock("../src/renderer/CandidatureOfferPanel", () => ({ CandidatureOfferPanel: () => null }));
 vi.mock("../src/renderer/CandidatureSourcesPanel", () => ({ CandidatureSourcesPanel: () => null }));
 vi.mock("../src/renderer/CandidatureInferencePanel", () => ({
-  CandidatureInferencePanel: ({
-    targetFieldIds,
-    title,
-  }: {
-    readonly targetFieldIds: readonly string[];
-    readonly title: string;
-  }) => <div data-testid={`inference-${title}`}>{targetFieldIds.join(",")}</div>,
+  CandidatureInferencePanel: ({ targetFieldIds, title }: { readonly targetFieldIds: readonly string[]; readonly title: string }) =>
+    <div data-testid={`inference-${title}`}>{targetFieldIds.join(",")}</div>,
 }));
 
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
@@ -50,8 +45,7 @@ function field(id: string, label: string, enabled = true): CandidatureFieldConfi
       focusOrder: 0,
       focusProminence: "normal",
       identityOrder: null,
-      aiDiscovery: true,
-      aiContextMode: "expose",
+      aiUseAllowed: true,
     },
   };
 }
@@ -70,15 +64,7 @@ const candidature: CandidatureRecord = {
   updatedAt: "2026-09-15T00:00:00.000Z",
   label: "Aster Captain",
   sourceSearchText: "Aster Captain Madrid",
-  values: [
-    {
-      candidatureId,
-      fieldId: roleId,
-      value: "Captain",
-      createdAt: "2026-09-15T00:00:00.000Z",
-      updatedAt: "2026-09-15T00:00:00.000Z",
-    },
-  ],
+  values: [{ candidatureId, fieldId: roleId, value: "Captain", createdAt: "2026-09-15T00:00:00.000Z", updatedAt: "2026-09-15T00:00:00.000Z" }],
   documentIds: [],
   tagIds: [],
 };
@@ -87,11 +73,7 @@ function installApi(): void {
   Object.defineProperty(window, "aaaat", {
     configurable: true,
     value: {
-      candidatures: {
-        list: vi.fn(async () => [candidature]),
-        listFields: vi.fn(async () => fields),
-        listTags: vi.fn(async () => []),
-      },
+      candidatures: { list: vi.fn(async () => [candidature]), listFields: vi.fn(async () => fields), listTags: vi.fn(async () => []) },
       documents: { list: vi.fn(async () => []) },
       candidatureSearch: { search: vi.fn(async () => [candidatureId]) },
     },
@@ -99,10 +81,7 @@ function installApi(): void {
 }
 
 describe("bulk candidature mutation targeting", () => {
-  afterEach(() => {
-    cleanup();
-    vi.restoreAllMocks();
-  });
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
   it("passes only enabled missing fields to the bulk inference request", async () => {
     installApi();
@@ -114,9 +93,7 @@ describe("bulk candidature mutation targeting", () => {
     const detail = await screen.findByRole("region", { name: "Complete candidature" });
     await user.click(within(detail).getByRole("button", { name: "Ask AI to fill missing information" }));
 
-    expect(await screen.findByTestId("inference-Fill missing information")).toHaveTextContent(
-      `${organisationId},${locationId}`,
-    );
+    expect(await screen.findByTestId("inference-Fill missing information")).toHaveTextContent(`${organisationId},${locationId}`);
     expect(screen.getByTestId("inference-Fill missing information")).not.toHaveTextContent(roleId);
     expect(screen.getByTestId("inference-Fill missing information")).not.toHaveTextContent(disabledId);
   });
