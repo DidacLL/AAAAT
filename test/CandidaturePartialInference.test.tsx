@@ -47,8 +47,7 @@ function field(
       focusOrder: 0,
       focusProminence: "normal",
       identityOrder: null,
-      aiDiscovery: true,
-      aiContextMode: "expose",
+      aiUseAllowed: true,
     },
   };
 }
@@ -145,6 +144,8 @@ describe("partial candidature inference UI", () => {
         { fieldId: roleId, value: "Senior Engineer" },
       ],
       newFields: [],
+      existingTags: [],
+      newTags: [],
       issues: [
         {
           kind: "invalid",
@@ -204,6 +205,8 @@ describe("partial candidature inference UI", () => {
       async () => ({
         proposals: [{ fieldId: organisationId, value: "Aster Aviation" }],
         newFields: [],
+        existingTags: [],
+        newTags: [],
         issues: [
           {
             kind: "invalid",
