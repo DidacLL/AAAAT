@@ -27,7 +27,7 @@ function HarnessCard({ harness }: { readonly harness: SetupHarnessView }) {
   );
 }
 
-function SetupActionAuthority({
+export function SetupActionAuthority({
   access,
   saving,
   onChange,

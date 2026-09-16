@@ -34,6 +34,8 @@ const restore = vi.fn();
 const list = vi.fn();
 const save = vi.fn();
 const externalConnection = vi.fn();
+const setupAccess = vi.fn();
+const updateAccess = vi.fn();
 
 function renderSettings(initialView: SettingsView = "workspace") {
   return render(
@@ -61,14 +63,16 @@ beforeEach(() => {
   resetWorkspace.mockResolvedValue(workspace);
   deleteWorkspace.mockResolvedValue(undefined);
   externalConnection.mockResolvedValue({ packaged: true, executablePath: "C:\\Apps\\AAAAT.exe", workspacePath: workspace.rootPath });
+  setupAccess.mockResolvedValue({ installerActionsAllowed: false, configuratorActionsAllowed: false });
+  updateAccess.mockImplementation(async (update: { installerActionsAllowed: boolean; configuratorActionsAllowed: boolean }) => update);
   Object.defineProperty(window, "aaaat", {
     configurable: true,
     value: {
       workspace: { reset: resetWorkspace, delete: deleteWorkspace },
       setupEnvironment: { current: async () => readyEnvironment, externalConnection },
       setupAssistant: {
-        access: async () => ({ installerActionsAllowed: false, configuratorActionsAllowed: false }),
-        updateAccess: async (update: { installerActionsAllowed: boolean; configuratorActionsAllowed: boolean }) => update,
+        access: setupAccess,
+        updateAccess,
         runRenderingSelfTest: async () => ({ passed: true }),
       },
       workspaceRecovery: { backup, restore },
@@ -110,6 +114,33 @@ describe("Settings workspace", () => {
     expect(screen.getByRole("button", { name: "Export AI setup" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Import AI setup" })).toBeInTheDocument();
     expect(screen.getByText("Advanced: connect an external assistant")).toBeInTheDocument();
+  });
+
+  it("keeps bounded setup-action authorization behind the AI advanced disclosure", async () => {
+    const user = userEvent.setup();
+    renderSettings("ai");
+
+    expect(screen.queryByRole("region", { name: "External setup action authority" })).not.toBeInTheDocument();
+    await user.click(screen.getByText("Advanced: connect an external assistant"));
+
+    const authority = await screen.findByRole("region", { name: "External setup action authority" });
+    const installer = within(authority).getByRole("checkbox", { name: /installer\.ai actions/i });
+    const configurator = within(authority).getByRole("checkbox", { name: /configurator\.ai actions/i });
+    expect(installer).not.toBeChecked();
+    expect(configurator).not.toBeChecked();
+    expect(setupAccess).toHaveBeenCalledOnce();
+
+    await user.click(installer);
+    expect(updateAccess).toHaveBeenLastCalledWith({
+      installerActionsAllowed: true,
+      configuratorActionsAllowed: false,
+    });
+
+    await user.click(configurator);
+    expect(updateAccess).toHaveBeenLastCalledWith({
+      installerActionsAllowed: true,
+      configuratorActionsAllowed: true,
+    });
   });
 
   it("keeps invalid endpoint syntax as an inline address error", async () => {

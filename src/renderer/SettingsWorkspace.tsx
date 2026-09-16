@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import type { ExternalAssistantConnection } from "../shared/setup-environment-contracts";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
+import { SetupActionAuthorityPanel } from "./SetupActionAuthorityPanel";
 import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
@@ -190,6 +191,7 @@ export function SettingsWorkspace({
             <details className="settings-advanced-disclosure">
               <summary>Advanced: connect an external assistant</summary>
               <ExternalAssistantConnectionPanel />
+              <SetupActionAuthorityPanel />
             </details>
           </>
         ) : null}

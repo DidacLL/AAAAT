@@ -156,4 +156,20 @@ describe("named AI connections", () => {
     expect(() => listAiConnections(root)).toThrow("stored AI connection configuration is invalid");
     expect(readFileSync(filePath, "utf8")).toBe(obsolete);
   });
+
+  it("rejects stale variant-recommendation routing state as invalid current configuration", () => {
+    const root = workspace();
+    const stale = JSON.stringify({
+      version: 4,
+      connections: [],
+      defaultConnectionId: null,
+      operationDefaults: {
+        variant_recommendation: "00000000-0000-4000-8000-000000000001",
+      },
+    });
+    const filePath = path.join(root, "ai-connection.json");
+    writeFileSync(filePath, stale, "utf8");
+    expect(() => listAiConnections(root)).toThrow("stored AI connection configuration is invalid");
+    expect(readFileSync(filePath, "utf8")).toBe(stale);
+  });
 });

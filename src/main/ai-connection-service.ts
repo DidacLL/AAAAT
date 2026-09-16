@@ -42,7 +42,6 @@ const operationDefaultsSchema = z
     opportunity_review: aiConnectionIdSchema.optional(),
     job_extraction: aiConnectionIdSchema.optional(),
     historical_field_discovery: aiConnectionIdSchema.optional(),
-    variant_recommendation: aiConnectionIdSchema.optional(),
     cv_tailoring: aiConnectionIdSchema.optional(),
     cover_letter_draft: aiConnectionIdSchema.optional(),
   })
