@@ -58,6 +58,10 @@ export function CandidaturesWorkspace({
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
   const [focusSources, setFocusSources] = useState<CandidatureSource[]>([]);
   const [focusDocumentBusy, setFocusDocumentBusy] = useState<"cv" | "cover_letter" | null>(null);
+  const [applicationCvSource, setApplicationCvSource] = useState("profile");
+  const [packetRenderedCvId, setPacketRenderedCvId] = useState("");
+  const [packetLetterId, setPacketLetterId] = useState("");
+  const [packetBusy, setPacketBusy] = useState(false);
   const [tags, setTags] = useState<TagRecord[]>([]);
   const [mode, setMode] = useState<CandidatureMode>("corpus");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -98,6 +102,7 @@ export function CandidaturesWorkspace({
     setFieldDefinitionsDirty(false); setDiscoveryFieldId(null); setBulkInferenceOpen(false);
     setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
     setTagAliasesText(""); setActivityOpen(false);
+    setApplicationCvSource("profile"); setPacketRenderedCvId(""); setPacketLetterId("");
   }, []);
 
   const hydrate = useCallback((record: CandidatureRecord) => {
@@ -265,6 +270,26 @@ export function CandidaturesWorkspace({
     } catch { setError(kind === "cv" ? "AAAAT could not create the application CV." : "AAAAT could not create the cover letter."); }
     finally { setFocusDocumentBusy(null); }
   };
+  const createApplicationCvFromSource = async () => {
+    if (!selected || focusDocumentBusy) return;
+    setFocusDocumentBusy("cv"); setError(null);
+    try {
+      const templateId = applicationCvSource.startsWith("template:") ? applicationCvSource.slice("template:".length) : null;
+      const source = templateId
+        ? { kind: "template" as const, templateId }
+        : applicationCvSource === "blank"
+          ? { kind: "blank" as const }
+          : { kind: "profile" as const };
+      const created = await window.aaaat.documentDomain.createWorkingCv({
+        title: "Application CV",
+        candidatureId: selected.id,
+        source,
+      });
+      await refreshCollections(); openDocument(created.id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not create the application CV.");
+    } finally { setFocusDocumentBusy(null); }
+  };
 
   const enabledFields = fields.filter((field) => field.definition.enabled);
   const enabledMissingFields = selected ? enabledFields.filter((field) => field.preferences.aiUseAllowed && !selected.values.some((value) => value.fieldId === field.definition.id)) : [];
@@ -329,15 +354,21 @@ export function CandidaturesWorkspace({
   const applicationLetters = collections.letters.filter((item) => item.candidatureId === selected.id);
   const applicationRendered = collections.renderedCvs.filter((item) => item.candidatureId === selected.id);
   const applicationPackets = collections.applicationPackets.filter((item) => item.candidatureId === selected.id);
-  const packetReadyCv = applicationRendered[0];
-  const packetReadyLetter = applicationLetters[0];
+  const selectedPacketCvId = applicationRendered.some((item) => item.id === packetRenderedCvId) ? packetRenderedCvId : applicationRendered[0]?.id ?? "";
+  const selectedPacketLetterId = applicationLetters.some((item) => item.id === packetLetterId) ? packetLetterId : applicationLetters[0]?.id ?? "";
 
   const createPacket = async () => {
-    if (!packetReadyCv || !packetReadyLetter) return;
+    if (!selectedPacketCvId || !selectedPacketLetterId || packetBusy) return;
+    setPacketBusy(true); setError(null);
     try {
-      await window.aaaat.documentDomain.createPacket({ candidatureId: selected.id, renderedCvId: packetReadyCv.id, coverLetterId: packetReadyLetter.id });
+      await window.aaaat.documentDomain.createPacket({
+        candidatureId: selected.id,
+        renderedCvId: selectedPacketCvId,
+        coverLetterId: selectedPacketLetterId,
+      });
       await refreshCollections();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not create the application packet."); }
+    finally { setPacketBusy(false); }
   };
 
   return (
@@ -390,14 +421,27 @@ export function CandidaturesWorkspace({
       </section>
 
       <section className="section-surface" aria-label="Application documents">
-        <div className="candidature-editor-heading"><div><p className="eyebrow">Application material</p><h3>CV, letter and retained output</h3></div><div className="button-row"><button type="button" className="compact-secondary" onClick={() => void createFocusDocument("cv")}>New CV</button><button type="button" className="compact-secondary" onClick={() => void createFocusDocument("cover_letter")}>New cover letter</button></div></div>
+        <div className="candidature-editor-heading">
+          <div><p className="eyebrow">Application material</p><h3>CV, letter and retained output</h3></div>
+          <div className="button-row">
+            <label>New CV from<select value={applicationCvSource} onChange={(event) => setApplicationCvSource(event.target.value)}><option value="profile">My information</option><option value="blank">Blank</option>{collections.templates.map((template) => <option key={template.id} value={`template:${template.id}`}>Template · {template.name}</option>)}</select></label>
+            <button type="button" className="compact-secondary" disabled={focusDocumentBusy !== null} onClick={() => void createApplicationCvFromSource()}>{focusDocumentBusy === "cv" ? "Creating…" : "New CV"}</button>
+            <button type="button" className="compact-secondary" disabled={focusDocumentBusy !== null} onClick={() => void createFocusDocument("cover_letter")}>{focusDocumentBusy === "cover_letter" ? "Creating…" : "New cover letter"}</button>
+          </div>
+        </div>
         {applicationWorkingCvs.length + applicationLetters.length + applicationRendered.length + applicationPackets.length === 0 ? <p className="compact-empty">No application documents yet.</p> : <div className="document-intent-list">
           {applicationWorkingCvs.map((document) => <button type="button" key={document.id} onClick={() => openDocument(document.id)}><span className="item-kind">Working CV</span><strong>{document.title}</strong><small>Edit</small></button>)}
           {applicationLetters.map((document) => <button type="button" key={document.id} onClick={() => openDocument(document.id)}><span className="item-kind">Letter</span><strong>{document.title}</strong><small>Edit</small></button>)}
           {applicationRendered.map((document) => <button type="button" key={document.id} onClick={() => void window.aaaat.documentDomain.openRenderedCv(document.id)}><span className="item-kind">Rendered CV</span><strong>{document.title}</strong><small>Open PDF</small></button>)}
           {applicationPackets.map((packet) => <button type="button" key={packet.id} onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}><span className="item-kind">Packet</span><strong>{packet.title}</strong><small>Open PDF</small></button>)}
         </div>}
-        {packetReadyCv && packetReadyLetter ? <button type="button" className="compact-secondary" onClick={() => void createPacket()}>Create application packet</button> : <p className="compact-help">Render an application CV and keep a cover letter here to create a combined packet.</p>}
+        {selectedPacketCvId && selectedPacketLetterId ? (
+          <div className="document-start-options-grid" aria-label="Application packet composition">
+            <label>Rendered CV<select value={selectedPacketCvId} onChange={(event) => setPacketRenderedCvId(event.target.value)}>{applicationRendered.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}</select></label>
+            <label>Cover letter<select value={selectedPacketLetterId} onChange={(event) => setPacketLetterId(event.target.value)}>{applicationLetters.map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}</select></label>
+            <button type="button" className="compact-secondary" disabled={packetBusy} onClick={() => void createPacket()}>{packetBusy ? "Creating packet…" : "Create application packet"}</button>
+          </div>
+        ) : <p className="compact-help">Render an application CV and keep a cover letter here to create an application packet.</p>}
       </section>
 
       <section className="section-surface candidature-secondary-controls" aria-label="Application history">
