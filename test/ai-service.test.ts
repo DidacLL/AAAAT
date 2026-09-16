@@ -25,6 +25,7 @@ import { updateProfileItemAiContextPreference } from "../src/main/profile-ai-con
 import { addProfileItem } from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 import type { AiOperation } from "../src/shared/ai-connection-contracts";
+import type { ProfileItemInput, ProfileItem } from "../src/shared/contracts";
 
 const roots: string[] = [];
 
@@ -33,6 +34,13 @@ function workspace(): string {
   roots.push(root);
   createOrOpenWorkspace(root);
   return root;
+}
+
+function addItem(root: string, input: ProfileItemInput): ProfileItem {
+  const profile = addProfileItem(root, input);
+  const item = profile.items.at(-1);
+  if (!item) throw new Error("profile item fixture missing");
+  return item;
 }
 
 function provider(overrides: Partial<ModelProvider> = {}): ModelProvider {
@@ -77,12 +85,12 @@ describe("AI service", () => {
   it("projects only reusable information whose AI-visibility eye is enabled", async () => {
     const root = workspace();
     const candidature = createCandidature(root, { values: [] });
-    const visible = addProfileItem(root, {
+    const visible = addItem(root, {
       kind: "experience",
       title: "Platform Engineer",
       description: "Operated production systems.",
     });
-    const hidden = addProfileItem(root, {
+    const hidden = addItem(root, {
       kind: "skill",
       title: "Private skill",
       description: "Must remain local.",
@@ -112,7 +120,7 @@ describe("AI service", () => {
   it("tailors a Working CV using local composition item refs without mutating My information", async () => {
     const root = workspace();
     const candidature = createCandidature(root, { values: [] });
-    const profileItem = addProfileItem(root, {
+    const profileItem = addItem(root, {
       kind: "experience",
       title: "Platform Engineer",
       description: "Operated production systems.",
@@ -153,7 +161,7 @@ describe("AI service", () => {
   it("drafts against the cover letter's owned application and reusable career evidence", async () => {
     const root = workspace();
     const candidature = createCandidature(root, { values: [] });
-    const profileItem = addProfileItem(root, {
+    const profileItem = addItem(root, {
       kind: "experience",
       title: "Reliability Engineer",
       description: "Owned incident response and production reliability.",
