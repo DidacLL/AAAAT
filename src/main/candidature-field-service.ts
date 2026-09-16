@@ -26,7 +26,6 @@ import {
 import { withWorkspaceDatabase } from "./workspace";
 
 export const MAX_ENABLED_CANDIDATURE_FIELDS = 64;
-export const MAX_AI_DISCOVERY_FIELDS = 32;
 
 interface FieldRow {
   readonly id: string;
@@ -47,8 +46,7 @@ interface PreferencesRow {
   readonly focusOrder: number | null;
   readonly focusProminence: string;
   readonly identityOrder: number | null;
-  readonly aiDiscovery: number;
-  readonly aiContextMode: string;
+  readonly aiUseAllowed: number;
 }
 
 interface ValueRow {
@@ -130,8 +128,7 @@ function preferencesRow(database: DatabaseSync, fieldId: string): PreferencesRow
               focus_order AS focusOrder,
               focus_prominence AS focusProminence,
               identity_order AS identityOrder,
-              ai_discovery AS aiDiscovery,
-              ai_context_mode AS aiContextMode
+              ai_use_allowed AS aiUseAllowed
          FROM candidature_field_preferences
         WHERE field_id = ?`,
     )
@@ -170,8 +167,7 @@ function toPreferences(row: PreferencesRow): CandidatureFieldPreferences {
     focusOrder: row.focusOrder,
     focusProminence: row.focusProminence,
     identityOrder: row.identityOrder,
-    aiDiscovery: row.aiDiscovery === 1,
-    aiContextMode: row.aiContextMode,
+    aiUseAllowed: row.aiUseAllowed === 1,
   });
 }
 
@@ -216,27 +212,6 @@ function countEnabled(database: DatabaseSync): number {
   const row = database
     .prepare("SELECT COUNT(*) AS count FROM candidature_fields WHERE enabled = 1")
     .get() as { count: number };
-  return row.count;
-}
-
-function countDiscovery(database: DatabaseSync, exceptFieldId?: string): number {
-  const row = exceptFieldId
-    ? (database
-        .prepare(
-          `SELECT COUNT(*) AS count
-             FROM candidature_field_preferences p
-             JOIN candidature_fields f ON f.id = p.field_id
-            WHERE f.enabled = 1 AND p.ai_discovery = 1 AND p.field_id <> ?`,
-        )
-        .get(exceptFieldId) as { count: number })
-    : (database
-        .prepare(
-          `SELECT COUNT(*) AS count
-             FROM candidature_field_preferences p
-             JOIN candidature_fields f ON f.id = p.field_id
-            WHERE f.enabled = 1 AND p.ai_discovery = 1`,
-        )
-        .get() as { count: number });
   return row.count;
 }
 
@@ -340,11 +315,7 @@ export function updateCandidatureField(
         );
       if (!input.enabled) {
         database
-          .prepare(
-            `UPDATE candidature_field_preferences
-                SET ai_discovery = 0
-              WHERE field_id = ?`,
-          )
+          .prepare("UPDATE candidature_field_preferences SET ai_use_allowed = 0 WHERE field_id = ?")
           .run(input.id);
       }
       return configuration(database, input.id);
@@ -379,23 +350,14 @@ export function updateCandidatureFieldPreferences(
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
       const field = toDefinition(fieldRow(database, input.fieldId));
-      if (input.aiDiscovery && !field.enabled) {
-        throw new CandidatureFieldServiceError("Retired fields cannot participate in AI discovery.");
-      }
-      if (
-        input.aiDiscovery &&
-        !toPreferences(preferencesRow(database, input.fieldId)).aiDiscovery &&
-        countDiscovery(database, input.fieldId) >= MAX_AI_DISCOVERY_FIELDS
-      ) {
-        throw new CandidatureFieldServiceError(
-          `AAAAT supports at most ${MAX_AI_DISCOVERY_FIELDS} AI-discovery candidature fields.`,
-        );
+      if (input.aiUseAllowed && !field.enabled) {
+        throw new CandidatureFieldServiceError("Retired fields cannot be used by AI.");
       }
       database
         .prepare(
           `UPDATE candidature_field_preferences
               SET focus_visible = ?, focus_order = ?, focus_prominence = ?,
-                  identity_order = ?, ai_discovery = ?, ai_context_mode = ?
+                  identity_order = ?, ai_use_allowed = ?
             WHERE field_id = ?`,
         )
         .run(
@@ -403,8 +365,7 @@ export function updateCandidatureFieldPreferences(
           input.focusOrder,
           input.focusProminence,
           input.identityOrder,
-          input.aiDiscovery ? 1 : 0,
-          input.aiContextMode,
+          input.aiUseAllowed ? 1 : 0,
           input.fieldId,
         );
       return configuration(database, input.fieldId);
