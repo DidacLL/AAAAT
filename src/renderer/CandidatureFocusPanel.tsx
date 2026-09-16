@@ -4,9 +4,12 @@ import type {
   CandidatureRecord,
   CandidatureRuntimeValue,
   CandidatureSource,
-  DocumentRecord,
   TagRecord,
 } from "../shared/contracts";
+import type {
+  CoverLetterRecord,
+  WorkingCvRecord,
+} from "../shared/document-domain-contracts";
 import { readableSourceText } from "../shared/source-text";
 import { CandidatureFieldAiState } from "./CandidatureFieldAiState";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
@@ -18,7 +21,8 @@ interface Props {
   readonly tags: readonly TagRecord[];
   readonly selectedTagId: string | null;
   readonly sources: readonly CandidatureSource[];
-  readonly documents: readonly DocumentRecord[];
+  readonly workingCvs: readonly WorkingCvRecord[];
+  readonly letters: readonly CoverLetterRecord[];
   readonly documentBusy: "cv" | "cover_letter" | null;
   readonly onSelectTag: (tagId: string) => void;
   readonly onOpenDocument: (documentId: string) => void;
@@ -31,7 +35,7 @@ interface Props {
 }
 
 export function CandidatureFocusPanel({
-  record, fields, tags, selectedTagId, sources, documents, documentBusy,
+  record, fields, tags, selectedTagId, sources, workingCvs, letters, documentBusy,
   onSelectTag, onOpenDocument, onCreateDocument, onSaveValue, onClearValue,
   onDiscoverValue, onUpdatePreferences, onDirtyChange,
 }: Props) {
@@ -45,16 +49,20 @@ export function CandidatureFocusPanel({
   const selectedTag = associatedTags.find((tag) => tag.id === selectedTagId) ?? associatedTags[0] ?? null;
   const source = sources.find((candidate) => candidate.kind === "job_posting") ?? sources[0] ?? null;
   const sourceBody = source ? readableSourceText(source.sourceText) : "";
-  const linkedCv = documents.find((document) => document.kind === "cv") ?? null;
-  const linkedLetter = documents.find((document) => document.kind === "cover_letter") ?? null;
+  const linkedCv = workingCvs.find((document) => document.candidatureId === record.id) ?? null;
+  const linkedLetter = letters.find((document) => document.candidatureId === record.id) ?? null;
 
   return (
     <section className="focus-panel" aria-label="Selected candidature Focus">
       <div className="focus-heading">
         <div><p className="eyebrow">Application focus</p><h2>{record.label}</h2></div>
         <div className="focus-document-actions" aria-label="Application documents">
-          <button type="button" disabled={documentBusy !== null} onClick={() => linkedCv ? onOpenDocument(linkedCv.id) : onCreateDocument("cv")}>{linkedCv ? "Open CV" : documentBusy === "cv" ? "Creating CV…" : "Create CV"}</button>
-          <button type="button" disabled={documentBusy !== null} onClick={() => linkedLetter ? onOpenDocument(linkedLetter.id) : onCreateDocument("cover_letter")}>{linkedLetter ? "Open cover letter" : documentBusy === "cover_letter" ? "Creating letter…" : "Create cover letter"}</button>
+          <button type="button" disabled={documentBusy !== null} onClick={() => linkedCv ? onOpenDocument(linkedCv.id) : onCreateDocument("cv")}>
+            {linkedCv ? "Open CV" : documentBusy === "cv" ? "Creating CV…" : "Create CV"}
+          </button>
+          <button type="button" disabled={documentBusy !== null} onClick={() => linkedLetter ? onOpenDocument(linkedLetter.id) : onCreateDocument("cover_letter")}>
+            {linkedLetter ? "Open cover letter" : documentBusy === "cover_letter" ? "Creating letter…" : "Create cover letter"}
+          </button>
         </div>
       </div>
       <div className="focus-dossier-layout">
