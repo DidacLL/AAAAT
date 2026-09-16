@@ -223,7 +223,7 @@ describe("rebuilt candidature workspace", () => {
       value: "Regional Air Europe",
     });
 
-    await user.click(within(selected).getByRole("button", { name: "Back" }));
+    await user.click(within(selected).getByRole("button", { name: "← Applications" }));
     expect(await screen.findByRole("heading", { name: "Focus" })).toBeInTheDocument();
   });
 
