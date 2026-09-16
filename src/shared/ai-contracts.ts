@@ -31,11 +31,7 @@ export const aiConnectionStatusSchema = aiConnectionInputSchema;
 export type AiConnectionStatus = z.infer<typeof aiConnectionStatusSchema>;
 export const optionalAiConnectionStatusSchema = aiConnectionStatusSchema.nullable();
 
-/**
- * Controls disclosure for one AI operation. It does not change what the
- * operation may persist or define a token-security protocol; local replacement
- * mechanics may evolve.
- */
+/** Operation-specific disclosure choice. Persistent item permission is separate. */
 export const privacyModeSchema = z.enum(["expose", "omit", "token"]);
 export type PrivacyMode = z.infer<typeof privacyModeSchema>;
 
@@ -91,9 +87,7 @@ export const opportunityReviewProjectedContextSchema = z
     profileItems: z.array(aiProjectedProfileItemSchema).max(200),
   })
   .strict();
-export type OpportunityReviewProjectedContext = z.infer<
-  typeof opportunityReviewProjectedContextSchema
->;
+export type OpportunityReviewProjectedContext = z.infer<typeof opportunityReviewProjectedContextSchema>;
 
 export const opportunityReviewPreviewSchema = z
   .object({ connection: aiConnectionStatusSchema, projectedContext: opportunityReviewProjectedContextSchema })
@@ -113,11 +107,7 @@ export const opportunityReviewResultSchema = z
     for (const [key, values] of Object.entries(result)) {
       const items = Array.isArray(values) ? values : [values];
       if (items.some((value) => prohibited.test(value))) {
-        context.addIssue({
-          code: "custom",
-          path: [key],
-          message: "Opportunity reviews cannot rate, rank, choose, or prescribe action.",
-        });
+        context.addIssue({ code: "custom", path: [key], message: "Opportunity reviews cannot rate, rank, choose, or prescribe action." });
       }
     }
   });
@@ -145,7 +135,7 @@ export const jobExtractionRequestSchema = z
 export type JobExtractionRequest = z.infer<typeof jobExtractionRequestSchema>;
 
 export const jobExtractionProviderRequestSchema = jobExtractionRequestSchema
-  .extend({ fields: z.array(aiDiscoveryFieldSchema).min(1).max(32) })
+  .extend({ fields: z.array(aiDiscoveryFieldSchema).min(1).max(64) })
   .strict();
 export type JobExtractionProviderRequest = z.infer<typeof jobExtractionProviderRequestSchema>;
 
@@ -174,9 +164,19 @@ export const jobExtractionNewFieldSchema = z
   });
 export type JobExtractionNewField = z.infer<typeof jobExtractionNewFieldSchema>;
 
+export const jobExtractionNewTagSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    definition: z.string().trim().min(1).max(3000),
+    aliases: z.array(z.string().trim().min(1).max(120)).max(30).default([]),
+    evidence: z.string().trim().min(1).max(1500).optional(),
+  })
+  .strict();
+export type JobExtractionNewTag = z.infer<typeof jobExtractionNewTagSchema>;
+
 export const jobExtractionResultSchema = z
   .object({
-    proposals: z.array(jobExtractionProposalSchema).max(32),
+    proposals: z.array(jobExtractionProposalSchema).max(64),
     newFields: z.array(jobExtractionNewFieldSchema).max(8).default([]),
   })
   .strict()
@@ -191,103 +191,45 @@ export const jobExtractionResultSchema = z
 export type JobExtractionResult = z.infer<typeof jobExtractionResultSchema>;
 
 export const historicalFieldDiscoveryRequestSchema = z
-  .object({
-    candidatureId: z.string().uuid(),
-    fieldId: z.string().uuid(),
-    sourceIds: z.array(z.string().uuid()).min(1).max(20),
-  })
+  .object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid(), sourceIds: z.array(z.string().uuid()).min(1).max(20) })
   .strict()
-  .refine((value) => new Set(value.sourceIds).size === value.sourceIds.length, {
-    message: "Each source may be selected only once.",
-  });
+  .refine((value) => new Set(value.sourceIds).size === value.sourceIds.length, { message: "Each source may be selected only once." });
 export type HistoricalFieldDiscoveryRequest = z.infer<typeof historicalFieldDiscoveryRequestSchema>;
 
 export const historicalFieldDiscoveryResultSchema = z
-  .object({
-    proposal: jobExtractionProposalSchema.nullable(),
-    existingValuePresent: z.boolean(),
-  })
+  .object({ proposal: jobExtractionProposalSchema.nullable(), existingValuePresent: z.boolean() })
   .strict();
 export type HistoricalFieldDiscoveryResult = z.infer<typeof historicalFieldDiscoveryResultSchema>;
 
-export const variantRecommendationRequestSchema = z
-  .object({ candidatureId: z.string().uuid() })
-  .strict();
+export const variantRecommendationRequestSchema = z.object({ candidatureId: z.string().uuid() }).strict();
 export type VariantRecommendationRequest = z.infer<typeof variantRecommendationRequestSchema>;
 
 export const variantRecommendationContextSchema = z
   .object({
     candidature: aiProjectedCandidatureSchema,
-    variants: z
-      .array(
-        z
-          .object({
-            id: z.string().uuid(),
-            name: z.string(),
-            focus: z.string(),
-            targetTags: z.array(z.string()),
-            preferredLanguage: z.string().optional(),
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(100),
+    variants: z.array(z.object({ id: z.string().uuid(), name: z.string(), focus: z.string(), targetTags: z.array(z.string()), preferredLanguage: z.string().optional() }).strict()).min(1).max(100),
   })
   .strict();
 export type VariantRecommendationContext = z.infer<typeof variantRecommendationContextSchema>;
 
-export const variantRecommendationResultSchema = z
-  .object({
-    variantId: z.string().uuid(),
-    rationale: z.string().trim().min(1).max(1500),
-  })
-  .strict();
+export const variantRecommendationResultSchema = z.object({ variantId: z.string().uuid(), rationale: z.string().trim().min(1).max(1500) }).strict();
 export type VariantRecommendationResult = z.infer<typeof variantRecommendationResultSchema>;
 
-export const documentAiRequestSchema = z
-  .object({ candidatureId: z.string().uuid(), documentId: z.string().uuid() })
-  .strict();
+export const documentAiRequestSchema = z.object({ candidatureId: z.string().uuid(), documentId: z.string().uuid() }).strict();
 export type DocumentAiRequest = z.infer<typeof documentAiRequestSchema>;
 
 export const documentEvidenceItemSchema = z
-  .object({
-    id: z.string().uuid(),
-    kind: z.string().min(1),
-    title: z.string(),
-    subtitle: z.string().optional(),
-    description: z.string().optional(),
-  })
+  .object({ id: z.string().uuid(), kind: z.string().min(1), title: z.string(), subtitle: z.string().optional(), description: z.string().optional() })
   .strict();
 export type DocumentEvidenceItem = z.infer<typeof documentEvidenceItemSchema>;
 
-export const documentAiContextSchema = z
-  .object({
-    candidature: aiProjectedCandidatureSchema,
-    items: z.array(documentEvidenceItemSchema).min(1).max(200),
-  })
-  .strict();
+export const documentAiContextSchema = z.object({ candidature: aiProjectedCandidatureSchema, items: z.array(documentEvidenceItemSchema).min(1).max(200) }).strict();
 export type DocumentAiContext = z.infer<typeof documentAiContextSchema>;
 
 export const cvTailoringResultSchema = z
-  .object({
-    recommendations: z
-      .array(
-        z
-          .object({
-            itemId: z.string().uuid(),
-            rationale: z.string().trim().min(1).max(1000),
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(12),
-  })
+  .object({ recommendations: z.array(z.object({ itemId: z.string().uuid(), rationale: z.string().trim().min(1).max(1000) }).strict()).min(1).max(12) })
   .strict()
-  .refine(
-    (value) =>
-      new Set(value.recommendations.map((item) => item.itemId)).size === value.recommendations.length,
-    { message: "Each CV recommendation must reference an item once." },
-  );
+  .refine((value) => new Set(value.recommendations.map((item) => item.itemId)).size === value.recommendations.length, { message: "Each CV recommendation must reference an item once." });
 export type CvTailoringResult = z.infer<typeof cvTailoringResultSchema>;
 
 export const coverLetterDraftSchema = z
@@ -300,44 +242,23 @@ export const coverLetterDraftSchema = z
   .strict();
 export type CoverLetterDraft = z.infer<typeof coverLetterDraftSchema>;
 
-/**
- * References in an AI or external-host payload are fresh, operation-local
- * handles. They deliberately do not expose the UUIDs AAAAT persists locally.
- */
+/** References sent to providers are operation-local, never persisted entity IDs. */
 export const operationReferenceSchema = z.string().min(1).max(200).regex(/^aaaat_[a-z0-9_-]+$/);
 export type OperationReference = z.infer<typeof operationReferenceSchema>;
 
-const providerProjectedCandidatureInformationSchema = z
-  .object({
-    label: z.string().min(1),
-    value: candidatureRuntimeValueSchema,
-  })
-  .strict();
+const providerProjectedCandidatureInformationSchema = z.object({ label: z.string().min(1), value: candidatureRuntimeValueSchema }).strict();
 
 export const providerOpportunityReviewCandidatureSchema = z
-  .object({
-    label: z.string().min(1),
-    information: z.array(providerProjectedCandidatureInformationSchema).max(64),
-    sources: z.array(projectedCandidatureSourceSchema).max(20),
-  })
+  .object({ label: z.string().min(1), information: z.array(providerProjectedCandidatureInformationSchema).max(64), sources: z.array(projectedCandidatureSourceSchema).max(20) })
   .strict();
-export type ProviderOpportunityReviewCandidature = z.infer<
-  typeof providerOpportunityReviewCandidatureSchema
->;
+export type ProviderOpportunityReviewCandidature = z.infer<typeof providerOpportunityReviewCandidatureSchema>;
 
 export const providerOpportunityReviewContextSchema = z
-  .object({
-    candidature: providerOpportunityReviewCandidatureSchema,
-    profileItems: z.array(aiProjectedProfileItemSchema).max(200),
-  })
+  .object({ candidature: providerOpportunityReviewCandidatureSchema, profileItems: z.array(aiProjectedProfileItemSchema).max(200) })
   .strict();
-export type ProviderOpportunityReviewContext = z.infer<
-  typeof providerOpportunityReviewContextSchema
->;
+export type ProviderOpportunityReviewContext = z.infer<typeof providerOpportunityReviewContextSchema>;
 
-export const providerDiscoveryChoiceSchema = z
-  .object({ choiceRef: operationReferenceSchema, label: z.string().trim().min(1).max(120) })
-  .strict();
+export const providerDiscoveryChoiceSchema = z.object({ choiceRef: operationReferenceSchema, label: z.string().trim().min(1).max(120) }).strict();
 
 export const providerDiscoveryFieldSchema = z
   .object({
@@ -350,123 +271,74 @@ export const providerDiscoveryFieldSchema = z
   })
   .strict();
 
+export const providerTagGlossaryEntrySchema = z
+  .object({
+    tagRef: operationReferenceSchema,
+    name: z.string().trim().min(1).max(120),
+    aliases: z.array(z.string().trim().min(1).max(120)).max(8),
+    definition: z.string().trim().max(500),
+  })
+  .strict();
+
 export const providerJobExtractionRequestSchema = jobExtractionRequestSchema
-  .extend({ fields: z.array(providerDiscoveryFieldSchema).min(1).max(32) })
+  .extend({
+    fields: z.array(providerDiscoveryFieldSchema).max(64),
+    tags: z.array(providerTagGlossaryEntrySchema).max(300).default([]),
+  })
   .strict();
 export type ProviderJobExtractionRequest = z.infer<typeof providerJobExtractionRequestSchema>;
 
 export const providerJobExtractionResultSchema = z
   .object({
-    proposals: z
-      .array(
-        z
-          .object({ fieldRef: operationReferenceSchema, value: candidatureRuntimeValueSchema })
-          .strict(),
-      )
-      .max(32),
+    proposals: z.array(z.object({ fieldRef: operationReferenceSchema, value: candidatureRuntimeValueSchema }).strict()).max(64),
     newFields: z.array(jobExtractionNewFieldSchema).max(8).default([]),
+    existingTags: z.array(z.object({ tagRef: operationReferenceSchema, evidence: z.string().trim().min(1).max(1500).optional() }).strict()).max(100).default([]),
+    newTags: z.array(jobExtractionNewTagSchema).max(30).default([]),
   })
   .strict()
-  .refine(
-    (result) => new Set(result.proposals.map((proposal) => proposal.fieldRef)).size === result.proposals.length,
-    { message: "Each discovery field may be proposed only once." },
-  );
+  .refine((result) => new Set(result.proposals.map((proposal) => proposal.fieldRef)).size === result.proposals.length, { message: "Each extraction field may be proposed only once." })
+  .refine((result) => new Set(result.existingTags.map((proposal) => proposal.tagRef)).size === result.existingTags.length, { message: "Each existing Tag may be proposed only once." });
 export type ProviderJobExtractionResult = z.infer<typeof providerJobExtractionResultSchema>;
 
 export const providerVariantRecommendationContextSchema = z
   .object({
     candidature: providerOpportunityReviewCandidatureSchema,
-    variants: z
-      .array(
-        z
-          .object({
-            variantRef: operationReferenceSchema,
-            name: z.string(),
-            focus: z.string(),
-            targetTags: z.array(z.string()),
-            preferredLanguage: z.string().optional(),
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(100),
+    variants: z.array(z.object({ variantRef: operationReferenceSchema, name: z.string(), focus: z.string(), targetTags: z.array(z.string()), preferredLanguage: z.string().optional() }).strict()).min(1).max(100),
   })
   .strict();
-export type ProviderVariantRecommendationContext = z.infer<
-  typeof providerVariantRecommendationContextSchema
->;
+export type ProviderVariantRecommendationContext = z.infer<typeof providerVariantRecommendationContextSchema>;
 
-export const providerVariantRecommendationResultSchema = z
-  .object({ variantRef: operationReferenceSchema, rationale: z.string().trim().min(1).max(1500) })
-  .strict();
-export type ProviderVariantRecommendationResult = z.infer<
-  typeof providerVariantRecommendationResultSchema
->;
+export const providerVariantRecommendationResultSchema = z.object({ variantRef: operationReferenceSchema, rationale: z.string().trim().min(1).max(1500) }).strict();
+export type ProviderVariantRecommendationResult = z.infer<typeof providerVariantRecommendationResultSchema>;
 
 export const providerDocumentAiContextSchema = z
   .object({
     candidature: providerOpportunityReviewCandidatureSchema,
-    items: z
-      .array(
-        z
-          .object({
-            itemRef: operationReferenceSchema,
-            kind: z.string().min(1),
-            title: z.string(),
-            subtitle: z.string().optional(),
-            description: z.string().optional(),
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(200),
+    items: z.array(z.object({ itemRef: operationReferenceSchema, kind: z.string().min(1), title: z.string(), subtitle: z.string().optional(), description: z.string().optional() }).strict()).min(1).max(200),
   })
   .strict();
 export type ProviderDocumentAiContext = z.infer<typeof providerDocumentAiContextSchema>;
 
 export const providerCvTailoringResultSchema = z
-  .object({
-    recommendations: z
-      .array(
-        z
-          .object({ itemRef: operationReferenceSchema, rationale: z.string().trim().min(1).max(1000) })
-          .strict(),
-      )
-      .min(1)
-      .max(12),
-  })
+  .object({ recommendations: z.array(z.object({ itemRef: operationReferenceSchema, rationale: z.string().trim().min(1).max(1000) }).strict()).min(1).max(12) })
   .strict()
-  .refine(
-    (value) => new Set(value.recommendations.map((item) => item.itemRef)).size === value.recommendations.length,
-    { message: "Each CV recommendation must reference an item once." },
-  );
+  .refine((value) => new Set(value.recommendations.map((item) => item.itemRef)).size === value.recommendations.length, { message: "Each CV recommendation must reference an item once." });
 export type ProviderCvTailoringResult = z.infer<typeof providerCvTailoringResultSchema>;
 
 export const externalCandidatureCreateInputSchema = z
   .object({ source: candidatureSourceDraftSchema })
   .strict()
-  .refine(
-    ({ source }) => [source.title, source.url, source.sourceText].some((value) => value.trim().length > 0),
-    { path: ["source"], message: "Source must include a non-empty title, URL, or source text." },
-  );
+  .refine(({ source }) => [source.title, source.url, source.sourceText].some((value) => value.trim().length > 0), { path: ["source"], message: "Source must include a non-empty title, URL, or source text." });
 export type ExternalCandidatureCreateInput = z.infer<typeof externalCandidatureCreateInputSchema>;
 
 export interface AiDesktopApi {
   readonly ai: {
     readonly connection: () => Promise<AiConnectionStatus | null>;
-    readonly previewOpportunityReview: (
-      request: OpportunityReviewRequest,
-    ) => Promise<OpportunityReviewPreview>;
-    readonly reviewOpportunity: (
-      request: OpportunityReviewRequest,
-    ) => Promise<OpportunityReviewResult>;
+    readonly previewOpportunityReview: (request: OpportunityReviewRequest) => Promise<OpportunityReviewPreview>;
+    readonly reviewOpportunity: (request: OpportunityReviewRequest) => Promise<OpportunityReviewResult>;
     readonly extractJob: (request: JobExtractionRequest) => Promise<JobExtractionResult>;
-    readonly discoverField: (
-      request: HistoricalFieldDiscoveryRequest,
-    ) => Promise<HistoricalFieldDiscoveryResult>;
-    readonly recommendVariant: (
-      request: VariantRecommendationRequest,
-    ) => Promise<VariantRecommendationResult>;
+    readonly discoverField: (request: HistoricalFieldDiscoveryRequest) => Promise<HistoricalFieldDiscoveryResult>;
+    readonly recommendVariant: (request: VariantRecommendationRequest) => Promise<VariantRecommendationResult>;
     readonly tailorCv: (request: DocumentAiRequest) => Promise<CvTailoringResult>;
     readonly draftCoverLetter: (request: DocumentAiRequest) => Promise<CoverLetterDraft>;
   };
