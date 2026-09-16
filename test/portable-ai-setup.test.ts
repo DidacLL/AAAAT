@@ -36,10 +36,6 @@ function provider(): ModelProvider {
       questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(async () => ({ proposals: [] })),
-    recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(async () => ({
-      variantRef: "aaaat_validation_variant",
-      rationale: "Synthetic validation result",
-    })),
     tailorCv: vi.fn<ModelProvider["tailorCv"]>(async () => ({ recommendations: [] })),
     draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(async () => ({
       recipient: "",
