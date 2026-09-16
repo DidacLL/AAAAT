@@ -1,20 +1,12 @@
 import { useEffect, useState } from "react";
 
-import type { AiContextMode } from "../shared/contracts";
-
 interface Props {
   readonly itemId: string;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
-const labels: Readonly<Record<AiContextMode, string>> = {
-  expose: "Use this information",
-  token: "Use a local placeholder",
-  omit: "Do not use",
-};
-
 export function ProfileItemAiDisclosureControl({ itemId, onDirtyChange }: Props) {
-  const [mode, setMode] = useState<AiContextMode | null>(null);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +20,7 @@ export function ProfileItemAiDisclosureControl({ itemId, onDirtyChange }: Props)
     void window.aaaat.profileAiContext
       .current(itemId)
       .then((preference) => {
-        if (active) setMode(preference.aiContextMode);
+        if (active) setAllowed(preference.aiUseAllowed);
       })
       .catch(() => {
         if (active) setError("AAAAT could not load the AI-use setting.");
@@ -38,20 +30,21 @@ export function ProfileItemAiDisclosureControl({ itemId, onDirtyChange }: Props)
     };
   }, [itemId]);
 
-  const updateMode = async (nextMode: AiContextMode) => {
-    if (mode === null || saving || nextMode === mode) return;
-    const previous = mode;
-    setMode(nextMode);
+  const toggle = async () => {
+    if (allowed === null || saving) return;
+    const previous = allowed;
+    const next = !allowed;
+    setAllowed(next);
     setSaving(true);
     setError(null);
     try {
       const preference = await window.aaaat.profileAiContext.update({
         itemId,
-        aiContextMode: nextMode,
+        aiUseAllowed: next,
       });
-      setMode(preference.aiContextMode);
+      setAllowed(preference.aiUseAllowed);
     } catch {
-      setMode(previous);
+      setAllowed(previous);
       setError("AAAAT could not save the AI-use setting.");
     } finally {
       setSaving(false);
@@ -59,32 +52,19 @@ export function ProfileItemAiDisclosureControl({ itemId, onDirtyChange }: Props)
   };
 
   return (
-    <details className="ai-visibility-control profile-item-ai-disclosure">
-      <summary aria-label="Choose how AI may use this information" title="Choose how AI may use this information">
-        AI
-      </summary>
-      <div className="ai-visibility-content">
-        <p className="compact-help">
-          This only affects optional AI help. It does not hide, remove or change your local information.
-        </p>
-        {mode === null ? <p className="compact-help">Loading…</p> : null}
-        {mode !== null ? (
-          <label>
-            AI may
-            <select
-              value={mode}
-              disabled={saving}
-              onChange={(event) => void updateMode(event.target.value as AiContextMode)}
-            >
-              {(Object.keys(labels) as AiContextMode[]).map((value) => (
-                <option key={value} value={value}>{labels[value]}</option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-        {saving ? <span className="compact-help">Saving…</span> : null}
-        {error ? <p className="error-message" role="alert">{error}</p> : null}
-      </div>
-    </details>
+    <span className="profile-item-ai-disclosure">
+      <button
+        type="button"
+        className="ai-use-eye"
+        aria-label="AI may use this information"
+        aria-pressed={allowed ?? false}
+        title={allowed === false ? "AI will not use this information" : "AI may use this information"}
+        disabled={allowed === null || saving}
+        onClick={() => void toggle()}
+      >
+        <span aria-hidden="true">{allowed === false ? "○" : "◉"}</span>
+      </button>
+      {error ? <span className="error-message" role="alert">{error}</span> : null}
+    </span>
   );
 }
