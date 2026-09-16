@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { aiContextModeSchema } from "./contracts";
-
 export const profileAiContextChannels = Object.freeze({
   current: "aaaat:profile-ai-context-current",
   update: "aaaat:profile-ai-context-update",
@@ -12,7 +10,7 @@ export const profileAiContextItemIdSchema = z.string().uuid();
 export const profileAiContextPreferenceSchema = z
   .object({
     itemId: profileAiContextItemIdSchema,
-    aiContextMode: aiContextModeSchema,
+    aiUseAllowed: z.boolean(),
   })
   .strict();
 export type ProfileAiContextPreference = z.infer<typeof profileAiContextPreferenceSchema>;
