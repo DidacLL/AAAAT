@@ -69,10 +69,7 @@ import {
   listCandidatureFields,
   validateCandidatureFieldValueInDatabase,
 } from "./candidature-field-service";
-import {
-  getCandidature,
-  listCandidatureSources,
-} from "./candidature-service";
+import { getCandidature, listCandidatureSources } from "./candidature-service";
 import { listDocuments, resolveDocument } from "./document-service";
 import { listProfileItemAiContextPreferences } from "./profile-ai-context-service";
 import { getProfile, resolveProfileVariant } from "./profile-service";
@@ -97,10 +94,7 @@ export function getAiConnection(rootPath: string): AiConnectionStatus | null {
   return getDefaultAiConnection(rootPath);
 }
 
-export function saveAiConnection(
-  rootPath: string,
-  rawInput: AiConnectionInput,
-): AiConnectionStatus {
+export function saveAiConnection(rootPath: string, rawInput: AiConnectionInput): AiConnectionStatus {
   return saveDefaultAiConnection(rootPath, aiConnectionInputSchema.parse(rawInput));
 }
 
@@ -109,27 +103,13 @@ interface Projection<T> {
   readonly tokenMap: ReadonlyMap<string, string>;
 }
 
-const privacyRank: Readonly<Record<PrivacyMode, number>> = {
-  expose: 0,
-  token: 1,
-  omit: 2,
-};
-
-function morePrivate(left: PrivacyMode, right: PrivacyMode): PrivacyMode {
-  return privacyRank[left] >= privacyRank[right] ? left : right;
-}
-
-function profilePrivacyModes(rootPath: string): ReadonlyMap<string, PrivacyMode> {
+function profileAiUse(rootPath: string): ReadonlyMap<string, boolean> {
   return new Map(
     listProfileItemAiContextPreferences(rootPath).map((preference) => [
       preference.itemId,
-      preference.aiContextMode,
+      preference.aiUseAllowed,
     ]),
   );
-}
-
-function runtimeStrings(value: CandidatureRuntimeValue): string[] {
-  return Array.isArray(value) ? value.map(String) : [String(value)];
 }
 
 function profileItemStrings(items: readonly ProfileItem[]): string[] {
@@ -180,48 +160,19 @@ function projectedItem(
   };
 }
 
-function tokenRuntimeValue(
-  value: CandidatureRuntimeValue,
-  token: (value: string) => string,
-): CandidatureRuntimeValue {
-  if (Array.isArray(value)) return value.map((item) => token(String(item)));
-  return token(String(value));
-}
-
 function projectCandidature(
   rootPath: string,
   candidatureId: string,
-  additionalForbidden: readonly string[] = [],
   includeSourceForDocument = false,
 ): Projection<AiProjectedCandidature> {
   const candidature = getCandidature(rootPath, candidatureId);
   const fieldConfigurations = listCandidatureFields(rootPath);
-  const fields = new Map(
-    fieldConfigurations.map((field) => [field.definition.id, field]),
-  );
+  const fields = new Map(fieldConfigurations.map((field) => [field.definition.id, field]));
   const retainedSources = listCandidatureSources(rootPath, candidatureId).slice(0, 20);
-  const privacyCorpus = [
-    candidature.label,
-    ...candidature.values.flatMap((retained) => runtimeStrings(retained.value)),
-    ...fieldConfigurations.map((field) => field.definition.label),
-    ...retainedSources.flatMap((source) => [source.title, source.url, source.sourceText]),
-    ...additionalForbidden,
-  ];
-  const tokenMap = new Map<string, string>();
-  const token = tokenFactory(tokenMap, privacyCorpus);
   const information = candidature.values.flatMap((retained) => {
     const field = fields.get(retained.fieldId);
-    if (!field || field.preferences.aiContextMode === "omit") return [];
-    return [
-      {
-        fieldId: field.definition.id,
-        label: field.definition.label,
-        value:
-          field.preferences.aiContextMode === "token"
-            ? tokenRuntimeValue(retained.value, token)
-            : retained.value,
-      },
-    ];
+    if (!field?.preferences.aiUseAllowed) return [];
+    return [{ fieldId: field.definition.id, label: field.definition.label, value: retained.value }];
   });
   return {
     context: aiProjectedCandidatureSchema.parse({
@@ -235,7 +186,7 @@ function projectCandidature(
           }))
         : [],
     }),
-    tokenMap,
+    tokenMap: new Map(),
   };
 }
 
@@ -271,11 +222,8 @@ function providerCandidature(
 }
 
 function requireCandidature(rootPath: string, candidatureId: string) {
-  try {
-    return getCandidature(rootPath, candidatureId);
-  } catch {
-    throw new AiServiceError("The selected candidature no longer exists.");
-  }
+  try { return getCandidature(rootPath, candidatureId); }
+  catch { throw new AiServiceError("The selected candidature no longer exists."); }
 }
 
 function projectOpportunityReviewContext(
@@ -283,58 +231,39 @@ function projectOpportunityReviewContext(
   request: OpportunityReviewRequest,
 ): Projection<z.infer<typeof opportunityReviewProjectedContextSchema>> {
   const profile = getProfile(rootPath).items;
-  const modes = profilePrivacyModes(rootPath);
+  const permissions = profileAiUse(rootPath);
   const profileCorpus = profileItemStrings(profile);
-  const candidatureProjection = projectCandidature(
-    rootPath,
-    request.candidatureId,
-    profileCorpus,
-  );
+  const candidatureProjection = projectCandidature(rootPath, request.candidatureId);
   const tokenMap = new Map(candidatureProjection.tokenMap);
   const token = tokenFactory(tokenMap, [JSON.stringify(candidatureProjection.context), ...profileCorpus]);
   const profileItems = profile.flatMap((item) => {
-    const requestedMode: PrivacyMode =
+    if (!(permissions.get(item.id) ?? true)) return [];
+    const operationMode: PrivacyMode =
       item.kind === "identity"
         ? request.identityPrivacy
         : item.kind === "contact"
           ? request.contactPrivacy
           : "expose";
-    const mode = morePrivate(modes.get(item.id) ?? "expose", requestedMode);
-    const projected = projectedItem(item, mode, token);
+    const projected = projectedItem(item, operationMode, token);
     return projected ? [projected] : [];
   });
   return {
-    context: opportunityReviewProjectedContextSchema.parse({
-      candidature: candidatureProjection.context,
-      profileItems,
-    }),
+    context: opportunityReviewProjectedContextSchema.parse({ candidature: candidatureProjection.context, profileItems }),
     tokenMap,
   };
 }
 
-export function previewOpportunityReview(
-  rootPath: string,
-  rawRequest: OpportunityReviewRequest,
-): OpportunityReviewPreview {
+export function previewOpportunityReview(rootPath: string, rawRequest: OpportunityReviewRequest): OpportunityReviewPreview {
   const request = opportunityReviewRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "opportunity_review");
   const projection = projectOpportunityReviewContext(rootPath, request);
-  return opportunityReviewPreviewSchema.parse({
-    connection: statusFor(stored),
-    projectedContext: projection.context,
-  });
+  return opportunityReviewPreviewSchema.parse({ connection: statusFor(stored), projectedContext: projection.context });
 }
 
 function rehydrate(value: string, tokenMap: ReadonlyMap<string, string>): string {
   if (tokenMap.size === 0) return value;
   const tokenPattern = (token: string) => token.replaceAll("[", "\\[").replaceAll("]", "\\]");
-  const pattern = new RegExp(
-    [...tokenMap.keys()]
-      .sort((left, right) => right.length - left.length)
-      .map(tokenPattern)
-      .join("|"),
-    "g",
-  );
+  const pattern = new RegExp([...tokenMap.keys()].sort((left, right) => right.length - left.length).map(tokenPattern).join("|"), "g");
   return value.replace(pattern, (token) => tokenMap.get(token) ?? token);
 }
 
@@ -368,7 +297,7 @@ export async function reviewOpportunity(
 
 function discoveryFields(rootPath: string): CandidatureFieldConfiguration[] {
   return listCandidatureFields(rootPath).filter(
-    (field) => field.definition.enabled && field.preferences.aiDiscovery,
+    (field) => field.definition.enabled && field.preferences.aiUseAllowed,
   );
 }
 
@@ -405,7 +334,7 @@ function discoveryWireRequest(
     };
   });
   return {
-    request: providerJobExtractionRequestSchema.parse({ ...request, fields: providerFields }),
+    request: providerJobExtractionRequestSchema.parse({ ...request, fields: providerFields, tags: [] }),
     fieldIds,
     choiceIds,
   };
@@ -435,15 +364,11 @@ function validateDiscoveryResult(
   const providerResult = providerJobExtractionResultSchema.parse(result);
   const proposals = providerResult.proposals.flatMap((proposal) => {
     const fieldId = wire.fieldIds.get(proposal.fieldRef);
-    if (!fieldId) {
-      throw new AiServiceError("The model proposed a candidature field that was not requested.");
-    }
+    if (!fieldId) throw new AiServiceError("The model proposed a candidature field that was not requested.");
+    const field = listCandidatureFields(rootPath).find((candidate) => candidate.definition.id === fieldId);
+    if (!field?.preferences.aiUseAllowed) throw new AiServiceError("The proposed information is no longer available to AI.");
     const normalized = withWorkspaceDatabase(rootPath, (database) =>
-      validateCandidatureFieldValueInDatabase(
-        database,
-        fieldId,
-        localChoiceValue(proposal.fieldRef, proposal.value, wire.choiceIds),
-      ),
+      validateCandidatureFieldValueInDatabase(database, fieldId, localChoiceValue(proposal.fieldRef, proposal.value, wire.choiceIds)),
     );
     return normalized === null ? [] : [{ fieldId, value: normalized }];
   });
@@ -458,9 +383,7 @@ export async function extractJob(
   const request = jobExtractionRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "job_extraction");
   const fields = discoveryFields(rootPath);
-  if (fields.length === 0) {
-    throw new AiServiceError("Enable AI discovery for at least one candidature field first.");
-  }
+  if (fields.length === 0) throw new AiServiceError("Allow AI use for at least one candidature information item first.");
   const wire = discoveryWireRequest(request, fields);
   const result = await provider.extractJob(statusFor(stored), wire.request);
   return validateDiscoveryResult(rootPath, wire, result);
@@ -474,36 +397,22 @@ export async function discoverCandidatureFieldFromSources(
   const request = historicalFieldDiscoveryRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "historical_field_discovery");
   const candidature = requireCandidature(rootPath, request.candidatureId);
-  const field = listCandidatureFields(rootPath).find(
-    (candidate) => candidate.definition.id === request.fieldId,
-  );
-  if (!field || !field.definition.enabled) {
-    throw new AiServiceError("Choose an enabled candidature field for discovery.");
+  const field = listCandidatureFields(rootPath).find((candidate) => candidate.definition.id === request.fieldId);
+  if (!field || !field.definition.enabled || !field.preferences.aiUseAllowed) {
+    throw new AiServiceError("Choose candidature information that AI may use.");
   }
-  const sourceMap = new Map(
-    listCandidatureSources(rootPath, request.candidatureId).map((source) => [source.id, source]),
-  );
+  const sourceMap = new Map(listCandidatureSources(rootPath, request.candidatureId).map((source) => [source.id, source]));
   const selected = request.sourceIds.map((sourceId) => {
     const source = sourceMap.get(sourceId);
-    if (!source) {
-      throw new AiServiceError("A selected Source no longer belongs to this candidature.");
-    }
+    if (!source) throw new AiServiceError("A selected Source no longer belongs to this candidature.");
     return source;
   });
   const sourceText = selected
-    .map(
-      (source) =>
-        `Source: ${source.title}\nURL: ${source.url}\n${compactSourceText(source.sourceText)}`,
-    )
-    .join("\n\n---\n\n")
-    .slice(0, 50000)
-    .trim();
+    .map((source) => `Source: ${source.title}\nURL: ${source.url}\n${compactSourceText(source.sourceText)}`)
+    .join("\n\n---\n\n").slice(0, 50000).trim();
   if (!sourceText) throw new AiServiceError("The selected Sources contain no text to analyze.");
 
-  const wire = discoveryWireRequest(
-    { sourceText, sourceTitle: "Retained AAAAT Sources", sourceUrl: "" },
-    [field],
-  );
+  const wire = discoveryWireRequest({ sourceText, sourceTitle: "Retained AAAAT Sources", sourceUrl: "" }, [field]);
   const rawResult = await provider.extractJob(statusFor(stored), wire.request, undefined, "historical_field_discovery");
   const result = validateDiscoveryResult(rootPath, wire, rawResult);
   return historicalFieldDiscoveryResultSchema.parse({
@@ -521,23 +430,12 @@ export async function recommendVariant(
   const stored = requireStoredConnection(rootPath, "variant_recommendation");
   requireCandidature(rootPath, request.candidatureId);
   const variants = getProfile(rootPath).variants;
-  if (variants.length === 0) {
-    throw new AiServiceError("Create a profile variant before requesting a recommendation.");
-  }
-  const variantCorpus = variants.flatMap((variant) => [
-    variant.name,
-    variant.focus,
-    ...variant.targetTags,
-    variant.preferredLanguage ?? "",
-  ]);
-  const projection = projectCandidature(rootPath, request.candidatureId, variantCorpus);
+  if (variants.length === 0) throw new AiServiceError("Create a profile variant before requesting a recommendation.");
+  const projection = projectCandidature(rootPath, request.candidatureId);
   const context = variantRecommendationContextSchema.parse({
     candidature: projection.context,
     variants: variants.map((variant) => ({
-      id: variant.id,
-      name: variant.name,
-      focus: variant.focus,
-      targetTags: variant.targetTags,
+      id: variant.id, name: variant.name, focus: variant.focus, targetTags: variant.targetTags,
       ...(variant.preferredLanguage ? { preferredLanguage: variant.preferredLanguage } : {}),
     })),
   });
@@ -548,26 +446,15 @@ export async function recommendVariant(
     variants: context.variants.map((variant, index) => {
       const variantRef = `${scope}_${index + 1}`;
       variantIds.set(variantRef, variant.id);
-      return {
-        variantRef,
-        name: variant.name,
-        focus: variant.focus,
-        targetTags: variant.targetTags,
-        ...(variant.preferredLanguage ? { preferredLanguage: variant.preferredLanguage } : {}),
-      };
+      return { variantRef, name: variant.name, focus: variant.focus, targetTags: variant.targetTags, ...(variant.preferredLanguage ? { preferredLanguage: variant.preferredLanguage } : {}) };
     }),
   });
-  const providerResult = providerVariantRecommendationResultSchema.parse(
-    await provider.recommendVariant(statusFor(stored), providerContext),
-  );
+  const providerResult = providerVariantRecommendationResultSchema.parse(await provider.recommendVariant(statusFor(stored), providerContext));
   const variantId = variantIds.get(providerResult.variantRef);
   if (!variantId || !getProfile(rootPath).variants.some((variant) => variant.id === variantId)) {
     throw new AiServiceError("The model recommended a profile variant that no longer exists.");
   }
-  return variantRecommendationResultSchema.parse({
-    variantId,
-    rationale: rehydrate(providerResult.rationale, projection.tokenMap),
-  });
+  return variantRecommendationResultSchema.parse({ variantId, rationale: rehydrate(providerResult.rationale, projection.tokenMap) });
 }
 
 function isDocumentEvidence(kind: string): boolean {
@@ -581,9 +468,7 @@ function requireDocument(rootPath: string, documentId: string) {
 }
 
 function documentBaseItems(rootPath: string, document: DocumentRecord): ProfileItem[] {
-  return document.variantId === null
-    ? getProfile(rootPath).items
-    : resolveProfileVariant(rootPath, document.variantId).items;
+  return document.variantId === null ? getProfile(rootPath).items : resolveProfileVariant(rootPath, document.variantId).items;
 }
 
 function projectDocumentContext(
@@ -591,47 +476,30 @@ function projectDocumentContext(
   candidatureProjection: Projection<AiProjectedCandidature>,
   items: readonly ProfileItem[],
 ): Projection<z.infer<typeof documentAiContextSchema>> {
-  const modes = profilePrivacyModes(rootPath);
+  const permissions = profileAiUse(rootPath);
   const tokenMap = new Map(candidatureProjection.tokenMap);
-  const corpus = profileItemStrings(items);
-  const token = tokenFactory(tokenMap, [
-    JSON.stringify(candidatureProjection.context),
-    ...corpus,
-  ]);
+  const token = tokenFactory(tokenMap, [JSON.stringify(candidatureProjection.context), ...profileItemStrings(items)]);
   const evidence = items.flatMap((item) => {
-    if (!isDocumentEvidence(item.kind)) return [];
-    const projected = projectedItem(item, modes.get(item.id) ?? "expose", token);
+    if (!isDocumentEvidence(item.kind) || !(permissions.get(item.id) ?? true)) return [];
+    const projected = projectedItem(item, "expose", token);
     if (!projected) return [];
-    return [
-      {
-        id: item.id,
-        kind: projected.kind,
-        title: projected.title,
-        ...(projected.subtitle ? { subtitle: projected.subtitle } : {}),
-        ...(projected.description ? { description: projected.description } : {}),
-      },
-    ];
+    return [{
+      id: item.id,
+      kind: projected.kind,
+      title: projected.title,
+      ...(projected.subtitle ? { subtitle: projected.subtitle } : {}),
+      ...(projected.description ? { description: projected.description } : {}),
+    }];
   });
-  if (evidence.length === 0) {
-    throw new AiServiceError("Add AI-shareable career evidence before requesting document assistance.");
-  }
-  return {
-    context: documentAiContextSchema.parse({
-      candidature: candidatureProjection.context,
-      items: evidence,
-    }),
-    tokenMap,
-  };
+  if (evidence.length === 0) throw new AiServiceError("Allow AI use for at least one career item before requesting document assistance.");
+  return { context: documentAiContextSchema.parse({ candidature: candidatureProjection.context, items: evidence }), tokenMap };
 }
 
 function providerDocumentContext(
   rootPath: string,
   context: z.infer<typeof documentAiContextSchema>,
   kind: string,
-): {
-  readonly context: ProviderDocumentAiContext;
-  readonly itemIds: ReadonlyMap<string, string>;
-} {
+): { readonly context: ProviderDocumentAiContext; readonly itemIds: ReadonlyMap<string, string> } {
   const scope = operationScope(kind);
   const itemIds = new Map<string, string>();
   return {
@@ -640,13 +508,7 @@ function providerDocumentContext(
       items: context.items.map((item, index) => {
         const itemRef = `${scope}_${index + 1}`;
         itemIds.set(itemRef, item.id);
-        return {
-          itemRef,
-          kind: item.kind,
-          title: item.title,
-          ...(item.subtitle ? { subtitle: item.subtitle } : {}),
-          ...(item.description ? { description: item.description } : {}),
-        };
+        return { itemRef, kind: item.kind, title: item.title, ...(item.subtitle ? { subtitle: item.subtitle } : {}), ...(item.description ? { description: item.description } : {}) };
       }),
     }),
     itemIds,
@@ -656,11 +518,8 @@ function providerDocumentContext(
 function currentDocumentEvidenceIds(rootPath: string, documentId: string): ReadonlySet<string> {
   const document = requireDocument(rootPath, documentId);
   if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
-  return new Set(
-    documentBaseItems(rootPath, document)
-      .filter((item) => isDocumentEvidence(item.kind))
-      .map((item) => item.id),
-  );
+  const permissions = profileAiUse(rootPath);
+  return new Set(documentBaseItems(rootPath, document).filter((item) => isDocumentEvidence(item.kind) && (permissions.get(item.id) ?? true)).map((item) => item.id));
 }
 
 export async function tailorCv(
@@ -674,26 +533,16 @@ export async function tailorCv(
   const document = requireDocument(rootPath, request.documentId);
   if (document.kind !== "cv") throw new AiServiceError("Choose a CV document for CV tailoring.");
   const items = documentBaseItems(rootPath, document);
-  const candidatureProjection = projectCandidature(
-    rootPath,
-    request.candidatureId,
-    profileItemStrings(items),
-    true,
-  );
+  const candidatureProjection = projectCandidature(rootPath, request.candidatureId, true);
   const projection = projectDocumentContext(rootPath, candidatureProjection, items);
   const providerContext = providerDocumentContext(rootPath, projection.context, "cv");
-  const result = providerCvTailoringResultSchema.parse(
-    await provider.tailorCv(statusFor(stored), providerContext.context),
-  );
+  const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(statusFor(stored), providerContext.context));
   const allowed = currentDocumentEvidenceIds(rootPath, request.documentId);
   if (result.recommendations.some((item) => !allowed.has(providerContext.itemIds.get(item.itemRef) ?? ""))) {
-    throw new AiServiceError("The model recommended a profile item that no longer exists.");
+    throw new AiServiceError("The model recommended a profile item that no longer exists or is not available to AI.");
   }
   return cvTailoringResultSchema.parse({
-    recommendations: result.recommendations.map((item) => ({
-      itemId: providerContext.itemIds.get(item.itemRef) ?? "",
-      rationale: rehydrate(item.rationale, projection.tokenMap),
-    })),
+    recommendations: result.recommendations.map((item) => ({ itemId: providerContext.itemIds.get(item.itemRef) ?? "", rationale: rehydrate(item.rationale, projection.tokenMap) })),
   });
 }
 
@@ -706,27 +555,16 @@ export async function draftCoverLetter(
   const stored = requireStoredConnection(rootPath, "cover_letter_draft");
   requireCandidature(rootPath, request.candidatureId);
   const document = requireDocument(rootPath, request.documentId);
-  if (document.kind !== "cover_letter") {
-    throw new AiServiceError("Choose a cover-letter document for cover-letter drafting.");
-  }
+  if (document.kind !== "cover_letter") throw new AiServiceError("Choose a cover-letter document for cover-letter drafting.");
   const items = resolveDocument(rootPath, document.id).items;
-  const candidatureProjection = projectCandidature(
-    rootPath,
-    request.candidatureId,
-    profileItemStrings(items),
-    true,
-  );
+  const candidatureProjection = projectCandidature(rootPath, request.candidatureId, true);
   const projection = projectDocumentContext(rootPath, candidatureProjection, items);
   const providerContext = providerDocumentContext(rootPath, projection.context, "cover-letter");
-  const result = coverLetterDraftSchema.parse(
-    await provider.draftCoverLetter(statusFor(stored), providerContext.context),
-  );
+  const result = coverLetterDraftSchema.parse(await provider.draftCoverLetter(statusFor(stored), providerContext.context));
   return coverLetterDraftSchema.parse({
     recipient: rehydrate(result.recipient, projection.tokenMap),
     subject: rehydrate(result.subject, projection.tokenMap),
-    bodyParagraphs: result.bodyParagraphs.map((paragraph) =>
-      rehydrate(paragraph, projection.tokenMap),
-    ),
+    bodyParagraphs: result.bodyParagraphs.map((paragraph) => rehydrate(paragraph, projection.tokenMap)),
     closing: rehydrate(result.closing, projection.tokenMap),
   });
 }
