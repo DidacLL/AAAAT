@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 import type { SetupEnvironmentSnapshot } from "../shared/setup-environment-contracts";
+import {
+  clearAiReachabilityEvidence,
+  useAiReachabilityEvidence,
+} from "./ai-reachability-store";
 
 export interface WorkspaceRailStatusProjection {
   readonly data: "Demo" | "Local";
@@ -13,7 +17,9 @@ export function deriveWorkspaceRailStatus(
   demo: boolean,
   environment: SetupEnvironmentSnapshot | null,
   attentionConnectionName: string | null = null,
+  reachableConnectionNames: ReadonlySet<string> = new Set(),
 ): WorkspaceRailStatusProjection {
+  void attentionConnectionName;
   const data = demo ? "Demo" : "Local";
   if (!environment) return { data, ai: "Needs attention", pdf: "Unavailable" };
 
@@ -23,13 +29,13 @@ export function deriveWorkspaceRailStatus(
   } else if (environment.ai.connectionCount === 0) {
     ai = "Off";
   } else {
-    const usableRoutes = environment.ai.operations.filter(
-      (operation) => operation.available && operation.connectionName !== null,
+    const currentlyReachableRoute = environment.ai.operations.some(
+      (operation) =>
+        operation.available &&
+        operation.connectionName !== null &&
+        reachableConnectionNames.has(operation.connectionName),
     );
-    const reliableRoute = attentionConnectionName
-      ? usableRoutes.some((operation) => operation.connectionName !== attentionConnectionName)
-      : usableRoutes.length > 0;
-    ai = reliableRoute ? "Ready" : "Needs attention";
+    ai = currentlyReachableRoute ? "Ready" : "Needs attention";
   }
 
   return {
@@ -49,6 +55,11 @@ export function WorkspaceRailStatus({
   readonly attentionConnectionName: string | null;
 }) {
   const [environment, setEnvironment] = useState<SetupEnvironmentSnapshot | null>(null);
+  const reachableConnectionNames = useAiReachabilityEvidence();
+
+  useLayoutEffect(() => {
+    clearAiReachabilityEvidence();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -64,7 +75,12 @@ export function WorkspaceRailStatus({
     };
   }, [refreshRevision]);
 
-  const status = deriveWorkspaceRailStatus(demo, environment, attentionConnectionName);
+  const status = deriveWorkspaceRailStatus(
+    demo,
+    environment,
+    attentionConnectionName,
+    reachableConnectionNames,
+  );
   return (
     <div className="rail-status" aria-label="Environment status">
       <span><i aria-hidden="true" />Data: <strong>{status.data}</strong></span>

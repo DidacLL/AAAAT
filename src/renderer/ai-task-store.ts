@@ -11,6 +11,7 @@ import {
   type JobExtractionExchange,
   type JobExtractionProposalIssue,
 } from "../shared/ai-proposal-outcomes";
+import { recordAiReachabilityEvidence } from "./ai-reachability-store";
 
 export type AiTaskStatus = "queued" | "working" | "completed" | "failed" | "cancelled";
 
@@ -119,6 +120,33 @@ function resultExchange(result: unknown): JobExtractionExchange | undefined {
   return parsed.success ? parsed.data : undefined;
 }
 
+function providerFailure(exchange: AiExchangeDiagnostic | undefined): boolean {
+  return exchange?.failureKind === "connection_unreachable"
+    || exchange?.failureKind === "provider_http_failure"
+    || exchange?.failureKind === "provider_envelope_invalid";
+}
+
+function recordExchangeReachability(
+  exchange: Pick<JobExtractionExchange | AiExchangeDiagnostic, "endpoint" | "model"> | undefined,
+  reachable: boolean,
+): void {
+  if (!exchange) return;
+  try {
+    void window.aaaat.aiConnections.list()
+      .then((connections) => {
+        const matches = connections.filter(
+          (candidate) => candidate.endpoint === exchange.endpoint && candidate.model === exchange.model,
+        );
+        if (matches.length === 1 && matches[0]) {
+          recordAiReachabilityEvidence(matches[0].name, reachable);
+        }
+      })
+      .catch(() => undefined);
+  } catch {
+    // The exchange remains useful even when a reduced test/host surface cannot resolve connections.
+  }
+}
+
 function completedScope(
   activeScope: readonly string[] | undefined,
   fallbackScope: readonly string[] | undefined,
@@ -189,19 +217,21 @@ export function startAiTask<T>(
         const active = tasks.get(key);
         if (!active || active.status !== "working" || controller.signal.aborted) return;
         const appliedFieldIds = preAppliedFieldIds(result);
+        const completedExchange = resultExchange(result);
         tasks.set(key, {
           key,
           label: active.label ?? label,
           status: "completed",
           detail: completionDetail?.(result) ?? "Completed",
           result,
-          completedExchange: resultExchange(result),
+          completedExchange,
           handledFieldIds: appliedFieldIds,
           appliedFieldIds,
           scopeFieldIds: completedScope(active.scopeFieldIds, scopeFieldIds, appliedFieldIds),
         });
         controllers.delete(key);
         emit();
+        recordExchangeReachability(completedExchange, true);
       })
       .catch((reason: unknown) => {
         const active = tasks.get(key);
@@ -218,6 +248,7 @@ export function startAiTask<T>(
         });
         controllers.delete(key);
         emit();
+        if (providerFailure(failure.exchange)) recordExchangeReachability(failure.exchange, false);
       });
   }, 0);
 }

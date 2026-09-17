@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import type { CandidatureFieldConfiguration } from "../shared/contracts";
+import { CandidatureFocusConfiguration } from "./CandidatureFocusConfiguration";
 import { CandidatureManualEntryPanel } from "./CandidatureManualEntryPanel";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import { useContextualHandoffs } from "./contextual-handoffs";
@@ -12,9 +14,34 @@ export function CandidaturesAiWorkspace({
 }) {
   const [view, setView] = useState<"focus" | "all" | "new">("focus");
   const [revision, setRevision] = useState(0);
+  const [focusRevision, setFocusRevision] = useState(0);
+  const [focusFields, setFocusFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [prepared, setPrepared] = useState<{ candidatureId: string; documents: readonly { id: string; kind: "cv" | "cover_letter" }[] } | null>(null);
   const { openDocumentFromCandidature } = useContextualHandoffs();
+
+  useEffect(() => {
+    if (view !== "focus") return;
+    let active = true;
+    void window.aaaat.candidatures.listFields()
+      .then((fields) => {
+        if (active) setFocusFields(fields);
+      })
+      .catch(() => {
+        if (active) setFocusFields([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [focusRevision, revision, view]);
+
+  const acceptFocusField = (field: CandidatureFieldConfiguration) => {
+    setFocusFields((current) =>
+      current.map((candidate) =>
+        candidate.definition.id === field.definition.id ? field : candidate,
+      ),
+    );
+  };
 
   return (
     <div className="candidature-capture-owner">
@@ -52,7 +79,14 @@ export function CandidaturesAiWorkspace({
               <button type="button" className="compact-secondary" aria-label="Dismiss document links" onClick={() => setPrepared(null)}>×</button>
             </div>
           ) : null}
-          <CandidaturesWorkspace key={`${view}-${String(revision)}`} overview={view} onDirtyChange={onDirtyChange} />
+          {view === "focus" ? (
+            <CandidatureFocusConfiguration
+              fields={focusFields}
+              onChanged={acceptFocusField}
+              onPersisted={() => setFocusRevision((current) => current + 1)}
+            />
+          ) : null}
+          <CandidaturesWorkspace key={`${view}-${String(revision)}-${String(focusRevision)}`} overview={view} onDirtyChange={onDirtyChange} />
         </>
       )}
     </div>

@@ -8,6 +8,7 @@ import {
 } from "../shared/ai-connection-contracts";
 import type { AiExchangeDiagnostic } from "../shared/ai-diagnostics";
 import { AiExchangeInspector } from "./AiExchangeInspector";
+import { recordAiReachabilityEvidence } from "./ai-reachability-store";
 import { aiTaskFailure, startAiTask, useAiTask } from "./ai-task-store";
 
 interface Props {
@@ -92,12 +93,14 @@ export function AiConnectionValidationPanel({
       return;
     }
     if (task?.status !== "completed" && task?.status !== "failed") return;
-    const needsAttention = task.status === "failed" || (task.result?.failures.length ?? 0) > 0;
-    const report = `${task.status}:${needsAttention ? "attention" : "ready"}:${task.detail ?? ""}:${task.error ?? ""}`;
+    const providerFailed = task.status === "failed" && isProviderLevelFailure(task.exchange);
+    const report = `${task.status}:${providerFailed ? "attention" : "reachable"}:${task.detail ?? ""}:${task.error ?? ""}`;
     if (lastValidationReport.current === report) return;
     lastValidationReport.current = report;
-    onValidationState?.(connection.name, needsAttention);
-  }, [connection.name, onValidationState, task?.detail, task?.error, task?.result, task?.status]);
+    if (task.status === "completed") recordAiReachabilityEvidence(connection.name, true);
+    else if (providerFailed) recordAiReachabilityEvidence(connection.name, false);
+    onValidationState?.(connection.name, providerFailed);
+  }, [connection.name, onValidationState, task?.detail, task?.error, task?.exchange, task?.status]);
 
   const validate = useCallback(() => {
     startAiTask<ValidationResult>(

@@ -33,23 +33,6 @@ function displayValue(
   return displayed.length > 96 ? `${displayed.slice(0, 93).trimEnd()}…` : displayed;
 }
 
-function sourceCue(record: CandidatureRecord): CandidatureRecognitionCue | null {
-  const normalized = record.sourceSearchText.replace(/\s+/g, " ").trim();
-  if (!normalized) return null;
-
-  const title = record.label.replace(/\s+/g, " ").trim();
-  const sourceLower = normalized.toLocaleLowerCase();
-  const titleLower = title.toLocaleLowerCase();
-  const distinct =
-    title && sourceLower.startsWith(titleLower)
-      ? normalized.slice(title.length).replace(/^[\s·|:;,.\-–—]+/, "").trim()
-      : normalized;
-  if (!distinct || titleLower.includes(distinct.toLocaleLowerCase())) return null;
-
-  const value = distinct.length > 112 ? `${distinct.slice(0, 109).trimEnd()}…` : distinct;
-  return { label: "Source", value };
-}
-
 function matchingExcerpt(text: string, query: string, limit = 112): string | null {
   const normalized = text.replace(/\s+/g, " ").trim();
   const needle = query.trim().toLocaleLowerCase();
@@ -114,7 +97,7 @@ export function candidatureRecognitionCues(
   if (limit <= 0) return [];
   const title = record.label.toLocaleLowerCase();
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
-  const cues = record.values
+  return record.values
     .flatMap((retained) => {
       const field = fieldById.get(retained.fieldId);
       if (!field?.preferences.focusVisible) return [];
@@ -130,12 +113,6 @@ export function candidatureRecognitionCues(
     })
     .slice(0, limit)
     .map(({ label, value }) => ({ label, value }));
-
-  if (cues.length < limit) {
-    const fallback = sourceCue(record);
-    if (fallback && !cues.some((cue) => cue.value === fallback.value)) cues.push(fallback);
-  }
-  return cues.slice(0, limit);
 }
 
 export function filterCandidatures(

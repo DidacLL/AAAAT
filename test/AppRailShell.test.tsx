@@ -77,7 +77,7 @@ describe("loaded workspace shell", () => {
 
     const status = await screen.findByLabelText("Environment status");
     expect(status).toHaveTextContent("Data: Demo");
-    expect(status).toHaveTextContent("AI: Ready");
+    expect(status).toHaveTextContent("AI: Needs attention");
     expect(status).toHaveTextContent("PDF: Ready");
 
     await user.click(within(home).getByRole("button", { name: /Open applications/ }));

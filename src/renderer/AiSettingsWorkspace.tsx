@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { NamedAiConnection } from "../shared/ai-connection-contracts";
 import { AiConnectionValidationPanel } from "./AiConnectionValidationPanel";
 import { AiPromptTransparencyPanel } from "./AiPromptTransparencyPanel";
+import { clearAiReachabilityEvidence } from "./ai-reachability-store";
 import { clearAiTask } from "./ai-task-store";
 
 interface Draft {
@@ -134,6 +135,7 @@ export function AiSettingsWorkspace({
     setAddressError(null);
     setSaveNotice(null);
     setPortabilityStatus(null);
+    clearAiReachabilityEvidence();
     try {
       const previous = editingId
         ? connections.find((connection) => connection.id === editingId) ?? null
@@ -182,6 +184,7 @@ export function AiSettingsWorkspace({
     if (!window.confirm(`Remove AI connection “${connection.name}”?`)) return;
     setError(null);
     setPortabilityStatus(null);
+    clearAiReachabilityEvidence();
     try {
       const next = await window.aaaat.aiConnections.remove(connection.id);
       clearAiTask(`ai-validation:${connection.id}`);
@@ -224,6 +227,7 @@ export function AiSettingsWorkspace({
     setPortabilityBusy("import");
     setError(null);
     setPortabilityStatus(null);
+    clearAiReachabilityEvidence();
     try {
       const result = await window.aaaat.aiConnections.importPortable();
       if (result.status === "imported") {

@@ -6,6 +6,11 @@ import {
   getAiTask,
   startAiTask,
 } from "../src/renderer/ai-task-store";
+import {
+  clearAiReachabilityEvidence,
+  getAiReachabilityEvidence,
+  recordAiReachabilityEvidence,
+} from "../src/renderer/ai-reachability-store";
 import { AI_EXCHANGE_DIAGNOSTIC_MARKER } from "../src/shared/ai-diagnostics";
 
 function deferred<T>() {
@@ -23,7 +28,7 @@ async function flush(): Promise<void> {
   await Promise.resolve();
 }
 
-function diagnosticError(): Error {
+function diagnosticError(failureKind = "operation_incompatible"): Error {
   const exchange = {
     id: "00000000-0000-4000-8000-000000000d11",
     operation: "opportunity_review",
@@ -33,7 +38,7 @@ function diagnosticError(): Error {
     userPayload: "{\"role\":\"Validation Engineer\"}",
     rawModelResponse: "I cannot return that schema.",
     validationError: "Expected object, received string.",
-    failureKind: "operation_incompatible",
+    failureKind,
     structuredOutputMode: "json_schema",
   };
   return new Error(
@@ -41,14 +46,48 @@ function diagnosticError(): Error {
   );
 }
 
+const successfulExchange = {
+  operation: "job_extraction" as const,
+  endpoint: "http://localhost:8080/v1",
+  model: "small-local-model",
+  systemInstruction: "Return candidature fields.",
+  userPayload: "Offer text",
+  rawModelResponse: "{}",
+  structuredOutputMode: "json_schema" as const,
+  providerValidationError: "",
+};
+
+function installConnectionLookup(): void {
+  Object.defineProperty(window, "aaaat", {
+    configurable: true,
+    value: {
+      aiConnections: {
+        list: vi.fn(async () => [
+          {
+            id: "00000000-0000-4000-8000-000000000d12",
+            name: "Local model",
+            endpoint: successfulExchange.endpoint,
+            model: successfulExchange.model,
+            isDefault: true,
+            validatedOperations: ["job_extraction"],
+            defaultForOperations: ["job_extraction"],
+          },
+        ]),
+      },
+    },
+  });
+}
+
 describe("renderer AI task state", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     clearAllAiTasks();
+    clearAiReachabilityEvidence();
   });
 
   afterEach(() => {
     clearAllAiTasks();
+    clearAiReachabilityEvidence();
     vi.useRealTimers();
   });
 
@@ -85,7 +124,7 @@ describe("renderer AI task state", () => {
 
     await vi.runOnlyPendingTimersAsync();
     expect(getAiTask("slow-local")).toMatchObject({ status: "working" });
-    expect(runnerSignals).toHaveLength(1);
+    expect(runnerSignals[0]?.aborted).toBe(false);
 
     cancelAiTask("slow-local");
     expect(runnerSignals[0]?.aborted).toBe(true);
@@ -164,5 +203,41 @@ describe("renderer AI task state", () => {
         failureKind: "operation_incompatible",
       },
     });
+  });
+
+  it("uses a successful real AI exchange as current reachability evidence for its connection", async () => {
+    installConnectionLookup();
+    startAiTask("successful-request", async () => ({
+      proposals: [],
+      exchange: successfulExchange,
+    }));
+
+    await vi.runOnlyPendingTimersAsync();
+    await flush();
+    await flush();
+
+    expect(getAiTask("successful-request")).toMatchObject({ status: "completed" });
+    expect(getAiReachabilityEvidence().has("Local model")).toBe(true);
+  });
+
+  it("invalidates current reachability evidence on a later provider-level request failure only", async () => {
+    installConnectionLookup();
+    recordAiReachabilityEvidence("Local model", true);
+
+    startAiTask("provider-failure", async () => {
+      throw diagnosticError("connection_unreachable");
+    });
+    await vi.runOnlyPendingTimersAsync();
+    await flush();
+    await flush();
+    expect(getAiReachabilityEvidence().has("Local model")).toBe(false);
+
+    recordAiReachabilityEvidence("Local model", true);
+    startAiTask("application-failure", async () => {
+      throw new Error("AAAAT could not retain the generated value.");
+    });
+    await vi.runOnlyPendingTimersAsync();
+    await flush();
+    expect(getAiReachabilityEvidence().has("Local model")).toBe(true);
   });
 });

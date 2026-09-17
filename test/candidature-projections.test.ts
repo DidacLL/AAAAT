@@ -89,22 +89,7 @@ describe("candidature renderer projection", () => {
     ).toEqual([archived]);
   });
 
-  it("uses the source continuation when the candidature label came from the source prefix", () => {
-    const sourceText =
-      "Nimbus Labs is hiring a platform engineer in Barcelona with hybrid work and a small infrastructure team.";
-    const derivedLabel = sourceText.slice(0, 80);
-    const rawFirst = {
-      ...record("00000000-0000-4000-8000-000000000413"),
-      label: derivedLabel,
-      sourceSearchText: sourceText,
-    };
-
-    expect(candidatureRecognitionCues(rawFirst, [])).toEqual([
-      { label: "Source", value: sourceText.slice(80).trim() },
-    ]);
-  });
-
-  it("never leaks retained fields that the user hid from corpus Focus", () => {
+  it("ordinary recognition cues contain only fields selected for Focus", () => {
     const candidateId = "00000000-0000-4000-8000-000000000417";
     const candidate = {
       ...record(candidateId),
@@ -125,10 +110,67 @@ describe("candidature renderer projection", () => {
           updatedAt: "2026-09-04T00:00:00.000Z",
         },
       ],
+      sourceSearchText: "Recruiter note that should remain searchable but not fill Focus.",
     };
 
     expect(candidatureRecognitionCues(candidate, [locationField, roleField], 3)).toEqual([
       { label: "Role", value: "Pilot" },
+    ]);
+  });
+
+  it("does not use raw Source as an automatic ordinary Focus cue", () => {
+    const sourceOnly = {
+      ...record("00000000-0000-4000-8000-000000000413"),
+      label: "Nimbus Labs",
+      sourceSearchText: "Nimbus Labs is hiring a platform engineer in Barcelona.",
+    };
+
+    expect(candidatureRecognitionCues(sourceOnly, [])).toEqual([]);
+  });
+
+  it("changes corpus cue visibility and ordering when Focus preferences change", () => {
+    const candidateId = "00000000-0000-4000-8000-000000000418";
+    const candidate = {
+      ...record(candidateId),
+      label: "Regional Air",
+      values: [
+        {
+          candidatureId: candidateId,
+          fieldId: locationField.definition.id,
+          value: "Madrid",
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+        {
+          candidatureId: candidateId,
+          fieldId: roleField.definition.id,
+          value: "Pilot",
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+      ],
+    };
+    const visibleLocation = {
+      ...locationField,
+      preferences: { ...locationField.preferences, focusVisible: true, focusOrder: 0 },
+    };
+    const reorderedRole = {
+      ...roleField,
+      preferences: { ...roleField.preferences, focusOrder: 1 },
+    };
+
+    expect(candidatureRecognitionCues(candidate, [visibleLocation, reorderedRole], 3)).toEqual([
+      { label: "Location", value: "Madrid" },
+      { label: "Role", value: "Pilot" },
+    ]);
+    expect(
+      candidatureRecognitionCues(candidate, [
+        { ...visibleLocation, preferences: { ...visibleLocation.preferences, focusOrder: 2 } },
+        { ...reorderedRole, preferences: { ...reorderedRole.preferences, focusOrder: 0 } },
+      ], 3),
+    ).toEqual([
+      { label: "Role", value: "Pilot" },
+      { label: "Location", value: "Madrid" },
     ]);
   });
 
@@ -173,7 +215,7 @@ describe("candidature renderer projection", () => {
     expect(cue?.value.endsWith("…")).toBe(true);
   });
 
-  it("identifies an associated Tag match and otherwise leaves generic recognition as fallback", () => {
+  it("identifies an associated Tag match without adding generic Source fallback", () => {
     const candidate = {
       ...record("00000000-0000-4000-8000-000000000416"),
       tagIds: [reliabilityTag.id],
@@ -185,8 +227,6 @@ describe("candidature renderer projection", () => {
       value: "Reliability engineering",
     });
     expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "unavailable phrase")).toBeNull();
-    expect(candidatureRecognitionCues(candidate, [])).toEqual([
-      { label: "Source", value: "Platform role" },
-    ]);
+    expect(candidatureRecognitionCues(candidate, [])).toEqual([]);
   });
 });
