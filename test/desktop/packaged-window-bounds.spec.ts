@@ -92,13 +92,17 @@ test("packaged Windows app does not enforce the old 720x600 product minimum", as
     running = await startPackagedApp(isolatedUserData);
     await expect(running.page).toHaveTitle("AAAAT");
 
-    const session = await running.page.context().newCDPSession(running.page);
-    const { windowId } = await session.send("Browser.getWindowForTarget");
-    await session.send("Browser.setWindowBounds", {
+    const pageSession = await running.page.context().newCDPSession(running.page);
+    const { targetInfo } = await pageSession.send("Target.getTargetInfo");
+    const browserSession = await running.browser.newBrowserCDPSession();
+    const { windowId } = await browserSession.send("Browser.getWindowForTarget", {
+      targetId: targetInfo.targetId,
+    });
+    await browserSession.send("Browser.setWindowBounds", {
       windowId,
       bounds: { width: 640, height: 520 },
     });
-    const { bounds } = await session.send("Browser.getWindowBounds", { windowId });
+    const { bounds } = await browserSession.send("Browser.getWindowBounds", { windowId });
 
     expect(bounds.width).toBeLessThan(720);
     expect(bounds.height).toBeLessThan(600);
