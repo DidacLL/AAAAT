@@ -13,6 +13,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { describe, expect, it } from "vitest";
 
+import currentSchemaSql from "../src/main/schema.sql?raw";
 import {
   createOrOpenWorkspace,
   deleteWorkspace,
@@ -24,6 +25,18 @@ import {
 
 function temporaryDirectory(): string {
   return mkdtempSync(path.join(tmpdir(), "aaaat-workspace-"));
+}
+
+function createWorkspaceDatabase(directory: string, schemaSql: string): void {
+  const database = new DatabaseSync(path.join(directory, "workspace.sqlite"));
+  try {
+    database.exec(schemaSql);
+    database
+      .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
+      .run("workspace.initialized_at", "2026-09-17T00:00:00.000Z");
+  } finally {
+    database.close();
+  }
 }
 
 describe("user-owned workspace", () => {
@@ -69,6 +82,71 @@ describe("user-owned workspace", () => {
       } finally {
         reopenedDatabase.close();
       }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts structurally equivalent schema with presentation-different DDL", () => {
+    const directory = temporaryDirectory();
+    try {
+      const presentationVariant = currentSchemaSql
+        .replace(
+          `CREATE TABLE workspace_metadata (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+) STRICT;`,
+          `create table WORKSPACE_METADATA(
+key text primary key,
+value text not null
+) strict;`,
+        )
+        .replace(
+          `CREATE UNIQUE INDEX candidatures_one_opportunity_research_selected
+  ON candidatures(opportunity_research_selected)
+  WHERE opportunity_research_selected = 1;`,
+          `create unique index candidatures_one_opportunity_research_selected
+on candidatures ( opportunity_research_selected )
+where opportunity_research_selected=1;`,
+        )
+        .replace(
+          `CREATE TRIGGER candidatures_opportunity_research_active_insert
+BEFORE INSERT ON candidatures
+WHEN NEW.opportunity_research_selected = 1 AND NEW.archived = 1
+BEGIN
+  SELECT RAISE(ABORT, 'Archived candidature cannot be selected for opportunity research');
+END;`,
+          `create trigger CANDIDATURES_OPPORTUNITY_RESEARCH_ACTIVE_INSERT
+before insert on candidatures
+when new.opportunity_research_selected=1 and new.archived=1
+begin
+select raise(abort,'Archived candidature cannot be selected for opportunity research');
+end;`,
+        );
+
+      expect(presentationVariant).not.toBe(currentSchemaSql);
+      createWorkspaceDatabase(directory, presentationVariant);
+
+      expect(openWorkspace(directory)).toEqual({ rootPath: directory });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a materially different current-schema constraint", () => {
+    const directory = temporaryDirectory();
+    try {
+      const materiallyDifferentSchema = currentSchemaSql.replace(
+        "archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),",
+        "archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1, 2)),",
+      );
+
+      expect(materiallyDifferentSchema).not.toBe(currentSchemaSql);
+      createWorkspaceDatabase(directory, materiallyDifferentSchema);
+
+      expect(() => openWorkspace(directory)).toThrow(
+        "The selected folder is not a compatible AAAAT workspace.",
+      );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

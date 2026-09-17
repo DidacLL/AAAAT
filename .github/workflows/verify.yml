@@ -3,8 +3,6 @@ name: Verify
 on:
   workflow_dispatch:
   push:
-    branches:
-      - product/dogfood-workspace-ai-context
     paths:
       - "src/**"
       - "test/**"

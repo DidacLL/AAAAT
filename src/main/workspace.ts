@@ -26,6 +26,52 @@ interface SchemaObjectRow {
   readonly sql: string | null;
 }
 
+interface TableListRow {
+  readonly schema: string;
+  readonly name: string;
+  readonly type: string;
+  readonly ncol: number;
+  readonly wr: number;
+  readonly strict: number;
+}
+
+interface TableColumnRow {
+  readonly cid: number;
+  readonly name: string;
+  readonly type: string;
+  readonly notNullValue: number;
+  readonly defaultValue: string | null;
+  readonly pk: number;
+  readonly hidden: number;
+}
+
+interface ForeignKeyRow {
+  readonly id: number;
+  readonly seq: number;
+  readonly tableName: string;
+  readonly fromColumn: string;
+  readonly toColumn: string | null;
+  readonly onUpdate: string;
+  readonly onDelete: string;
+  readonly match: string;
+}
+
+interface IndexListRow {
+  readonly name: string;
+  readonly isUnique: number;
+  readonly origin: string;
+  readonly partial: number;
+}
+
+interface IndexColumnRow {
+  readonly seqno: number;
+  readonly cid: number;
+  readonly name: string | null;
+  readonly descending: number;
+  readonly collation: string;
+  readonly keyColumn: number;
+}
+
 interface WorkspaceSettings {
   readonly lastWorkspacePath?: string;
 }
@@ -56,8 +102,281 @@ function transact(database: DatabaseSync, action: () => void): void {
   }
 }
 
+function normalizeIdentifier(value: string): string {
+  return value.toLowerCase();
+}
+
+function canonicalSqlTokens(sql: string): string[] {
+  const tokens: string[] = [];
+  let index = 0;
+
+  while (index < sql.length) {
+    const character = sql[index] ?? "";
+
+    if (/\s/.test(character)) {
+      index += 1;
+      continue;
+    }
+
+    if (character === "-" && sql[index + 1] === "-") {
+      index += 2;
+      while (index < sql.length && sql[index] !== "\n") {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (character === "/" && sql[index + 1] === "*") {
+      const commentEnd = sql.indexOf("*/", index + 2);
+      index = commentEnd === -1 ? sql.length : commentEnd + 2;
+      continue;
+    }
+
+    if (character === "'") {
+      let value = "";
+      index += 1;
+      while (index < sql.length) {
+        if (sql[index] === "'" && sql[index + 1] === "'") {
+          value += "'";
+          index += 2;
+          continue;
+        }
+        if (sql[index] === "'") {
+          index += 1;
+          break;
+        }
+        value += sql[index] ?? "";
+        index += 1;
+      }
+      tokens.push(`string:${value}`);
+      continue;
+    }
+
+    if (character === '"' || character === "`" || character === "[") {
+      const closing = character === "[" ? "]" : character;
+      let value = "";
+      index += 1;
+      while (index < sql.length) {
+        if (sql[index] === closing && sql[index + 1] === closing) {
+          value += closing;
+          index += 2;
+          continue;
+        }
+        if (sql[index] === closing) {
+          index += 1;
+          break;
+        }
+        value += sql[index] ?? "";
+        index += 1;
+      }
+      tokens.push(`identifier:${normalizeIdentifier(value)}`);
+      continue;
+    }
+
+    if (/[A-Za-z0-9_$]/.test(character)) {
+      const start = index;
+      while (index < sql.length && /[A-Za-z0-9_$]/.test(sql[index] ?? "")) {
+        index += 1;
+      }
+      tokens.push(`word:${sql.slice(start, index).toLowerCase()}`);
+      continue;
+    }
+
+    const threeCharacterOperator = sql.slice(index, index + 3);
+    if (threeCharacterOperator === "->>") {
+      tokens.push(`symbol:${threeCharacterOperator}`);
+      index += 3;
+      continue;
+    }
+
+    const twoCharacterOperator = sql.slice(index, index + 2);
+    if (
+      ["<=", ">=", "<>", "!=", "==", "||", "<<", ">>", "->"].includes(
+        twoCharacterOperator,
+      )
+    ) {
+      tokens.push(`symbol:${twoCharacterOperator}`);
+      index += 2;
+      continue;
+    }
+
+    tokens.push(`symbol:${character}`);
+    index += 1;
+  }
+
+  return tokens;
+}
+
+function extractCheckConstraints(sql: string | null): string[][] {
+  if (!sql) {
+    return [];
+  }
+
+  const tokens = canonicalSqlTokens(sql);
+  const checks: string[][] = [];
+
+  for (let index = 0; index < tokens.length - 1; index += 1) {
+    if (tokens[index] !== "word:check" || tokens[index + 1] !== "symbol:(") {
+      continue;
+    }
+
+    let depth = 1;
+    for (let end = index + 2; end < tokens.length; end += 1) {
+      if (tokens[end] === "symbol:(") {
+        depth += 1;
+      } else if (tokens[end] === "symbol:)") {
+        depth -= 1;
+        if (depth === 0) {
+          checks.push(tokens.slice(index + 2, end));
+          index = end;
+          break;
+        }
+      }
+    }
+  }
+
+  return checks.sort((left, right) =>
+    JSON.stringify(left).localeCompare(JSON.stringify(right)),
+  );
+}
+
+function sortSignatures<T>(values: T[]): T[] {
+  return values.sort((left, right) =>
+    JSON.stringify(left).localeCompare(JSON.stringify(right)),
+  );
+}
+
+function foreignKeySignature(rows: ForeignKeyRow[]): object[] {
+  const groups = new Map<number, ForeignKeyRow[]>();
+  for (const row of rows) {
+    const group = groups.get(row.id) ?? [];
+    group.push(row);
+    groups.set(row.id, group);
+  }
+
+  return sortSignatures(
+    [...groups.values()].map((group) => {
+      const ordered = [...group].sort((left, right) => left.seq - right.seq);
+      const first = ordered[0];
+      if (!first) {
+        throw new WorkspaceError("The workspace schema is incompatible.");
+      }
+      return {
+        tableName: normalizeIdentifier(first.tableName),
+        onUpdate: first.onUpdate.toLowerCase(),
+        onDelete: first.onDelete.toLowerCase(),
+        match: first.match.toLowerCase(),
+        columns: ordered.map((row) => ({
+          from: normalizeIdentifier(row.fromColumn),
+          to: row.toColumn ? normalizeIdentifier(row.toColumn) : null,
+        })),
+      };
+    }),
+  );
+}
+
+function tableSignature(
+  database: DatabaseSync,
+  object: SchemaObjectRow,
+  tableList: Map<string, TableListRow>,
+): object {
+  const table = tableList.get(normalizeIdentifier(object.name));
+  if (!table) {
+    throw new WorkspaceError("The workspace schema is incompatible.");
+  }
+
+  const columns = database
+    .prepare(
+      `SELECT cid, name, type, "notnull" AS notNullValue, dflt_value AS defaultValue, pk, hidden
+       FROM pragma_table_xinfo(?)
+       ORDER BY cid`,
+    )
+    .all(object.name) as unknown as TableColumnRow[];
+
+  const foreignKeys = database
+    .prepare(
+      `SELECT id, seq, "table" AS tableName, "from" AS fromColumn,
+              "to" AS toColumn, on_update AS onUpdate, on_delete AS onDelete, match
+       FROM pragma_foreign_key_list(?)
+       ORDER BY id, seq`,
+    )
+    .all(object.name) as unknown as ForeignKeyRow[];
+
+  const indexes = database
+    .prepare(
+      `SELECT name, "unique" AS isUnique, origin, partial
+       FROM pragma_index_list(?)`,
+    )
+    .all(object.name) as unknown as IndexListRow[];
+
+  return {
+    name: normalizeIdentifier(object.name),
+    type: table.type.toLowerCase(),
+    columnCount: table.ncol,
+    withoutRowid: table.wr,
+    strict: table.strict,
+    columns: columns.map((column) => ({
+      name: normalizeIdentifier(column.name),
+      type: column.type.toLowerCase(),
+      notNull: column.notNullValue,
+      defaultValue:
+        column.defaultValue === null
+          ? null
+          : canonicalSqlTokens(column.defaultValue),
+      primaryKeyPosition: column.pk,
+      hidden: column.hidden,
+    })),
+    foreignKeys: foreignKeySignature(foreignKeys),
+    checks: extractCheckConstraints(object.sql),
+    autoIncrement: canonicalSqlTokens(object.sql ?? "").includes(
+      "word:autoincrement",
+    ),
+    indexes: sortSignatures(
+      indexes.map((index) => {
+        const indexColumns = database
+          .prepare(
+            `SELECT seqno, cid, name, "desc" AS descending, coll AS collation,
+                    "key" AS keyColumn
+             FROM pragma_index_xinfo(?)
+             ORDER BY seqno`,
+          )
+          .all(index.name) as unknown as IndexColumnRow[];
+
+        const explicitIndex = index.origin === "c";
+        const indexObject = explicitIndex
+          ? (database
+              .prepare(
+                `SELECT sql
+                 FROM sqlite_schema
+                 WHERE type = 'index' AND name = ?`,
+              )
+              .get(index.name) as { sql: string | null } | undefined)
+          : undefined;
+
+        return {
+          name: explicitIndex ? normalizeIdentifier(index.name) : null,
+          unique: index.isUnique,
+          origin: index.origin.toLowerCase(),
+          partial: index.partial,
+          columns: indexColumns.map((column) => ({
+            columnId: column.cid,
+            name: column.name ? normalizeIdentifier(column.name) : null,
+            descending: column.descending,
+            collation: column.collation.toLowerCase(),
+            keyColumn: column.keyColumn,
+          })),
+          definition:
+            explicitIndex && indexObject?.sql
+              ? canonicalSqlTokens(indexObject.sql)
+              : null,
+        };
+      }),
+    ),
+  };
+}
+
 function schemaSignature(database: DatabaseSync): string {
-  const rows = database
+  const objects = database
     .prepare(
       `SELECT type, name, tbl_name AS tableName, sql
        FROM sqlite_schema
@@ -65,7 +384,39 @@ function schemaSignature(database: DatabaseSync): string {
        ORDER BY type, name`,
     )
     .all() as unknown as SchemaObjectRow[];
-  return JSON.stringify(rows);
+
+  const tableListRows = database
+    .prepare("PRAGMA table_list")
+    .all() as unknown as TableListRow[];
+  const tableList = new Map(
+    tableListRows
+      .filter((row) => row.schema === "main")
+      .map((row) => [normalizeIdentifier(row.name), row]),
+  );
+
+  const objectCatalog = objects.map((object) => ({
+    type: object.type.toLowerCase(),
+    name: normalizeIdentifier(object.name),
+    tableName: normalizeIdentifier(object.tableName),
+  }));
+
+  const tables = objects
+    .filter((object) => object.type === "table")
+    .map((object) => tableSignature(database, object, tableList));
+
+  const triggers = objects
+    .filter((object) => object.type === "trigger")
+    .map((object) => ({
+      name: normalizeIdentifier(object.name),
+      tableName: normalizeIdentifier(object.tableName),
+      definition: canonicalSqlTokens(object.sql ?? ""),
+    }));
+
+  return JSON.stringify({
+    objects: sortSignatures(objectCatalog),
+    tables: sortSignatures(tables),
+    triggers: sortSignatures(triggers),
+  });
 }
 
 function createCurrentSchemaSignature(): string {
