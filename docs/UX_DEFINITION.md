@@ -32,4 +32,6 @@ Settings uses recognizable tabs with one unmistakably active content panel rathe
 
 The useful information takes the viewport. Titles and repeated explanations are compact. Decoration may give AAAAT its worn physical-console / paper-dossier character without consuming the space needed for editing and reading. Home, Applications, CVs/Documents, My information and Settings retain the same rail/status frame.
 
+AAAAT does not define an arbitrary fixed product minimum window size. Concrete dimensions used in tests, screenshots, or historical interaction notes are representative verification samples only. Constrained-window behavior is judged by reachability, readability, useful space, and absence of clipping rather than by treating one sampled dimension as product authority.
+
 Natural-use review should establish that a person can save sparse work, attach/search/create Tags without glossary overload, understand and use the eye control, compose a template, read and deliberately edit a Working CV without decoding internal state, make document-only edits without mutating reusable information, render a separate artifact, find application-owned letters and packets, recognize environment failures, switch workspace and understand Settings without knowing AAAAT's development vocabulary.

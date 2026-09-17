@@ -22,10 +22,8 @@ interface InitializedRow {
 interface SchemaObjectRow {
   readonly type: string;
   readonly name: string;
-}
-
-interface TableColumnRow {
-  readonly name: string;
+  readonly tableName: string;
+  readonly sql: string | null;
 }
 
 interface WorkspaceSettings {
@@ -33,60 +31,6 @@ interface WorkspaceSettings {
 }
 
 const workspaceDatabaseName = "workspace.sqlite";
-
-const requiredSchemaObjects = Object.freeze([
-  ["table", "workspace_metadata"],
-  ["table", "profile_items"],
-  ["table", "profile_variants"],
-  ["table", "profile_activity"],
-  ["table", "candidatures"],
-  ["table", "candidature_activity"],
-  ["table", "tags"],
-  ["table", "candidature_tags"],
-  ["table", "tag_activity"],
-  ["table", "career_context"],
-  ["table", "career_context_activity"],
-  ["table", "candidature_sources"],
-  ["table", "candidature_fields"],
-  ["table", "candidature_field_preferences"],
-  ["table", "candidature_field_values"],
-  ["table", "cv_templates"],
-  ["table", "working_cvs"],
-  ["table", "cover_letters"],
-  ["table", "rendered_cvs"],
-  ["table", "application_packets"],
-  ["index", "profile_variants_item_idx"],
-  ["index", "candidatures_one_opportunity_research_selected"],
-  ["index", "candidature_sources_candidature_idx"],
-  ["index", "candidature_field_values_by_field"],
-  ["index", "working_cvs_candidature_idx"],
-  ["index", "cover_letters_candidature_idx"],
-  ["index", "rendered_cvs_candidature_idx"],
-  ["index", "application_packets_candidature_idx"],
-  ["trigger", "candidatures_opportunity_research_active_insert"],
-  ["trigger", "candidatures_opportunity_research_active_update"],
-] as const);
-
-const requiredColumns = Object.freeze({
-  profile_items: ["ai_use_allowed"],
-  candidatures: ["opportunity_research_selected"],
-  career_context: [
-    "career_direction_ai_use_allowed",
-    "objectives_ai_use_allowed",
-    "constraints_ai_use_allowed",
-    "target_roles_ai_use_allowed",
-    "target_markets_locations_ai_use_allowed",
-    "work_preferences_ai_use_allowed",
-    "application_writing_preferences_ai_use_allowed",
-  ],
-  candidature_field_preferences: ["ai_use_allowed"],
-  profile_variants: ["item_id"],
-  cv_templates: ["composition_json"],
-  working_cvs: ["candidature_id", "composition_json"],
-  cover_letters: ["candidature_id", "body_json"],
-  rendered_cvs: ["working_cv_id", "candidature_id", "project_relative_path"],
-  application_packets: ["candidature_id", "rendered_cv_id", "cover_letter_id", "project_relative_path"],
-} as const);
 
 class WorkspaceError extends Error {
   constructor(message: string) {
@@ -112,6 +56,30 @@ function transact(database: DatabaseSync, action: () => void): void {
   }
 }
 
+function schemaSignature(database: DatabaseSync): string {
+  const rows = database
+    .prepare(
+      `SELECT type, name, tbl_name AS tableName, sql
+       FROM sqlite_schema
+       WHERE name NOT LIKE 'sqlite_%'
+       ORDER BY type, name`,
+    )
+    .all() as unknown as SchemaObjectRow[];
+  return JSON.stringify(rows);
+}
+
+function createCurrentSchemaSignature(): string {
+  const reference = new DatabaseSync(":memory:");
+  try {
+    reference.exec(currentSchemaSql);
+    return schemaSignature(reference);
+  } finally {
+    reference.close();
+  }
+}
+
+const currentSchemaSignature = createCurrentSchemaSignature();
+
 export function validateCurrentWorkspaceDatabase(database: DatabaseSync): void {
   const integrity = database.prepare("PRAGMA quick_check").get() as
     | Record<string, unknown>
@@ -120,27 +88,8 @@ export function validateCurrentWorkspaceDatabase(database: DatabaseSync): void {
     throw new WorkspaceError("The workspace database is invalid.");
   }
 
-  const schemaRows = database
-    .prepare("SELECT type, name FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'")
-    .all() as unknown as SchemaObjectRow[];
-  const schemaObjects = new Set(schemaRows.map((row) => `${row.type}:${row.name}`));
-
-  for (const [type, name] of requiredSchemaObjects) {
-    if (!schemaObjects.has(`${type}:${name}`)) {
-      throw new WorkspaceError("The workspace schema is incompatible.");
-    }
-  }
-
-  for (const [tableName, columns] of Object.entries(requiredColumns)) {
-    const rows = database
-      .prepare(`PRAGMA table_info('${tableName}')`)
-      .all() as unknown as TableColumnRow[];
-    const present = new Set(rows.map((row) => row.name));
-    for (const column of columns) {
-      if (!present.has(column)) {
-        throw new WorkspaceError("The workspace schema is incompatible.");
-      }
-    }
+  if (schemaSignature(database) !== currentSchemaSignature) {
+    throw new WorkspaceError("The workspace schema is incompatible.");
   }
 
   const initialized = database

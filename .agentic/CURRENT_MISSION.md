@@ -1,47 +1,28 @@
-# Current execution state
+# Current mission — PLAN[0] integrated baseline acceptance
 
-## Active integrated recovery
+This file is derived coordination state. Current explicit Product Owner instruction remains higher authority.
 
-PR #319 remains open and unmerged on `product/dogfood-workspace-ai-context`.
+## Outcome
 
-The accepted product architecture remains the model in `PRODUCT_DEFINITION.md` and `docs/UX_DEFINITION.md`, but Product Owner natural-use testing of Windows candidate `74b9259d882534571acd65cd129f1bdcdaf309d7` proved the implementation is not yet acceptance-ready. Do not merge.
+Finish the existing integrated candidate in PR #319 on `product/dogfood-workspace-ai-context` and remove known first-class foundation contradictions without reopening architecture, adding features, or pulling later PLAN work into this run.
 
-This mission supersedes the earlier narrow packaging/acceptance gate. The next implementation pass is one integrated runtime-coherence recovery, not a sequence of one-button patches.
+PLAN[0] is the accepted integrated baseline: current UX/domain behavior stays intact, foundation truth is coherent, and deferred cleanup is explicitly left for later PLANs.
 
-## Product authority
+## Bounded corrections in this run
 
-Read authority in `AGENTS.md` order. Preserve the settled product model: sparse applications and Sources; Focus / All data; shared Tags; one AI-use permission; item-level Profile variants; CV templates / Working CVs / immutable Rendered CV snapshots / application-owned cover letters / Application packets; persistent Data / AI / PDF rail; exactly Workspace / AI / Documents / Backup Settings; demo/reset/backup/recovery; bounded external capabilities.
+1. Remove the accidental `720×600` BrowserWindow product/minimum assumption. Do not replace it with another arbitrary fixed minimum. Concrete dimensions may remain as representative verification samples.
+2. Make `src/main/schema.sql` the sole current workspace structural truth. Workspace validation must derive its structural expectation from that schema while retaining SQLite integrity checking, workspace identity metadata, required seed invariants, and clear rejection of incompatible/corrupt workspaces. No migrations or compatibility machinery.
+3. Fix only immediately adjacent, clearly obsolete remnants exposed by those changes. Do not start PLAN[1] test redesign or PLAN[3] architecture cleanup.
+4. Keep PR #319 as the integrated candidate and keep this mission/PR coordination aligned with PLAN[0].
 
-Do not reintroduce rejected generic documents, aggregate profile variants, workflow architecture, migration/compatibility machinery, provider frameworks, or obsolete UI destinations.
+## Verification boundary
 
-## Confirmed integration defects from the audit
+During implementation, prefer typecheck/lint and focused affected tests. At the run boundary require the current logical verification gate plus affected packaged-runtime journeys. Produce a fresh Windows packaged candidate because Windows is the Product Owner acceptance platform for PR #319. Do not spend development cycles on Linux/macOS cross-OS verification yet.
 
-The first packaged operation exposed a broader stale/current split around the document-domain replacement.
+CI/package success is engineering evidence, not Product Owner acceptance and not merge authority.
 
-1. `src/main/schema.sql` is the current schema, but `src/main/workspace.ts::validateCurrentWorkspaceDatabase()` still requires deleted schema objects such as `profile_variant_item_rules`, `documents`, `document_item_rules`, `document_activity`, `candidature_documents`, `application_artifacts`, `documents_one_ai_content_visible_cv`, and old `application_artifacts` columns. Fresh workspaces and demo workspaces therefore create the current database and immediately reject it as incompatible.
+## Acceptance gate
 
-2. `removeWorkspaceData()` still removes obsolete `documents/` and `artifacts/` directories while current generated projects live in `rendered-cvs/` and `application-packets/`. Reset/delete can therefore leave current AAAAT-generated files behind after deleting the database that owns them.
+After the bounded corrections and fresh Windows evidence are green, the remaining gate should be Product Owner natural-use acceptance of the integrated product unless a genuine unresolved trade-off is discovered.
 
-3. Welcome error handling is not truthful enough: New workspace maps every create failure to a folder-selection message, masking initialization/runtime failures; demo currently exposes the raw Electron remote-method error prefix. Correct this minimally without redesigning Welcome or creating an error framework.
-
-4. Current document collection records hard-code `hasPdf: true` for Rendered CVs and Application packets without checking the retained file. The UI then offers Open PDF unconditionally. A user-owned/missing file can therefore be represented as present until the open operation fails.
-
-5. Persisted `project_relative_path` values are joined to the workspace root without enforcing that they remain inside the current managed generated-project roots. Current generated-artifact path handling must be bounded to the workspace and expected roots.
-
-6. Current tests contain stale architecture evidence: `test/workspace.test.ts` checks obsolete cleanup directories; `test/workspace-backup.test.ts` and `test/desktop/packaged-recovery.spec.ts` use obsolete document/integration fixture paths; `test/preload-api.test.ts` still supplies removed `documentIds`; `test/desktop/packaged-application-intent.spec.ts` asserts deleted `documents` / `candidature_documents` tables. Other desktop tests include historical superseded UI/AI evidence and must be classified rather than treated as authority.
-
-7. Candidate gating was insufficient. Routine `.github/workflows/verify.yml` is intentionally lightweight, but `.github/workflows/windows-package.yml` also ran only install/typecheck/make. The repository already had fresh-workspace and demo tests that would have caught the blocker. A candidate artifact must run a strong current non-desktop verification gate before packaging.
-
-## Required next pass
-
-Use one executable agent session. Before editing, run the full current non-desktop verification (`npm run verify`) and inventory every failure. Then audit active `src/main`, `src/preload`, `src/shared`, renderer entry paths, workspace persistence/backup/reset, and current tests for stale rejected-model references and current contract mismatches. Fix all material current-runtime/integrity issues found in that pass coherently.
-
-Do not weaken current tests to get green. Update/delete only tests that encode rejected architecture; preserve meaningful current behavior tests. `vitest.config.mts` already excludes `test/desktop/**`, so the non-desktop suite can be made an authoritative candidate gate without dragging historical packaged UI tests into routine unit verification.
-
-The Windows candidate workflow should run `npm run verify` (or an equivalent full current non-desktop gate) before `npm run make`. Reconcile and run a small set of current packaged-runtime tests appropriate to first-run/workspace/recovery/application-document behavior; do not resurrect obsolete desktop expectations.
-
-Work locally through the whole pass and push one coherent final implementation commit rather than one commit/CI loop per symptom. After local verification is green, push once and let GitHub produce one corrected Windows candidate. Return exact SHA, full verification results, packaged-runtime evidence, artifact metadata/checksum, and remaining explicitly classified risks.
-
-## Acceptance
-
-Product Owner natural-use testing restarts only after that integrated pass and corrected Windows artifact exist. Packaging success alone is not merge authorization. Never merge PR #319 without explicit Product Owner direction.
+Do not merge PR #319 merely because CI is green. PLAN[0] is complete only when the integrated baseline is accepted on `main`, no known first-class integrity contradiction remains, and later work is explicitly separated into later PLANs.

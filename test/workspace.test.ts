@@ -43,10 +43,17 @@ describe("user-owned workspace", () => {
             .prepare("SELECT value FROM workspace_metadata WHERE key = 'workspace.initialized_at'")
             .get(),
         ).toMatchObject({ value: expect.any(String) });
-        database.exec("CREATE TABLE persistence_probe(value TEXT NOT NULL) STRICT;");
         database
-          .prepare("INSERT INTO persistence_probe(value) VALUES (?)")
-          .run("survives-reopen");
+          .prepare(
+            "INSERT INTO tags(id, name, definition, notes, aliases_json, created_at, updated_at) VALUES (?, ?, ?, '', '[]', ?, ?)",
+          )
+          .run(
+            "persistence-probe",
+            "Persistence probe",
+            "survives reopen",
+            "2026-09-17T00:00:00.000Z",
+            "2026-09-17T00:00:00.000Z",
+          );
       } finally {
         database.close();
       }
@@ -54,9 +61,11 @@ describe("user-owned workspace", () => {
       expect(openWorkspace(directory)).toEqual(first);
       const reopenedDatabase = new DatabaseSync(databasePath, { readOnly: true });
       try {
-        expect(reopenedDatabase.prepare("SELECT value FROM persistence_probe").get()).toEqual({
-          value: "survives-reopen",
-        });
+        expect(
+          reopenedDatabase
+            .prepare("SELECT name, definition FROM tags WHERE id = ?")
+            .get("persistence-probe"),
+        ).toEqual({ name: "Persistence probe", definition: "survives reopen" });
       } finally {
         reopenedDatabase.close();
       }
@@ -127,6 +136,56 @@ describe("user-owned workspace", () => {
       } finally {
         unchanged.close();
       }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects schema objects that are not part of the current schema truth", () => {
+    const directory = temporaryDirectory();
+    const databasePath = path.join(directory, "workspace.sqlite");
+    try {
+      createOrOpenWorkspace(directory);
+      const database = new DatabaseSync(databasePath);
+      try {
+        database.exec("CREATE TABLE obsolete_schema_probe(value TEXT NOT NULL) STRICT;");
+      } finally {
+        database.close();
+      }
+
+      expect(() => openWorkspace(directory)).toThrow(
+        "The selected folder is not a compatible AAAAT workspace.",
+      );
+      const unchanged = new DatabaseSync(databasePath, { readOnly: true });
+      try {
+        expect(
+          unchanged
+            .prepare("SELECT name FROM sqlite_schema WHERE name = 'obsolete_schema_probe'")
+            .get(),
+        ).toEqual({ name: "obsolete_schema_probe" });
+      } finally {
+        unchanged.close();
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a workspace missing its required current seed invariant", () => {
+    const directory = temporaryDirectory();
+    const databasePath = path.join(directory, "workspace.sqlite");
+    try {
+      createOrOpenWorkspace(directory);
+      const database = new DatabaseSync(databasePath);
+      try {
+        database.exec("DELETE FROM career_context WHERE id = 1;");
+      } finally {
+        database.close();
+      }
+
+      expect(() => openWorkspace(directory)).toThrow(
+        "The selected folder is not a compatible AAAAT workspace.",
+      );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
