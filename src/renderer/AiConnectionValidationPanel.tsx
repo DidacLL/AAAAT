@@ -8,7 +8,7 @@ import {
 } from "../shared/ai-connection-contracts";
 import type { AiExchangeDiagnostic } from "../shared/ai-diagnostics";
 import { AiExchangeInspector } from "./AiExchangeInspector";
-import { recordAiReachabilityEvidence } from "./ai-reachability-store";
+import { recordAiReachabilityEvidence, useAiReachabilityEvidence } from "./ai-reachability-store";
 import { aiTaskFailure, startAiTask, useAiTask } from "./ai-task-store";
 
 interface Props {
@@ -66,6 +66,10 @@ export function AiConnectionValidationPanel({
   const lastCheckRequest = useRef<number | null>(null);
   const lastValidationReport = useRef<string | null>(null);
   const [routingBusy, setRoutingBusy] = useState<AiOperation | null>(null);
+  const [probeBusy, setProbeBusy] = useState(false);
+  const [probeError, setProbeError] = useState<string | null>(null);
+  const reachableConnections = useAiReachabilityEvidence();
+  const reachableNow = reachableConnections.has(connection.name);
   const active = task?.status === "queued" || task?.status === "working";
   const allValidated = aiOperations.every((operation) =>
     connection.validatedOperations.includes(operation),
@@ -154,6 +158,26 @@ export function AiConnectionValidationPanel({
     validate();
   }, [checkRequest, validate]);
 
+  const testConnection = async () => {
+    const probe = window.aaaat.aiConnections?.probe;
+    if (!probe || probeBusy) return;
+    setProbeBusy(true);
+    setProbeError(null);
+    recordAiReachabilityEvidence(connection.name, false);
+    try {
+      const reachable = await probe(connection.id);
+      recordAiReachabilityEvidence(connection.name, reachable);
+      onValidationState?.(connection.name, !reachable);
+      if (!reachable) setProbeError("AAAAT could not reach this AI service.");
+    } catch (reason) {
+      recordAiReachabilityEvidence(connection.name, false);
+      onValidationState?.(connection.name, true);
+      setProbeError(reason instanceof Error ? reason.message : "AAAAT could not test this AI service.");
+    } finally {
+      setProbeBusy(false);
+    }
+  };
+
   const setOperationDefault = async (operation: AiOperation) => {
     setRoutingBusy(operation);
     try {
@@ -181,17 +205,15 @@ export function AiConnectionValidationPanel({
         failure.exchange?.failureKind === "provider_http_failure" ||
         failure.exchange?.failureKind === "provider_envelope_invalid",
     );
-  const health = active
+  const health = probeBusy
     ? "Checking"
-    : hasUnreachableFailure
-      ? "Unreachable / timed out"
-      : hasProviderFailure
-        ? "Address or server response needs attention"
-        : validatedCount > 0 || failureList.length > 0
-          ? "Connected"
-          : task?.status === "failed"
-            ? "Needs attention"
-            : "Saved · not checked";
+    : reachableNow
+      ? "Connected now"
+      : hasUnreachableFailure
+        ? "Unreachable / timed out"
+        : hasProviderFailure
+          ? "Address or server response needs attention"
+          : "Saved · not checked this session";
 
   return (
     <section className="ai-validation-card" aria-label={`AI readiness for ${connection.name}`}>
@@ -219,8 +241,18 @@ export function AiConnectionValidationPanel({
         </div>
       ) : null}
 
+      <button
+        type="button"
+        className="compact-secondary"
+        disabled={probeBusy || active || window.aaaat.aiConnections?.probe === undefined}
+        onClick={() => void testConnection()}
+      >
+        {probeBusy ? "Testing connection…" : reachableNow ? "Test connection again" : "Test connection"}
+      </button>
+      {probeError ? <p className="error-message" role="alert">{probeError}</p> : null}
+
       {!allValidated ? (
-        <button type="button" disabled={active} onClick={validate}>
+        <button type="button" disabled={active || probeBusy} onClick={validate}>
           {active
             ? "Checking connection…"
             : task?.status === "failed" || failureList.length > 0

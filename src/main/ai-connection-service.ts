@@ -118,6 +118,38 @@ function validatedEndpoint(input: AiConnectionInput): string {
   return endpoint.toString().replace(/\/$/, "");
 }
 
+const aiConnectionProbeTimeoutMs = 3_000;
+
+function modelsUrl(baseUrl: string): string {
+  const url = new URL(baseUrl);
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/models`;
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+export async function probeAiConnection(
+  rootPath: string,
+  rawConnectionId: string,
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs = aiConnectionProbeTimeoutMs,
+): Promise<boolean> {
+  const connectionId = aiConnectionIdSchema.parse(rawConnectionId);
+  const configuration = readConfiguration(rootPath);
+  const connection = connectionById(configuration, connectionId);
+  try {
+    const response = await fetchImpl(modelsUrl(connection.endpoint), {
+      method: "GET",
+      headers: { accept: "application/json" },
+      redirect: "error",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 function emptyConfiguration(): StoredConnectionConfiguration {
   return { version: 4, connections: [], defaultConnectionId: null, operationDefaults: {} };
 }

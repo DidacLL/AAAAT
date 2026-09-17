@@ -25,6 +25,7 @@ export const aiConnectionManagementChannels = Object.freeze({
   save: "aaaat:ai-connections-save",
   setDefault: "aaaat:ai-connections-set-default",
   remove: "aaaat:ai-connections-remove",
+  probe: "aaaat:ai-connections-probe",
   validateOperation: "aaaat:ai-connections-validate-operation",
   setOperationDefault: "aaaat:ai-connections-set-operation-default",
   exportPortable: "aaaat:ai-connections-export-portable",
@@ -32,6 +33,7 @@ export const aiConnectionManagementChannels = Object.freeze({
 } as const);
 
 export const aiConnectionIdSchema = z.string().uuid();
+export const aiConnectionProbeResultSchema = z.boolean();
 export const aiConnectionOperationInputSchema = z
   .object({ connectionId: aiConnectionIdSchema, operation: aiOperationSchema })
   .strict();
@@ -89,6 +91,7 @@ export interface AiConnectionDesktopApi {
     readonly save: (input: NamedAiConnectionInput) => Promise<NamedAiConnection[]>;
     readonly setDefault: (connectionId: string) => Promise<NamedAiConnection[]>;
     readonly remove: (connectionId: string) => Promise<NamedAiConnection[]>;
+    readonly probe?: (connectionId: string) => Promise<boolean>;
     readonly validateOperation: (input: AiConnectionOperationInput) => Promise<NamedAiConnection[]>;
     readonly setOperationDefault: (input: AiConnectionOperationInput) => Promise<NamedAiConnection[]>;
     readonly exportPortable: () => Promise<PortableAiSetupExportResult>;
