@@ -8,21 +8,25 @@ Finish the existing integrated candidate in PR #319 on `product/dogfood-workspac
 
 PLAN[0] is the accepted integrated baseline: current UX/domain behavior stays intact, foundation truth is coherent, and deferred cleanup is explicitly left for later PLANs.
 
-## Bounded corrections in this run
+## Bounded corrections
 
-1. Remove the accidental `720×600` BrowserWindow product/minimum assumption. Do not replace it with another arbitrary fixed minimum. Concrete dimensions may remain as representative verification samples.
-2. Make `src/main/schema.sql` the sole current workspace structural truth. Workspace validation must derive its structural expectation from that schema while retaining SQLite integrity checking, workspace identity metadata, required seed invariants, and clear rejection of incompatible/corrupt workspaces. No migrations or compatibility machinery.
-3. Fix only immediately adjacent, clearly obsolete remnants exposed by those changes. Do not start PLAN[1] test redesign or PLAN[3] architecture cleanup.
-4. Keep PR #319 as the integrated candidate and keep this mission/PR coordination aligned with PLAN[0].
+1. The accidental `720×600` BrowserWindow product/minimum assumption is removed. No replacement arbitrary product minimum is introduced; concrete dimensions remain only as representative verification samples where useful.
+2. `src/main/schema.sql` is the sole current workspace structural truth. Workspace validation derives structural expectations from that schema while retaining SQLite integrity checking, workspace identity metadata, required seed invariants, and clear rejection of incompatible/corrupt workspaces. No migrations or compatibility machinery are introduced.
+3. Immediately adjacent obsolete recovery/test remnants exposed by this work are corrected. PLAN[1] test redesign and PLAN[3] architecture cleanup remain deferred.
+4. PR #319 remains the integrated candidate and must not merge merely because engineering checks are green.
 
-## Verification boundary
+## Verification model
 
-During implementation, prefer typecheck/lint and focused affected tests. At the run boundary require the current logical verification gate plus affected packaged-runtime journeys. Produce a fresh Windows packaged candidate because Windows is the Product Owner acceptance platform for PR #319. Do not spend development cycles on Linux/macOS cross-OS verification yet.
+Development pushes stay cheap. The PR workflow performs only lightweight typechecking for code-bearing changes; workflow/docs-only changes do not trigger it. Windows packaging is not run on ordinary development pushes.
+
+The run boundary is explicit: moving the dedicated `candidate/windows` ref to the final PR head runs one Windows job containing the full logical verification (`typecheck`, lint, Vitest), packaging, the affected packaged workspace recovery journey, the packaged host-neutral application/document journey, metadata/checksum collection, and candidate upload.
+
+Linux/macOS cross-OS verification is intentionally deferred until later finalization work.
 
 CI/package success is engineering evidence, not Product Owner acceptance and not merge authority.
 
 ## Acceptance gate
 
-After the bounded corrections and fresh Windows evidence are green, the remaining gate should be Product Owner natural-use acceptance of the integrated product unless a genuine unresolved trade-off is discovered.
+After the fresh Windows candidate is green, the remaining PLAN[0] gate is Product Owner natural-use acceptance of the integrated product unless a genuine unresolved trade-off is discovered.
 
 Do not merge PR #319 merely because CI is green. PLAN[0] is complete only when the integrated baseline is accepted on `main`, no known first-class integrity contradiction remains, and later work is explicitly separated into later PLANs.
