@@ -104,7 +104,7 @@ The Applications surface presents each candidature as one configurable informati
 
 A field can be marked as a **favourite** presentation field. Favourite fields appear first, in user-controlled order, and may use the field's presentation prominence. AAAAT may ship sensible favourite defaults, but no default field is permanently privileged by the UI.
 
-Role and Organisation are useful shipped defaults, not permanent card titles. They may begin favourited/prominent, but the user can demote, reorder or present other fields with equal authority. A candidature must not have a separate visual title concept that bypasses the configurable field model.
+Role and Organisation are useful shipped field definitions only. They have no special identity semantics and must not receive a hidden priority merely because AAAAT ships them. The user alone decides which fields are favourites, their order and presentation prominence. A candidature must not have a separate visual title concept or hidden identity ranking that bypasses the configurable field model. Existing `identityOrder` behaviour is implementation debt, not product authority, and must not drive user-visible presentation.
 
 Corpus presentation must stay compact and information-efficient. It should adapt to the chosen favourite fields rather than forcing every card into a generic fixed card template. One long value must not make unrelated candidature cards unnecessarily large. Search may show a bounded Source or Tag excerpt when it explains an active match, but that evidence is temporary and is not an implicit normal field.
 
