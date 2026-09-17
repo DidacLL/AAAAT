@@ -211,7 +211,6 @@ export const candidatureRecordSchema = z
     archived: z.boolean(),
     createdAt: z.string().min(1),
     updatedAt: z.string().min(1),
-    label: z.string().min(1),
     sourceSearchText: z.string(),
     values: candidatureFieldValueListSchema,
     tagIds: z.array(z.string().uuid()),
