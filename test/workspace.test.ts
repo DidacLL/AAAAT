@@ -90,7 +90,8 @@ describe("user-owned workspace", () => {
   it("accepts structurally equivalent schema with presentation-different DDL", () => {
     const directory = temporaryDirectory();
     try {
-      const presentationVariant = currentSchemaSql
+      const normalizedSchemaSql = currentSchemaSql.replace(/\r\n/g, "\n");
+      const presentationVariant = normalizedSchemaSql
         .replace(
           `CREATE TABLE workspace_metadata (
   key TEXT PRIMARY KEY,
@@ -124,7 +125,7 @@ select raise(abort,'Archived candidature cannot be selected for opportunity rese
 end;`,
         );
 
-      expect(presentationVariant).not.toBe(currentSchemaSql);
+      expect(presentationVariant).not.toBe(normalizedSchemaSql);
       createWorkspaceDatabase(directory, presentationVariant);
 
       expect(openWorkspace(directory)).toEqual({ rootPath: directory });
