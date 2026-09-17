@@ -14,7 +14,7 @@ Current first-class defects:
 
 1. **AI readiness must be truthful.** Configuration/routing or a historical success must not mean current `AI: Ready`. A successful current validation/request may establish readiness; a relevant failure must promptly invalidate it. Reuse existing validation/task/diagnostic state; do not invent polling or a generic health subsystem.
 
-2. **Candidature presentation must be one configurable field surface.** Remove the product-level duplication between Focus and All-data views. Corpus recognition and selected-candidature reading use the same field presentation preferences: favourite/starred fields appear first, in user order and prominence; a compact More/advanced disclosure reveals the rest. Role and Organisation are shipped field definitions only, with no hidden identity privilege. `identityOrder` must not drive user-visible presentation, and there is no fixed card-title concept outside the configurable field model. Raw Source may explain an active search match but is not an implicit normal field. Avoid generic equal-height card-grid behavior where one long value determines the height of unrelated cards.
+2. **Candidature presentation must be one configurable field surface, with no field-derived identity.** Remove Focus/All duplication and the separate Focus configuration surface. Favourite/starred fields are entirely user-chosen and control primary order/size; More/advanced reveals the rest. Shipped fields receive no identity/favourite/ordering/size privilege. Remove `identityOrder` from the current model and remove the derived candidature `label` as a domain/search/AI shortcut. A compact human reference may be composed locally from user favourites only for presentation; it is not stored data and never bypasses field-level AI/privacy/external disclosure rules. Raw Source may explain an active search match but is not an implicit normal field. Avoid equal-row card-grid behavior where one long value sizes unrelated entries.
 
 Preserve completed PLAN[0] foundation corrections:
 
@@ -81,6 +81,6 @@ Ordinary development uses fast, focused verification. Stronger packaged/runtime 
 
 ## Orchestration contract
 
-The master orchestrator owns sequence and continuity. A temporary run orchestrator owns one PLAN outcome and delegates coherent implementation/review passes. It must not silently substitute itself for an implementation specialist. If its environment cannot delegate another agent, it returns the exact specialist brief instead of making repository implementation changes itself.
+The master orchestrator owns sequence, scope, continuity and acceptance. Use a separate run orchestrator only when the execution environment actually supports delegation and the work benefits from it. Otherwise launch a bounded implementation specialist directly rather than asking an agent to investigate whether delegation exists.
 
-Prefer one or a few coherent autonomous passes. Continue the same specialist with a delta brief when possible instead of spawning additive parallel work.
+Prefer one coherent implementation pass and, when needed, one independent review at consequential boundaries. Continue the same specialist with a delta brief for small follow-up corrections instead of spawning additive parallel work.

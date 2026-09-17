@@ -102,9 +102,13 @@ The user should not need to learn a separate “Focus” product mode in order t
 
 The Applications surface presents each candidature as one configurable information object. The same user-maintainable candidature fields drive compact corpus recognition and the richer selected-candidature view.
 
-A field can be marked as a **favourite** presentation field. Favourite fields appear first, in user-controlled order, and may use the field's presentation prominence. AAAAT may ship sensible favourite defaults, but no default field is permanently privileged by the UI.
+A field can be marked as a **favourite** presentation field. Favourite fields appear first, in user-controlled order, and may use a user-controlled presentation prominence.
 
-Role and Organisation are useful shipped field definitions only. They have no special identity semantics and must not receive a hidden priority merely because AAAAT ships them. The user alone decides which fields are favourites, their order and presentation prominence. A candidature must not have a separate visual title concept or hidden identity ranking that bypasses the configurable field model. Existing `identityOrder` behaviour is implementation debt, not product authority, and must not drive user-visible presentation.
+AAAAT does not decide which candidature fields are important. Shipped field definitions such as Role, Organisation, Location or Compensation are conveniences only; they receive no default identity, favourite, ordering or size privilege because of their names or system keys.
+
+A candidature has no semantic identity assembled from its fields. Its durable identity is its internal record ID only. There is no `identityOrder` product concept and no derived domain label made from Role, Organisation, Source title or any other retained value.
+
+When the local UI needs a compact human reference, it may compose a transient presentation from the user's chosen favourite fields. That presentation is not stored as candidature data, is not searchable as an extra hidden value, and must never cross an AI/privacy/external boundary as a substitute for the underlying explicitly permitted fields. If no favourite information is available, use a neutral local fallback rather than inventing an identity.
 
 Corpus presentation must stay compact and information-efficient. It should adapt to the chosen favourite fields rather than forcing every card into a generic fixed card template. One long value must not make unrelated candidature cards unnecessarily large. Search may show a bounded Source or Tag excerpt when it explains an active match, but that evidence is temporary and is not an implicit normal field.
 
