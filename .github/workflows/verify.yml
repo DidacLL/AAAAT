@@ -1,19 +1,25 @@
 name: Verify
 
 on:
-  pull_request:
-    paths-ignore:
-      - ".github/**"
-      - "docs/**"
-      - ".agentic/**"
-      - "**/*.md"
   workflow_dispatch:
+  push:
+    branches:
+      - product/dogfood-workspace-ai-context
+    paths:
+      - "src/**"
+      - "test/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - "vite*.ts"
+      - "forge.config.*"
+      - "playwright.config.*"
 
 permissions:
   contents: read
 
 concurrency:
-  group: verify-${{ github.event.pull_request.number || github.ref }}
+  group: verify-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
