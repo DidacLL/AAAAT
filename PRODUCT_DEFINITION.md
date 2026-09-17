@@ -96,43 +96,33 @@ Not:
 
 Database-style field IDs, cardinality, schema concepts and type machinery must remain secondary/advanced implementation detail even though the user can manage the resulting information definitions.
 
-## Focus: rapid retrieval with two states
+## Rapid candidature retrieval and progressive detail
 
-Focus is a defining candidature capability. Its purpose is to let the user identify the right candidature and recover useful context within seconds, especially under divided attention such as an unexpected recruiter/interview call.
+The user should not need to learn a separate “Focus” product mode in order to understand candidature information.
 
-Focus is one experience with two states.
+The Applications surface presents each candidature as one configurable information object. The same user-maintainable candidature fields drive compact corpus recognition and the richer selected-candidature view.
 
-### 1. Corpus Focus
+A field can be marked as a **favourite** presentation field. Favourite fields appear first, in user-controlled order, and may use the field's presentation prominence. AAAAT may ship sensible favourite defaults, but no default field is permanently privileged by the UI.
 
-Before a candidature is selected, Focus shows multiple candidatures simultaneously so the user can recognize the right one quickly.
+Role and Organisation are useful shipped defaults, not permanent card titles. They may begin favourited/prominent, but the user can demote, reorder or present other fields with equal authority. A candidature must not have a separate visual title concept that bypasses the configurable field model.
 
-Each candidature shows only a deliberately small set of Focus-selected fields/signals. AAAAT ships sensible defaults, but the user controls which available fields participate. Focus must not dump every stored value or every candidature-owned object into the overview.
+Corpus presentation must stay compact and information-efficient. It should adapt to the chosen favourite fields rather than forcing every card into a generic fixed card template. One long value must not make unrelated candidature cards unnecessarily large. Search may show a bounded Source or Tag excerpt when it explains an active match, but that evidence is temporary and is not an implicit normal field.
 
-Search and filtering support partial memory across meaningful retained information, including Sources and Tags/aliases where appropriate.
+Selecting a candidature expands the same information surface instead of switching to a second near-duplicate screen. Favourite fields remain immediately visible. A compact **More** / advanced disclosure reveals the remaining enabled fields and deeper candidature-owned material when needed.
 
-The requirement is fast recognition with minimal visual noise. The exact composition may evolve; old Smart View/card/table implementations are not design authority.
+The ordinary control for this is direct and local: a star/favourite affordance on a field moves it immediately into or out of the primary set. Deeper ordering or presentation controls may be progressively disclosed, but the user should not have to open a separate “Choose Focus information” configuration screen to understand the model.
 
-### 2. Selected-candidature Focus
-
-Selecting a candidature gives that candidature the available working space rather than expanding a cramped card inside the corpus.
-
-This state shows the richer subset the user configured as useful for recall: selected fields, relevant Tags/glossary knowledge, notes or other deliberately chosen Focus information.
-
-It remains a curated recall surface, not a complete dump of all Sources, all documents, all reminders or all stored information.
-
-Displayed editable fields must have low-friction edit affordances. During a call the user must be able to correct a value or add useful information without leaving Focus merely because editing exists elsewhere too.
-
-A shortcut to complete candidature management is useful, but complete editing is not the mandatory continuation of Focus and Focus is not the only candidature journey.
+Displayed editable fields keep low-friction edit affordances. During a call the user must be able to correct a value or add useful information without navigating to another conceptual mode.
 
 ## Complete candidature work
 
-The user can directly open a candidature for deliberate maintenance without first going through Focus.
+Complete candidature work is the expanded state of the same selected-candidature surface, not a duplicate peer view.
 
-Complete candidature work exposes everything the user owns for that candidature: all structured information, Sources/raw material, Tags, linked application material, retained artifacts, relevant privacy/presentation controls, and secondary notes/reminders or provenance where useful.
+It exposes the rest of the candidature-owned information progressively: all enabled fields, Sources/raw material, Tags, linked application material, retained artifacts, relevant privacy/presentation controls, and secondary notes/reminders or provenance where useful.
 
-It also provides progressively disclosed management of candidature field definitions because the user owns the information model used for this work. That includes adding and editing useful field definitions without making field-definition machinery dominate normal value entry.
+The user can still open a candidature directly for deliberate maintenance. Populated information is primarily readable; editing/addition happens close to the value; field-definition management and deeper machinery remain progressively disclosed.
 
-Complete access must not mean a giant permanent form. Populated information is primarily readable; editing/addition happens close to the value; deeper machinery is progressively disclosed.
+## Tags
 
 ## Tags
 

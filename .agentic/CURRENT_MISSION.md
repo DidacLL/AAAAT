@@ -12,7 +12,7 @@ PLAN[0] is the accepted integrated baseline: current domain behavior is coherent
 
 1. **Truthful AI state.** Configuration/routing or a historical success must not produce current `AI: Ready`. Current successful validation/request evidence may establish readiness; a relevant failure must promptly invalidate stale readiness. Reuse existing validation/task/diagnostic state rather than adding polling or a generic health subsystem.
 
-2. **User-controlled candidature corpus Focus.** Normal corpus cards must use the fields/signals chosen for Focus. Raw Source text must not silently fill missing cue slots and enlarge cards. Source excerpts may still explain an active search match. The user must have a discoverable way to select and order the candidature fields shown in Focus.
+2. **One configurable candidature information surface.** The current Focus/All split and separate “Choose Focus information” control are not the accepted product model. Corpus and selected-candidature views must use the same field presentation model: favourite/starred fields appear first in user order and prominence; More/advanced reveals the remaining fields. Role and Organisation are ordinary configurable fields, not permanent card titles. Raw Source may explain an active search match but must not become an implicit normal field. The layout must not let one long value force unrelated cards to the same oversized height.
 
 ## Foundation corrections already completed and to preserve
 

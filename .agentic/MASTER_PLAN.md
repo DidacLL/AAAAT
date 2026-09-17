@@ -14,7 +14,7 @@ Current first-class defects:
 
 1. **AI readiness must be truthful.** Configuration/routing or a historical success must not mean current `AI: Ready`. A successful current validation/request may establish readiness; a relevant failure must promptly invalidate it. Reuse existing validation/task/diagnostic state; do not invent polling or a generic health subsystem.
 
-2. **Candidature corpus Focus must obey user-selected Focus information.** Normal corpus cards must be based on the fields/signals the user chose for Focus. Raw Source text must not silently fill unused cue slots and enlarge cards merely because fewer configured Focus fields have values. Search may show a Source excerpt when it explains an active search match, but Source is not an implicit normal Focus field. The user must have a discoverable way to choose which candidature fields appear in Focus and their ordering; this capability must not exist only as buried per-field internals.
+2. **Candidature presentation must be one configurable field surface.** Remove the product-level duplication between Focus and All-data views. Corpus recognition and selected-candidature reading use the same field presentation preferences: favourite/starred fields appear first, in user order and prominence; a compact More/advanced disclosure reveals the rest. Role and Organisation are shipped default fields, not permanent visual titles, and must be demotable/reorderable/resizable like other fields. Raw Source may explain an active search match but is not an implicit normal field. Avoid generic equal-height card-grid behavior where one long value determines the height of unrelated cards.
 
 Preserve completed PLAN[0] foundation corrections:
 
@@ -45,6 +45,8 @@ Owner-led document-package work so CV/cover-letter composition, generation, rend
 Refine the already broadly acceptable UI/UX after the document model settles. Preserve the current visual character unless the Product Owner changes it.
 
 #### Candidature field presentation
+
+The structural information model is fixed in PLAN[0]: one configurable field surface with favourite/starred fields first and progressive disclosure for the rest. PLAN[5] only refines its interaction and visual cohesion.
 
 - Pencil/eye/AI glyph controls break visual cohesion and make a field read as unrelated mechanisms.
 - Expanded editable fields consume too much space and are difficult to comprehend as one object.
