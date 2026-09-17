@@ -43,7 +43,7 @@ jobs:
         run: npm run make
 
       - name: Verify affected packaged runtime journeys
-        run: npx playwright test test/desktop/packaged-recovery.spec.ts test/desktop/packaged-window-bounds.spec.ts --config playwright.config.ts
+        run: npx playwright test test/desktop/packaged-recovery.spec.ts test/desktop/packaged-application-intent.spec.ts --config playwright.config.ts
 
       - name: Collect package metadata
         id: package
