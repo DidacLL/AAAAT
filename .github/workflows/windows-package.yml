@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - product/dogfood-workspace-ai-context
+      - candidate/windows
 
 permissions:
   contents: read
@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify
+      - name: Verify run boundary
         run: npm run verify -- -- --testTimeout=60000
 
       - name: Make Windows package

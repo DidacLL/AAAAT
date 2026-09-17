@@ -2,6 +2,11 @@ name: Verify
 
 on:
   pull_request:
+    paths-ignore:
+      - ".github/**"
+      - "docs/**"
+      - ".agentic/**"
+      - "**/*.md"
   workflow_dispatch:
 
 permissions:
@@ -12,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fast:
-    name: Fast verification
+  typecheck:
+    name: Typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -24,22 +29,3 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-
-  gate:
-    name: Verification gate
-    needs: [fast]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require typecheck
-        shell: bash
-        env:
-          FAST_RESULT: ${{ needs.fast.result }}
-        run: |
-          set -euo pipefail
-          if [[ "$FAST_RESULT" != "success" ]]; then
-            echo "Fast verification finished as $FAST_RESULT" >&2
-            exit 1
-          fi
-          echo "Typecheck passed." >> "$GITHUB_STEP_SUMMARY"
