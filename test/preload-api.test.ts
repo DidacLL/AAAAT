@@ -26,7 +26,6 @@ const configuration = {
     focusVisible: false,
     focusOrder: null,
     focusProminence: "normal" as const,
-    identityOrder: null,
     aiUseAllowed: true,
   },
 };
@@ -36,7 +35,6 @@ const record = {
   archived: false,
   createdAt: "2026-09-04T00:00:00.000Z",
   updatedAt: "2026-09-04T00:00:00.000Z",
-  label: "Pilot opportunity",
   sourceSearchText: "",
   values: [],
   tagIds: [],

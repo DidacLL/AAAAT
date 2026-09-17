@@ -22,7 +22,6 @@ import {
   type CandidatureUpdate,
 } from "../shared/contracts";
 import {
-  candidatureLabelInDatabase,
   readCandidatureFieldValuesInDatabase,
   setCandidatureFieldValueInDatabase,
 } from "./candidature-field-service";
@@ -109,7 +108,6 @@ function toRecord(database: DatabaseSync, row: CandidatureRow): CandidatureRecor
     archived: row.archived === 1,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    label: candidatureLabelInDatabase(database, row.id, row.createdAt),
     sourceSearchText: sourceSearchText(database, row.id),
     values: readCandidatureFieldValuesInDatabase(database, row.id),
     tagIds: readTagIds(database, row.id),

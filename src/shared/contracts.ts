@@ -149,7 +149,6 @@ export const candidatureFieldPreferencesSchema = z
     focusVisible: z.boolean(),
     focusOrder: z.number().int().nonnegative().nullable(),
     focusProminence: focusProminenceSchema,
-    identityOrder: z.number().int().nonnegative().nullable(),
     aiUseAllowed: z.boolean(),
   })
   .strict();

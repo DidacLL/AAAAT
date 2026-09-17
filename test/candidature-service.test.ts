@@ -45,6 +45,7 @@ describe("candidature service", () => {
       },
       values: [],
     });
+    expect(candidature).not.toHaveProperty("label");
 
     const first = listCandidatureSources(root, candidature.id)[0];
     if (!first) throw new Error("source fixture missing");

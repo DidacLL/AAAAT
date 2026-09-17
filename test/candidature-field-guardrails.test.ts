@@ -55,10 +55,23 @@ describe("live candidature field guardrails", () => {
     }
   });
 
-  it("stores one AI-use choice independently from Focus and disables it when a field is retired", () => {
+  it("ships neutral presentation defaults and keeps AI use independent from starring", () => {
     const root = workspace();
     try {
+      const shipped = listCandidatureFields(root).filter((field) => field.definition.systemKey !== null);
+      expect(shipped.length).toBeGreaterThan(0);
+      expect(shipped.every((field) =>
+        field.preferences.focusVisible === false &&
+        field.preferences.focusOrder === null &&
+        field.preferences.focusProminence === "normal"
+      )).toBe(true);
+
       const field = textField(root, "Private note");
+      expect(field.preferences).toMatchObject({
+        focusVisible: false,
+        focusOrder: null,
+        focusProminence: "normal",
+      });
       const hiddenFromAi = updateCandidatureFieldPreferences(root, {
         ...field.preferences,
         focusVisible: true,

@@ -61,8 +61,6 @@ export function candidatureSearchMatchCue(
   const normalizedQuery = query.trim();
   if (!normalizedQuery) return null;
 
-  if (record.label.toLocaleLowerCase().includes(normalizedQuery.toLocaleLowerCase())) return null;
-
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
   for (const retained of record.values) {
     const field = fieldById.get(retained.fieldId);
@@ -95,14 +93,13 @@ export function candidatureRecognitionCues(
   limit = 2,
 ): CandidatureRecognitionCue[] {
   if (limit <= 0) return [];
-  const title = record.label.toLocaleLowerCase();
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
   return record.values
     .flatMap((retained) => {
       const field = fieldById.get(retained.fieldId);
       if (!field?.preferences.focusVisible) return [];
       const value = displayValue(field, retained.value).trim();
-      if (!value || title.includes(value.toLocaleLowerCase())) return [];
+      if (!value) return [];
       return [{ field, label: field.definition.label, value }];
     })
     .sort((left, right) => {

@@ -36,7 +36,6 @@ const field: CandidatureFieldConfiguration = {
     focusVisible: false,
     focusOrder: null,
     focusProminence: "normal",
-    identityOrder: null,
     aiUseAllowed: true,
   },
 };

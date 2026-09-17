@@ -156,7 +156,6 @@ CREATE TABLE candidature_field_preferences (
   focus_visible INTEGER NOT NULL DEFAULT 0 CHECK (focus_visible IN (0, 1)),
   focus_order INTEGER,
   focus_prominence TEXT NOT NULL DEFAULT 'normal' CHECK (focus_prominence IN ('compact', 'normal', 'wide')),
-  identity_order INTEGER,
   ai_use_allowed INTEGER NOT NULL DEFAULT 1 CHECK (ai_use_allowed IN (0, 1))
 ) STRICT;
 
@@ -238,10 +237,10 @@ INSERT INTO candidature_fields(id, system_key, label, description, value_type, c
   ('00000000-0000-4000-8000-000000000105', 'candidature.application_date', 'Application date', 'Date the user applied, when known and useful.', 'date', 'one', '[]', 1, '2026-09-04T00:00:00.000Z', '2026-09-04T00:00:00.000Z'),
   ('00000000-0000-4000-8000-000000000106', 'candidature.notes', 'Notes', 'Free-form user notes about the candidature.', 'long_text', 'one', '[]', 1, '2026-09-04T00:00:00.000Z', '2026-09-04T00:00:00.000Z');
 
-INSERT INTO candidature_field_preferences(field_id, focus_visible, focus_order, focus_prominence, identity_order, ai_use_allowed) VALUES
-  ('00000000-0000-4000-8000-000000000101', 1, 0, 'normal', 0, 1),
-  ('00000000-0000-4000-8000-000000000102', 1, 1, 'normal', 1, 1),
-  ('00000000-0000-4000-8000-000000000103', 1, 2, 'compact', NULL, 1),
-  ('00000000-0000-4000-8000-000000000104', 1, 3, 'compact', NULL, 1),
-  ('00000000-0000-4000-8000-000000000105', 0, NULL, 'compact', NULL, 0),
-  ('00000000-0000-4000-8000-000000000106', 0, NULL, 'wide', NULL, 0);
+INSERT INTO candidature_field_preferences(field_id, focus_visible, focus_order, focus_prominence, ai_use_allowed) VALUES
+  ('00000000-0000-4000-8000-000000000101', 0, NULL, 'normal', 1),
+  ('00000000-0000-4000-8000-000000000102', 0, NULL, 'normal', 1),
+  ('00000000-0000-4000-8000-000000000103', 0, NULL, 'normal', 1),
+  ('00000000-0000-4000-8000-000000000104', 0, NULL, 'normal', 1),
+  ('00000000-0000-4000-8000-000000000105', 0, NULL, 'normal', 0),
+  ('00000000-0000-4000-8000-000000000106', 0, NULL, 'normal', 0);

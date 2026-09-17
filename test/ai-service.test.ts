@@ -136,7 +136,7 @@ describe("AI service", () => {
     await configure(root, "cv_tailoring");
 
     const tailoring = vi.fn<ModelProvider["tailorCv"]>(async (_connection, context) => {
-      expect(context.candidature.label).toBe(candidature.label);
+      expect(context.candidature.label).toBe("Candidature");
       expect(context.items).toEqual([
         expect.objectContaining({ title: "Platform Engineer" }),
       ]);
@@ -175,7 +175,7 @@ describe("AI service", () => {
     await configure(root, "cover_letter_draft");
 
     const draft = vi.fn<ModelProvider["draftCoverLetter"]>(async (_connection, context) => {
-      expect(context.candidature.label).toBe(candidature.label);
+      expect(context.candidature.label).toBe("Candidature");
       expect(context.items).toEqual([
         expect.objectContaining({ title: "Reliability Engineer" }),
       ]);

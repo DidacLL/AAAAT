@@ -386,15 +386,6 @@ export function CandidatureFieldValueEditor({
 
       {showFieldControls && onUpdatePreferences ? (
         <div className="candidature-field-inline-controls">
-          <label>
-            <input
-              type="checkbox"
-              checked={field.preferences.focusVisible}
-              disabled={busy}
-              onChange={(event) => void updatePreferences({ focusVisible: event.target.checked })}
-            />
-            Show in Focus
-          </label>
           <span className="candidature-ai-use-inline">
             {aiEye}
             <span>AI may use this information</span>

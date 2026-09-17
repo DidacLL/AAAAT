@@ -45,7 +45,6 @@ interface PreferencesRow {
   readonly focusVisible: number;
   readonly focusOrder: number | null;
   readonly focusProminence: string;
-  readonly identityOrder: number | null;
   readonly aiUseAllowed: number;
 }
 
@@ -127,7 +126,6 @@ function preferencesRow(database: DatabaseSync, fieldId: string): PreferencesRow
               focus_visible AS focusVisible,
               focus_order AS focusOrder,
               focus_prominence AS focusProminence,
-              identity_order AS identityOrder,
               ai_use_allowed AS aiUseAllowed
          FROM candidature_field_preferences
         WHERE field_id = ?`,
@@ -166,7 +164,6 @@ function toPreferences(row: PreferencesRow): CandidatureFieldPreferences {
     focusVisible: row.focusVisible === 1,
     focusOrder: row.focusOrder,
     focusProminence: row.focusProminence,
-    identityOrder: row.identityOrder,
     aiUseAllowed: row.aiUseAllowed === 1,
   });
 }
@@ -356,15 +353,13 @@ export function updateCandidatureFieldPreferences(
       database
         .prepare(
           `UPDATE candidature_field_preferences
-              SET focus_visible = ?, focus_order = ?, focus_prominence = ?,
-                  identity_order = ?, ai_use_allowed = ?
+              SET focus_visible = ?, focus_order = ?, focus_prominence = ?, ai_use_allowed = ?
             WHERE field_id = ?`,
         )
         .run(
           input.focusVisible ? 1 : 0,
           input.focusOrder,
           input.focusProminence,
-          input.identityOrder,
           input.aiUseAllowed ? 1 : 0,
           input.fieldId,
         );
@@ -596,53 +591,6 @@ export function displayCandidatureFieldValue(
     return String(item);
   };
   return Array.isArray(value) ? value.map(displayOne).join(", ") : displayOne(value);
-}
-
-export function candidatureLabelInDatabase(
-  database: DatabaseSync,
-  candidatureId: string,
-  createdAt: string,
-): string {
-  const fields = listCandidatureFieldsInDatabase(database);
-  const values = new Map(
-    readCandidatureFieldValuesInDatabase(database, candidatureId).map((value) => [
-      value.fieldId,
-      value.value,
-    ]),
-  );
-  const identity = fields
-    .filter((field) => field.preferences.identityOrder !== null)
-    .sort(
-      (left, right) =>
-        (left.preferences.identityOrder ?? 0) - (right.preferences.identityOrder ?? 0),
-    )
-    .flatMap((field) => {
-      const value = values.get(field.definition.id);
-      return value === undefined
-        ? []
-        : [displayCandidatureFieldValue(field.definition, value)];
-    })
-    .filter((value) => value.trim().length > 0);
-  if (identity.length > 0) return identity.join(" — ");
-
-  const source = database
-    .prepare(
-      `SELECT title, url, source_text AS sourceText
-         FROM candidature_sources
-        WHERE candidature_id = ?
-        ORDER BY created_at, id
-        LIMIT 1`,
-    )
-    .get(candidatureId) as
-    | { readonly title: string; readonly url: string; readonly sourceText: string }
-    | undefined;
-  if (source) {
-    if (source.title.trim()) return source.title.trim();
-    if (source.url.trim()) return source.url.trim();
-    const cue = source.sourceText.trim().replace(/\s+/g, " ").slice(0, 80);
-    if (cue) return cue;
-  }
-  return `Candidature · ${createdAt.slice(0, 10)}`;
 }
 
 function requireFilterValue(filter: CandidatureFieldFilter): CandidatureRuntimeValue {

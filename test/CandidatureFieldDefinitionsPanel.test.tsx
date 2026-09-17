@@ -34,7 +34,6 @@ function configuredField(
       focusVisible: false,
       focusOrder: null,
       focusProminence: "normal",
-      identityOrder: null,
       aiUseAllowed,
     },
   };

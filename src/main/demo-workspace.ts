@@ -32,8 +32,8 @@ export function createDemoWorkspace(rootPath: string) {
       ) VALUES (?, NULL, ?, ?, 'text', 'many', '[]', 1, ?, ?)`)
         .run(languageField, "Languages", "Languages required or useful for the opportunity.", now, now);
       database.prepare(`INSERT INTO candidature_field_preferences(
-        field_id, focus_visible, focus_order, focus_prominence, identity_order, ai_use_allowed
-      ) VALUES (?, 1, 4, 'compact', NULL, 1)`).run(languageField);
+        field_id, focus_visible, focus_order, focus_prominence, ai_use_allowed
+      ) VALUES (?, 0, NULL, 'normal', 1)`).run(languageField);
 
       const insertCandidature = database.prepare(
         "INSERT INTO candidatures(id, archived, opportunity_research_selected, created_at, updated_at) VALUES (?, 0, 0, ?, ?)",

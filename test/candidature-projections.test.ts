@@ -17,7 +17,6 @@ function record(id: string, archived = false): CandidatureRecord {
     archived,
     createdAt: "2026-09-04T00:00:00.000Z",
     updatedAt: "2026-09-04T00:00:00.000Z",
-    label: `Candidature ${id}`,
     sourceSearchText: "",
     values: [],
     tagIds: [],
@@ -42,7 +41,6 @@ const locationField: CandidatureFieldConfiguration = {
     focusVisible: false,
     focusOrder: null,
     focusProminence: "normal",
-    identityOrder: null,
     aiUseAllowed: false,
   },
 };
@@ -89,11 +87,10 @@ describe("candidature renderer projection", () => {
     ).toEqual([archived]);
   });
 
-  it("ordinary recognition cues contain only fields selected for Focus", () => {
+  it("ordinary corpus cues contain only starred fields", () => {
     const candidateId = "00000000-0000-4000-8000-000000000417";
     const candidate = {
       ...record(candidateId),
-      label: "Regional Air",
       values: [
         {
           candidatureId: candidateId,
@@ -118,21 +115,19 @@ describe("candidature renderer projection", () => {
     ]);
   });
 
-  it("does not use raw Source as an automatic ordinary Focus cue", () => {
+  it("does not use raw Source as an automatic ordinary corpus cue", () => {
     const sourceOnly = {
       ...record("00000000-0000-4000-8000-000000000413"),
-      label: "Nimbus Labs",
       sourceSearchText: "Nimbus Labs is hiring a platform engineer in Barcelona.",
     };
 
     expect(candidatureRecognitionCues(sourceOnly, [])).toEqual([]);
   });
 
-  it("changes corpus cue visibility and ordering when Focus preferences change", () => {
+  it("changes corpus cue visibility and ordering when favourite preferences change", () => {
     const candidateId = "00000000-0000-4000-8000-000000000418";
     const candidate = {
       ...record(candidateId),
-      label: "Regional Air",
       values: [
         {
           candidatureId: candidateId,
@@ -174,10 +169,9 @@ describe("candidature renderer projection", () => {
     ]);
   });
 
-  it("explains retained-information matches from either the field label or retained value without duplicating a visible candidature-label match", () => {
+  it("explains retained-information matches from either the field label or retained value without depending on a hidden candidature identity", () => {
     const candidate = {
       ...record("00000000-0000-4000-8000-000000000414"),
-      label: "Nimbus Labs",
       values: [
         {
           candidatureId: "00000000-0000-4000-8000-000000000414",

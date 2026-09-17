@@ -112,7 +112,7 @@ function projectCandidature(rootPath: string, candidatureId: string, includeSour
   const sources = includeSourceForDocument
     ? listCandidatureSources(rootPath, candidatureId).slice(0, 1).map((source) => ({ title: source.title, url: source.url, sourceText: compactSourceText(source.sourceText).slice(0, 12000) }))
     : [];
-  return aiProjectedCandidatureSchema.parse({ label: candidature.label, information, sources });
+  return aiProjectedCandidatureSchema.parse({ label: "Candidature", information, sources });
 }
 function emptyCandidature(label: string): AiProjectedCandidature {
   return aiProjectedCandidatureSchema.parse({ label, information: [], sources: [] });
