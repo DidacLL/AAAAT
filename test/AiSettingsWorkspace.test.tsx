@@ -230,7 +230,7 @@ describe("AI settings workspace", () => {
     });
 
     render(<AiSettingsWorkspace />);
-    await user.click(await screen.findByRole("button", { name: "Check connection" }));
+    await user.click(await screen.findByRole("button", { name: "Check all AI features" }));
 
     expect(
       await screen.findByText(/Queued|Validating Opportunity review/),
@@ -266,7 +266,7 @@ describe("AI settings workspace", () => {
     });
 
     render(<AiSettingsWorkspace />);
-    await user.click(await screen.findByRole("button", { name: "Check connection" }));
+    await user.click(await screen.findByRole("button", { name: "Check all AI features" }));
 
     expect(await screen.findByText("Connected now")).toBeInTheDocument();
     await user.click(screen.getByText(/AI feature checks/));
