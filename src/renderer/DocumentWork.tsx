@@ -121,18 +121,6 @@ export function WorkingCvEditor({
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
 
-  useEffect(() => {
-    // This editor deliberately resets its local draft when its selected document changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDraft(document);
-    setEditingItemId(null);
-    setRenamingSectionId(null);
-    setAddingToSectionId(null);
-    setTailoringNotes({});
-    setTailoringMessage(null);
-    setRenderSettingsSuggested(false);
-  }, [document]);
-
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
     setSections(draft.sections.map((section) => section.id === sectionId ? update(section) : section));
@@ -552,13 +540,6 @@ function LetterEditor({ document, onSaved, onDirtyChange }: { readonly document:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // This editor deliberately resets its local draft when its selected document changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDraft(document);
-    setBody(document.bodyParagraphs.join("\n\n"));
-  }, [document]);
-
   const bodyParagraphs = body.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
   const dirty = JSON.stringify({ ...draft, bodyParagraphs }) !== JSON.stringify(document);
 
@@ -682,7 +663,7 @@ export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirt
 
   if (error) return <section className="document-work"><p className="error-message" role="alert">{error}</p></section>;
   if (!id) return <section className="document-work"><p className="compact-empty">Choose a Working CV or letter to edit.</p></section>;
-  if (working) return <WorkingCvEditor document={working} profile={profile} variants={variants} collections={collections} onSaved={storeWorking} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
-  if (letter) return <LetterEditor document={letter} onSaved={storeLetter} onDirtyChange={onDirtyChange} />;
+  if (working) return <WorkingCvEditor key={working.id} document={working} profile={profile} variants={variants} collections={collections} onSaved={storeWorking} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
+  if (letter) return <LetterEditor key={letter.id} document={letter} onSaved={storeLetter} onDirtyChange={onDirtyChange} />;
   return <section className="document-work"><p className="error-message" role="alert">This editable document no longer exists.</p></section>;
 }
