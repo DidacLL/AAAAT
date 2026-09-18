@@ -48,8 +48,7 @@ function routeReady(
 ): boolean {
   return connections.some(
     (connection) =>
-      connection.validatedOperations.includes("job_extraction") &&
-      (connection.defaultForOperations.includes("job_extraction") || connection.isDefault),
+      connection.defaultForOperations.includes("job_extraction") || connection.isDefault,
   );
 }
 
@@ -254,11 +253,6 @@ export function CandidatureInferencePanel({
               cardinality: suggestion.cardinality,
               choices,
               enabled: true,
-            });
-            await window.aaaat.candidatures.updateFieldPreferences({
-              ...created.preferences,
-              fieldId: created.definition.id,
-              aiUseAllowed: true,
             });
             await window.aaaat.candidatures.setFieldValue({
               candidatureId: candidature.id,
