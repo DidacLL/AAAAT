@@ -15,7 +15,6 @@ interface Props {
   readonly connection: NamedAiConnection;
   readonly onConnections: (connections: NamedAiConnection[]) => void;
   readonly onValidationState?: (connectionName: string, needsAttention: boolean) => void;
-  readonly checkRequest?: number | null;
 }
 
 interface ValidationFailure {
@@ -60,10 +59,8 @@ export function AiConnectionValidationPanel({
   connection,
   onConnections,
   onValidationState,
-  checkRequest = null,
 }: Props) {
   const task = useAiTask<ValidationResult>(taskKey(connection.id));
-  const lastCheckRequest = useRef<number | null>(null);
   const lastValidationReport = useRef<string | null>(null);
   const [routingBusy, setRoutingBusy] = useState<AiOperation | null>(null);
   const [probeBusy, setProbeBusy] = useState(false);
@@ -151,12 +148,6 @@ export function AiConnectionValidationPanel({
           : "Validation completed",
     );
   }, [connection.id, connection.name]);
-
-  useEffect(() => {
-    if (checkRequest === null || checkRequest === lastCheckRequest.current) return;
-    lastCheckRequest.current = checkRequest;
-    validate();
-  }, [checkRequest, validate]);
 
   const testConnection = async () => {
     const probe = window.aaaat.aiConnections?.probe;
