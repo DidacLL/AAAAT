@@ -94,7 +94,14 @@ describe("portable local AI setup", () => {
     expect(imported.every((connection) => !previousIds.has(connection.id))).toBe(true);
     expect(imported.every((connection) => connection.validatedOperations.length === 0)).toBe(true);
     expect(imported.every((connection) => connection.defaultForOperations.length === 0)).toBe(true);
-    expect(getAiConnectionForOperation(root, "opportunity_review")).toBeNull();
+    expect(getAiConnectionForOperation(root, "opportunity_review")).toEqual(
+      expect.objectContaining({
+        name: "Deep local",
+        isDefault: true,
+        validatedOperations: [],
+        defaultForOperations: [],
+      }),
+    );
   });
 
   it("rejects invalid portable setup before replacing the current connections", () => {
