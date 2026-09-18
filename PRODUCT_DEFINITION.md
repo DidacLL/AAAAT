@@ -134,7 +134,7 @@ Use **Tags** consistently as the product/domain term.
 
 A Tag can have a canonical term, aliases, definition and user notes. Tags are reusable across candidatures and act as a lightweight shared glossary/wiki plus retrieval aid.
 
-Example: if a candidature uses `Spring Boot`, selected Focus can expose the stored Spring Boot definition without forcing the user into a separate knowledge-management workspace.
+Example: if a candidature uses `Spring Boot`, its selected application surface can expose the stored Spring Boot definition without forcing the user into a separate knowledge-management workspace.
 
 A competing `Concepts` product vocabulary is not justified. Historical `Concept` code/schema names are implementation evidence to reconcile, not product meaning.
 
@@ -148,7 +148,7 @@ Optional AI extraction may use the existing Tag glossary as bounded context. It 
 
 Small candidature-attached notes or checkable reminders may be useful secondary information.
 
-They are not a product pillar and do not justify task management, scheduling, recurrence, lifecycle state, automatic next actions, AI planning, global reminder navigation, or prominence in Focus by default.
+They are not a product pillar and do not justify task management, scheduling, recurrence, lifecycle state, automatic next actions, AI planning, global reminder navigation, or primary-presentation prominence by default.
 
 The user can ignore them completely without losing the core AAAAT experience.
 
@@ -241,11 +241,11 @@ These are separate concerns:
 
 ```text
 stored locally
-shown in Focus
+shown prominently in the local UI
 allowed to a particular AI operation
 ```
 
-Hiding something from Focus does not remove it. Hiding something from AI does not hide it locally. External disclosure is evaluated per bounded operation and should expose only justified information in the least identifying useful form.
+Removing something from primary presentation does not remove it. Hiding something from AI does not hide it locally. External disclosure is evaluated per bounded operation and should expose only justified information in the least identifying useful form.
 
 Privacy controls must be understandable but must not dominate ordinary work.
 
@@ -265,7 +265,7 @@ AAAAT should feel direct, fast, calm, local, legible, stable, information-effici
 
 At constrained desktop sizes, give the current intention most of the available space instead of compressing several persistent panes. Scrolling/transition is preferable to clipping or unreadable multi-column density.
 
-The visual direction may be distinctive, but decoration must never reduce readability or Focus clarity.
+The visual direction may be distinctive, but decoration must never reduce readability or information clarity.
 
 ## Explicit non-goals
 
