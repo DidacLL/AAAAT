@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { JobExtractionNewField, JobExtractionNewTag } from "../shared/ai-contracts";
 import type {
   JobExtractionExistingTag,
-  JobExtractionProposalIssue,
   PartialJobExtractionResult,
 } from "../shared/ai-proposal-outcomes";
 import type {
@@ -16,9 +15,7 @@ import { compactSourceText } from "../shared/source-text";
 import { clearAiTask, startAiTask, useAiTask } from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
-interface InferenceTaskResult extends PartialJobExtractionResult {
-  readonly appliedFieldIds?: readonly string[];
-}
+type InferenceTaskResult = PartialJobExtractionResult;
 
 interface Props {
   readonly candidature: CandidatureRecord;
@@ -113,19 +110,6 @@ function createdValue(
   return mapOne(suggestion.value);
 }
 
-function newFieldIssue(
-  suggestion: JobExtractionNewField,
-  reason: string,
-): JobExtractionProposalIssue {
-  return {
-    kind: "new_field_invalid",
-    fieldId: null,
-    fieldLabel: suggestion.label,
-    proposedValue: suggestion.value,
-    reason,
-  };
-}
-
 export function CandidatureInferencePanel({
   candidature,
   fields,
@@ -140,6 +124,8 @@ export function CandidatureInferencePanel({
   const [sources, setSources] = useState<CandidatureSource[] | null>(null);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [handledTags, setHandledTags] = useState<Set<string>>(() => new Set());
+  const [handledNewFields, setHandledNewFields] = useState<Set<number>>(() => new Set());
+  const [newFieldError, setNewFieldError] = useState<string | null>(null);
   const targetSet = useMemo(() => new Set(targetFieldIds), [targetFieldIds]);
   const requestedFields = useMemo(
     () =>
@@ -207,103 +193,15 @@ export function CandidatureInferencePanel({
           signal.removeEventListener("abort", cancelProvider);
         }
 
-        if (!allowNewFields || result.newFields.length === 0 || signal.aborted) {
-          return result;
-        }
-
-        updateDetail("Adding useful information found in the offer…");
-        const existing = await window.aaaat.candidatures.listFields();
-        const labels = new Set(
-          existing.map((field) => normalizedLabel(field.definition.label)),
-        );
-        const createdProposals: PartialJobExtractionResult["proposals"] = [];
-        const appliedFieldIds: string[] = [];
-        const issues: JobExtractionProposalIssue[] = [...result.issues];
-
-        for (const suggestion of result.newFields) {
-          if (signal.aborted) break;
-          if (labels.has(normalizedLabel(suggestion.label))) {
-            issues.push(
-              newFieldIssue(
-                suggestion,
-                "This proposed information duplicates an existing field.",
-              ),
-            );
-            continue;
-          }
-
-          const choices = createChoices(suggestion);
-          const value = createdValue(suggestion, choices);
-          if (value === null) {
-            issues.push(
-              newFieldIssue(
-                suggestion,
-                "AAAAT could not map the proposed value to the proposed choices.",
-              ),
-            );
-            continue;
-          }
-
-          let created: CandidatureFieldConfiguration | null = null;
-          try {
-            created = await window.aaaat.candidatures.createField({
-              label: suggestion.label,
-              description: suggestion.description,
-              valueType: suggestion.valueType,
-              cardinality: suggestion.cardinality,
-              choices,
-              enabled: true,
-            });
-            await window.aaaat.candidatures.setFieldValue({
-              candidatureId: candidature.id,
-              fieldId: created.definition.id,
-              value,
-            });
-            labels.add(normalizedLabel(suggestion.label));
-            createdProposals.push({ fieldId: created.definition.id, value });
-            appliedFieldIds.push(created.definition.id);
-          } catch (reason) {
-            issues.push(
-              newFieldIssue(
-                suggestion,
-                reason instanceof Error
-                  ? reason.message
-                  : "AAAAT could not retain this proposed information.",
-              ),
-            );
-            if (created) {
-              try {
-                await window.aaaat.candidatures.deleteField(created.definition.id);
-              } catch {
-                // Concurrent use keeps the field.
-              }
-            }
-          }
-        }
-
-        if (appliedFieldIds.length > 0 && !signal.aborted) {
-          await onChanged?.();
-        }
-        return {
-          proposals: [...result.proposals, ...createdProposals],
-          newFields: [],
-          existingTags: result.existingTags,
-          newTags: result.newTags,
-          issues,
-          ...(result.exchange ? { exchange: result.exchange } : {}),
-          appliedFieldIds,
-        };
+        return result;
       },
       title,
       (result) => {
-        const usable = result.proposals.filter(
-          (proposal) =>
-            targetSet.has(proposal.fieldId) ||
-            (result.appliedFieldIds ?? []).includes(proposal.fieldId),
-        );
-        const tagCount = result.existingTags.length + result.newTags.length;
+        const usable = result.proposals.filter((proposal) => targetSet.has(proposal.fieldId));
+        const newFieldCount = allowNewFields ? result.newFields.length : 0;
+        const tagCount = allowNewFields ? result.existingTags.length + result.newTags.length : 0;
         const review = result.issues.length;
-        return `Completed · ${usable.length} value${usable.length === 1 ? "" : "s"} found${tagCount ? ` · ${tagCount} Tag suggestion${tagCount === 1 ? "" : "s"}` : ""}${review ? ` · ${review} needs review` : ""}`;
+        return `Completed · ${usable.length} value${usable.length === 1 ? "" : "s"} found${newFieldCount ? ` · ${newFieldCount} new field suggestion${newFieldCount === 1 ? "" : "s"}` : ""}${tagCount ? ` · ${tagCount} Tag suggestion${tagCount === 1 ? "" : "s"}` : ""}${review ? ` · ${review} needs review` : ""}`;
       },
       targetFieldIds,
     );
@@ -320,6 +218,48 @@ export function CandidatureInferencePanel({
     taskId,
     title,
   ]);
+
+  const createAndUseField = async (proposal: JobExtractionNewField, index: number) => {
+    setNewFieldError(null);
+    const choices = createChoices(proposal);
+    const value = createdValue(proposal, choices);
+    if (value === null) {
+      setNewFieldError(`AAAAT could not map the proposed value for ${proposal.label} to its choices.`);
+      return;
+    }
+
+    let created: CandidatureFieldConfiguration | null = null;
+    try {
+      created = await window.aaaat.candidatures.createField({
+        label: proposal.label,
+        description: proposal.description,
+        valueType: proposal.valueType,
+        cardinality: proposal.cardinality,
+        choices,
+        enabled: true,
+      });
+      await window.aaaat.candidatures.setFieldValue({
+        candidatureId: candidature.id,
+        fieldId: created.definition.id,
+        value,
+      });
+      setHandledNewFields((handled) => new Set(handled).add(index));
+      await onChanged?.();
+    } catch (reason) {
+      if (created) {
+        try {
+          await window.aaaat.candidatures.deleteField(created.definition.id);
+        } catch {
+          // If another action started using the new field, keep it rather than deleting shared data.
+        }
+      }
+      setNewFieldError(
+        reason instanceof Error
+          ? reason.message
+          : `AAAAT could not create ${proposal.label}.`,
+      );
+    }
+  };
 
   const attachExistingTag = async (proposal: JobExtractionExistingTag) => {
     const current = (await window.aaaat.candidatures.list()).find(
@@ -402,15 +342,43 @@ export function CandidatureInferencePanel({
   }
 
   const result = task?.status === "completed" ? task.result : undefined;
-  const showTagReview =
+  const newFieldSuggestions = result
+    ? result.newFields
+        .map((proposal, index) => ({ proposal, index }))
+        .filter(({ index }) => !handledNewFields.has(index))
+    : [];
+  const showSuggestionReview =
     allowNewFields &&
     result &&
-    (result.existingTags.length > 0 || result.newTags.length > 0);
-  if (!showTagReview) return null;
+    (newFieldSuggestions.length > 0 || result.existingTags.length > 0 || result.newTags.length > 0);
+  if (!showSuggestionReview) return null;
 
   return (
-    <section className="candidature-tag-proposals" aria-label="Tag suggestions">
-      <h4>Tag suggestions</h4>
+    <section className="candidature-tag-proposals" aria-label="AI suggestions">
+      <h4>AI suggestions</h4>
+      {newFieldError ? <p className="error-message" role="alert">{newFieldError}</p> : null}
+      {newFieldSuggestions.map(({ proposal, index }) => (
+        <article key={`new-field:${index}`}>
+          <strong>{proposal.label}</strong>
+          <p>{proposal.description}</p>
+          <p className="compact-help">
+            Proposed value: {Array.isArray(proposal.value) ? proposal.value.map(String).join(", ") : String(proposal.value)}
+          </p>
+          <div className="button-row">
+            <button type="button" onClick={() => void createAndUseField(proposal, index)}>
+              Create and use
+            </button>
+            <button
+              type="button"
+              className="compact-secondary"
+              onClick={() => setHandledNewFields((handled) => new Set(handled).add(index))}
+            >
+              Ignore
+            </button>
+          </div>
+        </article>
+      ))}
+      {result.existingTags.length > 0 || result.newTags.length > 0 ? <h5>Tag suggestions</h5> : null}
       {result.existingTags.map((proposal) => {
         const key = `existing:${proposal.tagId}`;
         if (handledTags.has(key)) return null;
