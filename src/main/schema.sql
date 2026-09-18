@@ -156,7 +156,7 @@ CREATE TABLE candidature_field_preferences (
   favourite INTEGER NOT NULL DEFAULT 1 CHECK (favourite IN (0, 1)),
   favourite_order INTEGER,
   presentation_size TEXT NOT NULL DEFAULT 'normal' CHECK (presentation_size IN ('compact', 'normal', 'wide')),
-  ai_use_allowed INTEGER NOT NULL DEFAULT 1 CHECK (ai_use_allowed IN (0, 1))
+  ai_use_allowed INTEGER NOT NULL DEFAULT 0 CHECK (ai_use_allowed IN (0, 1))
 ) STRICT;
 
 CREATE TABLE candidature_field_values (
