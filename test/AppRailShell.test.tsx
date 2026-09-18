@@ -1,10 +1,28 @@
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { aiOperations } from "../src/shared/ai-connection-contracts";
 
-vi.mock("../src/renderer/CandidaturesAiWorkspace", () => ({ CandidaturesAiWorkspace: () => <section>Applications</section> }));
+vi.mock("../src/renderer/CandidaturesAiWorkspace", () => ({
+  CandidaturesAiWorkspace: ({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) => {
+    const [draft, setDraft] = useState("");
+    return (
+      <section>
+        Applications
+        <input
+          aria-label="Mock application draft"
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            onDirtyChange?.(event.target.value.length > 0);
+          }}
+        />
+      </section>
+    );
+  },
+}));
 vi.mock("../src/renderer/DocumentsStartWorkspace", () => ({ DocumentsStartWorkspace: () => <section>CVs</section> }));
 vi.mock("../src/renderer/DocumentsWorkspace", () => ({ DocumentsWorkspace: () => <section>Document</section> }));
 vi.mock("../src/renderer/ProfileWorkspace", () => ({ ProfileWorkspace: () => <section>Profile</section> }));
@@ -58,6 +76,25 @@ afterEach(() => {
 });
 
 describe("loaded workspace shell", () => {
+  it("actually discards mounted work after confirming return Home", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<App />);
+
+    const home = await screen.findByRole("region", { name: "Home" });
+    await user.click(within(home).getByRole("button", { name: /Open applications/ }));
+    const draft = screen.getByRole("textbox", { name: "Mock application draft" });
+    await user.type(draft, "unsaved");
+    expect(draft).toHaveValue("unsaved");
+
+    await user.click(screen.getByRole("button", { name: "Home" }));
+    expect(window.confirm).toHaveBeenCalledWith("Discard unsaved edits and return home?");
+
+    const returnedHome = await screen.findByRole("region", { name: "Home" });
+    await user.click(within(returnedHome).getByRole("button", { name: /Open applications/ }));
+    expect(screen.getByRole("textbox", { name: "Mock application draft" })).toHaveValue("");
+  });
+
   it("keeps a branded useful Home while persistent environment state stays in the rail", async () => {
     const user = userEvent.setup();
     render(<App />);
