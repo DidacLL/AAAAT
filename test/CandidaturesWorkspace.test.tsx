@@ -129,6 +129,16 @@ describe("Applications information surface", () => {
       );
       return saved;
     });
+    const reorderFavouriteFields = vi.fn(async (fieldIds: string[]) => {
+      savedFields = savedFields.map((candidate) => {
+        const order = fieldIds.indexOf(candidate.definition.id);
+        return order >= 0
+          ? { ...candidate, preferences: { ...candidate.preferences, favouriteOrder: order } }
+          : candidate;
+      });
+      return savedFields;
+    });
+
 
     Object.defineProperty(window, "aaaat", {
       configurable: true,
@@ -139,6 +149,7 @@ describe("Applications information surface", () => {
           listTags: vi.fn(async () => []),
           listSources: vi.fn(async () => []),
           updateFieldPreferences,
+          reorderFavouriteFields,
         },
         candidatureSearch: {
           search: vi.fn(async () => [candidatureId]),
@@ -188,19 +199,14 @@ describe("Applications information surface", () => {
       expect.objectContaining({
         fieldId: roleId,
         favourite: true,
-        favouriteOrder: 1,
+        favouriteOrder: null,
       }),
     );
 
     const primaryRole = within(primary).getByRole("article", { name: "Role information" });
     await user.click(within(primaryRole).getByRole("button", { name: "Move Role up" }));
     await waitFor(() => {
-      expect(updateFieldPreferences).toHaveBeenCalledWith(
-        expect.objectContaining({ fieldId: roleId, favouriteOrder: 0 }),
-      );
-      expect(updateFieldPreferences).toHaveBeenCalledWith(
-        expect.objectContaining({ fieldId: locationId, favouriteOrder: 1 }),
-      );
+      expect(reorderFavouriteFields).toHaveBeenCalledWith([roleId, locationId]);
     });
 
     await user.selectOptions(
