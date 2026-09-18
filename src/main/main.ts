@@ -32,6 +32,7 @@ import {
   cancellableJobExtractionResultSchema,
 } from "../shared/ai-task-cancellation-contracts";
 import {
+  candidatureFavouriteOrderUpdateSchema,
   candidatureFieldCreateSchema,
   candidatureFieldDefinitionSchema,
   candidatureFieldFilterSchema,
@@ -92,6 +93,7 @@ import {
   deleteUnusedCandidatureField,
   filterCandidatures,
   listCandidatureFields,
+  reorderCandidatureFavouriteFields,
   setCandidatureFieldValue,
   updateCandidatureField,
   updateCandidatureFieldPreferences,
@@ -384,6 +386,15 @@ function registerIpc(mainWindow: BrowserWindow): void {
       updateCandidatureFieldPreferences(
         requireWorkspaceRoot(),
         candidatureFieldPreferencesUpdateSchema.parse(input),
+      ),
+    );
+  });
+  ipcMain.handle(channels.candidatureFavouriteOrderUpdate, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureFieldListSchema.parse(
+      reorderCandidatureFavouriteFields(
+        requireWorkspaceRoot(),
+        candidatureFavouriteOrderUpdateSchema.parse(input),
       ),
     );
   });
