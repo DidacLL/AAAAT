@@ -223,17 +223,17 @@ export function CandidatureFieldValueEditor({
     }
   };
 
-  const aiEye = onUpdatePreferences ? (
+  const aiUseControl = onUpdatePreferences ? (
     <button
       type="button"
-      className="candidature-icon-button candidature-ai-use-eye"
+      className="compact-secondary candidature-ai-use-control"
       aria-label="AI may use this information"
       aria-pressed={field.preferences.aiUseAllowed}
       title={field.preferences.aiUseAllowed ? "AI may use this information" : "AI will not use this information"}
       disabled={busy || !field.definition.enabled}
       onClick={() => void updatePreferences({ aiUseAllowed: !field.preferences.aiUseAllowed })}
     >
-      <span aria-hidden="true">{field.preferences.aiUseAllowed ? "◉" : "○"}</span>
+      AI use: {field.preferences.aiUseAllowed ? "On" : "Off"}
     </button>
   ) : null;
 
@@ -255,23 +255,22 @@ export function CandidatureFieldValueEditor({
         <div className="candidature-field-affordances">
           <button
             type="button"
-            className="candidature-icon-button"
+            className="compact-secondary"
             aria-label={`Edit ${field.definition.label}`}
-            title="Edit"
             onClick={() => setEditing(true)}
           >
-            <span aria-hidden="true">✎</span>
+            Edit
           </button>
-          {aiEye}
+          {aiUseControl}
           {onDiscover && field.preferences.aiUseAllowed ? (
             <button
               type="button"
-              className="candidature-icon-button candidature-ai-button"
+              className="compact-secondary candidature-ai-button"
               aria-label={`Ask AI to fill ${field.definition.label}`}
               title={discoverLabel}
               onClick={() => void discover()}
             >
-              <span aria-hidden="true">✦</span>
+              Ask AI
             </button>
           ) : null}
         </div>
@@ -387,7 +386,7 @@ export function CandidatureFieldValueEditor({
       {showFieldControls && onUpdatePreferences ? (
         <div className="candidature-field-inline-controls">
           <span className="candidature-ai-use-inline">
-            {aiEye}
+            {aiUseControl}
             <span>AI may use this information</span>
           </span>
         </div>
@@ -406,13 +405,13 @@ export function CandidatureFieldValueEditor({
         {onDiscover && field.preferences.aiUseAllowed ? (
           <button
             type="button"
-            className="candidature-icon-button candidature-ai-button"
+            className="compact-secondary candidature-ai-button"
             aria-label={`Ask AI to fill ${field.definition.label}`}
             title={discoverLabel}
             disabled={busy}
             onClick={() => void discover()}
           >
-            <span aria-hidden="true">✦</span>
+            Ask AI
           </button>
         ) : null}
       </div>
