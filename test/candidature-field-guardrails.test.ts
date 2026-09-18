@@ -61,26 +61,26 @@ describe("live candidature field guardrails", () => {
       const shipped = listCandidatureFields(root).filter((field) => field.definition.systemKey !== null);
       expect(shipped.length).toBeGreaterThan(0);
       expect(shipped.every((field) =>
-        field.preferences.focusVisible === false &&
-        field.preferences.focusOrder === null &&
-        field.preferences.focusProminence === "normal"
+        field.preferences.favourite === false &&
+        field.preferences.favouriteOrder === null &&
+        field.preferences.presentationSize === "normal"
       )).toBe(true);
 
       const field = textField(root, "Private note");
       expect(field.preferences).toMatchObject({
-        focusVisible: false,
-        focusOrder: null,
-        focusProminence: "normal",
+        favourite: false,
+        favouriteOrder: null,
+        presentationSize: "normal",
       });
       const hiddenFromAi = updateCandidatureFieldPreferences(root, {
         ...field.preferences,
-        focusVisible: true,
-        focusOrder: 2,
+        favourite: true,
+        favouriteOrder: 2,
         aiUseAllowed: false,
       });
       expect(hiddenFromAi.preferences).toMatchObject({
-        focusVisible: true,
-        focusOrder: 2,
+        favourite: true,
+        favouriteOrder: 2,
         aiUseAllowed: false,
       });
 

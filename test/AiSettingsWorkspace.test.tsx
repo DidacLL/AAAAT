@@ -205,7 +205,7 @@ describe("AI settings workspace", () => {
     render(<AiSettingsWorkspace />);
     await user.click(await screen.findByRole("button", { name: "Check connection" }));
 
-    expect(await screen.findByText("Connected")).toBeInTheDocument();
+    expect(await screen.findByText("Connected now")).toBeInTheDocument();
     await user.click(screen.getByText(/AI feature details/));
     expect(screen.getByText("Incompatible · failed validation")).toBeInTheDocument();
     expect(screen.getByText(`${aiOperations.length - 1}/${aiOperations.length} ready`)).toBeInTheDocument();

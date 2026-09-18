@@ -191,7 +191,7 @@ async function createWorkspace(running: RunningApp): Promise<void> {
   chooseLinuxDirectory();
   await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
   await running.page.getByRole("button", { name: "Applications" }).click();
-  await expect(running.page.getByRole("heading", { name: "Focus", exact: true })).toBeVisible();
+  await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
 }
 
 test("packaged sparse candidature accepts a runtime field and survives close/reopen", async () => {
@@ -221,8 +221,8 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
       });
       await window.aaaat.candidatures.updateFieldPreferences({
         ...field.preferences,
-        focusVisible: true,
-        focusOrder: 0,
+        favourite: true,
+        favouriteOrder: 0,
       });
       await window.aaaat.candidatures.addSource({
         candidatureId: candidature.id,
@@ -240,20 +240,20 @@ test("packaged sparse candidature accepts a runtime field and survives close/reo
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
     await running.page.getByRole("button", { name: "Applications" }).click();
-    await expect(running.page.getByRole("heading", { name: "Focus", exact: true })).toBeVisible();
+    await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
 
-    const corpus = running.page.getByLabel("Candidature corpus Focus");
-    const focusEntry = corpus.locator("button.candidature-focus-entry").first();
-    await expect(focusEntry).toContainText("Minimum flight hours");
-    await focusEntry.click();
+    const corpus = running.page.getByLabel("Application corpus");
+    const corpusEntry = corpus.locator("button.candidature-corpus-entry").first();
+    await expect(corpusEntry).toContainText("Minimum flight hours");
+    await corpusEntry.click();
 
-    const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
-    await expect(selectedFocus.getByRole("heading", { name: "Minimum flight hours" })).toBeVisible();
-    await expect(selectedFocus).toContainText("1500");
-    await running.page.getByRole("button", { name: "Read everything" }).click();
+    const selectedApplication = running.page.getByRole("region", { name: "Application information" });
+    const primary = selectedApplication.getByRole("region", { name: "Starred application information" });
+    const minimumHours = primary.getByRole("article", { name: "Minimum flight hours information" });
+    await expect(minimumHours).toContainText("1500");
+    await selectedApplication.getByText("More", { exact: true }).click();
 
-    const complete = running.page.getByRole("region", { name: "Complete candidature" });
-    const sources = complete.getByRole("region", { name: "Sources" });
+    const sources = selectedApplication.getByRole("region", { name: "Sources" });
     await expect(sources.getByText("Pilot vacancy", { exact: true })).toBeVisible();
     await sources.getByRole("button", { name: "Read source" }).click();
     const sourceReader = sources.getByRole("article", { name: "Source content" });
@@ -312,14 +312,15 @@ test("packaged raw capture stays usable across large, normal, narrow and short w
     await expectNoHorizontalOverflow(running.page, 720, 760);
     await expectNoHorizontalOverflow(running.page, 1180, 600);
 
-    const corpus = running.page.getByLabel("Candidature corpus Focus");
+    const corpus = running.page.getByLabel("Application corpus");
     await expect(corpus).toBeVisible();
-    const card = corpus.locator(".candidature-corpus-card").filter({ hasText: "Captain" }).first();
+    const card = corpus.locator(".candidature-corpus-card").first();
     await expect(card).toBeVisible();
-    await card.locator("button.candidature-focus-entry").click();
+    await card.locator("button.candidature-corpus-entry").click();
 
-    const selectedFocus = running.page.getByRole("region", { name: "Candidature Focus", exact: true });
-    const roleBlock = selectedFocus.locator(".focus-block").filter({ hasText: "Role" });
+    const selectedApplication = running.page.getByRole("region", { name: "Application information" });
+    await selectedApplication.getByText("More", { exact: true }).click();
+    const roleBlock = selectedApplication.getByRole("article", { name: "Role information" });
     await expect(roleBlock).toContainText("Captain");
     await roleBlock.getByRole("button", { name: "Edit Role", exact: true }).click();
     await roleBlock.getByLabel("Value").fill("Senior Captain");

@@ -42,9 +42,9 @@ interface FieldRow {
 
 interface PreferencesRow {
   readonly fieldId: string;
-  readonly focusVisible: number;
-  readonly focusOrder: number | null;
-  readonly focusProminence: string;
+  readonly favourite: number;
+  readonly favouriteOrder: number | null;
+  readonly presentationSize: string;
   readonly aiUseAllowed: number;
 }
 
@@ -123,9 +123,9 @@ function preferencesRow(database: DatabaseSync, fieldId: string): PreferencesRow
   const row = database
     .prepare(
       `SELECT field_id AS fieldId,
-              focus_visible AS focusVisible,
-              focus_order AS focusOrder,
-              focus_prominence AS focusProminence,
+              favourite AS favourite,
+              favourite_order AS favouriteOrder,
+              presentation_size AS presentationSize,
               ai_use_allowed AS aiUseAllowed
          FROM candidature_field_preferences
         WHERE field_id = ?`,
@@ -161,9 +161,9 @@ function toDefinition(row: FieldRow): CandidatureFieldDefinition {
 function toPreferences(row: PreferencesRow): CandidatureFieldPreferences {
   return candidatureFieldPreferencesSchema.parse({
     fieldId: row.fieldId,
-    focusVisible: row.focusVisible === 1,
-    focusOrder: row.focusOrder,
-    focusProminence: row.focusProminence,
+    favourite: row.favourite === 1,
+    favouriteOrder: row.favouriteOrder,
+    presentationSize: row.presentationSize,
     aiUseAllowed: row.aiUseAllowed === 1,
   });
 }
@@ -353,13 +353,13 @@ export function updateCandidatureFieldPreferences(
       database
         .prepare(
           `UPDATE candidature_field_preferences
-              SET focus_visible = ?, focus_order = ?, focus_prominence = ?, ai_use_allowed = ?
+              SET favourite = ?, favourite_order = ?, presentation_size = ?, ai_use_allowed = ?
             WHERE field_id = ?`,
         )
         .run(
-          input.focusVisible ? 1 : 0,
-          input.focusOrder,
-          input.focusProminence,
+          input.favourite ? 1 : 0,
+          input.favouriteOrder,
+          input.presentationSize,
           input.aiUseAllowed ? 1 : 0,
           input.fieldId,
         );

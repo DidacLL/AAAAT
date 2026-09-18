@@ -76,11 +76,11 @@ function orderFields(fields: readonly CandidatureFieldConfiguration[]) {
   return [...fields]
     .filter((field) => field.definition.enabled)
     .sort((left, right) => {
-      if (left.preferences.focusVisible !== right.preferences.focusVisible) {
-        return left.preferences.focusVisible ? -1 : 1;
+      if (left.preferences.favourite !== right.preferences.favourite) {
+        return left.preferences.favourite ? -1 : 1;
       }
-      const leftOrder = left.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER;
-      const rightOrder = right.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER;
+      const leftOrder = left.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = right.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER;
       if (leftOrder !== rightOrder) return leftOrder - rightOrder;
       return left.definition.label.localeCompare(right.definition.label);
     });

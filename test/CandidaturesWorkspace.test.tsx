@@ -70,9 +70,9 @@ function field(
     },
     preferences: {
       fieldId: id,
-      focusVisible: starred,
-      focusOrder: order,
-      focusProminence: prominence,
+      favourite: starred,
+      favouriteOrder: order,
+      presentationSize: prominence,
       aiUseAllowed: false,
     },
   };
@@ -184,8 +184,8 @@ describe("Applications information surface", () => {
     expect(updateFieldPreferences).toHaveBeenCalledWith(
       expect.objectContaining({
         fieldId: roleId,
-        focusVisible: true,
-        focusOrder: 1,
+        favourite: true,
+        favouriteOrder: 1,
       }),
     );
 
@@ -193,10 +193,10 @@ describe("Applications information surface", () => {
     await user.click(within(primaryRole).getByRole("button", { name: "Move Role up" }));
     await waitFor(() => {
       expect(updateFieldPreferences).toHaveBeenCalledWith(
-        expect.objectContaining({ fieldId: roleId, focusOrder: 0 }),
+        expect.objectContaining({ fieldId: roleId, favouriteOrder: 0 }),
       );
       expect(updateFieldPreferences).toHaveBeenCalledWith(
-        expect.objectContaining({ fieldId: locationId, focusOrder: 1 }),
+        expect.objectContaining({ fieldId: locationId, favouriteOrder: 1 }),
       );
     });
 
@@ -206,7 +206,7 @@ describe("Applications information surface", () => {
     );
     await waitFor(() =>
       expect(updateFieldPreferences).toHaveBeenCalledWith(
-        expect.objectContaining({ fieldId: roleId, focusProminence: "wide" }),
+        expect.objectContaining({ fieldId: roleId, presentationSize: "wide" }),
       ),
     );
     expect(

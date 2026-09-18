@@ -33,9 +33,9 @@ const field: CandidatureFieldConfiguration = {
   },
   preferences: {
     fieldId,
-    focusVisible: false,
-    focusOrder: null,
-    focusProminence: "normal",
+    favourite: false,
+    favouriteOrder: null,
+    presentationSize: "normal",
     aiUseAllowed: true,
   },
 };

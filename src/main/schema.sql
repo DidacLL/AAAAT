@@ -153,9 +153,9 @@ CREATE TABLE candidature_fields (
 
 CREATE TABLE candidature_field_preferences (
   field_id TEXT PRIMARY KEY REFERENCES candidature_fields(id) ON DELETE CASCADE,
-  focus_visible INTEGER NOT NULL DEFAULT 0 CHECK (focus_visible IN (0, 1)),
-  focus_order INTEGER,
-  focus_prominence TEXT NOT NULL DEFAULT 'normal' CHECK (focus_prominence IN ('compact', 'normal', 'wide')),
+  favourite INTEGER NOT NULL DEFAULT 0 CHECK (favourite IN (0, 1)),
+  favourite_order INTEGER,
+  presentation_size TEXT NOT NULL DEFAULT 'normal' CHECK (presentation_size IN ('compact', 'normal', 'wide')),
   ai_use_allowed INTEGER NOT NULL DEFAULT 1 CHECK (ai_use_allowed IN (0, 1))
 ) STRICT;
 
@@ -237,7 +237,7 @@ INSERT INTO candidature_fields(id, system_key, label, description, value_type, c
   ('00000000-0000-4000-8000-000000000105', 'candidature.application_date', 'Application date', 'Date the user applied, when known and useful.', 'date', 'one', '[]', 1, '2026-09-04T00:00:00.000Z', '2026-09-04T00:00:00.000Z'),
   ('00000000-0000-4000-8000-000000000106', 'candidature.notes', 'Notes', 'Free-form user notes about the candidature.', 'long_text', 'one', '[]', 1, '2026-09-04T00:00:00.000Z', '2026-09-04T00:00:00.000Z');
 
-INSERT INTO candidature_field_preferences(field_id, focus_visible, focus_order, focus_prominence, ai_use_allowed) VALUES
+INSERT INTO candidature_field_preferences(field_id, favourite, favourite_order, presentation_size, ai_use_allowed) VALUES
   ('00000000-0000-4000-8000-000000000101', 0, NULL, 'normal', 1),
   ('00000000-0000-4000-8000-000000000102', 0, NULL, 'normal', 1),
   ('00000000-0000-4000-8000-000000000103', 0, NULL, 'normal', 1),

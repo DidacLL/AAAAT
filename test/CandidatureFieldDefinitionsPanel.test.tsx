@@ -31,9 +31,9 @@ function configuredField(
     },
     preferences: {
       fieldId: id,
-      focusVisible: false,
-      focusOrder: null,
-      focusProminence: "normal",
+      favourite: false,
+      favouriteOrder: null,
+      presentationSize: "normal",
       aiUseAllowed,
     },
   };

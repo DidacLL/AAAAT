@@ -123,8 +123,8 @@ export const candidatureFieldValueTypeSchema = z.enum(["text", "long_text", "num
 export type CandidatureFieldValueType = z.infer<typeof candidatureFieldValueTypeSchema>;
 export const candidatureFieldCardinalitySchema = z.enum(["one", "many"]);
 export type CandidatureFieldCardinality = z.infer<typeof candidatureFieldCardinalitySchema>;
-export const focusProminenceSchema = z.enum(["compact", "normal", "wide"]);
-export type FocusProminence = z.infer<typeof focusProminenceSchema>;
+export const candidaturePresentationSizeSchema = z.enum(["compact", "normal", "wide"]);
+export type CandidaturePresentationSize = z.infer<typeof candidaturePresentationSizeSchema>;
 
 export const candidatureChoiceDefinitionSchema = z.object({ id: z.string().uuid(), label: z.string().trim().min(1).max(120) }).strict();
 export type CandidatureChoiceDefinition = z.infer<typeof candidatureChoiceDefinitionSchema>;
@@ -146,9 +146,9 @@ export type CandidatureFieldDefinition = z.infer<typeof candidatureFieldDefiniti
 export const candidatureFieldPreferencesSchema = z
   .object({
     fieldId: z.string().uuid(),
-    focusVisible: z.boolean(),
-    focusOrder: z.number().int().nonnegative().nullable(),
-    focusProminence: focusProminenceSchema,
+    favourite: z.boolean(),
+    favouriteOrder: z.number().int().nonnegative().nullable(),
+    presentationSize: candidaturePresentationSizeSchema,
     aiUseAllowed: z.boolean(),
   })
   .strict();

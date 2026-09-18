@@ -38,9 +38,9 @@ const locationField: CandidatureFieldConfiguration = {
   },
   preferences: {
     fieldId: "00000000-0000-4000-8000-000000000420",
-    focusVisible: false,
-    focusOrder: null,
-    focusProminence: "normal",
+    favourite: false,
+    favouriteOrder: null,
+    presentationSize: "normal",
     aiUseAllowed: false,
   },
 };
@@ -54,8 +54,8 @@ const roleField: CandidatureFieldConfiguration = {
   preferences: {
     ...locationField.preferences,
     fieldId: "00000000-0000-4000-8000-000000000422",
-    focusVisible: true,
-    focusOrder: 0,
+    favourite: true,
+    favouriteOrder: 0,
   },
 };
 
@@ -107,7 +107,7 @@ describe("candidature renderer projection", () => {
           updatedAt: "2026-09-04T00:00:00.000Z",
         },
       ],
-      sourceSearchText: "Recruiter note that should remain searchable but not fill Focus.",
+      sourceSearchText: "Recruiter note that should remain searchable but not become ordinary corpus content.",
     };
 
     expect(candidatureRecognitionCues(candidate, [locationField, roleField], 3)).toEqual([
@@ -147,11 +147,11 @@ describe("candidature renderer projection", () => {
     };
     const visibleLocation = {
       ...locationField,
-      preferences: { ...locationField.preferences, focusVisible: true, focusOrder: 0 },
+      preferences: { ...locationField.preferences, favourite: true, favouriteOrder: 0 },
     };
     const reorderedRole = {
       ...roleField,
-      preferences: { ...roleField.preferences, focusOrder: 1 },
+      preferences: { ...roleField.preferences, favouriteOrder: 1 },
     };
 
     expect(candidatureRecognitionCues(candidate, [visibleLocation, reorderedRole], 3)).toEqual([
@@ -160,8 +160,8 @@ describe("candidature renderer projection", () => {
     ]);
     expect(
       candidatureRecognitionCues(candidate, [
-        { ...visibleLocation, preferences: { ...visibleLocation.preferences, focusOrder: 2 } },
-        { ...reorderedRole, preferences: { ...reorderedRole.preferences, focusOrder: 0 } },
+        { ...visibleLocation, preferences: { ...visibleLocation.preferences, favouriteOrder: 2 } },
+        { ...reorderedRole, preferences: { ...reorderedRole.preferences, favouriteOrder: 0 } },
       ], 3),
     ).toEqual([
       { label: "Role", value: "Pilot" },

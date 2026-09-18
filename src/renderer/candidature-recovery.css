@@ -84,7 +84,7 @@
   border-left-color: var(--accent);
 }
 
-.candidature-focus-entry {
+.candidature-corpus-entry {
   display: grid;
   width: 100%;
   min-width: 0;
@@ -97,17 +97,17 @@
   text-align: left;
 }
 
-.candidature-focus-entry:hover,
-.candidature-focus-entry:focus-visible {
+.candidature-corpus-entry:hover,
+.candidature-corpus-entry:focus-visible {
   background: #f5ead9;
 }
 
-.candidature-focus-entry:focus-visible {
+.candidature-corpus-entry:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
 
-.candidature-focus-entry time {
+.candidature-corpus-entry time {
   color: var(--muted-ink);
   font-size: 0.7rem;
 }

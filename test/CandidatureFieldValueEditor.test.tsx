@@ -39,9 +39,9 @@ function field(
     },
     preferences: {
       fieldId,
-      focusVisible: false,
-      focusOrder: null,
-      focusProminence: "normal",
+      favourite: false,
+      favouriteOrder: null,
+      presentationSize: "normal",
       aiUseAllowed,
     },
   };
@@ -99,7 +99,7 @@ describe("read-first candidature information value", () => {
     await user.click(screen.getByRole("button", { name: "Edit Availability" }));
     const input = screen.getByLabelText("Value");
     expect(input).toHaveValue("October or November");
-    expect(screen.queryByRole("checkbox", { name: "Show in Focus" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "AI may use this information" })).toHaveAttribute("aria-pressed", "true");
     await user.clear(input);
     await user.type(input, "October through December");

@@ -53,8 +53,8 @@ export function CandidaturesWorkspace({
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
-  const [focusSources, setFocusSources] = useState<CandidatureSource[]>([]);
-  const [focusDocumentBusy, setFocusDocumentBusy] = useState<"cv" | "cover_letter" | null>(null);
+  const [selectedSources, setSelectedSources] = useState<CandidatureSource[]>([]);
+  const [documentCreationBusy, setDocumentCreationBusy] = useState<"cv" | "cover_letter" | null>(null);
   const [applicationCvSource, setApplicationCvSource] = useState("profile");
   const [packetRenderedCvId, setPacketRenderedCvId] = useState("");
   const [packetLetterId, setPacketLetterId] = useState("");
@@ -152,19 +152,19 @@ export function CandidaturesWorkspace({
   }, [normalizedQuery, searchResult]);
   const visibleRecords = useMemo(() => filterCandidatures(records, archiveFilter, null, textMatches), [records, archiveFilter, textMatches]);
 
-  const focusedRecordId = mode === "selected" ? selectedId : null;
+  const selectedRecordId = mode === "selected" ? selectedId : null;
   useEffect(() => {
-    if (!focusedRecordId) return;
+    if (!selectedRecordId) return;
     let active = true;
-    void window.aaaat.candidatures.listSources(focusedRecordId).then((next) => { if (active) setFocusSources(next); }).catch(() => { if (active) setFocusSources([]); });
+    void window.aaaat.candidatures.listSources(selectedRecordId).then((next) => { if (active) setSelectedSources(next); }).catch(() => { if (active) setSelectedSources([]); });
     return () => { active = false; };
-  }, [focusedRecordId]);
+  }, [selectedRecordId]);
 
   const confirmDiscard = () => !hasUnsavedChanges || window.confirm("Discard unsaved application edits?");
   const storeRecord = (record: CandidatureRecord) => setRecords((current) => current.map((candidate) => candidate.id === record.id ? record : candidate));
   const openRecord = (record: CandidatureRecord) => {
     if (!confirmDiscard()) return;
-    setFocusSources([]);
+    setSelectedSources([]);
     hydrate(record);
     setMode("selected");
   };
@@ -255,24 +255,24 @@ export function CandidaturesWorkspace({
     if (!selected) return;
     openDocumentFromCandidature(selected.id, documentId);
   };
-  const createFocusDocument = async (kind: "cv" | "cover_letter") => {
-    if (!selected || focusDocumentBusy) return;
-    setFocusDocumentBusy(kind); setError(null);
+  const createApplicationDocument = async (kind: "cv" | "cover_letter") => {
+    if (!selected || documentCreationBusy) return;
+    setDocumentCreationBusy(kind); setError(null);
     try {
       const documents = await createApplicationDocuments({
         candidatureId: selected.id,
-        sourceText: focusSources.map((source) => source.sourceText).filter(Boolean).join("\n\n") || selected.sourceSearchText,
+        sourceText: selectedSources.map((source) => source.sourceText).filter(Boolean).join("\n\n") || selected.sourceSearchText,
         cv: kind === "cv", coverLetter: kind === "cover_letter",
       });
       const created = documents.find((candidate) => candidate.kind === kind);
       if (!created) throw new Error("The document was not created.");
       await refreshCollections(); openDocument(created.id);
     } catch { setError(kind === "cv" ? "AAAAT could not create the application CV." : "AAAAT could not create the cover letter."); }
-    finally { setFocusDocumentBusy(null); }
+    finally { setDocumentCreationBusy(null); }
   };
   const createApplicationCvFromSource = async () => {
-    if (!selected || focusDocumentBusy) return;
-    setFocusDocumentBusy("cv"); setError(null);
+    if (!selected || documentCreationBusy) return;
+    setDocumentCreationBusy("cv"); setError(null);
     try {
       const templateId = applicationCvSource.startsWith("template:") ? applicationCvSource.slice("template:".length) : null;
       const source = templateId
@@ -288,20 +288,20 @@ export function CandidaturesWorkspace({
       await refreshCollections(); openDocument(created.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not create the application CV.");
-    } finally { setFocusDocumentBusy(null); }
+    } finally { setDocumentCreationBusy(null); }
   };
 
   const enabledFields = fields.filter((field) => field.definition.enabled);
   const favouriteFields = enabledFields
-    .filter((field) => field.preferences.focusVisible)
+    .filter((field) => field.preferences.favourite)
     .sort(
       (left, right) =>
-        (left.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER) -
-          (right.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER) ||
+        (left.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER) -
+          (right.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER) ||
         left.definition.label.localeCompare(right.definition.label),
     );
   const remainingFields = enabledFields
-    .filter((field) => !field.preferences.focusVisible)
+    .filter((field) => !field.preferences.favourite)
     .sort((left, right) => left.definition.label.localeCompare(right.definition.label));
   const enabledMissingFields = selected
     ? enabledFields.filter(
@@ -319,13 +319,13 @@ export function CandidaturesWorkspace({
     const nextOrder = favourite
       ? favouriteFields.reduce(
           (maximum, candidate) =>
-            Math.max(maximum, candidate.preferences.focusOrder ?? -1),
+            Math.max(maximum, candidate.preferences.favouriteOrder ?? -1),
           -1,
         ) + 1
       : null;
     await updateFieldPreference(field, {
-      focusVisible: favourite,
-      focusOrder: nextOrder,
+      favourite: favourite,
+      favouriteOrder: nextOrder,
     });
   };
 
@@ -339,8 +339,8 @@ export function CandidaturesWorkspace({
     const targetIndex = index + direction;
     const target = favouriteFields[targetIndex];
     if (index < 0 || !target) return;
-    await updateFieldPreference(field, { focusOrder: targetIndex });
-    await updateFieldPreference(target, { focusOrder: index });
+    await updateFieldPreference(field, { favouriteOrder: targetIndex });
+    await updateFieldPreference(target, { favouriteOrder: index });
   };
 
   if (mode === "corpus") {
@@ -405,7 +405,7 @@ export function CandidaturesWorkspace({
                 <article className="candidature-corpus-card" key={record.id}>
                   <button
                     type="button"
-                    className="candidature-focus-entry"
+                    className="candidature-corpus-entry"
                     aria-label="Open saved application"
                     onClick={() => openRecord(record)}
                   >
@@ -527,7 +527,7 @@ export function CandidaturesWorkspace({
     return (
       <article
         key={field.definition.id}
-        className={`retained-information-card candidature-information-unit candidature-presentation-${field.preferences.focusProminence}`}
+        className={`retained-information-card candidature-information-unit candidature-presentation-${field.preferences.presentationSize}`}
         aria-label={`${field.definition.label} information`}
       >
         <div className="candidature-information-unit-heading">
@@ -570,11 +570,11 @@ export function CandidaturesWorkspace({
                   Size
                   <select
                     aria-label={`${field.definition.label} size`}
-                    value={field.preferences.focusProminence}
+                    value={field.preferences.presentationSize}
                     onChange={(event) =>
                       void updateFieldPreference(field, {
-                        focusProminence: event.target.value as
-                          CandidatureFieldConfiguration["preferences"]["focusProminence"],
+                        presentationSize: event.target.value as
+                          CandidatureFieldConfiguration["preferences"]["presentationSize"],
                       })
                     }
                   >
@@ -885,18 +885,18 @@ export function CandidaturesWorkspace({
                 <button
                   type="button"
                   className="compact-secondary"
-                  disabled={focusDocumentBusy !== null}
+                  disabled={documentCreationBusy !== null}
                   onClick={() => void createApplicationCvFromSource()}
                 >
-                  {focusDocumentBusy === "cv" ? "Creating…" : "New CV"}
+                  {documentCreationBusy === "cv" ? "Creating…" : "New CV"}
                 </button>
                 <button
                   type="button"
                   className="compact-secondary"
-                  disabled={focusDocumentBusy !== null}
-                  onClick={() => void createFocusDocument("cover_letter")}
+                  disabled={documentCreationBusy !== null}
+                  onClick={() => void createApplicationDocument("cover_letter")}
                 >
-                  {focusDocumentBusy === "cover_letter" ? "Creating…" : "New cover letter"}
+                  {documentCreationBusy === "cover_letter" ? "Creating…" : "New cover letter"}
                 </button>
               </div>
             </div>

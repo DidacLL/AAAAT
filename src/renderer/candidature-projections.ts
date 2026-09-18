@@ -97,14 +97,14 @@ export function candidatureRecognitionCues(
   return record.values
     .flatMap((retained) => {
       const field = fieldById.get(retained.fieldId);
-      if (!field?.preferences.focusVisible) return [];
+      if (!field?.preferences.favourite) return [];
       const value = displayValue(field, retained.value).trim();
       if (!value) return [];
       return [{ field, label: field.definition.label, value }];
     })
     .sort((left, right) => {
-      const leftOrder = left.field.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER;
-      const rightOrder = right.field.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER;
+      const leftOrder = left.field.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = right.field.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER;
       if (leftOrder !== rightOrder) return leftOrder - rightOrder;
       return left.label.localeCompare(right.label);
     })

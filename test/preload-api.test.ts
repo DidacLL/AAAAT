@@ -23,9 +23,9 @@ const configuration = {
   },
   preferences: {
     fieldId,
-    focusVisible: false,
-    focusOrder: null,
-    focusProminence: "normal" as const,
+    favourite: false,
+    favouriteOrder: null,
+    presentationSize: "normal" as const,
     aiUseAllowed: true,
   },
 };
