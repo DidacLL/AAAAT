@@ -26,6 +26,7 @@ export const channels = Object.freeze({
   candidatureFieldUpdate: "aaaat:candidature-field-update",
   candidatureFieldDelete: "aaaat:candidature-field-delete",
   candidatureFieldPreferencesUpdate: "aaaat:candidature-field-preferences-update",
+  candidatureFavouriteOrderUpdate: "aaaat:candidature-favourite-order-update",
   candidatureFieldValueSet: "aaaat:candidature-field-value-set",
   candidatureFieldValueClear: "aaaat:candidature-field-value-clear",
   candidatureSourceList: "aaaat:candidature-source-list",
@@ -174,6 +175,13 @@ export const candidatureFieldUpdateSchema = candidatureFieldCreateSchema.extend(
 export type CandidatureFieldUpdate = z.infer<typeof candidatureFieldUpdateSchema>;
 export const candidatureFieldPreferencesUpdateSchema = candidatureFieldPreferencesSchema;
 export type CandidatureFieldPreferencesUpdate = z.infer<typeof candidatureFieldPreferencesUpdateSchema>;
+export const candidatureFavouriteOrderUpdateSchema = z
+  .object({ fieldIds: z.array(z.string().uuid()).max(64) })
+  .strict()
+  .refine((value) => new Set(value.fieldIds).size === value.fieldIds.length, {
+    message: "Favourite field order cannot contain duplicates.",
+  });
+export type CandidatureFavouriteOrderUpdate = z.infer<typeof candidatureFavouriteOrderUpdateSchema>;
 
 const candidatureScalarValueSchema = z.union([z.string().max(50000), z.number().finite(), z.boolean()]);
 export const candidatureRuntimeValueSchema = z.union([candidatureScalarValueSchema, z.array(candidatureScalarValueSchema).max(64)]);
@@ -309,6 +317,7 @@ export interface DesktopApi {
     readonly updateField: (input: CandidatureFieldUpdate) => Promise<CandidatureFieldConfiguration>;
     readonly deleteField: (fieldId: string) => Promise<CandidatureFieldConfiguration[]>;
     readonly updateFieldPreferences: (input: CandidatureFieldPreferencesUpdate) => Promise<CandidatureFieldConfiguration>;
+    readonly reorderFavouriteFields: (fieldIds: string[]) => Promise<CandidatureFieldConfiguration[]>;
     readonly setFieldValue: (input: CandidatureFieldValueSet) => Promise<CandidatureRecord>;
     readonly clearFieldValue: (input: CandidatureFieldValueClear) => Promise<CandidatureRecord>;
     readonly listSources: (candidatureId: string) => Promise<CandidatureSource[]>;
