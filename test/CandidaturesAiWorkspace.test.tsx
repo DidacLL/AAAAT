@@ -5,8 +5,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CandidaturesAiWorkspace } from "../src/renderer/CandidaturesAiWorkspace";
 
 vi.mock("../src/renderer/CandidatureManualEntryPanel", () => ({
-  CandidatureManualEntryPanel: ({ onDone }: { onDone: () => void }) => (
+  CandidatureManualEntryPanel: ({
+    onDone,
+    onDirtyChange,
+  }: {
+    onDone: () => void;
+    onDirtyChange?: (dirty: boolean) => void;
+  }) => (
     <section aria-label="New application form">
+      <button type="button" onClick={() => onDirtyChange?.(true)}>Make dirty</button>
       <button type="button" onClick={onDone}>Save application</button>
     </section>
   ),
@@ -21,6 +28,23 @@ vi.mock("../src/renderer/contextual-handoffs", () => ({
 afterEach(() => cleanup());
 
 describe("Applications owner surface", () => {
+  it("does not discard a dirty new application when switching views without confirmation", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<CandidaturesAiWorkspace />);
+
+    await user.click(screen.getByRole("button", { name: "New application" }));
+    await user.click(screen.getByRole("button", { name: "Make dirty" }));
+    await user.click(screen.getByRole("button", { name: "Applications" }));
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved application edits?");
+    expect(screen.getByLabelText("New application form")).toBeVisible();
+
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Applications" }));
+    expect(screen.getByLabelText("Applications information")).toBeVisible();
+  });
+
   it("uses one Applications information view instead of Focus / All data configuration modes", async () => {
     const user = userEvent.setup();
     render(<CandidaturesAiWorkspace />);
