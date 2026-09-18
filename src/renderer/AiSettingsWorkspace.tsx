@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { NamedAiConnection } from "../shared/ai-connection-contracts";
 import { AiConnectionValidationPanel } from "./AiConnectionValidationPanel";
 import { AiPromptTransparencyPanel } from "./AiPromptTransparencyPanel";
-import { clearAiReachabilityEvidence } from "./ai-reachability-store";
+import { clearAiReachabilityEvidence, recordAiReachabilityEvidence } from "./ai-reachability-store";
 import { clearAiTask } from "./ai-task-store";
 
 interface Draft {
@@ -62,7 +62,6 @@ export function AiSettingsWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
-  const [autoCheck, setAutoCheck] = useState<{ readonly id: string; readonly request: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [portabilityBusy, setPortabilityBusy] = useState<"export" | "import" | null>(null);
   const [portabilityStatus, setPortabilityStatus] = useState<string | null>(null);
@@ -157,12 +156,23 @@ export function AiSettingsWorkspace({
           previous !== null &&
           (previous.endpoint !== savedConnection.endpoint || previous.model !== savedConnection.model);
         if (capabilityBoundaryChanged) clearAiTask(`ai-validation:${savedConnection.id}`);
-        if (!previous || capabilityBoundaryChanged) setAutoCheck((current) => ({ id: savedConnection.id, request: (current?.request ?? 0) + 1 }));
+        const probe = window.aaaat.aiConnections?.probe;
+        if (probe && (!previous || capabilityBoundaryChanged)) {
+          void probe(savedConnection.id)
+            .then((reachable) => {
+              recordAiReachabilityEvidence(savedConnection.name, reachable);
+              onValidationState?.(savedConnection.name, !reachable);
+            })
+            .catch(() => {
+              recordAiReachabilityEvidence(savedConnection.name, false);
+              onValidationState?.(savedConnection.name, true);
+            });
+        }
       }
       setEditingId(null);
       setDraft(emptyDraft);
       setFormOpen(false);
-      setSaveNotice("Connection saved. AAAAT is checking the address and model in the background; see its status below.");
+      setSaveNotice("Connection saved. AAAAT is checking reachability in the background. Capability checks remain explicit below.");
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "AAAAT could not save this AI connection.";
       if (/endpoint|address|url|https?|loopback/i.test(message)) setAddressError(message);
@@ -330,7 +340,6 @@ export function AiSettingsWorkspace({
                     connection={connection}
                     onConnections={acceptConnections}
                     onValidationState={onValidationState}
-                    checkRequest={autoCheck?.id === connection.id ? autoCheck.request : null}
                   />
                 </article>
               ))}
