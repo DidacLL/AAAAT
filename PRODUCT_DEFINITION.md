@@ -213,6 +213,10 @@ Users own editable document content, generated source, rendered output and porta
 
 AAAAT owns no model and no inference. AI is optional intelligence supplied through configured connections.
 
+AAAAT's primary direct-AI compatibility target is inexpensive local inference on ordinary user hardware through lightweight OpenAI-compatible runtimes such as llama.cpp. Small/local models are the baseline to design and test against. Larger hosted or premium models may work better, but product correctness, extraction usefulness, prompt design and response contracts must not depend on capabilities that effectively require them.
+
+The AI path should therefore minimize model burden: compact context, compact instructions, simple provider-facing response shapes, tolerant recovery, and local validation after inference. A partially correct local-model response is useful when its valid facts can be retained safely. One invalid or missing proposal must not discard unrelated valid proposals. Provider-side JSON-Schema constraints are used only when they are broadly compatible with the supported local runtime; validation that AAAAT can perform deterministically belongs in AAAAT rather than in model decoding.
+
 AI belongs beside the domain action it assists: extract information from this Source into the currently defined candidature fields, help populate this field, explain/translate/rewrite this text, tailor this CV, draft this letter, perform genuine research when the chosen connection supports it, or similar bounded work.
 
 AAAAT must not create an AI destination/chat product, opportunity-ranking system, adviser workflow, provider marketplace, policy framework or generic orchestration layer.

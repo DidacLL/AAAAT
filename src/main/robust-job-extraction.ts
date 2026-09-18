@@ -112,7 +112,7 @@ function scalarJsonSchema(
     case "long_text": return { type: "string", maxLength: 50000 };
     case "number": return { type: "number" };
     case "boolean": return { type: "boolean" };
-    case "date": return { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" };
+    case "date": return { type: "string" };
     case "url": return { type: "string", maxLength: 2048 };
     case "choice": return { type: "string", enum: field.choices.map((choice) => choice.choiceRef) };
   }
