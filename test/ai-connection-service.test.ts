@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 describe("named AI connections", () => {
-  it("routes operations only through explicitly validated capabilities", async () => {
+  it("uses the general default without prevalidation and keeps checked operation overrides explicit", async () => {
     const root = workspace();
     expect(listAiConnections(root)).toEqual([]);
 
@@ -64,8 +64,8 @@ describe("named AI connections", () => {
     const first = firstSave[0];
     if (!first) throw new Error("first connection fixture missing");
     expect(first).toMatchObject({ name: "Fast local", isDefault: true, validatedOperations: [], defaultForOperations: [] });
-    expect(getAiConnectionForOperation(root, "opportunity_review")).toBeNull();
-    expect(() => requireAiConnectionForOperation(root, "opportunity_review")).toThrow("Validate and choose a connection for Opportunity review");
+    expect(getAiConnectionForOperation(root, "opportunity_review")?.name).toBe("Fast local");
+    expect(requireAiConnectionForOperation(root, "opportunity_review").name).toBe("Fast local");
 
     const secondSave = saveNamedAiConnection(root, { name: "Deep local", endpoint: "http://127.0.0.1:1234/v1", model: "deep-model" });
     const second = secondSave.find((connection) => connection.name === "Deep local");
@@ -89,7 +89,7 @@ describe("named AI connections", () => {
 
     const modelChanged = saveNamedAiConnection(root, { id: second.id, name: "Deep local renamed", endpoint: second.endpoint, model: "different-model" });
     expect(modelChanged.find((connection) => connection.id === second.id)).toMatchObject({ validatedOperations: [], defaultForOperations: [] });
-    expect(getAiConnectionForOperation(root, "opportunity_review")).toBeNull();
+    expect(getAiConnectionForOperation(root, "opportunity_review")?.name).toBe("Deep local renamed");
 
     const afterRemoval = removeAiConnection(root, second.id);
     expect(afterRemoval).toEqual([expect.objectContaining({ id: first.id, name: "Fast local", isDefault: false })]);
