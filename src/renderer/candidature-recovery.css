@@ -64,11 +64,11 @@
 
 .candidature-corpus-card {
   display: flex;
-  flex: 1 1 220px;
+  flex: 1 1 320px;
   flex-direction: column;
   align-self: flex-start;
-  max-width: min(100%, 360px);
-  min-width: 0;
+  max-width: min(100%, 420px);
+  min-width: min(100%, 300px);
   gap: 0.3rem;
   padding: 0.3rem;
   border: 1px solid var(--line);
@@ -114,8 +114,21 @@
 
 .candidature-recognition-cues {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-flow: dense;
   gap: 0.38rem;
+}
+
+.candidature-cue-size-compact {
+  grid-column: span 2;
+}
+
+.candidature-cue-size-normal {
+  grid-column: span 3;
+}
+
+.candidature-cue-size-wide {
+  grid-column: 1 / -1;
 }
 
 .candidature-recognition-cue {
@@ -131,13 +144,10 @@
   padding-block: 0.28rem;
 }
 
-.candidature-cue-size-wide {
-  grid-column: 1 / -1;
-}
-
 .candidature-cue-value {
   color: var(--ink);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   font-size: 0.94rem;
   font-weight: 760;
   line-height: 1.18;
@@ -154,8 +164,10 @@
 
 .candidature-cue-label {
   color: var(--muted-ink);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
   font-size: 0.64rem;
+  line-height: 1.15;
   font-weight: 750;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -169,7 +181,8 @@
 
 .candidature-search-match span,
 .selected-tag-definition {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .candidature-search-match > span:first-child {
@@ -363,6 +376,7 @@
 
   .candidature-corpus-card {
     flex-basis: 100%;
+    min-width: 0;
     max-width: none;
   }
 
