@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { AiPromptDisclosure } from "../shared/ai-prompt-contracts";
 
-export function AiPromptTransparencyPanel() {
+export function AiPromptTransparencyPanel({ onDirtyChange }: { readonly onDirtyChange?: (dirty: boolean) => void }) {
   const [items, setItems] = useState<AiPromptDisclosure[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +37,12 @@ export function AiPromptTransparencyPanel() {
     setItems(next);
     setDrafts(Object.fromEntries(next.map((item) => [item.operation, item.instruction])));
   };
+  const dirty = items.some((item) => (drafts[item.operation] ?? "") !== item.instruction);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
 
   if (!promptApi) return null;
 
@@ -90,7 +96,7 @@ export function AiPromptTransparencyPanel() {
                       setError(
                         reason instanceof Error
                           ? reason.message
-                          : "AAAAT could not save AI guidance.",
+                          : "AAAAT could not save the AI instruction.",
                       ),
                     )
                     .finally(() => setBusy(null));
@@ -112,7 +118,7 @@ export function AiPromptTransparencyPanel() {
                       setError(
                         reason instanceof Error
                           ? reason.message
-                          : "AAAAT could not reset AI guidance.",
+                          : "AAAAT could not reset the AI instruction.",
                       ),
                     )
                     .finally(() => setBusy(null));
