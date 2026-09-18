@@ -12,6 +12,7 @@ import {
   createCandidatureField,
   deleteUnusedCandidatureField,
   listCandidatureFields,
+  reorderCandidatureFavouriteFields,
   setCandidatureFieldValue,
   updateCandidatureField,
   updateCandidatureFieldPreferences,
@@ -103,6 +104,37 @@ describe("live candidature field guardrails", () => {
         (candidate) => candidate.definition.id === field.definition.id,
       );
       expect(retired?.preferences.aiUseAllowed).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reorders only favourite presentation and leaves the complete field list stable", () => {
+    const root = workspace();
+    try {
+      const before = listCandidatureFields(root);
+      const first = textField(root, "First custom field");
+      const second = textField(root, "Second custom field");
+      const completeOrder = listCandidatureFields(root).map((field) => field.definition.id);
+      const favourites = listCandidatureFields(root)
+        .filter((field) => field.definition.enabled && field.preferences.favourite)
+        .map((field) => field.definition.id);
+      const firstIndex = favourites.indexOf(first.definition.id);
+      const secondIndex = favourites.indexOf(second.definition.id);
+      expect(firstIndex).toBeGreaterThanOrEqual(0);
+      expect(secondIndex).toBeGreaterThanOrEqual(0);
+      [favourites[firstIndex], favourites[secondIndex]] = [
+        favourites[secondIndex]!,
+        favourites[firstIndex]!,
+      ];
+
+      const reordered = reorderCandidatureFavouriteFields(root, { fieldIds: favourites });
+      expect(reordered.map((field) => field.definition.id)).toEqual(completeOrder);
+      const firstAfter = reordered.find((field) => field.definition.id === first.definition.id);
+      const secondAfter = reordered.find((field) => field.definition.id === second.definition.id);
+      expect(firstAfter?.preferences.favouriteOrder).toBe(secondIndex);
+      expect(secondAfter?.preferences.favouriteOrder).toBe(firstIndex);
+      expect(before.map((field) => field.definition.id)).toEqual(completeOrder.slice(0, before.length));
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
