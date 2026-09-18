@@ -14,7 +14,9 @@ Current first-class defects:
 
 1. **AI readiness must be truthful.** Configuration/routing or a historical success must not mean current `AI: Ready`. A successful current validation/request may establish readiness; a relevant failure must promptly invalidate it. Reuse existing validation/task/diagnostic state; do not invent polling or a generic health subsystem.
 
-2. **Candidature presentation must be one configurable field surface, with no field-derived identity.** Remove Focus/All duplication and the separate Focus configuration surface. Favourite/starred fields are entirely user-chosen and control primary order/size; More/advanced reveals the rest. Shipped fields receive no identity/favourite/ordering/size privilege. Remove `identityOrder` from the current model and remove the derived candidature `label` as a domain/search/AI shortcut. A compact human reference may be composed locally from user favourites only for presentation; it is not stored data and never bypasses field-level AI/privacy/external disclosure rules. Raw Source may explain an active search match but is not an implicit normal field. Avoid equal-row card-grid behavior where one long value sizes unrelated entries.
+2. **Candidature presentation must be one configurable field surface, with no field-derived identity.** Keep the single Applications surface and no hidden candidature label/identity ranking. Neutral first use must not be blank: enabled fields begin equally included in the primary presentation without semantic privilege, and the user demotes/unfavourites, reorders and resizes them. Presentation size affects the corpus/summary grid, not editor geometry. Corpus values are visually primary; labels and metadata are secondary; retained values must not be replaced by a generic placeholder merely because favourites were not configured. More/advanced reveals the remainder. Raw Source/Tag material may appear only as bounded active-search evidence. Avoid equal-row behavior where one long value sizes unrelated entries.
+
+3. **Small-model extraction compatibility is a PLAN[0] integrity requirement.** Provider-facing structured schemas must stay compatible with the supported OpenAI-compatible/llama.cpp path. Avoid unsupported schema features such as the current date regex pattern and keep strict semantic validation locally. Keep the structured contract compact enough for small models and preserve valid partial proposals when other proposals are invalid.
 
 Preserve completed PLAN[0] foundation corrections:
 
@@ -46,11 +48,11 @@ Refine the already broadly acceptable UI/UX after the document model settles. Pr
 
 #### Candidature field presentation
 
-The structural information model is fixed in PLAN[0]: one configurable field surface with favourite/starred fields first and progressive disclosure for the rest. PLAN[5] only refines its interaction and visual cohesion.
+The structural information model is fixed in PLAN[0]: one configurable field surface with primary/favourite presentation and progressive disclosure for the rest. PLAN[5] refines interaction and visual cohesion without reintroducing duplicate field representations.
 
 - Pencil/eye/AI glyph controls break visual cohesion and make a field read as unrelated mechanisms.
 - Expanded editable fields consume too much space and are difficult to comprehend as one object.
-- A field should read primarily as one coherent information object; editing/privacy/AI actions should be secondary, understandable controls rather than scattered symbols.
+- Do not represent one field as three different UI concepts for AI, position/presentation and editing. A field should read as one coherent information object; editing/privacy/AI actions are contextual controls on that object.
 
 #### Loaded Home
 
@@ -67,6 +69,16 @@ The structural information model is fixed in PLAN[0]: one configurable field sur
 - While reading candidature information, invoking a Tag-matching term should expose that Tag's stored description contextually.
 - Demo/data quality should avoid low-value Tags whose descriptions merely restate generic technology/role dictionary definitions unless genuinely useful to the workspace.
 - Keep Tags bounded; do not turn them into an ontology or knowledge-graph subsystem.
+
+#### My information
+
+- Current My information remains form-centric and difficult to scan. The grouped professional record should be readable first, with concise contextual editing rather than a large generic record form occupying the page.
+- Reusable values, variants, career preferences and AI-disclosure controls must read as parts of one professional-information model rather than unrelated forms/panels.
+
+#### AI settings and prompt configuration
+
+- User-editable AI guidance belongs clearly in AI Settings. It must be discoverable as a first-class AI-settings section rather than buried in an advanced disclosure or duplicated across action surfaces.
+- Action surfaces execute an AI operation and show relevant context/result state; they should link to central AI instruction/configuration when needed instead of exposing parallel prompt configuration concepts.
 
 #### CV editing
 
