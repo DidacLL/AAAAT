@@ -23,7 +23,24 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", () => ({
     );
   },
 }));
-vi.mock("../src/renderer/DocumentsStartWorkspace", () => ({ DocumentsStartWorkspace: () => <section>CVs</section> }));
+vi.mock("../src/renderer/DocumentsStartWorkspace", () => ({
+  DocumentsStartWorkspace: ({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) => {
+    const [title, setTitle] = useState("");
+    return (
+      <section>
+        CVs
+        <input
+          aria-label="Mock CV title"
+          value={title}
+          onChange={(event) => {
+            setTitle(event.target.value);
+            onDirtyChange?.(event.target.value.length > 0);
+          }}
+        />
+      </section>
+    );
+  },
+}));
 vi.mock("../src/renderer/DocumentsWorkspace", () => ({ DocumentsWorkspace: () => <section>Document</section> }));
 vi.mock("../src/renderer/ProfileWorkspace", () => ({ ProfileWorkspace: () => <section>Profile</section> }));
 vi.mock("../src/renderer/CareerContextPanel", () => ({ CareerContextPanel: () => <section>Career</section> }));
@@ -93,6 +110,25 @@ describe("loaded workspace shell", () => {
     const returnedHome = await screen.findByRole("region", { name: "Home" });
     await user.click(within(returnedHome).getByRole("button", { name: /Open applications/ }));
     expect(screen.getByRole("textbox", { name: "Mock application draft" })).toHaveValue("");
+  });
+
+  it("protects an unsaved CV start draft when leaving the CV surface", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<App />);
+
+    const home = await screen.findByRole("region", { name: "Home" });
+    await user.click(within(home).getByRole("button", { name: "Open CVs" }));
+    const title = screen.getByRole("textbox", { name: "Mock CV title" });
+    await user.type(title, "Unsaved CV");
+    await user.click(screen.getByRole("button", { name: "Applications" }));
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved edits and leave this work?");
+    expect(screen.getByRole("textbox", { name: "Mock CV title" })).toHaveValue("Unsaved CV");
+
+    confirm.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Applications" }));
+    expect(screen.getByText("Applications")).toBeVisible();
   });
 
   it("keeps a branded useful Home while persistent environment state stays in the rail", async () => {
