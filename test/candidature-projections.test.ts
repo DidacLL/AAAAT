@@ -121,7 +121,7 @@ describe("candidature renderer projection", () => {
     ]);
   });
 
-  it("falls back to retained enabled values when a legacy workspace has no favourites", () => {
+  it("does not silently promote retained values when the user has no favourite fields", () => {
     const candidateId = "00000000-0000-4000-8000-000000000419";
     const candidate = {
       ...record(candidateId),
@@ -134,14 +134,7 @@ describe("candidature renderer projection", () => {
       }],
     };
 
-    expect(candidatureRecognitionCues(candidate, [locationField], 3)).toEqual([
-      expect.objectContaining({
-        fieldId: locationField.definition.id,
-        label: "Location",
-        value: "Madrid",
-        favourite: false,
-      }),
-    ]);
+    expect(candidatureRecognitionCues(candidate, [locationField], 3)).toEqual([]);
   });
 
   it("does not use raw Source as an automatic ordinary corpus cue", () => {
