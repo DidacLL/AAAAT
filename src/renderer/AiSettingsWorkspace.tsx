@@ -162,10 +162,18 @@ export function AiSettingsWorkspace({
             .then((reachable) => {
               recordAiReachabilityEvidence(savedConnection.name, reachable);
               onValidationState?.(savedConnection.name, !reachable);
+              if (!reachable) {
+                setError("Connection saved, but AAAAT could not reach this AI service.");
+              }
             })
-            .catch(() => {
+            .catch((reason: unknown) => {
               recordAiReachabilityEvidence(savedConnection.name, false);
               onValidationState?.(savedConnection.name, true);
+              setError(
+                reason instanceof Error
+                  ? `Connection saved, but the reachability check failed: ${reason.message}`
+                  : "Connection saved, but AAAAT could not reach this AI service.",
+              );
             });
         }
       }
