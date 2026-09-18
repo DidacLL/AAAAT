@@ -201,8 +201,14 @@ export function App() {
 
   const openHome = () => {
     if (anyDirty && !window.confirm("Discard unsaved edits and return home?")) return;
+    if (anyDirty) {
+      resetDirty();
+      resetHandoffs();
+      setWorkspaceContentRevision((current) => current + 1);
+    } else {
+      setSettingsHandoff(null);
+    }
     setSettingsOpen(false);
-    setSettingsHandoff(null);
     setWelcomeOpen(true);
   };
 
