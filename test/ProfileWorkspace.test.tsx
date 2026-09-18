@@ -58,6 +58,11 @@ describe("My information workspace", () => {
     await user.clear(description);
     await user.type(description, "Unsaved alternate wording.");
 
+    await user.click(within(variations).getByRole("button", { name: "Close" }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved variation edits?");
+    expect(within(variations).getByDisplayValue("Unsaved alternate wording.")).toBeVisible();
+
+    confirm.mockClear();
     await user.click(screen.getByRole("button", { name: /Add information/ }));
     expect(confirm).toHaveBeenCalledWith("Discard unsaved My information edits?");
     expect(within(variations).getByDisplayValue("Unsaved alternate wording.")).toBeVisible();
