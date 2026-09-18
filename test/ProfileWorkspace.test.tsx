@@ -29,6 +29,40 @@ afterEach(() => {
 });
 
 describe("My information workspace", () => {
+  it("treats edits to a new variation as dirty even before it has a name", async () => {
+    const snapshot: ProfileSnapshot = { items: [item] };
+    Object.defineProperty(window, "aaaat", {
+      configurable: true,
+      value: {
+        profile: {
+          current: vi.fn(async () => snapshot),
+          addItem: vi.fn(async () => snapshot),
+          updateItem: vi.fn(async () => snapshot),
+          removeItem: vi.fn(async () => snapshot),
+        },
+        profileVariants: {
+          list: vi.fn(async () => []),
+          create: vi.fn(async () => []),
+          update: vi.fn(async () => []),
+          remove: vi.fn(async () => []),
+        },
+      },
+    });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<ProfileWorkspace />);
+
+    const variations = await screen.findByRole("region", { name: "Saved variations" });
+    await user.click(within(variations).getByRole("button", { name: "New variation" }));
+    const description = within(variations).getByRole("textbox", { name: "Description" });
+    await user.clear(description);
+    await user.type(description, "Unsaved alternate wording.");
+
+    await user.click(screen.getByRole("button", { name: /Add information/ }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved My information edits?");
+    expect(within(variations).getByDisplayValue("Unsaved alternate wording.")).toBeVisible();
+  });
+
   it("opens retained information as readable content and edits only on demand", async () => {
     let snapshot: ProfileSnapshot = { items: [item] };
     const updateItem = vi.fn(async ({ id, item: input }: { id: string; item: ProfileItemInput }) => {
