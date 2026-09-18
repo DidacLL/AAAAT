@@ -107,7 +107,7 @@ export function AiPromptTransparencyPanel({ onDirtyChange }: { readonly onDirtyC
               <button
                 type="button"
                 className="compact-secondary"
-                disabled={busy === item.operation || !item.instruction}
+                disabled={busy === item.operation || item.isDefault}
                 onClick={() => {
                   setBusy(item.operation);
                   setError(null);
