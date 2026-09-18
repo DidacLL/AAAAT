@@ -66,6 +66,7 @@ export function candidatureSearchMatchCue(
   if (!normalizedQuery) return null;
 
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
+  const fieldOrder = new Map(fields.map((field, index) => [field.definition.id, index]));
   for (const retained of record.values) {
     const field = fieldById.get(retained.fieldId);
     if (!field) continue;
@@ -132,16 +133,18 @@ export function candidatureRecognitionCues(
       favourite: field.preferences.favourite,
     }];
   });
-  const favourites = displayable.filter((cue) => cue.favourite);
-  const chosen = favourites.length > 0 ? favourites : displayable;
+  const chosen = displayable.filter((cue) => cue.favourite);
   return chosen
     .sort((left, right) => {
-      if (favourites.length > 0) {
-        const leftOrder = left.field.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER;
-        const rightOrder = right.field.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER;
-        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      const leftOrder = left.field.preferences.favouriteOrder;
+      const rightOrder = right.field.preferences.favouriteOrder;
+      if (leftOrder !== null && rightOrder !== null && leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
       }
-      return left.label.localeCompare(right.label);
+      if (leftOrder !== null && rightOrder === null) return -1;
+      if (leftOrder === null && rightOrder !== null) return 1;
+      return (fieldOrder.get(left.fieldId) ?? Number.MAX_SAFE_INTEGER) -
+        (fieldOrder.get(right.fieldId) ?? Number.MAX_SAFE_INTEGER);
     })
     .slice(0, limit)
     .map((cue) => ({
