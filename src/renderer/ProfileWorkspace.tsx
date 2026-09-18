@@ -253,6 +253,12 @@ export function ProfileWorkspace({
     setVariant(candidate ? variantDraft(candidate) : newVariantDraft(selected ?? undefined));
   };
 
+  const closeVariant = () => {
+    if (variantDirty && !window.confirm("Discard unsaved variation edits?")) return;
+    setEditingVariantId(null);
+    setVariant(variantDraft());
+  };
+
   const saveVariant = async () => {
     if (!selected || !variant.name.trim() || !variant.title.trim()) return;
     setBusy(true);
@@ -608,10 +614,7 @@ export function ProfileWorkspace({
                         <button
                           type="button"
                           className="compact-secondary"
-                          onClick={() => {
-                            setEditingVariantId(null);
-                            setVariant(variantDraft());
-                          }}
+                          onClick={closeVariant}
                         >
                           Close
                         </button>
