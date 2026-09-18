@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import type { PartialJobExtractionResult } from "../shared/ai-proposal-outcomes";
 import {
@@ -10,7 +10,6 @@ import {
   clearAiTask,
   markAiTaskFieldApplied,
   markAiTaskFieldHandled,
-  recordAiTaskFieldIssue,
   resolveAiTaskFieldIssue,
   type AiTaskSnapshot,
   useAiTasks,
@@ -72,7 +71,6 @@ export function CandidatureFieldAiState({
   const tasks = useAiTasks();
   const [editingProposal, setEditingProposal] = useState(false);
   const [editingIssue, setEditingIssue] = useState(false);
-  const autoApplying = useRef(false);
   const exactKey = `candidature-inference:${candidatureId}:${field.definition.id}`;
   const bulkKey = `candidature-inference:${candidatureId}:missing`;
   const candidates = tasks.filter(
@@ -101,43 +99,6 @@ export function CandidatureFieldAiState({
       task.status === "completed" &&
       (task.appliedFieldIds ?? []).includes(field.definition.id),
   );
-
-  useEffect(() => {
-    if (
-      !proposal ||
-      !proposalTask ||
-      proposalTask.key !== exactKey ||
-      currentValue !== undefined ||
-      autoApplying.current
-    ) {
-      return;
-    }
-    let active = true;
-    autoApplying.current = true;
-    void onSaveValue(proposal.value)
-      .then(() => {
-        if (active) markAiTaskFieldApplied(proposalTask.key, field.definition.id);
-      })
-      .catch((reason: unknown) => {
-        if (!active) return;
-        recordAiTaskFieldIssue(proposalTask.key, {
-          kind: "invalid",
-          fieldId: field.definition.id,
-          fieldLabel: field.definition.label,
-          proposedValue: proposal.value,
-          reason:
-            reason instanceof Error
-              ? reason.message
-              : "AAAAT could not retain this AI proposal.",
-        });
-      })
-      .finally(() => {
-        autoApplying.current = false;
-      });
-    return () => {
-      active = false;
-    };
-  }, [currentValue, exactKey, field.definition.id, field.definition.label, onSaveValue, proposal, proposalTask]);
 
   const accept = async (value: CandidatureRuntimeValue) => {
     if (!proposalTask) return;
@@ -169,13 +130,11 @@ export function CandidatureFieldAiState({
     if (!issueTask) return;
     resolveAiTaskFieldIssue(issueTask.key, field.definition.id, false);
     if (issueTask.key === exactKey) clearAiTask(issueTask.key);
-    autoApplying.current = false;
     setEditingIssue(false);
     onRetry();
   };
 
   const retry = (task: AiTaskSnapshot) => {
-    autoApplying.current = false;
     clearAiTask(task.key);
     onRetry();
   };
@@ -218,22 +177,13 @@ export function CandidatureFieldAiState({
     );
   }
 
-  if (proposal && proposalTask?.key === exactKey && currentValue === undefined) {
-    return (
-      <div className="candidature-field-ai-state candidature-field-ai-working" role="status">
-        <span className="candidature-state-lamp candidature-state-lamp-working" aria-hidden="true" />
-        <span>Saving AI-filled information…</span>
-      </div>
-    );
-  }
-
   if (proposal && proposalTask) {
     return (
       <div className="candidature-field-ai-state candidature-field-ai-proposal" role="status">
         <div className="candidature-ai-proposal-heading">
           <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
-          <strong>AI found another value</strong>
-          <span>Your saved value will not be replaced unless you choose it.</span>
+          <strong>{currentValue === undefined ? "AI found a value" : "AI found another value"}</strong>
+          <span>{currentValue === undefined ? "Nothing is saved until you choose it." : "Your saved value will not be replaced unless you choose it."}</span>
         </div>
         {editingProposal ? (
           <CandidatureFieldValueEditor
