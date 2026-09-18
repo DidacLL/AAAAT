@@ -32,7 +32,7 @@ export function createDemoWorkspace(rootPath: string) {
       ) VALUES (?, NULL, ?, ?, 'text', 'many', '[]', 1, ?, ?)`)
         .run(languageField, "Languages", "Languages required or useful for the opportunity.", now, now);
       database.prepare(`INSERT INTO candidature_field_preferences(
-        field_id, focus_visible, focus_order, focus_prominence, ai_use_allowed
+        field_id, favourite, favourite_order, presentation_size, ai_use_allowed
       ) VALUES (?, 0, NULL, 'normal', 1)`).run(languageField);
 
       const insertCandidature = database.prepare(
