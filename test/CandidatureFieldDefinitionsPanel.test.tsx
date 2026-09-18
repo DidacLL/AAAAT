@@ -92,6 +92,13 @@ describe("candidature information creation", () => {
     vi.restoreAllMocks();
   });
 
+  it("does not mutate the field model merely because the add-information control is mounted", async () => {
+    render(<CandidatureFieldDefinitionsPanel onChanged={vi.fn()} />);
+    await screen.findByRole("button", { name: "Add information" });
+    expect(createField).not.toHaveBeenCalled();
+    expect(updateFieldPreferences).not.toHaveBeenCalled();
+  });
+
   it("uses one direct + add-information path instead of a separate customization workflow", async () => {
     const user = userEvent.setup();
     render(<CandidatureFieldDefinitionsPanel onChanged={vi.fn()} />);
@@ -105,7 +112,7 @@ describe("candidature information creation", () => {
     expect(within(creator).queryByText("reusable field definitions", { exact: false })).not.toBeInTheDocument();
   });
 
-  it("adds profession-specific information with AI use enabled by default", async () => {
+  it("adds profession-specific information without a second hidden preference mutation", async () => {
     const user = userEvent.setup();
     const changed = vi.fn();
     render(<CandidatureFieldDefinitionsPanel onChanged={changed} />);
@@ -123,10 +130,7 @@ describe("candidature information creation", () => {
       description: "Hours required by the operator",
       valueType: "number",
     }));
-    expect(updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
-      fieldId: flightHoursId,
-      aiUseAllowed: true,
-    }));
+    expect(updateFieldPreferences).not.toHaveBeenCalled();
     expect(changed).toHaveBeenCalled();
   });
 });
