@@ -23,6 +23,7 @@ import {
   type AiTaskCancellationDesktopApi,
 } from "../shared/ai-task-cancellation-contracts";
 import {
+  candidatureFavouriteOrderUpdateSchema,
   candidatureFieldCreateSchema,
   candidatureFieldDefinitionSchema,
   candidatureFieldFilterSchema,
@@ -143,6 +144,13 @@ export function createDesktopApi(
         await invoke(
           channels.candidatureFieldPreferencesUpdate,
           candidatureFieldPreferencesUpdateSchema.parse(input),
+        ),
+      ),
+    reorderFavouriteFields: async (fieldIds: string[]) =>
+      candidatureFieldListSchema.parse(
+        await invoke(
+          channels.candidatureFavouriteOrderUpdate,
+          candidatureFavouriteOrderUpdateSchema.parse({ fieldIds }),
         ),
       ),
     setFieldValue: async (input: Parameters<DesktopApi["candidatures"]["setFieldValue"]>[0]) =>
