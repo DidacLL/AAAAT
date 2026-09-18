@@ -128,7 +128,7 @@ describe("loaded workspace shell", () => {
 
     confirm.mockReturnValue(true);
     await user.click(screen.getByRole("button", { name: "Applications" }));
-    expect(screen.getByText("Applications")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Applications" })).toHaveAttribute("aria-current", "page");
   });
 
   it("keeps a branded useful Home while persistent environment state stays in the rail", async () => {
