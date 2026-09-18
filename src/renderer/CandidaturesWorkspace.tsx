@@ -675,7 +675,6 @@ export function CandidaturesWorkspace({
             <CandidatureBulkAiReview
               candidature={selected}
               fields={fields}
-              onSaveValue={setValue}
               onRetry={() => setBulkInferenceOpen(true)}
             />
             {remainingFields.length === 0 ? (
