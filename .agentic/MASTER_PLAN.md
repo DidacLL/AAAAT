@@ -12,11 +12,11 @@ Outcome: finish PR #319 as a coherent baseline, resolve first-class defects expo
 
 Current first-class defects:
 
-1. **AI readiness must be truthful.** Configuration/routing or a historical success must not mean current `AI: Ready`. A successful current validation/request may establish readiness; a relevant failure must promptly invalidate it. Reuse existing validation/task/diagnostic state; do not invent polling or a generic health subsystem.
+1. **AI reachability must be truthful.** Configuration/routing or a historical success must not mean current `AI: Ready`. Current lightweight reachability or real-request evidence may establish readiness; a relevant failure must promptly invalidate it. Synthetic capability checks are optional diagnostics, not a usage gate. Reuse existing probe/task/diagnostic state; do not invent polling or a generic health subsystem.
 
 2. **Candidature presentation must be one configurable field surface, with no field-derived identity.** Keep the single Applications surface and no hidden candidature label/identity ranking. Neutral first use must not be blank: enabled fields begin equally included in the primary presentation without semantic privilege, and the user demotes/unfavourites, reorders and resizes them. Presentation size affects the corpus/summary grid, not editor geometry. Corpus values are visually primary; labels and metadata are secondary; retained values must not be replaced by a generic placeholder merely because favourites were not configured. More/advanced reveals the remainder. Raw Source/Tag material may appear only as bounded active-search evidence. Avoid equal-row behavior where one long value sizes unrelated entries.
 
-3. **Affordable light-model usefulness is a PLAN[0] product requirement, with provider/runtime agnosticism.** AAAAT must work usefully with resource-constrained models, especially models users can run locally or access cheaply, but no provider, runtime, protocol or model family is the product baseline. The current OpenAI-compatible adapter and llama.cpp/Qwen-class checks are representative implementation evidence only. Requests must minimize context and decoding burden, avoid unsupported or needlessly strict structured-output features, keep deterministic validation in AAAAT, and salvage valid partial results independently. Tests must not assume premium-tier instruction following or schema fidelity.
+3. **Affordable light-model usefulness is a PLAN[0] product requirement, with provider/runtime agnosticism and explicit acceptance.** AAAAT must work usefully with resource-constrained models, especially models users can run locally or access cheaply, but no provider, runtime, protocol or model family is the product baseline. The general configured connection is usable without synthetic capability validation; explicit checks remain diagnostics/routing evidence. Requests minimize model burden, deterministic validation stays in AAAAT, and valid partial results survive independently. AI output does not silently create or replace ordinary data: values, field definitions and document changes require an explicit user acceptance/save action.
 
 Preserve completed PLAN[0] foundation corrections:
 
@@ -91,8 +91,8 @@ The structural information model is fixed in PLAN[0]: one configurable field sur
 
 Ordinary development uses fast, focused verification. Stronger packaged/runtime verification belongs at meaningful run boundaries. Cross-OS verification belongs near release/finalization or when a change is explicitly platform-sensitive.
 
-## Orchestration contract
+## Execution contract
 
-The master orchestrator owns sequence, scope, continuity and acceptance. Use a separate run orchestrator only when the execution environment actually supports delegation and the work benefits from it. Otherwise launch a bounded implementation specialist directly rather than asking an agent to investigate whether delegation exists.
+The master orchestrator owns sequence, scope, continuity and acceptance. Fix small, well-bounded corrections directly. Use a bounded specialist only for substantial autonomous work where it materially reduces owner effort; avoid orchestration layers for mechanical fixes.
 
-Prefer one coherent implementation pass and, when needed, one independent review at consequential boundaries. Continue the same specialist with a delta brief for small follow-up corrections instead of spawning additive parallel work.
+Prefer one coherent implementation pass and an independent review only at consequential boundaries.
