@@ -26,7 +26,7 @@ afterEach(() => {
 describe("setup environment service", () => {
   it("projects fixed TeX readiness and configured AI routes without synthetic validation", async () => {
     const root = workspace();
-    const saved = saveNamedAiConnection(root, {
+    saveNamedAiConnection(root, {
       name: "Local fit model",
       endpoint: "http://localhost:11434/v1",
       model: "fit-model",
