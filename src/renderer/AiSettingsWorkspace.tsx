@@ -66,13 +66,15 @@ export function AiSettingsWorkspace({
   const [saving, setSaving] = useState(false);
   const [portabilityBusy, setPortabilityBusy] = useState<"export" | "import" | null>(null);
   const [portabilityStatus, setPortabilityStatus] = useState<string | null>(null);
+  const [promptDirty, setPromptDirty] = useState(false);
 
   const editing = useMemo(
     () => connections.find((connection) => connection.id === editingId) ?? null,
     [connections, editingId],
   );
   const baseline = editing ? editable(editing) : emptyDraft;
-  const dirty = formOpen && JSON.stringify(draft) !== JSON.stringify(baseline);
+  const connectionDirty = formOpen && JSON.stringify(draft) !== JSON.stringify(baseline);
+  const dirty = connectionDirty || promptDirty;
   const defaultConnection = connections.find((connection) => connection.isDefault) ?? null;
   const showConnections = view !== "portability";
   const showPortability = view !== "connections";
@@ -103,7 +105,7 @@ export function AiSettingsWorkspace({
   }, []);
 
   const confirmDiscard = () =>
-    !dirty || window.confirm("Discard unsaved AI connection edits?");
+    !connectionDirty || window.confirm("Discard unsaved AI connection edits?");
 
   const beginNew = () => {
     if (!confirmDiscard()) return;
@@ -340,7 +342,7 @@ export function AiSettingsWorkspace({
         </div>
       ) : null}
 
-      {showConnections ? <AiPromptTransparencyPanel /> : null}
+      {showConnections ? <AiPromptTransparencyPanel onDirtyChange={setPromptDirty} /> : null}
 
       {showPortability ? (
         <div className="profile-column">
