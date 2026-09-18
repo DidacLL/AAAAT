@@ -19,7 +19,7 @@ export function AiPromptTransparencyPanel() {
       .then((next) => {
         if (!active) return;
         setItems(next);
-        setDrafts(Object.fromEntries(next.map((item) => [item.operation, item.userGuidance])));
+        setDrafts(Object.fromEntries(next.map((item) => [item.operation, item.instruction])));
       })
       .catch((reason) => {
         if (active) {
@@ -35,22 +35,21 @@ export function AiPromptTransparencyPanel() {
 
   const apply = (next: AiPromptDisclosure[]) => {
     setItems(next);
-    setDrafts(Object.fromEntries(next.map((item) => [item.operation, item.userGuidance])));
+    setDrafts(Object.fromEntries(next.map((item) => [item.operation, item.instruction])));
   };
 
   if (!promptApi) return null;
 
   return (
-    <section className="profile-column ai-prompt-transparency" aria-label="AI guidance and prompts">
+    <section className="profile-column ai-prompt-transparency" aria-label="AI instructions">
       <div className="section-heading">
         <div>
           <p className="eyebrow">Behavior</p>
-          <h2>AI guidance and prompts</h2>
+          <h2>AI instructions</h2>
         </div>
       </div>
       <p className="compact-help">
-        This is the central place to see what each AI action receives and add your own guidance.
-        AAAAT keeps the response contract fixed and validates returned data locally.
+        Edit the instruction AAAAT sends for each AI action. Changing it can reduce result quality or make responses fail validation; AAAAT still validates returned data locally. Reset restores the shipped default.
       </p>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
       <div className="document-list">
@@ -60,7 +59,7 @@ export function AiPromptTransparencyPanel() {
             <p><strong>Context sent:</strong> {item.contextSummary}</p>
             <p><strong>Expected response:</strong> {item.responseExpectation}</p>
             <label>
-              Your guidance
+              Instruction
               <textarea
                 value={drafts[item.operation] ?? ""}
                 onChange={(event) =>
@@ -70,7 +69,7 @@ export function AiPromptTransparencyPanel() {
                   }))
                 }
                 rows={3}
-                placeholder="Add preferences for this AI action."
+                placeholder="Instruction sent to the model for this AI action."
               />
             </label>
             <div className="button-row">
@@ -84,7 +83,7 @@ export function AiPromptTransparencyPanel() {
                   void promptApi
                     .save({
                       operation: item.operation,
-                      guidance: drafts[item.operation] ?? "",
+                      instruction: drafts[item.operation] ?? "",
                     })
                     .then(apply)
                     .catch((reason) =>
@@ -97,12 +96,12 @@ export function AiPromptTransparencyPanel() {
                     .finally(() => setBusy(null));
                 }}
               >
-                Save guidance
+                Save instruction
               </button>
               <button
                 type="button"
                 className="compact-secondary"
-                disabled={busy === item.operation || !item.userGuidance}
+                disabled={busy === item.operation || !item.instruction}
                 onClick={() => {
                   setBusy(item.operation);
                   setError(null);
@@ -122,9 +121,9 @@ export function AiPromptTransparencyPanel() {
                 Reset to default
               </button>
             </div>
-            <details>
-              <summary>Effective final instruction</summary>
-              <pre className="ai-effective-instruction">{item.effectiveInstruction}</pre>
+                        <details>
+              <summary>Shipped default</summary>
+              <pre className="ai-effective-instruction">{item.defaultInstruction}</pre>
             </details>
           </article>
         ))}

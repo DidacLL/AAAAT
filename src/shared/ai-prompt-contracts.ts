@@ -11,14 +11,14 @@ export const aiPromptDisclosureSchema = z.object({
   operation: aiOperationSchema,
   label: z.string().min(1),
   defaultInstruction: z.string().min(1),
-  userGuidance: z.string(),
-  effectiveInstruction: z.string().min(1),
+  instruction: z.string().max(12000),
+  isDefault: z.boolean(),
   contextSummary: z.string().min(1),
   responseExpectation: z.string().min(1),
 }).strict();
 export type AiPromptDisclosure = z.infer<typeof aiPromptDisclosureSchema>;
 export const aiPromptDisclosureListSchema = z.array(aiPromptDisclosureSchema);
-export const aiPromptUpdateSchema = z.object({ operation: aiOperationSchema, guidance: z.string().max(4000) }).strict();
+export const aiPromptUpdateSchema = z.object({ operation: aiOperationSchema, instruction: z.string().max(12000) }).strict();
 export type AiPromptUpdate = z.infer<typeof aiPromptUpdateSchema>;
 
 export interface AiPromptDesktopApi {

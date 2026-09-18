@@ -72,18 +72,8 @@ function parseDraft(
   return draft.text.trim();
 }
 
-function orderFields(fields: readonly CandidatureFieldConfiguration[]) {
-  return [...fields]
-    .filter((field) => field.definition.enabled)
-    .sort((left, right) => {
-      if (left.preferences.favourite !== right.preferences.favourite) {
-        return left.preferences.favourite ? -1 : 1;
-      }
-      const leftOrder = left.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER;
-      const rightOrder = right.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER;
-      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-      return left.definition.label.localeCompare(right.definition.label);
-    });
+function enabledFieldsInDefinitionOrder(fields: readonly CandidatureFieldConfiguration[]) {
+  return fields.filter((field) => field.definition.enabled);
 }
 
 export function CandidatureManualEntryPanel({
@@ -111,7 +101,7 @@ export function CandidatureManualEntryPanel({
     void window.aaaat.candidatures.listFields()
       .then((nextFields) => {
         if (!active) return;
-        const ordered = orderFields(nextFields);
+        const ordered = enabledFieldsInDefinitionOrder(nextFields);
         const nextDrafts = draftsFor(ordered);
         setFields(ordered);
         setDrafts(nextDrafts);

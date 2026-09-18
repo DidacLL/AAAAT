@@ -20,55 +20,52 @@ const responseExpectation: Readonly<Record<AiOperation, string>> = {
   cover_letter_draft: "JSON recipient, subject, body paragraphs and closing; no invented career facts.",
 };
 
-function key(operation: AiOperation): string { return `ai.prompt.guidance.${operation}`; }
+function key(operation: AiOperation): string { return `ai.prompt.instruction.${operation}`; }
 
-export function aiPromptGuidance(rootPath: string): Partial<Record<AiOperation, string>> {
+export function aiPromptInstructions(rootPath: string): Partial<Record<AiOperation, string>> {
   return withWorkspaceDatabase(rootPath, (database) => {
-    const guidance: Partial<Record<AiOperation, string>> = {};
+    const instructions: Partial<Record<AiOperation, string>> = {};
     for (const operation of aiOperations) {
       const row = database.prepare("SELECT value FROM workspace_metadata WHERE key = ?").get(key(operation)) as { value: string } | undefined;
-      if (row?.value.trim()) guidance[operation] = row.value.trim();
+      if (row) instructions[operation] = row.value;
     }
-    return guidance;
+    return instructions;
   });
 }
 
-function effective(operation: AiOperation, guidance: string): string {
-  const suffix = guidance.trim();
-  return suffix
-    ? `${AI_DEFAULT_INSTRUCTIONS[operation]}\n\nUser guidance (must not override the fixed response contract or supplied facts):\n${suffix}`
-    : AI_DEFAULT_INSTRUCTIONS[operation];
-}
-
 export function listAiPromptDisclosures(rootPath: string): AiPromptDisclosure[] {
-  const guidance = aiPromptGuidance(rootPath);
-  return aiOperations.map((operation) => ({
-    operation,
-    label: aiOperationLabels[operation],
-    defaultInstruction: AI_DEFAULT_INSTRUCTIONS[operation],
-    userGuidance: guidance[operation] ?? "",
-    effectiveInstruction: effective(operation, guidance[operation] ?? ""),
-    contextSummary: contextSummary[operation],
-    responseExpectation: responseExpectation[operation],
-  }));
+  const instructions = aiPromptInstructions(rootPath);
+  return aiOperations.map((operation) => {
+    const custom = Object.prototype.hasOwnProperty.call(instructions, operation);
+    return {
+      operation,
+      label: aiOperationLabels[operation],
+      defaultInstruction: AI_DEFAULT_INSTRUCTIONS[operation],
+      instruction: custom ? instructions[operation] ?? "" : AI_DEFAULT_INSTRUCTIONS[operation],
+      isDefault: !custom,
+      contextSummary: contextSummary[operation],
+      responseExpectation: responseExpectation[operation],
+    };
+  });
 }
 
-export function saveAiPromptGuidance(rootPath: string, operation: AiOperation, guidance: string): AiPromptDisclosure[] {
+export function saveAiPromptInstruction(rootPath: string, operation: AiOperation, instruction: string): AiPromptDisclosure[] {
   withWorkspaceDatabase(rootPath, (database) => {
-    const trimmed = guidance.trim();
-    if (!trimmed) database.prepare("DELETE FROM workspace_metadata WHERE key = ?").run(key(operation));
-    else database.prepare("INSERT OR REPLACE INTO workspace_metadata(key, value) VALUES (?, ?)").run(key(operation), trimmed);
+    database.prepare("INSERT OR REPLACE INTO workspace_metadata(key, value) VALUES (?, ?)").run(key(operation), instruction);
   });
   return listAiPromptDisclosures(rootPath);
 }
 
-export function resetAiPromptGuidance(rootPath: string, operation: AiOperation): AiPromptDisclosure[] {
-  return saveAiPromptGuidance(rootPath, operation, "");
+export function resetAiPromptInstruction(rootPath: string, operation: AiOperation): AiPromptDisclosure[] {
+  withWorkspaceDatabase(rootPath, (database) => {
+    database.prepare("DELETE FROM workspace_metadata WHERE key = ?").run(key(operation));
+  });
+  return listAiPromptDisclosures(rootPath);
 }
 
 export function createWorkspaceAiProvider(
   rootPath: string,
   fetchImpl: typeof fetch = fetch,
 ): ModelProvider {
-  return createOpenAiCompatibleProvider(fetchImpl, undefined, aiPromptGuidance(rootPath));
+  return createOpenAiCompatibleProvider(fetchImpl, undefined, aiPromptInstructions(rootPath));
 }

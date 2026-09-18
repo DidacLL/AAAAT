@@ -3,30 +3,32 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createOrOpenWorkspace } from "../src/main/workspace";
-import { createWorkspaceAiProvider, listAiPromptDisclosures, resetAiPromptGuidance, saveAiPromptGuidance } from "../src/main/ai-prompt-service";
+import { createWorkspaceAiProvider, listAiPromptDisclosures, resetAiPromptInstruction, saveAiPromptInstruction } from "../src/main/ai-prompt-service";
 import type { AiConnectionStatus, ProviderOpportunityReviewContext } from "../src/shared/ai-contracts";
 
 describe("AI prompt transparency", () => {
-  it("shows the fixed effective instruction, appends user guidance, and resets to default", () => {
+  it("lets the user replace the operation instruction and reset to the shipped default", () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-prompts-"));
     createOrOpenWorkspace(root);
     const original = listAiPromptDisclosures(root).find((item) => item.operation === "cover_letter_draft")!;
-    expect(original.userGuidance).toBe("");
-    expect(original.effectiveInstruction).toBe(original.defaultInstruction);
-    const customized = saveAiPromptGuidance(root, "cover_letter_draft", "Prefer short paragraphs.")
+    expect(original.instruction).toBe(original.defaultInstruction);
+    expect(original.isDefault).toBe(true);
+    const customized = saveAiPromptInstruction(root, "cover_letter_draft", "Use my own complete instruction.")
       .find((item) => item.operation === "cover_letter_draft")!;
-    expect(customized.effectiveInstruction).toContain(original.defaultInstruction);
-    expect(customized.effectiveInstruction).toContain("Prefer short paragraphs.");
+    expect(customized.instruction).toBe("Use my own complete instruction.");
+    expect(customized.instruction).not.toContain(original.defaultInstruction);
+    expect(customized.isDefault).toBe(false);
     expect(customized.responseExpectation).toContain("JSON");
-    const reset = resetAiPromptGuidance(root, "cover_letter_draft")
+    const reset = resetAiPromptInstruction(root, "cover_letter_draft")
       .find((item) => item.operation === "cover_letter_draft")!;
-    expect(reset.effectiveInstruction).toBe(reset.defaultInstruction);
+    expect(reset.instruction).toBe(reset.defaultInstruction);
+    expect(reset.isDefault).toBe(true);
   });
 
   it("uses the disclosed customized instruction as the actual provider system instruction", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "aaaat-prompts-wire-"));
     createOrOpenWorkspace(root);
-    saveAiPromptGuidance(root, "opportunity_review", "Keep the summary under three sentences.");
+    saveAiPromptInstruction(root, "opportunity_review", "Return a concise review using only supplied facts.");
     const disclosure = listAiPromptDisclosures(root).find((item) => item.operation === "opportunity_review")!;
     let sentSystemInstruction = "";
     const fetchImpl = vi.fn<typeof fetch>(async (_input, init) => {
@@ -51,8 +53,8 @@ describe("AI prompt transparency", () => {
     };
 
     await provider.reviewOpportunity(connection, context);
-    expect(sentSystemInstruction).toBe(disclosure.effectiveInstruction);
-    expect(sentSystemInstruction).toContain("Keep the summary under three sentences.");
+    expect(sentSystemInstruction).toBe(disclosure.instruction);
+    expect(sentSystemInstruction).toBe("Return a concise review using only supplied facts.");
   });
 
 });

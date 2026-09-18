@@ -45,8 +45,8 @@ const promptDisclosure = {
   operation: "job_extraction" as const,
   label: "Job extraction",
   defaultInstruction: "Extract supported facts.",
-  userGuidance: "",
-  effectiveInstruction: "Extract supported facts.",
+  instruction: "Extract supported facts.",
+  isDefault: true,
   contextSummary: "The supplied Source and eligible fields.",
   responseExpectation: "A small JSON extraction envelope.",
 };
@@ -110,7 +110,7 @@ describe("AI settings workspace", () => {
     exportPortable.mockResolvedValue("cancelled");
     importPortable.mockResolvedValue({ status: "cancelled", connections: [] });
     listPrompts.mockResolvedValue([promptDisclosure]);
-    savePrompt.mockResolvedValue([{ ...promptDisclosure, userGuidance: "Prefer concise facts.", effectiveInstruction: "Extract supported facts. Prefer concise facts." }]);
+    savePrompt.mockResolvedValue([{ ...promptDisclosure, instruction: "My complete extraction instruction.", isDefault: false }]);
     resetPrompt.mockResolvedValue([promptDisclosure]);
     installApi();
   });
@@ -121,21 +121,22 @@ describe("AI settings workspace", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps AI guidance visible and editable in the main AI Settings surface", async () => {
+  it("keeps full AI instructions visible and editable in the main AI Settings surface", async () => {
     const user = userEvent.setup();
     render(<AiSettingsWorkspace />);
 
-    const guidance = await screen.findByRole("region", { name: "AI guidance and prompts" });
+    const guidance = await screen.findByRole("region", { name: "AI instructions" });
     expect(guidance).toBeVisible();
     expect(screen.queryByText("Advanced: AI instructions and context")).not.toBeInTheDocument();
     expect(screen.getByText("Job extraction")).toBeVisible();
-    const input = screen.getByRole("textbox", { name: "Your guidance" });
-    await user.type(input, "Prefer concise facts.");
-    await user.click(screen.getByRole("button", { name: "Save guidance" }));
+    const input = screen.getByRole("textbox", { name: "Instruction" });
+    await user.clear(input);
+    await user.type(input, "My complete extraction instruction.");
+    await user.click(screen.getByRole("button", { name: "Save instruction" }));
 
     expect(savePrompt).toHaveBeenCalledWith({
       operation: "job_extraction",
-      guidance: "Prefer concise facts.",
+      instruction: "My complete extraction instruction.",
     });
   });
 

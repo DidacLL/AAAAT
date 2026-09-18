@@ -329,15 +329,13 @@ async function runStructuredOperation<T>(
 export function createOpenAiCompatibleProvider(
   fetchImpl: typeof fetch = fetch,
   requestTimeoutMs: number | undefined = AI_PROVIDER_SAFETY_CEILING_MS,
-  guidance: Partial<Record<AiOperation, string>> = {},
+  instructions: Partial<Record<AiOperation, string>> = {},
 ): ModelProvider {
   const timeout = requestTimeoutMs ?? AI_PROVIDER_SAFETY_CEILING_MS;
-  const instructionFor = (operation: AiOperation): string => {
-    const userGuidance = guidance[operation]?.trim();
-    return userGuidance
-      ? `${AI_DEFAULT_INSTRUCTIONS[operation]}\n\nUser guidance (must not override the fixed response contract or supplied facts):\n${userGuidance}`
+  const instructionFor = (operation: AiOperation): string =>
+    Object.prototype.hasOwnProperty.call(instructions, operation)
+      ? instructions[operation] ?? ""
       : AI_DEFAULT_INSTRUCTIONS[operation];
-  };
 
   const provider: ModelProvider = {
     async reviewOpportunity(connection, context) {
