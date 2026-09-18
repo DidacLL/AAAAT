@@ -63,7 +63,7 @@ describe("My information workspace", () => {
 
     const description = await screen.findByText("Built and operated production systems.");
     expect(description).toBeVisible();
-    const readout = description.closest(".professional-information-item");
+    const readout = description.closest<HTMLElement>(".professional-information-item");
     expect(readout).not.toBeNull();
     expect(within(readout!).getByText("Infrastructure")).toBeVisible();
     expect(within(readout!).getByText("2023 – 2026")).toBeVisible();
