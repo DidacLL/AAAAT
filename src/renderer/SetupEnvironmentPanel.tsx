@@ -185,7 +185,7 @@ export function SetupEnvironmentPanel({
           <div className="profile-column">
             <div className="section-heading"><div><p className="eyebrow">Optional assistance</p><h2>AI coverage</h2></div></div>
             {snapshot ? snapshot.ai.configurationReadable ? (
-              <><p>{snapshot.ai.connectionCount} configured AI connection{snapshot.ai.connectionCount === 1 ? "" : "s"}. Availability reflects validated routing for each bounded operation.</p><div className="document-list">{snapshot.ai.operations.map((status) => <article key={status.operation} className="document-card"><div><h3>{aiOperationLabels[status.operation]}</h3><p>{status.available && status.connectionName ? `Available via ${status.connectionName}.` : "No validated route is configured."}</p></div></article>)}</div></>
+              <><p>{snapshot.ai.connectionCount} configured AI connection{snapshot.ai.connectionCount === 1 ? "" : "s"}. Availability reflects configured routing. Compatibility checks in AI Settings are optional diagnostics.</p><div className="document-list">{snapshot.ai.operations.map((status) => <article key={status.operation} className="document-card"><div><h3>{aiOperationLabels[status.operation]}</h3><p>{status.available && status.connectionName ? `Available via ${status.connectionName}.` : "No validated route is configured."}</p></div></article>)}</div></>
             ) : <p className="error-message">AAAAT could not read the optional AI connection configuration.</p> : <p>{loading ? "Checking configured capabilities…" : "Environment status is unavailable."}</p>}
           </div>
         </section>
