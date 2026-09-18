@@ -144,7 +144,13 @@ export function candidatureRecognitionCues(
       return left.label.localeCompare(right.label);
     })
     .slice(0, limit)
-    .map(({ field: _field, ...cue }) => cue);
+    .map((cue) => ({
+      fieldId: cue.fieldId,
+      label: cue.label,
+      value: cue.value,
+      presentationSize: cue.presentationSize,
+      favourite: cue.favourite,
+    }));
 }
 
 export function filterCandidatures(
