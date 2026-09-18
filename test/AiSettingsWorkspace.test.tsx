@@ -34,6 +34,7 @@ const save = vi.fn();
 const setDefault = vi.fn();
 const remove = vi.fn();
 const validateOperation = vi.fn();
+const probe = vi.fn();
 const setOperationDefault = vi.fn();
 const exportPortable = vi.fn();
 const importPortable = vi.fn();
@@ -61,6 +62,7 @@ function installApi() {
         setDefault,
         remove,
         validateOperation,
+        probe,
         setOperationDefault,
         exportPortable,
         importPortable,
@@ -107,6 +109,7 @@ describe("AI settings workspace", () => {
     vi.clearAllMocks();
     clearAllAiTasks();
     list.mockResolvedValue([]);
+    probe.mockResolvedValue(true);
     exportPortable.mockResolvedValue("cancelled");
     importPortable.mockResolvedValue({ status: "cancelled", connections: [] });
     listPrompts.mockResolvedValue([promptDisclosure]);
@@ -167,6 +170,7 @@ describe("AI settings workspace", () => {
     });
     expect(await screen.findByText("General default connection")).toBeInTheDocument();
     expect(screen.getByText(/Connection saved. AAAAT is checking/)).toBeInTheDocument();
+    expect(validateOperation).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Add connection" }));
     await user.type(screen.getByLabelText("Connection name"), "Deep local");
@@ -277,23 +281,11 @@ describe("AI settings workspace", () => {
     });
   });
 
-  it("shows a wrong address inline and checks a saved address without another user step", async () => {
+  it("shows a wrong address inline and probes a saved address without spending capability inference", async () => {
     const user = userEvent.setup();
     save.mockResolvedValue([first]);
     list.mockResolvedValue([first]);
-    const unreachable = {
-      id: "00000000-0000-4000-8000-000000000a98",
-      operation: aiOperations[0],
-      endpoint: first.endpoint,
-      model: first.model,
-      systemInstruction: "",
-      userPayload: "",
-      rawModelResponse: "",
-      validationError: "Cannot reach the model server.",
-      failureKind: "connection_unreachable",
-      structuredOutputMode: "json_schema",
-    };
-    validateOperation.mockRejectedValue(new Error(`Cannot reach the model server.\n${AI_EXCHANGE_DIAGNOSTIC_MARKER}${btoa(JSON.stringify(unreachable))}`));
+    probe.mockResolvedValue(false);
 
     render(<AiSettingsWorkspace />);
     await user.type(screen.getByLabelText("Connection name"), "Fast local");
@@ -307,10 +299,12 @@ describe("AI settings workspace", () => {
     await user.type(screen.getByRole("textbox", { name: /Model server address/ }), first.endpoint);
     await user.click(screen.getByRole("button", { name: "Add connection" }));
     expect(save).toHaveBeenCalledOnce();
-    expect(await screen.findByText(/Connection saved. AAAAT is checking/)).toBeInTheDocument();
-    expect(await screen.findByText(/Cannot reach this model server/)).toBeInTheDocument();
-    expect(screen.getAllByText(first.endpoint).length).toBeGreaterThan(0);
-    expect(validateOperation).toHaveBeenCalled();
+    expect(await screen.findByText(/Connection saved. AAAAT is checking reachability/)).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Connection saved, but AAAAT could not reach this AI service.",
+    );
+    expect(probe).toHaveBeenCalledWith(firstId);
+    expect(validateOperation).not.toHaveBeenCalled();
   });
 
   it("exports portable setup and requires explicit confirmation before replacing imported connections", async () => {
