@@ -216,7 +216,7 @@ describe("AI settings workspace", () => {
     expect(
       await screen.findByText(/Queued|Validating Opportunity review/),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Checking connection…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Checking AI features…" })).toBeDisabled();
 
     firstValidation.resolve([{
       ...first,
@@ -225,9 +225,9 @@ describe("AI settings workspace", () => {
     }]);
 
     expect(await screen.findByText(/Validation completed/)).toBeInTheDocument();
-    expect(screen.getByText(`${aiOperations.length}/${aiOperations.length} ready`)).toBeInTheDocument();
+    expect(screen.getByText(`${aiOperations.length}/${aiOperations.length} checked`)).toBeInTheDocument();
     expect(validateOperation).toHaveBeenCalledTimes(aiOperations.length);
-    expect(screen.getByText("AI ready.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Compatibility checked.", { exact: false })).toBeInTheDocument();
   });
 
   it("keeps the connection connected when one operation is incompatible and preserves the exchange for retry", async () => {
@@ -250,10 +250,10 @@ describe("AI settings workspace", () => {
     await user.click(await screen.findByRole("button", { name: "Check connection" }));
 
     expect(await screen.findByText("Connected now")).toBeInTheDocument();
-    await user.click(screen.getByText(/AI feature details/));
+    await user.click(screen.getByText(/AI feature checks/));
     expect(screen.getByText("Incompatible · failed validation")).toBeInTheDocument();
-    expect(screen.getByText(`${aiOperations.length - 1}/${aiOperations.length} ready`)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry connection check" })).toBeEnabled();
+    expect(screen.getByText(`${aiOperations.length - 1}/${aiOperations.length} checked`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry failed AI feature checks" })).toBeEnabled();
     expect(screen.getByText("Inspect AI exchange")).toBeInTheDocument();
     expect(screen.getByText("{\"summary\":42}")).toBeInTheDocument();
     expect(screen.getByText(/summary must be a string/)).toBeInTheDocument();
@@ -341,7 +341,7 @@ describe("AI settings workspace", () => {
     expect(importPortable).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Imported local")).toBeInTheDocument();
     expect(screen.queryByText("Fast local")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check connection" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check all AI features" })).toBeInTheDocument();
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Validate AI capabilities on this computer",
     );
