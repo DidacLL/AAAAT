@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
+  candidatureFavouriteOrderUpdateSchema,
   candidatureFieldConfigurationSchema,
   candidatureFieldCreateSchema,
   candidatureFieldFilterSchema,
@@ -93,7 +94,7 @@ function fieldRows(database: DatabaseSync): FieldRow[] {
               created_at AS createdAt,
               updated_at AS updatedAt
          FROM candidature_fields
-        ORDER BY enabled DESC, system_key IS NULL, label COLLATE NOCASE, id`,
+        ORDER BY enabled DESC, created_at, id`,
     )
     .all() as unknown as FieldRow[];
 }
@@ -246,7 +247,9 @@ export function createCandidatureField(
           now,
         );
       database
-        .prepare("INSERT INTO candidature_field_preferences(field_id, favourite) VALUES (?, ?)")
+        .prepare(
+          "INSERT INTO candidature_field_preferences(field_id, favourite, favourite_order, ai_use_allowed) VALUES (?, ?, NULL, 0)",
+        )
         .run(id, input.enabled ? 1 : 0);
       return configuration(database, id);
     }),
@@ -334,6 +337,34 @@ export function deleteUnusedCandidatureField(
         throw new CandidatureFieldServiceError("A field with retained values must be retired instead of deleted.");
       }
       database.prepare("DELETE FROM candidature_fields WHERE id = ?").run(fieldId);
+      return listCandidatureFieldsInDatabase(database);
+    }),
+  );
+}
+
+export function reorderCandidatureFavouriteFields(
+  rootPath: string,
+  rawInput: unknown,
+): CandidatureFieldConfiguration[] {
+  const input = candidatureFavouriteOrderUpdateSchema.parse(rawInput);
+  return withWorkspaceDatabase(rootPath, (database) =>
+    transact(database, () => {
+      const favourites = listCandidatureFieldsInDatabase(database).filter(
+        (field) => field.definition.enabled && field.preferences.favourite,
+      );
+      const currentIds = new Set(favourites.map((field) => field.definition.id));
+      if (
+        input.fieldIds.length !== currentIds.size ||
+        input.fieldIds.some((fieldId) => !currentIds.has(fieldId))
+      ) {
+        throw new CandidatureFieldServiceError(
+          "Favourite order must contain every currently enabled favourite field exactly once.",
+        );
+      }
+      const statement = database.prepare(
+        "UPDATE candidature_field_preferences SET favourite_order = ? WHERE field_id = ?",
+      );
+      input.fieldIds.forEach((fieldId, index) => statement.run(index, fieldId));
       return listCandidatureFieldsInDatabase(database);
     }),
   );
