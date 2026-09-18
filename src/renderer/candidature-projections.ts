@@ -119,6 +119,7 @@ export function candidatureRecognitionCues(
 ): CandidatureRecognitionCue[] {
   if (limit <= 0) return [];
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
+  const fieldOrder = new Map(fields.map((field, index) => [field.definition.id, index]));
   const displayable = record.values.flatMap((retained) => {
     const field = fieldById.get(retained.fieldId);
     if (!field?.definition.enabled) return [];
