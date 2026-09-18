@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
-  CandidatureFieldUpdate,
   CandidatureRecord,
   CandidatureRuntimeValue,
   CandidatureSource,
@@ -192,10 +191,6 @@ export function CandidaturesWorkspace({
     catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not change archive state."); }
   };
   const replaceField = (updated: CandidatureFieldConfiguration) => setFields((current) => current.map((field) => field.definition.id === updated.definition.id ? updated : field));
-  const updateFieldDefinition = async (update: CandidatureFieldUpdate) => {
-    try { replaceField(await window.aaaat.candidatures.updateField(update)); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not update this information."); throw reason; }
-  };
   const updateFieldPreference = async (field: CandidatureFieldConfiguration, patch: Partial<CandidatureFieldConfiguration["preferences"]>) => {
     const optimistic = { ...field, preferences: { ...field.preferences, ...patch } };
     replaceField(optimistic);
@@ -411,18 +406,18 @@ export function CandidaturesWorkspace({
                   >
                     {primaryCues.length > 0 ? (
                       <span className="candidature-recognition-cues">
-                        {primaryCues.map((cue, index) => (
+                        {primaryCues.map((cue) => (
                           <span
-                            className="candidature-recognition-cue"
-                            key={`${cue.label}-${index}`}
+                            className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}`}
+                            key={cue.fieldId}
                           >
-                            <span>{cue.label}</span>
-                            <span>{cue.value}</span>
+                            <span className="candidature-cue-value">{cue.value}</span>
+                            <span className="candidature-cue-label">{cue.label}</span>
                           </span>
                         ))}
                       </span>
                     ) : (
-                      <span className="candidature-neutral-reference">Saved application</span>
+                      <span className="candidature-neutral-reference">No displayable information yet</span>
                     )}
                     {distinctSearchCue ? (
                       <span className="candidature-search-match">
@@ -527,7 +522,7 @@ export function CandidaturesWorkspace({
     return (
       <article
         key={field.definition.id}
-        className={`retained-information-card candidature-information-unit candidature-presentation-${field.preferences.presentationSize}`}
+        className="retained-information-card candidature-information-unit"
         aria-label={`${field.definition.label} information`}
       >
         <div className="candidature-information-unit-heading">
@@ -567,9 +562,9 @@ export function CandidaturesWorkspace({
                   ↓
                 </button>
                 <label className="candidature-prominence-control">
-                  Size
+                  Card size
                   <select
-                    aria-label={`${field.definition.label} size`}
+                    aria-label={`${field.definition.label} card size`}
                     value={field.preferences.presentationSize}
                     onChange={(event) =>
                       void updateFieldPreference(field, {
@@ -593,9 +588,9 @@ export function CandidaturesWorkspace({
           onSave={(value) => setValue(field.definition.id, value)}
           onClear={() => clearValue(field.definition.id)}
           onDiscover={() => setDiscoveryFieldId(field.definition.id)}
-          onUpdateField={updateFieldDefinition}
           onUpdatePreferences={(patch) => updateFieldPreference(field, patch)}
           onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
+          showFieldControls={false}
         />
         <CandidatureFieldAiState
           candidatureId={selected.id}

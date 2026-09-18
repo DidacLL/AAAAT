@@ -6,7 +6,7 @@ import {
   coverLetterDraftSchema,
   opportunityReviewResultSchema,
   providerCvTailoringResultSchema,
-  providerJobExtractionResultSchema,
+  providerJobExtractionEnvelopeSchema,
   type AiConnectionStatus,
   type CoverLetterDraft,
   type OpportunityReviewResult,
@@ -51,15 +51,11 @@ export class AiProviderError extends Error {
 
 const jobExtractionInstruction = [
   "Extract only facts supported by the supplied Source.",
-  'Return only the final JSON object as {"proposals":[{"fieldRef":"...","value":...}],"newFields":[...],"existingTags":[{"tagRef":"...","evidence":"optional source evidence"}],"newTags":[{"name":"...","definition":"...","aliases":["..."],"evidence":"optional source evidence"}]}.',
-  "Do not expose chain-of-thought or reasoning.",
-  "For proposals, use only fieldRef values present in fields, obey each field type and cardinality, use only supplied choiceRef values for existing choice fields, and omit unsupported values.",
-  "Reuse supplied fields first.",
-  "newFields is optional discovery only for useful facts that genuinely cannot fit any supplied field: suggest at most 8 concise reusable candidature information kinds and never duplicate an existing field by meaning or name.",
-  "For Tags, match the supplied glossary by canonical name, aliases and definition and use existingTags with only supplied tagRef values.",
-  "Propose a new Tag only when no existing Tag fits; every new Tag must have a concise canonical name and a non-empty reusable definition, with optional aliases and evidence.",
-  "Do not persist anything; all proposals are reviewed by the user.",
-  "Use empty arrays when there are no supported proposals.",
+  'Return one JSON object with arrays proposals, newFields, existingTags and newTags. A proposal is {"fieldRef":"...","value":...}.',
+  "Use supplied fieldRef and tagRef values when available. Prefer existing fields and Tags; omit unsupported facts.",
+  "For existing choice fields, prefer the supplied choiceRef; AAAAT validates types, dates, choices and cardinality locally.",
+  "Use newFields only for useful facts that do not fit an existing field, at most 8. New Tags need a concise name and non-empty reusable definition.",
+  "Do not include reasoning or persist anything. Use empty arrays when nothing is supported.",
 ].join(" ");
 
 export const AI_DEFAULT_INSTRUCTIONS: Readonly<Record<AiOperation, string>> = Object.freeze({
@@ -84,7 +80,7 @@ export interface ModelProvider {
     request: ProviderJobExtractionRequest,
     signal?: AbortSignal,
     operation?: "job_extraction" | "historical_field_discovery",
-  ): Promise<z.input<typeof providerJobExtractionResultSchema>>;
+  ): Promise<z.input<typeof providerJobExtractionEnvelopeSchema>>;
   tailorCv(
     connection: AiConnectionStatus,
     context: ProviderDocumentAiContext,
@@ -144,7 +140,7 @@ interface ProviderContent {
   readonly content: string;
   readonly structuredOutputMode: AiStructuredOutputMode;
 }
-type RequestProfile = "structured_no_thinking" | "structured" | "plain_json";
+type RequestProfile = "structured" | "plain_json";
 
 function requestBody<T>(
   connection: AiConnectionStatus,
@@ -158,9 +154,6 @@ function requestBody<T>(
   return {
     model: connection.model,
     temperature: 0,
-    ...(profile === "structured_no_thinking"
-      ? { reasoning_effort: "none", chat_template_kwargs: { enable_thinking: false } }
-      : {}),
     ...(structured
       ? {
           response_format: {
@@ -246,12 +239,8 @@ async function requestContent<T>(
     return { response, raw };
   };
 
-  let profile: RequestProfile = "structured_no_thinking";
+  let profile: RequestProfile = "structured";
   let current = await attempt(profile);
-  if (!current.response.ok && mayRejectRequestOption(current.response.status)) {
-    profile = "structured";
-    current = await attempt(profile);
-  }
   if (!current.response.ok && mayRejectRequestOption(current.response.status)) {
     profile = "plain_json";
     current = await attempt(profile);
@@ -355,7 +344,7 @@ export function createOpenAiCompatibleProvider(
       return runStructuredOperation(fetchImpl, connection, "opportunity_review", instructionFor("opportunity_review"), context, opportunityReviewResultSchema, timeout);
     },
     async extractJob(connection, request, signal, operation = "job_extraction") {
-      return runStructuredOperation(fetchImpl, connection, operation, instructionFor(operation), request, providerJobExtractionResultSchema, timeout, signal);
+      return runStructuredOperation(fetchImpl, connection, operation, instructionFor(operation), request, providerJobExtractionEnvelopeSchema, timeout, signal);
     },
     async tailorCv(connection, context) {
       return runStructuredOperation(fetchImpl, connection, "cv_tailoring", instructionFor("cv_tailoring"), context, providerCvTailoringResultSchema, timeout);

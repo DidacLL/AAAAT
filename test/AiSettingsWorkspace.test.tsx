@@ -37,6 +37,19 @@ const validateOperation = vi.fn();
 const setOperationDefault = vi.fn();
 const exportPortable = vi.fn();
 const importPortable = vi.fn();
+const listPrompts = vi.fn();
+const savePrompt = vi.fn();
+const resetPrompt = vi.fn();
+
+const promptDisclosure = {
+  operation: "job_extraction" as const,
+  label: "Job extraction",
+  defaultInstruction: "Extract supported facts.",
+  userGuidance: "",
+  effectiveInstruction: "Extract supported facts.",
+  contextSummary: "The supplied Source and eligible fields.",
+  responseExpectation: "A small JSON extraction envelope.",
+};
 
 function installApi() {
   Object.defineProperty(window, "aaaat", {
@@ -51,6 +64,11 @@ function installApi() {
         setOperationDefault,
         exportPortable,
         importPortable,
+      },
+      aiPrompts: {
+        list: listPrompts,
+        save: savePrompt,
+        reset: resetPrompt,
       },
     },
   });
@@ -91,6 +109,9 @@ describe("AI settings workspace", () => {
     list.mockResolvedValue([]);
     exportPortable.mockResolvedValue("cancelled");
     importPortable.mockResolvedValue({ status: "cancelled", connections: [] });
+    listPrompts.mockResolvedValue([promptDisclosure]);
+    savePrompt.mockResolvedValue([{ ...promptDisclosure, userGuidance: "Prefer concise facts.", effectiveInstruction: "Extract supported facts. Prefer concise facts." }]);
+    resetPrompt.mockResolvedValue([promptDisclosure]);
     installApi();
   });
 
@@ -98,6 +119,24 @@ describe("AI settings workspace", () => {
     cleanup();
     clearAllAiTasks();
     vi.restoreAllMocks();
+  });
+
+  it("keeps AI guidance visible and editable in the main AI Settings surface", async () => {
+    const user = userEvent.setup();
+    render(<AiSettingsWorkspace />);
+
+    const guidance = await screen.findByRole("region", { name: "AI guidance and prompts" });
+    expect(guidance).toBeVisible();
+    expect(screen.queryByText("Advanced: AI instructions and context")).not.toBeInTheDocument();
+    expect(screen.getByText("Job extraction")).toBeVisible();
+    const input = screen.getByRole("textbox", { name: "Your guidance" });
+    await user.type(input, "Prefer concise facts.");
+    await user.click(screen.getByRole("button", { name: "Save guidance" }));
+
+    expect(savePrompt).toHaveBeenCalledWith({
+      operation: "job_extraction",
+      guidance: "Prefer concise facts.",
+    });
   });
 
   it("adds several connections, switches the general default, and does not invent credentials", async () => {

@@ -112,20 +112,66 @@
   font-size: 0.7rem;
 }
 
-.candidature-recognition-cue,
+.candidature-recognition-cues {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.38rem;
+}
+
+.candidature-recognition-cue {
+  display: grid;
+  min-width: 0;
+  gap: 0.08rem;
+  padding: 0.38rem 0.42rem;
+  border: 1px solid var(--line-soft);
+  background: rgb(255 253 247 / 55%);
+}
+
+.candidature-cue-size-compact {
+  padding-block: 0.28rem;
+}
+
+.candidature-cue-size-wide {
+  grid-column: 1 / -1;
+}
+
+.candidature-cue-value {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  font-size: 0.94rem;
+  font-weight: 760;
+  line-height: 1.18;
+}
+
+.candidature-cue-size-compact .candidature-cue-value {
+  font-size: 0.82rem;
+  font-weight: 690;
+}
+
+.candidature-cue-size-wide .candidature-cue-value {
+  font-size: 1.04rem;
+}
+
+.candidature-cue-label {
+  color: var(--muted-ink);
+  overflow-wrap: anywhere;
+  font-size: 0.64rem;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
 .candidature-search-match {
   display: grid;
   grid-template-columns: minmax(70px, max-content) minmax(0, 1fr);
   gap: 0.35rem;
 }
 
-.candidature-recognition-cue span,
 .candidature-search-match span,
 .selected-tag-definition {
   overflow-wrap: anywhere;
 }
 
-.candidature-recognition-cue > span:first-child,
 .candidature-search-match > span:first-child {
   color: var(--muted-ink);
   font-size: 0.69rem;
@@ -134,7 +180,6 @@
   text-transform: uppercase;
 }
 
-.candidature-recognition-cue > span:last-child,
 .candidature-search-match > span:last-child {
   color: var(--ink);
   font-size: 0.82rem;
@@ -221,14 +266,6 @@
 .candidature-information-unit {
   min-width: 0;
   align-self: start;
-}
-
-.candidature-presentation-compact {
-  padding: 0.55rem;
-}
-
-.candidature-presentation-wide {
-  grid-column: 1 / -1;
 }
 
 .candidature-information-unit-heading {
@@ -334,9 +371,6 @@
     align-items: stretch;
   }
 
-  .candidature-presentation-wide {
-    grid-column: auto;
-  }
 }
 
 @media (max-height: 640px) {

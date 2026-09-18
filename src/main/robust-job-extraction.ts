@@ -104,56 +104,7 @@ function discoveryWireRequest(
   };
 }
 
-function scalarJsonSchema(
-  field: ProviderJobExtractionRequest["fields"][number],
-): Record<string, unknown> {
-  switch (field.valueType) {
-    case "text": return { type: "string", maxLength: 5000 };
-    case "long_text": return { type: "string", maxLength: 50000 };
-    case "number": return { type: "number" };
-    case "boolean": return { type: "boolean" };
-    case "date": return { type: "string" };
-    case "url": return { type: "string", maxLength: 2048 };
-    case "choice": return { type: "string", enum: field.choices.map((choice) => choice.choiceRef) };
-  }
-}
-
-function proposalJsonSchema(
-  field: ProviderJobExtractionRequest["fields"][number],
-): Record<string, unknown> {
-  const scalar = scalarJsonSchema(field);
-  return {
-    type: "object",
-    additionalProperties: false,
-    required: ["fieldRef", "value"],
-    properties: {
-      fieldRef: { const: field.fieldRef },
-      value: field.cardinality === "many" ? { type: "array", maxItems: 64, items: scalar } : scalar,
-    },
-  };
-}
-
-function strengthenStructuredSchema(
-  body: Record<string, unknown>,
-  request: ProviderJobExtractionRequest,
-): void {
-  if (request.fields.length === 0) return;
-  const responseFormat = body.response_format;
-  if (!responseFormat || typeof responseFormat !== "object") return;
-  const jsonSchema = (responseFormat as { json_schema?: unknown }).json_schema;
-  if (!jsonSchema || typeof jsonSchema !== "object") return;
-  const schema = (jsonSchema as { schema?: unknown }).schema;
-  if (!schema || typeof schema !== "object") return;
-  const properties = (schema as { properties?: unknown }).properties;
-  if (!properties || typeof properties !== "object") return;
-  const proposals = (properties as { proposals?: unknown }).proposals;
-  if (!proposals || typeof proposals !== "object") return;
-  const alternatives = request.fields.map(proposalJsonSchema);
-  (proposals as { items?: unknown }).items = alternatives.length === 1 ? alternatives[0] : { anyOf: alternatives };
-}
-
 function capturingFetch(
-  request: ProviderJobExtractionRequest,
   signal: AbortSignal | undefined,
 ): { readonly fetchImpl: typeof fetch; readonly snapshot: () => CapturedExchange } {
   let requestBody = "";
@@ -162,19 +113,8 @@ function capturingFetch(
     if (signal?.aborted) {
       throw signal.reason instanceof Error ? signal.reason : new DOMException("Aborted", "AbortError");
     }
-    let nextInit = init;
-    if (typeof init?.body === "string") {
-      requestBody = init.body;
-      try {
-        const parsed = JSON.parse(init.body) as Record<string, unknown>;
-        strengthenStructuredSchema(parsed, request);
-        requestBody = JSON.stringify(parsed);
-        nextInit = { ...init, body: requestBody };
-      } catch {
-        nextInit = init;
-      }
-    }
-    const response = await fetch(input, nextInit);
+    if (typeof init?.body === "string") requestBody = init.body;
+    const response = await fetch(input, init);
     try { responseBody = await response.clone().text(); } catch { responseBody = ""; }
     return response;
   };
@@ -251,8 +191,34 @@ function looseEnvelope(value: unknown): LooseEnvelope | null {
   };
 }
 
+function recoverableJsonText(raw: string): string {
+  let text = raw.trim();
+  if (text.startsWith("```")) {
+    const firstLineEnd = text.indexOf("\n");
+    const lastFence = text.lastIndexOf("```");
+    if (firstLineEnd >= 0 && lastFence > firstLineEnd) {
+      text = text.slice(firstLineEnd + 1, lastFence).trim();
+    }
+  }
+  const firstObject = text.indexOf("{");
+  const lastObject = text.lastIndexOf("}");
+  if (firstObject >= 0 && lastObject > firstObject) return text.slice(firstObject, lastObject + 1);
+  const firstArray = text.indexOf("[");
+  const lastArray = text.lastIndexOf("]");
+  if (firstArray >= 0 && lastArray > firstArray) return text.slice(firstArray, lastArray + 1);
+  return text;
+}
+
 function parseRecoverableModelResult(raw: string): LooseEnvelope | null {
-  try { return looseEnvelope(JSON.parse(raw) as unknown); } catch { return null; }
+  try {
+    const parsed = JSON.parse(recoverableJsonText(raw)) as unknown;
+    if (Array.isArray(parsed)) {
+      return { proposals: parsed.slice(0, 64), newFields: [], existingTags: [], newTags: [] };
+    }
+    return looseEnvelope(parsed);
+  } catch {
+    return null;
+  }
 }
 
 function proposedValue(raw: unknown): unknown {
@@ -288,7 +254,14 @@ function localChoiceValue(
 ): { readonly value?: unknown; readonly reason?: string } {
   if (field.definition.valueType !== "choice") return { value: raw };
   const choices = choiceIds.get(fieldRef);
-  const resolve = (candidate: unknown): string | null => typeof candidate === "string" && choices?.has(candidate) ? (choices.get(candidate) ?? null) : null;
+  const resolve = (candidate: unknown): string | null => {
+    if (typeof candidate !== "string") return null;
+    if (choices?.has(candidate)) return choices.get(candidate) ?? null;
+    const byLabel = field.definition.choices.find(
+      (choice) => choice.label.trim().toLocaleLowerCase() === candidate.trim().toLocaleLowerCase(),
+    );
+    return byLabel?.id ?? null;
+  };
   if (Array.isArray(raw)) {
     const resolved = raw.map(resolve);
     if (resolved.some((value) => value === null)) return { reason: `${field.definition.label} used a choice that was not offered to the model.` };
@@ -296,6 +269,16 @@ function localChoiceValue(
   }
   const resolved = resolve(raw);
   return resolved === null ? { reason: `${field.definition.label} used a choice that was not offered to the model.` } : { value: resolved };
+}
+
+function fieldReference(wire: DiscoveryWireRequest, raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  if (wire.fieldIds.has(raw)) return raw;
+  const normalized = raw.trim().toLocaleLowerCase();
+  for (const [fieldRef, label] of wire.fieldLabels) {
+    if (label.trim().toLocaleLowerCase() === normalized) return fieldRef;
+  }
+  return null;
 }
 
 function validateExistingProposals(
@@ -315,8 +298,8 @@ function validateExistingProposals(
       continue;
     }
     const candidate = rawProposal as { fieldRef?: unknown; value?: unknown };
-    const fieldRef = typeof candidate.fieldRef === "string" ? candidate.fieldRef : "";
-    if (!fieldRef || !wire.fieldIds.has(fieldRef)) {
+    const fieldRef = fieldReference(wire, candidate.fieldRef);
+    if (!fieldRef) {
       issues.push(issue("stale", null, null, proposedValue(rawProposal), "AI referred to information that was not part of this request."));
       continue;
     }
@@ -356,9 +339,8 @@ function validateExistingProposals(
 }
 
 function validDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  return value.length === 10 && !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function validNewScalar(field: JobExtractionNewField, value: unknown): boolean {
@@ -541,7 +523,7 @@ export async function extractJobWithPartialOutcomes(
     throw new Error("Allow AI use for at least one application information item first.");
   }
   const wire = discoveryWireRequest(request, fields, tags);
-  const capture = capturingFetch(wire.request, signal);
+  const capture = capturingFetch(signal);
   const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);
 
   let rawResult: unknown;
@@ -550,7 +532,11 @@ export async function extractJobWithPartialOutcomes(
   try {
     rawResult = await provider.extractJob(connection, wire.request, signal);
   } catch (reason) {
-    if (!(reason instanceof AiProviderError) || reason.diagnostic?.failureKind !== "operation_contract_invalid") throw reason;
+    if (
+      !(reason instanceof AiProviderError) ||
+      !reason.diagnostic ||
+      !["operation_contract_invalid", "model_response_invalid_json"].includes(reason.diagnostic.failureKind)
+    ) throw reason;
     fallbackRawModelResponse = reason.diagnostic.rawModelResponse;
     providerValidationError = reason.diagnostic.validationError;
     const recoverable = parseRecoverableModelResult(reason.diagnostic.rawModelResponse);

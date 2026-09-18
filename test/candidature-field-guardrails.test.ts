@@ -61,14 +61,14 @@ describe("live candidature field guardrails", () => {
       const shipped = listCandidatureFields(root).filter((field) => field.definition.systemKey !== null);
       expect(shipped.length).toBeGreaterThan(0);
       expect(shipped.every((field) =>
-        field.preferences.favourite === false &&
+        field.preferences.favourite === true &&
         field.preferences.favouriteOrder === null &&
         field.preferences.presentationSize === "normal"
       )).toBe(true);
 
       const field = textField(root, "Private note");
       expect(field.preferences).toMatchObject({
-        favourite: false,
+        favourite: true,
         favouriteOrder: null,
         presentationSize: "normal",
       });

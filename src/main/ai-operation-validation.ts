@@ -4,7 +4,7 @@ import {
   providerCvTailoringResultSchema,
   providerDocumentAiContextSchema,
   providerJobExtractionRequestSchema,
-  providerJobExtractionResultSchema,
+  providerJobExtractionEnvelopeSchema,
   providerOpportunityReviewContextSchema,
   type AiConnectionStatus,
 } from "../shared/ai-contracts";
@@ -36,9 +36,13 @@ async function validateExtraction(
     ],
     tags: [],
   });
-  const result = providerJobExtractionResultSchema.parse(await provider.extractJob(connection, request));
-  if (result.proposals.some((proposal) => proposal.fieldRef !== fieldRef)) {
-    throw new Error("The configured provider returned an out-of-scope validation field reference.");
+  const result = providerJobExtractionEnvelopeSchema.parse(await provider.extractJob(connection, request));
+  for (const proposal of result.proposals) {
+    if (!proposal || typeof proposal !== "object") continue;
+    const candidate = proposal as { fieldRef?: unknown };
+    if (typeof candidate.fieldRef === "string" && candidate.fieldRef !== fieldRef) {
+      throw new Error("The configured provider returned an out-of-scope validation field reference.");
+    }
   }
 }
 

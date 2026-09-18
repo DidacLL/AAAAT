@@ -449,17 +449,26 @@ export function WorkingCvEditor({
                       {editing ? (
                         <div className="document-item-editor" aria-label={`Edit ${item.content.title}`}>
                           {item.profileItemId ? (
-                            <div className="working-source-row">
-                              <label>
-                                Wording source
-                                <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : item.sourceMode === "current" ? "current" : "override"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
-                                  <option value="current">My information — current</option>
-                                  {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>Saved variation — {variant.name}</option>)}
-                                  <option value="override" disabled>This CV only</option>
-                                </select>
-                              </label>
-                              <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
-                            </div>
+                            item.sourceMode === "override" ? (
+                              <div className="working-source-row working-source-override">
+                                <span className="working-cv-source-chip">This CV only</span>
+                                <div className="button-row">
+                                  <button type="button" className="compact-secondary" onClick={() => chooseSource(section.id, item, "current")}>Reset from My information</button>
+                                  <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="working-source-row">
+                                <label>
+                                  Wording source
+                                  <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
+                                    <option value="current">My information — current</option>
+                                    {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>Saved variation — {variant.name}</option>)}
+                                  </select>
+                                </label>
+                                <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
+                              </div>
+                            )
                           ) : <span className="working-cv-source-chip">This CV only</span>}
 
                           <div className="working-cv-edit-fields">

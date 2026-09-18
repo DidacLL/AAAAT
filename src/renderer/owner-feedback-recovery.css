@@ -275,8 +275,10 @@
 }
 
 .candidature-information-unit-heading {
-  display: grid;
-  gap: 0.12rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem;
   padding-bottom: 0.35rem;
   border-bottom: 1px solid var(--line-soft);
 }

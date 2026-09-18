@@ -18,7 +18,7 @@ import {
   providerCvTailoringResultSchema,
   providerDocumentAiContextSchema,
   providerJobExtractionRequestSchema,
-  providerJobExtractionResultSchema,
+  providerJobExtractionEnvelopeSchema,
   providerOpportunityReviewCandidatureSchema,
   providerOpportunityReviewContextSchema,
   type AiConnectionInput,
@@ -168,8 +168,13 @@ export async function extractJob(rootPath: string, rawRequest: JobExtractionRequ
 function normalizeChoiceValue(field: ReturnType<typeof listCandidatureFields>[number], value: CandidatureRuntimeValue, choiceRefs: ReadonlyMap<string, string>): CandidatureRuntimeValue {
   if (field.definition.valueType !== "choice") return value;
   const resolve = (candidate: string | number | boolean): string | number | boolean => {
-    if (typeof candidate !== "string" || !choiceRefs.has(candidate)) throw new AiServiceError("The model proposed a choice outside the requested field.");
-    return choiceRefs.get(candidate) ?? candidate;
+    if (typeof candidate !== "string") throw new AiServiceError("The model proposed a choice outside the requested field.");
+    if (choiceRefs.has(candidate)) return choiceRefs.get(candidate) ?? candidate;
+    const byLabel = field.definition.choices.find(
+      (choice) => choice.label.trim().toLocaleLowerCase() === candidate.trim().toLocaleLowerCase(),
+    );
+    if (!byLabel) throw new AiServiceError("The model proposed a choice outside the requested field.");
+    return byLabel.id;
   };
   return Array.isArray(value) ? value.map(resolve) : resolve(value);
 }
@@ -206,13 +211,28 @@ export async function discoverCandidatureFieldFromSources(
     fields: [{ fieldRef, label: field.definition.label, description: field.definition.description, valueType: field.definition.valueType, cardinality: field.definition.cardinality, choices }],
     tags: [],
   });
-  const result = providerJobExtractionResultSchema.parse(await provider.extractJob(statusFor(stored), wire, undefined, "historical_field_discovery"));
-  const proposed = result.proposals.find((candidate) => candidate.fieldRef === fieldRef);
+  const result = providerJobExtractionEnvelopeSchema.parse(await provider.extractJob(statusFor(stored), wire, undefined, "historical_field_discovery"));
+  const proposed = result.proposals.find((candidate) =>
+    Boolean(
+      candidate &&
+      typeof candidate === "object" &&
+      "fieldRef" in candidate &&
+      ((candidate as { fieldRef?: unknown }).fieldRef === fieldRef ||
+        String((candidate as { fieldRef?: unknown }).fieldRef ?? "").trim().toLocaleLowerCase() === field.definition.label.trim().toLocaleLowerCase()),
+    ),
+  );
   let proposal: { fieldId: string; value: CandidatureRuntimeValue } | null = null;
-  if (proposed) {
-    const value = normalizeChoiceValue(field, proposed.value, choiceRefs);
-    const normalized = withWorkspaceDatabase(rootPath, (database) => validateCandidatureFieldValueInDatabase(database, field.definition.id, value));
-    if (normalized !== null) proposal = { fieldId: field.definition.id, value: normalized };
+  if (proposed && typeof proposed === "object" && "value" in proposed) {
+    const runtime = candidatureRuntimeValueSchema.safeParse((proposed as { value?: unknown }).value);
+    if (runtime.success) {
+      try {
+        const value = normalizeChoiceValue(field, runtime.data, choiceRefs);
+        const normalized = withWorkspaceDatabase(rootPath, (database) => validateCandidatureFieldValueInDatabase(database, field.definition.id, value));
+        if (normalized !== null) proposal = { fieldId: field.definition.id, value: normalized };
+      } catch {
+        proposal = null;
+      }
+    }
   }
   return historicalFieldDiscoveryResultSchema.parse({ proposal, existingValuePresent: candidature.values.some((value) => value.fieldId === request.fieldId) });
 }

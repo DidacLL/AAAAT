@@ -246,8 +246,8 @@ export function createCandidatureField(
           now,
         );
       database
-        .prepare("INSERT INTO candidature_field_preferences(field_id) VALUES (?)")
-        .run(id);
+        .prepare("INSERT INTO candidature_field_preferences(field_id, favourite) VALUES (?, ?)")
+        .run(id, input.enabled ? 1 : 0);
       return configuration(database, id);
     }),
   );
@@ -375,9 +375,8 @@ function requireCandidature(database: DatabaseSync, candidatureId: string): void
 }
 
 function validDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  return value.length === 10 && !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function validateScalar(

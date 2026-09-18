@@ -160,8 +160,11 @@ describe("Applications information surface", () => {
 
     const corpus = await screen.findByLabelText("Application corpus");
     const entry = within(corpus).getByRole("button", { name: "Open saved application" });
-    expect(entry).toHaveTextContent("Location");
-    expect(entry).toHaveTextContent("Madrid");
+    const locationCue = within(entry).getByText("Madrid").closest(".candidature-recognition-cue");
+    expect(locationCue).not.toBeNull();
+    expect(locationCue?.firstElementChild).toHaveTextContent("Madrid");
+    expect(locationCue?.lastElementChild).toHaveTextContent("Location");
+    expect(locationCue).toHaveClass("candidature-cue-size-compact");
     expect(entry).not.toHaveTextContent("Pilot");
     expect(entry).not.toHaveTextContent("A long retained Source");
 
@@ -201,7 +204,7 @@ describe("Applications information surface", () => {
     });
 
     await user.selectOptions(
-      within(primaryRole).getByRole("combobox", { name: "Role size" }),
+      within(primaryRole).getByRole("combobox", { name: "Role card size" }),
       "wide",
     );
     await waitFor(() =>
@@ -211,6 +214,11 @@ describe("Applications information surface", () => {
     );
     expect(
       within(primary).getByRole("article", { name: "Role information" }),
-    ).toHaveClass("candidature-presentation-wide");
+    ).not.toHaveClass("candidature-presentation-wide");
+
+    await user.click(screen.getByRole("button", { name: "← Applications" }));
+    const refreshedCorpus = await screen.findByLabelText("Application corpus");
+    const roleCue = within(refreshedCorpus).getByText("Pilot").closest(".candidature-recognition-cue");
+    expect(roleCue).toHaveClass("candidature-cue-size-wide");
   });
 });

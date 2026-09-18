@@ -210,7 +210,7 @@ describe("Working CV editor", () => {
 
     expect(within(alex).getByRole("combobox", { name: "Wording source" })).toHaveDisplayValue("My information — current");
     expect(within(alex).getByRole("option", { name: "Saved variation — Leadership" })).toBeInTheDocument();
-    expect(within(alex).getByRole("option", { name: "This CV only" })).toBeInTheDocument();
+    expect(within(alex).queryByRole("option", { name: "This CV only" })).not.toBeInTheDocument();
     expect(within(alex).getByRole("textbox", { name: "Title" })).toHaveValue("Alex Morgan");
     expect(within(selectedWork).queryByRole("textbox")).not.toBeInTheDocument();
 
@@ -222,7 +222,9 @@ describe("Working CV editor", () => {
     expect(within(alex).getByRole("button", { name: "Save to template" })).toBeInTheDocument();
     expect(within(alex).getByRole("button", { name: "Save as profile variant" })).toBeInTheDocument();
     expect(within(alex).getByRole("button", { name: "Update My information" })).toBeInTheDocument();
-    expect(within(alex).getByRole("combobox", { name: "Wording source" })).toHaveDisplayValue("This CV only");
+    expect(within(alex).queryByRole("combobox", { name: "Wording source" })).not.toBeInTheDocument();
+    expect(within(alex).getByText("This CV only")).toBeInTheDocument();
+    expect(within(alex).getByRole("button", { name: "Reset from My information" })).toBeInTheDocument();
   });
 
   it("keeps reorder, add, save and render behavior wired behind the simpler presentation", async () => {

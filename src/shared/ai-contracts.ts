@@ -266,6 +266,16 @@ export const providerJobExtractionRequestSchema = jobExtractionRequestSchema
   })
   .strict();
 export type ProviderJobExtractionRequest = z.infer<typeof providerJobExtractionRequestSchema>;
+export const providerJobExtractionEnvelopeSchema = z
+  .object({
+    proposals: z.array(z.unknown()).max(64).default([]),
+    newFields: z.array(z.unknown()).max(8).default([]),
+    existingTags: z.array(z.unknown()).max(100).default([]),
+    newTags: z.array(z.unknown()).max(30).default([]),
+  })
+  .strict();
+export type ProviderJobExtractionEnvelope = z.infer<typeof providerJobExtractionEnvelopeSchema>;
+
 export const providerJobExtractionResultSchema = z
   .object({
     proposals: z.array(z.object({ fieldRef: operationReferenceSchema, value: candidatureRuntimeValueSchema }).strict()).max(64),

@@ -111,7 +111,36 @@ describe("candidature renderer projection", () => {
     };
 
     expect(candidatureRecognitionCues(candidate, [locationField, roleField], 3)).toEqual([
-      { label: "Role", value: "Pilot" },
+      expect.objectContaining({
+        fieldId: roleField.definition.id,
+        label: "Role",
+        value: "Pilot",
+        presentationSize: "normal",
+        favourite: true,
+      }),
+    ]);
+  });
+
+  it("falls back to retained enabled values when a legacy workspace has no favourites", () => {
+    const candidateId = "00000000-0000-4000-8000-000000000419";
+    const candidate = {
+      ...record(candidateId),
+      values: [{
+        candidatureId: candidateId,
+        fieldId: locationField.definition.id,
+        value: "Madrid",
+        createdAt: "2026-09-04T00:00:00.000Z",
+        updatedAt: "2026-09-04T00:00:00.000Z",
+      }],
+    };
+
+    expect(candidatureRecognitionCues(candidate, [locationField], 3)).toEqual([
+      expect.objectContaining({
+        fieldId: locationField.definition.id,
+        label: "Location",
+        value: "Madrid",
+        favourite: false,
+      }),
     ]);
   });
 
@@ -154,9 +183,9 @@ describe("candidature renderer projection", () => {
       preferences: { ...roleField.preferences, favouriteOrder: 1 },
     };
 
-    expect(candidatureRecognitionCues(candidate, [visibleLocation, reorderedRole], 3)).toEqual([
-      { label: "Location", value: "Madrid" },
-      { label: "Role", value: "Pilot" },
+    expect(candidatureRecognitionCues(candidate, [visibleLocation, reorderedRole], 3).map((cue) => cue.label)).toEqual([
+      "Location",
+      "Role",
     ]);
     expect(
       candidatureRecognitionCues(candidate, [
@@ -164,8 +193,8 @@ describe("candidature renderer projection", () => {
         { ...reorderedRole, preferences: { ...reorderedRole.preferences, favouriteOrder: 0 } },
       ], 3),
     ).toEqual([
-      { label: "Role", value: "Pilot" },
-      { label: "Location", value: "Madrid" },
+      expect.objectContaining({ label: "Role", value: "Pilot" }),
+      expect.objectContaining({ label: "Location", value: "Madrid" }),
     ]);
   });
 
@@ -183,11 +212,11 @@ describe("candidature renderer projection", () => {
       ],
     };
 
-    expect(candidatureSearchMatchCue(candidate, [locationField], [], "Location")).toEqual({
+    expect(candidatureSearchMatchCue(candidate, [locationField], [], "Location")).toMatchObject({
       label: "Location",
       value: "Barcelona hybrid",
     });
-    expect(candidatureSearchMatchCue(candidate, [locationField], [], "hybrid")).toEqual({
+    expect(candidatureSearchMatchCue(candidate, [locationField], [], "hybrid")).toMatchObject({
       label: "Location",
       value: "Barcelona hybrid",
     });
@@ -216,7 +245,7 @@ describe("candidature renderer projection", () => {
       sourceSearchText: "Platform role",
     };
 
-    expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "incident")).toEqual({
+    expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "incident")).toMatchObject({
       label: "Tag match",
       value: "Reliability engineering",
     });
