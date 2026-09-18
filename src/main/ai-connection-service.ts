@@ -288,8 +288,7 @@ export function getAiConnectionForOperation(
   const operationDefaultId = configuration.operationDefaults[operation];
   if (operationDefaultId) return statusFor(connectionById(configuration, operationDefaultId));
   if (configuration.defaultConnectionId === null) return null;
-  const fallback = connectionById(configuration, configuration.defaultConnectionId);
-  return fallback.validatedOperations.includes(operation) ? statusFor(fallback) : null;
+  return statusFor(connectionById(configuration, configuration.defaultConnectionId));
 }
 
 export function requireAiConnectionForOperation(
@@ -306,7 +305,7 @@ export function requireAiConnectionForOperation(
   const connection = getAiConnectionForOperation(rootPath, operation);
   if (!connection) {
     throw new AiConnectionServiceError(
-      `Validate and choose a connection for ${aiOperationLabels[operation]} before using this AI operation.`,
+      `Choose a default AI connection before using ${aiOperationLabels[operation]}.`,
     );
   }
   return connection;
