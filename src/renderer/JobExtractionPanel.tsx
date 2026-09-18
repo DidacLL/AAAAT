@@ -23,19 +23,11 @@ interface JobExtractionPanelProps {
 }
 
 function extractionConnection(connections: NamedAiConnection[]) {
-  const operationDefault = connections.find(
-    (connection) =>
-      connection.defaultForOperations.includes("job_extraction") &&
-      connection.validatedOperations.includes("job_extraction"),
+  const operationDefault = connections.find((connection) =>
+    connection.defaultForOperations.includes("job_extraction"),
   );
   if (operationDefault) return operationDefault;
-
-  return (
-    connections.find(
-      (connection) =>
-        connection.isDefault && connection.validatedOperations.includes("job_extraction"),
-    ) ?? null
-  );
+  return connections.find((connection) => connection.isDefault) ?? null;
 }
 
 function isLocalConnection(endpoint: string): boolean {
