@@ -55,14 +55,14 @@ export function ProfileItemAiDisclosureControl({ itemId, onDirtyChange }: Props)
     <span className="profile-item-ai-disclosure">
       <button
         type="button"
-        className="ai-use-eye"
+        className="compact-secondary ai-use-control"
         aria-label="AI may use this information"
         aria-pressed={allowed ?? false}
         title={allowed === false ? "AI will not use this information" : "AI may use this information"}
         disabled={allowed === null || saving}
         onClick={() => void toggle()}
       >
-        <span aria-hidden="true">{allowed === false ? "○" : "◉"}</span>
+        AI use: {allowed ? "On" : "Off"}
       </button>
       {error ? <span className="error-message" role="alert">{error}</span> : null}
     </span>
