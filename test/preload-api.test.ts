@@ -52,6 +52,7 @@ describe("desktop preload API", () => {
       if (channel === channels.candidatureFilter) return [candidatureId];
       if (channel === channels.candidatureFieldCreate) return configuration;
       if (channel === channels.candidatureFieldPreferencesUpdate) return configuration;
+      if (channel === channels.candidatureFavouriteOrderUpdate) return [configuration];
       if (channel === channels.candidatureFieldValueSet) {
         return {
           ...record,
@@ -127,6 +128,9 @@ describe("desktop preload API", () => {
       api.candidatures.setFieldValue({ candidatureId, fieldId, value: 1500 }),
     ).resolves.toMatchObject({ id: candidatureId });
     await expect(
+      api.candidatures.reorderFavouriteFields([fieldId]),
+    ).resolves.toEqual([configuration]);
+    await expect(
       api.ai.extractJob({
         sourceTitle: "Pilot vacancy",
         sourceUrl: "",
@@ -150,6 +154,10 @@ describe("desktop preload API", () => {
     });
 
     expect(invoke).toHaveBeenCalledWith(channels.candidatureFieldList);
+    expect(invoke).toHaveBeenCalledWith(
+      channels.candidatureFavouriteOrderUpdate,
+      { fieldIds: [fieldId] },
+    );
     expect(invoke).toHaveBeenCalledWith(channels.candidatureFilter, {
       fieldId,
       operator: "greater_than_or_equal",
