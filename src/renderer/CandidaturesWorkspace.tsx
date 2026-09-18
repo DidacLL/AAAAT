@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
+  CandidatureFieldUpdate,
   CandidatureRecord,
   CandidatureRuntimeValue,
   CandidatureSource,
@@ -200,6 +201,14 @@ export function CandidaturesWorkspace({
   const refreshFields = async () => {
     try { setFields(await window.aaaat.candidatures.listFields()); } catch { setError("AAAAT could not refresh application information."); }
   };
+  const updateFieldDefinition = async (update: CandidatureFieldUpdate) => {
+    try {
+      replaceField(await window.aaaat.candidatures.updateField(update));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not update this information.");
+      throw reason;
+    }
+  };
   const refreshInformation = async () => {
     try {
       const [nextFields, nextRecords, nextTags] = await Promise.all([
@@ -289,15 +298,15 @@ export function CandidaturesWorkspace({
   const enabledFields = fields.filter((field) => field.definition.enabled);
   const favouriteFields = enabledFields
     .filter((field) => field.preferences.favourite)
-    .sort(
-      (left, right) =>
-        (left.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER) -
-          (right.preferences.favouriteOrder ?? Number.MAX_SAFE_INTEGER) ||
-        left.definition.label.localeCompare(right.definition.label),
-    );
-  const remainingFields = enabledFields
-    .filter((field) => !field.preferences.favourite)
-    .sort((left, right) => left.definition.label.localeCompare(right.definition.label));
+    .sort((left, right) => {
+      const leftOrder = left.preferences.favouriteOrder;
+      const rightOrder = right.preferences.favouriteOrder;
+      if (leftOrder !== null && rightOrder !== null) return leftOrder - rightOrder;
+      if (leftOrder !== null) return -1;
+      if (rightOrder !== null) return 1;
+      return enabledFields.indexOf(left) - enabledFields.indexOf(right);
+    });
+  const remainingFields = enabledFields.filter((field) => !field.preferences.favourite);
   const enabledMissingFields = selected
     ? enabledFields.filter(
         (field) =>
@@ -311,16 +320,9 @@ export function CandidaturesWorkspace({
     field: CandidatureFieldConfiguration,
     favourite: boolean,
   ) => {
-    const nextOrder = favourite
-      ? favouriteFields.reduce(
-          (maximum, candidate) =>
-            Math.max(maximum, candidate.preferences.favouriteOrder ?? -1),
-          -1,
-        ) + 1
-      : null;
     await updateFieldPreference(field, {
-      favourite: favourite,
-      favouriteOrder: nextOrder,
+      favourite,
+      favouriteOrder: null,
     });
   };
 
@@ -332,10 +334,18 @@ export function CandidaturesWorkspace({
       (candidate) => candidate.definition.id === field.definition.id,
     );
     const targetIndex = index + direction;
-    const target = favouriteFields[targetIndex];
-    if (index < 0 || !target) return;
-    await updateFieldPreference(field, { favouriteOrder: targetIndex });
-    await updateFieldPreference(target, { favouriteOrder: index });
+    if (index < 0 || targetIndex < 0 || targetIndex >= favouriteFields.length) return;
+    const ordered = favouriteFields.map((candidate) => candidate.definition.id);
+    [ordered[index], ordered[targetIndex]] = [ordered[targetIndex]!, ordered[index]!];
+    try {
+      setFields(await window.aaaat.candidatures.reorderFavouriteFields(ordered));
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "AAAAT could not reorder primary information.",
+      );
+    }
   };
 
   if (mode === "corpus") {
@@ -588,9 +598,10 @@ export function CandidaturesWorkspace({
           onSave={(value) => setValue(field.definition.id, value)}
           onClear={() => clearValue(field.definition.id)}
           onDiscover={() => setDiscoveryFieldId(field.definition.id)}
+          onUpdateField={updateFieldDefinition}
           onUpdatePreferences={(patch) => updateFieldPreference(field, patch)}
           onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
-          showFieldControls={false}
+          showFieldControls
         />
         <CandidatureFieldAiState
           candidatureId={selected.id}
