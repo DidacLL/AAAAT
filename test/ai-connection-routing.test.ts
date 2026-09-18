@@ -46,7 +46,7 @@ afterEach(() => {
 });
 
 describe("AI operation connection routing", () => {
-  it("uses an operation default before the validated general default and never falls back arbitrarily", async () => {
+  it("uses the general default immediately and lets a checked operation route override it", async () => {
     const root = workspace();
     const candidature = createCandidature(root, { values: [] });
     const firstSave = saveNamedAiConnection(root, {
@@ -66,9 +66,7 @@ describe("AI operation connection routing", () => {
     const modelProvider = provider();
     const request = { candidatureId: candidature.id };
 
-    await expect(reviewOpportunity(root, request, modelProvider)).rejects.toThrow(
-      "Validate and choose a connection for Opportunity review",
-    );
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({ summary: "First local" });
 
     await validateAiConnectionOperation(root, { connectionId: first.id, operation: "opportunity_review" }, modelProvider);
     setDefaultAiConnection(root, second.id);
@@ -82,7 +80,7 @@ describe("AI operation connection routing", () => {
 
     removeAiConnection(root, second.id);
     await expect(reviewOpportunity(root, request, modelProvider)).rejects.toThrow(
-      "Validate and choose a connection for Opportunity review",
+      "Choose a default AI connection before using Opportunity review",
     );
   });
 });
