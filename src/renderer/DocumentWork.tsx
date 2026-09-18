@@ -567,22 +567,27 @@ function LetterEditor({ document, onSaved, onDirtyChange }: { readonly document:
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
 
+  const persistDraft = async (): Promise<CoverLetterRecord> => {
+    const saved = await window.aaaat.documentDomain.updateLetter({
+      id: draft.id,
+      title: draft.title,
+      language: draft.language,
+      recipient: draft.recipient,
+      subject: draft.subject,
+      bodyParagraphs,
+      closing: draft.closing,
+    });
+    setDraft(saved);
+    setBody(saved.bodyParagraphs.join("\n\n"));
+    onSaved(saved);
+    return saved;
+  };
+
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
-      const saved = await window.aaaat.documentDomain.updateLetter({
-        id: draft.id,
-        title: draft.title,
-        language: draft.language,
-        recipient: draft.recipient,
-        subject: draft.subject,
-        bodyParagraphs,
-        closing: draft.closing,
-      });
-      setDraft(saved);
-      setBody(saved.bodyParagraphs.join("\n\n"));
-      onSaved(saved);
+      await persistDraft();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save this cover letter.");
     } finally {
@@ -594,7 +599,8 @@ function LetterEditor({ document, onSaved, onDirtyChange }: { readonly document:
     setBusy(true);
     setError(null);
     try {
-      const suggestion = await window.aaaat.ai.draftCoverLetter({ coverLetterId: draft.id });
+      const saved = dirty ? await persistDraft() : draft;
+      const suggestion = await window.aaaat.ai.draftCoverLetter({ coverLetterId: saved.id });
       setDraft((current) => ({
         ...current,
         recipient: suggestion.recipient || undefined,
