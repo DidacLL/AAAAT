@@ -17,7 +17,24 @@ export function CandidaturesAiWorkspace({
     candidatureId: string;
     documents: readonly { id: string; kind: "cv" | "cover_letter" }[];
   } | null>(null);
+  const [dirty, setDirty] = useState(false);
   const { openDocumentFromCandidature } = useContextualHandoffs();
+
+  const reportDirty = (next: boolean) => {
+    setDirty(next);
+    onDirtyChange?.(next);
+  };
+
+  const switchView = (next: "applications" | "new") => {
+    if (next === view) return;
+    if (dirty && !window.confirm("Discard unsaved application edits?")) return;
+    reportDirty(false);
+    if (next === "new") {
+      setPrepared(null);
+      setNotice(null);
+    }
+    setView(next);
+  };
 
   return (
     <div className="candidature-capture-owner">
@@ -28,7 +45,7 @@ export function CandidaturesAiWorkspace({
             type="button"
             className={view === "applications" ? "active" : ""}
             aria-pressed={view === "applications"}
-            onClick={() => setView("applications")}
+            onClick={() => switchView("applications")}
           >
             Applications
           </button>
@@ -37,11 +54,7 @@ export function CandidaturesAiWorkspace({
             aria-label="New application"
             className={view === "new" ? "active new-application-switch" : "new-application-switch"}
             aria-pressed={view === "new"}
-            onClick={() => {
-              setPrepared(null);
-              setNotice(null);
-              setView("new");
-            }}
+            onClick={() => switchView("new")}
           >
             ＋ New
           </button>
@@ -51,13 +64,13 @@ export function CandidaturesAiWorkspace({
         <CandidatureManualEntryPanel
           title="New application"
           onDone={() => {
+            reportDirty(false);
             setView("applications");
-            onDirtyChange?.(false);
           }}
           onChanged={() => setRevision((current) => current + 1)}
           onPrepared={(candidatureId, documents) => setPrepared({ candidatureId, documents })}
           onOptionalStatus={setNotice}
-          onDirtyChange={onDirtyChange}
+          onDirtyChange={reportDirty}
         />
       ) : (
         <>
@@ -85,7 +98,7 @@ export function CandidaturesAiWorkspace({
               </button>
             </div>
           ) : null}
-          <CandidaturesWorkspace key={revision} onDirtyChange={onDirtyChange} />
+          <CandidaturesWorkspace key={revision} onDirtyChange={reportDirty} />
         </>
       )}
     </div>
