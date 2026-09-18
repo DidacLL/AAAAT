@@ -4,13 +4,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  saveNamedAiConnection,
-  validateAiConnectionOperation,
-} from "../src/main/ai-connection-service";
-import type { ModelProvider } from "../src/main/ai-provider";
+import { saveNamedAiConnection } from "../src/main/ai-connection-service";
 import { getSetupEnvironmentSnapshot } from "../src/main/setup-environment-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
@@ -23,45 +19,18 @@ function workspace(): string {
   return root;
 }
 
-function provider(): ModelProvider {
-  return {
-    reviewOpportunity: vi.fn<ModelProvider["reviewOpportunity"]>(async () => ({
-      summary: "Synthetic validation result",
-      relevantEvidence: [],
-      uncertainties: [],
-      questions: [],
-    })),
-    extractJob: vi.fn<ModelProvider["extractJob"]>(async () => ({ proposals: [] })),
-    tailorCv: vi.fn<ModelProvider["tailorCv"]>(async () => ({ recommendations: [] })),
-    draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(async () => ({
-      recipient: "",
-      subject: "Validation",
-      bodyParagraphs: ["Synthetic validation result."],
-      closing: "",
-    })),
-  };
-}
-
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
 describe("setup environment service", () => {
-  it("projects fixed TeX readiness and the existing validated AI routes", async () => {
+  it("projects fixed TeX readiness and configured AI routes without synthetic validation", async () => {
     const root = workspace();
     const saved = saveNamedAiConnection(root, {
       name: "Local fit model",
       endpoint: "http://localhost:11434/v1",
       model: "fit-model",
     });
-    const connection = saved[0];
-    if (!connection) throw new Error("connection fixture missing");
-    await validateAiConnectionOperation(
-      root,
-      { connectionId: connection.id, operation: "opportunity_review" },
-      provider(),
-    );
-
     const probed: string[] = [];
     const snapshot = await getSetupEnvironmentSnapshot(root, async (command) => {
       probed.push(command);
@@ -83,8 +52,8 @@ describe("setup environment service", () => {
     });
     expect(snapshot.ai.operations).toContainEqual({
       operation: "cv_tailoring",
-      available: false,
-      connectionName: null,
+      available: true,
+      connectionName: "Local fit model",
     });
   });
 
