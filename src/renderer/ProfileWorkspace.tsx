@@ -62,6 +62,22 @@ function variantDraft(variant?: ProfileVariantRecord) {
   };
 }
 
+function newVariantDraft(item?: ProfileItem) {
+  return {
+    ...variantDraft(),
+    ...(item
+      ? {
+          title: item.title,
+          subtitle: item.subtitle ?? "",
+          description: item.description ?? "",
+          startDate: item.startDate ?? "",
+          endDate: item.endDate ?? "",
+          url: item.url ?? "",
+        }
+      : {}),
+  };
+}
+
 function dateRange(item: ProfileItem): string | null {
   if (item.startDate && item.endDate) return `${item.startDate} – ${item.endDate}`;
   return item.startDate ?? item.endDate ?? null;
@@ -123,10 +139,20 @@ export function ProfileWorkspace({
   const persistedVariant = editingVariantId
     ? variants.find((candidate) => candidate.id === editingVariantId)
     : undefined;
+  const variantEditorOpen =
+    editingVariantId !== null ||
+    variant.name.length > 0 ||
+    variant.title.length > 0 ||
+    variant.subtitle.length > 0 ||
+    variant.description.length > 0 ||
+    variant.startDate.length > 0 ||
+    variant.endDate.length > 0 ||
+    variant.url.length > 0;
+  const variantBaseline = editingVariantId
+    ? variantDraft(persistedVariant)
+    : newVariantDraft(selected ?? undefined);
   const variantDirty =
-    editingVariantId !== null || variant.name.trim().length > 0
-      ? JSON.stringify(variant) !== JSON.stringify(variantDraft(persistedVariant))
-      : false;
+    variantEditorOpen && JSON.stringify(variant) !== JSON.stringify(variantBaseline);
 
   useEffect(() => {
     onDirtyChange?.(itemDirty || variantDirty);
@@ -224,18 +250,7 @@ export function ProfileWorkspace({
   const editVariant = (candidate?: ProfileVariantRecord) => {
     if (variantDirty && !window.confirm("Discard unsaved variation edits?")) return;
     setEditingVariantId(candidate?.id ?? null);
-    setVariant(variantDraft(candidate));
-    if (!candidate && selected) {
-      setVariant((current) => ({
-        ...current,
-        title: selected.title,
-        subtitle: selected.subtitle ?? "",
-        description: selected.description ?? "",
-        startDate: selected.startDate ?? "",
-        endDate: selected.endDate ?? "",
-        url: selected.url ?? "",
-      }));
-    }
+    setVariant(candidate ? variantDraft(candidate) : newVariantDraft(selected ?? undefined));
   };
 
   const saveVariant = async () => {
@@ -527,7 +542,7 @@ export function ProfileWorkspace({
                       ))}
                     </div>
                   )}
-                  {editingVariantId !== null || variant.name || variant.title ? (
+                  {variantEditorOpen ? (
                     <div className="profile-variant-editor">
                       <label>
                         Name
