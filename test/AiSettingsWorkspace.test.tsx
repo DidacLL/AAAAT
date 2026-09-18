@@ -143,6 +143,25 @@ describe("AI settings workspace", () => {
     });
   });
 
+  it("keeps an empty custom instruction resettable to the shipped default", async () => {
+    const user = userEvent.setup();
+    savePrompt.mockResolvedValueOnce([{
+      ...promptDisclosure,
+      instruction: "",
+      isDefault: false,
+    }]);
+    render(<AiSettingsWorkspace />);
+
+    const input = await screen.findByRole("textbox", { name: "Instruction" });
+    await user.clear(input);
+    await user.click(screen.getByRole("button", { name: "Save instruction" }));
+
+    const reset = screen.getByRole("button", { name: "Reset to default" });
+    expect(reset).toBeEnabled();
+    await user.click(reset);
+    expect(resetPrompt).toHaveBeenCalledWith("job_extraction");
+  });
+
   it("adds several connections, switches the general default, and does not invent credentials", async () => {
     const user = userEvent.setup();
     save
