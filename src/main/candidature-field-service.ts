@@ -247,9 +247,7 @@ export function createCandidatureField(
           now,
         );
       database
-        .prepare(
-          "INSERT INTO candidature_field_preferences(field_id, favourite, favourite_order, ai_use_allowed) VALUES (?, ?, NULL, 0)",
-        )
+        .prepare("INSERT INTO candidature_field_preferences(field_id, favourite) VALUES (?, ?)")
         .run(id, input.enabled ? 1 : 0);
       return configuration(database, id);
     }),
