@@ -259,9 +259,7 @@ describe("robust job extraction", () => {
         JSON.stringify({
           choices: [{
             message: {
-              content: ```json
-{"proposals":[{"fieldRef":"Work mode","value":"Remote"}]}
-```,
+              content: "```json\n{\"proposals\":[{\"fieldRef\":\"Work mode\",\"value\":\"Remote\"}]}\n```",
             },
           }],
         }),

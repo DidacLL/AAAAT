@@ -41,7 +41,11 @@ import {
   type ProviderOpportunityReviewCandidature,
 } from "../shared/ai-contracts";
 import type { AiOperation } from "../shared/ai-connection-contracts";
-import type { CandidatureRuntimeValue, ProfileItem } from "../shared/contracts";
+import {
+  candidatureRuntimeValueSchema,
+  type CandidatureRuntimeValue,
+  type ProfileItem,
+} from "../shared/contracts";
 import type { WorkingCvItem } from "../shared/document-domain-contracts";
 import { compactSourceText } from "../shared/source-text";
 import {
