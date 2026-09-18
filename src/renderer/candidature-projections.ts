@@ -66,7 +66,6 @@ export function candidatureSearchMatchCue(
   if (!normalizedQuery) return null;
 
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
-  const fieldOrder = new Map(fields.map((field, index) => [field.definition.id, index]));
   for (const retained of record.values) {
     const field = fieldById.get(retained.fieldId);
     if (!field) continue;
