@@ -223,8 +223,10 @@ describe("Working CV editor", () => {
     expect(within(alex).getByRole("button", { name: "Save as profile variant" })).toBeInTheDocument();
     expect(within(alex).getByRole("button", { name: "Update My information" })).toBeInTheDocument();
     expect(within(alex).queryByRole("combobox", { name: "Wording source" })).not.toBeInTheDocument();
-    expect(within(alex).getByText("This CV only")).toBeInTheDocument();
-    expect(within(alex).getByRole("button", { name: "Reset from My information" })).toBeInTheDocument();
+    const overrideControls = alex.querySelector(".working-source-override");
+    expect(overrideControls).not.toBeNull();
+    expect(within(overrideControls!).getByText("This CV only")).toBeInTheDocument();
+    expect(within(overrideControls!).getByRole("button", { name: "Reset from My information" })).toBeInTheDocument();
   });
 
   it("keeps reorder, add, save and render behavior wired behind the simpler presentation", async () => {
