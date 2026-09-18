@@ -71,13 +71,25 @@ function RenderedCvInspection({
   );
 }
 
-export function DocumentsStartWorkspace({ onOpenDocument }: { readonly onOpenDocument: (documentId: string) => void }) {
+export function DocumentsStartWorkspace({
+  onOpenDocument,
+  onDirtyChange,
+}: {
+  readonly onOpenDocument: (documentId: string) => void;
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
   const [title, setTitle] = useState("");
   const [sourceKey, setSourceKey] = useState("profile");
   const [inspectedRenderedId, setInspectedRenderedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dirty = title.trim().length > 0 || sourceKey !== "profile";
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     let active = true;
