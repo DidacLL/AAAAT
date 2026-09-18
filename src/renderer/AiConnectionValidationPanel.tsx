@@ -213,8 +213,8 @@ export function AiConnectionValidationPanel({
         <span>{health}</span>
       </div>
       <div className="ai-readiness-line">
-        <strong>Capabilities</strong>
-        <span>{validatedCount}/{aiOperations.length} ready</span>
+        <strong>Compatibility checks</strong>
+        <span>{validatedCount}/{aiOperations.length} checked</span>
       </div>
 
       {task?.status === "queued" ? (
@@ -243,21 +243,26 @@ export function AiConnectionValidationPanel({
       {probeError ? <p className="error-message" role="alert">{probeError}</p> : null}
 
       {!allValidated ? (
-        <button type="button" disabled={active || probeBusy} onClick={validate}>
-          {active
-            ? "Checking connection…"
-            : task?.status === "failed" || failureList.length > 0
-              ? "Retry connection check"
-              : validatedCount > 0
-                ? "Check remaining AI features"
-                : "Check connection"}
-        </button>
+        <>
+          <p className="compact-help">
+            Optional diagnostic. This runs one model request for each unchecked AI feature. Normal AI use does not require these checks.
+          </p>
+          <button type="button" disabled={active || probeBusy} onClick={validate}>
+            {active
+              ? "Checking AI features…"
+              : task?.status === "failed" || failureList.length > 0
+                ? "Retry failed AI feature checks"
+                : validatedCount > 0
+                  ? "Check remaining AI features"
+                  : "Check all AI features"}
+          </button>
+        </>
       ) : (
-        <p className="compact-help"><strong>AI ready.</strong> All bounded AAAAT AI capabilities have been validated for this connection.</p>
+        <p className="compact-help"><strong>Compatibility checked.</strong> All bounded AAAAT AI actions passed this optional connection check.</p>
       )}
 
       <details className="ai-validation-details">
-        <summary>AI feature details · {validatedCount}/{aiOperations.length} ready</summary>
+        <summary>AI feature checks · {validatedCount}/{aiOperations.length} checked</summary>
         <div className="ai-capability-list" aria-label={`Capabilities for ${connection.name}`}>
           {aiOperations.map((operation) => {
             const validated = connection.validatedOperations.includes(operation);
@@ -270,11 +275,11 @@ export function AiConnectionValidationPanel({
                   <span>
                     {validated
                       ? operationDefault
-                        ? "Ready · selected"
-                        : "Ready"
+                        ? "Checked · selected"
+                        : "Checked"
                       : failure
                         ? capabilityFailureLabel(failure)
-                        : "Not yet validated"}
+                        : "Not checked"}
                   </span>
                 </div>
                 {failure ? (
