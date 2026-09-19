@@ -422,7 +422,6 @@ export function CandidaturesWorkspace({
                             key={cue.fieldId}
                           >
                             <span className="candidature-cue-value">{cue.value}</span>
-                            <span className="candidature-cue-label">{cue.label}</span>
                           </span>
                         ))}
                       </span>
