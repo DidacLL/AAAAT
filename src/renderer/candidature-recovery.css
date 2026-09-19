@@ -133,44 +133,66 @@
 
 .candidature-recognition-cue {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
-  gap: 0.08rem;
-  padding: 0.38rem 0.42rem;
+  min-height: 4.35rem;
+  align-content: stretch;
+  gap: 0.3rem;
+  padding: 0.5rem 0.55rem 0.42rem;
   border: 1px solid var(--line-soft);
-  background: rgb(255 253 247 / 55%);
+  border-radius: 3px;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 48%), transparent 55%),
+    rgb(255 253 247 / 76%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 55%);
 }
 
 .candidature-cue-size-compact {
-  padding-block: 0.28rem;
+  min-height: 3.4rem;
+  padding: 0.38rem 0.45rem 0.34rem;
+}
+
+.candidature-cue-size-wide {
+  min-height: 5rem;
 }
 
 .candidature-cue-value {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
   color: var(--ink);
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   word-break: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: 0.94rem;
   font-weight: 760;
-  line-height: 1.18;
+  line-height: 1.2;
 }
 
 .candidature-cue-size-compact .candidature-cue-value {
+  -webkit-line-clamp: 1;
   font-size: 0.82rem;
   font-weight: 690;
 }
 
 .candidature-cue-size-wide .candidature-cue-value {
+  -webkit-line-clamp: 3;
   font-size: 1.04rem;
 }
 
 .candidature-cue-label {
+  min-width: 0;
+  overflow: hidden;
   color: var(--muted-ink);
-  overflow-wrap: normal;
-  word-break: normal;
-  font-size: 0.64rem;
+  font-size: 0.61rem;
   line-height: 1.15;
-  font-weight: 750;
-  letter-spacing: 0.045em;
+  font-weight: 760;
+  letter-spacing: 0.055em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .candidature-search-match {
