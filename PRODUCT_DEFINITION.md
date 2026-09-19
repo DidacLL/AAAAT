@@ -96,43 +96,37 @@ Not:
 
 Database-style field IDs, cardinality, schema concepts and type machinery must remain secondary/advanced implementation detail even though the user can manage the resulting information definitions.
 
-## Focus: rapid retrieval with two states
+## Rapid candidature retrieval and progressive detail
 
-Focus is a defining candidature capability. Its purpose is to let the user identify the right candidature and recover useful context within seconds, especially under divided attention such as an unexpected recruiter/interview call.
+The user should not need to learn a separate “Focus” product mode in order to understand candidature information.
 
-Focus is one experience with two states.
+The Applications surface presents each candidature as one configurable information object. The same user-maintainable candidature fields drive compact corpus recognition and the richer selected-candidature view.
 
-### 1. Corpus Focus
+A field can be marked as a **favourite** presentation field. Favourite fields appear first, in user-controlled order, and may use a user-controlled presentation prominence.
 
-Before a candidature is selected, Focus shows multiple candidatures simultaneously so the user can recognize the right one quickly.
+AAAAT does not decide which candidature fields are important. Shipped field definitions such as Role, Organisation, Location or Compensation are conveniences only; they receive no identity or semantic priority because of their names or system keys. Neutral first use must still be immediately legible: enabled fields begin included equally in the primary presentation with ordinary presentation size, rather than leaving candidature cards blank until the user configures favourites. The user then demotes/unfavourites, reorders and resizes fields according to their own workflow.
 
-Each candidature shows only a deliberately small set of Focus-selected fields/signals. AAAAT ships sensible defaults, but the user controls which available fields participate. Focus must not dump every stored value or every candidature-owned object into the overview.
+A candidature has no semantic identity assembled from its fields. Its durable identity is its internal record ID only. There is no `identityOrder` product concept and no derived domain label made from Role, Organisation, Source title or any other retained value.
 
-Search and filtering support partial memory across meaningful retained information, including Sources and Tags/aliases where appropriate.
+When the local UI needs a compact human reference, it composes a transient presentation from the primary/favourite fields. That presentation is not stored as candidature data, is not searchable as an extra hidden value, and must never cross an AI/privacy/external boundary as a substitute for the underlying explicitly permitted fields. A neutral fallback is only for genuinely sparse records with no retained displayable values; retained candidature information must not be hidden behind an unexplained “Saved application” placeholder.
 
-The requirement is fast recognition with minimal visual noise. The exact composition may evolve; old Smart View/card/table implementations are not design authority.
+Corpus presentation must stay compact, recognisable and information-efficient. It should be an actual configurable information grid, not a generic list of label/value text lines. Presentation size belongs to this corpus/summary presentation: compact, normal and wide fields must visibly change their span/emphasis there. Editing surfaces remain content-driven and must not become larger merely because a field is wide in the corpus. Values carry the visual emphasis; labels and update metadata are secondary. One long value must not make unrelated candidature cards unnecessarily large. Search may show a bounded Source or Tag excerpt when it explains an active match, but that evidence is temporary and is not an implicit normal field.
 
-### 2. Selected-candidature Focus
+Selecting a candidature expands the same information surface instead of switching to a second near-duplicate screen. Favourite fields remain immediately visible. A compact **More** / advanced disclosure reveals the remaining enabled fields and deeper candidature-owned material when needed.
 
-Selecting a candidature gives that candidature the available working space rather than expanding a cramped card inside the corpus.
+The ordinary control for this is direct and local: a star/favourite affordance on a field moves it immediately into or out of the primary set. Deeper ordering or presentation controls may be progressively disclosed, but the user should not have to open a separate “Choose Focus information” configuration screen to understand the model.
 
-This state shows the richer subset the user configured as useful for recall: selected fields, relevant Tags/glossary knowledge, notes or other deliberately chosen Focus information.
-
-It remains a curated recall surface, not a complete dump of all Sources, all documents, all reminders or all stored information.
-
-Displayed editable fields must have low-friction edit affordances. During a call the user must be able to correct a value or add useful information without leaving Focus merely because editing exists elsewhere too.
-
-A shortcut to complete candidature management is useful, but complete editing is not the mandatory continuation of Focus and Focus is not the only candidature journey.
+Displayed editable fields keep low-friction edit affordances. During a call the user must be able to correct a value or add useful information without navigating to another conceptual mode.
 
 ## Complete candidature work
 
-The user can directly open a candidature for deliberate maintenance without first going through Focus.
+Complete candidature work is the expanded state of the same selected-candidature surface, not a duplicate peer view.
 
-Complete candidature work exposes everything the user owns for that candidature: all structured information, Sources/raw material, Tags, linked application material, retained artifacts, relevant privacy/presentation controls, and secondary notes/reminders or provenance where useful.
+It exposes the rest of the candidature-owned information progressively: all enabled fields, Sources/raw material, Tags, linked application material, retained artifacts, relevant privacy/presentation controls, and secondary notes/reminders or provenance where useful.
 
-It also provides progressively disclosed management of candidature field definitions because the user owns the information model used for this work. That includes adding and editing useful field definitions without making field-definition machinery dominate normal value entry.
+The user can still open a candidature directly for deliberate maintenance. Populated information is primarily readable; editing/addition happens close to the value; field-definition management and deeper machinery remain progressively disclosed.
 
-Complete access must not mean a giant permanent form. Populated information is primarily readable; editing/addition happens close to the value; deeper machinery is progressively disclosed.
+## Tags
 
 ## Tags
 
@@ -140,15 +134,21 @@ Use **Tags** consistently as the product/domain term.
 
 A Tag can have a canonical term, aliases, definition and user notes. Tags are reusable across candidatures and act as a lightweight shared glossary/wiki plus retrieval aid.
 
-Example: if a candidature uses `Spring Boot`, selected Focus can expose the stored Spring Boot definition without forcing the user into a separate knowledge-management workspace.
+Example: if a candidature uses `Spring Boot`, its selected application surface can expose the stored Spring Boot definition without forcing the user into a separate knowledge-management workspace.
 
 A competing `Concepts` product vocabulary is not justified. Historical `Concept` code/schema names are implementation evidence to reconcile, not product meaning.
+
+Applications contain associations to shared Tags. They never own independent copies of Tag definitions. Attaching a Tag therefore changes only the candidature-to-Tag association; editing the Tag changes the one shared canonical name/aliases/definition/notes seen wherever it is attached.
+
+Tag interaction must scale to a large glossary. Ordinary candidature work shows only attached Tags plus compact search/autocomplete for attaching an existing Tag and a create-new path when no match exists. It must never render the complete glossary as a permanent checkbox/button selection list.
+
+Optional AI extraction may use the existing Tag glossary as bounded context. It may match existing Tags or propose new candidates, but every new candidate needs a proposed definition and remains reviewable before it becomes shared workspace data.
 
 ## Notes and lightweight reminders
 
 Small candidature-attached notes or checkable reminders may be useful secondary information.
 
-They are not a product pillar and do not justify task management, scheduling, recurrence, lifecycle state, automatic next actions, AI planning, global reminder navigation, or prominence in Focus by default.
+They are not a product pillar and do not justify task management, scheduling, recurrence, lifecycle state, automatic next actions, AI planning, global reminder navigation, or primary-presentation prominence by default.
 
 The user can ignore them completely without losing the core AAAAT experience.
 
@@ -166,9 +166,33 @@ not internal profile architecture.
 
 Saved variations may express reusable alternate emphasis. Document-specific differences may intentionally diverge from the reusable information. Neither should create cloned competing identities or force the user to understand patch/rule machinery for normal use.
 
+Every reusable professional-information item has one ordinary AI visibility choice: **AI may use this information**. The same meaning applies to candidature fields. When enabled, an empty candidature field may be requested during Source extraction and a populated value may be disclosed as bounded context; when disabled, it is neither requested nor disclosed. Internal implementation may separate mechanics only where a demonstrated product behavior requires it; ordinary UI and durable product meaning remain one user choice.
+
+## CV templates, working CVs and rendered artifacts
+
+Document concepts are intentionally distinct:
+
+- **My information** is the reusable career record.
+- **Profile variant** is saved alternative wording/emphasis for reusable career information.
+- **CV template** is a reusable ordered composition of sections and selected information.
+- **Working CV** is one editable CV derived from a template, a candidature, My information, or a blank start.
+- **Rendered CV** is a generated PDF plus the content/composition snapshot that produced it.
+- **Cover letter** is normally owned by one candidature.
+- **Application packet** is a generated CV plus cover letter combination.
+
+A CV template is not a rendered CV and a PDF is not a template section. A template owns ordered sections; section names/order; selected/reordered reusable profile items; optional custom content; and, per item, a source mode of current My information, a saved profile variant, or a template-specific override. Common structures such as Profile, Experience, Projects/Selected work, Education, Skills, Languages and Links are useful section defaults, not a closed template ontology.
+
+Excluding an item from a template never removes it from My information. A profile-loaded template item follows the current reusable value. A template-specific override never mutates My information automatically. A working-document override never mutates the template or My information automatically. Where an edited value creates a real ownership decision, explicit contextual actions may save it to the template, save a new template, save a profile variant, or update My information.
+
+Rendering is an action on current working composition. It creates a separate artifact record containing the generated output and enough content/composition snapshot to inspect, duplicate, or reproduce that rendered CV. A rendered artifact may reference the template it came from but does not require a saved template relationship; unsaved document-specific changes can be rendered without silently changing reusable state.
+
+Letters remain discoverable in the document collection, but a letter created from a candidature is candidature-owned and must surface there immediately. The existing combined CV+letter behavior is an Application packet when its semantics match this meaning; AAAAT does not need a second packet engine.
+
 ## VCVGenerator / CVs and letters
 
 CV/cover-letter work is independently core.
+
+A cover letter normally belongs to one candidature and should be created, found and edited from that candidature. Reusable CVs have a direct collection because one CV may serve several candidatures. Standalone cover-letter work remains possible, but it is a secondary exception rather than a peer global collection.
 
 A valid AAAAT session is simply:
 
@@ -188,6 +212,10 @@ Users own editable document content, generated source, rendered output and porta
 ## AI inside AAAAT
 
 AAAAT owns no model and no inference. AI is optional intelligence supplied through configured connections.
+
+AAAAT's primary direct-AI target is affordable, resource-constrained inference that users can run or obtain without depending on premium hosted tiers. Local/lightweight models are central to that target, but AAAAT remains provider- and runtime-agnostic: no provider, protocol, runtime, model family or vendor is product authority. The current OpenAI-compatible adapter is an implementation path, not the product baseline. Larger hosted models may work better, but product correctness, extraction usefulness, prompt design and response contracts must not depend on capabilities that effectively require them.
+
+The AI path should therefore minimize model burden: compact context, compact instructions, simple provider-facing response shapes, tolerant recovery, and local validation after inference. A partially correct local-model response is useful when its valid facts can be retained safely. One invalid or missing proposal must not discard unrelated valid proposals. Provider-side JSON-Schema constraints are used only when they are broadly compatible with the supported local runtime; validation that AAAAT can perform deterministically belongs in AAAAT rather than in model decoding.
 
 AI belongs beside the domain action it assists: extract information from this Source into the currently defined candidature fields, help populate this field, explain/translate/rewrite this text, tailor this CV, draft this letter, perform genuine research when the chosen connection supports it, or similar bounded work.
 
@@ -213,11 +241,11 @@ These are separate concerns:
 
 ```text
 stored locally
-shown in Focus
+shown prominently in the local UI
 allowed to a particular AI operation
 ```
 
-Hiding something from Focus does not remove it. Hiding something from AI does not hide it locally. External disclosure is evaluated per bounded operation and should expose only justified information in the least identifying useful form.
+Removing something from primary presentation does not remove it. Hiding something from AI does not hide it locally. External disclosure is evaluated per bounded operation and should expose only justified information in the least identifying useful form.
 
 Privacy controls must be understandable but must not dominate ordinary work.
 
@@ -237,7 +265,7 @@ AAAAT should feel direct, fast, calm, local, legible, stable, information-effici
 
 At constrained desktop sizes, give the current intention most of the available space instead of compressing several persistent panes. Scrolling/transition is preferable to clipping or unreadable multi-column density.
 
-The visual direction may be distinctive, but decoration must never reduce readability or Focus clarity.
+The visual direction may be distinctive, but decoration must never reduce readability or information clarity.
 
 ## Explicit non-goals
 

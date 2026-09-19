@@ -22,8 +22,8 @@ function workspace(): string {
   return root;
 }
 
-describe("professional-information AI disclosure preference", () => {
-  it("defaults to expose and survives ordinary content edits", () => {
+describe("professional-information AI-use preference", () => {
+  it("defaults to allowed and survives ordinary content edits", () => {
     const root = workspace();
     try {
       const snapshot = addProfileItem(root, {
@@ -36,15 +36,15 @@ describe("professional-information AI disclosure preference", () => {
 
       expect(getProfileItemAiContextPreference(root, item.id)).toEqual({
         itemId: item.id,
-        aiContextMode: "expose",
+        aiUseAllowed: true,
       });
 
       expect(
         updateProfileItemAiContextPreference(root, {
           itemId: item.id,
-          aiContextMode: "omit",
+          aiUseAllowed: false,
         }),
-      ).toEqual({ itemId: item.id, aiContextMode: "omit" });
+      ).toEqual({ itemId: item.id, aiUseAllowed: false });
 
       updateProfileItem(root, {
         id: item.id,
@@ -55,7 +55,7 @@ describe("professional-information AI disclosure preference", () => {
         },
       });
 
-      expect(getProfileItemAiContextPreference(root, item.id).aiContextMode).toBe("omit");
+      expect(getProfileItemAiContextPreference(root, item.id).aiUseAllowed).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -68,7 +68,7 @@ describe("professional-information AI disclosure preference", () => {
       expect(() =>
         updateProfileItemAiContextPreference(root, {
           itemId: "00000000-0000-4000-8000-000000000999",
-          aiContextMode: "token",
+          aiUseAllowed: false,
         }),
       ).toThrow("The professional-information item no longer exists.");
     } finally {

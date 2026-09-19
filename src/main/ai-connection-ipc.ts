@@ -6,6 +6,7 @@ import { app, dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } fro
 import {
   aiConnectionIdSchema,
   aiConnectionManagementChannels,
+  aiConnectionProbeResultSchema,
   aiConnectionOperationInputSchema,
   namedAiConnectionInputSchema,
   namedAiConnectionListSchema,
@@ -16,6 +17,7 @@ import {
 import {
   buildPortableAiSetup,
   listAiConnections,
+  probeAiConnection,
   removeAiConnection,
   replaceAiConnectionsFromPortableSetup,
   saveNamedAiConnection,
@@ -111,6 +113,13 @@ function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return namedAiConnectionListSchema.parse(
       removeAiConnection(requireWorkspaceRoot(), aiConnectionIdSchema.parse(connectionId)),
+    );
+  });
+
+  ipcMain.handle(aiConnectionManagementChannels.probe, async (event, connectionId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return aiConnectionProbeResultSchema.parse(
+      await probeAiConnection(requireWorkspaceRoot(), aiConnectionIdSchema.parse(connectionId)),
     );
   });
 

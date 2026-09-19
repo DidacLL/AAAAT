@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
+  candidatureFavouriteOrderUpdateSchema,
   candidatureFieldConfigurationSchema,
   candidatureFieldCreateSchema,
   candidatureFieldFilterSchema,
@@ -26,7 +27,6 @@ import {
 import { withWorkspaceDatabase } from "./workspace";
 
 export const MAX_ENABLED_CANDIDATURE_FIELDS = 64;
-export const MAX_AI_DISCOVERY_FIELDS = 32;
 
 interface FieldRow {
   readonly id: string;
@@ -43,12 +43,10 @@ interface FieldRow {
 
 interface PreferencesRow {
   readonly fieldId: string;
-  readonly focusVisible: number;
-  readonly focusOrder: number | null;
-  readonly focusProminence: string;
-  readonly identityOrder: number | null;
-  readonly aiDiscovery: number;
-  readonly aiContextMode: string;
+  readonly favourite: number;
+  readonly favouriteOrder: number | null;
+  readonly presentationSize: string;
+  readonly aiUseAllowed: number;
 }
 
 interface ValueRow {
@@ -96,7 +94,7 @@ function fieldRows(database: DatabaseSync): FieldRow[] {
               created_at AS createdAt,
               updated_at AS updatedAt
          FROM candidature_fields
-        ORDER BY enabled DESC, system_key IS NULL, label COLLATE NOCASE, id`,
+        ORDER BY enabled DESC, created_at, id`,
     )
     .all() as unknown as FieldRow[];
 }
@@ -126,12 +124,10 @@ function preferencesRow(database: DatabaseSync, fieldId: string): PreferencesRow
   const row = database
     .prepare(
       `SELECT field_id AS fieldId,
-              focus_visible AS focusVisible,
-              focus_order AS focusOrder,
-              focus_prominence AS focusProminence,
-              identity_order AS identityOrder,
-              ai_discovery AS aiDiscovery,
-              ai_context_mode AS aiContextMode
+              favourite AS favourite,
+              favourite_order AS favouriteOrder,
+              presentation_size AS presentationSize,
+              ai_use_allowed AS aiUseAllowed
          FROM candidature_field_preferences
         WHERE field_id = ?`,
     )
@@ -166,12 +162,10 @@ function toDefinition(row: FieldRow): CandidatureFieldDefinition {
 function toPreferences(row: PreferencesRow): CandidatureFieldPreferences {
   return candidatureFieldPreferencesSchema.parse({
     fieldId: row.fieldId,
-    focusVisible: row.focusVisible === 1,
-    focusOrder: row.focusOrder,
-    focusProminence: row.focusProminence,
-    identityOrder: row.identityOrder,
-    aiDiscovery: row.aiDiscovery === 1,
-    aiContextMode: row.aiContextMode,
+    favourite: row.favourite === 1,
+    favouriteOrder: row.favouriteOrder,
+    presentationSize: row.presentationSize,
+    aiUseAllowed: row.aiUseAllowed === 1,
   });
 }
 
@@ -219,27 +213,6 @@ function countEnabled(database: DatabaseSync): number {
   return row.count;
 }
 
-function countDiscovery(database: DatabaseSync, exceptFieldId?: string): number {
-  const row = exceptFieldId
-    ? (database
-        .prepare(
-          `SELECT COUNT(*) AS count
-             FROM candidature_field_preferences p
-             JOIN candidature_fields f ON f.id = p.field_id
-            WHERE f.enabled = 1 AND p.ai_discovery = 1 AND p.field_id <> ?`,
-        )
-        .get(exceptFieldId) as { count: number })
-    : (database
-        .prepare(
-          `SELECT COUNT(*) AS count
-             FROM candidature_field_preferences p
-             JOIN candidature_fields f ON f.id = p.field_id
-            WHERE f.enabled = 1 AND p.ai_discovery = 1`,
-        )
-        .get() as { count: number });
-  return row.count;
-}
-
 export function createCandidatureField(
   rootPath: string,
   rawInput: CandidatureFieldCreate,
@@ -274,8 +247,8 @@ export function createCandidatureField(
           now,
         );
       database
-        .prepare("INSERT INTO candidature_field_preferences(field_id) VALUES (?)")
-        .run(id);
+        .prepare("INSERT INTO candidature_field_preferences(field_id, favourite) VALUES (?, ?)")
+        .run(id, input.enabled ? 1 : 0);
       return configuration(database, id);
     }),
   );
@@ -340,11 +313,7 @@ export function updateCandidatureField(
         );
       if (!input.enabled) {
         database
-          .prepare(
-            `UPDATE candidature_field_preferences
-                SET ai_discovery = 0
-              WHERE field_id = ?`,
-          )
+          .prepare("UPDATE candidature_field_preferences SET ai_use_allowed = 0 WHERE field_id = ?")
           .run(input.id);
       }
       return configuration(database, input.id);
@@ -371,6 +340,34 @@ export function deleteUnusedCandidatureField(
   );
 }
 
+export function reorderCandidatureFavouriteFields(
+  rootPath: string,
+  rawInput: unknown,
+): CandidatureFieldConfiguration[] {
+  const input = candidatureFavouriteOrderUpdateSchema.parse(rawInput);
+  return withWorkspaceDatabase(rootPath, (database) =>
+    transact(database, () => {
+      const favourites = listCandidatureFieldsInDatabase(database).filter(
+        (field) => field.definition.enabled && field.preferences.favourite,
+      );
+      const currentIds = new Set(favourites.map((field) => field.definition.id));
+      if (
+        input.fieldIds.length !== currentIds.size ||
+        input.fieldIds.some((fieldId) => !currentIds.has(fieldId))
+      ) {
+        throw new CandidatureFieldServiceError(
+          "Favourite order must contain every currently enabled favourite field exactly once.",
+        );
+      }
+      const statement = database.prepare(
+        "UPDATE candidature_field_preferences SET favourite_order = ? WHERE field_id = ?",
+      );
+      input.fieldIds.forEach((fieldId, index) => statement.run(index, fieldId));
+      return listCandidatureFieldsInDatabase(database);
+    }),
+  );
+}
+
 export function updateCandidatureFieldPreferences(
   rootPath: string,
   rawInput: CandidatureFieldPreferencesUpdate,
@@ -379,32 +376,20 @@ export function updateCandidatureFieldPreferences(
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
       const field = toDefinition(fieldRow(database, input.fieldId));
-      if (input.aiDiscovery && !field.enabled) {
-        throw new CandidatureFieldServiceError("Retired fields cannot participate in AI discovery.");
-      }
-      if (
-        input.aiDiscovery &&
-        !toPreferences(preferencesRow(database, input.fieldId)).aiDiscovery &&
-        countDiscovery(database, input.fieldId) >= MAX_AI_DISCOVERY_FIELDS
-      ) {
-        throw new CandidatureFieldServiceError(
-          `AAAAT supports at most ${MAX_AI_DISCOVERY_FIELDS} AI-discovery candidature fields.`,
-        );
+      if (input.aiUseAllowed && !field.enabled) {
+        throw new CandidatureFieldServiceError("Retired fields cannot be used by AI.");
       }
       database
         .prepare(
           `UPDATE candidature_field_preferences
-              SET focus_visible = ?, focus_order = ?, focus_prominence = ?,
-                  identity_order = ?, ai_discovery = ?, ai_context_mode = ?
+              SET favourite = ?, favourite_order = ?, presentation_size = ?, ai_use_allowed = ?
             WHERE field_id = ?`,
         )
         .run(
-          input.focusVisible ? 1 : 0,
-          input.focusOrder,
-          input.focusProminence,
-          input.identityOrder,
-          input.aiDiscovery ? 1 : 0,
-          input.aiContextMode,
+          input.favourite ? 1 : 0,
+          input.favouriteOrder,
+          input.presentationSize,
+          input.aiUseAllowed ? 1 : 0,
           input.fieldId,
         );
       return configuration(database, input.fieldId);
@@ -419,9 +404,8 @@ function requireCandidature(database: DatabaseSync, candidatureId: string): void
 }
 
 function validDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  return value.length === 10 && !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function validateScalar(
@@ -635,53 +619,6 @@ export function displayCandidatureFieldValue(
     return String(item);
   };
   return Array.isArray(value) ? value.map(displayOne).join(", ") : displayOne(value);
-}
-
-export function candidatureLabelInDatabase(
-  database: DatabaseSync,
-  candidatureId: string,
-  createdAt: string,
-): string {
-  const fields = listCandidatureFieldsInDatabase(database);
-  const values = new Map(
-    readCandidatureFieldValuesInDatabase(database, candidatureId).map((value) => [
-      value.fieldId,
-      value.value,
-    ]),
-  );
-  const identity = fields
-    .filter((field) => field.preferences.identityOrder !== null)
-    .sort(
-      (left, right) =>
-        (left.preferences.identityOrder ?? 0) - (right.preferences.identityOrder ?? 0),
-    )
-    .flatMap((field) => {
-      const value = values.get(field.definition.id);
-      return value === undefined
-        ? []
-        : [displayCandidatureFieldValue(field.definition, value)];
-    })
-    .filter((value) => value.trim().length > 0);
-  if (identity.length > 0) return identity.join(" — ");
-
-  const source = database
-    .prepare(
-      `SELECT title, url, source_text AS sourceText
-         FROM candidature_sources
-        WHERE candidature_id = ?
-        ORDER BY created_at, id
-        LIMIT 1`,
-    )
-    .get(candidatureId) as
-    | { readonly title: string; readonly url: string; readonly sourceText: string }
-    | undefined;
-  if (source) {
-    if (source.title.trim()) return source.title.trim();
-    if (source.url.trim()) return source.url.trim();
-    const cue = source.sourceText.trim().replace(/\s+/g, " ").slice(0, 80);
-    if (cue) return cue;
-  }
-  return `Candidature · ${createdAt.slice(0, 10)}`;
 }
 
 function requireFilterValue(filter: CandidatureFieldFilter): CandidatureRuntimeValue {

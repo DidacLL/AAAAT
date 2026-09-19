@@ -30,7 +30,7 @@ const context: ProviderDocumentAiContext = {
   },
   items: [
     {
-      itemRef: "aaaat_document_00000000-0000-4000-8000-000000000710_1",
+      itemRef: "aaaat_working_cv_item_00000000-0000-4000-8000-000000000710",
       kind: "skill",
       title: "TypeScript",
     },
@@ -44,8 +44,8 @@ function response(content: unknown): Response {
   );
 }
 
-describe("document AI provider operations", () => {
-  it("sends the projected candidature and existing evidence and validates CV recommendations", async () => {
+describe("Working CV and cover-letter AI provider operations", () => {
+  it("sends the projected application and existing Working CV evidence and validates CV recommendations", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       response({
         recommendations: [
@@ -65,6 +65,14 @@ describe("document AI provider operations", () => {
       messages: Array<{ role: string; content: string }>;
     };
     expect(body.messages[1]?.content).toBe(JSON.stringify(context));
+  });
+
+  it("accepts a valid no-change CV tailoring result", async () => {
+    const provider = createOpenAiCompatibleProvider(
+      vi.fn<typeof fetch>().mockResolvedValue(response({ recommendations: [] })),
+    );
+
+    await expect(provider.tailorCv(connection, context)).resolves.toEqual({ recommendations: [] });
   });
 
   it("validates structured cover-letter drafts", async () => {

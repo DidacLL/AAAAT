@@ -158,9 +158,8 @@ export function CandidatureSourcesPanel({
     <section className="candidature-sources section-surface" aria-label="Sources">
       <div className="candidature-editor-heading">
         <div>
-          <p className="eyebrow">Supplied context</p>
-          <h3>Sources</h3>
-          <p>Add only the material you actually have.</p>
+          <p className="eyebrow">Application material</p>
+          <h3 title="Job postings, messages, links and other material saved with this application">Sources</h3>
         </div>
         {readingSource ? (
           <button type="button" className="compact-secondary" onClick={() => setReadingId(null)}>

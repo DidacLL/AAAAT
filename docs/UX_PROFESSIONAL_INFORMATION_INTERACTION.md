@@ -2,7 +2,7 @@
 
 Status: historical UX and implementation evidence from a completed bounded change. Not product authority or an active work contract.
 
-Use this record only to understand existing professional-information interaction after product meaning has been established through [`PRODUCT_DEFINITION.md`](../PRODUCT_DEFINITION.md). It is subordinate to the Product Definition and derived [`SPEC.md`](SPEC.md); related interaction notes, [`UX_VISUAL_DIRECTION.md`](UX_VISUAL_DIRECTION.md), and [`UX_HISTORY_RECONCILIATION.md`](UX_HISTORY_RECONCILIATION.md) do not create requirements.
+Use this record only to understand existing professional-information interaction after product meaning has been established through [`PRODUCT_DEFINITION.md`](../PRODUCT_DEFINITION.md). It is subordinate to the Product Definition and derived [`SPEC.md`](SPEC.md); related interaction notes and [`UX_VISUAL_DIRECTION.md`](UX_VISUAL_DIRECTION.md) do not create requirements.
 
 This record describes reusable professional-information interaction considered before production renderer work. It does not prescribe the final global shell, exact destination name, React composition, CSS, pane ratios, breakpoints, Settings architecture, or persistence schema.
 

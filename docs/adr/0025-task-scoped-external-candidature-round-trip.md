@@ -27,7 +27,7 @@ The task projection is intentionally not a hard-coded three-field product rule. 
 
 Broad/private experiences whose value depends on the local corpus itself—such as seeing all candidatures together or inspecting complete private user data—remain AAAAT application experiences. An external host may direct the user to AAAAT, or a future bounded capability may open the application, rather than recreating those views by exporting the underlying corpus.
 
-Migration 010 stores only this task-specific selection state. It is not a generic permission registry. Migrations 001–009 remain immutable.
+The current schema stores only this task-specific selection state. It is not a generic permission registry.
 
 ## Consequences
 

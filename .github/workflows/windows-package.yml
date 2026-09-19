@@ -1,0 +1,95 @@
+name: Windows package candidate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - candidate/windows
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-windows:
+    name: Package Windows ZIP
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout triggering commit
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+
+      - name: Use pinned npm
+        shell: pwsh
+        run: npm install --global npm@11.19.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify run boundary
+        run: npm run verify -- -- --testTimeout=60000
+
+      - name: Make Windows package
+        run: npm run make
+
+      - name: Verify affected packaged runtime journeys
+        run: npx playwright test test/desktop/packaged-recovery.spec.ts test/desktop/packaged-application-intent.spec.ts --config playwright.config.ts
+
+      - name: Collect package metadata
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zips = @(Get-ChildItem -Path 'out/make' -Recurse -File -Filter '*.zip')
+          if ($zips.Count -ne 1) {
+            throw "Expected exactly one Windows ZIP under out/make, found $($zips.Count): $($zips.FullName -join ', ')"
+          }
+
+          $zip = $zips[0]
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip.FullName).Hash.ToLowerInvariant()
+          $size = $zip.Length
+          $metadata = @(
+            "source_sha=${{ github.sha }}"
+            "zip_filename=$($zip.Name)"
+            "zip_size_bytes=$size"
+            "sha256=$hash"
+          )
+          $metadata | Set-Content -LiteralPath 'windows-package-metadata.txt' -Encoding utf8
+
+          "zip_path=$($zip.FullName)" >> $env:GITHUB_OUTPUT
+          "zip_filename=$($zip.Name)" >> $env:GITHUB_OUTPUT
+          "zip_size_bytes=$size" >> $env:GITHUB_OUTPUT
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+
+          @"
+          ## Windows package candidate
+          - Source SHA: `${{ github.sha }}`
+          - ZIP: `$($zip.Name)`
+          - Size: `$size` bytes
+          - SHA-256: `$hash`
+          "@ >> $env:GITHUB_STEP_SUMMARY
+
+          Write-Host "Source SHA: ${{ github.sha }}"
+          Write-Host "ZIP filename: $($zip.Name)"
+          Write-Host "ZIP size: $size bytes"
+          Write-Host "SHA-256: $hash"
+
+      - name: Upload Windows candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: AAAAT-windows-candidate-${{ github.sha }}
+          path: |
+            ${{ steps.package.outputs.zip_path }}
+            windows-package-metadata.txt
+          if-no-files-found: error
+          compression-level: 0

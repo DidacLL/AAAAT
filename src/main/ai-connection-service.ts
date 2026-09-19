@@ -42,7 +42,6 @@ const operationDefaultsSchema = z
     opportunity_review: aiConnectionIdSchema.optional(),
     job_extraction: aiConnectionIdSchema.optional(),
     historical_field_discovery: aiConnectionIdSchema.optional(),
-    variant_recommendation: aiConnectionIdSchema.optional(),
     cv_tailoring: aiConnectionIdSchema.optional(),
     cover_letter_draft: aiConnectionIdSchema.optional(),
   })
@@ -117,6 +116,38 @@ function validatedEndpoint(input: AiConnectionInput): string {
     throw new AiConnectionServiceError("HTTP AI endpoints must use a loopback host.");
   }
   return endpoint.toString().replace(/\/$/, "");
+}
+
+const aiConnectionProbeTimeoutMs = 3_000;
+
+function modelsUrl(baseUrl: string): string {
+  const url = new URL(baseUrl);
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/models`;
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+export async function probeAiConnection(
+  rootPath: string,
+  rawConnectionId: string,
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs = aiConnectionProbeTimeoutMs,
+): Promise<boolean> {
+  const connectionId = aiConnectionIdSchema.parse(rawConnectionId);
+  const configuration = readConfiguration(rootPath);
+  const connection = connectionById(configuration, connectionId);
+  try {
+    const response = await fetchImpl(modelsUrl(connection.endpoint), {
+      method: "GET",
+      headers: { accept: "application/json" },
+      redirect: "error",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 function emptyConfiguration(): StoredConnectionConfiguration {
@@ -257,8 +288,7 @@ export function getAiConnectionForOperation(
   const operationDefaultId = configuration.operationDefaults[operation];
   if (operationDefaultId) return statusFor(connectionById(configuration, operationDefaultId));
   if (configuration.defaultConnectionId === null) return null;
-  const fallback = connectionById(configuration, configuration.defaultConnectionId);
-  return fallback.validatedOperations.includes(operation) ? statusFor(fallback) : null;
+  return statusFor(connectionById(configuration, configuration.defaultConnectionId));
 }
 
 export function requireAiConnectionForOperation(
@@ -275,7 +305,7 @@ export function requireAiConnectionForOperation(
   const connection = getAiConnectionForOperation(rootPath, operation);
   if (!connection) {
     throw new AiConnectionServiceError(
-      `Validate and choose a connection for ${aiOperationLabels[operation]} before using this AI operation.`,
+      `Choose a default AI connection before using ${aiOperationLabels[operation]}.`,
     );
   }
   return connection;

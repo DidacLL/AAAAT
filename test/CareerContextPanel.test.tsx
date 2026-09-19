@@ -98,7 +98,7 @@ describe("CareerContextPanel", () => {
     expect(screen.queryByText("Objectives")).not.toBeInTheDocument();
   });
 
-  it("keeps AI-use preferences secondary and independent from local career preference text", async () => {
+  it("uses the same AI-use eye independently from local career preference text", async () => {
     current.mockResolvedValueOnce({
       ...emptyContext,
       constraints: "Private local constraint",
@@ -110,15 +110,17 @@ describe("CareerContextPanel", () => {
     const summary = await screen.findByText("Career preferences", { selector: "summary span:first-child" });
     await user.click(summary);
     expect(screen.getByText("Private local constraint")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Edit preferences" }));
-    await user.click(screen.getByLabelText("Choose what AI may use"));
 
-    const constraints = await screen.findByRole("checkbox", { name: "Constraints" });
-    expect(constraints).toBeChecked();
-    await user.click(constraints);
-
+    const summaryEyes = screen.getAllByRole("button", { name: "AI may use this information" });
+    expect(summaryEyes).toHaveLength(2);
+    expect(summaryEyes[0]).toHaveAttribute("aria-pressed", "true");
+    await user.click(summaryEyes[0]!);
     expect(updateDisclosure).toHaveBeenCalledWith({ ...allShared, constraints: false });
-    expect(screen.getByRole("textbox", { name: /^Constraints/ })).toHaveValue("Private local constraint");
+    expect(screen.getByText("Private local constraint")).toBeInTheDocument();
     expect(update).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Edit preferences" }));
+    expect(screen.getByRole("textbox", { name: /^Constraints/ })).toHaveValue("Private local constraint");
+    expect(screen.getAllByRole("button", { name: "AI may use this information" })).toHaveLength(7);
   });
 });

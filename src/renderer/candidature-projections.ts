@@ -1,5 +1,6 @@
 import type {
   CandidatureFieldConfiguration,
+  CandidaturePresentationSize,
   CandidatureRecord,
   CandidatureRuntimeValue,
   TagRecord,
@@ -8,8 +9,11 @@ import type {
 export type ArchiveFilter = "active" | "archived" | "all";
 
 export interface CandidatureRecognitionCue {
+  readonly fieldId: string;
   readonly label: string;
   readonly value: string;
+  readonly presentationSize: CandidaturePresentationSize;
+  readonly favourite: boolean;
 }
 
 function scalarValue(
@@ -31,23 +35,6 @@ function displayValue(
     ? value.map((item) => scalarValue(field, item)).join(", ")
     : scalarValue(field, value);
   return displayed.length > 96 ? `${displayed.slice(0, 93).trimEnd()}…` : displayed;
-}
-
-function sourceCue(record: CandidatureRecord): CandidatureRecognitionCue | null {
-  const normalized = record.sourceSearchText.replace(/\s+/g, " ").trim();
-  if (!normalized) return null;
-
-  const title = record.label.replace(/\s+/g, " ").trim();
-  const sourceLower = normalized.toLocaleLowerCase();
-  const titleLower = title.toLocaleLowerCase();
-  const distinct =
-    title && sourceLower.startsWith(titleLower)
-      ? normalized.slice(title.length).replace(/^[\s·|:;,.\-–—]+/, "").trim()
-      : normalized;
-  if (!distinct || titleLower.includes(distinct.toLocaleLowerCase())) return null;
-
-  const value = distinct.length > 112 ? `${distinct.slice(0, 109).trimEnd()}…` : distinct;
-  return { label: "Source", value };
 }
 
 function matchingExcerpt(text: string, query: string, limit = 112): string | null {
@@ -78,28 +65,46 @@ export function candidatureSearchMatchCue(
   const normalizedQuery = query.trim();
   if (!normalizedQuery) return null;
 
-  if (record.label.toLocaleLowerCase().includes(normalizedQuery.toLocaleLowerCase())) return null;
-
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
   for (const retained of record.values) {
     const field = fieldById.get(retained.fieldId);
     if (!field) continue;
     const value = displayValue(field, retained.value);
+    const cue = {
+      fieldId: field.definition.id,
+      label: field.definition.label,
+      presentationSize: field.preferences.presentationSize,
+      favourite: field.preferences.favourite,
+    };
     if (matchingExcerpt(field.definition.label, normalizedQuery) !== null) {
-      return { label: field.definition.label, value };
+      return { ...cue, value };
     }
     const excerpt = matchingExcerpt(value, normalizedQuery, 96);
-    if (excerpt) return { label: field.definition.label, value: excerpt };
+    if (excerpt) return { ...cue, value: excerpt };
   }
 
   const sourceExcerpt = matchingExcerpt(record.sourceSearchText, normalizedQuery);
-  if (sourceExcerpt) return { label: "Source match", value: sourceExcerpt };
+  if (sourceExcerpt) {
+    return {
+      fieldId: "source-match",
+      label: "Source match",
+      value: sourceExcerpt,
+      presentationSize: "wide",
+      favourite: false,
+    };
+  }
 
   for (const tag of tags) {
     if (!record.tagIds.includes(tag.id)) continue;
     const candidates = [tag.name, ...tag.aliases, tag.definition, tag.notes ?? ""];
     if (candidates.some((candidate) => matchingExcerpt(candidate, normalizedQuery) !== null)) {
-      return { label: "Tag match", value: tag.name };
+      return {
+        fieldId: `tag-${tag.id}`,
+        label: "Tag match",
+        value: tag.name,
+        presentationSize: "normal",
+        favourite: false,
+      };
     }
   }
 
@@ -109,33 +114,46 @@ export function candidatureSearchMatchCue(
 export function candidatureRecognitionCues(
   record: CandidatureRecord,
   fields: readonly CandidatureFieldConfiguration[],
-  limit = 2,
+  limit = 4,
 ): CandidatureRecognitionCue[] {
   if (limit <= 0) return [];
-  const title = record.label.toLocaleLowerCase();
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
-  const cues = record.values
-    .flatMap((retained) => {
-      const field = fieldById.get(retained.fieldId);
-      if (!field?.preferences.focusVisible) return [];
-      const value = displayValue(field, retained.value).trim();
-      if (!value || title.includes(value.toLocaleLowerCase())) return [];
-      return [{ field, label: field.definition.label, value }];
-    })
+  const fieldOrder = new Map(fields.map((field, index) => [field.definition.id, index]));
+  const displayable = record.values.flatMap((retained) => {
+    const field = fieldById.get(retained.fieldId);
+    if (!field?.definition.enabled) return [];
+    const value = displayValue(field, retained.value).trim();
+    if (!value) return [];
+    return [{
+      field,
+      fieldId: field.definition.id,
+      label: field.definition.label,
+      value,
+      presentationSize: field.preferences.presentationSize,
+      favourite: field.preferences.favourite,
+    }];
+  });
+  const chosen = displayable.filter((cue) => cue.favourite);
+  return chosen
     .sort((left, right) => {
-      const leftOrder = left.field.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER;
-      const rightOrder = right.field.preferences.focusOrder ?? Number.MAX_SAFE_INTEGER;
-      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-      return left.label.localeCompare(right.label);
+      const leftOrder = left.field.preferences.favouriteOrder;
+      const rightOrder = right.field.preferences.favouriteOrder;
+      if (leftOrder !== null && rightOrder !== null && leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+      if (leftOrder !== null && rightOrder === null) return -1;
+      if (leftOrder === null && rightOrder !== null) return 1;
+      return (fieldOrder.get(left.fieldId) ?? Number.MAX_SAFE_INTEGER) -
+        (fieldOrder.get(right.fieldId) ?? Number.MAX_SAFE_INTEGER);
     })
     .slice(0, limit)
-    .map(({ label, value }) => ({ label, value }));
-
-  if (cues.length < limit) {
-    const fallback = sourceCue(record);
-    if (fallback && !cues.some((cue) => cue.value === fallback.value)) cues.push(fallback);
-  }
-  return cues.slice(0, limit);
+    .map((cue) => ({
+      fieldId: cue.fieldId,
+      label: cue.label,
+      value: cue.value,
+      presentationSize: cue.presentationSize,
+      favourite: cue.favourite,
+    }));
 }
 
 export function filterCandidatures(

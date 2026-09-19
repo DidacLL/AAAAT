@@ -1,0 +1,57 @@
+import {
+  applicationPacketCreateSchema,
+  applicationPacketRecordSchema,
+  coverLetterInputSchema,
+  coverLetterRecordSchema,
+  coverLetterUpdateSchema,
+  cvTemplateInputSchema,
+  cvTemplateRecordSchema,
+  cvTemplateUpdateSchema,
+  documentCollectionsSchema,
+  documentDomainChannels,
+  openGeneratedResultSchema,
+  portableProjectExportResultSchema,
+  renderedCvRecordSchema,
+  workingCvCreateSchema,
+  workingCvRecordSchema,
+  workingCvSaveItemSchema,
+  workingCvSaveTemplateSchema,
+  workingCvUpdateSchema,
+  type ApplicationPacketCreate,
+  type CoverLetterInput,
+  type CoverLetterUpdate,
+  type CvTemplateInput,
+  type CvTemplateUpdate,
+  type DocumentDomainDesktopApi,
+  type WorkingCvCreate,
+  type WorkingCvSaveItem,
+  type WorkingCvSaveTemplate,
+  type WorkingCvUpdate,
+} from "../shared/document-domain-contracts";
+
+type Invoke = (channel: string, ...args: readonly unknown[]) => Promise<unknown>;
+
+export function createDocumentDomainDesktopApi(invoke: Invoke): DocumentDomainDesktopApi {
+  return Object.freeze({
+    documentDomain: Object.freeze({
+      collections: async () => documentCollectionsSchema.parse(await invoke(documentDomainChannels.collections)),
+      createTemplate: async (input: CvTemplateInput) => documentCollectionsSchema.parse(await invoke(documentDomainChannels.templateCreate, cvTemplateInputSchema.parse(input))),
+      updateTemplate: async (input: CvTemplateUpdate) => documentCollectionsSchema.parse(await invoke(documentDomainChannels.templateUpdate, cvTemplateUpdateSchema.parse(input))),
+      removeTemplate: async (templateId: string) => documentCollectionsSchema.parse(await invoke(documentDomainChannels.templateRemove, cvTemplateRecordSchema.shape.id.parse(templateId))),
+      createWorkingCv: async (input: WorkingCvCreate) => workingCvRecordSchema.parse(await invoke(documentDomainChannels.workingCreate, workingCvCreateSchema.parse(input))),
+      updateWorkingCv: async (input: WorkingCvUpdate) => workingCvRecordSchema.parse(await invoke(documentDomainChannels.workingUpdate, workingCvUpdateSchema.parse(input))),
+      removeWorkingCv: async (workingCvId: string) => documentCollectionsSchema.parse(await invoke(documentDomainChannels.workingRemove, workingCvRecordSchema.shape.id.parse(workingCvId))),
+      saveWorkingItem: async (input: WorkingCvSaveItem) => workingCvRecordSchema.parse(await invoke(documentDomainChannels.workingSaveItem, workingCvSaveItemSchema.parse(input))),
+      saveWorkingAsTemplate: async (input: WorkingCvSaveTemplate) => cvTemplateRecordSchema.parse(await invoke(documentDomainChannels.workingSaveTemplate, workingCvSaveTemplateSchema.parse(input))),
+      renderCv: async (workingCvId: string) => renderedCvRecordSchema.parse(await invoke(documentDomainChannels.renderCv, workingCvRecordSchema.shape.id.parse(workingCvId))),
+      duplicateRenderedCv: async (renderedCvId: string) => workingCvRecordSchema.parse(await invoke(documentDomainChannels.duplicateRenderedCv, renderedCvRecordSchema.shape.id.parse(renderedCvId))),
+      openRenderedCv: async (renderedCvId: string) => openGeneratedResultSchema.parse(await invoke(documentDomainChannels.openRenderedCv, renderedCvRecordSchema.shape.id.parse(renderedCvId))),
+      exportRenderedCv: async (renderedCvId: string) => portableProjectExportResultSchema.parse(await invoke(documentDomainChannels.exportRenderedCv, renderedCvRecordSchema.shape.id.parse(renderedCvId))),
+      createLetter: async (input: CoverLetterInput) => coverLetterRecordSchema.parse(await invoke(documentDomainChannels.letterCreate, coverLetterInputSchema.parse(input))),
+      updateLetter: async (input: CoverLetterUpdate) => coverLetterRecordSchema.parse(await invoke(documentDomainChannels.letterUpdate, coverLetterUpdateSchema.parse(input))),
+      removeLetter: async (letterId: string) => documentCollectionsSchema.parse(await invoke(documentDomainChannels.letterRemove, coverLetterRecordSchema.shape.id.parse(letterId))),
+      createPacket: async (input: ApplicationPacketCreate) => applicationPacketRecordSchema.parse(await invoke(documentDomainChannels.packetCreate, applicationPacketCreateSchema.parse(input))),
+      openPacket: async (packetId: string) => openGeneratedResultSchema.parse(await invoke(documentDomainChannels.packetOpen, applicationPacketRecordSchema.shape.id.parse(packetId))),
+    }),
+  });
+}

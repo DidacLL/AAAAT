@@ -6,19 +6,16 @@ export const aiOperationSchema = z.enum([
   "opportunity_review",
   "job_extraction",
   "historical_field_discovery",
-  "variant_recommendation",
   "cv_tailoring",
   "cover_letter_draft",
 ]);
 export type AiOperation = z.infer<typeof aiOperationSchema>;
-
 export const aiOperations = aiOperationSchema.options;
 
 export const aiOperationLabels: Readonly<Record<AiOperation, string>> = Object.freeze({
   opportunity_review: "Opportunity review",
   job_extraction: "Job extraction",
   historical_field_discovery: "Historical field discovery",
-  variant_recommendation: "Variant recommendation",
   cv_tailoring: "CV tailoring",
   cover_letter_draft: "Cover-letter drafting",
 });
@@ -28,6 +25,7 @@ export const aiConnectionManagementChannels = Object.freeze({
   save: "aaaat:ai-connections-save",
   setDefault: "aaaat:ai-connections-set-default",
   remove: "aaaat:ai-connections-remove",
+  probe: "aaaat:ai-connections-probe",
   validateOperation: "aaaat:ai-connections-validate-operation",
   setOperationDefault: "aaaat:ai-connections-set-operation-default",
   exportPortable: "aaaat:ai-connections-export-portable",
@@ -35,12 +33,9 @@ export const aiConnectionManagementChannels = Object.freeze({
 } as const);
 
 export const aiConnectionIdSchema = z.string().uuid();
-
+export const aiConnectionProbeResultSchema = z.boolean();
 export const aiConnectionOperationInputSchema = z
-  .object({
-    connectionId: aiConnectionIdSchema,
-    operation: aiOperationSchema,
-  })
+  .object({ connectionId: aiConnectionIdSchema, operation: aiOperationSchema })
   .strict();
 export type AiConnectionOperationInput = z.infer<typeof aiConnectionOperationInputSchema>;
 
@@ -58,7 +53,6 @@ export const namedAiConnectionSchema = aiConnectionInputSchema
   })
   .strict();
 export type NamedAiConnection = z.infer<typeof namedAiConnectionSchema>;
-
 export const namedAiConnectionListSchema = z.array(namedAiConnectionSchema).max(16);
 export type NamedAiConnectionList = z.infer<typeof namedAiConnectionListSchema>;
 
@@ -86,12 +80,8 @@ export type PortableAiSetup = z.infer<typeof portableAiSetupSchema>;
 
 export const portableAiSetupExportResultSchema = z.enum(["exported", "cancelled"]);
 export type PortableAiSetupExportResult = z.infer<typeof portableAiSetupExportResultSchema>;
-
 export const portableAiSetupImportResultSchema = z
-  .object({
-    status: z.enum(["imported", "cancelled"]),
-    connections: namedAiConnectionListSchema,
-  })
+  .object({ status: z.enum(["imported", "cancelled"]), connections: namedAiConnectionListSchema })
   .strict();
 export type PortableAiSetupImportResult = z.infer<typeof portableAiSetupImportResultSchema>;
 
@@ -101,6 +91,7 @@ export interface AiConnectionDesktopApi {
     readonly save: (input: NamedAiConnectionInput) => Promise<NamedAiConnection[]>;
     readonly setDefault: (connectionId: string) => Promise<NamedAiConnection[]>;
     readonly remove: (connectionId: string) => Promise<NamedAiConnection[]>;
+    readonly probe?: (connectionId: string) => Promise<boolean>;
     readonly validateOperation: (input: AiConnectionOperationInput) => Promise<NamedAiConnection[]>;
     readonly setOperationDefault: (input: AiConnectionOperationInput) => Promise<NamedAiConnection[]>;
     readonly exportPortable: () => Promise<PortableAiSetupExportResult>;

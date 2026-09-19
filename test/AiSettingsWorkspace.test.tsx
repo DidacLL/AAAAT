@@ -34,9 +34,23 @@ const save = vi.fn();
 const setDefault = vi.fn();
 const remove = vi.fn();
 const validateOperation = vi.fn();
+const probe = vi.fn();
 const setOperationDefault = vi.fn();
 const exportPortable = vi.fn();
 const importPortable = vi.fn();
+const listPrompts = vi.fn();
+const savePrompt = vi.fn();
+const resetPrompt = vi.fn();
+
+const promptDisclosure = {
+  operation: "job_extraction" as const,
+  label: "Job extraction",
+  defaultInstruction: "Extract supported facts.",
+  instruction: "Extract supported facts.",
+  isDefault: true,
+  contextSummary: "The supplied Source and eligible fields.",
+  responseExpectation: "A small JSON extraction envelope.",
+};
 
 function installApi() {
   Object.defineProperty(window, "aaaat", {
@@ -48,9 +62,15 @@ function installApi() {
         setDefault,
         remove,
         validateOperation,
+        probe,
         setOperationDefault,
         exportPortable,
         importPortable,
+      },
+      aiPrompts: {
+        list: listPrompts,
+        save: savePrompt,
+        reset: resetPrompt,
       },
     },
   });
@@ -89,8 +109,12 @@ describe("AI settings workspace", () => {
     vi.clearAllMocks();
     clearAllAiTasks();
     list.mockResolvedValue([]);
+    probe.mockResolvedValue(true);
     exportPortable.mockResolvedValue("cancelled");
     importPortable.mockResolvedValue({ status: "cancelled", connections: [] });
+    listPrompts.mockResolvedValue([promptDisclosure]);
+    savePrompt.mockResolvedValue([{ ...promptDisclosure, instruction: "My complete extraction instruction.", isDefault: false }]);
+    resetPrompt.mockResolvedValue([promptDisclosure]);
     installApi();
   });
 
@@ -100,11 +124,50 @@ describe("AI settings workspace", () => {
     vi.restoreAllMocks();
   });
 
+  it("keeps full AI instructions visible and editable in the main AI Settings surface", async () => {
+    const user = userEvent.setup();
+    render(<AiSettingsWorkspace />);
+
+    const guidance = await screen.findByRole("region", { name: "AI instructions" });
+    expect(guidance).toBeVisible();
+    expect(screen.queryByText("Advanced: AI instructions and context")).not.toBeInTheDocument();
+    expect(screen.getByText("Job extraction")).toBeVisible();
+    const input = screen.getByRole("textbox", { name: "Instruction" });
+    await user.clear(input);
+    await user.type(input, "My complete extraction instruction.");
+    await user.click(screen.getByRole("button", { name: "Save instruction" }));
+
+    expect(savePrompt).toHaveBeenCalledWith({
+      operation: "job_extraction",
+      instruction: "My complete extraction instruction.",
+    });
+  });
+
+  it("keeps an empty custom instruction resettable to the shipped default", async () => {
+    const user = userEvent.setup();
+    savePrompt.mockResolvedValueOnce([{
+      ...promptDisclosure,
+      instruction: "",
+      isDefault: false,
+    }]);
+    render(<AiSettingsWorkspace />);
+
+    const input = await screen.findByRole("textbox", { name: "Instruction" });
+    await user.clear(input);
+    await user.click(screen.getByRole("button", { name: "Save instruction" }));
+
+    const reset = screen.getByRole("button", { name: "Reset to default" });
+    expect(reset).toBeEnabled();
+    await user.click(reset);
+    expect(resetPrompt).toHaveBeenCalledWith("job_extraction");
+  });
+
   it("adds several connections, switches the general default, and does not invent credentials", async () => {
     const user = userEvent.setup();
     save
       .mockResolvedValueOnce([first])
       .mockResolvedValueOnce([first, second]);
+    list.mockImplementation(async () => save.mock.calls.length < 1 ? [] : save.mock.calls.length < 2 ? [first] : [first, second]);
     setDefault.mockResolvedValue([
       { ...first, isDefault: false },
       { ...second, isDefault: true },
@@ -113,10 +176,11 @@ describe("AI settings workspace", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<AiSettingsWorkspace />);
-    expect(await screen.findByText(/No AI connections are configured yet\./)).toBeInTheDocument();
+    expect(await screen.findByText("No saved connections.")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Connection name"), "Fast local");
     await user.type(screen.getByLabelText("Model"), "fast-model");
+    await user.type(screen.getByLabelText("Model server address"), "http://localhost:11434/v1");
     await user.click(screen.getByRole("button", { name: "Add connection" }));
     expect(save).toHaveBeenCalledWith({
       name: "Fast local",
@@ -124,11 +188,13 @@ describe("AI settings workspace", () => {
       model: "fast-model",
     });
     expect(await screen.findByText("General default connection")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validate AI capabilities" })).toBeInTheDocument();
+    expect(screen.getByText(/Connection saved. AAAAT is checking/)).toBeInTheDocument();
+    expect(validateOperation).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Add another" }));
+    await user.click(screen.getByRole("button", { name: "Add connection" }));
     await user.type(screen.getByLabelText("Connection name"), "Deep local");
     await user.type(screen.getByLabelText("Model"), "deep-model");
+    await user.type(screen.getByLabelText("Model server address"), "http://localhost:11434/v1");
     await user.click(screen.getByRole("button", { name: "Add connection" }));
 
     await user.click(screen.getByRole("button", { name: "Use Deep local as the general default" }));
@@ -164,12 +230,12 @@ describe("AI settings workspace", () => {
     });
 
     render(<AiSettingsWorkspace />);
-    await user.click(await screen.findByRole("button", { name: "Validate AI capabilities" }));
+    await user.click(await screen.findByRole("button", { name: "Check all AI features" }));
 
     expect(
       await screen.findByText(/Queued|Validating Opportunity review/),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validation running…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Checking AI features…" })).toBeDisabled();
 
     firstValidation.resolve([{
       ...first,
@@ -178,9 +244,9 @@ describe("AI settings workspace", () => {
     }]);
 
     expect(await screen.findByText(/Validation completed/)).toBeInTheDocument();
-    expect(screen.getByText(`${aiOperations.length}/${aiOperations.length} ready`)).toBeInTheDocument();
+    expect(screen.getByText(`${aiOperations.length}/${aiOperations.length} checked`)).toBeInTheDocument();
     expect(validateOperation).toHaveBeenCalledTimes(aiOperations.length);
-    expect(screen.getByText("AI ready.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Compatibility checked.", { exact: false })).toBeInTheDocument();
   });
 
   it("keeps the connection connected when one operation is incompatible and preserves the exchange for retry", async () => {
@@ -200,12 +266,13 @@ describe("AI settings workspace", () => {
     });
 
     render(<AiSettingsWorkspace />);
-    await user.click(await screen.findByRole("button", { name: "Validate AI capabilities" }));
+    await user.click(await screen.findByRole("button", { name: "Check all AI features" }));
 
-    expect(await screen.findByText("Connected")).toBeInTheDocument();
+    expect(await screen.findByText("Connected now")).toBeInTheDocument();
+    await user.click(screen.getByText(/^AI feature checks ·/));
     expect(screen.getByText("Incompatible · failed validation")).toBeInTheDocument();
-    expect(screen.getByText(`${aiOperations.length - 1}/${aiOperations.length} ready`)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry failed validation" })).toBeEnabled();
+    expect(screen.getByText(`${aiOperations.length - 1}/${aiOperations.length} checked`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry failed AI feature checks" })).toBeEnabled();
     expect(screen.getByText("Inspect AI exchange")).toBeInTheDocument();
     expect(screen.getByText("{\"summary\":42}")).toBeInTheDocument();
     expect(screen.getByText(/summary must be a string/)).toBeInTheDocument();
@@ -231,6 +298,32 @@ describe("AI settings workspace", () => {
       endpoint: "http://localhost:11434/v1",
       model: "fast-model-2",
     });
+  });
+
+  it("shows a wrong address inline and probes a saved address without spending capability inference", async () => {
+    const user = userEvent.setup();
+    save.mockResolvedValue([first]);
+    list.mockResolvedValue([first]);
+    probe.mockResolvedValue(false);
+
+    render(<AiSettingsWorkspace />);
+    await user.type(screen.getByLabelText("Connection name"), "Fast local");
+    await user.type(screen.getByLabelText("Model"), "fast-model");
+    await user.type(screen.getByLabelText("Model server address"), "localhost:11434/v1");
+    await user.click(screen.getByRole("button", { name: "Add connection" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Start the address with http:// or https://.");
+    expect(save).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByRole("textbox", { name: /Model server address/ }));
+    await user.type(screen.getByRole("textbox", { name: /Model server address/ }), first.endpoint);
+    await user.click(screen.getByRole("button", { name: "Add connection" }));
+    expect(save).toHaveBeenCalledOnce();
+    expect(await screen.findByText(/Connection saved. AAAAT is checking reachability/)).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Connection saved, but AAAAT could not reach this AI service.",
+    );
+    expect(probe).toHaveBeenCalledWith(firstId);
+    expect(validateOperation).not.toHaveBeenCalled();
   });
 
   it("exports portable setup and requires explicit confirmation before replacing imported connections", async () => {
@@ -267,7 +360,7 @@ describe("AI settings workspace", () => {
     expect(importPortable).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Imported local")).toBeInTheDocument();
     expect(screen.queryByText("Fast local")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validate AI capabilities" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check all AI features" })).toBeInTheDocument();
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Validate AI capabilities on this computer",
     );

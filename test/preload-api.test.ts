@@ -23,12 +23,10 @@ const configuration = {
   },
   preferences: {
     fieldId,
-    focusVisible: false,
-    focusOrder: null,
-    focusProminence: "normal" as const,
-    identityOrder: null,
-    aiDiscovery: true,
-    aiContextMode: "expose" as const,
+    favourite: false,
+    favouriteOrder: null,
+    presentationSize: "normal" as const,
+    aiUseAllowed: true,
   },
 };
 
@@ -37,10 +35,8 @@ const record = {
   archived: false,
   createdAt: "2026-09-04T00:00:00.000Z",
   updatedAt: "2026-09-04T00:00:00.000Z",
-  label: "Pilot opportunity",
   sourceSearchText: "",
   values: [],
-  documentIds: [],
   tagIds: [],
 };
 
@@ -56,6 +52,7 @@ describe("desktop preload API", () => {
       if (channel === channels.candidatureFilter) return [candidatureId];
       if (channel === channels.candidatureFieldCreate) return configuration;
       if (channel === channels.candidatureFieldPreferencesUpdate) return configuration;
+      if (channel === channels.candidatureFavouriteOrderUpdate) return [configuration];
       if (channel === channels.candidatureFieldValueSet) {
         return {
           ...record,
@@ -79,7 +76,10 @@ describe("desktop preload API", () => {
             endpoint: "https://models.example.test/v1",
             model: "review-model",
           },
-          projectedContext: { candidature: { label: "Candidature", information: [], sources: [] }, profileItems: [] },
+          projectedContext: {
+            candidature: { label: "Candidature", information: [], sources: [] },
+            profileItems: [],
+          },
         };
       }
       if (channel === aiChannels.opportunityReview) {
@@ -128,6 +128,9 @@ describe("desktop preload API", () => {
       api.candidatures.setFieldValue({ candidatureId, fieldId, value: 1500 }),
     ).resolves.toMatchObject({ id: candidatureId });
     await expect(
+      api.candidatures.reorderFavouriteFields([fieldId]),
+    ).resolves.toEqual([configuration]);
+    await expect(
       api.ai.extractJob({
         sourceTitle: "Pilot vacancy",
         sourceUrl: "",
@@ -135,19 +138,9 @@ describe("desktop preload API", () => {
       }),
     ).resolves.toEqual({ proposals: [{ fieldId, value: 1500 }], newFields: [] });
     await expect(
-      api.ai.previewOpportunityReview({
-        candidatureId,
-        identityPrivacy: "omit",
-        contactPrivacy: "omit",
-      }),
+      api.ai.previewOpportunityReview({ candidatureId }),
     ).resolves.toMatchObject({ connection: { name: "Remote provider" } });
-    await expect(
-      api.ai.reviewOpportunity({
-        candidatureId,
-        identityPrivacy: "omit",
-        contactPrivacy: "omit",
-      }),
-    ).resolves.toEqual({
+    await expect(api.ai.reviewOpportunity({ candidatureId })).resolves.toEqual({
       summary: "The supplied information is relevant evidence.",
       relevantEvidence: ["TypeScript"],
       uncertainties: [],
@@ -161,6 +154,10 @@ describe("desktop preload API", () => {
     });
 
     expect(invoke).toHaveBeenCalledWith(channels.candidatureFieldList);
+    expect(invoke).toHaveBeenCalledWith(
+      channels.candidatureFavouriteOrderUpdate,
+      { fieldIds: [fieldId] },
+    );
     expect(invoke).toHaveBeenCalledWith(channels.candidatureFilter, {
       fieldId,
       operator: "greater_than_or_equal",
@@ -178,13 +175,9 @@ describe("desktop preload API", () => {
     });
     expect(invoke).toHaveBeenCalledWith(aiChannels.opportunityReviewPreview, {
       candidatureId,
-      identityPrivacy: "omit",
-      contactPrivacy: "omit",
     });
     expect(invoke).toHaveBeenCalledWith(aiChannels.opportunityReview, {
       candidatureId,
-      identityPrivacy: "omit",
-      contactPrivacy: "omit",
     });
   });
 

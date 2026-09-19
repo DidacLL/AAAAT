@@ -1,0 +1,190 @@
+.document-editor .document-context-heading h2 {
+  margin: 2px 0 0;
+  font-size: clamp(1.25rem, 2vw, 1.7rem);
+  line-height: 1.15;
+}
+
+.document-create-options {
+  padding-top: 5px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.document-create-options summary,
+.document-evidence-card details > summary {
+  color: var(--muted-ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.document-preparation-status,
+.document-manual-ready {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--focus);
+  border-radius: 4px;
+  background: #f4ebdc;
+}
+
+.document-preparation-status strong,
+.document-preparation-status p,
+.document-preparation-status small,
+.document-manual-ready {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.document-preparation-status small {
+  display: block;
+  color: var(--muted-ink);
+}
+
+.document-preparation-status.preparation-ready {
+  border-left-color: var(--olive);
+}
+
+.document-preparation-status.preparation-failed {
+  border-left-color: var(--rust);
+}
+
+.document-manual-ready {
+  color: var(--muted-ink);
+  border-left-color: var(--panel-deep);
+}
+
+.document-writing-sheet {
+  display: grid;
+  gap: 12px;
+  max-width: 900px;
+}
+
+.document-writing-sheet > label,
+.document-item-adjustment label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.document-writing-sheet input,
+.document-writing-sheet textarea,
+.document-item-adjustment input,
+.document-item-adjustment textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #a9967e;
+  border-radius: 4px;
+  color: var(--ink);
+  background: var(--paper-strong);
+  font: inherit;
+  font-weight: 400;
+}
+
+.document-writing-sheet .letter-body-field textarea {
+  min-height: 300px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.document-metadata {
+  margin-top: 4px;
+}
+
+.document-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.document-section-heading h3,
+.document-content-block h4,
+.document-evidence-copy h4 {
+  margin: 2px 0 0;
+}
+
+.document-section-heading h3 {
+  font-size: 1.05rem;
+}
+
+.document-section-heading > span {
+  color: var(--muted-ink);
+  font-size: 12px;
+}
+
+.document-content-stack,
+.document-evidence-list {
+  display: grid;
+  gap: 9px;
+}
+
+.document-content-block,
+.document-evidence-card {
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid #bca17e;
+  border-radius: 4px;
+  background: var(--paper-strong);
+}
+
+.document-content-block p,
+.document-evidence-copy p {
+  margin: 5px 0 0;
+  line-height: 1.45;
+}
+
+.document-content-meta {
+  color: var(--muted-ink);
+  font-size: 12px;
+}
+
+.document-evidence-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+  gap: 12px;
+  align-items: start;
+}
+
+.document-evidence-card.muted-evidence {
+  opacity: 0.82;
+  border-left-color: var(--line);
+}
+
+.document-evidence-card details[open] {
+  min-width: min(360px, 100%);
+}
+
+.document-item-adjustment {
+  display: grid;
+  gap: 8px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.document-item-adjustment .include-control {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.document-item-adjustment .include-control input {
+  width: auto;
+}
+
+.document-unused-information {
+  margin-top: 12px;
+}
+
+@media (max-width: 760px) {
+  .document-evidence-card {
+    grid-template-columns: 1fr;
+  }
+
+  .document-writing-sheet .letter-body-field textarea {
+    min-height: 230px;
+  }
+}

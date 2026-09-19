@@ -1,56 +1,37 @@
-# Current execution state
+# Current mission — PLAN[0] integrated baseline acceptance
 
-## Active bounded work
+This file is derived coordination state. Current explicit Product Owner instruction remains higher authority. Durable sequence and deferred owner requirements live in `.agentic/MASTER_PLAN.md`.
 
-**Issue #314 — Rebuild Candidatures around two-state Focus, raw capture, direct editing and Tags — reopened for UX acceptance correction after real Windows owner review.**
+## Outcome
 
-PR #316 merged the domain/state/persistence baseline into `main` as `81668a992a30fe393934f75cf19176addd7aa229`, but the visible renderer did not satisfy the recovered interaction/spatial/visual contract.
+Finish the existing integrated candidate in PR #319 on `product/dogfood-workspace-ai-context` and remove first-class contradictions exposed by Product Owner natural use without reopening later PLAN work.
 
-Do not revive the retired `product/rebuild-candidatures` branch. Start corrective implementation from current `main`.
+PLAN[0] is the accepted integrated baseline: current domain behavior is coherent, foundation truth is sound, and known acceptance defects are resolved before merge.
 
-## Required correction
+## Current first-class corrections
 
-Treat the post-merge owner acceptance comment on #314 as blocking scope. In particular:
+1. **Truthful AI reachability.** Configuration/routing or a historical success must not produce current `AI: Ready`. Current lightweight reachability or real-request evidence may establish readiness; a relevant failure must promptly invalidate stale readiness. Synthetic capability checks are optional diagnostics, not a prerequisite for ordinary AI use. Reuse existing probe/task/diagnostic state rather than adding polling or a generic health subsystem.
 
-- Candidatures first sight is retrieval/capture, not field-definition administration.
-- Corpus Focus owns the useful viewport; configuration must not push it below the fold.
-- Ordinary UI presents information/details, not schema/field-management language.
-- Field-definition capability remains user-owned but lives one deliberate step deeper in complete candidature work, close to the information it affects.
-- Direct candidature creation is low-friction and coherent, not a page-long sequence of isolated field editors with per-field Save buttons.
-- The two creation approaches remain explicit peers, but visible wording must be ordinary/user-facing rather than implementation vocabulary.
-- Use the available desktop window productively across constrained, default and maximized sizes; one principal task gets the useful area and fixed narrow centered layouts/excessive blank space are not acceptable.
-- First-run workspace selection must remain usable in constrained windows without clipping; branding must scale around the task.
-- Professional information is read-first; saved variations and privacy/AI disclosure are secondary until relevant.
-- AI disclosure is contextual, compact and understandable near the affected information, not permanent first-sight checkbox-console chrome or protocol/security jargon.
-- Local storage, Focus visibility and AI disclosure remain independent semantics without forcing the user to understand the internal model.
-- Visible UI follows `docs/UX_VISUAL_DIRECTION.md`: friendly worn retrofuturist field-terminal / paper-dossier character with professional information clarity, not generic SaaS card/form styling.
-- Empty/sparse states are intentionally composed and useful rather than controls floating in unused space.
+2. **One configurable candidature information surface, with no field-derived identity and no blank first-use corpus.** The Focus/All split and field-derived identity are gone; preserve that. Neutral first use must still be recognisable: enabled fields begin included equally in the primary presentation, with no semantic privilege for Role, Organisation or other system fields, and the user demotes/unfavourites/reorders/resizes from there. A candidature with retained values must not collapse to an unexplained “Saved application” placeholder merely because favourites were not configured. Presentation size is corpus/summary presentation metadata: it must visibly affect the configurable card/grid presentation, not resize the field editor. Values must dominate visually, with labels/updated metadata secondary, and one long value must not size unrelated cards. More/advanced reveals the remainder and deeper candidature material. Raw Source/Tag evidence remains bounded to active search explanation.
 
-## Preserve from #316
+3. **Affordable light-model use is the primary AI target, without provider lock-in or hidden writes.** PLAN[0] AI extraction must be designed for resource-constrained models first, including local models on ordinary hardware, while keeping product semantics provider/runtime/model-family agnostic. The general configured connection is usable without passing synthetic capability checks; those checks remain explicit diagnostics/routing evidence. Remove provider-facing burden, keep deterministic validation local, and salvage valid partial proposals independently. AI proposals remain proposals: field values, new field definitions and document changes become ordinary AAAAT data only through an explicit user acceptance/save action.
 
-Do not regress the useful underlying work already merged:
+## Foundation corrections already completed and to preserve
 
-- two-state corpus → selected-candidature Focus behavior;
-- direct complete-candidature entry;
-- raw Source-first capture with explicit AI/manual continuations;
-- user-maintainable profession-specific candidature information definitions;
-- Tags as the shared glossary model;
-- local/manual/no-AI operation;
-- Sources/search/document handoffs/bounded AI/privacy semantics;
-- dirty-state protections and current-schema persistence/backup cleanup;
-- no lifecycle/status/priority/next-action architecture;
-- no obsolete global ToDo/Concept/migration-compatibility paths.
+- The accidental `720×600` BrowserWindow product/minimum assumption is removed without another arbitrary fixed minimum.
+- `src/main/schema.sql` is the sole current workspace structural truth; validation derives structural expectations from it while retaining meaningful corruption/incompatibility and required workspace-state checks.
+- Development verification stays lightweight and branch-general; stronger Windows packaged verification is an explicit run-boundary operation.
 
-## UX authority
+Do not pull PLAN[1] test redesign, PLAN[3] architecture cleanup, PLAN[4] document work, PLAN[5] broader UX refinement, or Linux/macOS finalization into this run. Those are preserved in `.agentic/MASTER_PLAN.md`.
 
-Use current explicit Product Owner instruction first, then `PRODUCT_DEFINITION.md`, `docs/UX_DEFINITION.md`, `docs/UX_VISUAL_DIRECTION.md`, and relevant current product context.
+## Verification model
 
-Do not treat merged renderer structure, historical mockups, component boundaries, existing CSS, or tests that merely assert visible text as design authority.
+Development changes use focused, proportional verification. Do not repeatedly spend compute on unrelated full gates.
 
-Concrete viewport dimensions used by tests or screenshots are verification samples only. They do not define product meaning or a supported fixed/minimum window contract. The product contract is adaptive/resizable behavior: use available space well, stack/reflow/scroll when constrained, and avoid clipping.
+At the final PLAN[0] runtime boundary, produce a Windows candidate only when runtime changes require a new candidate and tie the evidence to the exact product head. Linux/macOS cross-OS verification remains deferred.
 
-## Completion boundary
+CI/package success is engineering evidence, not Product Owner acceptance and not merge authority.
 
-#314 is not complete again until the owner-visible UI is coherently recomposed around the recovered product intentions and remains genuinely usable across constrained, default and maximized desktop windows.
+## Acceptance gate
 
-Do not activate a successor product issue before this acceptance gap is closed.
+PLAN[0] completes only when the integrated baseline is accepted by the Product Owner, is on `main`, and no known first-class integrity contradiction remains.

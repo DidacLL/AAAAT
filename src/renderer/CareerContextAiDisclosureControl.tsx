@@ -5,25 +5,15 @@ import type {
   CareerContextAiDisclosureKey,
 } from "../shared/career-context-ai-disclosure-contracts";
 
-const labels: Readonly<Record<CareerContextAiDisclosureKey, string>> = {
-  careerDirection: "Career direction",
-  objectives: "Objectives",
-  constraints: "Constraints",
-  targetRoles: "Target roles",
-  targetMarketsLocations: "Target markets / locations",
-  workPreferences: "Work preferences",
-  applicationWritingPreferences: "Application / writing preferences",
-};
-
-const keys = Object.keys(labels) as CareerContextAiDisclosureKey[];
-
 export function CareerContextAiDisclosureControl({
+  fieldKey,
   onDirtyChange,
 }: {
+  readonly fieldKey: CareerContextAiDisclosureKey;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [value, setValue] = useState<CareerContextAiDisclosure | null>(null);
-  const [savingKey, setSavingKey] = useState<CareerContextAiDisclosureKey | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,19 +29,19 @@ export function CareerContextAiDisclosureControl({
         if (active) setValue(current);
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load the AI-use settings.");
+        if (active) setError("AAAAT could not load the AI-use setting.");
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [fieldKey]);
 
-  const setAllowed = async (key: CareerContextAiDisclosureKey, allowed: boolean) => {
-    if (!value || savingKey) return;
+  const toggle = async () => {
+    if (!value || saving) return;
     const previous = value;
-    const next = { ...value, [key]: allowed };
+    const next = { ...value, [fieldKey]: !value[fieldKey] };
     setValue(next);
-    setSavingKey(key);
+    setSaving(true);
     setError(null);
     try {
       setValue(await window.aaaat.careerContextAiDisclosure.update(next));
@@ -59,38 +49,25 @@ export function CareerContextAiDisclosureControl({
       setValue(previous);
       setError("AAAAT could not save the AI-use setting.");
     } finally {
-      setSavingKey(null);
+      setSaving(false);
     }
   };
 
+  const allowed = value?.[fieldKey] ?? false;
   return (
-    <details className="ai-visibility-control career-context-ai-disclosure">
-      <summary aria-label="Choose what AI may use" title="Choose what AI may use">
-        AI
-      </summary>
-      <div className="ai-visibility-content">
-        <p className="compact-help">
-          Choose which preferences optional AI help may use. Everything stays stored locally either way.
-        </p>
-        {!value ? <p className="compact-help">Loading…</p> : null}
-        {value ? (
-          <div className="ai-visibility-options">
-            {keys.map((key) => (
-              <label className="check-field" key={key}>
-                <input
-                  type="checkbox"
-                  checked={value[key]}
-                  disabled={savingKey !== null}
-                  onChange={(event) => void setAllowed(key, event.target.checked)}
-                />
-                {labels[key]}
-              </label>
-            ))}
-          </div>
-        ) : null}
-        {savingKey ? <span className="compact-help">Saving…</span> : null}
-        {error ? <p className="error-message" role="alert">{error}</p> : null}
-      </div>
-    </details>
+    <span className="career-context-ai-use">
+      <button
+        type="button"
+        className="compact-secondary ai-use-control"
+        aria-label="AI may use this information"
+        aria-pressed={allowed}
+        title={value && !allowed ? "AI will not use this information" : "AI may use this information"}
+        disabled={!value || saving}
+        onClick={() => void toggle()}
+      >
+        AI use: {allowed ? "On" : "Off"}
+      </button>
+      {error ? <span className="error-message" role="alert">{error}</span> : null}
+    </span>
   );
 }

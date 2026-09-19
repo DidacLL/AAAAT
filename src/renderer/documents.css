@@ -484,3 +484,447 @@
     margin-bottom: 8px;
   }
 }
+
+/* Working CV: readable document outline first, local editing only on demand. */
+.working-cv-editor {
+  display: grid;
+  width: 100%;
+  max-width: 1040px;
+  gap: 12px;
+  margin: 0 auto;
+}
+
+.working-cv-console-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.working-cv-console-heading h1 {
+  margin: 1px 0 2px;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+  line-height: 1.15;
+}
+
+.working-cv-console-heading small {
+  color: var(--muted-ink);
+}
+
+.working-cv-primary-actions {
+  justify-content: flex-end;
+}
+
+.working-cv-document-details,
+.working-cv-reuse,
+.working-cv-add-section {
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted-ink);
+}
+
+.working-cv-document-details > summary,
+.working-cv-reuse > summary,
+.working-cv-add-section > summary {
+  width: fit-content;
+  padding: 7px 0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+  list-style-position: inside;
+}
+
+.document-metadata-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(140px, 0.7fr);
+  gap: 9px;
+  padding: 4px 0 2px;
+}
+
+.document-metadata-grid label,
+.working-cv-edit-fields label,
+.working-source-row label,
+.working-cv-add-row label,
+.working-cv-add-section label,
+.working-cv-template-save label,
+.working-cv-variant-save label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.document-metadata-grid input,
+.working-cv-edit-fields input,
+.working-cv-edit-fields textarea,
+.working-source-row select,
+.working-cv-add-row select,
+.working-cv-add-section input,
+.working-cv-template-save input,
+.working-cv-variant-save input,
+.working-cv-section-title input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #a9967e;
+  border-radius: 3px;
+  color: var(--ink);
+  background: var(--paper-strong);
+  font: inherit;
+  font-weight: 400;
+}
+
+.working-cv-composition {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--rust);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 26%), transparent 18%),
+    #f7eedf;
+  box-shadow: 0 1px 0 rgb(82 61 39 / 8%);
+}
+
+.working-cv-sections {
+  display: grid;
+  gap: 14px;
+}
+
+.working-cv-section {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 0 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.working-cv-section:last-child {
+  padding-bottom: 2px;
+  border-bottom: 0;
+}
+
+.working-cv-section-heading,
+.working-cv-item-heading {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.working-cv-section-title {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.working-cv-section-title h2,
+.working-cv-section > h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.working-cv-section-title > span {
+  color: var(--muted-ink);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.working-cv-section-title label {
+  width: min(360px, 100%);
+}
+
+.working-cv-compact-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.working-cv-compact-controls .compact-secondary {
+  padding: 4px 7px;
+  font-size: 11px;
+}
+
+.working-cv-icon-button {
+  width: 28px;
+  min-width: 28px;
+  padding-inline: 0 !important;
+  text-align: center;
+}
+
+.working-cv-items {
+  display: grid;
+  gap: 0;
+}
+
+.working-cv-item {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  padding: 9px 2px 10px;
+  border-bottom: 1px dashed var(--line-soft);
+}
+
+.working-cv-item:last-child {
+  border-bottom: 0;
+}
+
+.working-cv-item-editing {
+  margin: 3px 0 6px;
+  padding: 11px 12px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--focus);
+  border-radius: 4px;
+  background: var(--paper-strong);
+  box-shadow: 0 1px 0 rgb(82 61 39 / 7%);
+}
+
+.working-cv-item-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
+}
+
+.working-cv-item-copy strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.working-cv-item-copy > span,
+.working-cv-item-copy > small {
+  color: var(--muted-ink);
+  overflow-wrap: anywhere;
+}
+
+.working-cv-item-copy > span {
+  font-size: 13px;
+}
+
+.working-cv-item-copy > small {
+  font-size: 11px;
+}
+
+.working-cv-description {
+  max-width: 78ch;
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.working-cv-link {
+  margin: 0;
+  color: var(--muted-ink);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.working-cv-source-summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  color: var(--muted-ink);
+  font-size: 11px;
+}
+
+.working-cv-source-summary > span,
+.working-cv-source-chip {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: #eee4d5;
+}
+
+.working-cv-link-button {
+  width: fit-content;
+  padding: 2px 0;
+  border: 0;
+  color: var(--focus);
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.working-cv-link-button:hover,
+.working-cv-link-button:focus-visible {
+  color: var(--ink);
+}
+
+.document-item-editor {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.working-source-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.working-cv-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.working-cv-edit-fields textarea {
+  min-height: 92px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.working-cv-wide-field {
+  grid-column: 1 / -1;
+}
+
+.ownership-actions {
+  display: grid;
+  gap: 7px;
+  padding: 9px 10px;
+  border-left: 3px solid var(--olive);
+  background: #efe8d9;
+  color: var(--muted-ink);
+  font-size: 12px;
+}
+
+.ownership-actions > strong {
+  color: var(--ink);
+}
+
+.working-cv-ownership-buttons,
+.working-cv-variant-save {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.working-cv-variant-save label {
+  width: min(320px, 100%);
+  flex: 1 1 220px;
+}
+
+.working-cv-section-empty {
+  margin: 3px 0 5px;
+  color: var(--muted-ink);
+  font-size: 12px;
+}
+
+.working-cv-add-information {
+  width: fit-content;
+  padding: 4px 1px;
+  border: 0;
+  color: var(--focus);
+  background: transparent;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.working-cv-add-information:hover,
+.working-cv-add-information:focus-visible {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.working-cv-add-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  align-items: end;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--focus);
+  background: #f0e7d8;
+}
+
+.working-cv-add-section {
+  margin-top: 2px;
+}
+
+.working-cv-add-section > div {
+  display: grid;
+  grid-template-columns: minmax(180px, 330px) auto;
+  align-items: end;
+  gap: 7px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 0 4px;
+}
+
+.working-cv-reuse {
+  padding-top: 1px;
+}
+
+.working-cv-reuse-body {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 2px;
+}
+
+.working-cv-template-save {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) auto;
+  align-items: end;
+  gap: 7px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  .working-cv-console-heading,
+  .working-cv-section-heading,
+  .working-cv-item-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .working-cv-primary-actions,
+  .working-cv-compact-controls {
+    justify-content: flex-start;
+  }
+
+  .document-metadata-grid,
+  .working-source-row,
+  .working-cv-edit-fields,
+  .working-cv-add-row,
+  .working-cv-add-section > div,
+  .working-cv-template-save {
+    grid-template-columns: 1fr;
+  }
+
+  .working-cv-wide-field {
+    grid-column: auto;
+  }
+
+  .working-cv-add-section > div,
+  .working-cv-template-save {
+    width: 100%;
+  }
+}

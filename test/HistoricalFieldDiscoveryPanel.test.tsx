@@ -29,12 +29,10 @@ const field: CandidatureFieldConfiguration = {
   },
   preferences: {
     fieldId,
-    focusVisible: false,
-    focusOrder: null,
-    focusProminence: "normal",
-    identityOrder: null,
-    aiDiscovery: true,
-    aiContextMode: "omit",
+    favourite: false,
+    favouriteOrder: null,
+    presentationSize: "normal",
+    aiUseAllowed: true,
   },
 };
 

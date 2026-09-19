@@ -17,10 +17,8 @@ function record(id: string, archived = false): CandidatureRecord {
     archived,
     createdAt: "2026-09-04T00:00:00.000Z",
     updatedAt: "2026-09-04T00:00:00.000Z",
-    label: `Candidature ${id}`,
     sourceSearchText: "",
     values: [],
-    documentIds: [],
     tagIds: [],
   };
 }
@@ -40,12 +38,10 @@ const locationField: CandidatureFieldConfiguration = {
   },
   preferences: {
     fieldId: "00000000-0000-4000-8000-000000000420",
-    focusVisible: false,
-    focusOrder: null,
-    focusProminence: "normal",
-    identityOrder: null,
-    aiDiscovery: false,
-    aiContextMode: "omit",
+    favourite: false,
+    favouriteOrder: null,
+    presentationSize: "normal",
+    aiUseAllowed: false,
   },
 };
 
@@ -58,8 +54,8 @@ const roleField: CandidatureFieldConfiguration = {
   preferences: {
     ...locationField.preferences,
     fieldId: "00000000-0000-4000-8000-000000000422",
-    focusVisible: true,
-    focusOrder: 0,
+    favourite: true,
+    favouriteOrder: 0,
   },
 };
 
@@ -91,26 +87,69 @@ describe("candidature renderer projection", () => {
     ).toEqual([archived]);
   });
 
-  it("uses the source continuation when the candidature label came from the source prefix", () => {
-    const sourceText =
-      "Nimbus Labs is hiring a platform engineer in Barcelona with hybrid work and a small infrastructure team.";
-    const derivedLabel = sourceText.slice(0, 80);
-    const rawFirst = {
-      ...record("00000000-0000-4000-8000-000000000413"),
-      label: derivedLabel,
-      sourceSearchText: sourceText,
-    };
-
-    expect(candidatureRecognitionCues(rawFirst, [])).toEqual([
-      { label: "Source", value: sourceText.slice(80).trim() },
-    ]);
-  });
-
-  it("never leaks retained fields that the user hid from corpus Focus", () => {
+  it("ordinary corpus cues contain only starred fields", () => {
     const candidateId = "00000000-0000-4000-8000-000000000417";
     const candidate = {
       ...record(candidateId),
-      label: "Regional Air",
+      values: [
+        {
+          candidatureId: candidateId,
+          fieldId: locationField.definition.id,
+          value: "Madrid",
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+        {
+          candidatureId: candidateId,
+          fieldId: roleField.definition.id,
+          value: "Pilot",
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+      ],
+      sourceSearchText: "Recruiter note that should remain searchable but not become ordinary corpus content.",
+    };
+
+    expect(candidatureRecognitionCues(candidate, [locationField, roleField], 3)).toEqual([
+      expect.objectContaining({
+        fieldId: roleField.definition.id,
+        label: "Role",
+        value: "Pilot",
+        presentationSize: "normal",
+        favourite: true,
+      }),
+    ]);
+  });
+
+  it("does not silently promote retained values when the user has no favourite fields", () => {
+    const candidateId = "00000000-0000-4000-8000-000000000419";
+    const candidate = {
+      ...record(candidateId),
+      values: [{
+        candidatureId: candidateId,
+        fieldId: locationField.definition.id,
+        value: "Madrid",
+        createdAt: "2026-09-04T00:00:00.000Z",
+        updatedAt: "2026-09-04T00:00:00.000Z",
+      }],
+    };
+
+    expect(candidatureRecognitionCues(candidate, [locationField], 3)).toEqual([]);
+  });
+
+  it("does not use raw Source as an automatic ordinary corpus cue", () => {
+    const sourceOnly = {
+      ...record("00000000-0000-4000-8000-000000000413"),
+      sourceSearchText: "Nimbus Labs is hiring a platform engineer in Barcelona.",
+    };
+
+    expect(candidatureRecognitionCues(sourceOnly, [])).toEqual([]);
+  });
+
+  it("changes corpus cue visibility and ordering when favourite preferences change", () => {
+    const candidateId = "00000000-0000-4000-8000-000000000418";
+    const candidate = {
+      ...record(candidateId),
       values: [
         {
           candidatureId: candidateId,
@@ -128,16 +167,33 @@ describe("candidature renderer projection", () => {
         },
       ],
     };
+    const visibleLocation = {
+      ...locationField,
+      preferences: { ...locationField.preferences, favourite: true, favouriteOrder: 0 },
+    };
+    const reorderedRole = {
+      ...roleField,
+      preferences: { ...roleField.preferences, favouriteOrder: 1 },
+    };
 
-    expect(candidatureRecognitionCues(candidate, [locationField, roleField], 3)).toEqual([
-      { label: "Role", value: "Pilot" },
+    expect(candidatureRecognitionCues(candidate, [visibleLocation, reorderedRole], 3).map((cue) => cue.label)).toEqual([
+      "Location",
+      "Role",
+    ]);
+    expect(
+      candidatureRecognitionCues(candidate, [
+        { ...visibleLocation, preferences: { ...visibleLocation.preferences, favouriteOrder: 2 } },
+        { ...reorderedRole, preferences: { ...reorderedRole.preferences, favouriteOrder: 0 } },
+      ], 3),
+    ).toEqual([
+      expect.objectContaining({ label: "Role", value: "Pilot" }),
+      expect.objectContaining({ label: "Location", value: "Madrid" }),
     ]);
   });
 
-  it("explains retained-information matches from either the field label or retained value without duplicating a visible candidature-label match", () => {
+  it("explains retained-information matches from either the field label or retained value without depending on a hidden candidature identity", () => {
     const candidate = {
       ...record("00000000-0000-4000-8000-000000000414"),
-      label: "Nimbus Labs",
       values: [
         {
           candidatureId: "00000000-0000-4000-8000-000000000414",
@@ -149,11 +205,11 @@ describe("candidature renderer projection", () => {
       ],
     };
 
-    expect(candidatureSearchMatchCue(candidate, [locationField], [], "Location")).toEqual({
+    expect(candidatureSearchMatchCue(candidate, [locationField], [], "Location")).toMatchObject({
       label: "Location",
       value: "Barcelona hybrid",
     });
-    expect(candidatureSearchMatchCue(candidate, [locationField], [], "hybrid")).toEqual({
+    expect(candidatureSearchMatchCue(candidate, [locationField], [], "hybrid")).toMatchObject({
       label: "Location",
       value: "Barcelona hybrid",
     });
@@ -175,20 +231,18 @@ describe("candidature renderer projection", () => {
     expect(cue?.value.endsWith("…")).toBe(true);
   });
 
-  it("identifies an associated Tag match and otherwise leaves generic recognition as fallback", () => {
+  it("identifies an associated Tag match without adding generic Source fallback", () => {
     const candidate = {
       ...record("00000000-0000-4000-8000-000000000416"),
       tagIds: [reliabilityTag.id],
       sourceSearchText: "Platform role",
     };
 
-    expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "incident")).toEqual({
+    expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "incident")).toMatchObject({
       label: "Tag match",
       value: "Reliability engineering",
     });
     expect(candidatureSearchMatchCue(candidate, [], [reliabilityTag], "unavailable phrase")).toBeNull();
-    expect(candidatureRecognitionCues(candidate, [])).toEqual([
-      { label: "Source", value: "Platform role" },
-    ]);
+    expect(candidatureRecognitionCues(candidate, [])).toEqual([]);
   });
 });

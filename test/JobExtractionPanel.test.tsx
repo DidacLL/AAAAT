@@ -33,12 +33,10 @@ const field: CandidatureFieldConfiguration = {
   },
   preferences: {
     fieldId,
-    focusVisible: false,
-    focusOrder: null,
-    focusProminence: "normal",
-    identityOrder: null,
-    aiDiscovery: true,
-    aiContextMode: "expose",
+    favourite: false,
+    favouriteOrder: null,
+    presentationSize: "normal",
+    aiUseAllowed: true,
   },
 };
 const contactFieldId = "00000000-0000-4000-8000-000000000903";
@@ -103,7 +101,7 @@ function extractionResult(
   proposals: PartialJobExtractionResult["proposals"],
   issues: PartialJobExtractionResult["issues"] = [],
 ): PartialJobExtractionResult {
-  return { proposals, newFields: [], issues };
+  return { proposals, newFields: [], existingTags: [], newTags: [], issues };
 }
 
 describe("saved Source extraction", () => {
@@ -312,7 +310,7 @@ describe("saved Source extraction", () => {
     expect(screen.queryByRole("heading", { name: "Ask AI to find useful information?" })).not.toBeInTheDocument();
   });
 
-  it("shows the exact setup action when no validated route is usable", async () => {
+  it("uses the general default without requiring synthetic capability validation", async () => {
     listConnections.mockResolvedValueOnce([
       {
         id: "00000000-0000-4000-8000-000000000907",
@@ -333,12 +331,10 @@ describe("saved Source extraction", () => {
         defaultForOperations: [],
       },
     ]);
-    const user = userEvent.setup();
     renderPanel();
 
-    await screen.findByRole("heading", { name: "AI is not ready for this action yet" });
-    await user.click(screen.getByRole("button", { name: "Open AI settings" }));
-    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
-    expect(screen.getByRole("button", { name: "Keep without AI" })).toBeEnabled();
+    await screen.findByRole("heading", { name: "Ask AI to find useful information?" });
+    expect(screen.getByText("Unvalidated general default")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open AI settings" })).not.toBeInTheDocument();
   });
 });
