@@ -44,6 +44,7 @@ jobs:
       - name: Run exact packaged manual journey
         env:
           CI: "1"
+          DEBUG: "pw:api"
         run: |
           xvfb-run -a -s "-screen 0 1280x900x24" \
             npx playwright test test/desktop/packaged-manual-candidature.spec.ts --config playwright.config.ts
