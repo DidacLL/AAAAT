@@ -133,7 +133,7 @@ function chooseLinuxDirectory(): void {
 }
 
 async function createWorkspace(running: RunningApp): Promise<void> {
-  await running.page.getByRole("button", { name: "Create workspace" }).click();
+  await running.page.getByRole("button", { name: "New workspace" }).click();
   chooseLinuxDirectory();
   await running.page.getByRole("button", { name: "Applications" }).click();
   await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
