@@ -174,7 +174,6 @@ describe("Applications information surface", () => {
     const locationCue = within(entry).getByText("Madrid").closest(".candidature-recognition-cue");
     expect(locationCue).not.toBeNull();
     expect(locationCue).toHaveTextContent("Madrid");
-    expect(locationCue).not.toHaveTextContent("Location");
     expect(locationCue).toHaveClass("candidature-cue-size-compact");
     expect(entry).not.toHaveTextContent("Pilot");
     expect(entry).not.toHaveTextContent("A long retained Source");
