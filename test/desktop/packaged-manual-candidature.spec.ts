@@ -155,7 +155,6 @@ test("packaged no-AI raw capture and manual completion uses the real renderer pr
     await manual.getByLabel("Application notes or offer").fill(rawMaterial);
     expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(0);
 
-    await manual.getByRole("button", { name: "Show fields" }).click();
     const fields = manual.getByRole("form", { name: "Application information" });
     await fields.getByLabel("Role", { exact: true }).fill("Captain");
     await expect(fields.getByRole("checkbox", { name: "Parse with AI" })).not.toBeChecked();
