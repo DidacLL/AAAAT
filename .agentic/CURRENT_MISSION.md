@@ -1,31 +1,22 @@
-# Current mission — PLAN[1] real test basis
+# Current mission — PLAN[2] external-AI-originated journeys
 
-This file is derived coordination state. Current explicit Product Owner instruction remains higher authority. Durable sequencing remains in `.agentic/MASTER_PLAN.md`.
+Current explicit Product Owner instruction remains higher authority. PLAN[0] and PLAN[1] stay closed; PLAN[3]–PLAN[5] remain out of scope.
 
 ## Outcome
 
-Replace development-era test mass with a smaller domain-aware basis that protects current AAAAT value without freezing implementation history, renderer composition, or superseded product concepts. PLAN[0] remains closed and PLAN[2]–PLAN[5] remain out of scope.
+Prove two concrete third-party-AI entrances into ordinary user-owned AAAAT state:
 
-## Scope
+- a local-capable external host uses packaged MCP stdio to submit retained opportunity material through the bounded application-document intention;
+- an external AI with no local-computer access produces a small versioned application handoff file that the user imports in New application.
 
-Retain the cheapest meaningful evidence for:
+Both routes use the same application-material intent and `createApplicationDocuments` service. AAAAT retains the exact supplied Source and deterministically creates requested editable local documents without invoking configured AAAAT AI. Any later AAAAT AI use is a separate explicit local user action. The external boundary returns/exposes no hidden mutation IDs, paths or private source content.
 
-- candidature, Source and Tag ownership; flexible candidature fields; reusable professional information; mutation safety; local ownership;
-- document ownership, immutable rendered snapshots, reference integrity and portable rendered-document projects;
-- workspace creation/reopen, current-schema integrity, corruption refusal, backup/restore, secret/transient exclusion, traversal/symlink defence and destructive-operation safety;
-- sandboxed renderer, bounded external/MCP authority, AI disclosure projection, task-scoped opportunity research and privileged input/output validation;
-- current AI routing, provider failure inspection, deterministic local validation, partial-result salvage, sibling preservation and explicit human acceptance before proposals become ordinary data.
+Preserve the task-scoped opportunity-research read/Source-return round trip and its privacy projection. Do not add provider-specific integration, generic CRUD/browsing, remote infrastructure, localhost HTTP, plugin/runtime registries or broad machine authority.
 
-Consolidate preload forwarding into representative boundary tests. Remove renderer tests that primarily freeze copy, tab/navigation structure, CSS/DOM hierarchy or implementation-specific choreography. Remove obsolete development compatibility fixtures and stale packaged UI checks.
+The development-era one-shot `--external-command candidature.create` path is removed because it has no independent current caller or setup journey and duplicates a narrower Source-only MCP capability.
 
-Add focused coverage for the existing portable Rendered CV project export behavior.
+## Verification
 
-## Verification model
+Ordinary development uses `npm run verify` plus focused tests for the two journeys. Final boundary verification must run the Windows packaged MCP journey because the packaged executable/stdio carrier is materially affected. No other cross-OS package loop is required.
 
-Ordinary development verification is `npm run verify`: typecheck, lint and the cleaned Vitest suite. Branch-general CI must execute that command. Packaged/runtime checks remain explicit run-boundary evidence and are retained only where the packaged process itself is material.
-
-## Review gate
-
-This branch is ready for independent orchestrator review only after the resulting test tree is re-inspected for historical/incidental assertions, ordinary verification is green, the branch is pushed, and the PR records retained guarantees, consolidation rationale, packaged evidence and exact verification results.
-
-PLAN[1] is not declared complete here and is not self-merged.
+Stop after the branch is pushed and one PR against `main` is opened or updated. Do not merge and do not declare PLAN[2] complete.

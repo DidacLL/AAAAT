@@ -79,9 +79,28 @@ The current MCP stdio surface registers exactly these bounded tools:
 - `configurator_ai_operation_validate`
 - `configurator_ai_operation_default`
 
-`application_documents_create` expresses the same high-level offer → CV / cover letter / both intention as the desktop and returns only bounded outcome information, never hidden application/document IDs or local paths. Setup mutation tools require the matching explicit local Settings authority. Configurator tools accept only typed AAAAT connection/operation inputs and continue to use normal endpoint and capability validation.
+`application_documents_create` expresses the high-level offer → CV / cover letter / both intention and returns only bounded creation outcome information, never hidden application/document IDs, local paths or private source content. Creation is fully local and deterministic even when AAAAT AI is configured; any later AAAAT AI use is a separate explicit local action. Setup mutation tools require the matching explicit local Settings authority. Configurator tools accept only typed AAAAT connection/operation inputs and continue to use normal endpoint and capability validation.
 
 These tools do not expose generic candidature/corpus browsing, database queries, filesystem access, shell/process execution, package installation, arbitrary local paths or unrelated private areas. AAAAT controls what its tools disclose; a host's own wider permissions remain a separate user trust choice.
+
+### Portable handoff from an external AI without local access
+
+If the external AI cannot start programs or reach the user's computer, it can instead produce one small **AAAAT application handoff** file. In **New application**, choose **Import external AI handoff…** and select that file. AAAAT validates the complete file before changing the workspace, retains the supplied opportunity material exactly as a Source, and locally creates the requested editable Working CV and/or cover letter through the same application service used by MCP. Importing the handoff never invokes a configured AAAAT AI provider; later AAAAT AI assistance remains a separate explicit local user action.
+
+A compatible external assistant can generate this versioned JSON file directly; the user does not need to edit it:
+
+```json
+{
+  "format": "aaaat-application-handoff",
+  "version": 1,
+  "intention": {
+    "sourceText": "The opportunity material already present in the external conversation",
+    "outputs": ["cv", "cover_letter"]
+  }
+}
+```
+
+The capsule accepts only that bounded intention. It contains no AAAAT IDs, local paths, credentials, provider configuration or hidden workspace state. It is a manual portable handoff, not a remote server, plugin runtime or generic import framework.
 
 ## Backup and restore
 

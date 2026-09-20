@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   applicationDocumentsCreateToolName,
@@ -23,7 +23,9 @@ import {
   mcpWorkspaceFromInvocation,
   opportunityResearchContextReadToolName,
 } from "../src/main/mcp-server";
+import { saveNamedAiConnection } from "../src/main/ai-connection-service";
 import { listCandidatures, listCandidatureSources } from "../src/main/candidature-service";
+import { listDocumentCollections } from "../src/main/document-domain-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
@@ -57,6 +59,7 @@ function textResult(result: Awaited<ReturnType<Client["callTool"]>>): string {
 }
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
@@ -111,6 +114,62 @@ describe("bounded MCP server", () => {
         expect.objectContaining({ sourceText: "Raw retained vacancy text." }),
       ]);
       expect(textResult(result)).not.toContain(candidature.id);
+    } finally {
+      await connection.close();
+    }
+  });
+
+  it("creates useful local application documents without invoking configured AAAAT AI or disclosing local authority", async () => {
+    const root = workspace();
+    saveNamedAiConnection(root, {
+      name: "Configured AI",
+      endpoint: "http://127.0.0.1:9/v1",
+      model: "configured-test",
+    });
+    const fetchSpy = vi.fn(async () => {
+      throw new Error("External application-material creation must not call an AI provider.");
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    const connection = await connectedClient(root);
+    try {
+      const sourceText = "Role: Platform Engineer\nBuild reliable platform services.";
+      const result = await connection.client.callTool({
+        name: applicationDocumentsCreateToolName,
+        arguments: {
+          sourceText,
+          outputs: ["cv", "cover_letter"],
+        },
+      });
+      const text = textResult(result);
+      expect(JSON.parse(text)).toEqual({
+        created: true,
+        cv: { created: true },
+        coverLetter: { created: true },
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      const candidature = listCandidatures(root)[0];
+      if (!candidature) throw new Error("application fixture missing");
+      expect(candidature.values).toEqual([]);
+      expect(listCandidatureSources(root, candidature.id)).toEqual([
+        expect.objectContaining({ sourceText }),
+      ]);
+      const documents = listDocumentCollections(root);
+      expect(documents.workingCvs).toEqual([
+        expect.objectContaining({ candidatureId: candidature.id }),
+      ]);
+      expect(documents.letters).toEqual([
+        expect.objectContaining({
+          candidatureId: candidature.id,
+          recipient: "Hiring team",
+          subject: "Application for Platform Engineer",
+          closing: "Kind regards",
+        }),
+      ]);
+      expect(documents.letters[0]?.bodyParagraphs.length).toBeGreaterThan(0);
+      expect(text).not.toContain(candidature.id);
+      expect(text).not.toContain(root);
+      expect(text).not.toContain("Platform Engineer");
     } finally {
       await connection.close();
     }

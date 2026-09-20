@@ -42,7 +42,7 @@ The current document domain has explicit roles rather than one generic document/
 - A **cover letter** is a separate editable document, normally owned by an application, with standalone creation also supported.
 - An **Application packet** is generated application output combining the selected application CV and cover letter.
 
-When the user requests optional parsing or application documents while saving an application, AAAAT saves the application first, then creates the requested Working CV and/or application-owned cover letter through normal services. Validated AI routes may prepare bounded suggestions for that work. Extraction or generation failure never invalidates the retained application or editable local work.
+When the user requests application documents while saving an application, AAAAT saves the application first, then creates the requested Working CV and/or application-owned cover letter through normal services. Document creation by itself is deterministic and local. AI parsing/preparation runs only after a separate explicit AI opt-in in the existing product surface; merely having a validated route never authorizes disclosure or AI mutation. AI failure never invalidates retained application or editable local work.
 
 LaTeX is an internal rendering implementation, not the ordinary document-domain model. The rendering path is conceptually:
 
@@ -77,6 +77,8 @@ The capability contract must not expose generic corpus browsing, arbitrary durab
 Meaningful parity is expressed as typed high-level product intentions, not generic CRUD. An external assistant may, for example, create the same offer-derived application document workspace as the desktop without receiving hidden application/document IDs. Setup mutations use the same application services and validation as the desktop and require explicit local authority where appropriate.
 
 The packaged app exposes the shared bounded local tool entry point. Hosts that can start a local tool may use it without changing AAAAT's domain authority. This does not authorize a generic plugin/provider framework.
+
+External AI environments without local-computer access use one versioned portable **application handoff**. The capsule carries only explicit opportunity text plus the requested application-document intention. File selection and JSON handling are transport details: AAAAT validates the entire capsule before mutation and then calls the same deterministic local application-material service used by MCP. The exact Source is retained and requested editable documents are created without invoking configured AAAAT AI; any later AI use is a separate explicit local action. Malformed capsules do not partially mutate the workspace, and no local IDs, paths, credentials or hidden workspace state belong in the portable contract. This does not introduce a localhost service, remote relay, generic import framework or command bus.
 
 ## Setup, recovery and local ownership
 

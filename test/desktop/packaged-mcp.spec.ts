@@ -57,7 +57,7 @@ function textContent(result: Awaited<ReturnType<Client["callTool"]>>): string {
   return content.text;
 }
 
-test("packaged executable exposes source-only candidature creation over MCP stdio", async () => {
+test("packaged executable completes the external offer-to-application-documents journey without exposing local authority", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "aaaat-packaged-mcp-"));
   initializeWorkspaceFixture(root);
   const transport = new StdioClientTransport({
@@ -71,44 +71,42 @@ test("packaged executable exposes source-only candidature creation over MCP stdi
     await client.connect(transport);
     const tools = await client.listTools();
     const names = tools.tools.map((tool) => tool.name);
-    expect(names).toContain("candidature_create");
+    expect(names).toContain("application_documents_create");
     expect(names).not.toContain("candidature_fields_list");
 
     const result = await client.callTool({
-      name: "candidature_create",
+      name: "application_documents_create",
       arguments: {
-        source: {
-          kind: "other",
-          title: "packaged MCP smoke",
-          url: "",
-          sourceText: "private packaged MCP source",
-        },
+        sourceText: "Role: Platform Engineer\nBuild reliable platform services.",
+        outputs: ["cv", "cover_letter"],
       },
     });
     expect(result.isError).not.toBe(true);
     const content = textContent(result);
     expect(JSON.parse(content)).toEqual({
-      ok: true,
-      capability: "candidature.create",
       created: true,
+      cv: { created: true },
+      coverLetter: { created: true },
     });
     expect(content).not.toContain(root);
-    expect(content).not.toContain("private packaged MCP source");
+    expect(content).not.toContain("Platform Engineer");
 
     const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
     try {
       expect(database.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 1 });
-      expect(
-        database.prepare("SELECT title, source_text AS sourceText FROM candidature_sources").all(),
-      ).toEqual([
-        { title: "packaged MCP smoke", sourceText: "private packaged MCP source" },
-      ]);
-      expect(database.prepare("SELECT COUNT(*) AS count FROM candidature_field_values").get()).toEqual({
-        count: 0,
+      expect(database.prepare("SELECT source_text AS sourceText FROM candidature_sources").get()).toEqual({
+        sourceText: "Role: Platform Engineer\nBuild reliable platform services.",
       });
-      expect(database.prepare("SELECT action FROM candidature_activity").all()).toEqual([
-        { action: "candidature.created" },
-      ]);
+      expect(database.prepare("SELECT COUNT(*) AS count FROM working_cvs").get()).toEqual({ count: 1 });
+      expect(database.prepare("SELECT recipient, subject, body_json AS bodyJson, closing FROM cover_letters").get()).toEqual({
+        recipient: "Hiring team",
+        subject: "Application for Platform Engineer",
+        bodyJson: JSON.stringify([
+          "I am writing to apply for the Platform Engineer position described in your offer.",
+          "I would welcome the opportunity to discuss how my experience fits the requirements in your offer.",
+        ]),
+        closing: "Kind regards",
+      });
     } finally {
       database.close();
     }

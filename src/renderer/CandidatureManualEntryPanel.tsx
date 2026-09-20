@@ -95,6 +95,7 @@ export function CandidatureManualEntryPanel({
   const [createCoverLetter, setCreateCoverLetter] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [fieldsLoading, setFieldsLoading] = useState(true);
+  const [handoffBusy, setHandoffBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -218,6 +219,29 @@ export function CandidatureManualEntryPanel({
     );
   };
 
+  const importExternalHandoff = async () => {
+    if (saving || handoffBusy) return;
+    if (dirty && !window.confirm("Discard unsaved application edits and import the external handoff?")) {
+      return;
+    }
+    setHandoffBusy(true);
+    setError(null);
+    try {
+      const imported = await window.aaaat.applicationHandoff.importFile();
+      if (imported.status === "cancelled") {
+        setHandoffBusy(false);
+        return;
+      }
+      onChanged();
+      onOptionalStatus?.("External AI handoff imported. The application and requested documents are saved locally.");
+      setHandoffBusy(false);
+      onDone();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not import this external AI handoff.");
+      setHandoffBusy(false);
+    }
+  };
+
   const save = async () => {
     const parsedValues: { fieldId: string; value: CandidatureRuntimeValue }[] = [];
     try {
@@ -298,9 +322,19 @@ export function CandidatureManualEntryPanel({
         <div>
           <h2>{title}</h2>
         </div>
-        <button type="button" className="compact-secondary" disabled={saving} onClick={cancel}>
-          Cancel
-        </button>
+        <div className="button-row">
+          <button
+            type="button"
+            className="compact-secondary"
+            disabled={saving || handoffBusy}
+            onClick={() => void importExternalHandoff()}
+          >
+            {handoffBusy ? "Importing…" : "Import external AI handoff…"}
+          </button>
+          <button type="button" className="compact-secondary" disabled={saving || handoffBusy} onClick={cancel}>
+            Cancel
+          </button>
+        </div>
       </div>
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
