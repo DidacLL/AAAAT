@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -128,7 +128,7 @@ describe("named AI connections", () => {
     expect(listAiConnections(root)[0]).toMatchObject({ model: "model-b", validatedOperations: [], defaultForOperations: [] });
   });
 
-  it("rejects invalid routing, ambiguous names, unsafe endpoints, and obsolete development config", async () => {
+  it("rejects invalid routing, ambiguous names, and unsafe endpoints", async () => {
     const root = workspace();
     const saved = saveNamedAiConnection(root, { name: "Local model", endpoint: "http://localhost:11434/v1", model: "model-a" });
     const connection = saved[0];
@@ -144,32 +144,6 @@ describe("named AI connections", () => {
     expect(() => saveNamedAiConnection(root, { name: "local MODEL", endpoint: "http://127.0.0.1:11435/v1", model: "model-b" })).toThrow("names must be unique");
     expect(() => saveNamedAiConnection(root, { name: "Unsafe remote HTTP", endpoint: "http://models.example.test/v1", model: "model-c" })).toThrow("loopback host");
 
-    writeFileSync(path.join(root, "ai-connection.json"), JSON.stringify({ version: 2, connections: [], defaultConnectionId: null }), "utf8");
-    expect(() => listAiConnections(root)).toThrow("stored AI connection configuration is invalid");
   });
 
-  it("rejects a v3 development-era configuration without rewriting it", () => {
-    const root = workspace();
-    const obsolete = JSON.stringify({ version: 3, connections: [], defaultConnectionId: null, operationDefaults: {} });
-    const filePath = path.join(root, "ai-connection.json");
-    writeFileSync(filePath, obsolete, "utf8");
-    expect(() => listAiConnections(root)).toThrow("stored AI connection configuration is invalid");
-    expect(readFileSync(filePath, "utf8")).toBe(obsolete);
-  });
-
-  it("rejects stale variant-recommendation routing state as invalid current configuration", () => {
-    const root = workspace();
-    const stale = JSON.stringify({
-      version: 4,
-      connections: [],
-      defaultConnectionId: null,
-      operationDefaults: {
-        variant_recommendation: "00000000-0000-4000-8000-000000000001",
-      },
-    });
-    const filePath = path.join(root, "ai-connection.json");
-    writeFileSync(filePath, stale, "utf8");
-    expect(() => listAiConnections(root)).toThrow("stored AI connection configuration is invalid");
-    expect(readFileSync(filePath, "utf8")).toBe(stale);
-  });
 });

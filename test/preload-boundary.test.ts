@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createDesktopApi } from "../src/preload/api";
+import { createCandidatureOpportunityResearchAccessDesktopApi } from "../src/preload/candidature-opportunity-research-access-api";
+import { createDocumentDomainDesktopApi } from "../src/preload/document-domain-api";
+import { createWorkspaceRecoveryDesktopApi } from "../src/preload/workspace-recovery-api";
 import { aiChannels } from "../src/shared/ai-contracts";
 import { channels } from "../src/shared/contracts";
+import { candidatureOpportunityResearchAccessChannels } from "../src/shared/candidature-opportunity-research-access-contracts";
+import { documentDomainChannels } from "../src/shared/document-domain-contracts";
+import { workspaceRecoveryChannels } from "../src/shared/workspace-recovery-contracts";
 
 const candidatureId = "00000000-0000-4000-8000-000000000601";
 const fieldId = "00000000-0000-4000-8000-000000000602";
@@ -40,7 +46,7 @@ const record = {
   tagIds: [],
 };
 
-describe("desktop preload API", () => {
+describe("desktop preload boundary", () => {
   it("validates and forwards live candidature field operations over named IPC channels", async () => {
     const invoke = vi.fn(async (channel: string, input?: unknown) => {
       if (channel === channels.systemInfo) {
@@ -218,4 +224,58 @@ describe("desktop preload API", () => {
       api.ai.discoverField({ candidatureId, fieldId, sourceIds: [] }),
     ).rejects.toThrow();
   });
+
+  it("keeps narrow privileged capabilities narrow while validating their boundary", async () => {
+    const invoke = vi.fn(async (channel: string, input?: unknown) => {
+      if (channel === candidatureOpportunityResearchAccessChannels.current) {
+        return { candidatureId, allowed: true };
+      }
+      if (channel === candidatureOpportunityResearchAccessChannels.update) return input;
+      if (channel === workspaceRecoveryChannels.backup) return { status: "backed_up" };
+      if (channel === workspaceRecoveryChannels.restore) return { status: "cancelled" };
+      if (channel === documentDomainChannels.exportRenderedCv) {
+        return { exportedPath: "/tmp/portable-rendered-cv" };
+      }
+      return null;
+    });
+
+    const research = createCandidatureOpportunityResearchAccessDesktopApi(invoke);
+    const recovery = createWorkspaceRecoveryDesktopApi(invoke);
+    const documents = createDocumentDomainDesktopApi(invoke);
+
+    await expect(
+      research.candidatureOpportunityResearchAccess.current(candidatureId),
+    ).resolves.toEqual({ candidatureId, allowed: true });
+    await expect(
+      research.candidatureOpportunityResearchAccess.update({ candidatureId, allowed: false }),
+    ).resolves.toEqual({ candidatureId, allowed: false });
+    await expect(recovery.workspaceRecovery.backup()).resolves.toEqual({ status: "backed_up" });
+    await expect(recovery.workspaceRecovery.restore()).resolves.toEqual({ status: "cancelled" });
+    await expect(documents.documentDomain.exportRenderedCv(candidatureId)).resolves.toEqual({
+      exportedPath: "/tmp/portable-rendered-cv",
+    });
+
+    expect(invoke).toHaveBeenCalledWith(
+      candidatureOpportunityResearchAccessChannels.current,
+      candidatureId,
+    );
+    expect(invoke).toHaveBeenCalledWith(
+      candidatureOpportunityResearchAccessChannels.update,
+      { candidatureId, allowed: false },
+    );
+    expect(invoke).toHaveBeenCalledWith(workspaceRecoveryChannels.backup);
+    expect(invoke).toHaveBeenCalledWith(workspaceRecoveryChannels.restore);
+    expect(invoke).toHaveBeenCalledWith(documentDomainChannels.exportRenderedCv, candidatureId);
+
+    const malformedResearch = createCandidatureOpportunityResearchAccessDesktopApi(
+      vi.fn(async () => ({ candidatureId, allowed: "yes" })),
+    );
+    await expect(
+      malformedResearch.candidatureOpportunityResearchAccess.current(candidatureId),
+    ).rejects.toThrow();
+    await expect(
+      research.candidatureOpportunityResearchAccess.current("not-a-uuid"),
+    ).rejects.toThrow();
+  });
+
 });

@@ -1,37 +1,31 @@
-# Current mission — PLAN[0] integrated baseline acceptance
+# Current mission — PLAN[1] real test basis
 
-This file is derived coordination state. Current explicit Product Owner instruction remains higher authority. Durable sequence and deferred owner requirements live in `.agentic/MASTER_PLAN.md`.
+This file is derived coordination state. Current explicit Product Owner instruction remains higher authority. Durable sequencing remains in `.agentic/MASTER_PLAN.md`.
 
 ## Outcome
 
-Finish the existing integrated candidate in PR #319 on `product/dogfood-workspace-ai-context` and remove first-class contradictions exposed by Product Owner natural use without reopening later PLAN work.
+Replace development-era test mass with a smaller domain-aware basis that protects current AAAAT value without freezing implementation history, renderer composition, or superseded product concepts. PLAN[0] remains closed and PLAN[2]–PLAN[5] remain out of scope.
 
-PLAN[0] is the accepted integrated baseline: current domain behavior is coherent, foundation truth is sound, and known acceptance defects are resolved before merge.
+## Scope
 
-## Current first-class corrections
+Retain the cheapest meaningful evidence for:
 
-1. **Truthful AI reachability.** Configuration/routing or a historical success must not produce current `AI: Ready`. Current lightweight reachability or real-request evidence may establish readiness; a relevant failure must promptly invalidate stale readiness. Synthetic capability checks are optional diagnostics, not a prerequisite for ordinary AI use. Reuse existing probe/task/diagnostic state rather than adding polling or a generic health subsystem.
+- candidature, Source and Tag ownership; flexible candidature fields; reusable professional information; mutation safety; local ownership;
+- document ownership, immutable rendered snapshots, reference integrity and portable rendered-document projects;
+- workspace creation/reopen, current-schema integrity, corruption refusal, backup/restore, secret/transient exclusion, traversal/symlink defence and destructive-operation safety;
+- sandboxed renderer, bounded external/MCP authority, AI disclosure projection, task-scoped opportunity research and privileged input/output validation;
+- current AI routing, provider failure inspection, deterministic local validation, partial-result salvage, sibling preservation and explicit human acceptance before proposals become ordinary data.
 
-2. **One configurable candidature information surface, with no field-derived identity and no blank first-use corpus.** The Focus/All split and field-derived identity are gone; preserve that. Neutral first use must still be recognisable: enabled fields begin included equally in the primary presentation, with no semantic privilege for Role, Organisation or other system fields, and the user demotes/unfavourites/reorders/resizes from there. A candidature with retained values must not collapse to an unexplained “Saved application” placeholder merely because favourites were not configured. Presentation size is corpus/summary presentation metadata: it must visibly affect the configurable card/grid presentation, not resize the field editor. Values must dominate visually, with labels/updated metadata secondary, and one long value must not size unrelated cards. More/advanced reveals the remainder and deeper candidature material. Raw Source/Tag evidence remains bounded to active search explanation.
+Consolidate preload forwarding into representative boundary tests. Remove renderer tests that primarily freeze copy, tab/navigation structure, CSS/DOM hierarchy or implementation-specific choreography. Remove obsolete development compatibility fixtures and stale packaged UI checks.
 
-3. **Affordable light-model use is the primary AI target, without provider lock-in or hidden writes.** PLAN[0] AI extraction must be designed for resource-constrained models first, including local models on ordinary hardware, while keeping product semantics provider/runtime/model-family agnostic. The general configured connection is usable without passing synthetic capability checks; those checks remain explicit diagnostics/routing evidence. Remove provider-facing burden, keep deterministic validation local, and salvage valid partial proposals independently. AI proposals remain proposals: field values, new field definitions and document changes become ordinary AAAAT data only through an explicit user acceptance/save action.
-
-## Foundation corrections already completed and to preserve
-
-- The accidental `720×600` BrowserWindow product/minimum assumption is removed without another arbitrary fixed minimum.
-- `src/main/schema.sql` is the sole current workspace structural truth; validation derives structural expectations from it while retaining meaningful corruption/incompatibility and required workspace-state checks.
-- Development verification stays lightweight and branch-general; stronger Windows packaged verification is an explicit run-boundary operation.
-
-Do not pull PLAN[1] test redesign, PLAN[3] architecture cleanup, PLAN[4] document work, PLAN[5] broader UX refinement, or Linux/macOS finalization into this run. Those are preserved in `.agentic/MASTER_PLAN.md`.
+Add focused coverage for the existing portable Rendered CV project export behavior.
 
 ## Verification model
 
-Development changes use focused, proportional verification. Do not repeatedly spend compute on unrelated full gates.
+Ordinary development verification is `npm run verify`: typecheck, lint and the cleaned Vitest suite. Branch-general CI must execute that command. Packaged/runtime checks remain explicit run-boundary evidence and are retained only where the packaged process itself is material.
 
-At the final PLAN[0] runtime boundary, produce a Windows candidate only when runtime changes require a new candidate and tie the evidence to the exact product head. Linux/macOS cross-OS verification remains deferred.
+## Review gate
 
-CI/package success is engineering evidence, not Product Owner acceptance and not merge authority.
+This branch is ready for independent orchestrator review only after the resulting test tree is re-inspected for historical/incidental assertions, ordinary verification is green, the branch is pushed, and the PR records retained guarantees, consolidation rationale, packaged evidence and exact verification results.
 
-## Acceptance gate
-
-PLAN[0] completes only when the integrated baseline is accepted by the Product Owner, is on `main`, and no known first-class integrity contradiction remains.
+PLAN[1] is not declared complete here and is not self-merged.

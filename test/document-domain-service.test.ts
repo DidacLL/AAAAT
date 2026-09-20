@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -12,6 +12,7 @@ import {
   createCoverLetter,
   createWorkingCv,
   duplicateRenderedCv,
+  exportRenderedCvProject,
   listDocumentCollections,
   saveWorkingCvAsTemplate,
   saveWorkingCvItem,
@@ -260,4 +261,53 @@ describe("explicit document domain", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("exports a Rendered CV as a portable user-owned project directory", () => {
+    const root = workspace();
+    const targetParent = mkdtempSync(path.join(tmpdir(), "aaaat-rendered-export-"));
+    try {
+      const working = createWorkingCv(root, {
+        title: "Portable CV",
+        candidatureId: null,
+        source: { kind: "profile" },
+      });
+      const renderedId = randomUUID();
+      const projectRelativePath = `rendered-cvs/${renderedId}`;
+      const projectPath = path.join(root, projectRelativePath);
+      mkdirSync(path.join(projectPath, "build"), { recursive: true });
+      writeFileSync(path.join(projectPath, "main.tex"), "portable source\n", "utf8");
+      writeFileSync(path.join(projectPath, "build", "main.pdf"), "portable pdf", "utf8");
+
+      withWorkspaceDatabase(root, (database) => {
+        database.prepare(`INSERT INTO rendered_cvs(
+          id, working_cv_id, source_template_id, candidature_id, title, language,
+          snapshot_json, project_relative_path, created_at
+        ) VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?)`).run(
+          renderedId,
+          working.id,
+          working.title,
+          working.language ?? null,
+          JSON.stringify({
+            title: working.title,
+            language: working.language,
+            sourceTemplateId: null,
+            candidatureId: null,
+            sections: working.sections,
+          }),
+          projectRelativePath,
+          new Date().toISOString(),
+        );
+      });
+
+      const exported = exportRenderedCvProject(root, renderedId, targetParent);
+      expect(path.dirname(exported)).toBe(targetParent);
+      expect(readFileSync(path.join(exported, "main.tex"), "utf8")).toBe("portable source\n");
+      expect(readFileSync(path.join(exported, "build", "main.pdf"), "utf8")).toBe("portable pdf");
+      expect(readFileSync(path.join(projectPath, "main.tex"), "utf8")).toBe("portable source\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(targetParent, { recursive: true, force: true });
+    }
+  });
+
 });
