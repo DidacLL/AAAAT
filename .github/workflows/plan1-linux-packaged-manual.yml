@@ -31,7 +31,7 @@ jobs:
       - name: Install Linux display/chooser test tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb xauth xdotool
+          sudo apt-get install -y xvfb xauth xdotool openbox
 
       - name: Build packaged application
         run: npm run build
@@ -46,5 +46,9 @@ jobs:
           CI: "1"
           DEBUG: "pw:api"
         run: |
-          xvfb-run -a -s "-screen 0 1280x900x24" \
+          xvfb-run -a -s "-screen 0 1280x900x24" bash -lc '
+            openbox >/tmp/aaaat-openbox.log 2>&1 &
+            wm_pid=$!
+            trap "kill $wm_pid 2>/dev/null || true" EXIT
             npx playwright test test/desktop/packaged-manual-candidature.spec.ts --config playwright.config.ts
+          '
