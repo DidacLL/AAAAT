@@ -7,7 +7,7 @@ import {
 import {
   applicationDocumentsResultSchema,
   type ApplicationDocumentsResult,
-} from "../shared/external-action-contracts";
+} from "../shared/application-material-contracts";
 import { createApplicationDocuments } from "./application-material-service";
 
 export const maxApplicationHandoffBytes = 256 * 1024;
