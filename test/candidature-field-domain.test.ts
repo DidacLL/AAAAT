@@ -21,7 +21,7 @@ import { createCandidature, listCandidatures } from "../src/main/candidature-ser
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 function workspace(): string {
-  const root = mkdtempSync(path.join(tmpdir(), "aaaat-field-guardrails-"));
+  const root = mkdtempSync(path.join(tmpdir(), "aaaat-candidature-fields-"));
   createOrOpenWorkspace(root);
   return root;
 }
@@ -37,7 +37,7 @@ function textField(root: string, label: string) {
   });
 }
 
-describe("live candidature field guardrails", () => {
+describe("candidature field domain invariants", () => {
   it("enforces the enabled-field bound at the application-service boundary", () => {
     const root = workspace();
     try {

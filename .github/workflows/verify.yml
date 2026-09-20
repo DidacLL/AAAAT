@@ -22,10 +22,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  typecheck:
-    name: Typecheck
+  verify:
+    name: Ordinary verification
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -33,21 +33,21 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
+      - run: npm run verify
 
   gate:
     name: Verification gate
-    needs: typecheck
+    needs: verify
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require lightweight verification
+      - name: Require ordinary verification
         env:
-          TYPECHECK_RESULT: ${{ needs.typecheck.result }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
         run: |
-          if [[ "$TYPECHECK_RESULT" != "success" ]]; then
-            echo "Typecheck finished as $TYPECHECK_RESULT" >&2
+          if [[ "$VERIFY_RESULT" != "success" ]]; then
+            echo "Ordinary verification finished as $VERIFY_RESULT" >&2
             exit 1
           fi
-          echo "Lightweight development verification passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Ordinary development verification passed." >> "$GITHUB_STEP_SUMMARY"

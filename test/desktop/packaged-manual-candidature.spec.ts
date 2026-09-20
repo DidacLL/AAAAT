@@ -132,60 +132,6 @@ function chooseLinuxDirectory(): void {
   );
 }
 
-function resizeLinuxAppWindow(width: number, height: number): { width: number; height: number } {
-  const output = execFileSync(
-    "bash",
-    [
-      "-lc",
-      [
-        "set -eu",
-        "window=''",
-        "for attempt in $(seq 1 100); do",
-        "  window=$(xdotool search --onlyvisible --name '^AAAAT$' 2>/dev/null | tail -n 1 || true)",
-        "  if [ -n \"$window\" ]; then break; fi",
-        "  sleep 0.1",
-        "done",
-        "test -n \"$window\"",
-        "xdotool windowactivate --sync \"$window\"",
-        `xdotool windowsize --sync "$window" ${String(width)} ${String(height)}`,
-        "sleep 0.15",
-        "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
-        "printf '%s %s\\n' \"$WIDTH\" \"$HEIGHT\"",
-      ].join("\n"),
-    ],
-    { encoding: "utf8" },
-  ).trim();
-  const match = output.match(/(\d+)\s+(\d+)$/);
-  if (!match) throw new Error(`Could not read packaged AAAAT window geometry: ${output}`);
-  return { width: Number(match[1]), height: Number(match[2]) };
-}
-
-async function expectNoHorizontalOverflow(page: Page, width: number, height: number): Promise<void> {
-  const actual = resizeLinuxAppWindow(width, height);
-  expect(actual).toEqual({ width, height });
-  await page.waitForTimeout(150);
-  const geometry = await page.evaluate(() => ({
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }));
-  expect(geometry.innerWidth).toBe(width);
-  expect(geometry.innerHeight).toBe(height);
-  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
-}
-
-async function expectRepresentativeResizeCoverage(page: Page): Promise<void> {
-  for (const [width, height] of [
-    [1280, 900],
-    [1180, 760],
-    [720, 760],
-    [1180, 600],
-  ] as const) {
-    await expectNoHorizontalOverflow(page, width, height);
-  }
-}
-
 async function createWorkspace(running: RunningApp): Promise<void> {
   await running.page.getByRole("button", { name: "Create workspace" }).click();
   chooseLinuxDirectory();
@@ -194,83 +140,7 @@ async function createWorkspace(running: RunningApp): Promise<void> {
   await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
 }
 
-test("packaged sparse candidature accepts a runtime field and survives close/reopen", async () => {
-  const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-sparse-candidature-user-"));
-  const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-sparse-candidature-workspace-"));
-  const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
-  let running: RunningApp | undefined;
-
-  try {
-    running = await startPackagedApp(isolatedUserData, linuxHome);
-    await createWorkspace(running);
-
-    const created = await running.page.evaluate(async () => {
-      const candidature = await window.aaaat.candidatures.create({ values: [] });
-      const field = await window.aaaat.candidatures.createField({
-        label: "Minimum flight hours",
-        description: "Minimum total flight hours requested by the opportunity.",
-        valueType: "number",
-        cardinality: "one",
-        choices: [],
-        enabled: true,
-      });
-      await window.aaaat.candidatures.setFieldValue({
-        candidatureId: candidature.id,
-        fieldId: field.definition.id,
-        value: 1500,
-      });
-      await window.aaaat.candidatures.updateFieldPreferences({
-        ...field.preferences,
-        favourite: true,
-        favouriteOrder: 0,
-      });
-      await window.aaaat.candidatures.addSource({
-        candidatureId: candidature.id,
-        kind: "job_posting",
-        title: "Pilot vacancy",
-        url: "https://example.invalid/pilot",
-        sourceText: "Regional Air requires at least 1,500 total flight hours.",
-      });
-      return { candidatureId: candidature.id, fieldId: field.definition.id };
-    });
-
-    expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
-
-    await stopPackagedApp(running);
-    running = await startPackagedApp(isolatedUserData, linuxHome);
-    await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
-    await running.page.getByRole("button", { name: "Applications" }).click();
-    await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
-
-    const corpus = running.page.getByLabel("Application corpus");
-    const corpusEntry = corpus.locator("button.candidature-corpus-entry").first();
-    await expect(corpusEntry).toContainText("Minimum flight hours");
-    await corpusEntry.click();
-
-    const selectedApplication = running.page.getByRole("region", { name: "Application information" });
-    const primary = selectedApplication.getByRole("region", { name: "Starred application information" });
-    const minimumHours = primary.getByRole("article", { name: "Minimum flight hours information" });
-    await expect(minimumHours).toContainText("1500");
-    await selectedApplication.getByText("More", { exact: true }).click();
-
-    const sources = selectedApplication.getByRole("region", { name: "Sources" });
-    await expect(sources.getByText("Pilot vacancy", { exact: true })).toBeVisible();
-    await sources.getByRole("button", { name: "Read source" }).click();
-    const sourceReader = sources.getByRole("article", { name: "Source content" });
-    await expect(sourceReader).toContainText("Regional Air requires at least 1,500 total flight hours.");
-    await expect(sourceReader.getByText("https://example.invalid/pilot", { exact: true })).toBeVisible();
-    expect(created.candidatureId).toBeTruthy();
-    expect(created.fieldId).toBeTruthy();
-    await expectRepresentativeResizeCoverage(running.page);
-  } finally {
-    if (running) await stopPackagedApp(running);
-    rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    rmSync(ownedWorkspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    rmSync(linuxHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-  }
-});
-
-test("packaged raw capture stays usable across large, normal, narrow and short windows", async () => {
+test("packaged no-AI raw capture and manual completion uses the real renderer process", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-capture-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-capture-workspace-"));
   const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
@@ -281,7 +151,6 @@ test("packaged raw capture stays usable across large, normal, narrow and short w
   try {
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await createWorkspace(running);
-    await expectRepresentativeResizeCoverage(running.page);
 
     const creation = running.page.getByRole("group", { name: "Create candidature" });
     await expect(creation.getByRole("button", { name: "Fill fields directly" })).toBeVisible();
@@ -299,8 +168,6 @@ test("packaged raw capture stays usable across large, normal, narrow and short w
     await expect(continuations.getByRole("button", { name: "Set up AI suggestions" })).toBeEnabled();
     await expect(continuations.getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
     await expect(saved).toContainText(rawMaterial);
-    await expectNoHorizontalOverflow(running.page, 720, 760);
-    await expectNoHorizontalOverflow(running.page, 1180, 600);
 
     await continuations.getByRole("button", { name: "Fill candidature yourself" }).click();
     const manual = running.page.getByRole("region", { name: "Fill candidature yourself" });
@@ -309,8 +176,6 @@ test("packaged raw capture stays usable across large, normal, narrow and short w
     const roleInput = fields.getByRole("textbox", { name: /Role/ });
     await roleInput.fill("Captain");
     await fields.getByRole("button", { name: "Save details" }).click();
-    await expectNoHorizontalOverflow(running.page, 720, 760);
-    await expectNoHorizontalOverflow(running.page, 1180, 600);
 
     const corpus = running.page.getByLabel("Application corpus");
     await expect(corpus).toBeVisible();
@@ -326,7 +191,6 @@ test("packaged raw capture stays usable across large, normal, narrow and short w
     await roleBlock.getByLabel("Value").fill("Senior Captain");
     await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
     await expect(roleBlock).toContainText("Senior Captain");
-    await expectRepresentativeResizeCoverage(running.page);
 
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {

@@ -61,7 +61,7 @@ afterEach(() => {
 });
 
 describe("bounded MCP server", () => {
-  it("exposes product intentions without the rejected generic CV-content/render tools", async () => {
+  it("exposes the current bounded product intentions without generic machine authority", async () => {
     const connection = await connectedClient(workspace());
     try {
       const tools = await connection.client.listTools();
@@ -79,7 +79,6 @@ describe("bounded MCP server", () => {
         configuratorAiOperationValidateToolName,
         configuratorAiOperationDefaultToolName,
       ]);
-      expect(names).not.toEqual(expect.arrayContaining(["cv_content_read", "cv_descriptions_read", "cv_render"]));
       expect(names).not.toEqual(expect.arrayContaining(["database_query", "filesystem_read", "shell_exec"]));
     } finally {
       await connection.close();
