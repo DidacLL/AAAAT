@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - ".github/workflows/**"
       - "src/**"
       - "test/**"
       - "package.json"
@@ -33,3 +34,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+
+  gate:
+    name: Verification gate
+    needs: typecheck
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require lightweight verification
+        env:
+          TYPECHECK_RESULT: ${{ needs.typecheck.result }}
+        run: |
+          if [[ "$TYPECHECK_RESULT" != "success" ]]; then
+            echo "Typecheck finished as $TYPECHECK_RESULT" >&2
+            exit 1
+          fi
+          echo "Lightweight development verification passed." >> "$GITHUB_STEP_SUMMARY"
