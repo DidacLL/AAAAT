@@ -131,7 +131,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     applicationDocumentsCreateToolName,
     {
-      description: "Create a retained AAAAT application from job-offer text and immediately create its requested Working CV, cover letter, or both. Optional configured AI may prepare them, while manual editing remains complete. Returns no local IDs or paths.",
+      description: "Create a retained AAAAT application from job-offer text and locally create its requested editable Working CV, cover letter, or both. This intention does not invoke configured AAAAT AI; later AI use is a separate explicit local action. Returns no local IDs or paths.",
       inputSchema: applicationDocumentsIntentSchema,
     },
     async (input) => {

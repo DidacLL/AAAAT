@@ -9,7 +9,7 @@ Prove two concrete third-party-AI entrances into ordinary user-owned AAAAT state
 - a local-capable external host uses packaged MCP stdio to submit retained opportunity material through the bounded application-document intention;
 - an external AI with no local-computer access produces a small versioned application handoff file that the user imports in New application.
 
-Both routes use the same application-material intent and `createApplicationDocuments` service. AAAAT retains the Source first, creates requested editable local documents, treats configured AI as optional preparation, and returns/exposes no hidden mutation IDs or paths.
+Both routes use the same application-material intent and `createApplicationDocuments` service. AAAAT retains the exact supplied Source and deterministically creates requested editable local documents without invoking configured AAAAT AI. Any later AAAAT AI use is a separate explicit local user action. The external boundary returns/exposes no hidden mutation IDs, paths or private source content.
 
 Preserve the task-scoped opportunity-research read/Source-return round trip and its privacy projection. Do not add provider-specific integration, generic CRUD/browsing, remote infrastructure, localhost HTTP, plugin/runtime registries or broad machine authority.
 

@@ -19,15 +19,15 @@ export const applicationDocumentsIntentSchema = z
   });
 export type ApplicationDocumentsIntent = z.infer<typeof applicationDocumentsIntentSchema>;
 
-const applicationPreparedOutputSchema = z
-  .object({ created: z.boolean(), aiPrepared: z.boolean() })
+const applicationCreatedOutputSchema = z
+  .object({ created: z.boolean() })
   .strict();
 
 export const applicationDocumentsResultSchema = z
   .object({
     created: z.literal(true),
-    cv: applicationPreparedOutputSchema,
-    coverLetter: applicationPreparedOutputSchema,
+    cv: applicationCreatedOutputSchema,
+    coverLetter: applicationCreatedOutputSchema,
   })
   .strict();
 export type ApplicationDocumentsResult = z.infer<typeof applicationDocumentsResultSchema>;

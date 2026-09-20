@@ -77,7 +77,7 @@ test("packaged executable completes the external offer-to-application-documents 
     const result = await client.callTool({
       name: "application_documents_create",
       arguments: {
-        sourceText: "private packaged offer for a platform engineering role",
+        sourceText: "Role: Platform Engineer\nBuild reliable platform services.",
         outputs: ["cv", "cover_letter"],
       },
     });
@@ -85,20 +85,28 @@ test("packaged executable completes the external offer-to-application-documents 
     const content = textContent(result);
     expect(JSON.parse(content)).toEqual({
       created: true,
-      cv: { created: true, aiPrepared: false },
-      coverLetter: { created: true, aiPrepared: false },
+      cv: { created: true },
+      coverLetter: { created: true },
     });
     expect(content).not.toContain(root);
-    expect(content).not.toContain("platform engineering");
+    expect(content).not.toContain("Platform Engineer");
 
     const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
     try {
       expect(database.prepare("SELECT COUNT(*) AS count FROM candidatures").get()).toEqual({ count: 1 });
       expect(database.prepare("SELECT source_text AS sourceText FROM candidature_sources").get()).toEqual({
-        sourceText: "private packaged offer for a platform engineering role",
+        sourceText: "Role: Platform Engineer\nBuild reliable platform services.",
       });
       expect(database.prepare("SELECT COUNT(*) AS count FROM working_cvs").get()).toEqual({ count: 1 });
-      expect(database.prepare("SELECT COUNT(*) AS count FROM cover_letters").get()).toEqual({ count: 1 });
+      expect(database.prepare("SELECT recipient, subject, body_json AS bodyJson, closing FROM cover_letters").get()).toEqual({
+        recipient: "Hiring team",
+        subject: "Application for Platform Engineer",
+        bodyJson: JSON.stringify([
+          "I am writing to apply for the Platform Engineer position described in your offer.",
+          "I would welcome the opportunity to discuss how my experience fits the requirements in your offer.",
+        ]),
+        closing: "Kind regards",
+      });
     } finally {
       database.close();
     }

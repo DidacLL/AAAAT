@@ -63,8 +63,8 @@ describe("portable external-AI application handoff", () => {
     const result = await importApplicationHandoffFile(root, valid);
     expect(result).toEqual({
       created: true,
-      cv: { created: true, aiPrepared: false },
-      coverLetter: { created: true, aiPrepared: false },
+      cv: { created: true },
+      coverLetter: { created: true },
     });
 
     const candidature = listCandidatures(root)[0];
@@ -85,22 +85,24 @@ describe("portable external-AI application handoff", () => {
     expect(boundedResult).not.toContain(root);
   });
 
-  it("keeps the retained Source and editable documents when configured optional AI fails", async () => {
+  it("does not invoke configured AAAAT AI while retaining useful local application work", async () => {
     const root = workspace();
     saveNamedAiConnection(root, {
-      name: "Unavailable local AI",
+      name: "Configured AI",
       endpoint: "http://127.0.0.1:9/v1",
-      model: "offline-test",
+      model: "configured-test",
     });
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new Error("AI unavailable");
-    }));
+    const fetchSpy = vi.fn(async () => {
+      throw new Error("External application-material creation must not call an AI provider.");
+    });
+    vi.stubGlobal("fetch", fetchSpy);
 
-    const filePath = writeHandoff(root, "offline-ai.json", {
+    const sourceText = "Role: Platform Engineer\nBuild reliable platform services.";
+    const filePath = writeHandoff(root, "configured-ai.json", {
       format: "aaaat-application-handoff",
       version: 1,
       intention: {
-        sourceText: "Opportunity material that must survive optional AI failure.",
+        sourceText,
         outputs: ["cv", "cover_letter"],
       },
     });
@@ -108,19 +110,27 @@ describe("portable external-AI application handoff", () => {
     const result = await importApplicationHandoffFile(root, filePath);
     expect(result).toEqual({
       created: true,
-      cv: { created: true, aiPrepared: false },
-      coverLetter: { created: true, aiPrepared: false },
+      cv: { created: true },
+      coverLetter: { created: true },
     });
+    expect(fetchSpy).not.toHaveBeenCalled();
 
     const candidature = listCandidatures(root)[0];
     if (!candidature) throw new Error("application fixture missing");
+    expect(candidature.values).toEqual([]);
     expect(listCandidatureSources(root, candidature.id)).toEqual([
-      expect.objectContaining({
-        sourceText: "Opportunity material that must survive optional AI failure.",
-      }),
+      expect.objectContaining({ sourceText }),
     ]);
+
     const documents = listDocumentCollections(root);
     expect(documents.workingCvs).toHaveLength(1);
-    expect(documents.letters).toHaveLength(1);
+    const letter = documents.letters[0];
+    expect(letter).toEqual(expect.objectContaining({
+      candidatureId: candidature.id,
+      recipient: "Hiring team",
+      subject: "Application for Platform Engineer",
+      closing: "Kind regards",
+    }));
+    expect(letter?.bodyParagraphs.length).toBeGreaterThan(0);
   });
 });
