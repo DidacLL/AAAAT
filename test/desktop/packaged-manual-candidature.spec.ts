@@ -150,29 +150,31 @@ test("packaged no-AI raw capture and manual completion uses the real renderer pr
     running = await startPackagedApp(isolatedUserData, linuxHome);
     await createWorkspace(running);
 
-    const creation = running.page.getByRole("group", { name: "Create candidature" });
-    await creation.getByRole("button", { name: "Paste raw material" }).click();
-    await running.page.getByLabel("Raw material").fill(rawMaterial);
+    await running.page.getByRole("button", { name: "New application" }).click();
+    const manual = running.page.getByRole("region", { name: "New application" });
+    await manual.getByLabel("Application notes or offer").fill(rawMaterial);
     expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(0);
-    await running.page.getByRole("button", { name: "Save Source" }).click();
 
-    await expect(running.page.getByText(rawMaterial, { exact: true })).toBeVisible();
-    await running.page.getByRole("button", { name: "Fill candidature yourself" }).click();
-    const manual = running.page.getByRole("region", { name: "Fill candidature yourself" });
-    await expect(manual.getByRole("region", { name: "Pasted candidature material" })).toContainText(rawMaterial);
-    const fields = manual.getByRole("form", { name: "Candidature information" });
-    const roleInput = fields.getByRole("textbox", { name: /Role/ });
-    await roleInput.fill("Captain");
-    await fields.getByRole("button", { name: "Save details" }).click();
+    await manual.getByRole("button", { name: "Show fields" }).click();
+    const fields = manual.getByRole("form", { name: "Application information" });
+    await fields.getByLabel("Role", { exact: true }).fill("Captain");
+    await expect(fields.getByRole("checkbox", { name: "Parse with AI" })).not.toBeChecked();
+    await fields.getByRole("button", { name: "Save application" }).click();
 
     const corpus = running.page.getByLabel("Application corpus");
     await expect(corpus).toBeVisible();
-    const candidatureEntry = corpus.getByRole("button").filter({ hasText: "Captain" }).first();
-    await expect(candidatureEntry).toBeVisible();
-    await candidatureEntry.click();
+    const candidatureEntries = corpus.getByRole("button", { name: "Open saved application" });
+    await expect(candidatureEntries).toHaveCount(1);
+    await candidatureEntries.first().click();
 
     const selectedApplication = running.page.getByRole("region", { name: "Application information" });
     await selectedApplication.getByText("More", { exact: true }).click();
+
+    const sources = selectedApplication.getByRole("region", { name: "Sources" });
+    await expect(sources).toContainText(rawMaterial);
+    await sources.getByRole("button", { name: "Read source" }).click();
+    await expect(sources.getByRole("article", { name: "Source content" })).toContainText(rawMaterial);
+
     const roleBlock = selectedApplication.getByRole("article", { name: "Role information" });
     await expect(roleBlock).toContainText("Captain");
     await roleBlock.getByRole("button", { name: "Edit Role", exact: true }).click();
