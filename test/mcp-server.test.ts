@@ -24,6 +24,7 @@ import {
   opportunityResearchContextReadToolName,
 } from "../src/main/mcp-server";
 import { listCandidatures, listCandidatureSources } from "../src/main/candidature-service";
+import { listDocumentCollections } from "../src/main/document-domain-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 
 const roots: string[] = [];
@@ -111,6 +112,46 @@ describe("bounded MCP server", () => {
         expect.objectContaining({ sourceText: "Raw retained vacancy text." }),
       ]);
       expect(textResult(result)).not.toContain(candidature.id);
+    } finally {
+      await connection.close();
+    }
+  });
+
+  it("creates requested application documents from external offer material without disclosing local authority", async () => {
+    const root = workspace();
+    const connection = await connectedClient(root);
+    try {
+      const result = await connection.client.callTool({
+        name: applicationDocumentsCreateToolName,
+        arguments: {
+          sourceText: "External assistant offer material for a platform engineering role.",
+          outputs: ["cv", "cover_letter"],
+        },
+      });
+      const text = textResult(result);
+      expect(JSON.parse(text)).toEqual({
+        created: true,
+        cv: { created: true, aiPrepared: false },
+        coverLetter: { created: true, aiPrepared: false },
+      });
+
+      const candidature = listCandidatures(root)[0];
+      if (!candidature) throw new Error("application fixture missing");
+      expect(listCandidatureSources(root, candidature.id)).toEqual([
+        expect.objectContaining({
+          sourceText: "External assistant offer material for a platform engineering role.",
+        }),
+      ]);
+      const documents = listDocumentCollections(root);
+      expect(documents.workingCvs).toEqual([
+        expect.objectContaining({ candidatureId: candidature.id }),
+      ]);
+      expect(documents.letters).toEqual([
+        expect.objectContaining({ candidatureId: candidature.id }),
+      ]);
+      expect(text).not.toContain(candidature.id);
+      expect(text).not.toContain(root);
+      expect(text).not.toContain("platform engineering");
     } finally {
       await connection.close();
     }

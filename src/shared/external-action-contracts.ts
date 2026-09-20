@@ -3,34 +3,42 @@ import { z } from "zod";
 import { aiConnectionInputSchema } from "./ai-contracts";
 import { aiOperationSchema } from "./ai-connection-contracts";
 
-export const externalApplicationOutputSchema = z.enum(["cv", "cover_letter"]);
-export const externalApplicationDocumentsInputSchema = z
+export const applicationDocumentOutputSchema = z.enum(["cv", "cover_letter"]);
+export const applicationDocumentsIntentSchema = z
   .object({
-    sourceText: z.string().trim().min(1).max(50000),
-    outputs: z.array(externalApplicationOutputSchema).min(1).max(2),
+    sourceText: z
+      .string()
+      .max(50000)
+      .refine((value) => value.trim().length > 0, {
+        message: "Application material must contain non-whitespace text.",
+      }),
+    outputs: z.array(applicationDocumentOutputSchema).min(1).max(2),
   })
   .strict()
   .refine((value) => new Set(value.outputs).size === value.outputs.length, {
     path: ["outputs"],
     message: "Application outputs must be unique.",
   });
-export type ExternalApplicationDocumentsInput = z.infer<
-  typeof externalApplicationDocumentsInputSchema
->;
+export type ApplicationDocumentsIntent = z.infer<typeof applicationDocumentsIntentSchema>;
 
-const externalPreparedOutputSchema = z
+export const externalApplicationOutputSchema = applicationDocumentOutputSchema;
+export const externalApplicationDocumentsInputSchema = applicationDocumentsIntentSchema;
+export type ExternalApplicationDocumentsInput = ApplicationDocumentsIntent;
+
+const applicationPreparedOutputSchema = z
   .object({ created: z.boolean(), aiPrepared: z.boolean() })
   .strict();
-export const externalApplicationDocumentsResultSchema = z
+export const applicationDocumentsResultSchema = z
   .object({
     created: z.literal(true),
-    cv: externalPreparedOutputSchema,
-    coverLetter: externalPreparedOutputSchema,
+    cv: applicationPreparedOutputSchema,
+    coverLetter: applicationPreparedOutputSchema,
   })
   .strict();
-export type ExternalApplicationDocumentsResult = z.infer<
-  typeof externalApplicationDocumentsResultSchema
->;
+export type ApplicationDocumentsResult = z.infer<typeof applicationDocumentsResultSchema>;
+
+export const externalApplicationDocumentsResultSchema = applicationDocumentsResultSchema;
+export type ExternalApplicationDocumentsResult = ApplicationDocumentsResult;
 
 export const externalConfiguratorConnectionInputSchema = aiConnectionInputSchema;
 export type ExternalConfiguratorConnectionInput = z.infer<

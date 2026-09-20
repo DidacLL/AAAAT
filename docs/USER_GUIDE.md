@@ -83,6 +83,25 @@ The current MCP stdio surface registers exactly these bounded tools:
 
 These tools do not expose generic candidature/corpus browsing, database queries, filesystem access, shell/process execution, package installation, arbitrary local paths or unrelated private areas. AAAAT controls what its tools disclose; a host's own wider permissions remain a separate user trust choice.
 
+### Portable handoff from an external AI without local access
+
+If the external AI cannot start programs or reach the user's computer, it can instead produce one small **AAAAT application handoff** file. In **New application**, choose **Import external AI handoff…** and select that file. AAAAT validates the complete file before changing the workspace, retains the supplied opportunity material as a Source, and creates the requested editable Working CV and/or cover letter through the same application service used by MCP. Optional configured AI may prepare those documents; failure leaves the retained application and editable documents intact.
+
+A compatible external assistant can generate this versioned JSON file directly; the user does not need to edit it:
+
+```json
+{
+  "format": "aaaat-application-handoff",
+  "version": 1,
+  "intention": {
+    "sourceText": "The opportunity material already present in the external conversation",
+    "outputs": ["cv", "cover_letter"]
+  }
+}
+```
+
+The capsule accepts only that bounded intention. It contains no AAAAT IDs, local paths, credentials, provider configuration or hidden workspace state. It is a manual portable handoff, not a remote server, plugin runtime or generic import framework.
+
 ## Backup and restore
 
 Use **Settings → Backup** to create or restore a user-owned workspace backup. Restore validates the backup before activation and warns before replacing current workspace data. A failed restore does not silently replace the active workspace.

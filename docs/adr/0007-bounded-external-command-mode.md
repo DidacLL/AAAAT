@@ -1,5 +1,9 @@
 # ADR 0007 — First bounded external command mode
 
+- Status: Superseded by PLAN[2]
+
+PLAN[2] removes the one-shot `--external-command candidature.create` entry point. The surviving local-host carrier is packaged MCP stdio, which has a demonstrated higher-level application-material journey as well as bounded task-scoped research. The command had no independent current caller or user-facing setup path and duplicated a narrower Source-only capability already available through MCP. With no established compatibility baseline, preserving it solely because it existed in development would add a second transport without product value.
+
 > Recovery clarification: [ADR 0015](0015-owner-approved-recovery-boundaries.md) supersedes outbound durable identifiers, any coupling of external/provider wire contracts to internal identifier-bearing contracts, and the earlier structured candidature-create input described below. The retained decision is a bounded one-shot source-only create operation.
 
 ## Context

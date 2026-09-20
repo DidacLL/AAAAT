@@ -78,6 +78,8 @@ Meaningful parity is expressed as typed high-level product intentions, not gener
 
 The packaged app exposes the shared bounded local tool entry point. Hosts that can start a local tool may use it without changing AAAAT's domain authority. This does not authorize a generic plugin/provider framework.
 
+External AI environments without local-computer access use one versioned portable **application handoff**. The capsule carries only explicit opportunity text plus the requested application-document intention. File selection and JSON handling are transport details: AAAAT validates the entire capsule before mutation and then calls the same application-material service used by MCP. The Source is retained before optional AI preparation, malformed capsules do not partially mutate the workspace, and no local IDs, paths, credentials or hidden workspace state belong in the portable contract. This does not introduce a localhost service, remote relay, generic import framework or command bus.
+
 ## Setup, recovery and local ownership
 
 The local workspace owns data, configuration, generated document projects and retained artifacts. Backup/recovery and configuration import/export remain normal product capabilities.

@@ -1,9 +1,5 @@
 import { app } from "electron";
 
-import {
-  isExternalCommandInvocation,
-  runExternalCommandProcess,
-} from "./external-command";
 import { isMcpInvocation, runMcpProcess } from "./mcp-server";
 import {
   isWorkspaceBackupInvocation,
@@ -22,15 +18,11 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
   } catch {
     app.exit(2);
   }
-} else if (isExternalCommandInvocation(process.argv)) {
-  void runExternalCommandProcess(process.argv, process.stdin, process.stdout).then(
-    (exitCode) => app.exit(exitCode),
-    () => app.exit(2),
-  );
 } else {
   void Promise.all([
     import("./ai-connection-ipc"),
     import("./ai-prompt-ipc"),
+    import("./application-handoff-ipc"),
     import("./candidature-activity-ipc"),
     import("./candidature-opportunity-research-access-ipc"),
     import("./candidature-search-ipc"),

@@ -1,8 +1,8 @@
 import {
-  externalApplicationDocumentsInputSchema,
-  externalApplicationDocumentsResultSchema,
-  type ExternalApplicationDocumentsInput,
-  type ExternalApplicationDocumentsResult,
+  applicationDocumentsIntentSchema,
+  applicationDocumentsResultSchema,
+  type ApplicationDocumentsIntent,
+  type ApplicationDocumentsResult,
 } from "../shared/external-action-contracts";
 import { getAiConnectionForOperation } from "./ai-connection-service";
 import { draftCoverLetter, tailorCv } from "./ai-service";
@@ -18,9 +18,9 @@ import { extractJobWithPartialOutcomes } from "./robust-job-extraction";
 
 export async function createApplicationDocuments(
   rootPath: string,
-  rawInput: ExternalApplicationDocumentsInput,
-): Promise<ExternalApplicationDocumentsResult> {
-  const input = externalApplicationDocumentsInputSchema.parse(rawInput);
+  rawInput: ApplicationDocumentsIntent,
+): Promise<ApplicationDocumentsResult> {
+  const input = applicationDocumentsIntentSchema.parse(rawInput);
   const candidature = createCandidature(rootPath, {
     source: {
       kind: "job_posting",
@@ -118,7 +118,7 @@ export async function createApplicationDocuments(
     }
   }
 
-  return externalApplicationDocumentsResultSchema.parse({
+  return applicationDocumentsResultSchema.parse({
     created: true,
     cv: { created: cv !== null, aiPrepared: cvPrepared },
     coverLetter: { created: coverLetter !== null, aiPrepared: coverLetterPrepared },
