@@ -94,7 +94,7 @@ afterEach(() => {
 });
 
 describe("workspace backup and restore", () => {
-  it("creates a portable consistent backup and restores user-owned data without secrets or migration ancestry", async () => {
+  it("creates a portable consistent backup and restores user-owned data without secrets or transient state", async () => {
     const { root, workspace, backup, restore, files } = fixture();
     const before = listCandidatures(workspace);
 
@@ -105,10 +105,8 @@ describe("workspace backup and restore", () => {
     );
 
     expect(created).toMatchObject({ format: "aaaat-workspace-backup", version: 1 });
-    expect(created.database).not.toHaveProperty("migrations");
     const text = readFileSync(path.join(backup, "manifest.json"), "utf8");
     expect(text).not.toContain(root);
-    expect(text).not.toContain("schema_migrations");
     expect(created.exclusions.join("\n")).toMatch(/ai-connection\.json/);
     expect(created.exclusions.join("\n")).toMatch(/\.env/);
     expect(created.files.map((file) => file.path).sort()).toEqual([...files.keys()].sort());

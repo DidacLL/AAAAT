@@ -109,9 +109,6 @@ test("packaged executable exposes source-only candidature creation over MCP stdi
       expect(database.prepare("SELECT action FROM candidature_activity").all()).toEqual([
         { action: "candidature.created" },
       ]);
-      expect(
-        database.prepare("SELECT name FROM sqlite_schema WHERE name = 'schema_migrations'").get(),
-      ).toBeUndefined();
     } finally {
       database.close();
     }

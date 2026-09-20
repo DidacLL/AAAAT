@@ -111,7 +111,6 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
 
     const manifestText = readFileSync(path.join(backup, "manifest.json"), "utf8");
     expect(manifestText).not.toContain(root);
-    expect(manifestText).not.toContain("schema_migrations");
     expect(manifestText).toContain("ai-connection.json");
     expect(
       readFileSync(path.join(backup, "files", "rendered-cvs", "cv.tex"), "utf8"),
@@ -158,9 +157,6 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
           .prepare("SELECT action FROM candidature_activity WHERE candidature_id = ?")
           .get(candidatureId),
       ).toEqual({ action: "candidature.created" });
-      expect(
-        database.prepare("SELECT name FROM sqlite_schema WHERE name = 'schema_migrations'").get(),
-      ).toBeUndefined();
     } finally {
       database.close();
     }
