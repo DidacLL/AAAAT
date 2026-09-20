@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - candidate/windows
-      - plan/1-real-test-basis
 
 permissions:
   contents: read
