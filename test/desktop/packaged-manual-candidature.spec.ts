@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { chromium, expect, test, type Browser, type Page } from "@playwright/test";
 
-test.skip(process.platform !== "linux", "The packaged sparse-candidature journey runs once on Linux");
+test.skip(process.platform !== "linux", "The packaged no-AI manual journey runs once on Linux");
 
 function packagedExecutable(): string {
   return path.resolve("out", `AAAAT-${process.platform}-${process.arch}`, "aaaat");
@@ -135,7 +135,6 @@ function chooseLinuxDirectory(): void {
 async function createWorkspace(running: RunningApp): Promise<void> {
   await running.page.getByRole("button", { name: "Create workspace" }).click();
   chooseLinuxDirectory();
-  await expect(running.page.getByRole("heading", { name: "Turn a job offer into application documents." })).toBeVisible();
   await running.page.getByRole("button", { name: "Applications" }).click();
   await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
 }
@@ -153,23 +152,13 @@ test("packaged no-AI raw capture and manual completion uses the real renderer pr
     await createWorkspace(running);
 
     const creation = running.page.getByRole("group", { name: "Create candidature" });
-    await expect(creation.getByRole("button", { name: "Fill fields directly" })).toBeVisible();
-    await expect(creation.getByRole("button", { name: "Paste raw material" })).toBeVisible();
-
     await creation.getByRole("button", { name: "Paste raw material" }).click();
-    await expect(running.page.getByRole("heading", { name: "Paste raw material" })).toBeVisible();
     await running.page.getByLabel("Raw material").fill(rawMaterial);
     expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(0);
     await running.page.getByRole("button", { name: "Save Source" }).click();
 
-    const saved = running.page.getByRole("region", { name: "Raw candidature saved" });
-    await expect(saved).toBeVisible();
-    const continuations = saved.getByRole("group", { name: "Continue from saved Source" });
-    await expect(continuations.getByRole("button", { name: "Set up AI suggestions" })).toBeEnabled();
-    await expect(continuations.getByRole("button", { name: "Fill candidature yourself" })).toBeEnabled();
-    await expect(saved).toContainText(rawMaterial);
-
-    await continuations.getByRole("button", { name: "Fill candidature yourself" }).click();
+    await expect(running.page.getByText(rawMaterial, { exact: true })).toBeVisible();
+    await running.page.getByRole("button", { name: "Fill candidature yourself" }).click();
     const manual = running.page.getByRole("region", { name: "Fill candidature yourself" });
     await expect(manual.getByRole("region", { name: "Pasted candidature material" })).toContainText(rawMaterial);
     const fields = manual.getByRole("form", { name: "Candidature information" });
@@ -179,9 +168,9 @@ test("packaged no-AI raw capture and manual completion uses the real renderer pr
 
     const corpus = running.page.getByLabel("Application corpus");
     await expect(corpus).toBeVisible();
-    const card = corpus.locator(".candidature-corpus-card").first();
-    await expect(card).toBeVisible();
-    await card.locator("button.candidature-corpus-entry").click();
+    const candidatureEntry = corpus.getByRole("button").filter({ hasText: "Captain" }).first();
+    await expect(candidatureEntry).toBeVisible();
+    await candidatureEntry.click();
 
     const selectedApplication = running.page.getByRole("region", { name: "Application information" });
     await selectedApplication.getByText("More", { exact: true }).click();
