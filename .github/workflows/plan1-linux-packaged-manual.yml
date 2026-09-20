@@ -36,6 +36,11 @@ jobs:
       - name: Build packaged application
         run: npm run build
 
+      - name: Configure Electron sandbox for hosted Linux
+        run: |
+          sudo chown root:root out/AAAAT-linux-x64/chrome-sandbox
+          sudo chmod 4755 out/AAAAT-linux-x64/chrome-sandbox
+
       - name: Run exact packaged manual journey
         env:
           CI: "1"
