@@ -1,0 +1,44 @@
+name: PLAN1 Linux packaged manual evidence
+
+on:
+  push:
+    branches:
+      - plan/1-real-test-basis
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plan1-linux-packaged-manual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  packaged-manual:
+    name: Packaged no-AI manual journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Linux display/chooser test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth xdotool
+
+      - name: Build packaged application
+        run: npm run build
+
+      - name: Run exact packaged manual journey
+        env:
+          CI: "1"
+        run: |
+          xvfb-run -a -s "-screen 0 1280x900x24" \
+            npx playwright test test/desktop/packaged-manual-candidature.spec.ts --config playwright.config.ts
