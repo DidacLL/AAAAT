@@ -3,7 +3,7 @@ import {
   applicationDocumentsResultSchema,
   type ApplicationDocumentsIntent,
   type ApplicationDocumentsResult,
-} from "../shared/external-action-contracts";
+} from "../shared/application-material-contracts";
 import { getAiConnectionForOperation } from "./ai-connection-service";
 import { draftCoverLetter, tailorCv } from "./ai-service";
 import { setCandidatureFieldValue } from "./candidature-field-service";

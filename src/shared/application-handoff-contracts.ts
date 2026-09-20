@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   applicationDocumentsIntentSchema,
   applicationDocumentsResultSchema,
-} from "./external-action-contracts";
+} from "./application-material-contracts";
 
 export const applicationHandoffSchema = z
   .object({
