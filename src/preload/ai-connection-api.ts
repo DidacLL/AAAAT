@@ -2,6 +2,7 @@ import {
   aiConnectionIdSchema,
   aiConnectionManagementChannels,
   aiConnectionOperationInputSchema,
+  aiConnectionProbeResultSchema,
   namedAiConnectionInputSchema,
   namedAiConnectionListSchema,
   portableAiSetupExportResultSchema,
@@ -34,6 +35,13 @@ export function createAiConnectionDesktopApi(invoke: Invoke): AiConnectionDeskto
         namedAiConnectionListSchema.parse(
           await invoke(
             aiConnectionManagementChannels.remove,
+            aiConnectionIdSchema.parse(connectionId),
+          ),
+        ),
+      probe: async (connectionId: string) =>
+        aiConnectionProbeResultSchema.parse(
+          await invoke(
+            aiConnectionManagementChannels.probe,
             aiConnectionIdSchema.parse(connectionId),
           ),
         ),

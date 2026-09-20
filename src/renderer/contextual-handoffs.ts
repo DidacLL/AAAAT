@@ -11,7 +11,7 @@ export type ProfessionalInformationHandoff = {
 };
 
 export type SettingsHandoff = {
-  readonly view: "rendering" | "ai";
+  readonly view: "documents" | "ai";
   readonly origin: "documents" | "candidatures";
 };
 

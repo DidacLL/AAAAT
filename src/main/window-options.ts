@@ -7,8 +7,6 @@ export function createWindowOptions(
   return {
     width: 1180,
     height: 760,
-    minWidth: 720,
-    minHeight: 600,
     backgroundColor: "#faf6ef",
     show: false,
     autoHideMenuBar: true,

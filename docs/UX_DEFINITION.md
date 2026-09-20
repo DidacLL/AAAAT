@@ -1,327 +1,37 @@
-# AAAAT UX Definition
+# AAAAT desktop interaction
 
-Status: **derived UX reference, not product authority.**
+This guide derives from current Product Owner intent and `PRODUCT_DEFINITION.md`. Prior screens and tests do not create product meaning.
 
-Current explicit Product Owner instruction and `PRODUCT_DEFINITION.md` define product meaning. This document translates that meaning into interaction constraints. Historical Smart View, Detailed View, User View and current renderer structures are evidence only and must not be preserved by default.
+Welcome is the first screen. It shows the last loaded workspace, offers another folder, and gives compact honest status for workspace, optional AI and local PDF readiness. Closing Welcome enters Focus over the application corpus. Focus and the complete-data register are two presentations of the same applications, never different application classes or workflows.
 
-## 1. One application, several direct intentions
+Once a workspace is loaded, the rail owns persistent environment status on every main destination: **Data: Demo/Local**, **AI: Off/Ready/Needs attention**, and **PDF: Ready/Unavailable**. Loaded **Home remains a real branded landing surface**: the AAAAT robot/logo, `Your application work, on your computer.` identity, clear loaded-workspace context, an obvious continuation into ordinary work, and compact workspace switching/recovery actions where useful. Home does not duplicate the rail's Data/AI/PDF badges, become a metrics dashboard, or invent a competing workflow; primary navigation still lives in the rail.
 
-AAAAT must not force the user through one canonical workflow.
+A single **New application** action opens one capture screen. Raw pasted or written material and editable useful fields appear side by side on desktop; on narrow screens the fields may fold under **Show fields**. One **Save application** retains any sparse material: just a company, a role, a note, or a pasted offer is sufficient. Optional AI parsing, dedicated CV and cover-letter preparation run after local save. Missing AI never prevents save. AI suggestions never replace values the user explicitly entered.
 
-The shell must make these intentions directly reachable without pretending they are sequential stages:
+Focus supports quick recognition, search and reading of the selected context. **All data** gives a compact complete register of the same corpus and opens deliberate application maintenance directly. Detailed field-definition controls and status history are secondary. **My information** begins with reusable professional facts; grouping and variations are advanced choices, not entry requirements. Common career groups are suggestions, never a closed taxonomy.
 
-- **Candidatures** — retrieve, capture, inspect and maintain opportunity/application information;
-- **CVs & letters** — standalone or candidature-context document work through VCVGenerator;
-- **Professional information** — reusable user-owned career material;
-- **Settings** — secondary workspace/rendering/AI/integration/backup administration.
+Application Tags are shown as attached chips/tokens only. Attaching uses compact search/autocomplete over the shared Tag glossary; when the entered term does not exist, the user can create it with a definition. Selecting an attached Tag reveals its shared canonical name, aliases, definition and notes and allows editing that shared definition. The application screen never renders the complete Tag glossary as a permanent checkbox/button list, regardless of glossary size.
 
-Focus, Sources, Tags, reminders, AI and artifacts are capabilities/context inside those areas, not peer global destinations simply because they are persisted concepts.
+Every editable application field and reusable professional-information item has one compact eye affordance whose ordinary meaning is **AI may use this information**. For application fields, enabled+empty means Source extraction may request it; enabled+populated means bounded AI assistance may receive the retained value; disabled means neither request nor disclosure. The same understandable control applies to reusable career information. Ordinary UI does not expose `aiDiscovery`, `aiContextMode`, schema, projection, token, or disclosure-engine vocabulary.
 
-## 2. Candidatures supports multiple entry intentions
+The **CVs/Documents** destination is a collection with visibly distinct groups: **Templates**, **Rendered CVs**, **Letters**, and **Application packets**. A PDF is an output artifact, never a permanent editor tab or a template section.
 
-Opening Candidatures must support common intentions without forcing one through another:
+A CV template is an ordered reusable composition. Its editor shows compact metadata, ordered sections, and the information selected inside them. The user can add/remove/rename/reorder sections and add/remove/reorder information items. Useful section structures include Profile, Experience, Projects/Selected work, Education, Skills, Languages and Links. Each profile-backed item chooses one source: current **My information**, a saved profile variant, or a template-specific override; custom content is allowed where needed.
 
-1. **Recall quickly** — use Focus to find the right candidature and recover useful context.
-2. **Create by fields** — start a candidature by filling the useful fields directly.
-3. **Capture raw material** — retain whatever source material exists with minimal friction and structure it afterward if desired.
-4. **Maintain deliberately** — directly open a candidature for complete inspection/editing.
-5. **Work on application material** — reach/create relevant CVs, letters and retained application artifacts in candidature context.
+Opening a template creates or opens a **working CV**. A Working CV is read-first: by default it looks like a recognizable CV outline with compact section hierarchy and the actual retained content, not a permanently expanded database-style form. Only a deliberately selected item enters edit mode at a time. Internal `kind`, `current / variant / override` state-machine terminology and similar implementation vocabulary stay out of ordinary editing; source choices read as **My information — current**, **Saved variation — …**, or **This CV only**. Section/item ordering and removal remain available as compact secondary controls.
 
-No status, priority, next-action or lifecycle maintenance is required to use any of these paths.
+Working-document edits are local to that CV unless the user explicitly chooses an ownership action such as **Save to template**, **Save as new template**, **Save as profile variant**, or **Update My information**. These actions appear contextually when an edited value creates the decision rather than as permanent button clutter. Whole-CV template reuse is a secondary document action/disclosure rather than a permanent ownership panel.
 
-## 3. Focus is one two-state retrieval experience
+**Render PDF** is an action on the current working composition. Rendering creates a separate **Rendered CV** record containing the PDF and the content/composition snapshot that produced it. The rendered artifact may reference a template but does not require one; document-specific unsaved changes can be rendered without mutating reusable template/profile state.
 
-### Corpus Focus
+A cover letter created from an application is application-owned immediately and is surfaced in that application while remaining discoverable in **Letters**. The existing combined CV+letter behavior represents an **Application packet** when its semantics match that concept; do not create another packet engine.
 
-The first Focus state answers:
+The permanent document UI does not show raw filesystem paths, LaTeX/source-ownership explanations, CV descriptors, assistant tags/notes, or large external-assistant access panels. Source-project export may remain under a compact advanced disclosure when it is still a real user-owned action.
 
-> Which candidature am I looking for?
+Settings uses recognizable tabs with one unmistakably active content panel rather than a launcher grid of explanatory cards. Use only real destinations, currently expected to be **Workspace**, **AI**, **Documents**, and **Backup**. An invalid or unreachable configured AI URL produces **AI: Needs attention** in the rail and a concrete inline error beside the URL/control in Settings.
 
-Requirements:
+The useful information takes the viewport. Titles and repeated explanations are compact. Decoration may give AAAAT its worn physical-console / paper-dossier character without consuming the space needed for editing and reading. Home, Applications, CVs/Documents, My information and Settings retain the same rail/status frame.
 
-- multiple candidatures are recognizable simultaneously;
-- screen space is used for recognition, not administration;
-- each candidature shows only a small Focus-selected set of fields/signals;
-- AAAAT may ship default Focus fields, but the user controls which available fields appear;
-- sparse candidatures use whatever retained signal best identifies them rather than looking broken;
-- search/filter supports partial memory across meaningful retained information, Sources and Tags/aliases;
-- no card needs to expand in place to reveal the selected-candidature experience;
-- no reminders, Sources, documents or field-configuration machinery are automatically dumped into each summary.
+AAAAT does not define an arbitrary fixed product minimum window size. Concrete dimensions used in tests, screenshots, or historical interaction notes are representative verification samples only. Constrained-window behavior is judged by reachability, readability, useful space, and absence of clipping rather than by treating one sampled dimension as product authority.
 
-The exact layout is open. Old Smart View cards/grids/panes are explicitly not reusable design authority.
-
-### Selected-candidature Focus
-
-Selecting a candidature transitions to a screen dominated by that candidature. It answers:
-
-> What do I need to remember right now?
-
-Requirements:
-
-- use the available screen rather than keeping a cramped persistent corpus beside it;
-- show the richer subset deliberately configured for Focus;
-- keep the composition stable and quickly scannable;
-- surface relevant Tags/glossary definitions contextually;
-- allow small notes or other selected recall information when the user chose them;
-- do not automatically show every Source, document, reminder or stored value;
-- keep configuration secondary to reading.
-
-Focus is read-first but **not read-only**. Every displayed editable field needs a lightweight edit affordance. The user must be able to correct or add information during a call without leaving Focus for routine edits.
-
-Provide a deliberate shortcut to complete candidature management for deeper work, but do not present that as the mandatory next step.
-
-## 4. Complete candidature work is directly reachable
-
-The user may open a candidature specifically to manage everything without first entering Focus.
-
-This experience answers:
-
-> What does AAAAT retain about this candidature, and can I change it?
-
-It must provide progressive access to:
-
-- all structured candidature information;
-- Sources/raw material in full;
-- Tags and their candidature association;
-- candidature-linked working CVs/letters and retained artifacts;
-- privacy/presentation controls where relevant;
-- secondary notes/checkable reminders if used;
-- secondary provenance/activity only where it has genuine user value;
-- field-definition management for the user's candidature information model.
-
-Do not turn complete access into one enormous static form. Populated information is primarily readable. Edit/add controls live close to the information. Field-definition/privacy/presentation detail is progressively disclosed rather than removed.
-
-## 5. New candidature has two direct creation approaches
-
-The entry surface must make both approaches clear. Do not hide them behind one generic wizard.
-
-### A. Fill fields directly
-
-This is for users who prefer conventional field-by-field entry or already know the relevant facts.
-
-It should take the user directly to the candidature information fields without requiring raw material, AI, Focus, status or lifecycle metadata.
-
-### B. Paste raw material
-
-This path is intentionally tiny:
-
-```text
-Paste raw material
-→ retain it as a Source
-```
-
-Do not require the user to decide whether the material is a recruiter message, job advertisement, URL or another Source type before retaining it.
-
-After the material is retained, the same post-paste view presents **both continuations clearly at the same time**:
-
-- **Send to AI** — send the retained material through a suitable configured extraction connection so it can propose values for the current candidature fields.
-- **Fill candidature yourself** — open a manual side-by-side surface with the retained raw Source visible on one side and the candidature fields on the other, so the user can copy/enter values without repeatedly switching context.
-
-Do not insert a generic intermediate action such as “Structure this candidature” that hides which path uses AI and which path is manual.
-
-The manual side-by-side path is a first-class no-AI workflow, not a fallback shown only when AI is unavailable. At constrained width it may stack/scroll rather than remain literally two columns, but both the Source and editable fields must remain readily available in the same task surface.
-
-A raw-only candidature is already valid. The user may also simply leave after retaining the material.
-
-Future deterministic or embedded extraction of obvious values such as company, role or salary may reduce effort further. Do not invent that machinery merely to satisfy the current flow, and do not make it a prerequisite for manual or AI-assisted use.
-
-## 6. Information and field UX
-
-Common shipped fields such as company, role, salary and location are defaults, not permanent ontology.
-
-The candidature field set is user-maintainable. This is required product behavior, not only a future compatibility direction, because different professions and searches require materially different information and configured AI extraction works against the available fields.
-
-Examples deliberately span professions: a pilot may want flight hours, licences, aircraft type or domestic/international operation; a software engineer may want technology stack or remote policy; a script writer may want format, genre, production context or rights.
-
-Normal UI presents **information**, not schema administration.
-
-For ordinary fields:
-
-- populated values are readable;
-- editing is local and deliberate;
-- missing values may have small Add affordances;
-- users can add and edit field definitions, including meaningful type/choice behavior, through progressively disclosed controls;
-- shipped field definitions are editable product defaults where safe rather than a developer-owned ontology;
-- Focus participation is presentation configuration, separate from storage and AI disclosure;
-- AI extraction/population targets the current configured fields rather than a hidden fixed schema;
-- AI assistance may be offered only where meaningful and only when a suitable configured route exists.
-
-Advanced field-definition/type/detail should never dominate ordinary candidature work, but hiding or deleting that capability is also incorrect.
-
-## 7. Tags are contextual glossary knowledge
-
-Use **Tags** consistently in UI and domain language.
-
-A Tag can have aliases, a definition and notes. It may be associated with many candidatures.
-
-In selected Focus or deliberate candidature work, relevant Tags should be inspectable without forcing the user into a separate knowledge-management destination. Example: selecting/hovering/opening `Spring Boot` can reveal its stored definition in context.
-
-Global Tag maintenance may exist as secondary/advanced functionality, but Tags are not a separate product area.
-
-## 8. Sources
-
-Sources are retained original inputs.
-
-Requirements:
-
-- Source content remains readable in full when requested;
-- long raw text does not dominate Focus by default;
-- search can use Source content;
-- editing/removal is deliberate and candidature-owned;
-- extraction never destroys the Source;
-- Source-specific AI actions belong beside the Source or target information, not in an AI workspace.
-
-## 9. Notes and reminders
-
-Small candidature-attached notes/checkable reminders are secondary conveniences only.
-
-They must not create task-management navigation, scheduling, recurrence, lifecycle semantics, automatic next actions or default Focus prominence.
-
-If a user chooses a note/reminder as useful Focus content, it may appear there. Otherwise it stays out of the rapid-recall surface.
-
-## 10. CVs & letters / VCVGenerator
-
-VCVGenerator is a first-class direct journey independent of candidatures.
-
-Normal standalone document work should make clear:
-
-1. what document is being edited;
-2. what content/information it uses;
-3. what the user can change;
-4. what output will be produced;
-5. how to render/export/open user-owned source/output.
-
-When entered from a candidature, preserve that context and make the relevant working documents/artifacts easy to reach. Do not create a separate candidature-only document editor or force the user through a generic document warehouse.
-
-Advanced ownership details such as LaTeX project files remain available through progressive disclosure without making normal document editing a developer experience.
-
-## 11. Professional information
-
-The primary mental model is reusable professional information, not profile schema architecture.
-
-Show actual content such as experience, skills, projects, education, identity/contact, languages, links and summaries. Common categories are suggestions/defaults rather than a closed taxonomy.
-
-Saved variations and document-specific differences appear only when the user needs them. A user must be able to create/use a normal CV without first understanding variants or patch semantics.
-
-## 12. AI interaction
-
-There is no primary AI destination.
-
-AI is invoked contextually from the Source, field, candidature, CV or letter being worked on.
-
-A good action communicates:
-
-- what help is being requested;
-- what context will be used when relevant;
-- what result will be proposed/produced;
-- what local information will actually change;
-- that the result remains editable.
-
-The raw-capture path is an important example: **Send to AI** is an explicit peer of the manual **Fill candidature yourself** action after paste. It is not an automatically displayed continuation that makes AI look like the normal next stage.
-
-If no valid route exists, the manual action remains available.
-
-Provider/connection administration belongs in Settings.
-
-## 13. External-AI interaction
-
-External AI/tools may enter AAAAT through bounded capabilities. Their broader work may include research or job discovery outside AAAAT.
-
-The desktop UX should not be redesigned around an agent protocol. It should remain the best private interface for full corpus/candidature/professional-information work.
-
-Settings may explain/connect supported external hosts, but protocol vocabulary should remain secondary/technical.
-
-## 14. Privacy
-
-Keep these independent in the UI:
-
-- stored locally;
-- visible in Focus;
-- allowed to a particular AI operation.
-
-Do not make privacy controls permanent first-sight clutter. Show them where the decision matters and keep deeper disclosure/audit detail progressively accessible.
-
-## 15. First run and Settings
-
-First run establishes a usable local workspace with minimal uncertainty.
-
-Create/open are primary. Restore is secondary but discoverable. AI and TeX configuration are not prerequisites for basic use.
-
-Settings owns infrequent administration: workspace, backup/restore, rendering/TeX, AI connections, external-tool integration and configuration portability.
-
-Do not expose ports, MCP, IPC, schemas, migrations or provider internals in ordinary product language.
-
-## 16. Adaptive desktop space
-
-AAAAT is genuinely resizable. No concrete viewport dimension is a product contract; dimensions used in screenshots or automated checks are verification samples only.
-
-Across constrained, default and maximized windows:
-
-- use the available space productively rather than preserving a fixed-width composition;
-- give the current intention most of the screen;
-- transition, stack or reflow when simultaneous panes would become cramped;
-- the raw-material manual-fill surface may stack its Source and fields vertically when necessary, but must preserve easy same-task access to both;
-- scroll rather than clip;
-- preserve readable labels and controls;
-- avoid persistent multi-pane dashboards that leave no useful working area;
-- expanding the window should reveal or enlarge useful working space rather than merely increase empty margins.
-
-## 17. Editing safety
-
-Navigation must not silently discard unsaved edits.
-
-Dirty-state protection applies when changing significant context such as candidature, document, profile item or workspace. Routine navigation with no unsaved work must not generate confirmation noise.
-
-Saving in one area must not silently commit or erase another area's draft.
-
-## 18. Terminology
-
-Preferred ordinary terms include:
-
-- Candidature / application;
-- Source;
-- Tag;
-- Focus;
-- CV;
-- Cover letter;
-- professional information;
-- note/reminder;
-- workspace;
-- backup.
-
-Avoid `Concept`, lifecycle, next action, schema, field ID, migration, payload, operation capability, MCP, IPC and similar implementation vocabulary in ordinary UI unless explicitly opened as advanced technical detail.
-
-## 19. Anti-patterns
-
-Do not regress into:
-
-- Focus as a tab/section inside an already-selected candidature;
-- corpus reduced to a thin selector beside a permanent detail form;
-- expand-in-place Smart View cards as the selected Focus experience;
-- showing all values/objects because they technically can participate in Focus;
-- hardcoded field ontology disguised as defaults;
-- removing field-definition editing because schema administration should not dominate;
-- schema-administration-first editing;
-- required status/priority/next-action/lifecycle maintenance;
-- reminder/task-manager prominence;
-- `Concepts` as a parallel product vocabulary for Tags;
-- a recruiter-message/URL-specific capture form instead of raw-material-first capture;
-- hiding manual versus AI post-paste choices behind a generic structuring action;
-- presenting AI extraction as the automatic/default next step after raw capture;
-- AI as navigation or adviser authority;
-- generic document warehouse navigation;
-- old desktop/Smart View layouts treated as UX authority;
-- current implementation structure treated as a design constraint.
-
-## 20. Design test
-
-For every screen or interaction, ask:
-
-1. What intention brought the user here?
-2. What information is necessary now?
-3. What action should be cheapest now?
-4. What can remain one deliberate step deeper?
-5. Does the design still work with sparse data, no AI and constrained desktop space?
-6. Is any visible machinery present only because the implementation happens to have an entity/service/table for it?
-
-If the answer to the last question is yes, redesign before implementation.
+Natural-use review should establish that a person can save sparse work, attach/search/create Tags without glossary overload, understand and use the eye control, compose a template, read and deliberately edit a Working CV without decoding internal state, make document-only edits without mutating reusable information, render a separate artifact, find application-owned letters and packets, recognize environment failures, switch workspace and understand Settings without knowing AAAAT's development vocabulary.

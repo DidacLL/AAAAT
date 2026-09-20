@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   aiOperationLabels,
@@ -8,11 +8,13 @@ import {
 } from "../shared/ai-connection-contracts";
 import type { AiExchangeDiagnostic } from "../shared/ai-diagnostics";
 import { AiExchangeInspector } from "./AiExchangeInspector";
+import { recordAiReachabilityEvidence, useAiReachabilityEvidence } from "./ai-reachability-store";
 import { aiTaskFailure, startAiTask, useAiTask } from "./ai-task-store";
 
 interface Props {
   readonly connection: NamedAiConnection;
   readonly onConnections: (connections: NamedAiConnection[]) => void;
+  readonly onValidationState?: (connectionName: string, needsAttention: boolean) => void;
 }
 
 interface ValidationFailure {
@@ -53,9 +55,18 @@ function isProviderLevelFailure(exchange: AiExchangeDiagnostic | undefined): boo
     || exchange?.failureKind === "provider_envelope_invalid";
 }
 
-export function AiConnectionValidationPanel({ connection, onConnections }: Props) {
+export function AiConnectionValidationPanel({
+  connection,
+  onConnections,
+  onValidationState,
+}: Props) {
   const task = useAiTask<ValidationResult>(taskKey(connection.id));
+  const lastValidationReport = useRef<string | null>(null);
   const [routingBusy, setRoutingBusy] = useState<AiOperation | null>(null);
+  const [probeBusy, setProbeBusy] = useState(false);
+  const [probeError, setProbeError] = useState<string | null>(null);
+  const reachableConnections = useAiReachabilityEvidence();
+  const reachableNow = reachableConnections.has(connection.name);
   const active = task?.status === "queued" || task?.status === "working";
   const allValidated = aiOperations.every((operation) =>
     connection.validatedOperations.includes(operation),
@@ -77,7 +88,22 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
     };
   }, [onConnections, task?.result, task?.status]);
 
-  const validate = () => {
+  useEffect(() => {
+    if (task?.status === "queued" || task?.status === "working") {
+      lastValidationReport.current = null;
+      return;
+    }
+    if (task?.status !== "completed" && task?.status !== "failed") return;
+    const providerFailed = task.status === "failed" && isProviderLevelFailure(task.exchange);
+    const report = `${task.status}:${providerFailed ? "attention" : "reachable"}:${task.detail ?? ""}:${task.error ?? ""}`;
+    if (lastValidationReport.current === report) return;
+    lastValidationReport.current = report;
+    if (task.status === "completed") recordAiReachabilityEvidence(connection.name, true);
+    else if (providerFailed) recordAiReachabilityEvidence(connection.name, false);
+    onValidationState?.(connection.name, providerFailed);
+  }, [connection.name, onValidationState, task?.detail, task?.error, task?.exchange, task?.status]);
+
+  const validate = useCallback(() => {
     startAiTask<ValidationResult>(
       taskKey(connection.id),
       async (updateDetail) => {
@@ -121,6 +147,26 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
           ? `Validation completed · ${result.failures.length} capability${result.failures.length === 1 ? "" : "ies"} need attention`
           : "Validation completed",
     );
+  }, [connection.id, connection.name]);
+
+  const testConnection = async () => {
+    const probe = window.aaaat.aiConnections?.probe;
+    if (!probe || probeBusy) return;
+    setProbeBusy(true);
+    setProbeError(null);
+    recordAiReachabilityEvidence(connection.name, false);
+    try {
+      const reachable = await probe(connection.id);
+      recordAiReachabilityEvidence(connection.name, reachable);
+      onValidationState?.(connection.name, !reachable);
+      if (!reachable) setProbeError("AAAAT could not reach this AI service.");
+    } catch (reason) {
+      recordAiReachabilityEvidence(connection.name, false);
+      onValidationState?.(connection.name, true);
+      setProbeError(reason instanceof Error ? reason.message : "AAAAT could not test this AI service.");
+    } finally {
+      setProbeBusy(false);
+    }
   };
 
   const setOperationDefault = async (operation: AiOperation) => {
@@ -150,17 +196,15 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
         failure.exchange?.failureKind === "provider_http_failure" ||
         failure.exchange?.failureKind === "provider_envelope_invalid",
     );
-  const health = active
+  const health = probeBusy
     ? "Checking"
-    : hasUnreachableFailure
-      ? "Unreachable / timed out"
-      : hasProviderFailure
-        ? "Connected · provider response needs attention"
-        : validatedCount > 0 || failureList.length > 0
-          ? "Connected"
-          : task?.status === "failed"
-            ? "Needs attention"
-            : "Configured · not checked";
+    : reachableNow
+      ? "Connected now"
+      : hasUnreachableFailure
+        ? "Unreachable / timed out"
+        : hasProviderFailure
+          ? "Address or server response needs attention"
+          : "Saved · not checked this session";
 
   return (
     <section className="ai-validation-card" aria-label={`AI readiness for ${connection.name}`}>
@@ -169,8 +213,8 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
         <span>{health}</span>
       </div>
       <div className="ai-readiness-line">
-        <strong>Capabilities</strong>
-        <span>{validatedCount}/{aiOperations.length} ready</span>
+        <strong>Compatibility checks</strong>
+        <span>{validatedCount}/{aiOperations.length} checked</span>
       </div>
 
       {task?.status === "queued" ? (
@@ -181,55 +225,74 @@ export function AiConnectionValidationPanel({ connection, onConnections }: Props
         <p role="status" className="ai-task-state">{task.detail ?? "Validation completed."}</p>
       ) : task?.status === "failed" ? (
         <div className="ai-task-failure" role="alert">
-          <strong>Validation stopped</strong>
+          <strong>{hasUnreachableFailure ? "Cannot reach this model server" : hasProviderFailure ? "Model server returned an error" : "AI check stopped"}</strong>
           <p>{task.error}</p>
+          {hasUnreachableFailure || hasProviderFailure ? <p>Saved address: <code>{connection.endpoint}</code>. Check it against your model server.</p> : null}
           {task.exchange ? <AiExchangeInspector exchange={task.exchange} /> : null}
         </div>
       ) : null}
 
+      <button
+        type="button"
+        className="compact-secondary"
+        disabled={probeBusy || active || window.aaaat.aiConnections?.probe === undefined}
+        onClick={() => void testConnection()}
+      >
+        {probeBusy ? "Testing connection…" : reachableNow ? "Test connection again" : "Test connection"}
+      </button>
+      {probeError ? <p className="error-message" role="alert">{probeError}</p> : null}
+
       {!allValidated ? (
-        <button type="button" disabled={active} onClick={validate}>
-          {active
-            ? "Validation running…"
-            : task?.status === "failed" || failureList.length > 0
-              ? "Retry failed validation"
-              : validatedCount > 0
-                ? "Continue validation"
-                : "Validate AI capabilities"}
-        </button>
+        <>
+          <p className="compact-help">
+            Optional diagnostic. This runs one model request for each unchecked AI feature. Normal AI use does not require these checks.
+          </p>
+          <button type="button" disabled={active || probeBusy} onClick={validate}>
+            {active
+              ? "Checking AI features…"
+              : task?.status === "failed" || failureList.length > 0
+                ? "Retry failed AI feature checks"
+                : validatedCount > 0
+                  ? "Check remaining AI features"
+                  : "Check all AI features"}
+          </button>
+        </>
       ) : (
-        <p className="compact-help"><strong>AI ready.</strong> All bounded AAAAT AI capabilities have been validated for this connection.</p>
+        <p className="compact-help"><strong>Compatibility checked.</strong> All bounded AAAAT AI actions passed this optional connection check.</p>
       )}
 
-      <div className="ai-capability-list" aria-label={`Capabilities for ${connection.name}`}>
-        {aiOperations.map((operation) => {
-          const validated = connection.validatedOperations.includes(operation);
-          const operationDefault = connection.defaultForOperations.includes(operation);
-          const failure = failuresByOperation.get(operation);
-          return (
-            <div key={operation} className="ai-capability-entry">
-              <div className="ai-readiness-line">
-                <span>{aiOperationLabels[operation]}</span>
-                <span>
-                  {validated
-                    ? operationDefault
-                      ? "Ready · selected"
-                      : "Ready"
-                    : failure
-                      ? capabilityFailureLabel(failure)
-                      : "Not yet validated"}
-                </span>
-              </div>
-              {failure ? (
-                <div className="ai-task-failure" role="alert">
-                  <p>{failure.message}</p>
-                  {failure.exchange ? <AiExchangeInspector exchange={failure.exchange} /> : null}
+      <details className="ai-validation-details">
+        <summary>AI feature checks · {validatedCount}/{aiOperations.length} checked</summary>
+        <div className="ai-capability-list" aria-label={`Capabilities for ${connection.name}`}>
+          {aiOperations.map((operation) => {
+            const validated = connection.validatedOperations.includes(operation);
+            const operationDefault = connection.defaultForOperations.includes(operation);
+            const failure = failuresByOperation.get(operation);
+            return (
+              <div key={operation} className="ai-capability-entry">
+                <div className="ai-readiness-line">
+                  <span>{aiOperationLabels[operation]}</span>
+                  <span>
+                    {validated
+                      ? operationDefault
+                        ? "Checked · selected"
+                        : "Checked"
+                      : failure
+                        ? capabilityFailureLabel(failure)
+                        : "Not checked"}
+                  </span>
                 </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
+                {failure ? (
+                  <div className="ai-task-failure" role="alert">
+                    <p>{failure.message}</p>
+                    {failure.exchange ? <AiExchangeInspector exchange={failure.exchange} /> : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </details>
 
       {connection.validatedOperations.some(
         (operation) => !connection.defaultForOperations.includes(operation),

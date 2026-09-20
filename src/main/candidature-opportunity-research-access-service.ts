@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
@@ -23,7 +22,6 @@ import {
 } from "./candidature-field-service";
 import {
   addCandidatureSourceInDatabase,
-  listCandidatureSourcesInDatabase,
 } from "./candidature-service";
 import { withWorkspaceDatabase } from "./workspace";
 
@@ -180,31 +178,6 @@ export function updateCandidatureOpportunityResearchAccess(
   );
 }
 
-function runtimeStrings(value: CandidatureRuntimeValue): string[] {
-  return Array.isArray(value) ? value.map(String) : [String(value)];
-}
-
-function tokenFactory(forbidden: readonly string[]) {
-  const blocked = [...forbidden];
-  return (value: string): string => {
-    let placeholder: string;
-    do {
-      placeholder = `[AAAT_PRIVATE_${randomUUID()}]`;
-    } while (blocked.some((text) => text.includes(placeholder)));
-    blocked.push(value, placeholder);
-    return placeholder;
-  };
-}
-
-function tokenRuntimeValue(
-  value: CandidatureRuntimeValue,
-  token: (value: string) => string,
-): CandidatureRuntimeValue {
-  return Array.isArray(value)
-    ? value.map((item) => token(String(item)))
-    : token(String(value));
-}
-
 function exposedChoiceLabels(
   field: CandidatureFieldConfiguration,
   value: CandidatureRuntimeValue,
@@ -237,24 +210,14 @@ export function selectedOpportunityResearchContext(
         fieldConfigurations.map((field) => [field.definition.id, field]),
       );
       const values = readCandidatureFieldValuesInDatabase(database, candidatureId);
-      const retainedSources = listCandidatureSourcesInDatabase(database, candidatureId);
-      const privacyCorpus = [
-        ...values.flatMap((retained) => runtimeStrings(retained.value)),
-        ...fieldConfigurations.map((field) => field.definition.label),
-        ...retainedSources.flatMap((source) => [source.title, source.url, source.sourceText]),
-      ];
-      const token = tokenFactory(privacyCorpus);
 
       const information = values.flatMap((retained) => {
         const field = fields.get(retained.fieldId);
-        if (!field || field.preferences.aiContextMode === "omit") return [];
+        if (!field?.preferences.aiUseAllowed) return [];
         return [
           {
             label: field.definition.label,
-            value:
-              field.preferences.aiContextMode === "token"
-                ? tokenRuntimeValue(retained.value, token)
-                : exposedChoiceLabels(field, retained.value),
+            value: exposedChoiceLabels(field, retained.value),
           },
         ];
       });

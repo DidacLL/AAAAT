@@ -1,0 +1,205 @@
+.primary-work-nav button:first-child {
+  border-left-width: 3px;
+}
+
+.settings-portability-intro {
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(74, 58, 39, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 250, 239, 0.68);
+}
+
+.settings-portability-intro h3,
+.setup-harness-card h3 {
+  margin: 0.15rem 0 0.35rem;
+}
+
+.external-connection-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.45rem 0.8rem;
+  margin: 0.8rem 0;
+}
+
+.external-connection-details dt { font-weight: 750; }
+.external-connection-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+
+.setup-harness-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.setup-harness-card {
+  padding: 1rem;
+  border: 1px solid rgba(74, 58, 39, 0.42);
+  border-radius: 8px;
+  background: rgba(255, 250, 239, 0.72);
+}
+
+.setup-harness-status {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.setup-harness-list {
+  margin: 0.8rem 0;
+  padding-left: 1.1rem;
+}
+
+.setup-harness-list li + li {
+  margin-top: 0.35rem;
+}
+
+.optional-host-adapter {
+  margin-top: 0.75rem;
+  border-top: 1px dashed rgba(74, 58, 39, 0.38);
+  padding-top: 0.7rem;
+}
+
+.document-intent-home {
+  min-height: 100%;
+  padding: clamp(1rem, 2.5vw, 2.5rem);
+  background:
+    linear-gradient(90deg, rgba(42, 35, 27, 0.04) 1px, transparent 1px) 0 0 / 40px 40px,
+    rgba(239, 230, 211, 0.42);
+}
+
+.document-intent-heading,
+.document-intent-actions,
+.document-start-options,
+.document-intent-existing {
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.document-intent-heading h1 {
+  margin: 0.2rem 0 0.5rem;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+}
+
+.document-intent-heading p:last-child {
+  max-width: 56rem;
+  line-height: 1.5;
+}
+
+.document-intent-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.document-intent-actions > button,
+.document-intent-list > button {
+  text-align: left;
+  border: 1px solid rgba(74, 58, 39, 0.48);
+  background: rgba(255, 250, 239, 0.8);
+  box-shadow: 0 6px 16px rgba(45, 35, 24, 0.08);
+}
+
+.document-intent-actions > button {
+  min-height: 8rem;
+  padding: 1.1rem;
+  display: grid;
+  align-content: center;
+  gap: 0.45rem;
+}
+
+.document-intent-actions strong {
+  font-size: 1.22rem;
+}
+
+.document-intent-actions span {
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.document-start-options {
+  margin-top: 1rem;
+  padding: 0.7rem 0;
+  border-top: 1px dashed rgba(74, 58, 39, 0.36);
+  border-bottom: 1px dashed rgba(74, 58, 39, 0.36);
+}
+
+.document-start-options summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.document-start-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  padding-top: 0.75rem;
+}
+
+.document-start-options-grid label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
+.document-start-options-grid small {
+  display: inline;
+  font-weight: 400;
+}
+
+.document-intent-existing {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid rgba(74, 58, 39, 0.34);
+}
+
+.document-intent-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.7rem;
+}
+
+.document-intent-list > button {
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.document-intent-empty {
+  margin: 0.5rem 0 0;
+}
+
+.documents-workspace.compact-document-detail .document-create {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .setup-harness-grid,
+  .document-intent-actions,
+  .document-start-options-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .document-intent-home { padding: 0.75rem; }
+}
+
+/* CV workbench: reusable CVs first, application letters stay with applications */
+.document-intent-home { padding: .6rem; }
+.document-console-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; border: 1px solid #242a26; color: #e9dfc8; background: #343b36; }
+.document-console-heading h1 { margin: 0; color: #fff2d3; font-size: 1.05rem; letter-spacing: .06em; text-transform: uppercase; }
+.document-console-heading .eyebrow { color: #b9b99c; }
+.document-console-heading .compact-primary { padding: 5px 10px; border: 1px solid #c27345; border-radius: 1px; color: #fff2d3; background: #6d4a35; }
+.document-start-options, .document-intent-existing { max-width: none; margin-left: 0; margin-right: 0; }
+.document-intent-existing { margin-top: .65rem; padding-top: .55rem; border-top: 1px solid rgb(35 42 37 / 50%); }
+.document-intent-list { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: .35rem; }
+.document-intent-list > button { padding: .55rem; border-radius: 1px; box-shadow: none; }
+.standalone-letter-access { margin-top: .7rem; padding: .5rem 0; border-top: 1px dashed #777b6d; color: var(--muted-ink); }
+.standalone-letter-access > summary { width: fit-content; cursor: pointer; font-size: 12px; font-weight: 750; }
+.standalone-letter-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: .55rem 0; font-size: 12px; }
+.standalone-letter-row { display: block; width: 100%; padding: 6px 8px; border: 0; border-top: 1px solid var(--line-soft); color: var(--ink); background: transparent; text-align: left; }

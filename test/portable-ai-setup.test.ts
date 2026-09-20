@@ -36,10 +36,6 @@ function provider(): ModelProvider {
       questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(async () => ({ proposals: [] })),
-    recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(async () => ({
-      variantRef: "aaaat_validation_variant",
-      rationale: "Synthetic validation result",
-    })),
     tailorCv: vi.fn<ModelProvider["tailorCv"]>(async () => ({ recommendations: [] })),
     draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(async () => ({
       recipient: "",
@@ -98,7 +94,11 @@ describe("portable local AI setup", () => {
     expect(imported.every((connection) => !previousIds.has(connection.id))).toBe(true);
     expect(imported.every((connection) => connection.validatedOperations.length === 0)).toBe(true);
     expect(imported.every((connection) => connection.defaultForOperations.length === 0)).toBe(true);
-    expect(getAiConnectionForOperation(root, "opportunity_review")).toBeNull();
+    expect(getAiConnectionForOperation(root, "opportunity_review")).toEqual({
+      name: "Deep local",
+      endpoint: "http://127.0.0.1:1234/v1",
+      model: "deep-model",
+    });
   });
 
   it("rejects invalid portable setup before replacing the current connections", () => {

@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
-  candidatureDocumentSelectionSchema,
   candidatureInputSchema,
   candidatureListSchema,
   candidatureRecordSchema,
@@ -13,7 +12,6 @@ import {
   candidatureSourceUpdateSchema,
   candidatureTagSelectionSchema,
   candidatureUpdateSchema,
-  type CandidatureDocumentSelection,
   type CandidatureInput,
   type CandidatureRecord,
   type CandidatureSource,
@@ -24,7 +22,6 @@ import {
   type CandidatureUpdate,
 } from "../shared/contracts";
 import {
-  candidatureLabelInDatabase,
   readCandidatureFieldValuesInDatabase,
   setCandidatureFieldValueInDatabase,
 } from "./candidature-field-service";
@@ -36,7 +33,6 @@ interface CandidatureRow {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
-
 interface SourceRow {
   readonly id: string;
   readonly candidatureId: string;
@@ -47,10 +43,7 @@ interface SourceRow {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
-
-interface IdRow {
-  readonly id: string;
-}
+interface IdRow { readonly id: string }
 
 export class CandidatureServiceError extends Error {
   constructor(message: string) {
@@ -69,19 +62,6 @@ function transact<T>(database: DatabaseSync, action: () => T): T {
     database.exec("ROLLBACK");
     throw error;
   }
-}
-
-function readDocumentIds(database: DatabaseSync, candidatureId: string): string[] {
-  return (
-    database
-      .prepare(
-        `SELECT document_id AS id
-           FROM candidature_documents
-          WHERE candidature_id = ?
-          ORDER BY document_id`,
-      )
-      .all(candidatureId) as unknown as IdRow[]
-  ).map((row) => row.id);
 }
 
 function readTagIds(database: DatabaseSync, candidatureId: string): string[] {
@@ -128,16 +108,13 @@ function toRecord(database: DatabaseSync, row: CandidatureRow): CandidatureRecor
     archived: row.archived === 1,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    label: candidatureLabelInDatabase(database, row.id, row.createdAt),
     sourceSearchText: sourceSearchText(database, row.id),
     values: readCandidatureFieldValuesInDatabase(database, row.id),
-    documentIds: readDocumentIds(database, row.id),
     tagIds: readTagIds(database, row.id),
   });
 }
 
-const candidatureColumns =
-  "id, archived, created_at AS createdAt, updated_at AS updatedAt";
+const candidatureColumns = "id, archived, created_at AS createdAt, updated_at AS updatedAt";
 
 function readCandidatureInDatabase(
   database: DatabaseSync,
@@ -176,15 +153,7 @@ function recordActivity(
 }
 
 function touch(database: DatabaseSync, candidatureId: string, now: string): void {
-  database
-    .prepare("UPDATE candidatures SET updated_at = ? WHERE id = ?")
-    .run(now, candidatureId);
-}
-
-function requireDocument(database: DatabaseSync, documentId: string): void {
-  if (!database.prepare("SELECT 1 FROM documents WHERE id = ?").get(documentId)) {
-    throw new CandidatureServiceError("An associated document no longer exists.");
-  }
+  database.prepare("UPDATE candidatures SET updated_at = ? WHERE id = ?").run(now, candidatureId);
 }
 
 function requireTag(database: DatabaseSync, tagId: string): void {
@@ -209,11 +178,8 @@ function requireSourceOwner(
 }
 
 export function getCandidature(rootPath: string, candidatureId: string): CandidatureRecord {
-  return withWorkspaceDatabase(rootPath, (database) =>
-    readCandidatureInDatabase(database, candidatureId),
-  );
+  return withWorkspaceDatabase(rootPath, (database) => readCandidatureInDatabase(database, candidatureId));
 }
-
 export function listCandidatures(rootPath: string): CandidatureRecord[] {
   return withWorkspaceDatabase(rootPath, readCandidatures);
 }
@@ -231,12 +197,8 @@ export function createCandidature(
     const now = new Date().toISOString();
     transact(database, () => {
       database
-        .prepare(
-          `INSERT INTO candidatures(id, archived, created_at, updated_at)
-           VALUES (?, 0, ?, ?)`,
-        )
+        .prepare(`INSERT INTO candidatures(id, archived, created_at, updated_at) VALUES (?, 0, ?, ?)`) 
         .run(id, now, now);
-
       const source = input.source;
       if (source && (source.title.trim() || source.url.trim() || source.sourceText.trim())) {
         database
@@ -245,18 +207,8 @@ export function createCandidature(
                id, candidature_id, kind, title, url, source_text, created_at, updated_at
              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(
-            randomUUID(),
-            id,
-            source.kind,
-            source.title,
-            source.url,
-            source.sourceText,
-            now,
-            now,
-          );
+          .run(randomUUID(), id, source.kind, source.title, source.url, source.sourceText, now, now);
       }
-
       for (const value of input.values) {
         setCandidatureFieldValueInDatabase(
           database,
@@ -286,12 +238,7 @@ export function updateCandidature(
         database
           .prepare("UPDATE candidatures SET opportunity_research_selected = 0 WHERE id = ?")
           .run(update.id);
-        recordActivity(
-          database,
-          update.id,
-          "candidature.opportunity-research-access.revoke",
-          now,
-        );
+        recordActivity(database, update.id, "candidature.opportunity-research-access.revoke", now);
       }
       database
         .prepare("UPDATE candidatures SET archived = ?, updated_at = ? WHERE id = ?")
@@ -346,9 +293,7 @@ export function addCandidatureSource(
 ): CandidatureSource[] {
   const source = candidatureSourceInputSchema.parse(rawInput);
   return withWorkspaceDatabase(rootPath, (database) =>
-    transact(database, () =>
-      addCandidatureSourceInDatabase(database, source, new Date().toISOString()),
-    ),
+    transact(database, () => addCandidatureSourceInDatabase(database, source, new Date().toISOString())),
   );
 }
 
@@ -402,30 +347,6 @@ export function removeCandidatureSource(
   });
 }
 
-export function setCandidatureDocuments(
-  rootPath: string,
-  rawInput: CandidatureDocumentSelection,
-): CandidatureRecord {
-  const selection = candidatureDocumentSelectionSchema.parse(rawInput);
-  return withWorkspaceDatabase(rootPath, (database) => {
-    const now = new Date().toISOString();
-    transact(database, () => {
-      readCandidatureInDatabase(database, selection.candidatureId);
-      for (const documentId of selection.documentIds) requireDocument(database, documentId);
-      database
-        .prepare("DELETE FROM candidature_documents WHERE candidature_id = ?")
-        .run(selection.candidatureId);
-      const insert = database.prepare(
-        "INSERT INTO candidature_documents(candidature_id, document_id) VALUES (?, ?)",
-      );
-      for (const documentId of selection.documentIds) insert.run(selection.candidatureId, documentId);
-      touch(database, selection.candidatureId, now);
-      recordActivity(database, selection.candidatureId, "candidature.documents-updated", now);
-    });
-    return readCandidatureInDatabase(database, selection.candidatureId);
-  });
-}
-
 export function setCandidatureTags(
   rootPath: string,
   rawInput: CandidatureTagSelection,
@@ -436,9 +357,7 @@ export function setCandidatureTags(
     transact(database, () => {
       readCandidatureInDatabase(database, selection.candidatureId);
       for (const tagId of selection.tagIds) requireTag(database, tagId);
-      database
-        .prepare("DELETE FROM candidature_tags WHERE candidature_id = ?")
-        .run(selection.candidatureId);
+      database.prepare("DELETE FROM candidature_tags WHERE candidature_id = ?").run(selection.candidatureId);
       const insert = database.prepare(
         "INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)",
       );

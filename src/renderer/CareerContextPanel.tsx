@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import type { CareerContext } from "../shared/contracts";
+import type { CareerContextAiDisclosureKey } from "../shared/career-context-ai-disclosure-contracts";
 import { CareerContextAiDisclosureControl } from "./CareerContextAiDisclosureControl";
 
 const emptyContext: CareerContext = {
@@ -14,7 +15,7 @@ const emptyContext: CareerContext = {
 };
 
 const fields: readonly {
-  key: keyof CareerContext;
+  key: CareerContextAiDisclosureKey;
   label: string;
   hint: string;
 }[] = [
@@ -139,18 +140,18 @@ export function CareerContextPanel({
         <form className="editor-card career-context-editor" onSubmit={(event) => void save(event)}>
           {fields.map(({ key, label, hint }) => (
             <label className="wide-field" key={key}>
-              {label}
+              <span className="career-context-field-heading">
+                <span>{label}</span>
+                <CareerContextAiDisclosureControl fieldKey={key} />
+              </span>
               <span className="field-hint">{hint}</span>
               <textarea
+                aria-label={label}
                 value={draft[key]}
                 onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
               />
             </label>
           ))}
-          <div className="wide-field contextual-ai-row">
-            <span>Optional AI use</span>
-            <CareerContextAiDisclosureControl />
-          </div>
           <div className="form-actions wide-field">
             <button className="compact-primary" type="submit">
               Save preferences
@@ -178,7 +179,10 @@ export function CareerContextPanel({
           <dl className="career-context-summary">
             {nonEmpty.map(({ key, label }) => (
               <div key={key}>
-                <dt>{label}</dt>
+                <dt>
+                  <span>{label}</span>
+                  <CareerContextAiDisclosureControl fieldKey={key} />
+                </dt>
                 <dd>{context[key]}</dd>
               </div>
             ))}

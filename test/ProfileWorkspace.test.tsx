@@ -1,231 +1,123 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ProfileWorkspace } from "../src/renderer/ProfileWorkspace";
-import type { DesktopApi, ProfileSnapshot, ProfileVariant } from "../src/shared/contracts";
-import type { ProfileAiContextDesktopApi } from "../src/shared/profile-ai-context-contracts";
+import type { ProfileItem, ProfileItemInput, ProfileSnapshot } from "../src/shared/contracts";
 
-const itemA = {
-  id: "00000000-0000-4000-8000-000000000001",
-  kind: "summary" as const,
-  title: "Professional summary",
-  description: "General experience",
+vi.mock("../src/renderer/ProfileItemAiDisclosureControl", () => ({
+  ProfileItemAiDisclosureControl: () => (
+    <button type="button" aria-label="AI may use this information">◉</button>
+  ),
+}));
+
+const item: ProfileItem = {
+  id: "00000000-0000-4000-8000-000000000d01",
   sortOrder: 0,
+  kind: "experience",
+  title: "Platform Engineer",
+  subtitle: "Infrastructure",
+  description: "Built and operated production systems.",
+  startDate: "2023",
+  endDate: "2026",
+  url: "https://example.invalid/work",
 };
-const itemB = {
-  id: "00000000-0000-4000-8000-000000000002",
-  kind: "skill" as const,
-  title: "TypeScript",
-  sortOrder: 1,
-};
-const variant: ProfileVariant = {
-  id: "00000000-0000-4000-8000-000000000003",
-  name: "Platform focus",
-  focus: "Platform roles",
-  targetTags: ["platform"],
-  preferredLanguage: "en",
-  rules: [],
-};
-const emptyProfile: ProfileSnapshot = { items: [], variants: [] };
-const baseProfile: ProfileSnapshot = { items: [itemA, itemB], variants: [] };
-const variedProfile: ProfileSnapshot = { items: [itemA, itemB], variants: [variant] };
 
-const current = vi.fn<DesktopApi["profile"]["current"]>();
-const addItem = vi.fn<DesktopApi["profile"]["addItem"]>();
-const updateItem = vi.fn<DesktopApi["profile"]["updateItem"]>();
-const removeItem = vi.fn<DesktopApi["profile"]["removeItem"]>();
-const createVariant = vi.fn<DesktopApi["profile"]["createVariant"]>();
-const updateVariant = vi.fn<DesktopApi["profile"]["updateVariant"]>();
-const removeVariant = vi.fn<DesktopApi["profile"]["removeVariant"]>();
-const configureVariantItem = vi.fn<DesktopApi["profile"]["configureVariantItem"]>();
-const reorderVariant = vi.fn<DesktopApi["profile"]["reorderVariant"]>();
-const resolveVariant = vi.fn<DesktopApi["profile"]["resolveVariant"]>();
-const currentAiContext = vi.fn<ProfileAiContextDesktopApi["profileAiContext"]["current"]>();
-const updateAiContext = vi.fn<ProfileAiContextDesktopApi["profileAiContext"]["update"]>();
-
-function installApi() {
-  const api = {
-    profile: {
-      current,
-      addItem,
-      updateItem,
-      removeItem,
-      createVariant,
-      updateVariant,
-      removeVariant,
-      configureVariantItem,
-      reorderVariant,
-      resolveVariant,
-    },
-    profileAiContext: {
-      current: currentAiContext,
-      update: updateAiContext,
-    },
-  } as unknown as DesktopApi & ProfileAiContextDesktopApi;
-  Object.defineProperty(window, "aaaat", { configurable: true, value: api });
-}
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("My information workspace", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    current.mockResolvedValue(emptyProfile);
-    addItem.mockResolvedValue({ items: [itemB], variants: [] });
-    updateItem.mockResolvedValue(baseProfile);
-    removeItem.mockResolvedValue(emptyProfile);
-    createVariant.mockResolvedValue(variedProfile);
-    updateVariant.mockResolvedValue(variedProfile);
-    removeVariant.mockResolvedValue(baseProfile);
-    configureVariantItem.mockResolvedValue(variedProfile);
-    reorderVariant.mockResolvedValue(variedProfile);
-    resolveVariant.mockResolvedValue({ variant, items: [itemA, itemB] });
-    currentAiContext.mockImplementation(async (itemId) => ({ itemId, aiContextMode: "expose" }));
-    updateAiContext.mockImplementation(async (input) => input);
-    installApi();
-  });
-
-  afterEach(() => cleanup());
-
-  it("starts read-first and adds reusable information deliberately", async () => {
-    const user = userEvent.setup();
-    render(<ProfileWorkspace />);
-
-    expect(await screen.findByRole("heading", { name: "My information" })).toBeInTheDocument();
-    expect(screen.getByText(/No information yet/)).toBeInTheDocument();
-    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
-    expect(screen.queryByText("Canonical profile")).not.toBeInTheDocument();
-    expect(screen.queryByText("Focused variants")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Add information" }));
-    expect(screen.getByRole("heading", { name: "Add information" })).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText("Type"), "skill");
-    await user.type(screen.getByLabelText("Title"), "TypeScript");
-    expect(screen.queryByLabelText("Choose how AI may use this information")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Add information" }));
-
-    expect(addItem).toHaveBeenCalledWith({
-      kind: "skill",
-      title: "TypeScript",
-      subtitle: undefined,
-      description: undefined,
-      startDate: undefined,
-      endDate: undefined,
-      url: undefined,
+  it("treats edits to a new variation as dirty even before it has a name", async () => {
+    const snapshot: ProfileSnapshot = { items: [item] };
+    Object.defineProperty(window, "aaaat", {
+      configurable: true,
+      value: {
+        profile: {
+          current: vi.fn(async () => snapshot),
+          addItem: vi.fn(async () => snapshot),
+          updateItem: vi.fn(async () => snapshot),
+          removeItem: vi.fn(async () => snapshot),
+        },
+        profileVariants: {
+          list: vi.fn(async () => []),
+          create: vi.fn(async () => []),
+          update: vi.fn(async () => []),
+          remove: vi.fn(async () => []),
+        },
+      },
     });
-    expect(await screen.findByRole("heading", { name: "My information" })).toBeInTheDocument();
-  });
-
-  it("keeps contextual AI use independent from local reusable content", async () => {
-    current.mockResolvedValueOnce(baseProfile);
-    const user = userEvent.setup();
-    render(<ProfileWorkspace />);
-
-    const list = await screen.findByRole("region", { name: "My information" });
-    const firstItem = within(list).getByText("Professional summary").closest("article");
-    if (!firstItem) throw new Error("Expected My information item");
-    await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
-
-    expect(screen.getByLabelText("Title")).toHaveValue("Professional summary");
-    await user.click(await screen.findByLabelText("Choose how AI may use this information"));
-    expect(await screen.findByText(/does not hide, remove or change your local information/i)).toBeInTheDocument();
-    await user.selectOptions(screen.getByRole("combobox", { name: "AI may" }), "omit");
-
-    expect(updateAiContext).toHaveBeenCalledWith({ itemId: itemA.id, aiContextMode: "omit" });
-    expect(updateItem).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Title")).toHaveValue("Professional summary");
-  });
-
-  it("keeps saved variations optional and applies differences in ordinary terms", async () => {
-    current.mockResolvedValueOnce(baseProfile);
-    const user = userEvent.setup();
-    render(<ProfileWorkspace />);
-
-    await screen.findByText("Professional summary");
-    expect(screen.getByText(/My information already works without a variation/i)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Create saved variation" }));
-    expect(screen.getByRole("heading", { name: "Saved variations" })).toBeInTheDocument();
-    expect(screen.queryByText("Difference-only")).not.toBeInTheDocument();
-    expect(screen.queryByText("Override title")).not.toBeInTheDocument();
-
-    await user.type(screen.getByLabelText("Name"), "Platform focus");
-    await user.type(screen.getByLabelText("Intended focus"), "Platform roles");
-    await user.type(screen.getByLabelText("Context tags"), "platform");
-    await user.type(screen.getByLabelText("Preferred language"), "en");
-    await user.click(screen.getByRole("button", { name: "Create saved variation" }));
-
-    expect(createVariant).toHaveBeenCalledWith({
-      name: "Platform focus",
-      focus: "Platform roles",
-      targetTags: ["platform"],
-      preferredLanguage: "en",
-    });
-
-    const alternateTitle = screen.getAllByLabelText("Alternate title")[0];
-    const applyDifference = screen.getAllByRole("button", { name: "Apply difference" })[0];
-    const moveLater = screen.getAllByRole("button", { name: "Move later" })[0];
-    if (!alternateTitle || !applyDifference || !moveLater) {
-      throw new Error("Expected saved variation difference controls");
-    }
-    await user.type(alternateTitle, "Platform summary");
-    await user.click(applyDifference);
-    expect(configureVariantItem).toHaveBeenCalledWith({
-      variantId: variant.id,
-      itemId: itemA.id,
-      included: true,
-      contentPatch: { title: "Platform summary" },
-    });
-    await user.click(moveLater);
-    expect(reorderVariant).toHaveBeenCalledWith({
-      variantId: variant.id,
-      itemIds: [itemB.id, itemA.id],
-    });
-  });
-
-  it("preserves an unsaved saved-variation draft through base information changes", async () => {
-    current.mockResolvedValueOnce(variedProfile);
-    addItem.mockResolvedValue({ items: [itemA, itemB], variants: [variant] });
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
-    const user = userEvent.setup();
-    render(<ProfileWorkspace />);
-
-    await screen.findByText("Professional summary");
-    await user.click(screen.getByRole("button", { name: "Saved variations (1)" }));
-    await user.click(screen.getByRole("button", { name: "New saved variation" }));
-    await user.type(screen.getByLabelText("Name"), "New focus");
-    await user.type(screen.getByLabelText("Intended focus"), "Unsaved new variation");
-
-    await user.click(screen.getByRole("button", { name: "Back to My information" }));
-    expect(confirm).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Add information" }));
-    await user.selectOptions(screen.getByLabelText("Type"), "skill");
-    await user.type(screen.getByLabelText("Title"), "TypeScript");
-    await user.click(screen.getByRole("button", { name: "Add information" }));
-
-    await user.click(screen.getByRole("button", { name: /Saved variations/ }));
-    expect(screen.getByLabelText("Name")).toHaveValue("New focus");
-    expect(screen.getByLabelText("Intended focus")).toHaveValue("Unsaved new variation");
-    expect(confirm).not.toHaveBeenCalled();
-    confirm.mockRestore();
-  });
-
-  it("guards a dirty information editor before returning to the overview", async () => {
-    current.mockResolvedValueOnce(baseProfile);
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<ProfileWorkspace />);
 
-    const list = await screen.findByRole("region", { name: "My information" });
-    const firstItem = within(list).getByText("Professional summary").closest("article");
-    if (!firstItem) throw new Error("Expected My information item");
-    await user.click(within(firstItem).getByRole("button", { name: "Edit" }));
-    const title = screen.getByLabelText("Title");
-    await user.clear(title);
-    await user.type(title, "Unsaved professional edit");
+    const variations = await screen.findByRole("region", { name: "Saved variations" });
+    await user.click(within(variations).getByRole("button", { name: "New variation" }));
+    const description = within(variations).getByRole("textbox", { name: "Description" });
+    await user.clear(description);
+    await user.type(description, "Unsaved alternate wording.");
 
-    await user.click(screen.getByRole("button", { name: "Back to My information" }));
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved information edits?");
-    expect(screen.getByLabelText("Title")).toHaveValue("Unsaved professional edit");
-    expect(screen.getByRole("heading", { name: "Edit information" })).toBeInTheDocument();
-    confirm.mockRestore();
+    await user.click(within(variations).getByRole("button", { name: "Close" }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved variation edits?");
+    expect(within(variations).getByDisplayValue("Unsaved alternate wording.")).toBeVisible();
+
+    confirm.mockClear();
+    await user.click(screen.getByRole("button", { name: /Add information/ }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved My information edits?");
+    expect(within(variations).getByDisplayValue("Unsaved alternate wording.")).toBeVisible();
+  });
+
+  it("opens retained information as readable content and edits only on demand", async () => {
+    let snapshot: ProfileSnapshot = { items: [item] };
+    const updateItem = vi.fn(async ({ id, item: input }: { id: string; item: ProfileItemInput }) => {
+      snapshot = {
+        items: snapshot.items.map((current) =>
+          current.id === id ? { ...current, ...input } : current,
+        ),
+      };
+      return snapshot;
+    });
+
+    Object.defineProperty(window, "aaaat", {
+      configurable: true,
+      value: {
+        profile: {
+          current: vi.fn(async () => snapshot),
+          addItem: vi.fn(async () => snapshot),
+          updateItem,
+          removeItem: vi.fn(async () => snapshot),
+        },
+        profileVariants: {
+          list: vi.fn(async () => []),
+          create: vi.fn(async () => []),
+          update: vi.fn(async () => []),
+          remove: vi.fn(async () => []),
+        },
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<ProfileWorkspace />);
+
+    const description = await screen.findByText("Built and operated production systems.");
+    expect(description).toBeVisible();
+    const readout = description.closest<HTMLElement>(".professional-information-item");
+    expect(readout).not.toBeNull();
+    expect(within(readout!).getByText("Infrastructure")).toBeVisible();
+    expect(within(readout!).getByText("2023 – 2026")).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Title" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Platform Engineer");
+    const descriptionInput = screen.getByRole("textbox", { name: "Description" });
+    await user.clear(descriptionInput);
+    await user.type(descriptionInput, "Built reliable production systems.");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateItem).toHaveBeenCalled());
+    expect(screen.queryByRole("textbox", { name: "Title" })).not.toBeInTheDocument();
+    expect(screen.getByText("Built reliable production systems.")).toBeVisible();
   });
 });

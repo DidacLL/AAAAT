@@ -25,6 +25,4 @@ Both contributing working documents must already be associated with the candidat
 
 ## Consequences
 
-Single-document retained artifacts remain the same product concept and are migrated into the role-specific contributor columns. Combined retained packets can now preserve both provenance roles and remain inspectable through the existing retained-PDF open capability.
-
-Migration 011 performs the forward representation change. Migrations 001–010 remain immutable.
+Single-document retained artifacts remain the same product concept. Combined retained packets preserve both provenance roles and remain inspectable through the retained-PDF open capability.

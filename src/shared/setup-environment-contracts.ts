@@ -4,16 +4,17 @@ import { aiOperationSchema, aiOperations } from "./ai-connection-contracts";
 
 export const setupEnvironmentChannels = Object.freeze({
   current: "aaaat:setup-environment-current",
-  connectVscode: "aaaat:setup-environment-connect-vscode",
+  externalConnection: "aaaat:setup-environment-external-connection",
 } as const);
 
-export const vscodeConnectionResultSchema = z
+export const externalAssistantConnectionSchema = z
   .object({
-    status: z.enum(["configured", "already-configured", "cancelled", "failed"]),
-    message: z.string().min(1).max(240),
+    packaged: z.boolean(),
+    executablePath: z.string().min(1).max(4096),
+    workspacePath: z.string().min(1).max(4096),
   })
   .strict();
-export type VscodeConnectionResult = z.infer<typeof vscodeConnectionResultSchema>;
+export type ExternalAssistantConnection = z.infer<typeof externalAssistantConnectionSchema>;
 
 export const setupTexCommandSchema = z.enum(["latexmk", "pdflatex"]);
 export type SetupTexCommand = z.infer<typeof setupTexCommandSchema>;
@@ -107,6 +108,6 @@ export type SetupEnvironmentSnapshot = z.infer<typeof setupEnvironmentSnapshotSc
 export interface SetupEnvironmentDesktopApi {
   readonly setupEnvironment: {
     readonly current: () => Promise<SetupEnvironmentSnapshot>;
-    readonly connectVscode: () => Promise<VscodeConnectionResult>;
+    readonly externalConnection: () => Promise<ExternalAssistantConnection>;
   };
 }

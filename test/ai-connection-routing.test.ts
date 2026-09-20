@@ -36,7 +36,6 @@ function provider(): ModelProvider {
       questions: [],
     })),
     extractJob: vi.fn<ModelProvider["extractJob"]>(),
-    recommendVariant: vi.fn<ModelProvider["recommendVariant"]>(),
     tailorCv: vi.fn<ModelProvider["tailorCv"]>(),
     draftCoverLetter: vi.fn<ModelProvider["draftCoverLetter"]>(),
   };
@@ -47,7 +46,7 @@ afterEach(() => {
 });
 
 describe("AI operation connection routing", () => {
-  it("uses an operation default before the validated general default and never falls back arbitrarily", async () => {
+  it("uses the general default immediately and lets a checked operation route override it", async () => {
     const root = workspace();
     const candidature = createCandidature(root, { values: [] });
     const firstSave = saveNamedAiConnection(root, {
@@ -65,43 +64,23 @@ describe("AI operation connection routing", () => {
     const second = secondSave.find((connection) => connection.name === "Second local");
     if (!second) throw new Error("second connection fixture missing");
     const modelProvider = provider();
-    const request = {
-      candidatureId: candidature.id,
-      identityPrivacy: "omit" as const,
-      contactPrivacy: "omit" as const,
-    };
+    const request = { candidatureId: candidature.id };
 
-    await expect(reviewOpportunity(root, request, modelProvider)).rejects.toThrow(
-      "Validate and choose a connection for Opportunity review",
-    );
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({ summary: "First local" });
 
-    await validateAiConnectionOperation(
-      root,
-      { connectionId: first.id, operation: "opportunity_review" },
-      modelProvider,
-    );
+    await validateAiConnectionOperation(root, { connectionId: first.id, operation: "opportunity_review" }, modelProvider);
     setDefaultAiConnection(root, second.id);
-    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
-      summary: "First local",
-    });
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({ summary: "First local" });
 
-    await validateAiConnectionOperation(
-      root,
-      { connectionId: second.id, operation: "opportunity_review" },
-      modelProvider,
-    );
-    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
-      summary: "First local",
-    });
+    await validateAiConnectionOperation(root, { connectionId: second.id, operation: "opportunity_review" }, modelProvider);
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({ summary: "First local" });
 
     setAiOperationDefault(root, { connectionId: second.id, operation: "opportunity_review" });
-    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({
-      summary: "Second local",
-    });
+    await expect(reviewOpportunity(root, request, modelProvider)).resolves.toMatchObject({ summary: "Second local" });
 
     removeAiConnection(root, second.id);
     await expect(reviewOpportunity(root, request, modelProvider)).rejects.toThrow(
-      "Validate and choose a connection for Opportunity review",
+      "Choose a default AI connection before using Opportunity review",
     );
   });
 });

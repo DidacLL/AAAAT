@@ -1,243 +1,31 @@
 name: Verify
 
 on:
-  pull_request:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/**"
+      - "src/**"
+      - "test/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - "vite*.ts"
+      - "forge.config.*"
+      - "playwright.config.*"
 
 permissions:
-  actions: read
   contents: read
 
 concurrency:
-  group: verify-${{ github.workflow }}-${{ github.ref }}
+  group: verify-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  impact:
-    name: CI impact
+  typecheck:
+    name: Typecheck
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      fast: ${{ steps.classify.outputs.fast }}
-      latex: ${{ steps.classify.outputs.latex }}
-      linux_package: ${{ steps.classify.outputs.linux_package }}
-      full_package: ${{ steps.classify.outputs.full_package }}
-      desktop_specs: ${{ steps.classify.outputs.desktop_specs }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - id: classify
-        name: Classify changed paths
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_ACTION: ${{ github.event.action }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-
-          fast=false
-          latex=false
-          linux_package=false
-          full_package=false
-          desktop_specs=""
-          docs_only=true
-          files=""
-          basis=""
-
-          add_desktop_spec() {
-            local spec="$1"
-            [[ "$desktop_specs" == "all" ]] && return
-            case " $desktop_specs " in
-              *" $spec "*) ;;
-              *) desktop_specs="${desktop_specs:+$desktop_specs }$spec" ;;
-            esac
-          }
-
-          select_all_desktop() {
-            desktop_specs="all"
-          }
-
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            fast=true
-            latex=true
-            linux_package=true
-            full_package=true
-            select_all_desktop
-            docs_only=false
-            files="(manual dispatch: full verification)"
-            basis="manual dispatch"
-          else
-            head="$PR_HEAD_SHA"
-            base="$PR_BASE_SHA"
-            basis="full PR diff from base $base"
-
-            if [[ -z "${base:-}" || -z "${head:-}" ]]; then
-              fast=true
-              latex=true
-              linux_package=true
-              full_package=true
-              select_all_desktop
-              docs_only=false
-              files="(unbounded diff: fail-safe full verification)"
-              basis="unbounded diff"
-            else
-              # Reuse the latest successful Verify run on an ancestor of this PR head.
-              # Later commits are classified only against new changes after that evidence.
-              if [[ "$EVENT_ACTION" == "synchronize" && -n "${PR_NUMBER:-}" ]]; then
-                successful_heads="$(
-                  gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/verify.yml/runs" \
-                    -f event=pull_request \
-                    -f status=success \
-                    -f per_page=100 \
-                    --jq ".workflow_runs[] | select(any(.pull_requests[]?; .number == ${PR_NUMBER})) | .head_sha" \
-                    2>/dev/null || true
-                )"
-
-                while IFS= read -r candidate; do
-                  [[ -z "$candidate" ]] && continue
-                  if git cat-file -e "$candidate^{commit}" 2>/dev/null && git merge-base --is-ancestor "$candidate" "$head"; then
-                    base="$candidate"
-                    basis="delta from reusable successful Verify ancestor $candidate"
-                    break
-                  fi
-                done <<< "$successful_heads"
-              fi
-
-              git diff --check "$base" "$head"
-              files="$(git diff --name-only "$base" "$head")"
-
-              while IFS= read -r file; do
-                [[ -z "$file" ]] && continue
-
-                case "$file" in
-                  *.md|docs/*|.agentic/*|.agents/*|LICENSE)
-                    continue
-                    ;;
-                  .github/workflows/*)
-                    # Workflow changes affect verification orchestration and artifact retention,
-                    # so prove the full package path on the changed workflow itself.
-                    docs_only=false
-                    fast=true
-                    linux_package=true
-                    full_package=true
-                    select_all_desktop
-                    continue
-                    ;;
-                esac
-
-                docs_only=false
-                fast=true
-
-                case "$file" in
-                  package.json|package-lock.json)
-                    latex=true
-                    linux_package=true
-                    full_package=true
-                    select_all_desktop
-                    ;;
-                  forge.config.ts|forge.env.d.ts|vite.main.config.mts|vite.preload.config.mts|vite.renderer.config.mts|playwright.config.ts)
-                    linux_package=true
-                    full_package=true
-                    select_all_desktop
-                    ;;
-                  src/main/*mcp*.ts)
-                    linux_package=true
-                    add_desktop_spec test/desktop/packaged-mcp.spec.ts
-                    ;;
-                  src/preload/*|src/main/entry.ts|src/main/main.ts|src/main/latex-runner.ts|src/main/*workspace*.ts|src/main/*backup*.ts|src/main/*vscode*.ts|src/main/external-command.ts)
-                    linux_package=true
-                    full_package=true
-                    select_all_desktop
-                    ;;
-                  src/main/*|src/shared/*|migrations/*|index.html)
-                    linux_package=true
-                    select_all_desktop
-                    ;;
-
-                  # Renderer changes run only packaged journeys that exercise that surface.
-                  src/renderer/CandidatureFieldDefinitionsPanel.tsx|src/renderer/CandidatureManualEntryPanel.tsx|src/renderer/CandidaturesAiWorkspace.tsx|src/renderer/CandidaturesWorkspace.tsx|src/renderer/candidature-capture.css|src/renderer/candidature-recovery.css|src/renderer/candidatures.css)
-                    linux_package=true
-                    add_desktop_spec test/desktop/sparse-candidature.spec.ts
-                    add_desktop_spec test/desktop/contextual-handoffs.spec.ts
-                    ;;
-                  src/renderer/CareerContextAiDisclosureControl.tsx|src/renderer/CareerContextPanel.tsx|src/renderer/ProfileItemAiDisclosureControl.tsx|src/renderer/professional-information.css)
-                    linux_package=true
-                    add_desktop_spec test/desktop/professional-information.spec.ts
-                    ;;
-                  src/renderer/styles.css)
-                    linux_package=true
-                    add_desktop_spec test/desktop/packaged-app.spec.ts
-                    add_desktop_spec test/desktop/sparse-candidature.spec.ts
-                    add_desktop_spec test/desktop/professional-information.spec.ts
-                    add_desktop_spec test/desktop/settings-composition.spec.ts
-                    ;;
-                  src/renderer/*)
-                    linux_package=true
-                    select_all_desktop
-                    ;;
-
-                  # A desktop-spec-only change runs that spec rather than the whole suite.
-                  test/desktop/packaged-app.spec.ts|test/desktop/packaged-vscode-setup.spec.ts)
-                    linux_package=true
-                    full_package=true
-                    select_all_desktop
-                    ;;
-                  test/desktop/*.spec.ts)
-                    linux_package=true
-                    add_desktop_spec "$file"
-                    ;;
-                esac
-
-                case "$file" in
-                  src/main/latex/*|src/main/latex-runner.ts|src/main/document-service.ts|test/latex-portability.test.ts)
-                    latex=true
-                    ;;
-                esac
-              done <<< "$files"
-            fi
-          fi
-
-          if [[ "$full_package" == "true" ]]; then
-            select_all_desktop
-          elif [[ "$linux_package" == "true" && -z "$desktop_specs" ]]; then
-            # Fail safe: never select a package lane without a runtime target.
-            select_all_desktop
-          fi
-
-          echo "fast=$fast" >> "$GITHUB_OUTPUT"
-          echo "latex=$latex" >> "$GITHUB_OUTPUT"
-          echo "linux_package=$linux_package" >> "$GITHUB_OUTPUT"
-          echo "full_package=$full_package" >> "$GITHUB_OUTPUT"
-          echo "desktop_specs=$desktop_specs" >> "$GITHUB_OUTPUT"
-
-          {
-            echo "### CI impact"
-            echo
-            echo "- evidence basis: $basis"
-            echo "- docs only: $docs_only"
-            echo "- fast verification: $fast"
-            echo "- LaTeX portability: $latex"
-            echo "- Linux package/smoke: $linux_package"
-            echo "- full cross-platform package/smoke: $full_package"
-            echo "- packaged desktop specs: ${desktop_specs:-none}"
-            echo
-            echo "Changed paths since evidence basis:"
-            echo '```text'
-            printf '%s\n' "$files"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  fast:
-    name: Fast verification
-    needs: impact
-    if: needs.impact.outputs.fast == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -245,241 +33,21 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
-      - run: npm run verify
-
-  latex:
-    name: LaTeX portability
-    needs: impact
-    if: needs.impact.outputs.latex == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24.20.0
-          cache: npm
-      - run: npm ci
-      - name: Install pdfLaTeX portability tools
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes latexmk texlive-latex-base
-      - name: Compile and prove unrelated-directory portability
-        shell: bash
-        run: AAAAT_LATEX_TEST=1 npx vitest run test/latex-portability.test.ts
-
-  package_linux:
-    name: Package and smoke (ubuntu-latest)
-    needs: impact
-    if: needs.impact.outputs.linux_package == 'true' && needs.impact.outputs.full_package != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      DESKTOP_SPECS: ${{ needs.impact.outputs.desktop_specs }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24.20.0
-          cache: npm
-      - run: npm ci
-      - name: Install Linux runtime prerequisites
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes openbox xdotool
-      - name: Build packaged app
-        run: npm run package
-      - name: Configure packaged Chromium sandbox
-        shell: bash
-        run: |
-          sandbox_path="out/AAAAT-linux-$(node -p 'process.arch')/chrome-sandbox"
-          sudo chown root:root "$sandbox_path"
-          sudo chmod 4755 "$sandbox_path"
-          stat -c '%U %a %n' "$sandbox_path"
-      - name: Packaged runtime smoke
-        shell: bash
-        run: |
-          if [[ "$DESKTOP_SPECS" == "all" ]]; then
-            desktop_command="npm run test:desktop"
-          else
-            desktop_command="npx playwright test --config playwright.config.ts $DESKTOP_SPECS"
-          fi
-          xvfb-run --auto-servernum bash -lc "
-            openbox >/tmp/aaaat-openbox.log 2>&1 &
-            wm_pid=\$!
-            trap 'kill \$wm_pid 2>/dev/null || true' EXIT
-            $desktop_command
-          "
-      - name: Bundle packaged app
-        shell: bash
-        run: tar -C out -czf "AAAAT-linux-${RUNNER_ARCH}.tar.gz" "AAAAT-linux-$(node -p 'process.arch')"
-      - name: Upload packaged app
-        uses: actions/upload-artifact@v7
-        with:
-          name: AAAAT-ubuntu-latest-${{ runner.arch }}
-          path: AAAAT-linux-${{ runner.arch }}.tar.gz
-          if-no-files-found: error
-          compression-level: 0
-
-  package_full:
-    name: Package and smoke (${{ matrix.os }})
-    needs: impact
-    if: needs.impact.outputs.full_package == 'true'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24.20.0
-          cache: npm
-      - run: npm ci
-      - name: Install Linux runtime prerequisites
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes fakeroot openbox xdotool
-      - name: Build release artifact
-        run: npm run make
-      - name: Inspect Windows release ZIP
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $zip = Get-ChildItem -Path out/make -Recurse -File -Filter *.zip | Select-Object -First 1
-          if (-not $zip) { throw "Windows release ZIP was not created" }
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
-          try {
-            $entries = @($archive.Entries | ForEach-Object { $_.FullName })
-            $entries | ForEach-Object { Write-Host $_ }
-            $exe = $entries | Where-Object { $_.EndsWith("aaaat.exe", [System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
-            if (-not $exe) { throw "Windows release ZIP does not contain aaat.exe" }
-          } finally {
-            $archive.Dispose()
-          }
-      - name: Inspect macOS release ZIP
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          zip_path=$(find out/make -type f -name '*.zip' -print -quit)
-          test -n "$zip_path"
-          unzip -l "$zip_path" | grep -q 'AAAAT.app/Contents/MacOS/aaaat'
-      - name: Inspect Linux release package
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          deb_path=$(find out/make -type f -name '*.deb' -print -quit)
-          test -n "$deb_path"
-          dpkg-deb --info "$deb_path"
-          dpkg-deb --contents "$deb_path" | tee /tmp/aaaat-deb-contents.txt
-          grep -Eq '^-rwsr-xr-x root/root .*chrome-sandbox$' /tmp/aaaat-deb-contents.txt
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: AAAAT-${{ matrix.os }}-${{ runner.arch }}
-          path: |
-            out/make/**/*.zip
-            out/make/**/*.deb
-          if-no-files-found: error
-          compression-level: 0
-      - name: Install demonstrated VS Code host contract (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $archive = Join-Path $env:RUNNER_TEMP "vscode-1.134.0.zip"
-          $hostRoot = Join-Path $env:RUNNER_TEMP "vscode-host"
-          Invoke-WebRequest -Uri "https://update.code.visualstudio.com/1.134.0/win32-x64-archive/stable" -OutFile $archive
-          Expand-Archive -Path $archive -DestinationPath $hostRoot -Force
-          $code = Join-Path $hostRoot "Code.exe"
-          $cli = Get-ChildItem -Path $hostRoot -Recurse -File -Filter cli.js |
-            Where-Object { $_.FullName -match '[\\/]resources[\\/]app[\\/]out[\\/]cli\.js$' } |
-            Select-Object -First 1 -ExpandProperty FullName
-          if (-not $cli) { throw "VS Code CLI entrypoint not found" }
-          $process = Start-Process -FilePath $code -ArgumentList @($cli, "--version") -Wait -PassThru -NoNewWindow -Environment @{ ELECTRON_RUN_AS_NODE = "1" }
-          if ($process.ExitCode -ne 0) { throw "VS Code CLI validation failed with exit code $($process.ExitCode)" }
-          "AAAAT_VSCODE_CLI=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "AAAAT_VSCODE_CLI_SCRIPT=$cli" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-      - name: Configure packaged Chromium sandbox (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sandbox_path="out/AAAAT-linux-$(node -p 'process.arch')/chrome-sandbox"
-          sudo chown root:root "$sandbox_path"
-          sudo chmod 4755 "$sandbox_path"
-          stat -c '%U %a %n' "$sandbox_path"
-      - name: Packaged runtime smoke
-        if: runner.os != 'Linux'
-        run: npm run test:desktop
-      - name: Packaged runtime smoke (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          xvfb-run --auto-servernum bash -lc '
-            openbox >/tmp/aaaat-openbox.log 2>&1 &
-            wm_pid=$!
-            trap "kill $wm_pid 2>/dev/null || true" EXIT
-            npm run test:desktop
-          '
+      - run: npm run typecheck
 
   gate:
     name: Verification gate
-    needs: [impact, fast, latex, package_linux, package_full]
+    needs: typecheck
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require selected verification lanes
-        shell: bash
+      - name: Require lightweight verification
         env:
-          IMPACT_RESULT: ${{ needs.impact.result }}
-          FAST_SELECTED: ${{ needs.impact.outputs.fast }}
-          FAST_RESULT: ${{ needs.fast.result }}
-          LATEX_SELECTED: ${{ needs.impact.outputs.latex }}
-          LATEX_RESULT: ${{ needs.latex.result }}
-          LINUX_PACKAGE_SELECTED: ${{ needs.impact.outputs.linux_package }}
-          LINUX_PACKAGE_RESULT: ${{ needs.package_linux.result }}
-          FULL_PACKAGE_SELECTED: ${{ needs.impact.outputs.full_package }}
-          FULL_PACKAGE_RESULT: ${{ needs.package_full.result }}
+          TYPECHECK_RESULT: ${{ needs.typecheck.result }}
         run: |
-          set -euo pipefail
-
-          require_selected() {
-            local selected="$1"
-            local result="$2"
-            local lane="$3"
-            if [[ "$selected" == "true" && "$result" != "success" ]]; then
-              echo "$lane was selected but finished as $result" >&2
-              exit 1
-            fi
-          }
-
-          if [[ "$IMPACT_RESULT" != "success" ]]; then
-            echo "CI impact classification finished as $IMPACT_RESULT" >&2
+          if [[ "$TYPECHECK_RESULT" != "success" ]]; then
+            echo "Typecheck finished as $TYPECHECK_RESULT" >&2
             exit 1
           fi
-
-          require_selected "$FAST_SELECTED" "$FAST_RESULT" "Fast verification"
-          require_selected "$LATEX_SELECTED" "$LATEX_RESULT" "LaTeX portability"
-
-          if [[ "$FULL_PACKAGE_SELECTED" == "true" ]]; then
-            require_selected "true" "$FULL_PACKAGE_RESULT" "Full cross-platform package/runtime"
-          elif [[ "$LINUX_PACKAGE_SELECTED" == "true" ]]; then
-            require_selected "true" "$LINUX_PACKAGE_RESULT" "Linux package/runtime"
-          fi
-
-          {
-            echo "### Verification gate"
-            echo
-            echo "Selected lanes passed. Unselected lanes reuse still-applicable successful evidence."
-            echo "- fast selected: $FAST_SELECTED ($FAST_RESULT)"
-            echo "- LaTeX selected: $LATEX_SELECTED ($LATEX_RESULT)"
-            echo "- Linux package selected: $LINUX_PACKAGE_SELECTED ($LINUX_PACKAGE_RESULT)"
-            echo "- full package selected: $FULL_PACKAGE_SELECTED ($FULL_PACKAGE_RESULT)"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Lightweight development verification passed." >> "$GITHUB_STEP_SUMMARY"

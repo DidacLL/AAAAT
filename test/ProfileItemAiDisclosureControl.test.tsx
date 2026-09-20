@@ -10,7 +10,7 @@ const update = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
-  current.mockResolvedValue({ itemId, aiContextMode: "expose" });
+  current.mockResolvedValue({ itemId, aiUseAllowed: true });
   update.mockImplementation(async (input) => input);
   Object.defineProperty(window, "aaaat", {
     configurable: true,
@@ -20,30 +20,25 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-describe("professional-information AI disclosure control", () => {
-  it("keeps AI use independent from local storage and document reuse", async () => {
+describe("professional-information AI-use eye", () => {
+  it("toggles one understandable AI-use permission", async () => {
     const user = userEvent.setup();
     render(<ProfileItemAiDisclosureControl itemId={itemId} />);
 
-    await user.click(screen.getByLabelText("Choose how AI may use this information"));
-    const select = await screen.findByRole("combobox", { name: "AI may" });
-    expect(select).toHaveValue("expose");
-    expect(screen.getByText(/does not hide, remove or change your local information/i)).toBeInTheDocument();
+    const eye = await screen.findByRole("button", { name: "AI may use this information" });
+    expect(eye).toHaveAttribute("aria-pressed", "true");
+    await user.click(eye);
 
-    await user.selectOptions(select, "omit");
-
-    expect(update).toHaveBeenCalledWith({ itemId, aiContextMode: "omit" });
+    expect(update).toHaveBeenCalledWith({ itemId, aiUseAllowed: false });
   });
 
   it("reports preference failures without blocking the surrounding editor", async () => {
     current.mockRejectedValue(new Error("read failed"));
-    const user = userEvent.setup();
     render(<ProfileItemAiDisclosureControl itemId={itemId} />);
 
-    await user.click(screen.getByLabelText("Choose how AI may use this information"));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "AAAAT could not load the AI-use setting.",
     );
-    expect(screen.getByLabelText("Choose how AI may use this information")).toBeVisible();
+    expect(screen.getByRole("button", { name: "AI may use this information" })).toBeDisabled();
   });
 });

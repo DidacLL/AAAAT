@@ -11,7 +11,7 @@ import { withWorkspaceDatabase } from "./workspace";
 
 interface PreferenceRow {
   readonly itemId: string;
-  readonly aiContextMode: string;
+  readonly aiUseAllowed: number;
 }
 
 export class ProfileAiContextServiceError extends Error {
@@ -33,7 +33,10 @@ function transact(database: DatabaseSync, action: () => void): void {
 }
 
 function preference(row: PreferenceRow): ProfileAiContextPreference {
-  return profileAiContextPreferenceSchema.parse(row);
+  return profileAiContextPreferenceSchema.parse({
+    itemId: row.itemId,
+    aiUseAllowed: row.aiUseAllowed === 1,
+  });
 }
 
 function readPreference(
@@ -41,7 +44,7 @@ function readPreference(
   itemId: string,
 ): ProfileAiContextPreference {
   const row = database
-    .prepare("SELECT id AS itemId, ai_context_mode AS aiContextMode FROM profile_items WHERE id = ?")
+    .prepare("SELECT id AS itemId, ai_use_allowed AS aiUseAllowed FROM profile_items WHERE id = ?")
     .get(itemId) as unknown as PreferenceRow | undefined;
   if (!row) {
     throw new ProfileAiContextServiceError("The professional-information item no longer exists.");
@@ -63,7 +66,7 @@ export function listProfileItemAiContextPreferences(
   return withWorkspaceDatabase(rootPath, (database) => {
     const rows = database
       .prepare(
-        "SELECT id AS itemId, ai_context_mode AS aiContextMode FROM profile_items ORDER BY sort_order, id",
+        "SELECT id AS itemId, ai_use_allowed AS aiUseAllowed FROM profile_items ORDER BY sort_order, id",
       )
       .all() as unknown as PreferenceRow[];
     return rows.map(preference);
@@ -80,14 +83,14 @@ export function updateProfileItemAiContextPreference(
     transact(database, () => {
       readPreference(database, update.itemId);
       database
-        .prepare("UPDATE profile_items SET ai_context_mode = ? WHERE id = ?")
-        .run(update.aiContextMode, update.itemId);
+        .prepare("UPDATE profile_items SET ai_use_allowed = ?, updated_at = ? WHERE id = ?")
+        .run(update.aiUseAllowed ? 1 : 0, now, update.itemId);
       database
         .prepare(
           `INSERT INTO profile_activity(occurred_at, action, entity_type, entity_id)
            VALUES (?, ?, 'item', ?)`,
         )
-        .run(now, "item.ai-context-updated", update.itemId);
+        .run(now, "item.ai-use-updated", update.itemId);
     });
     return readPreference(database, update.itemId);
   });

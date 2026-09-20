@@ -22,10 +22,54 @@ interface InitializedRow {
 interface SchemaObjectRow {
   readonly type: string;
   readonly name: string;
+  readonly tableName: string;
+  readonly sql: string | null;
+}
+
+interface TableListRow {
+  readonly schema: string;
+  readonly name: string;
+  readonly type: string;
+  readonly ncol: number;
+  readonly wr: number;
+  readonly strict: number;
 }
 
 interface TableColumnRow {
+  readonly cid: number;
   readonly name: string;
+  readonly type: string;
+  readonly notNullValue: number;
+  readonly defaultValue: string | null;
+  readonly pk: number;
+  readonly hidden: number;
+}
+
+interface ForeignKeyRow {
+  readonly id: number;
+  readonly seq: number;
+  readonly tableName: string;
+  readonly fromColumn: string;
+  readonly toColumn: string | null;
+  readonly onUpdate: string;
+  readonly onDelete: string;
+  readonly match: string;
+}
+
+interface IndexListRow {
+  readonly name: string;
+  readonly isUnique: number;
+  readonly origin: string;
+  readonly partial: number;
+}
+
+interface IndexColumnRow {
+  readonly seqno: number;
+  readonly cid: number;
+  readonly name: string | null;
+  readonly descending: number;
+  readonly collation: string;
+  readonly keyColumn: number;
 }
 
 interface WorkspaceSettings {
@@ -33,56 +77,6 @@ interface WorkspaceSettings {
 }
 
 const workspaceDatabaseName = "workspace.sqlite";
-
-const requiredSchemaObjects = Object.freeze([
-  ["table", "workspace_metadata"],
-  ["table", "profile_items"],
-  ["table", "profile_variants"],
-  ["table", "profile_variant_item_rules"],
-  ["table", "profile_activity"],
-  ["table", "documents"],
-  ["table", "document_item_rules"],
-  ["table", "document_activity"],
-  ["table", "candidatures"],
-  ["table", "candidature_documents"],
-  ["table", "candidature_activity"],
-  ["table", "tags"],
-  ["table", "candidature_tags"],
-  ["table", "tag_activity"],
-  ["table", "career_context"],
-  ["table", "career_context_activity"],
-  ["table", "candidature_sources"],
-  ["table", "candidature_fields"],
-  ["table", "candidature_field_preferences"],
-  ["table", "candidature_field_values"],
-  ["table", "application_artifacts"],
-  ["index", "documents_one_ai_content_visible_cv"],
-  ["index", "candidatures_one_opportunity_research_selected"],
-  ["index", "candidature_sources_candidature_idx"],
-  ["index", "candidature_field_values_by_field"],
-  ["index", "application_artifacts_candidature_idx"],
-  ["trigger", "candidatures_opportunity_research_active_insert"],
-  ["trigger", "candidatures_opportunity_research_active_update"],
-] as const);
-
-const requiredColumns = Object.freeze({
-  profile_items: ["ai_context_mode"],
-  candidatures: ["opportunity_research_selected"],
-  career_context: [
-    "career_direction_external_ai_visible",
-    "objectives_external_ai_visible",
-    "constraints_external_ai_visible",
-    "target_roles_external_ai_visible",
-    "target_markets_locations_external_ai_visible",
-    "work_preferences_external_ai_visible",
-    "application_writing_preferences_external_ai_visible",
-  ],
-  application_artifacts: [
-    "cv_document_id",
-    "cover_letter_document_id",
-    "kind",
-  ],
-} as const);
 
 class WorkspaceError extends Error {
   constructor(message: string) {
@@ -108,6 +102,335 @@ function transact(database: DatabaseSync, action: () => void): void {
   }
 }
 
+function normalizeIdentifier(value: string): string {
+  return value.toLowerCase();
+}
+
+function canonicalSqlTokens(sql: string): string[] {
+  const tokens: string[] = [];
+  let index = 0;
+
+  while (index < sql.length) {
+    const character = sql[index] ?? "";
+
+    if (/\s/.test(character)) {
+      index += 1;
+      continue;
+    }
+
+    if (character === "-" && sql[index + 1] === "-") {
+      index += 2;
+      while (index < sql.length && sql[index] !== "\n") {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (character === "/" && sql[index + 1] === "*") {
+      const commentEnd = sql.indexOf("*/", index + 2);
+      index = commentEnd === -1 ? sql.length : commentEnd + 2;
+      continue;
+    }
+
+    if (character === "'") {
+      let value = "";
+      index += 1;
+      while (index < sql.length) {
+        if (sql[index] === "'" && sql[index + 1] === "'") {
+          value += "'";
+          index += 2;
+          continue;
+        }
+        if (sql[index] === "'") {
+          index += 1;
+          break;
+        }
+        value += sql[index] ?? "";
+        index += 1;
+      }
+      tokens.push(`string:${value}`);
+      continue;
+    }
+
+    if (character === '"' || character === "`" || character === "[") {
+      const closing = character === "[" ? "]" : character;
+      let value = "";
+      index += 1;
+      while (index < sql.length) {
+        if (sql[index] === closing && sql[index + 1] === closing) {
+          value += closing;
+          index += 2;
+          continue;
+        }
+        if (sql[index] === closing) {
+          index += 1;
+          break;
+        }
+        value += sql[index] ?? "";
+        index += 1;
+      }
+      tokens.push(`identifier:${normalizeIdentifier(value)}`);
+      continue;
+    }
+
+    if (/[A-Za-z0-9_$]/.test(character)) {
+      const start = index;
+      while (index < sql.length && /[A-Za-z0-9_$]/.test(sql[index] ?? "")) {
+        index += 1;
+      }
+      tokens.push(`word:${sql.slice(start, index).toLowerCase()}`);
+      continue;
+    }
+
+    const threeCharacterOperator = sql.slice(index, index + 3);
+    if (threeCharacterOperator === "->>") {
+      tokens.push(`symbol:${threeCharacterOperator}`);
+      index += 3;
+      continue;
+    }
+
+    const twoCharacterOperator = sql.slice(index, index + 2);
+    if (
+      ["<=", ">=", "<>", "!=", "==", "||", "<<", ">>", "->"].includes(
+        twoCharacterOperator,
+      )
+    ) {
+      tokens.push(`symbol:${twoCharacterOperator}`);
+      index += 2;
+      continue;
+    }
+
+    tokens.push(`symbol:${character}`);
+    index += 1;
+  }
+
+  return tokens;
+}
+
+function extractCheckConstraints(sql: string | null): string[][] {
+  if (!sql) {
+    return [];
+  }
+
+  const tokens = canonicalSqlTokens(sql);
+  const checks: string[][] = [];
+
+  for (let index = 0; index < tokens.length - 1; index += 1) {
+    if (tokens[index] !== "word:check" || tokens[index + 1] !== "symbol:(") {
+      continue;
+    }
+
+    let depth = 1;
+    for (let end = index + 2; end < tokens.length; end += 1) {
+      if (tokens[end] === "symbol:(") {
+        depth += 1;
+      } else if (tokens[end] === "symbol:)") {
+        depth -= 1;
+        if (depth === 0) {
+          checks.push(tokens.slice(index + 2, end));
+          index = end;
+          break;
+        }
+      }
+    }
+  }
+
+  return checks.sort((left, right) =>
+    JSON.stringify(left).localeCompare(JSON.stringify(right)),
+  );
+}
+
+function sortSignatures<T>(values: T[]): T[] {
+  return values.sort((left, right) =>
+    JSON.stringify(left).localeCompare(JSON.stringify(right)),
+  );
+}
+
+function foreignKeySignature(rows: ForeignKeyRow[]): object[] {
+  const groups = new Map<number, ForeignKeyRow[]>();
+  for (const row of rows) {
+    const group = groups.get(row.id) ?? [];
+    group.push(row);
+    groups.set(row.id, group);
+  }
+
+  return sortSignatures(
+    [...groups.values()].map((group) => {
+      const ordered = [...group].sort((left, right) => left.seq - right.seq);
+      const first = ordered[0];
+      if (!first) {
+        throw new WorkspaceError("The workspace schema is incompatible.");
+      }
+      return {
+        tableName: normalizeIdentifier(first.tableName),
+        onUpdate: first.onUpdate.toLowerCase(),
+        onDelete: first.onDelete.toLowerCase(),
+        match: first.match.toLowerCase(),
+        columns: ordered.map((row) => ({
+          from: normalizeIdentifier(row.fromColumn),
+          to: row.toColumn ? normalizeIdentifier(row.toColumn) : null,
+        })),
+      };
+    }),
+  );
+}
+
+function tableSignature(
+  database: DatabaseSync,
+  object: SchemaObjectRow,
+  tableList: Map<string, TableListRow>,
+): object {
+  const table = tableList.get(normalizeIdentifier(object.name));
+  if (!table) {
+    throw new WorkspaceError("The workspace schema is incompatible.");
+  }
+
+  const columns = database
+    .prepare(
+      `SELECT cid, name, type, "notnull" AS notNullValue, dflt_value AS defaultValue, pk, hidden
+       FROM pragma_table_xinfo(?)
+       ORDER BY cid`,
+    )
+    .all(object.name) as unknown as TableColumnRow[];
+
+  const foreignKeys = database
+    .prepare(
+      `SELECT id, seq, "table" AS tableName, "from" AS fromColumn,
+              "to" AS toColumn, on_update AS onUpdate, on_delete AS onDelete, match
+       FROM pragma_foreign_key_list(?)
+       ORDER BY id, seq`,
+    )
+    .all(object.name) as unknown as ForeignKeyRow[];
+
+  const indexes = database
+    .prepare(
+      `SELECT name, "unique" AS isUnique, origin, partial
+       FROM pragma_index_list(?)`,
+    )
+    .all(object.name) as unknown as IndexListRow[];
+
+  return {
+    name: normalizeIdentifier(object.name),
+    type: table.type.toLowerCase(),
+    columnCount: table.ncol,
+    withoutRowid: table.wr,
+    strict: table.strict,
+    columns: columns.map((column) => ({
+      name: normalizeIdentifier(column.name),
+      type: column.type.toLowerCase(),
+      notNull: column.notNullValue,
+      defaultValue:
+        column.defaultValue === null
+          ? null
+          : canonicalSqlTokens(column.defaultValue),
+      primaryKeyPosition: column.pk,
+      hidden: column.hidden,
+    })),
+    foreignKeys: foreignKeySignature(foreignKeys),
+    checks: extractCheckConstraints(object.sql),
+    autoIncrement: canonicalSqlTokens(object.sql ?? "").includes(
+      "word:autoincrement",
+    ),
+    indexes: sortSignatures(
+      indexes.map((index) => {
+        const indexColumns = database
+          .prepare(
+            `SELECT seqno, cid, name, "desc" AS descending, coll AS collation,
+                    "key" AS keyColumn
+             FROM pragma_index_xinfo(?)
+             ORDER BY seqno`,
+          )
+          .all(index.name) as unknown as IndexColumnRow[];
+
+        const explicitIndex = index.origin === "c";
+        const indexObject = explicitIndex
+          ? (database
+              .prepare(
+                `SELECT sql
+                 FROM sqlite_schema
+                 WHERE type = 'index' AND name = ?`,
+              )
+              .get(index.name) as { sql: string | null } | undefined)
+          : undefined;
+
+        return {
+          name: explicitIndex ? normalizeIdentifier(index.name) : null,
+          unique: index.isUnique,
+          origin: index.origin.toLowerCase(),
+          partial: index.partial,
+          columns: indexColumns.map((column) => ({
+            columnId: column.cid,
+            name: column.name ? normalizeIdentifier(column.name) : null,
+            descending: column.descending,
+            collation: column.collation.toLowerCase(),
+            keyColumn: column.keyColumn,
+          })),
+          definition:
+            explicitIndex && indexObject?.sql
+              ? canonicalSqlTokens(indexObject.sql)
+              : null,
+        };
+      }),
+    ),
+  };
+}
+
+function schemaSignature(database: DatabaseSync): string {
+  const objects = database
+    .prepare(
+      `SELECT type, name, tbl_name AS tableName, sql
+       FROM sqlite_schema
+       WHERE name NOT LIKE 'sqlite_%'
+       ORDER BY type, name`,
+    )
+    .all() as unknown as SchemaObjectRow[];
+
+  const tableListRows = database
+    .prepare("PRAGMA table_list")
+    .all() as unknown as TableListRow[];
+  const tableList = new Map(
+    tableListRows
+      .filter((row) => row.schema === "main")
+      .map((row) => [normalizeIdentifier(row.name), row]),
+  );
+
+  const objectCatalog = objects.map((object) => ({
+    type: object.type.toLowerCase(),
+    name: normalizeIdentifier(object.name),
+    tableName: normalizeIdentifier(object.tableName),
+  }));
+
+  const tables = objects
+    .filter((object) => object.type === "table")
+    .map((object) => tableSignature(database, object, tableList));
+
+  const triggers = objects
+    .filter((object) => object.type === "trigger")
+    .map((object) => ({
+      name: normalizeIdentifier(object.name),
+      tableName: normalizeIdentifier(object.tableName),
+      definition: canonicalSqlTokens(object.sql ?? ""),
+    }));
+
+  return JSON.stringify({
+    objects: sortSignatures(objectCatalog),
+    tables: sortSignatures(tables),
+    triggers: sortSignatures(triggers),
+  });
+}
+
+function createCurrentSchemaSignature(): string {
+  const reference = new DatabaseSync(":memory:");
+  try {
+    reference.exec(currentSchemaSql);
+    return schemaSignature(reference);
+  } finally {
+    reference.close();
+  }
+}
+
+const currentSchemaSignature = createCurrentSchemaSignature();
+
 export function validateCurrentWorkspaceDatabase(database: DatabaseSync): void {
   const integrity = database.prepare("PRAGMA quick_check").get() as
     | Record<string, unknown>
@@ -116,33 +439,8 @@ export function validateCurrentWorkspaceDatabase(database: DatabaseSync): void {
     throw new WorkspaceError("The workspace database is invalid.");
   }
 
-  const schemaRows = database
-    .prepare("SELECT type, name FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'")
-    .all() as unknown as SchemaObjectRow[];
-  const schemaObjects = new Set(schemaRows.map((row) => `${row.type}:${row.name}`));
-
-  for (const [type, name] of requiredSchemaObjects) {
-    if (!schemaObjects.has(`${type}:${name}`)) {
-      throw new WorkspaceError("The workspace schema is incompatible.");
-    }
-  }
-
-  for (const obsoleteName of ["schema_migrations", "todos"]) {
-    if (schemaRows.some((row) => row.name === obsoleteName)) {
-      throw new WorkspaceError("The workspace schema is incompatible.");
-    }
-  }
-
-  for (const [tableName, columns] of Object.entries(requiredColumns)) {
-    const rows = database
-      .prepare(`PRAGMA table_info('${tableName}')`)
-      .all() as unknown as TableColumnRow[];
-    const present = new Set(rows.map((row) => row.name));
-    for (const column of columns) {
-      if (!present.has(column)) {
-        throw new WorkspaceError("The workspace schema is incompatible.");
-      }
-    }
+  if (schemaSignature(database) !== currentSchemaSignature) {
+    throw new WorkspaceError("The workspace schema is incompatible.");
   }
 
   const initialized = database
@@ -268,6 +566,39 @@ export function openWorkspace(rootPath: string): WorkspaceInfo {
   return { rootPath: canonicalPath };
 }
 
+export function resetWorkspace(rootPath: string): WorkspaceInfo {
+  const canonicalPath = removeWorkspaceData(rootPath);
+  return initializeNewWorkspace(canonicalPath);
+}
+
+function removeWorkspaceData(rootPath: string): string {
+  const canonicalPath = canonicalizeWorkspaceRoot(rootPath);
+  verifyExistingWorkspace(canonicalPath);
+  for (const target of [
+    databasePathFor(canonicalPath),
+    databasePathFor(canonicalPath) + "-wal",
+    databasePathFor(canonicalPath) + "-shm",
+    path.join(canonicalPath, "rendered-cvs"),
+    path.join(canonicalPath, "application-packets"),
+    path.join(canonicalPath, "ai-connection.json"),
+  ]) {
+    rmSync(target, { recursive: true, force: true });
+  }
+  return canonicalPath;
+}
+
+export function deleteWorkspace(rootPath: string): void {
+  removeWorkspaceData(rootPath);
+}
+
+export function workspaceIsDemo(rootPath: string): boolean {
+  return withWorkspaceDatabase(rootPath, (database) => {
+    const row = database.prepare("SELECT value FROM workspace_metadata WHERE key = ?")
+      .get("workspace.demo") as { value: string } | undefined;
+    return row?.value === "1";
+  });
+}
+
 export function withWorkspaceDatabase<T>(
   rootPath: string,
   action: (database: DatabaseSync) => T,
@@ -307,4 +638,8 @@ export function rememberWorkspacePath(
 ): void {
   const settings: WorkspaceSettings = { lastWorkspacePath: rootPath };
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf8");
+}
+
+export function forgetWorkspacePath(settingsPath: string): void {
+  rmSync(settingsPath, { force: true });
 }

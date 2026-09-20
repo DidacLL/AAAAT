@@ -131,12 +131,11 @@ export function CandidatureFieldValueEditor({
         return numbers;
       }
       if (definition.valueType === "boolean") {
-        const booleans = items.map((item) => {
+        return items.map((item) => {
           if (item === "true") return true;
           if (item === "false") return false;
           throw new Error("Enter true or false on each line.");
         });
-        return booleans;
       }
       return items;
     }
@@ -202,7 +201,7 @@ export function CandidatureFieldValueEditor({
   };
 
   const discover = async () => {
-    if (!onDiscover) return;
+    if (!onDiscover || !field.preferences.aiUseAllowed) return;
     setError(null);
     try {
       await onDiscover();
@@ -224,6 +223,20 @@ export function CandidatureFieldValueEditor({
     }
   };
 
+  const aiUseControl = onUpdatePreferences ? (
+    <button
+      type="button"
+      className="compact-secondary candidature-ai-use-control"
+      aria-label="AI may use this information"
+      aria-pressed={field.preferences.aiUseAllowed}
+      title={field.preferences.aiUseAllowed ? "AI may use this information" : "AI will not use this information"}
+      disabled={busy || !field.definition.enabled}
+      onClick={() => void updatePreferences({ aiUseAllowed: !field.preferences.aiUseAllowed })}
+    >
+      AI use: {field.preferences.aiUseAllowed ? "On" : "Off"}
+    </button>
+  ) : null;
+
   const cancel = () => {
     setText(textFor(value));
     setChoices(choicesFor(field, value));
@@ -242,22 +255,22 @@ export function CandidatureFieldValueEditor({
         <div className="candidature-field-affordances">
           <button
             type="button"
-            className="candidature-icon-button"
+            className="compact-secondary"
             aria-label={`Edit ${field.definition.label}`}
-            title="Edit"
             onClick={() => setEditing(true)}
           >
-            <span aria-hidden="true">✎</span>
+            Edit
           </button>
-          {onDiscover ? (
+          {aiUseControl}
+          {onDiscover && field.preferences.aiUseAllowed ? (
             <button
               type="button"
-              className="candidature-icon-button candidature-ai-button"
+              className="compact-secondary candidature-ai-button"
               aria-label={`Ask AI to fill ${field.definition.label}`}
               title={discoverLabel}
               onClick={() => void discover()}
             >
-              <span aria-hidden="true">✦</span>
+              Ask AI
             </button>
           ) : null}
         </div>
@@ -372,29 +385,10 @@ export function CandidatureFieldValueEditor({
 
       {showFieldControls && onUpdatePreferences ? (
         <div className="candidature-field-inline-controls">
-          <label>
-            <input
-              type="checkbox"
-              checked={field.preferences.focusVisible}
-              disabled={busy}
-              onChange={(event) => void updatePreferences({ focusVisible: event.target.checked })}
-            />
-            Show in Focus
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={field.preferences.aiContextMode === "expose"}
-              disabled={busy}
-              onChange={(event) =>
-                void updatePreferences({ aiContextMode: event.target.checked ? "expose" : "omit" })
-              }
-            />
-            Allow AI to use this information
-          </label>
-          {field.preferences.aiContextMode === "token" ? (
-            <small>This field currently uses a local placeholder for AI context. Changing the toggle replaces that advanced setting.</small>
-          ) : null}
+          <span className="candidature-ai-use-inline">
+            {aiUseControl}
+            <span>AI may use this information</span>
+          </span>
         </div>
       ) : null}
 
@@ -408,16 +402,16 @@ export function CandidatureFieldValueEditor({
         <button type="button" className="compact-secondary" disabled={busy} onClick={cancel}>
           Cancel
         </button>
-        {onDiscover ? (
+        {onDiscover && field.preferences.aiUseAllowed ? (
           <button
             type="button"
-            className="candidature-icon-button candidature-ai-button"
+            className="compact-secondary candidature-ai-button"
             aria-label={`Ask AI to fill ${field.definition.label}`}
             title={discoverLabel}
             disabled={busy}
             onClick={() => void discover()}
           >
-            <span aria-hidden="true">✦</span>
+            Ask AI
           </button>
         ) : null}
       </div>

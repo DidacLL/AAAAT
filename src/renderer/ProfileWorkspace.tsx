@@ -1,34 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import type {
-  ProfileItem,
-  ProfileItemContentPatch,
-  ProfileItemInput,
-  ProfileItemKind,
-  ProfileSnapshot,
-  ProfileVariant,
-  ResolvedProfile,
-} from "../shared/contracts";
-import { useContextualHandoffs } from "./contextual-handoffs";
+import type { ProfileItem, ProfileItemInput, ProfileSnapshot } from "../shared/contracts";
+import type { ProfileVariantRecord } from "../shared/profile-variant-contracts";
 import { ProfileItemAiDisclosureControl } from "./ProfileItemAiDisclosureControl";
 
-const itemKinds: readonly ProfileItemKind[] = [
-  "identity",
-  "contact",
-  "summary",
-  "experience",
-  "education",
-  "project",
-  "skill",
-  "certification",
-  "language",
-  "link",
-];
-
-type ProfessionalInformationView = "overview" | "item" | "variations";
-
 interface ItemFormState {
-  kind: ProfileItemKind;
+  kind: string;
   title: string;
   subtitle: string;
   description: string;
@@ -37,15 +14,8 @@ interface ItemFormState {
   url: string;
 }
 
-interface VariantFormState {
-  name: string;
-  focus: string;
-  targetTags: string;
-  preferredLanguage: string;
-}
-
 const emptyItem: ItemFormState = {
-  kind: "summary",
+  kind: "other",
   title: "",
   subtitle: "",
   description: "",
@@ -54,72 +24,63 @@ const emptyItem: ItemFormState = {
   url: "",
 };
 
-const emptyVariant: VariantFormState = {
-  name: "",
-  focus: "",
-  targetTags: "",
-  preferredLanguage: "",
-};
-
-function optional(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed.length === 0 ? undefined : trimmed;
+function itemForm(item?: ProfileItem): ItemFormState {
+  return item
+    ? {
+        kind: item.kind,
+        title: item.title,
+        subtitle: item.subtitle ?? "",
+        description: item.description ?? "",
+        startDate: item.startDate ?? "",
+        endDate: item.endDate ?? "",
+        url: item.url ?? "",
+      }
+    : emptyItem;
 }
 
-function itemInput(form: ItemFormState): ProfileItemInput {
+function itemInput(draft: ItemFormState): ProfileItemInput {
   return {
-    kind: form.kind,
-    title: form.title.trim(),
-    subtitle: optional(form.subtitle),
-    description: optional(form.description),
-    startDate: optional(form.startDate),
-    endDate: optional(form.endDate),
-    url: optional(form.url),
+    kind: draft.kind.trim() || "other",
+    title: draft.title.trim(),
+    ...(draft.subtitle.trim() ? { subtitle: draft.subtitle.trim() } : {}),
+    ...(draft.description.trim() ? { description: draft.description.trim() } : {}),
+    ...(draft.startDate.trim() ? { startDate: draft.startDate.trim() } : {}),
+    ...(draft.endDate.trim() ? { endDate: draft.endDate.trim() } : {}),
+    ...(draft.url.trim() ? { url: draft.url.trim() } : {}),
   };
 }
 
-function itemForm(item: ProfileItem): ItemFormState {
+function variantDraft(variant?: ProfileVariantRecord) {
   return {
-    kind: item.kind,
-    title: item.title,
-    subtitle: item.subtitle ?? "",
-    description: item.description ?? "",
-    startDate: item.startDate ?? "",
-    endDate: item.endDate ?? "",
-    url: item.url ?? "",
+    name: variant?.name ?? "",
+    title: variant?.content.title ?? "",
+    subtitle: variant?.content.subtitle ?? "",
+    description: variant?.content.description ?? "",
+    startDate: variant?.content.startDate ?? "",
+    endDate: variant?.content.endDate ?? "",
+    url: variant?.content.url ?? "",
   };
 }
 
-function variantForm(variant: ProfileVariant): VariantFormState {
+function newVariantDraft(item?: ProfileItem) {
   return {
-    name: variant.name,
-    focus: variant.focus,
-    targetTags: variant.targetTags.join(", "),
-    preferredLanguage: variant.preferredLanguage ?? "",
+    ...variantDraft(),
+    ...(item
+      ? {
+          title: item.title,
+          subtitle: item.subtitle ?? "",
+          description: item.description ?? "",
+          startDate: item.startDate ?? "",
+          endDate: item.endDate ?? "",
+          url: item.url ?? "",
+        }
+      : {}),
   };
 }
 
-function variantInput(form: VariantFormState) {
-  return {
-    name: form.name.trim(),
-    focus: form.focus.trim(),
-    targetTags: form.targetTags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter((tag) => tag.length > 0),
-    preferredLanguage: optional(form.preferredLanguage),
-  };
-}
-
-function orderedBaseItems(snapshot: ProfileSnapshot, variant: ProfileVariant): ProfileItem[] {
-  const baseRank = new Map(snapshot.items.map((item, index) => [item.id, index]));
-  const rules = new Map(variant.rules.map((rule) => [rule.itemId, rule]));
-
-  return [...snapshot.items].sort((left, right) => {
-    const leftRank = rules.get(left.id)?.orderRank ?? baseRank.get(left.id) ?? 0;
-    const rightRank = rules.get(right.id)?.orderRank ?? baseRank.get(right.id) ?? 0;
-    return leftRank - rightRank;
-  });
+function dateRange(item: ProfileItem): string | null {
+  if (item.startDate && item.endDate) return `${item.startDate} – ${item.endDate}`;
+  return item.startDate ?? item.endDate ?? null;
 }
 
 export function ProfileWorkspace({
@@ -129,125 +90,32 @@ export function ProfileWorkspace({
   readonly initialItemId?: string;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { professionalInformationHandoff, returnToDocument } = useContextualHandoffs();
-  const [snapshot, setSnapshot] = useState<ProfileSnapshot | null>(null);
-  const [resolved, setResolved] = useState<ResolvedProfile | null>(null);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [itemState, setItemState] = useState<ItemFormState>(emptyItem);
-  const [variantState, setVariantState] = useState<VariantFormState>(emptyVariant);
-  const [view, setView] = useState<ProfessionalInformationView>("overview");
+  const [snapshot, setSnapshot] = useState<ProfileSnapshot>({ items: [] });
+  const [variants, setVariants] = useState<ProfileVariantRecord[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(initialItemId ?? null);
+  const [creating, setCreating] = useState(false);
+  const [editingItem, setEditingItem] = useState(false);
+  const [draft, setDraft] = useState<ItemFormState>(emptyItem);
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+  const [variant, setVariant] = useState(variantDraft());
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aiDisclosureDirty, setAiDisclosureDirty] = useState(false);
-  const handledInitialItemId = useRef<string | null>(null);
-
-  const selectedVariant = useMemo(
-    () => snapshot?.variants.find((variant) => variant.id === selectedVariantId) ?? null,
-    [selectedVariantId, snapshot],
-  );
-
-  const orderedItems = useMemo(
-    () => (snapshot && selectedVariant ? orderedBaseItems(snapshot, selectedVariant) : []),
-    [selectedVariant, snapshot],
-  );
-
-  const variantDirty = selectedVariant
-    ? JSON.stringify(variantState) !== JSON.stringify(variantForm(selectedVariant))
-    : selectedVariantId === null && JSON.stringify(variantState) !== JSON.stringify(emptyVariant);
-  const editedItem = editingItemId
-    ? snapshot?.items.find((item) => item.id === editingItemId) ?? null
-    : null;
-  const itemDirty = JSON.stringify(itemState) !== JSON.stringify(editedItem ? itemForm(editedItem) : emptyItem);
-  const itemEditorDirty = itemDirty || aiDisclosureDirty;
-
-  useEffect(() => {
-    onDirtyChange?.(variantDirty || itemEditorDirty);
-    return () => onDirtyChange?.(false);
-  }, [itemEditorDirty, onDirtyChange, variantDirty]);
-
-  const confirmItemDiscard = () =>
-    !itemEditorDirty || window.confirm("Discard unsaved information edits?");
-
-  const startNewItem = () => {
-    if (!confirmItemDiscard()) return;
-    setEditingItemId(null);
-    setItemState(emptyItem);
-    setAiDisclosureDirty(false);
-    setError(null);
-    setView("item");
-  };
-
-  const startItemEdit = (item: ProfileItem) => {
-    if (item.id !== editingItemId && !confirmItemDiscard()) return;
-    setEditingItemId(item.id);
-    setItemState(itemForm(item));
-    setAiDisclosureDirty(false);
-    setError(null);
-    setView("item");
-  };
-
-  const cancelItemEdit = () => {
-    if (!confirmItemDiscard()) return;
-    setEditingItemId(null);
-    setItemState(emptyItem);
-    setAiDisclosureDirty(false);
-    setError(null);
-    setView("overview");
-    if (professionalInformationHandoff) returnToDocument();
-  };
-
-  const refreshResolved = async (variantId: string | null) => {
-    if (!variantId) {
-      setResolved(null);
-      return;
-    }
-
-    try {
-      setResolved(await window.aaaat.profile.resolveVariant(variantId));
-    } catch {
-      setResolved(null);
-      setError("AAAAT could not resolve that saved variation.");
-    }
-  };
-
-  const acceptSnapshot = async (
-    next: ProfileSnapshot,
-    preferredVariantId: string | null = selectedVariantId,
-    preserveVariantDraft = false,
-  ) => {
-    setSnapshot(next);
-    const nextSelected =
-      preserveVariantDraft && preferredVariantId === null
-        ? null
-        : next.variants.some((variant) => variant.id === preferredVariantId)
-          ? preferredVariantId
-          : (next.variants[0]?.id ?? null);
-    const keepDraft = preserveVariantDraft && nextSelected === selectedVariantId;
-    setSelectedVariantId(nextSelected);
-    if (!keepDraft) {
-      if (nextSelected) {
-        const variant = next.variants.find((candidate) => candidate.id === nextSelected);
-        if (variant) setVariantState(variantForm(variant));
-      } else {
-        setVariantState(emptyVariant);
-      }
-    }
-    await refreshResolved(nextSelected);
-  };
 
   useEffect(() => {
     let active = true;
-    void window.aaaat.profile
-      .current()
-      .then(async (current) => {
+    void Promise.all([window.aaaat.profile.current(), window.aaaat.profileVariants.list()])
+      .then(([nextSnapshot, nextVariants]) => {
         if (!active) return;
-        setSnapshot(current);
-        const firstVariant = current.variants[0] ?? null;
-        setSelectedVariantId(firstVariant?.id ?? null);
-        if (firstVariant) {
-          setVariantState(variantForm(firstVariant));
-          setResolved(await window.aaaat.profile.resolveVariant(firstVariant.id));
-        }
+        setSnapshot(nextSnapshot);
+        setVariants(nextVariants);
+        const requested =
+          initialItemId && nextSnapshot.items.some((item) => item.id === initialItemId)
+            ? initialItemId
+            : nextSnapshot.items[0]?.id ?? null;
+        setSelectedId(requested);
+        setDraft(itemForm(nextSnapshot.items.find((item) => item.id === requested)));
+        setCreating(false);
+        setEditingItem(false);
       })
       .catch(() => {
         if (active) setError("AAAAT could not load My information.");
@@ -255,449 +123,516 @@ export function ProfileWorkspace({
     return () => {
       active = false;
     };
-  }, []);
-
-  useEffect(() => {
-    if (!initialItemId) {
-      handledInitialItemId.current = null;
-      return;
-    }
-    if (handledInitialItemId.current === initialItemId) return;
-    handledInitialItemId.current = initialItemId;
-    let active = true;
-    void window.aaaat.profile
-      .current()
-      .then((current) => {
-        if (!active) return;
-        const item = current.items.find((candidate) => candidate.id === initialItemId);
-        if (!item) {
-          setError("That item is no longer available in My information.");
-          return;
-        }
-        setSnapshot(current);
-        setEditingItemId(item.id);
-        setItemState(itemForm(item));
-        setAiDisclosureDirty(false);
-        setError(null);
-        setView("item");
-      })
-      .catch(() => {
-        if (active) setError("AAAAT could not open that item from My information.");
-      });
-    return () => {
-      active = false;
-    };
   }, [initialItemId]);
 
-  const submitItem = async (event: FormEvent) => {
-    event.preventDefault();
-    if (aiDisclosureDirty) {
-      setError("Save or revert the AI disclosure change before saving information.");
-      return;
+  const selected = snapshot.items.find((item) => item.id === selectedId) ?? null;
+  const selectedVariants = useMemo(
+    () => variants.filter((candidate) => candidate.itemId === selectedId),
+    [variants, selectedId],
+  );
+  const itemDirty =
+    creating
+      ? JSON.stringify(draft) !== JSON.stringify(emptyItem)
+      : selected && editingItem
+        ? JSON.stringify(draft) !== JSON.stringify(itemForm(selected))
+        : false;
+  const persistedVariant = editingVariantId
+    ? variants.find((candidate) => candidate.id === editingVariantId)
+    : undefined;
+  const variantEditorOpen =
+    editingVariantId !== null ||
+    variant.name.length > 0 ||
+    variant.title.length > 0 ||
+    variant.subtitle.length > 0 ||
+    variant.description.length > 0 ||
+    variant.startDate.length > 0 ||
+    variant.endDate.length > 0 ||
+    variant.url.length > 0;
+  const variantBaseline = editingVariantId
+    ? variantDraft(persistedVariant)
+    : newVariantDraft(selected ?? undefined);
+  const variantDirty =
+    variantEditorOpen && JSON.stringify(variant) !== JSON.stringify(variantBaseline);
+
+  useEffect(() => {
+    onDirtyChange?.(itemDirty || variantDirty);
+    return () => onDirtyChange?.(false);
+  }, [itemDirty, variantDirty, onDirtyChange]);
+
+  const confirmDiscard = () =>
+    !(itemDirty || variantDirty) || window.confirm("Discard unsaved My information edits?");
+
+  const selectItem = (item: ProfileItem) => {
+    if (!confirmDiscard()) return;
+    setCreating(false);
+    setEditingItem(false);
+    setSelectedId(item.id);
+    setDraft(itemForm(item));
+    setEditingVariantId(null);
+    setVariant(variantDraft());
+    setError(null);
+  };
+
+  const startNew = () => {
+    if (!confirmDiscard()) return;
+    setCreating(true);
+    setEditingItem(true);
+    setSelectedId(null);
+    setDraft(emptyItem);
+    setEditingVariantId(null);
+    setVariant(variantDraft());
+    setError(null);
+  };
+
+  const cancelItemEdit = () => {
+    if (itemDirty && !window.confirm("Discard unsaved My information edits?")) return;
+    if (creating) {
+      setCreating(false);
+      const first = snapshot.items[0] ?? null;
+      setSelectedId(first?.id ?? null);
+      setDraft(itemForm(first ?? undefined));
+    } else if (selected) {
+      setDraft(itemForm(selected));
     }
+    setEditingItem(false);
+    setError(null);
+  };
+
+  const saveItem = async () => {
+    const input = itemInput(draft);
+    if (!input.title) return;
+    setBusy(true);
     setError(null);
     try {
-      const next = editingItemId
-        ? await window.aaaat.profile.updateItem({ id: editingItemId, item: itemInput(itemState) })
-        : await window.aaaat.profile.addItem(itemInput(itemState));
-      setEditingItemId(null);
-      setItemState(emptyItem);
-      setAiDisclosureDirty(false);
-      await acceptSnapshot(next, selectedVariantId, true);
-      setView("overview");
-      if (professionalInformationHandoff) returnToDocument();
-    } catch {
-      setError("Check the information fields and try again.");
+      const selectedItemId = selected?.id ?? null;
+      const next =
+        creating || !selectedItemId
+          ? await window.aaaat.profile.addItem(input)
+          : await window.aaaat.profile.updateItem({ id: selectedItemId, item: input });
+      setSnapshot(next);
+      const saved = creating
+        ? next.items.at(-1) ?? null
+        : next.items.find((item) => item.id === selectedItemId) ?? null;
+      setCreating(false);
+      setEditingItem(false);
+      setSelectedId(saved?.id ?? null);
+      setDraft(itemForm(saved ?? undefined));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save this information.");
+    } finally {
+      setBusy(false);
     }
   };
 
-  const removeItem = async (item: ProfileItem) => {
-    if (item.id === editingItemId && !confirmItemDiscard()) return;
-    const confirmed = window.confirm(
-      `Remove “${item.title}” from My information? Saved variations and documents that use it may change.`,
-    );
-    if (!confirmed) return;
+  const removeItem = async () => {
+    if (!selected || !window.confirm(`Remove “${selected.title}” from My information?`)) return;
+    setBusy(true);
     setError(null);
     try {
-      await acceptSnapshot(await window.aaaat.profile.removeItem(item.id), selectedVariantId, true);
-      if (editingItemId === item.id) {
-        setEditingItemId(null);
-        setItemState(emptyItem);
-        setAiDisclosureDirty(false);
-        setView("overview");
-      }
-    } catch {
-      setError("AAAAT could not remove that information.");
-    }
-  };
-
-  const createVariant = async (event: FormEvent) => {
-    event.preventDefault();
-    setError(null);
-    try {
-      const next = await window.aaaat.profile.createVariant(variantInput(variantState));
-      const created = next.variants.find((variant) => variant.name === variantState.name.trim());
-      await acceptSnapshot(next, created?.id ?? null);
-    } catch {
-      setError("Use a unique saved variation name and check its optional context.");
-    }
-  };
-
-  const saveVariant = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!selectedVariantId) return;
-    setError(null);
-    try {
-      await acceptSnapshot(
-        await window.aaaat.profile.updateVariant({
-          id: selectedVariantId,
-          ...variantInput(variantState),
-        }),
-        selectedVariantId,
+      const next = await window.aaaat.profile.removeItem(selected.id);
+      setSnapshot(next);
+      const first = next.items[0] ?? null;
+      setSelectedId(first?.id ?? null);
+      setDraft(itemForm(first ?? undefined));
+      setEditingItem(false);
+      setVariants((current) => current.filter((candidate) => candidate.itemId !== selected.id));
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "AAAAT could not remove this information. It may still be referenced by a reusable CV template.",
       );
-    } catch {
-      setError("Use a unique saved variation name and check its optional context.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const editVariant = (candidate?: ProfileVariantRecord) => {
+    if (variantDirty && !window.confirm("Discard unsaved variation edits?")) return;
+    setEditingVariantId(candidate?.id ?? null);
+    setVariant(candidate ? variantDraft(candidate) : newVariantDraft(selected ?? undefined));
+  };
+
+  const closeVariant = () => {
+    if (variantDirty && !window.confirm("Discard unsaved variation edits?")) return;
+    setEditingVariantId(null);
+    setVariant(variantDraft());
+  };
+
+  const saveVariant = async () => {
+    if (!selected || !variant.name.trim() || !variant.title.trim()) return;
+    setBusy(true);
+    setError(null);
+    const content = {
+      title: variant.title.trim(),
+      ...(variant.subtitle.trim() ? { subtitle: variant.subtitle.trim() } : {}),
+      ...(variant.description.trim() ? { description: variant.description.trim() } : {}),
+      ...(variant.startDate.trim() ? { startDate: variant.startDate.trim() } : {}),
+      ...(variant.endDate.trim() ? { endDate: variant.endDate.trim() } : {}),
+      ...(variant.url.trim() ? { url: variant.url.trim() } : {}),
+    };
+    try {
+      const next = editingVariantId
+        ? await window.aaaat.profileVariants.update({
+            id: editingVariantId,
+            name: variant.name.trim(),
+            content,
+          })
+        : await window.aaaat.profileVariants.create({
+            itemId: selected.id,
+            name: variant.name.trim(),
+            content,
+          });
+      setVariants(next);
+      const saved =
+        next.find((candidate) => candidate.id === editingVariantId) ??
+        next.find(
+          (candidate) =>
+            candidate.itemId === selected.id && candidate.name === variant.name.trim(),
+        ) ??
+        null;
+      setEditingVariantId(saved?.id ?? null);
+      setVariant(variantDraft(saved ?? undefined));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not save this variation.");
+    } finally {
+      setBusy(false);
     }
   };
 
   const removeVariant = async () => {
-    if (!selectedVariantId) return;
-    const confirmed = window.confirm(
-      variantDirty
-        ? "Remove this saved variation and discard its unsaved edits?"
-        : "Remove this saved variation?",
-    );
-    if (!confirmed) return;
+    if (!editingVariantId || !window.confirm("Remove this saved variation?")) return;
+    setBusy(true);
     setError(null);
     try {
-      await acceptSnapshot(await window.aaaat.profile.removeVariant(selectedVariantId), null);
-    } catch {
-      setError("AAAAT could not remove that saved variation.");
-    }
-  };
-
-  const selectVariant = async (variant: ProfileVariant) => {
-    if (variant.id === selectedVariantId) return;
-    if (variantDirty && !window.confirm("Discard unsaved saved-variation edits?")) return;
-    setSelectedVariantId(variant.id);
-    setVariantState(variantForm(variant));
-    setError(null);
-    await refreshResolved(variant.id);
-  };
-
-  const startNewVariant = () => {
-    if (variantDirty && !window.confirm("Discard unsaved saved-variation edits?")) return;
-    setSelectedVariantId(null);
-    setResolved(null);
-    setVariantState(emptyVariant);
-  };
-
-  const applyVariantItem = async (event: FormEvent<HTMLFormElement>, item: ProfileItem) => {
-    event.preventDefault();
-    if (!selectedVariantId || !selectedVariant) return;
-    const formData = new FormData(event.currentTarget);
-    const included = formData.get("included") === "on";
-    const title = String(formData.get("overrideTitle") ?? "").trim();
-    const description = String(formData.get("overrideDescription") ?? "").trim();
-    const existing = selectedVariant.rules.find((rule) => rule.itemId === item.id);
-    const patch: Record<string, string> = { ...(existing?.contentPatch ?? {}) };
-    if (title.length > 0) patch.title = title;
-    else delete patch.title;
-    if (description.length > 0) patch.description = description;
-    else delete patch.description;
-
-    setError(null);
-    try {
-      await acceptSnapshot(
-        await window.aaaat.profile.configureVariantItem({
-          variantId: selectedVariantId,
-          itemId: item.id,
-          included,
-          contentPatch:
-            Object.keys(patch).length === 0 ? null : (patch as ProfileItemContentPatch),
-        }),
-        selectedVariantId,
-        true,
+      setVariants(await window.aaaat.profileVariants.remove(editingVariantId));
+      setEditingVariantId(null);
+      setVariant(variantDraft());
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "AAAAT could not remove this variation. It may still be used by a template.",
       );
-    } catch {
-      setError("AAAAT could not apply that saved-variation difference.");
+    } finally {
+      setBusy(false);
     }
   };
 
-  const moveItem = async (itemId: string, offset: -1 | 1) => {
-    if (!selectedVariantId) return;
-    const ids = orderedItems.map((item) => item.id);
-    const index = ids.indexOf(itemId);
-    const target = index + offset;
-    if (index < 0 || target < 0 || target >= ids.length) return;
-    const moved = ids[index];
-    const displaced = ids[target];
-    if (!moved || !displaced) return;
-    ids[index] = displaced;
-    ids[target] = moved;
-    setError(null);
-    try {
-      await acceptSnapshot(
-        await window.aaaat.profile.reorderVariant({ variantId: selectedVariantId, itemIds: ids }),
-        selectedVariantId,
-        true,
-      );
-    } catch {
-      setError("AAAAT could not reorder that saved variation.");
-    }
-  };
-
-  if (!snapshot) {
-    return (
-      <section className="profile-workspace" aria-label="My information">
-        <p>{error ?? "Loading My information..."}</p>
-      </section>
-    );
-  }
+  const groups = [...new Set(snapshot.items.map((item) => item.kind))];
 
   return (
-    <section className="profile-workspace" aria-label="My information">
+    <section className="profile-workspace professional-information-area" aria-label="My information">
+      <header className="document-console-heading">
+        <div>
+          <p className="eyebrow">Reusable professional information</p>
+          <h1>My information</h1>
+        </div>
+        <button type="button" className="compact-primary" onClick={startNew}>
+          ＋ Add information
+        </button>
+      </header>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
-      {view === "overview" ? (
-        <div className="profile-column professional-information-overview">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Used in your documents</p>
-              <h2>My information</h2>
-              <p className="profile-intro">
-                Keep experience, skills, education and other career facts here once. CVs and letters can reuse them.
-              </p>
-            </div>
-            <button className="compact-primary" type="button" onClick={startNewItem}>
-              Add information
-            </button>
-          </div>
-
+      <div className="professional-information-layout">
+        <aside className="professional-information-index" aria-label="My information index">
           {snapshot.items.length === 0 ? (
-            <div className="professional-information-empty">
-              <h3>No information yet.</h3>
-              <p>Add one useful thing to start. There is no completeness requirement.</p>
-            </div>
+            <p className="compact-empty">No reusable information yet.</p>
           ) : (
-            <div className="item-list" aria-label="My information items">
-              {snapshot.items.map((item) => (
-                <article className="profile-item" key={item.id}>
-                  <div>
-                    <span className="item-kind">{item.kind}</span>
-                    <h3>{item.title}</h3>
-                    {item.subtitle ? <p>{item.subtitle}</p> : null}
-                    {item.description ? <p>{item.description}</p> : null}
-                  </div>
-                  <div className="row-actions">
-                    <button type="button" onClick={() => startItemEdit(item)}>Edit</button>
-                    <button type="button" onClick={() => void removeItem(item)}>Remove</button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-
-          <section className="professional-information-secondary" aria-label="Saved variations">
-            <div>
-              <strong>Saved variations</strong>
-              <p>
-                Optional differences for a recurring role, language or emphasis. My information already works without a variation.
-              </p>
-            </div>
-            <button className="compact-secondary" type="button" onClick={() => setView("variations")}>
-              {snapshot.variants.length === 0
-                ? "Create saved variation"
-                : `Saved variations (${String(snapshot.variants.length)})`}
-            </button>
-            {variantDirty ? <span>Unsaved variation changes</span> : null}
-          </section>
-        </div>
-      ) : null}
-
-      {view === "item" ? (
-        <div className="profile-column professional-information-editor">
-          <button className="compact-secondary professional-information-back" type="button" onClick={cancelItemEdit}>
-            {professionalInformationHandoff ? "Return to document" : "Back to My information"}
-          </button>
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">My information</p>
-              <h2>{editingItemId ? "Edit information" : "Add information"}</h2>
-            </div>
-            {itemEditorDirty ? <span>Unsaved changes</span> : null}
-          </div>
-          <form className="editor-card" onSubmit={(event) => void submitItem(event)}>
-            <label>
-              Type
-              <select
-                value={itemState.kind}
-                onChange={(event) => setItemState({ ...itemState, kind: event.target.value as ProfileItemKind })}
-              >
-                {itemKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
-              </select>
-            </label>
-            <label>
-              Title
-              <input required value={itemState.title} onChange={(event) => setItemState({ ...itemState, title: event.target.value })} />
-            </label>
-            <label>
-              Subtitle
-              <input value={itemState.subtitle} onChange={(event) => setItemState({ ...itemState, subtitle: event.target.value })} />
-            </label>
-            <label className="wide-field">
-              Description
-              <textarea value={itemState.description} onChange={(event) => setItemState({ ...itemState, description: event.target.value })} />
-            </label>
-            <label>
-              Start
-              <input value={itemState.startDate} onChange={(event) => setItemState({ ...itemState, startDate: event.target.value })} />
-            </label>
-            <label>
-              End
-              <input value={itemState.endDate} onChange={(event) => setItemState({ ...itemState, endDate: event.target.value })} />
-            </label>
-            <label className="wide-field">
-              URL
-              <input type="url" value={itemState.url} onChange={(event) => setItemState({ ...itemState, url: event.target.value })} />
-            </label>
-            <div className="form-actions wide-field">
-              <button className="compact-primary" type="submit">
-                {editingItemId ? "Save information" : "Add information"}
-              </button>
-              <button className="compact-secondary" type="button" onClick={cancelItemEdit}>Cancel</button>
-            </div>
-          </form>
-          {editingItemId ? (
-            <ProfileItemAiDisclosureControl
-              key={editingItemId}
-              itemId={editingItemId}
-              onDirtyChange={setAiDisclosureDirty}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      {view === "variations" ? (
-        <div className="profile-column saved-variations-workspace">
-          <button
-            className="compact-secondary professional-information-back"
-            type="button"
-            onClick={() => setView("overview")}
-          >
-            Back to My information
-          </button>
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Optional reuse</p>
-              <h2>Saved variations</h2>
-              <p className="profile-intro">
-                Keep only what differs from My information. Everything else continues to use the default facts above.
-              </p>
-            </div>
-            <span>{snapshot.variants.length}</span>
-          </div>
-
-          {selectedVariant ? (
-            <>
-              <div className="variant-tabs" aria-label="Saved variations">
-                {snapshot.variants.map((variant) => (
-                  <button
-                    className={variant.id === selectedVariantId ? "active-variant" : ""}
-                    type="button"
-                    key={variant.id}
-                    onClick={() => void selectVariant(variant)}
-                  >
-                    {variant.name}
-                  </button>
-                ))}
-                <button type="button" onClick={startNewVariant}>New saved variation</button>
-              </div>
-
-              <form className="editor-card" onSubmit={(event) => void saveVariant(event)}>
-                <label>
-                  Name
-                  <input required value={variantState.name} onChange={(event) => setVariantState({ ...variantState, name: event.target.value })} />
-                </label>
-                <label>
-                  Preferred language
-                  <input value={variantState.preferredLanguage} onChange={(event) => setVariantState({ ...variantState, preferredLanguage: event.target.value })} />
-                </label>
-                <label className="wide-field">
-                  Intended focus
-                  <textarea value={variantState.focus} onChange={(event) => setVariantState({ ...variantState, focus: event.target.value })} />
-                </label>
-                <label className="wide-field">
-                  Context tags
-                  <input placeholder="backend, platform, typescript" value={variantState.targetTags} onChange={(event) => setVariantState({ ...variantState, targetTags: event.target.value })} />
-                </label>
-                <div className="form-actions wide-field">
-                  <button className="compact-primary" type="submit">Save variation</button>
-                  <button className="compact-secondary" type="button" onClick={() => void removeVariant()}>Remove variation</button>
-                </div>
-              </form>
-
-              <div className="variant-rule-list">
-                {orderedItems.map((item, index) => {
-                  const rule = selectedVariant.rules.find((candidate) => candidate.itemId === item.id);
-                  const effective = resolved?.items.find((candidate) => candidate.id === item.id);
-                  return (
-                    <form
-                      className="variant-rule"
-                      key={`${selectedVariant.id}:${item.id}:${JSON.stringify(rule)}`}
-                      onSubmit={(event) => void applyVariantItem(event, item)}
+            groups.map((kind) => (
+              <section key={kind}>
+                <h2>{kind}</h2>
+                {snapshot.items
+                  .filter((item) => item.kind === kind)
+                  .map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      className={item.id === selectedId ? "active" : ""}
+                      onClick={() => selectItem(item)}
                     >
-                      <div className="variant-rule-title">
-                        <label className="check-field">
-                          <input name="included" type="checkbox" defaultChecked={!rule?.excluded} />
-                          Include in this variation
-                        </label>
-                        <strong>{effective?.title ?? item.title}</strong>
-                        <div className="order-actions">
-                          <button type="button" disabled={index === 0} onClick={() => void moveItem(item.id, -1)}>Move earlier</button>
-                          <button type="button" disabled={index === orderedItems.length - 1} onClick={() => void moveItem(item.id, 1)}>Move later</button>
-                        </div>
-                      </div>
+                      <strong>{item.title}</strong>
+                      {item.subtitle ? <small>{item.subtitle}</small> : null}
+                    </button>
+                  ))}
+              </section>
+            ))
+          )}
+        </aside>
+
+        <div className="professional-information-editor">
+          {creating || selected ? (
+            <>
+              <section className="section-surface professional-information-item">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">{creating ? "New information" : selected?.kind}</p>
+                    <h2>{creating ? "Add information" : selected?.title}</h2>
+                  </div>
+                  {selected ? <ProfileItemAiDisclosureControl itemId={selected.id} /> : null}
+                </div>
+
+                {creating || editingItem ? (
+                  <>
+                    <div className="profile-item-form">
                       <label>
-                        Alternate title
-                        <input name="overrideTitle" defaultValue={rule?.contentPatch?.title ?? ""} />
+                        Kind
+                        <input
+                          value={draft.kind}
+                          maxLength={80}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, kind: event.target.value }))
+                          }
+                          placeholder="experience, project, skill…"
+                        />
                       </label>
-                      <label className="wide-field">
-                        Alternate description
-                        <textarea name="overrideDescription" defaultValue={rule?.contentPatch?.description ?? ""} />
+                      <label>
+                        Title
+                        <input
+                          value={draft.title}
+                          maxLength={200}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, title: event.target.value }))
+                          }
+                        />
                       </label>
-                      <button className="compact-secondary" type="submit">Apply difference</button>
-                    </form>
-                  );
-                })}
-              </div>
+                      <label className="profile-wide-field">
+                        Subtitle
+                        <input
+                          value={draft.subtitle}
+                          maxLength={300}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, subtitle: event.target.value }))
+                          }
+                        />
+                      </label>
+                      <label className="profile-wide-field">
+                        Description
+                        <textarea
+                          rows={6}
+                          value={draft.description}
+                          maxLength={5000}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              description: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <div className="profile-date-row profile-wide-field">
+                        <label>
+                          Start
+                          <input
+                            value={draft.startDate}
+                            maxLength={40}
+                            onChange={(event) =>
+                              setDraft((current) => ({
+                                ...current,
+                                startDate: event.target.value,
+                              }))
+                            }
+                          />
+                        </label>
+                        <label>
+                          End
+                          <input
+                            value={draft.endDate}
+                            maxLength={40}
+                            onChange={(event) =>
+                              setDraft((current) => ({ ...current, endDate: event.target.value }))
+                            }
+                          />
+                        </label>
+                      </div>
+                      <label className="profile-wide-field">
+                        URL
+                        <input
+                          type="url"
+                          value={draft.url}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, url: event.target.value }))
+                          }
+                        />
+                      </label>
+                    </div>
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        disabled={!draft.title.trim() || busy}
+                        onClick={() => void saveItem()}
+                      >
+                        {busy ? "Saving…" : "Save"}
+                      </button>
+                      <button type="button" className="compact-secondary" onClick={cancelItemEdit}>
+                        Cancel
+                      </button>
+                      {selected ? (
+                        <button
+                          type="button"
+                          className="compact-secondary"
+                          disabled={busy}
+                          onClick={() => void removeItem()}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                  </>
+                ) : selected ? (
+                  <>
+                    <div className="profile-item-readout">
+                      {selected.subtitle ? <p className="profile-item-subtitle">{selected.subtitle}</p> : null}
+                      {selected.description ? (
+                        <p className="profile-item-description">{selected.description}</p>
+                      ) : (
+                        <p className="compact-help">No description saved.</p>
+                      )}
+                      {dateRange(selected) ? (
+                        <p className="profile-item-meta">
+                          <span>Dates</span>
+                          <strong>{dateRange(selected)}</strong>
+                        </p>
+                      ) : null}
+                      {selected.url ? (
+                        <p className="profile-item-meta">
+                          <span>Link</span>
+                          <span>{selected.url}</span>
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="button-row">
+                      <button type="button" onClick={() => setEditingItem(true)}>Edit</button>
+                      <button
+                        type="button"
+                        className="compact-secondary"
+                        disabled={busy}
+                        onClick={() => void removeItem()}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </section>
+
+              {selected ? (
+                <section className="section-surface" aria-label="Saved variations">
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">Optional reuse</p>
+                      <h2>Saved variations</h2>
+                    </div>
+                    <button
+                      type="button"
+                      className="compact-secondary"
+                      onClick={() => editVariant()}
+                    >
+                      New variation
+                    </button>
+                  </div>
+                  {selectedVariants.length === 0 ? (
+                    <p className="compact-empty">No alternate wording saved for this item.</p>
+                  ) : (
+                    <div className="profile-variant-list">
+                      {selectedVariants.map((candidate) => (
+                        <button
+                          type="button"
+                          key={candidate.id}
+                          className={candidate.id === editingVariantId ? "active" : ""}
+                          onClick={() => editVariant(candidate)}
+                        >
+                          <strong>{candidate.name}</strong>
+                          <small>{candidate.content.title}</small>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {variantEditorOpen ? (
+                    <div className="profile-variant-editor">
+                      <label>
+                        Name
+                        <input
+                          value={variant.name}
+                          onChange={(event) =>
+                            setVariant((current) => ({ ...current, name: event.target.value }))
+                          }
+                          placeholder="Leadership emphasis"
+                        />
+                      </label>
+                      <label>
+                        Title
+                        <input
+                          value={variant.title}
+                          onChange={(event) =>
+                            setVariant((current) => ({ ...current, title: event.target.value }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Subtitle
+                        <input
+                          value={variant.subtitle}
+                          onChange={(event) =>
+                            setVariant((current) => ({
+                              ...current,
+                              subtitle: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="profile-variant-description">
+                        Description
+                        <textarea
+                          rows={5}
+                          value={variant.description}
+                          onChange={(event) =>
+                            setVariant((current) => ({
+                              ...current,
+                              description: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <div className="button-row profile-variant-actions">
+                        <button
+                          type="button"
+                          disabled={!variant.name.trim() || !variant.title.trim() || busy}
+                          onClick={() => void saveVariant()}
+                        >
+                          Save variation
+                        </button>
+                        {editingVariantId ? (
+                          <button
+                            type="button"
+                            className="compact-secondary"
+                            onClick={() => void removeVariant()}
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="compact-secondary"
+                          onClick={closeVariant}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
             </>
           ) : (
-            <form className="editor-card" onSubmit={(event) => void createVariant(event)}>
-              <p className="wide-field profile-intro">
-                A saved variation is optional. With no differences, it simply uses My information.
+            <section className="section-surface">
+              <p className="compact-empty">
+                Select an item or add reusable professional information.
               </p>
-              <label>
-                Name
-                <input required value={variantState.name} onChange={(event) => setVariantState({ ...variantState, name: event.target.value })} />
-              </label>
-              <label>
-                Preferred language
-                <input value={variantState.preferredLanguage} onChange={(event) => setVariantState({ ...variantState, preferredLanguage: event.target.value })} />
-              </label>
-              <label className="wide-field">
-                Intended focus
-                <textarea value={variantState.focus} onChange={(event) => setVariantState({ ...variantState, focus: event.target.value })} />
-              </label>
-              <label className="wide-field">
-                Context tags
-                <input value={variantState.targetTags} onChange={(event) => setVariantState({ ...variantState, targetTags: event.target.value })} />
-              </label>
-              <button className="compact-primary wide-field" type="submit">Create saved variation</button>
-            </form>
+            </section>
           )}
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }

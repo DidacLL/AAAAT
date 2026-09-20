@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { NamedAiConnection } from "../shared/ai-connection-contracts";
 import { AiConnectionValidationPanel } from "./AiConnectionValidationPanel";
+import { AiPromptTransparencyPanel } from "./AiPromptTransparencyPanel";
+import { clearAiReachabilityEvidence, recordAiReachabilityEvidence } from "./ai-reachability-store";
 import { clearAiTask } from "./ai-task-store";
 
 interface Draft {
@@ -14,9 +16,23 @@ type AiSettingsView = "all" | "connections" | "portability";
 
 const emptyDraft: Draft = {
   name: "",
-  endpoint: "http://localhost:11434/v1",
+  endpoint: "",
   model: "",
 };
+
+function addressIssue(value: string): string | null {
+  if (!value.trim()) return "Enter the model server address.";
+  if (!/^https?:\/\//i.test(value.trim())) return "Start the address with http:// or https://.";
+  try {
+    const address = new URL(value.trim());
+    if (!address.hostname) return "Enter a complete server address.";
+    if (address.username || address.password || address.search || address.hash) return "Use a plain server address without a password, query or fragment.";
+    if (address.protocol === "http:" && !["localhost", "127.0.0.1", "[::1]"].includes(address.hostname)) return "Remote model servers need an https:// address.";
+  } catch {
+    return "This is not a valid server address. Check spelling and punctuation.";
+  }
+  return null;
+}
 
 function editable(connection: NamedAiConnection): Draft {
   return {
@@ -28,29 +44,44 @@ function editable(connection: NamedAiConnection): Draft {
 
 export function AiSettingsWorkspace({
   onDirtyChange,
+  onEnvironmentChange,
+  onValidationState,
   view = "all",
+  initialFormOpen,
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
+  readonly onEnvironmentChange?: () => void;
+  readonly onValidationState?: (connectionName: string, needsAttention: boolean) => void;
   readonly view?: AiSettingsView;
+  readonly initialFormOpen?: boolean;
 }) {
   const [connections, setConnections] = useState<NamedAiConnection[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [formOpen, setFormOpen] = useState(view === "all");
+  const [formOpen, setFormOpen] = useState(initialFormOpen ?? view === "all");
   const [error, setError] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [portabilityBusy, setPortabilityBusy] = useState<"export" | "import" | null>(null);
   const [portabilityStatus, setPortabilityStatus] = useState<string | null>(null);
+  const [promptDirty, setPromptDirty] = useState(false);
 
   const editing = useMemo(
     () => connections.find((connection) => connection.id === editingId) ?? null,
     [connections, editingId],
   );
   const baseline = editing ? editable(editing) : emptyDraft;
-  const dirty = formOpen && JSON.stringify(draft) !== JSON.stringify(baseline);
+  const connectionDirty = formOpen && JSON.stringify(draft) !== JSON.stringify(baseline);
+  const dirty = connectionDirty || promptDirty;
   const defaultConnection = connections.find((connection) => connection.isDefault) ?? null;
   const showConnections = view !== "portability";
   const showPortability = view !== "connections";
+
+  const acceptConnections = useCallback((next: NamedAiConnection[]) => {
+    setConnections(next);
+    onEnvironmentChange?.();
+  }, [onEnvironmentChange]);
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -73,7 +104,7 @@ export function AiSettingsWorkspace({
   }, []);
 
   const confirmDiscard = () =>
-    !dirty || window.confirm("Discard unsaved AI connection edits?");
+    !connectionDirty || window.confirm("Discard unsaved AI connection edits?");
 
   const beginNew = () => {
     if (!confirmDiscard()) return;
@@ -98,9 +129,14 @@ export function AiSettingsWorkspace({
   };
 
   const save = async () => {
+    const issue = addressIssue(draft.endpoint);
+    if (issue) { setAddressError(issue); return; }
     setSaving(true);
     setError(null);
+    setAddressError(null);
+    setSaveNotice(null);
     setPortabilityStatus(null);
+    clearAiReachabilityEvidence();
     try {
       const previous = editingId
         ? connections.find((connection) => connection.id === editingId) ?? null
@@ -109,7 +145,7 @@ export function AiSettingsWorkspace({
         ...(editingId ? { id: editingId } : {}),
         ...draft,
       });
-      setConnections(saved);
+      acceptConnections(saved);
       const savedConnection = editingId
         ? saved.find((connection) => connection.id === editingId)
         : saved.find(
@@ -120,16 +156,35 @@ export function AiSettingsWorkspace({
           previous !== null &&
           (previous.endpoint !== savedConnection.endpoint || previous.model !== savedConnection.model);
         if (capabilityBoundaryChanged) clearAiTask(`ai-validation:${savedConnection.id}`);
-        setEditingId(savedConnection.id);
-        setDraft(editable(savedConnection));
+        const probe = window.aaaat.aiConnections?.probe;
+        if (probe && (!previous || capabilityBoundaryChanged)) {
+          void probe(savedConnection.id)
+            .then((reachable) => {
+              recordAiReachabilityEvidence(savedConnection.name, reachable);
+              onValidationState?.(savedConnection.name, !reachable);
+              if (!reachable) {
+                setError("Connection saved, but AAAAT could not reach this AI service.");
+              }
+            })
+            .catch((reason: unknown) => {
+              recordAiReachabilityEvidence(savedConnection.name, false);
+              onValidationState?.(savedConnection.name, true);
+              setError(
+                reason instanceof Error
+                  ? `Connection saved, but the reachability check failed: ${reason.message}`
+                  : "Connection saved, but AAAAT could not reach this AI service.",
+              );
+            });
+        }
       }
-      if (view === "connections") setFormOpen(false);
+      setEditingId(null);
+      setDraft(emptyDraft);
+      setFormOpen(false);
+      setSaveNotice("Connection saved. AAAAT is checking reachability in the background. Capability checks remain explicit below.");
     } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "AAAAT could not save this AI connection.",
-      );
+      const message = reason instanceof Error ? reason.message : "AAAAT could not save this AI connection.";
+      if (/endpoint|address|url|https?|loopback/i.test(message)) setAddressError(message);
+      else setError(message);
     } finally {
       setSaving(false);
     }
@@ -139,7 +194,7 @@ export function AiSettingsWorkspace({
     setError(null);
     setPortabilityStatus(null);
     try {
-      setConnections(await window.aaaat.aiConnections.setDefault(connection.id));
+      acceptConnections(await window.aaaat.aiConnections.setDefault(connection.id));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not change the default AI connection.");
     }
@@ -149,10 +204,11 @@ export function AiSettingsWorkspace({
     if (!window.confirm(`Remove AI connection “${connection.name}”?`)) return;
     setError(null);
     setPortabilityStatus(null);
+    clearAiReachabilityEvidence();
     try {
       const next = await window.aaaat.aiConnections.remove(connection.id);
       clearAiTask(`ai-validation:${connection.id}`);
-      setConnections(next);
+      acceptConnections(next);
       if (connection.id === editingId) {
         setEditingId(null);
         setDraft(emptyDraft);
@@ -191,14 +247,15 @@ export function AiSettingsWorkspace({
     setPortabilityBusy("import");
     setError(null);
     setPortabilityStatus(null);
+    clearAiReachabilityEvidence();
     try {
       const result = await window.aaaat.aiConnections.importPortable();
       if (result.status === "imported") {
         for (const connection of connections) clearAiTask(`ai-validation:${connection.id}`);
-        setConnections(result.connections);
+        acceptConnections(result.connections);
         setEditingId(null);
         setDraft(emptyDraft);
-        setFormOpen(view === "all");
+        setFormOpen(initialFormOpen ?? view === "all");
         setPortabilityStatus(
           "Portable AI setup imported. Validate AI capabilities on this computer before using AI assistance.",
         );
@@ -211,24 +268,13 @@ export function AiSettingsWorkspace({
   };
 
   return (
-    <section className="profile-workspace" aria-label="AI settings">
+    <div className="profile-workspace">
       {showConnections ? (
         <div className="profile-column">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Optional assistance</p>
-              <h2>AI connections</h2>
-            </div>
-            <span>Optional</span>
-          </div>
-          <p>
-            Connect a local or remote OpenAI-compatible model when you want AI assistance. AAAAT works
-            fully without AI. Connection checks use synthetic test data, not your candidature or
-            professional information. Slow local models may take minutes; the check stays visible while
-            you continue working. HTTP is accepted only for a loopback endpoint. Remote endpoints must
-            use HTTPS and handle authentication outside AAAAT.
-          </p>
+          {view === "all" ? <div className="section-heading"><div><h2>AI connections</h2></div></div> : null}
+          <p>Connect a model server for help with offers, CVs and letters. AI is optional.</p>
           {error ? <p className="error-message" role="alert">{error}</p> : null}
+          {saveNotice ? <p className="document-notice" role="status">{saveNotice}</p> : null}
 
           {formOpen ? (
             <form
@@ -240,7 +286,7 @@ export function AiSettingsWorkspace({
             >
               <div className="section-heading wide-field">
                 <div><h3>{editing ? "Edit connection" : "Add connection"}</h3></div>
-                {view === "connections" ? (
+                {(view === "connections" || initialFormOpen === false) ? (
                   <button type="button" className="compact-secondary" onClick={closeForm}>Cancel</button>
                 ) : null}
               </div>
@@ -253,13 +299,17 @@ export function AiSettingsWorkspace({
                 <input value={draft.model} onChange={(event) => setDraft({ ...draft, model: event.target.value })} placeholder="model-name" />
               </label>
               <label className="wide-field">
-                Connection address
+                Model server address
                 <input
                   value={draft.endpoint}
-                  onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })}
+                  aria-invalid={Boolean(addressError)}
+                  aria-describedby={addressError ? "ai-address-error" : undefined}
+                  onChange={(event) => { setDraft({ ...draft, endpoint: event.target.value }); setAddressError(null); setSaveNotice(null); }}
+                  onBlur={() => { if (draft.endpoint.trim()) setAddressError(addressIssue(draft.endpoint)); }}
                   placeholder="http://localhost:11434/v1 or https://provider.example/v1"
                 />
               </label>
+              {addressError ? <small id="ai-address-error" className="error-message wide-field" role="alert">{addressError}</small> : null}
               <div className="form-actions wide-field">
                 <button className="compact-primary" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save connection" : "Add connection"}</button>
                 {editing && view === "all" ? <button type="button" className="compact-secondary" onClick={beginNew}>Add another</button> : null}
@@ -274,19 +324,19 @@ export function AiSettingsWorkspace({
       {showConnections ? (
         <div className="profile-column">
           <div className="section-heading">
-            <div><p className="eyebrow">Connections</p><h2>Configured connections</h2></div>
+            <div><h2>Saved connections</h2></div>
             <span>{connections.length}/16</span>
           </div>
 
           {connections.length === 0 ? (
-            <p>No AI connections are configured yet. Manual product operation is complete without one.</p>
+            <p>No saved connections.</p>
           ) : (
             <div className="document-list">
               {connections.map((connection) => (
                 <article key={connection.id} className="document-card">
                   <div>
                     <h3>{connection.name}</h3>
-                    <p><code>{connection.model}</code> · <code>{connection.endpoint}</code></p>
+                    <p>Model: {connection.model} · Address: <code>{connection.endpoint}</code></p>
                     {connection.isDefault ? <p><strong>General default connection</strong></p> : null}
                   </div>
                   <div className="button-row">
@@ -294,7 +344,11 @@ export function AiSettingsWorkspace({
                     <button type="button" className="compact-secondary" onClick={() => beginEdit(connection)} aria-label={`Edit ${connection.name}`}>Edit</button>
                     <button type="button" className="compact-secondary" onClick={() => void remove(connection)} aria-label={`Remove ${connection.name}`}>Remove</button>
                   </div>
-                  <AiConnectionValidationPanel connection={connection} onConnections={setConnections} />
+                  <AiConnectionValidationPanel
+                    connection={connection}
+                    onConnections={acceptConnections}
+                    onValidationState={onValidationState}
+                  />
                 </article>
               ))}
             </div>
@@ -304,6 +358,8 @@ export function AiSettingsWorkspace({
           <p className="compact-help">One visible check runs the remaining supported AI actions in sequence. Each action is still checked separately, and you can keep using AAAAT while it runs.</p>
         </div>
       ) : null}
+
+      {showConnections ? <AiPromptTransparencyPanel onDirtyChange={setPromptDirty} /> : null}
 
       {showPortability ? (
         <div className="profile-column">
@@ -317,6 +373,6 @@ export function AiSettingsWorkspace({
           {portabilityStatus ? <p role="status">{portabilityStatus}</p> : null}
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

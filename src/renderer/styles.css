@@ -1,27 +1,27 @@
 :root {
   color: #243038;
-  background: #eee6d7;
+  background: #8f9181;
   color-scheme: light;
   font-family: "Segoe UI", Inter, Arial, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --canvas: #eee6d7;
-  --paper: #fff8eb;
-  --paper-strong: #fffdf7;
-  --panel: #d8cbb6;
-  --panel-deep: #bda98d;
-  --machine: #ddd1bd;
-  --machine-edge: #a99579;
-  --ink: #243038;
-  --muted-ink: #5d625d;
-  --line: #b9aa95;
-  --line-soft: #d7c9b7;
+  --canvas: #8f9181;
+  --paper: #e9dfc8;
+  --paper-strong: #f3ead8;
+  --panel: #777d6e;
+  --panel-deep: #596157;
+  --machine: #343b36;
+  --machine-edge: #5e665d;
+  --ink: #1d2827;
+  --muted-ink: #58625d;
+  --line: #7c806f;
+  --line-soft: #b9b59f;
   --accent: #b6542b;
   --accent-dark: #803b23;
   --rust: #a65330;
   --focus: #397c7a;
   --olive: #6d7450;
-  --paper-shadow: 0 2px 0 rgb(84 63 41 / 10%), 0 8px 18px rgb(84 63 41 / 5%);
+  --paper-shadow: 0 2px 0 rgb(25 31 27 / 18%);
 }
 
 * {
@@ -41,8 +41,8 @@ body {
   overflow: hidden;
   color: var(--ink);
   background:
-    radial-gradient(circle at 12% 0%, rgb(255 250 235 / 72%), transparent 34rem),
-    linear-gradient(135deg, rgb(130 103 72 / 4%) 0 1px, transparent 1px 14px),
+    linear-gradient(90deg, rgb(18 24 21 / 7%) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(rgb(18 24 21 / 7%) 1px, transparent 1px) 0 0 / 24px 24px,
     var(--canvas);
 }
 
@@ -87,7 +87,7 @@ summary:focus-visible {
   color: var(--ink);
   background:
     linear-gradient(180deg, rgb(255 255 255 / 18%), transparent 44%),
-    #d6c8b3;
+    #3b433d;
   box-shadow: inset 0 -2px 0 rgb(92 70 45 / 8%);
 }
 
@@ -101,6 +101,7 @@ summary:focus-visible {
 }
 
 .brand-name {
+  color: #efe5cc;
   font-size: 18px;
   font-weight: 750;
   letter-spacing: 0.035em;

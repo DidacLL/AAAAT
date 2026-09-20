@@ -81,12 +81,12 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
   mkdirSync(backup);
   mkdirSync(restored);
   const candidatureId = initializeCurrentWorkspace(workspace);
-  mkdirSync(path.join(workspace, "documents"));
-  mkdirSync(path.join(workspace, "integrations"));
-  writeFileSync(path.join(workspace, "documents", "cv.tex"), "portable cv", "utf8");
+  mkdirSync(path.join(workspace, "rendered-cvs"));
+  mkdirSync(path.join(workspace, "application-packets"));
+  writeFileSync(path.join(workspace, "rendered-cvs", "cv.tex"), "portable cv", "utf8");
   writeFileSync(
-    path.join(workspace, "integrations", "vscode-mcp.json"),
-    '{"state":"proposed"}\n',
+    path.join(workspace, "application-packets", "packet.txt"),
+    "portable packet\n",
     "utf8",
   );
   writeFileSync(path.join(workspace, "ai-connection.json"), '{"endpoint":"local"}\n', "utf8");
@@ -113,12 +113,12 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
     expect(manifestText).not.toContain(root);
     expect(manifestText).not.toContain("schema_migrations");
     expect(manifestText).toContain("ai-connection.json");
-    expect(readFileSync(path.join(backup, "files", "documents", "cv.tex"), "utf8")).toBe(
-      "portable cv",
-    );
     expect(
-      readFileSync(path.join(backup, "files", "integrations", "vscode-mcp.json"), "utf8"),
-    ).toBe('{"state":"proposed"}\n');
+      readFileSync(path.join(backup, "files", "rendered-cvs", "cv.tex"), "utf8"),
+    ).toBe("portable cv");
+    expect(
+      readFileSync(path.join(backup, "files", "application-packets", "packet.txt"), "utf8"),
+    ).toBe("portable packet\n");
     expect(existsSync(path.join(backup, "files", "ai-connection.json"))).toBe(false);
     expect(existsSync(path.join(backup, "files", ".env"))).toBe(false);
     expect(existsSync(path.join(backup, "workspace.sqlite-wal"))).toBe(false);
@@ -138,10 +138,12 @@ test("packaged recovery preserves a sparse workspace and user-owned data without
       operation: "workspace.restore",
       restored: true,
     });
-    expect(readFileSync(path.join(restored, "documents", "cv.tex"), "utf8")).toBe("portable cv");
+    expect(readFileSync(path.join(restored, "rendered-cvs", "cv.tex"), "utf8")).toBe(
+      "portable cv",
+    );
     expect(
-      readFileSync(path.join(restored, "integrations", "vscode-mcp.json"), "utf8"),
-    ).toBe('{"state":"proposed"}\n');
+      readFileSync(path.join(restored, "application-packets", "packet.txt"), "utf8"),
+    ).toBe("portable packet\n");
     expect(existsSync(path.join(restored, "ai-connection.json"))).toBe(false);
 
     const database = new DatabaseSync(path.join(restored, "workspace.sqlite"), { readOnly: true });

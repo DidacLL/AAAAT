@@ -6,10 +6,6 @@ import {
 } from "./external-command";
 import { isMcpInvocation, runMcpProcess } from "./mcp-server";
 import {
-  isVscodeMcpSetupInvocation,
-  runVscodeMcpSetupProcess,
-} from "./vscode-mcp-setup";
-import {
   isWorkspaceBackupInvocation,
   isWorkspaceRestoreInvocation,
   runWorkspaceRecoveryProcess,
@@ -17,11 +13,6 @@ import {
 
 if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(process.argv)) {
   void runWorkspaceRecoveryProcess(process.argv, process.stdout).then(
-    (exitCode) => app.exit(exitCode),
-    () => app.exit(2),
-  );
-} else if (isVscodeMcpSetupInvocation(process.argv)) {
-  void runVscodeMcpSetupProcess(process.argv, process.execPath, process.stdout).then(
     (exitCode) => app.exit(exitCode),
     () => app.exit(2),
   );
@@ -39,16 +30,15 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
 } else {
   void Promise.all([
     import("./ai-connection-ipc"),
-    import("./artifact-ipc"),
+    import("./ai-prompt-ipc"),
     import("./candidature-activity-ipc"),
     import("./candidature-opportunity-research-access-ipc"),
     import("./candidature-search-ipc"),
     import("./career-context-ai-disclosure-ipc"),
-    import("./combined-document-ipc"),
-    import("./cv-content-access-ipc"),
-    import("./cv-descriptor-ipc"),
-    import("./document-output-ipc"),
+    import("./document-domain-ipc"),
     import("./profile-ai-context-ipc"),
+    import("./profile-variant-ipc"),
     import("./setup-environment-ipc"),
+    import("./setup-assistant-ipc"),
   ]).then(() => import("./main"));
 }

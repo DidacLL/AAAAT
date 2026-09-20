@@ -1,72 +1,87 @@
 import { aiOperationLabels } from "../shared/ai-connection-contracts";
 import type { SetupEnvironmentSnapshot } from "../shared/setup-environment-contracts";
 
-export type SetupGuidanceArtifactName = "installer.ai" | "configurator.ai";
+export type SetupHarnessName = "installer.ai" | "configurator.ai";
+export type SetupHarnessState = "ready" | "attention" | "optional";
 
-export interface SetupGuidanceArtifact {
-  readonly name: SetupGuidanceArtifactName;
-  readonly text: string;
+export interface SetupHarnessCheck {
+  readonly label: string;
+  readonly ready: boolean;
+  readonly detail: string;
 }
 
-function connectionCountLabel(count: number): string {
-  return `${count} configured AI connection${count === 1 ? "" : "s"}`;
+export interface SetupHarnessView {
+  readonly name: SetupHarnessName;
+  readonly title: string;
+  readonly state: SetupHarnessState;
+  readonly summary: string;
+  readonly checks: readonly SetupHarnessCheck[];
+  readonly externalCapability: string;
 }
 
 export function buildSetupGuidance(
   snapshot: SetupEnvironmentSnapshot,
-): readonly [SetupGuidanceArtifact, SetupGuidanceArtifact] {
-  const texLines = snapshot.tex.commands
-    .map((command) => `- ${command.command}: ${command.available ? "available" : "missing"}.`)
-    .join("\n");
-  const operationLines = snapshot.ai.operations
-    .map(
-      (status) =>
-        `- ${aiOperationLabels[status.operation]}: ${status.available ? "validated route available" : "no validated route"}.`,
-    )
-    .join("\n");
+): readonly [SetupHarnessView, SetupHarnessView] {
+  const installerChecks: SetupHarnessCheck[] = [
+    {
+      label: "Workspace",
+      ready: snapshot.workspaceReady,
+      detail: snapshot.workspaceReady
+        ? "The current local workspace is available."
+        : "Choose or create a usable local workspace.",
+    },
+    ...snapshot.tex.commands.map((command) => ({
+      label: command.command,
+      ready: command.available,
+      detail: command.available
+        ? "Available on this computer."
+        : "Required for local PDF rendering and not currently available.",
+    })),
+  ];
+  const installerReady = snapshot.workspaceReady && snapshot.tex.documentRenderingReady;
 
-  const installer = `AAAAT free-chat setup guidance — installer.ai
-
-Purpose: Help a non-developer prepare only the missing local software AAAAT already knows it needs.
-
-Current AAAAT status:
-- Configured workspace: ${snapshot.workspaceReady ? "available" : "unavailable"}.
-${texLines}
-- Document rendering: ${snapshot.tex.documentRenderingReady ? "ready" : "not ready"}.
-
-Rules for this setup conversation:
-- Reuse every working tool marked available. Do not replace or reinstall it merely for consistency.
-- If a required TeX tool is missing, explain the normal official or graphical installation route for the user's actual operating system or TeX distribution. Ask which operating system/distribution they use before giving platform-specific steps.
-- Do not assume shell commands, a package manager, administrator access, developer expertise, paid services, or hidden automation. Prefer ordinary installer/UI steps. If a command-line verification would help, make it optional and explain it.
-- Do not modify AAAAT workspace files or any career/application data.
-- Ask before any system-level change.
-- After changes, tell the user to return to AAAAT Settings > Local setup status and choose Refresh environment.
-${snapshot.tex.documentRenderingReady ? "- Document rendering is already ready. Say that no TeX installation is needed unless the user explicitly wants to change their setup." : "- Document rendering is not ready. Guide only the missing prerequisite(s) above."}`;
-
-  const aiStatus = snapshot.ai.configurationReadable
-    ? `${connectionCountLabel(snapshot.ai.connectionCount)}.`
-    : "AAAAT cannot currently read the optional AI connection configuration. Do not infer connection state.";
-
-  const configurator = `AAAAT free-chat setup guidance — configurator.ai
-
-Purpose: Help a non-developer configure optional AI assistance through AAAAT's normal Settings UI.
-
-Current AAAAT status:
-- AI configuration: ${aiStatus}
-${operationLines}
-
-Rules for this setup conversation:
-- AI is optional. Preserve complete manual use and do not pressure the user to configure a model or paid service.
-- The current user-facing connection path supports loopback HTTP endpoints and remote HTTPS endpoints whose authentication is already handled outside AAAAT. Do not invent API keys, OAuth, provider accounts, or authentication capabilities that AAAAT has not reported.
-- Guide changes only through AAAAT Settings. Do not ask the user to edit JSON, SQLite, workspace files, or hidden scripts.
-- An operation may use only a connection validated for that operation. Do not recommend connection scanning, automatic alternate fallback, or an unvalidated operation default.
-- If a desired operation has no validated route, explain how to add or select a connection in Settings, validate that specific operation, and then set an explicit operation default if useful.
-- Do not request candidature, profile, Source, document, or other career/application content; this setup conversation does not need it.
-- Treat suggestions as proposals. The user makes every configuration choice explicitly in AAAAT.
-- If AAAAT reports that AI configuration is unreadable, do not guess. Tell the user to return to Settings, refresh the environment status, and resolve that setup problem first.`;
+  const configuratorChecks: SetupHarnessCheck[] = [
+    {
+      label: "AI configuration",
+      ready: snapshot.ai.configurationReadable,
+      detail: snapshot.ai.configurationReadable
+        ? `${String(snapshot.ai.connectionCount)} configured AI connection${snapshot.ai.connectionCount === 1 ? "" : "s"}.`
+        : "AAAAT cannot currently read the optional AI configuration.",
+    },
+    ...snapshot.ai.operations.map((status) => ({
+      label: aiOperationLabels[status.operation],
+      ready: status.available,
+      detail: status.available
+        ? "A validated route is available."
+        : "No validated route is configured. Manual use remains available.",
+    })),
+  ];
+  const anyAiRoute = snapshot.ai.operations.some((status) => status.available);
 
   return [
-    { name: "installer.ai", text: installer },
-    { name: "configurator.ai", text: configurator },
+    {
+      name: "installer.ai",
+      title: "Installation & local prerequisites",
+      state: installerReady ? "ready" : "attention",
+      summary: installerReady
+        ? "AAAAT and local document rendering are ready for ordinary use."
+        : "AAAAT can keep working while the missing local prerequisite is resolved.",
+      checks: installerChecks,
+      externalCapability:
+        "A connected assistant may always inspect this bounded prerequisite status. If the user explicitly enables installer.ai actions in Settings, it may also request AAAAT's fixed rendering self-test. It receives no shell, package-manager, arbitrary command, path selector or general filesystem authority.",
+    },
+    {
+      name: "configurator.ai",
+      title: "Optional AI configuration",
+      state: !snapshot.ai.configurationReadable ? "attention" : anyAiRoute ? "ready" : "optional",
+      summary: !snapshot.ai.configurationReadable
+        ? "Optional AI configuration needs attention."
+        : anyAiRoute
+          ? "One or more bounded AI operations have a validated route."
+          : "AI is optional; AAAAT remains fully usable without a configured route.",
+      checks: configuratorChecks,
+      externalCapability:
+        "A connected assistant may always inspect this privacy-minimal configuration coverage. If the user explicitly enables configurator.ai actions in Settings, it may save a typed name/endpoint/model connection, ask AAAAT to validate one known operation, and select an already validated per-operation default. It cannot bypass validation, add credentials or arbitrary provider options, or gain generic machine authority.",
+    },
   ] as const;
 }

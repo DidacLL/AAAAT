@@ -1,29 +1,41 @@
-# ADR 0019 — Shared read-only setup environment snapshot
+# ADR 0019 — Shared installation/configuration environment model
 
-**Status:** Accepted for Issue #181
+**Status:** Amended by current Product Owner authority during PR #319
 
 ## Context
 
-AAAAT already has separate working boundaries for workspace selection, local TeX rendering, named AI connections with validated operation capabilities, backup/recovery and one demonstrated external-host integration. Product authority requires one small explicit environment/capability model to support graphical setup and later generated `installer.ai` / `configurator.ai` guidance. Duplicating those facts into a new installer database or building a generic setup engine would create drift before there is a second useful setup action.
+AAAAT needs one honest source of setup state for its normal Settings UI and for optional external-assistant help. An earlier implementation projected that state into copyable `installer.ai` / `configurator.ai` free-chat prompts. Natural-use acceptance rejected that interpretation: those names belong to real AAAAT installation/configuration coverage, not clipboard templates.
+
+At the same time, setup assistance must not create a package-manager framework, provider framework, generic shell surface or second configuration database.
 
 ## Decision
 
-Introduce one read-only setup-environment snapshot exposed through a bounded renderer → preload → main operation.
+Keep one small setup-environment snapshot derived from existing product services:
 
-The first snapshot contains only facts already needed by current product capabilities:
+- current workspace readiness;
+- availability of the known `latexmk` and `pdflatex` commands and document-rendering readiness;
+- optional AI configuration readability and connection count;
+- per-operation validated AI-route availability.
 
-- whether the remembered workspace location still looks available;
-- whether the fixed known `latexmk` and `pdflatex` commands can be invoked, plus a bounded version line when available;
-- document-rendering readiness derived from those TeX facts;
-- configured local AI connection count;
-- whether each of the six existing AI operations has a validated route, including the selected connection name.
+The normal Settings UI renders this live state directly through two product projections:
 
-TeX detection invokes only those two fixed executable names with fixed version arguments, no shell interpolation and a short timeout. It never installs, updates, replaces or configures software. AI capability facts are projections of the existing connection/routing service; there is no second AI configuration model.
+- `installer.ai`: workspace and local document-rendering prerequisites;
+- `configurator.ai`: optional AI configuration and bounded operation coverage.
 
-The snapshot is useful directly in Settings and is deliberately reusable by later generated guidance. Later setup mutations, configuration import/export, host-specific artifact generation and `installer.ai` / `configurator.ai` output remain separate capabilities.
+These are structured setup harness views, not prompt textareas. Technical details such as detected TeX version lines may remain available locally in Settings, while the shared harness projection intentionally omits unnecessary machine detail.
+
+The same snapshot is exposed to compatible external assistants through two read-only bounded MCP tools:
+
+- `installer_status_read`
+- `configurator_status_read`
+
+Those tools disclose only prerequisite/coverage state. They do not install packages, execute commands, edit configuration, enumerate workspace data, reveal connection names/endpoints/credentials, or grant generic database/filesystem/process authority.
+
+Actual configuration changes continue through ordinary AAAAT user-controlled settings and concrete bounded actions. New setup mutations should be added only when a real user-facing need exists.
 
 ## Consequences
 
-AAAAT gains a single honest environment-status vocabulary without creating a package manager, shell surface, provider registry or setup framework. Existing working local software is detected and reused. Missing capabilities are reported as missing rather than silently repaired.
-
-The model may grow only when another concrete setup capability needs an additional fact. It must not become a generic machine inventory or arbitrary command-execution API.
+- GUI and external-assistant setup help share one source of truth.
+- `installer.ai` / `configurator.ai` are useful capabilities instead of copy/paste artifacts.
+- Local/manual/no-AI operation remains valid.
+- Setup knowledge can grow incrementally without becoming a workflow engine or arbitrary system automation surface.

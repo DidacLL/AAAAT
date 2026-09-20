@@ -8,10 +8,11 @@ import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
   CandidatureRuntimeValue,
+  CandidatureSource,
   TagRecord,
 } from "../shared/contracts";
 import { listCandidatureFields } from "./candidature-field-service";
-import { listCandidatures } from "./candidature-service";
+import { listCandidatures, listCandidatureSources } from "./candidature-service";
 import { listTags } from "./tag-service";
 
 function displayValue(
@@ -31,6 +32,7 @@ function searchableText(
   record: CandidatureRecord,
   fields: readonly CandidatureFieldConfiguration[],
   tags: readonly TagRecord[],
+  sources: readonly CandidatureSource[],
 ): string {
   const fieldMap = new Map(fields.map((field) => [field.definition.id, field]));
   const associatedTagText = tags
@@ -38,12 +40,11 @@ function searchableText(
     .flatMap((tag) => [tag.name, ...tag.aliases])
     .join(" ");
   return [
-    record.label,
-    record.sourceSearchText,
     ...record.values.flatMap((retained) => {
       const field = fieldMap.get(retained.fieldId);
       return [field?.definition.label ?? "", displayValue(field, retained.value)];
     }),
+    ...sources.flatMap((source) => [source.title, source.url, source.sourceText]),
     associatedTagText,
   ]
     .join(" ")
@@ -60,7 +61,14 @@ export function searchCandidatures(
   const tags = listTags(rootPath);
   return candidatureSearchResultSchema.parse(
     listCandidatures(rootPath)
-      .filter((record) => searchableText(record, fields, tags).includes(normalizedQuery))
+      .filter((record) =>
+        searchableText(
+          record,
+          fields,
+          tags,
+          listCandidatureSources(rootPath, record.id),
+        ).includes(normalizedQuery),
+      )
       .map((record) => record.id),
   );
 }
