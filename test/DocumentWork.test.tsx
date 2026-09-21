@@ -57,6 +57,7 @@ beforeEach(() => {
           workingCvs: [],
           renderedCvs: [],
           letters: [letter],
+          renderedLetters: [],
           applicationPackets: [],
         })),
         updateLetter,
