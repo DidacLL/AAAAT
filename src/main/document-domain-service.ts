@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {accessSync, constants, cpSync, existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync} from 'node:fs';
+import {accessSync, constants, cpSync, existsSync, mkdirSync, renameSync, rmSync, statSync} from 'node:fs';
 import path from 'node:path';
 import type {DatabaseSync} from 'node:sqlite';
 
@@ -13,6 +13,8 @@ import {
   coverLetterInputSchema,
   type CoverLetterRecord,
   coverLetterRecordSchema,
+  type CoverLetterSnapshot,
+  coverLetterSnapshotSchema,
   type CoverLetterUpdate,
   coverLetterUpdateSchema,
   type CvContent,
@@ -27,6 +29,8 @@ import {
   cvTemplateUpdateSchema,
   type DocumentCollections,
   documentCollectionsSchema,
+  type RenderedCoverLetterRecord,
+  renderedCoverLetterRecordSchema,
   type RenderedCvRecord,
   renderedCvRecordSchema,
   renderedCvSnapshotSchema,
@@ -44,10 +48,12 @@ import {
   workingCvUpdateSchema,
 } from '../shared/document-domain-contracts';
 
+import {
+  writeApplicationPacketEntrypoint,
+  writeCoverLetterLatexProject,
+  writeCvLatexProject,
+} from './document-latex';
 import {LatexRunnerError, runLatexmk} from './latex-runner';
-import aaatStyle from './latex/aaaat.sty?raw';
-import coverLetterTemplate from './latex/cover-letter.tex?raw';
-import cvTemplate from './latex/cv.tex?raw';
 import {getProfile, getProfileItem, updateProfileItem} from './profile-service';
 import {createProfileVariant, getProfileVariant, listProfileVariants} from './profile-variant-service';
 import {withWorkspaceDatabase} from './workspace';
@@ -92,6 +98,16 @@ interface LetterRow {
   readonly closing: string|null;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+interface RenderedLetterRow {
+  readonly id: string;
+  readonly coverLetterId: string|null;
+  readonly candidatureId: string|null;
+  readonly title: string;
+  readonly language: string|null;
+  readonly snapshotJson: string;
+  readonly projectRelativePath: string;
+  readonly createdAt: string;
 }
 interface PacketRow {
   readonly id: string;
@@ -225,6 +241,10 @@ function managedProjectPath(
 function renderedProjectPath(rootPath: string, row: RenderedRow): string {
   return managedProjectPath(rootPath, 'rendered-cvs', row.id, row.projectRelativePath);
 }
+function renderedLetterProjectPath(rootPath: string, row: RenderedLetterRow): string {
+  return managedProjectPath(
+      rootPath, 'rendered-cover-letters', row.id, row.projectRelativePath);
+}
 function packetProjectPath(rootPath: string, row: PacketRow): string {
   return managedProjectPath(rootPath, 'application-packets', row.id, row.projectRelativePath);
 }
@@ -252,6 +272,37 @@ function readRenderedCvs(rootPath: string, database: DatabaseSync): RenderedCvRe
                   `SELECT id, working_cv_id AS workingCvId, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, title, language, snapshot_json AS snapshotJson, project_relative_path AS projectRelativePath, created_at AS createdAt FROM rendered_cvs ORDER BY created_at DESC, id DESC`)
               .all() as unknown as RenderedRow[])
       .map((row) => toRendered(rootPath, row));
+}
+function toRenderedLetter(rootPath: string, row: RenderedLetterRow): RenderedCoverLetterRecord {
+  return renderedCoverLetterRecordSchema.parse({
+    id: row.id,
+    coverLetterId: row.coverLetterId,
+    candidatureId: row.candidatureId,
+    title: row.title,
+    language: optional(row.language),
+    snapshot: parseJson(
+        row.snapshotJson, (value) => coverLetterSnapshotSchema.parse(value),
+        'Stored Rendered cover-letter snapshot is invalid.'),
+    createdAt: row.createdAt,
+    hasPdf: existsSync(retainedPdf(renderedLetterProjectPath(rootPath, row)))
+  });
+}
+function readRenderedLetters(
+    rootPath: string, database: DatabaseSync): RenderedCoverLetterRecord[] {
+  return (database
+              .prepare(
+                  `SELECT id, cover_letter_id AS coverLetterId, candidature_id AS candidatureId, title, language, snapshot_json AS snapshotJson, project_relative_path AS projectRelativePath, created_at AS createdAt FROM rendered_cover_letters ORDER BY created_at DESC, id DESC`)
+              .all() as unknown as RenderedLetterRow[])
+      .map((row) => toRenderedLetter(rootPath, row));
+}
+function requireRenderedLetterRow(database: DatabaseSync, id: string): RenderedLetterRow {
+  const row =
+      database.prepare(
+                  `SELECT id, cover_letter_id AS coverLetterId, candidature_id AS candidatureId, title, language, snapshot_json AS snapshotJson, project_relative_path AS projectRelativePath, created_at AS createdAt FROM rendered_cover_letters WHERE id = ?`)
+              .get(id) as unknown as RenderedLetterRow |
+      undefined;
+  if (!row) throw new DocumentDomainServiceError('The Rendered cover letter no longer exists.');
+  return row;
 }
 function requireRenderedRow(database: DatabaseSync, id: string): RenderedRow {
   const row =
@@ -416,6 +467,7 @@ export function listDocumentCollections(rootPath: string): DocumentCollections {
     workingCvs: readWorkingCvs(database),
     renderedCvs: readRenderedCvs(rootPath, database),
     letters: readLetters(database),
+    renderedLetters: readRenderedLetters(rootPath, database),
     applicationPackets: readPackets(rootPath, database)
   }));
 }
@@ -434,6 +486,7 @@ export function createCvTemplate(rootPath: string, rawInput: CvTemplateInput): D
       workingCvs: readWorkingCvs(database),
       renderedCvs: readRenderedCvs(rootPath, database),
       letters: readLetters(database),
+      renderedLetters: readRenderedLetters(rootPath, database),
       applicationPackets: readPackets(rootPath, database)
     });
   });
@@ -455,6 +508,7 @@ export function updateCvTemplate(
       workingCvs: readWorkingCvs(database),
       renderedCvs: readRenderedCvs(rootPath, database),
       letters: readLetters(database),
+      renderedLetters: readRenderedLetters(rootPath, database),
       applicationPackets: readPackets(rootPath, database)
     });
   });
@@ -468,6 +522,7 @@ export function removeCvTemplate(rootPath: string, templateId: string): Document
       workingCvs: readWorkingCvs(database),
       renderedCvs: readRenderedCvs(rootPath, database),
       letters: readLetters(database),
+      renderedLetters: readRenderedLetters(rootPath, database),
       applicationPackets: readPackets(rootPath, database)
     });
   });
@@ -528,6 +583,7 @@ export function removeWorkingCv(rootPath: string, workingCvId: string): Document
       workingCvs: readWorkingCvs(database),
       renderedCvs: readRenderedCvs(rootPath, database),
       letters: readLetters(database),
+      renderedLetters: readRenderedLetters(rootPath, database),
       applicationPackets: readPackets(rootPath, database)
     });
   });
@@ -638,58 +694,6 @@ export function saveWorkingCvAsTemplate(
     return created;
   });
 }
-const latexEscapes: Readonly<Record<string, string>> = Object.freeze({
-  '\\': '\\textbackslash{}',
-  '{': '\\{',
-  '}': '\\}',
-  '$': '\\$',
-  '&': '\\&',
-  '#': '\\#',
-  '%': '\\%',
-  '_': '\\_',
-  '^': '\\textasciicircum{}',
-  '~': '\\textasciitilde{}'
-});
-function escapeLatex(value: string): string {
-  return value.replace(/[\\{}$&#%_^~]/g, (character) => latexEscapes[character] ?? character)
-      .replace(/\r?\n/g, ' \\\\ ');
-}
-function cvData(working: WorkingCvRecord): string {
-  const lines = [`\\AAAATDocumentTitle{${escapeLatex(working.title)}}`];
-  if (working.language) lines.push(`\\AAAATMeta{Language: ${escapeLatex(working.language)}}`);
-  for (const section of working.sections) {
-    lines.push(`\\AAAATMeta{${escapeLatex(section.name)}}`);
-    for (const item of section.items) {
-      const details =
-          [
-            item.content.subtitle,
-            item.content.startDate && item.content.endDate ?
-                `${item.content.startDate} -- ${item.content.endDate}` :
-                (item.content.startDate ?? item.content.endDate)
-          ].filter((value): value is string => Boolean(value))
-              .join(' | ');
-      lines.push(
-          `\\AAAATEntry{${escapeLatex(item.content.kind)}}{${escapeLatex(item.content.title)}}{${
-              escapeLatex(details)}}{${escapeLatex(item.content.description ?? '')}}`);
-    }
-  }
-  return `${lines.join('\n')}\n`;
-}
-function coverLetterData(letter: CoverLetterRecord): string {
-  const lines = [`\\AAAATDocumentTitle{${escapeLatex(letter.title)}}`];
-  if (letter.recipient) lines.push(`\\AAAATMeta{To: ${escapeLatex(letter.recipient)}}`);
-  if (letter.subject) lines.push(`\\AAAATMeta{Subject: ${escapeLatex(letter.subject)}}`);
-  for (const paragraph of letter.bodyParagraphs)
-    lines.push(`\\AAAATParagraph{${escapeLatex(paragraph)}}`);
-  if (letter.closing) lines.push(`\\AAAATParagraph{${escapeLatex(letter.closing)}}`);
-  return `${lines.join('\n')}\n`;
-}
-function writeProject(projectPath: string, mainSource: string, dataSource: string): void {
-  mkdirSync(projectPath, {recursive: true});
-  writeFileSync(path.join(projectPath, 'main.tex'), mainSource, 'utf8');
-  writeFileSync(path.join(projectPath, 'data.tex'), dataSource, 'utf8');
-  writeFileSync(path.join(projectPath, 'aaaat.sty'), aaatStyle, 'utf8');
-}
 async function compileProject(projectPath: string, timeoutMs: number): Promise<void> {
   try {
     await runLatexmk(projectPath, timeoutMs);
@@ -717,7 +721,7 @@ export async function renderWorkingCv(
     sections: working.sections
   });
   try {
-    writeProject(projectPath, cvTemplate, cvData(working));
+    writeCvLatexProject(projectPath, working);
     await compileProject(projectPath, timeoutMs);
     const createdAt = new Date().toISOString();
     withWorkspaceDatabase(rootPath, (database) => {
@@ -786,25 +790,30 @@ export function duplicateRenderedCv(rootPath: string, renderedCvId: string): Wor
 }
 function safeProjectName(title: string, id: string): string {
   const slug =
-      title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'cv';
+      title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) ||
+      'document';
   return `${slug}-${id.slice(0, 8)}`;
 }
-export function exportRenderedCvProject(
-    rootPath: string, renderedCvId: string, targetParent: string): string {
-  const row =
-      withWorkspaceDatabase(rootPath, (database) => requireRenderedRow(database, renderedCvId));
+function exportPortableProject(
+    source: string, title: string, id: string, targetParent: string): string {
   try {
     if (!statSync(targetParent).isDirectory()) throw new Error('not directory');
     accessSync(targetParent, constants.R_OK | constants.W_OK);
   } catch {
     throw new DocumentDomainServiceError('The selected export folder is not writable.');
   }
-  const source = renderedProjectPath(rootPath, row);
-  const destination = path.join(targetParent, safeProjectName(row.title, row.id));
+  const destination = path.join(targetParent, safeProjectName(title, id));
   if (existsSync(destination))
     throw new DocumentDomainServiceError('A portable project with that name already exists.');
   cpSync(source, destination, {recursive: true, errorOnExist: true});
   return destination;
+}
+export function exportRenderedCvProject(
+    rootPath: string, renderedCvId: string, targetParent: string): string {
+  const row =
+      withWorkspaceDatabase(rootPath, (database) => requireRenderedRow(database, renderedCvId));
+  return exportPortableProject(
+      renderedProjectPath(rootPath, row), row.title, row.id, targetParent);
 }
 export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
   const input = coverLetterInputSchema.parse(rawInput);
@@ -850,34 +859,11 @@ export function removeCoverLetter(rootPath: string, letterId: string): DocumentC
       workingCvs: readWorkingCvs(database),
       renderedCvs: readRenderedCvs(rootPath, database),
       letters: readLetters(database),
+      renderedLetters: readRenderedLetters(rootPath, database),
       applicationPackets: readPackets(rootPath, database)
     });
   });
 }
-const packetTemplate = String.raw`\documentclass{article}
-\usepackage{graphicx}
-\pagestyle{empty}
-\setlength{\oddsidemargin}{-1in}
-\setlength{\evensidemargin}{-1in}
-\setlength{\topmargin}{-1in}
-\setlength{\headheight}{0pt}
-\setlength{\headsep}{0pt}
-\setlength{\footskip}{0pt}
-\setlength{\textwidth}{\paperwidth}
-\setlength{\textheight}{\paperheight}
-\setlength{\topskip}{0pt}
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{0pt}
-\newcount\AAAATPage
-\newcount\AAAATPageCount
-\newcommand{\AAAATIncludePDF}[1]{\pdfximage{#1}\AAAATPageCount=\pdflastximagepages\AAAATPage=1\AAAATIncludePDFPage{#1}}
-\newcommand{\AAAATIncludePDFPage}[1]{\vbox to \textheight{\vfil\hbox to \textwidth{\hfil\includegraphics[page=\the\AAAATPage,width=\textwidth,height=\textheight,keepaspectratio]{#1}\hfil}\vfil}\ifnum\AAAATPage<\AAAATPageCount\newpage\advance\AAAATPage by 1\expandafter\AAAATIncludePDFPage\expandafter{#1}\fi}
-\begin{document}
-\AAAATIncludePDF{cover-letter/build/main.pdf}
-\newpage
-\AAAATIncludePDF{cv/build/main.pdf}
-\end{document}
-`;
 export async function createApplicationPacket(
     rootPath: string, rawInput: ApplicationPacketCreate,
     timeoutMs = 30000): Promise<ApplicationPacketRecord> {
@@ -898,13 +884,22 @@ export async function createApplicationPacket(
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   try {
     mkdirSync(stagePath, {recursive: true});
+    const letterSnapshot = coverLetterSnapshotSchema.parse({
+      candidatureId: letter.candidatureId,
+      title: letter.title,
+      language: letter.language,
+      recipient: letter.recipient,
+      subject: letter.subject,
+      bodyParagraphs: letter.bodyParagraphs,
+      closing: letter.closing
+    });
     const letterPath = path.join(stagePath, 'cover-letter');
-    writeProject(letterPath, coverLetterTemplate, coverLetterData(letter));
+    writeCoverLetterLatexProject(letterPath, letterSnapshot);
     await compileProject(letterPath, timeoutMs);
     cpSync(
         renderedProjectPath(rootPath, cvRow), path.join(stagePath, 'cv'),
         {recursive: true, errorOnExist: true});
-    writeFileSync(path.join(stagePath, 'main.tex'), packetTemplate, 'utf8');
+    writeApplicationPacketEntrypoint(stagePath);
     await compileProject(stagePath, timeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
@@ -915,7 +910,7 @@ export async function createApplicationPacket(
               `INSERT INTO application_packets(id, candidature_id, rendered_cv_id, cover_letter_id, title, letter_snapshot_json, project_relative_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
           .run(
               id, input.candidatureId, input.renderedCvId, input.coverLetterId, title,
-              JSON.stringify(letter), relativePath, createdAt);
+              JSON.stringify(letterSnapshot), relativePath, createdAt);
     });
     return withWorkspaceDatabase(
         rootPath, (database) => toPacket(rootPath, requirePacketRow(database, id)));
