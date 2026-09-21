@@ -20,7 +20,7 @@ SQLite workspace and user-owned files
 
 The renderer remains sandboxed, context-isolated and unprivileged. Durable mutations enter through normal application services whether their input originated in the UI, an import, direct optional AI, or a bounded external integration.
 
-Persisted domain objects do not define the desktop interaction architecture. Welcome is first; closing it enters Focus over the application corpus. The same application area offers a dense complete-data register and one New screen for sparse raw material and/or direct field entry. Saving local information is complete work before any optional parsing or document creation. Dedicated CVs and cover letters are linked to that application. The CV area also supports standalone CV work; standalone letters remain independently available but secondary in the collection view.
+Persisted domain objects do not define the desktop interaction architecture. Welcome is first; after a workspace is opened, one configurable Applications surface covers the candidature corpus and selected-candidature detail rather than exposing historical peer Focus / All data product areas. New application accepts sparse raw material and/or direct information entry. Saving local information is complete work before any optional parsing or document creation. Dedicated CVs and cover letters are linked to that application. The CV area also supports standalone CV work; standalone letters remain independently available but secondary in the collection view.
 
 ## Domain and information architecture
 

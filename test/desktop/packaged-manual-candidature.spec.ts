@@ -1,14 +1,22 @@
-import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import { chromium, expect, test, type Browser, type Page } from "@playwright/test";
 
-test.skip(process.platform !== "linux", "The packaged no-AI manual journey runs once on Linux");
+test.skip(
+  process.platform !== "linux" && process.platform !== "win32",
+  "The packaged no-AI manual journey runs on Linux and Windows",
+);
 
 function packagedExecutable(): string {
-  return path.resolve("out", `AAAAT-${process.platform}-${process.arch}`, "aaaat");
+  return path.resolve(
+    "out",
+    `AAAAT-${process.platform}-${process.arch}`,
+    process.platform === "win32" ? "aaaat.exe" : "aaaat",
+  );
 }
 
 async function reservePort(): Promise<number> {
@@ -52,19 +60,25 @@ interface RunningApp {
   readonly page: Page;
 }
 
-async function startPackagedApp(userData: string, linuxHome: string): Promise<RunningApp> {
+async function startPackagedApp(userData: string, appData: string): Promise<RunningApp> {
   const port = await reservePort();
   const endpoint = `http://127.0.0.1:${port}`;
+  const environment = { ...process.env };
+  if (process.platform === "linux") {
+    environment.GTK_USE_PORTAL = "0";
+    environment.HOME = appData;
+    environment.XDG_CONFIG_HOME = appData;
+  } else if (process.platform === "win32") {
+    environment.APPDATA = appData;
+    environment.LOCALAPPDATA = appData;
+    environment.USERPROFILE = appData;
+  }
+
   const child = spawn(
     packagedExecutable(),
     [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`],
     {
-      env: {
-        ...process.env,
-        GTK_USE_PORTAL: "0",
-        HOME: linuxHome,
-        XDG_CONFIG_HOME: path.join(linuxHome, ".config"),
-      },
+      env: environment,
       stdio: ["ignore", "ignore", "pipe"],
     },
   );
@@ -92,63 +106,68 @@ async function stopPackagedApp(running: RunningApp): Promise<void> {
     });
   });
   if (running.child.exitCode === null && running.child.signalCode === null) {
-    spawnSync("kill", ["-9", String(running.child.pid)], { timeout: 5_000 });
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/PID", String(running.child.pid), "/T", "/F"], { timeout: 5_000 });
+    } else {
+      spawnSync("kill", ["-9", String(running.child.pid)], { timeout: 5_000 });
+    }
   }
 }
 
-function prepareLinuxChooserHome(workspacePath: string): string {
-  const homePath = mkdtempSync(path.join(tmpdir(), "aaaat-sparse-candidature-home-"));
-  const configPath = path.join(homePath, ".config");
-  mkdirSync(configPath, { recursive: true });
-  const escaped = workspacePath.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+function initializeWorkspaceFixture(rootPath: string): void {
+  const database = new DatabaseSync(path.join(rootPath, "workspace.sqlite"));
+  const schemaSql = readFileSync(path.resolve("src/main/schema.sql"), "utf8");
+  try {
+    database.exec("PRAGMA foreign_keys = ON; BEGIN IMMEDIATE");
+    try {
+      database.exec(schemaSql);
+      database
+        .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
+        .run("workspace.initialized_at", "2026-09-21T00:00:00.000Z");
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    database.close();
+  }
+}
+
+function rememberWorkspace(directory: string, workspacePath: string): void {
+  mkdirSync(directory, { recursive: true });
   writeFileSync(
-    path.join(configPath, "user-dirs.dirs"),
-    `XDG_DOWNLOAD_DIR="${escaped}"\n`,
+    path.join(directory, "workspace-settings.json"),
+    JSON.stringify({ lastWorkspacePath: workspacePath }, null, 2) + "\n",
     "utf8",
   );
-  return homePath;
 }
 
-function chooseLinuxDirectory(): void {
-  execFileSync(
-    "bash",
-    [
-      "-lc",
-      [
-        "set -eu",
-        "window=''",
-        "for attempt in $(seq 1 100); do",
-        "  window=$(xdotool search --onlyvisible --name 'Create or select an AAAAT workspace' 2>/dev/null | tail -n 1 || true)",
-        "  if [ -n \"$window\" ]; then break; fi",
-        "  sleep 0.1",
-        "done",
-        "test -n \"$window\"",
-        "xdotool windowactivate --sync \"$window\"",
-        "eval \"$(xdotool getwindowgeometry --shell \"$window\")\"",
-        "xdotool mousemove --window \"$window\" $((WIDTH - 70)) $((HEIGHT - 35)) click 1",
-      ].join("\n"),
-    ],
-    { stdio: "inherit" },
-  );
-}
-
-async function createWorkspace(running: RunningApp): Promise<void> {
-  await running.page.getByRole("button", { name: "New workspace" }).click();
-  chooseLinuxDirectory();
-  await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
+function prepareAppData(userData: string, workspacePath: string): string {
+  const appData = mkdtempSync(path.join(tmpdir(), "aaaat-capture-app-data-"));
+  for (const directory of [
+    userData,
+    path.join(appData, "AAAAT"),
+    path.join(appData, "aaaat"),
+  ]) {
+    rememberWorkspace(directory, workspacePath);
+  }
+  return appData;
 }
 
 test("packaged no-AI raw capture and manual completion uses the real renderer process", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-capture-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-capture-workspace-"));
-  const linuxHome = prepareLinuxChooserHome(ownedWorkspace);
+  initializeWorkspaceFixture(ownedWorkspace);
+  const appData = prepareAppData(isolatedUserData, ownedWorkspace);
   const rawMaterial =
     "Aster Aviation seeks a captain in Madrid. Salary 120000. International routes.";
   let running: RunningApp | undefined;
 
   try {
-    running = await startPackagedApp(isolatedUserData, linuxHome);
-    await createWorkspace(running);
+    running = await startPackagedApp(isolatedUserData, appData);
+    await running.page.getByRole("button", { name: "Open applications" }).click();
+    await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
 
     await running.page.getByRole("button", { name: "New application" }).click();
     const manual = running.page.getByRole("region", { name: "New application" });
@@ -186,6 +205,6 @@ test("packaged no-AI raw capture and manual completion uses the real renderer pr
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     rmSync(ownedWorkspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    rmSync(linuxHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(appData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });

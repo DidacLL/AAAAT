@@ -1,6 +1,5 @@
-import path from "node:path";
-
-import { app, dialog, ipcMain, shell, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { dialog, ipcMain, shell, type BrowserWindow } from "electron";
+import { assertTrustedSender, requireWorkspaceRoot } from "./desktop-ipc-context";
 
 import {
   applicationPacketCreateSchema,
@@ -42,20 +41,8 @@ import {
   updateCvTemplate,
   updateWorkingCv,
 } from "./document-domain-service";
-import { readLastWorkspacePath } from "./workspace";
 
-function assertTrustedSender(event: IpcMainInvokeEvent, mainWindow: BrowserWindow): void {
-  if (event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) {
-    throw new Error("Untrusted IPC sender");
-  }
-}
-function requireWorkspaceRoot(): string {
-  const rootPath = readLastWorkspacePath(path.join(app.getPath("userData"), "workspace-settings.json"));
-  if (!rootPath) throw new Error("Choose an AAAAT workspace first.");
-  return rootPath;
-}
-
-function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
+export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(documentDomainChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(documentDomainChannels.collections, (event) => {
@@ -151,5 +138,3 @@ function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
     return openGeneratedResultSchema.parse({ opened: true });
   });
 }
-
-app.on("browser-window-created", (_event, mainWindow) => registerDocumentDomainIpc(mainWindow));
