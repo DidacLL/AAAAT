@@ -1,19 +1,59 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage{aaaat}{2026-09-02}{0.1.0}{AAAAT portable document styles}
+\ProvidesExplPackage{aaaat}{2026-09-21}{0.2.0}{AAAAT portable document styles}
+
+\RequirePackage[T1]{fontenc}
+\RequirePackage[utf8]{inputenc}
+
 \ExplSyntaxOn
+
+\NewDocumentCommand{\AAAATLineBreak}{}
+  {\\}
+
 \NewDocumentCommand{\AAAATDocumentTitle}{m}
-  {\par\begin{center}{\LARGE\bfseries #1}\end{center}\par}
-\NewDocumentCommand{\AAAATMeta}{m}
-  {\par\noindent{\small #1}\par}
-\NewDocumentCommand{\AAAATEntry}{mmmm}
   {
-    \par\medskip\noindent
-    {\small\textsc{#1}}\par
-    {\bfseries #2}
-    \tl_if_blank:nF {#3} {\\ #3}
-    \tl_if_blank:nF {#4} {\par #4}
+    \par
+    {\LARGE\bfseries #1\par}
+    \vspace{0.35em}
+    \hrule height 0.8pt
+    \vspace{0.8em}
+  }
+
+\NewDocumentCommand{\AAAATMetadata}{mm}
+  {
+    \par\noindent
+    {\small\bfseries #1:}\nobreakspace{\small #2}
     \par
   }
+
+\NewDocumentCommand{\AAAATSection}{m}
+  {
+    \par\bigskip
+    {\large\bfseries #1\par}
+    \vspace{0.2em}
+    \hrule height 0.35pt
+    \vspace{0.45em}
+  }
+
+\NewDocumentCommand{\AAAATEntry}{mmmmm}
+  {
+    \par\medskip\noindent
+    {\bfseries #1}
+    \tl_if_blank:nF {#3}
+      {\hfill{\small #3}}
+    \par
+    \tl_if_blank:nF {#2}
+      {{\small\itshape #2}\par}
+    \tl_if_blank:nF {#4}
+      {#4\par}
+    \tl_if_blank:nF {#5}
+      {{\footnotesize\ttfamily #5}\par}
+  }
+
 \NewDocumentCommand{\AAAATParagraph}{m}
-  {\par\noindent #1\par}
+  {
+    \par\noindent
+    #1
+    \par
+  }
+
 \ExplSyntaxOff
