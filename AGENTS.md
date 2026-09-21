@@ -30,6 +30,17 @@ After product meaning is established, use the derived technical order:
 SPEC → accepted ADRs → contracts → Issue → tests → implementation
 ```
 
+## Capability-completion anti-drift rule
+
+A working mechanism is not automatically a completed product capability.
+
+- A protocol client, carrier, fixture, mocked provider, synthetic HTTP server, package build, unit/integration test or AAAAT-authored harness proves only the mechanism it actually exercises.
+- When a PLAN outcome explicitly names a real external environment, real model class, user journey or owner collaboration boundary, evidence must exercise that boundary. AAAAT's own client cannot stand in for a third-party host, and mocked compatible HTTP cannot stand in for actual lightweight-model usefulness.
+- Do not edit the Product Definition, SPEC, Mission, ADRs, tests or user documentation to make an incomplete implementation appear to satisfy a higher-authority requirement. Derived documents describe accepted product/technical meaning; when implementation falls short, mark the implementation partial and preserve the unresolved requirement.
+- Do not turn a fallback transport into the product merely because it is easy to automate. Carriers such as MCP, files, clipboard, browser/desktop automation or synchronized folders are candidate transports chosen for a concrete journey, not completion criteria by themselves.
+- Later PLAN work may retain useful code built on an earlier false completion state, but it does not retroactively close the earlier product gate. The master orchestrator must reopen the affected outcome when new evidence shows that acceptance was based on the wrong premise.
+- A PLAN implementation specialist never declares its own PLAN complete. The master orchestrator compares the actual diff and evidence back to owner authority before advancing the sequence.
+
 If the Product Definition does not resolve a consequential product question, state the concrete uncertainty and ask the Product Owner once. Do not ask the owner to repeat meaning already preserved in this repository.
 
 ## Non-negotiable pre-user constraints
