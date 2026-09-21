@@ -15,7 +15,12 @@ import { useContextualHandoffs } from "./contextual-handoffs";
 import "./documents.css";
 
 const emptyCollections: DocumentCollections = {
-  templates: [], workingCvs: [], renderedCvs: [], letters: [], applicationPackets: [],
+  templates: [],
+  workingCvs: [],
+  renderedCvs: [],
+  letters: [],
+  renderedLetters: [],
+  applicationPackets: [],
 };
 
 function profileContent(item: ProfileItem): WorkingCvItem["content"] {
@@ -533,13 +538,29 @@ export function WorkingCvEditor({
   );
 }
 
-function LetterEditor({ document, onSaved, onDirtyChange }: { readonly document: CoverLetterRecord; readonly onSaved: (document: CoverLetterRecord) => void; readonly onDirtyChange?: (dirty: boolean) => void }) {
+function LetterEditor({
+  document,
+  collections,
+  onSaved,
+  onCollections,
+  onDirtyChange,
+}: {
+  readonly document: CoverLetterRecord;
+  readonly collections: DocumentCollections;
+  readonly onSaved: (document: CoverLetterRecord) => void;
+  readonly onCollections: (collections: DocumentCollections) => void;
+  readonly onDirtyChange?: (dirty: boolean) => void;
+}) {
   const { documentHandoff, returnToCandidature } = useContextualHandoffs();
   const [draft, setDraft] = useState(document);
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [productionMessage, setProductionMessage] = useState<string | null>(null);
 
+  const latestRendered = collections.renderedLetters.find(
+    (candidate) => candidate.coverLetterId === document.id,
+  ) ?? null;
   const bodyParagraphs = body.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
   const dirty = JSON.stringify({ ...draft, bodyParagraphs }) !== JSON.stringify(document);
 
@@ -596,6 +617,35 @@ function LetterEditor({ document, onSaved, onDirtyChange }: { readonly document:
     }
   };
 
+  const renderLetter = async () => {
+    setBusy(true);
+    setError(null);
+    setProductionMessage(null);
+    try {
+      const saved = dirty ? await persistDraft() : draft;
+      const rendered = await window.aaaat.documentDomain.renderLetter(saved.id);
+      onCollections(await window.aaaat.documentDomain.collections());
+      await window.aaaat.documentDomain.openRenderedLetter(rendered.id);
+      setProductionMessage("Rendered cover letter retained.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not render this cover letter.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const exportLatest = async () => {
+    if (!latestRendered) return;
+    setError(null);
+    setProductionMessage(null);
+    try {
+      const result = await window.aaaat.documentDomain.exportRenderedLetter(latestRendered.id);
+      if (result) setProductionMessage("Source project exported.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not export this cover letter.");
+    }
+  };
+
   return (
     <section className="document-work" aria-label="Cover letter">
       <header className="document-console-heading">
@@ -608,9 +658,17 @@ function LetterEditor({ document, onSaved, onDirtyChange }: { readonly document:
           {documentHandoff?.candidatureId ? <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button> : null}
           <button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAi()}>Ask AI to draft</button>
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
+          <button type="button" disabled={busy} onClick={() => void renderLetter()}>Render PDF</button>
+          {latestRendered ? (
+            <>
+              <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedLetter(latestRendered.id)}>Open rendered PDF</button>
+              <button type="button" className="compact-secondary" onClick={() => void exportLatest()}>Export source project</button>
+            </>
+          ) : null}
         </div>
       </header>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
+      {productionMessage ? <p className="compact-note" role="status">{productionMessage}</p> : null}
       <div className="letter-editor">
         <label>Title<input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
         <label>Language<input value={draft.language ?? ""} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value.trim() || undefined }))} /></label>
@@ -664,6 +722,6 @@ export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirt
   if (error) return <section className="document-work"><p className="error-message" role="alert">{error}</p></section>;
   if (!id) return <section className="document-work"><p className="compact-empty">Choose a Working CV or letter to edit.</p></section>;
   if (working) return <WorkingCvEditor key={working.id} document={working} profile={profile} variants={variants} collections={collections} onSaved={storeWorking} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
-  if (letter) return <LetterEditor key={letter.id} document={letter} onSaved={storeLetter} onDirtyChange={onDirtyChange} />;
+  if (letter) return <LetterEditor key={letter.id} document={letter} collections={collections} onSaved={storeLetter} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
   return <section className="document-work"><p className="error-message" role="alert">This editable document no longer exists.</p></section>;
 }
