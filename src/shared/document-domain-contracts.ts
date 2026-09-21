@@ -19,8 +19,12 @@ export const documentDomainChannels = Object.freeze({
   letterCreate: "aaaat:cover-letter-create",
   letterUpdate: "aaaat:cover-letter-update",
   letterRemove: "aaaat:cover-letter-remove",
+  renderLetter: "aaaat:cover-letter-render",
+  openRenderedLetter: "aaaat:rendered-cover-letter-open",
+  exportRenderedLetter: "aaaat:rendered-cover-letter-export",
   packetCreate: "aaaat:application-packet-create",
   packetOpen: "aaaat:application-packet-open",
+  packetExport: "aaaat:application-packet-export",
 } as const);
 
 const optionalLanguageSchema = z.string().trim().min(1).max(40).optional();
@@ -113,13 +117,41 @@ export const coverLetterRecordSchema = coverLetterInputSchema.extend({ id: z.str
 export type CoverLetterRecord = z.infer<typeof coverLetterRecordSchema>;
 export const coverLetterUpdateSchema = coverLetterInputSchema.omit({ candidatureId: true }).extend({ id: z.string().uuid() }).strict();
 export type CoverLetterUpdate = z.infer<typeof coverLetterUpdateSchema>;
+export const coverLetterSnapshotSchema = coverLetterRecordSchema.pick({
+  candidatureId: true,
+  title: true,
+  language: true,
+  recipient: true,
+  subject: true,
+  bodyParagraphs: true,
+  closing: true,
+});
+export type CoverLetterSnapshot = z.infer<typeof coverLetterSnapshotSchema>;
+export const renderedCoverLetterRecordSchema = z.object({
+  id: z.string().uuid(),
+  coverLetterId: optionalUuidSchema,
+  candidatureId: optionalUuidSchema,
+  title: z.string().min(1),
+  language: optionalLanguageSchema,
+  snapshot: coverLetterSnapshotSchema,
+  createdAt: z.string().min(1),
+  hasPdf: z.boolean(),
+}).strict();
+export type RenderedCoverLetterRecord = z.infer<typeof renderedCoverLetterRecordSchema>;
 
 export const applicationPacketCreateSchema = z.object({ candidatureId: z.string().uuid(), renderedCvId: z.string().uuid(), coverLetterId: z.string().uuid(), title: z.string().trim().min(1).max(200).optional() }).strict();
 export type ApplicationPacketCreate = z.infer<typeof applicationPacketCreateSchema>;
 export const applicationPacketRecordSchema = z.object({ id: z.string().uuid(), candidatureId: z.string().uuid(), renderedCvId: z.string().uuid(), coverLetterId: z.string().uuid(), title: z.string().min(1), createdAt: z.string().min(1), hasPdf: z.boolean() }).strict();
 export type ApplicationPacketRecord = z.infer<typeof applicationPacketRecordSchema>;
 
-export const documentCollectionsSchema = z.object({ templates: z.array(cvTemplateRecordSchema), workingCvs: z.array(workingCvRecordSchema), renderedCvs: z.array(renderedCvRecordSchema), letters: z.array(coverLetterRecordSchema), applicationPackets: z.array(applicationPacketRecordSchema) }).strict();
+export const documentCollectionsSchema = z.object({
+  templates: z.array(cvTemplateRecordSchema),
+  workingCvs: z.array(workingCvRecordSchema),
+  renderedCvs: z.array(renderedCvRecordSchema),
+  letters: z.array(coverLetterRecordSchema),
+  renderedLetters: z.array(renderedCoverLetterRecordSchema),
+  applicationPackets: z.array(applicationPacketRecordSchema),
+}).strict();
 export type DocumentCollections = z.infer<typeof documentCollectionsSchema>;
 export const openGeneratedResultSchema = z.object({ opened: z.literal(true) }).strict();
 export type OpenGeneratedResult = z.infer<typeof openGeneratedResultSchema>;
@@ -144,7 +176,11 @@ export interface DocumentDomainDesktopApi {
     readonly createLetter: (input: CoverLetterInput) => Promise<CoverLetterRecord>;
     readonly updateLetter: (input: CoverLetterUpdate) => Promise<CoverLetterRecord>;
     readonly removeLetter: (letterId: string) => Promise<DocumentCollections>;
+    readonly renderLetter: (letterId: string) => Promise<RenderedCoverLetterRecord>;
+    readonly openRenderedLetter: (renderedLetterId: string) => Promise<OpenGeneratedResult>;
+    readonly exportRenderedLetter: (renderedLetterId: string) => Promise<PortableProjectExportResult>;
     readonly createPacket: (input: ApplicationPacketCreate) => Promise<ApplicationPacketRecord>;
     readonly openPacket: (packetId: string) => Promise<OpenGeneratedResult>;
+    readonly exportPacket: (packetId: string) => Promise<PortableProjectExportResult>;
   };
 }
