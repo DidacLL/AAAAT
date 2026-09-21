@@ -1,0 +1,42 @@
+name: Real LaTeX portability
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/main/document-domain-service.ts"
+      - "src/main/document-latex.ts"
+      - "src/main/latex-runner.ts"
+      - "src/main/latex/**"
+      - "src/main/schema.sql"
+      - "src/shared/document-domain-contracts.ts"
+      - "test/real-latex-portability.test.ts"
+      - ".github/workflows/latex-portability.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: latex-portability-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-portable-projects:
+    name: Compile exported projects with pdfLaTeX
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - name: Install pdfLaTeX and latexmk
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends latexmk texlive-latex-base texlive-latex-recommended texlive-fonts-recommended
+      - run: npm ci
+      - name: Compile real portable document projects
+        env:
+          AAAAT_REAL_LATEX: "1"
+        run: npx vitest run test/real-latex-portability.test.ts
