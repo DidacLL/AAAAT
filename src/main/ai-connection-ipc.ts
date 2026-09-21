@@ -1,7 +1,6 @@
 import { lstatSync, readFileSync, writeFileSync } from "node:fs";
-import path from "node:path";
-
-import { app, dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { dialog, ipcMain, type BrowserWindow } from "electron";
+import { assertTrustedSender, requireWorkspaceRoot } from "./desktop-ipc-context";
 
 import {
   aiConnectionIdSchema,
@@ -25,23 +24,8 @@ import {
   setDefaultAiConnection,
   validateAiConnectionOperation,
 } from "./ai-connection-service";
-import { readLastWorkspacePath } from "./workspace";
 
 const maxPortableAiSetupBytes = 64 * 1024;
-
-function assertTrustedSender(event: IpcMainInvokeEvent, mainWindow: BrowserWindow): void {
-  if (event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) {
-    throw new Error("Untrusted IPC sender");
-  }
-}
-
-function requireWorkspaceRoot(): string {
-  const rootPath = readLastWorkspacePath(
-    path.join(app.getPath("userData"), "workspace-settings.json"),
-  );
-  if (!rootPath) throw new Error("Choose an AAAAT workspace first.");
-  return rootPath;
-}
 
 function readPortableAiSetupFile(filePath: string) {
   const stat = lstatSync(filePath);
@@ -87,7 +71,7 @@ async function importPortableAiSetup(mainWindow: BrowserWindow) {
   };
 }
 
-function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
+export function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(aiConnectionManagementChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(aiConnectionManagementChannels.list, (event) => {
@@ -154,6 +138,3 @@ function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): void {
   });
 }
 
-app.on("browser-window-created", (_event, mainWindow) =>
-  registerAiConnectionManagementIpc(mainWindow),
-);

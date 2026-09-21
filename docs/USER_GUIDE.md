@@ -6,7 +6,7 @@ Welcome appears first. You can continue with the last workspace, create or open 
 
 Use **New application** to paste an offer, message or note and/or fill the details you know. Save works with sparse information. In the same screen you may select **Parse with AI**, **Dedicated CV** and **Cover letter**. AAAAT saves the application first, then performs only the optional work you selected. A failed or unavailable AI connection does not lose the application.
 
-**Applications** opens Focus over everything you retained. **All data** shows the same applications as a compact register. **CVs** is for reusable CV work; cover letters normally stay with their application, while standalone letters remain available as a secondary option. **My information** keeps reusable professional facts.
+**Applications** is the single application surface over everything you retained. Use its search/filter controls for recognition and open an application for fuller retained detail; there is no separate peer **Focus** / **All data** product area. **CVs** is for reusable CV work; cover letters normally stay with their application, while standalone letters remain available as a secondary option. **My information** keeps reusable professional facts.
 
 The application grid can search retained notes, Sources and useful details. Opening an application shows what you saved and its linked CV or letter. Empty fields are fine. An offer is one possible input, never a required workflow.
 
@@ -14,7 +14,7 @@ The application grid can search retained notes, Sources and useful details. Open
 
 Use **My information** for reusable career material. The normal view is the information itself. Saved item-level variations, AI-use permission and other secondary controls appear only when relevant.
 
-AAAAT keeps local storage, presentation/Focus choices and AI-use permission as separate concepts. Information is not sent to AI merely because it is stored locally.
+AAAAT keeps local storage, primary-presentation choices and AI-use permission as separate concepts. Information is not sent to AI merely because it is stored locally.
 
 ## Workspaces, demo data and reset
 

@@ -1,22 +1,23 @@
-# Current mission — PLAN[2] external-AI-originated journeys
+# Current mission — PLAN[3] architecture, readability and dependency health
 
-Current explicit Product Owner instruction remains higher authority. PLAN[0] and PLAN[1] stay closed; PLAN[3]–PLAN[5] remain out of scope.
+Current explicit Product Owner instruction remains higher authority. PLAN[0], PLAN[1] and PLAN[2] are closed. PLAN[4] document/LaTeX redesign and PLAN[5] UX redesign remain out of scope.
 
 ## Outcome
 
-Prove two concrete third-party-AI entrances into ordinary user-owned AAAAT state:
+Make AAAAT easier for one human developer plus AI to read, modify and reason about without changing production behavior.
 
-- a local-capable external host uses packaged MCP stdio to submit retained opportunity material through the bounded application-document intention;
-- an external AI with no local-computer access produces a small versioned application handoff file that the user imports in New application.
+- make Electron desktop startup and IPC capability registration explicit from one composition root;
+- centralize the repeated trusted-renderer check and remembered-workspace resolution used by feature IPC modules while preserving the sandbox/main-frame/no-arbitrary-workspace boundary;
+- move core desktop IPC registration out of `main.ts` so startup remains focused on Electron lifecycle, session protection and window creation;
+- make materially compressed current code, especially `document-domain-service.ts`, ordinary readable TypeScript without redesigning document semantics;
+- inspect large renderer coordinators and extract only genuinely cohesive low-coupling helpers or subviews;
+- perform fresh dependency-health triage from the current branch, distinguishing shipped/runtime exposure from build/test tooling and changing dependencies only when current evidence justifies it;
+- correct clear architecture/documentation drift encountered during the pass without pulling later product redesign forward.
 
-Both routes use the same application-material intent and `createApplicationDocuments` service. AAAAT retains the exact supplied Source and deterministically creates requested editable local documents without invoking configured AAAAT AI. Any later AAAAT AI use is a separate explicit local user action. The external boundary returns/exposes no hidden mutation IDs, paths or private source content.
-
-Preserve the task-scoped opportunity-research read/Source-return round trip and its privacy projection. Do not add provider-specific integration, generic CRUD/browsing, remote infrastructure, localhost HTTP, plugin/runtime registries or broad machine authority.
-
-The development-era one-shot `--external-command candidature.create` path is removed because it has no independent current caller or setup journey and duplicates a narrower Source-only MCP capability.
+Prefer direct functions, explicit composition and small purposeful modules. Do not add repositories, DI containers, routers, registries, event buses, plugin frameworks, migration machinery or compatibility layers for architectural aesthetics.
 
 ## Verification
 
-Ordinary development uses `npm run verify` plus focused tests for the two journeys. Final boundary verification must run the Windows packaged MCP journey because the packaged executable/stdio carrier is materially affected. No other cross-OS package loop is required.
+Use focused checks while changing code and finish with `npm run verify`. If final changes affect desktop startup/IPC composition, run the surviving Windows packaged material journeys on the exact final head and record the evidence in the PR.
 
-Stop after the branch is pushed and one PR against `main` is opened or updated. Do not merge and do not declare PLAN[2] complete.
+Stop after the branch is pushed and one PR against `main` is open with exact evidence. Do not merge and do not declare PLAN[3] complete.
