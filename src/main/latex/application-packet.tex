@@ -1,0 +1,50 @@
+\documentclass{article}
+\usepackage{graphicx}
+\pagestyle{empty}
+\setlength{\oddsidemargin}{-1in}
+\setlength{\evensidemargin}{-1in}
+\setlength{\topmargin}{-1in}
+\setlength{\headheight}{0pt}
+\setlength{\headsep}{0pt}
+\setlength{\footskip}{0pt}
+\setlength{\textwidth}{\paperwidth}
+\setlength{\textheight}{\paperheight}
+\setlength{\topskip}{0pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+\newcount\AAAATPage
+\newcount\AAAATPageCount
+\newcommand{\AAAATIncludePDF}[1]{%
+  \pdfximage{#1}%
+  \AAAATPageCount=\pdflastximagepages
+  \AAAATPage=1
+  \AAAATIncludePDFPage{#1}%
+}
+\newcommand{\AAAATIncludePDFPage}[1]{%
+  \vbox to \textheight{%
+    \vfil
+    \hbox to \textwidth{%
+      \hfil
+      \includegraphics[
+        page=\the\AAAATPage,
+        width=\textwidth,
+        height=\textheight,
+        keepaspectratio
+      ]{#1}%
+      \hfil
+    }%
+    \vfil
+  }%
+  \ifnum\AAAATPage<\AAAATPageCount
+    \newpage
+    \advance\AAAATPage by 1
+    \expandafter\AAAATIncludePDFPage\expandafter{#1}%
+  \fi
+}
+
+\begin{document}
+\AAAATIncludePDF{cover-letter/build/main.pdf}
+\newpage
+\AAAATIncludePDF{cv/build/main.pdf}
+\end{document}

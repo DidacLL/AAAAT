@@ -1,6 +1,6 @@
 # ADR 0024 — External CV rendering requires separate local production authority
 
-**Status:** Accepted for Issue #200
+**Status:** Superseded — historical evidence only. Current document production has no persisted generic external-render authority or `ai_render_allowed` field; PLAN[4] does not broaden external-AI access. for Issue #200
 
 ## Context
 

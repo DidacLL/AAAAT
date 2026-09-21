@@ -11,6 +11,7 @@ import {
   documentDomainChannels,
   openGeneratedResultSchema,
   portableProjectExportResultSchema,
+  renderedCoverLetterRecordSchema,
   renderedCvRecordSchema,
   workingCvCreateSchema,
   workingCvRecordSchema,
@@ -50,8 +51,12 @@ export function createDocumentDomainDesktopApi(invoke: Invoke): DocumentDomainDe
       createLetter: async (input: CoverLetterInput) => coverLetterRecordSchema.parse(await invoke(documentDomainChannels.letterCreate, coverLetterInputSchema.parse(input))),
       updateLetter: async (input: CoverLetterUpdate) => coverLetterRecordSchema.parse(await invoke(documentDomainChannels.letterUpdate, coverLetterUpdateSchema.parse(input))),
       removeLetter: async (letterId: string) => documentCollectionsSchema.parse(await invoke(documentDomainChannels.letterRemove, coverLetterRecordSchema.shape.id.parse(letterId))),
+      renderLetter: async (letterId: string) => renderedCoverLetterRecordSchema.parse(await invoke(documentDomainChannels.renderLetter, coverLetterRecordSchema.shape.id.parse(letterId))),
+      openRenderedLetter: async (renderedLetterId: string) => openGeneratedResultSchema.parse(await invoke(documentDomainChannels.openRenderedLetter, renderedCoverLetterRecordSchema.shape.id.parse(renderedLetterId))),
+      exportRenderedLetter: async (renderedLetterId: string) => portableProjectExportResultSchema.parse(await invoke(documentDomainChannels.exportRenderedLetter, renderedCoverLetterRecordSchema.shape.id.parse(renderedLetterId))),
       createPacket: async (input: ApplicationPacketCreate) => applicationPacketRecordSchema.parse(await invoke(documentDomainChannels.packetCreate, applicationPacketCreateSchema.parse(input))),
       openPacket: async (packetId: string) => openGeneratedResultSchema.parse(await invoke(documentDomainChannels.packetOpen, applicationPacketRecordSchema.shape.id.parse(packetId))),
+      exportPacket: async (packetId: string) => portableProjectExportResultSchema.parse(await invoke(documentDomainChannels.packetExport, applicationPacketRecordSchema.shape.id.parse(packetId))),
     }),
   });
 }

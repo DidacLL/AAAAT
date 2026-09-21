@@ -14,6 +14,7 @@ import {
   documentDomainChannels,
   openGeneratedResultSchema,
   portableProjectExportResultSchema,
+  renderedCoverLetterRecordSchema,
   renderedCvRecordSchema,
   workingCvCreateSchema,
   workingCvRecordSchema,
@@ -28,12 +29,16 @@ import {
   createCvTemplate,
   createWorkingCv,
   duplicateRenderedCv,
+  exportApplicationPacketProject,
+  exportRenderedCoverLetterProject,
   exportRenderedCvProject,
   listDocumentCollections,
   removeCoverLetter,
   removeCvTemplate,
   removeWorkingCv,
+  renderedCoverLetterPdfPath,
   renderedCvPdfPath,
+  renderCoverLetter,
   renderWorkingCv,
   saveWorkingCvAsTemplate,
   saveWorkingCvItem,
@@ -124,6 +129,41 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return documentCollectionsSchema.parse(removeCoverLetter(requireWorkspaceRoot(), coverLetterRecordSchema.shape.id.parse(letterId)));
   });
+  ipcMain.handle(documentDomainChannels.renderLetter, async (event, letterId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return renderedCoverLetterRecordSchema.parse(
+      await renderCoverLetter(
+        requireWorkspaceRoot(),
+        coverLetterRecordSchema.shape.id.parse(letterId),
+      ),
+    );
+  });
+  ipcMain.handle(documentDomainChannels.openRenderedLetter, async (event, renderedLetterId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const pdfPath = renderedCoverLetterPdfPath(
+      requireWorkspaceRoot(),
+      renderedCoverLetterRecordSchema.shape.id.parse(renderedLetterId),
+    );
+    const error = await shell.openPath(pdfPath);
+    if (error) throw new Error("AAAAT could not open the retained cover-letter PDF.");
+    return openGeneratedResultSchema.parse({ opened: true });
+  });
+  ipcMain.handle(documentDomainChannels.exportRenderedLetter, async (event, renderedLetterId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const id = renderedCoverLetterRecordSchema.shape.id.parse(renderedLetterId);
+    const selected = await dialog.showOpenDialog(mainWindow, {
+      title: "Export portable cover-letter source project",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (selected.canceled || selected.filePaths.length === 0) return null;
+    return portableProjectExportResultSchema.parse({
+      exportedPath: exportRenderedCoverLetterProject(
+        requireWorkspaceRoot(),
+        id,
+        selected.filePaths[0] ?? "",
+      ),
+    });
+  });
   ipcMain.handle(documentDomainChannels.packetCreate, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return applicationPacketRecordSchema.parse(
@@ -136,5 +176,21 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
     const error = await shell.openPath(pdfPath);
     if (error) throw new Error("AAAAT could not open the retained Application packet PDF.");
     return openGeneratedResultSchema.parse({ opened: true });
+  });
+  ipcMain.handle(documentDomainChannels.packetExport, async (event, packetId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const id = applicationPacketRecordSchema.shape.id.parse(packetId);
+    const selected = await dialog.showOpenDialog(mainWindow, {
+      title: "Export portable application-packet source project",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (selected.canceled || selected.filePaths.length === 0) return null;
+    return portableProjectExportResultSchema.parse({
+      exportedPath: exportApplicationPacketProject(
+        requireWorkspaceRoot(),
+        id,
+        selected.filePaths[0] ?? "",
+      ),
+    });
   });
 }

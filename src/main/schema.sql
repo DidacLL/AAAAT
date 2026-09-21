@@ -204,6 +204,19 @@ CREATE TABLE cover_letters (
 ) STRICT;
 CREATE INDEX cover_letters_candidature_idx ON cover_letters(candidature_id, updated_at);
 
+CREATE TABLE rendered_cover_letters (
+  id TEXT PRIMARY KEY,
+  cover_letter_id TEXT REFERENCES cover_letters(id) ON DELETE SET NULL,
+  candidature_id TEXT REFERENCES candidatures(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  language TEXT,
+  snapshot_json TEXT NOT NULL CHECK (json_valid(snapshot_json)),
+  project_relative_path TEXT NOT NULL,
+  created_at TEXT NOT NULL
+) STRICT;
+CREATE INDEX rendered_cover_letters_letter_idx ON rendered_cover_letters(cover_letter_id, created_at);
+CREATE INDEX rendered_cover_letters_candidature_idx ON rendered_cover_letters(candidature_id, created_at);
+
 CREATE TABLE rendered_cvs (
   id TEXT PRIMARY KEY,
   working_cv_id TEXT REFERENCES working_cvs(id) ON DELETE SET NULL,

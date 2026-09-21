@@ -1,6 +1,6 @@
 # ADR 0023 — External CV content uses one deliberate local selection
 
-**Status:** Accepted for Issue #198
+**Status:** Superseded — historical evidence only. Current document production has no persisted generic CV content-disclosure selector or `documents.ai_content_visible` field. for Issue #198
 
 ## Context
 

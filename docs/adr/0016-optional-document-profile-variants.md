@@ -1,6 +1,6 @@
 # ADR 0016 — Optional document profile variants
 
-- Status: Accepted for Issue #165
+- Status: Superseded — historical evidence only. Current Profile variants are item-level reusable wording, and CV templates/Working CVs use explicit per-item current/variant/override/custom source modes; there is no generic `documents.variant_id` model.
 - Date: 2026-09-06
 - Decision class: C
 - Issue: [#165](https://github.com/DidacLL/AAAAT/issues/165)

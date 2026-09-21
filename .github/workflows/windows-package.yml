@@ -5,6 +5,19 @@ on:
   push:
     branches:
       - candidate/windows
+  pull_request:
+    paths:
+      - "src/main/document-domain-ipc.ts"
+      - "src/main/document-domain-service.ts"
+      - "src/main/document-latex.ts"
+      - "src/main/latex/**"
+      - "src/main/schema.sql"
+      - "src/preload/document-domain-api.ts"
+      - "src/renderer/DocumentWork.tsx"
+      - "src/renderer/DocumentsStartWorkspace.tsx"
+      - "src/shared/document-domain-contracts.ts"
+      - "test/desktop/packaged-documents.spec.ts"
+      - ".github/workflows/windows-package.yml"
 
 permissions:
   contents: read
@@ -18,10 +31,14 @@ jobs:
     name: Package Windows ZIP
     runs-on: windows-latest
     timeout-minutes: 30
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
     steps:
-      - name: Checkout triggering commit
+      - name: Checkout exact source commit
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Set up Node
         uses: actions/setup-node@v7
@@ -43,7 +60,7 @@ jobs:
         run: npm run make
 
       - name: Verify affected packaged runtime journeys
-        run: npx playwright test test/desktop/packaged-manual-candidature.spec.ts test/desktop/packaged-recovery.spec.ts test/desktop/packaged-mcp.spec.ts --config playwright.config.ts
+        run: npx playwright test test/desktop/packaged-manual-candidature.spec.ts test/desktop/packaged-documents.spec.ts test/desktop/packaged-recovery.spec.ts test/desktop/packaged-mcp.spec.ts --config playwright.config.ts
 
       - name: Collect package metadata
         id: package
@@ -59,7 +76,7 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip.FullName).Hash.ToLowerInvariant()
           $size = $zip.Length
           $metadata = @(
-            "source_sha=${{ github.sha }}"
+            "source_sha=${{ env.SOURCE_SHA }}"
             "zip_filename=$($zip.Name)"
             "zip_size_bytes=$size"
             "sha256=$hash"
@@ -73,13 +90,13 @@ jobs:
 
           @"
           ## Windows package candidate
-          - Source SHA: `${{ github.sha }}`
+          - Source SHA: `${{ env.SOURCE_SHA }}`
           - ZIP: `$($zip.Name)`
           - Size: `$size` bytes
           - SHA-256: `$hash`
           "@ >> $env:GITHUB_STEP_SUMMARY
 
-          Write-Host "Source SHA: ${{ github.sha }}"
+          Write-Host "Source SHA: ${{ env.SOURCE_SHA }}"
           Write-Host "ZIP filename: $($zip.Name)"
           Write-Host "ZIP size: $size bytes"
           Write-Host "SHA-256: $hash"
@@ -87,7 +104,7 @@ jobs:
       - name: Upload Windows candidate
         uses: actions/upload-artifact@v4
         with:
-          name: AAAAT-windows-candidate-${{ github.sha }}
+          name: AAAAT-windows-candidate-${{ env.SOURCE_SHA }}
           path: |
             ${{ steps.package.outputs.zip_path }}
             windows-package-metadata.txt

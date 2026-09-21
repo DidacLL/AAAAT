@@ -33,7 +33,7 @@ import "./owner-feedback-recovery.css";
 type CandidatureMode = "corpus" | "selected";
 const emptyTag: TagInput = { name: "", definition: "", notes: "", aliases: [] };
 const emptyCollections: DocumentCollections = {
-  templates: [], workingCvs: [], renderedCvs: [], letters: [], applicationPackets: [],
+  templates: [], workingCvs: [], renderedCvs: [], letters: [], renderedLetters: [], applicationPackets: [],
 };
 
 function aliasesFromText(value: string): string[] {
@@ -486,6 +486,9 @@ export function CandidaturesWorkspace({
   const applicationRendered = collections.renderedCvs.filter(
     (item) => item.candidatureId === selected.id,
   );
+  const applicationRenderedLetters = collections.renderedLetters.filter(
+    (item) => item.candidatureId === selected.id,
+  );
   const applicationPackets = collections.applicationPackets.filter(
     (item) => item.candidatureId === selected.id,
   );
@@ -907,6 +910,7 @@ export function CandidaturesWorkspace({
             {applicationWorkingCvs.length +
               applicationLetters.length +
               applicationRendered.length +
+              applicationRenderedLetters.length +
               applicationPackets.length ===
             0 ? (
               <p className="compact-empty">No application documents yet.</p>
@@ -947,16 +951,47 @@ export function CandidaturesWorkspace({
                     <small>Open PDF</small>
                   </button>
                 ))}
+                {applicationRenderedLetters.map((document) => (
+                  <article key={document.id} className="document-intent-row">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void window.aaaat.documentDomain.openRenderedLetter(document.id)
+                      }
+                    >
+                      <span className="item-kind">Rendered letter</span>
+                      <strong>{document.title}</strong>
+                      <small>Open PDF</small>
+                    </button>
+                    <button
+                      type="button"
+                      className="compact-secondary"
+                      onClick={() =>
+                        void window.aaaat.documentDomain.exportRenderedLetter(document.id)
+                      }
+                    >
+                      Export source project
+                    </button>
+                  </article>
+                ))}
                 {applicationPackets.map((packet) => (
-                  <button
-                    type="button"
-                    key={packet.id}
-                    onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}
-                  >
-                    <span className="item-kind">Packet</span>
-                    <strong>{packet.title}</strong>
-                    <small>Open PDF</small>
-                  </button>
+                  <article key={packet.id} className="document-intent-row">
+                    <button
+                      type="button"
+                      onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}
+                    >
+                      <span className="item-kind">Packet</span>
+                      <strong>{packet.title}</strong>
+                      <small>Open PDF</small>
+                    </button>
+                    <button
+                      type="button"
+                      className="compact-secondary"
+                      onClick={() => void window.aaaat.documentDomain.exportPacket(packet.id)}
+                    >
+                      Export source project
+                    </button>
+                  </article>
                 ))}
               </div>
             )}

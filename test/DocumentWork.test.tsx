@@ -31,6 +31,8 @@ const letter = {
 };
 
 const updateLetter = vi.fn();
+const renderLetter = vi.fn();
+const openRenderedLetter = vi.fn();
 const draftCoverLetter = vi.fn();
 
 beforeEach(() => {
@@ -47,6 +49,25 @@ beforeEach(() => {
     bodyParagraphs: ["AI body."],
     closing: "Regards",
   });
+  renderLetter.mockResolvedValue({
+    id: "00000000-0000-4000-8000-000000000903",
+    coverLetterId: letterId,
+    candidatureId,
+    title: letter.title,
+    language: letter.language,
+    snapshot: {
+      candidatureId,
+      title: letter.title,
+      language: letter.language,
+      recipient: letter.recipient,
+      subject: letter.subject,
+      bodyParagraphs: letter.bodyParagraphs,
+      closing: letter.closing,
+    },
+    createdAt: now,
+    hasPdf: true,
+  });
+  openRenderedLetter.mockResolvedValue({ opened: true });
 
   Object.defineProperty(window, "aaaat", {
     configurable: true,
@@ -57,9 +78,13 @@ beforeEach(() => {
           workingCvs: [],
           renderedCvs: [],
           letters: [letter],
+          renderedLetters: [],
           applicationPackets: [],
         })),
         updateLetter,
+        renderLetter,
+        openRenderedLetter,
+        exportRenderedLetter: vi.fn(async () => null),
       },
       profile: {
         current: vi.fn(async () => ({ items: [] })),
@@ -80,6 +105,29 @@ afterEach(() => {
 });
 
 describe("cover-letter work", () => {
+  it("persists unsaved user edits before rendering and opens the retained output", async () => {
+    const user = userEvent.setup();
+    render(<DocumentWork />);
+
+    const body = await screen.findByRole("textbox", { name: "Body" });
+    await user.clear(body);
+    await user.type(body, "User-edited render body.");
+
+    await user.click(screen.getByRole("button", { name: "Render PDF" }));
+
+    await waitFor(() => expect(renderLetter).toHaveBeenCalledWith(letterId));
+    expect(updateLetter).toHaveBeenCalledWith(expect.objectContaining({
+      id: letterId,
+      bodyParagraphs: ["User-edited render body."],
+    }));
+    expect(updateLetter.mock.invocationCallOrder[0]).toBeLessThan(
+      renderLetter.mock.invocationCallOrder[0]!,
+    );
+    expect(openRenderedLetter).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000903",
+    );
+  });
+
   it("persists unsaved user edits before asking AI to replace the draft", async () => {
     const user = userEvent.setup();
     render(<DocumentWork />);

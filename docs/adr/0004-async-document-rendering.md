@@ -1,32 +1,28 @@
-# ADR 0004 — Asynchronous document rendering and safe project replacement
+# ADR 0004 — Asynchronous document rendering and safe artifact installation
+
+- Status: Accepted; updated by ADR 0015 and PLAN[4]
+- Current baseline: pdfTeX through pdfLaTeX, invoked by `latexmk -pdf`
 
 ## Context
 
-AAAAT renders user-owned portable LaTeX projects from the Electron main process. The original implementation ran `latexmk` synchronously, rewrote managed project files in place, and deleted the database record before removing its project directory. Those choices can block the main event loop or leave user-owned files in a mixed/lost state after partial failure.
+AAAAT renders user-owned portable LaTeX projects from the privileged Electron main process. Rendering must not block the main event loop, expose arbitrary process authority to the renderer, or leave a half-written retained artifact when TeX fails.
+
+Earlier development versions also described in-place source replacement and a selectable document-engine enum. Those are no longer part of the current artifact model or production baseline.
 
 ## Decision
 
-Document rendering keeps the existing main-process-to-`latexmk` boundary, but execution is asynchronous through one small document-specific runner. The document service permits one active render per project path; the runner applies a bounded timeout and terminates the spawned process tree on timeout.
+Keep one small asynchronous document-specific `latexmk` runner with a bounded timeout and process-tree termination. The command and TeX flags are fixed; user content is never interpolated into command text.
 
-On POSIX systems the runner starts `latexmk` directly. On Windows it invokes the system command interpreter only to resolve the `latexmk` command shim; the command name and all TeX flags are fixed, and the only variable flag derives from the validated `DocumentEngine` enum. No document content, user path, or other free-form user input is interpolated into the command.
+Each render creates a new artifact project in a same-filesystem staged directory. TypeScript writes the complete portable source project, `latexmk -pdf` compiles it, and only a successful project is renamed into its retained final directory and recorded in SQLite. A failed render removes incomplete staged/final directories and leaves the editable Working CV or cover letter unchanged.
 
-Managed source replacement is staged on the same filesystem and installs the three managed source files with rollback to their previous versions if replacement fails. Document deletion first renames an existing project to a same-filesystem staged path, performs the database mutation, restores the project if that mutation fails, and removes the staged project only after database success.
+Opening PDFs and selecting export destinations remain privileged main-process operations. Export copies the complete retained project; it does not move or synchronize the managed original.
 
-No durable job state, worker system, generic transaction framework, scheduler, or recovery database is introduced.
+No durable job queue, worker framework, engine matrix, generic rendering provider, transaction framework or recovery database is introduced.
 
 ## Consequences
 
-- TeX execution no longer blocks Electron's main event loop.
-- Duplicate renders are rejected explicitly instead of running concurrently against one project.
-- Source-touching document operations are rejected while that project is rendering.
-- Ordinary managed-generation failures preserve the previous complete managed source set.
-- A failed database deletion preserves the user's project directory.
-- Cleanup failure after a successful deletion may leave a clearly staged directory for manual recovery rather than silently destroying source.
-- Renderer/preload authority and portable LaTeX ownership remain unchanged.
-
-## Alternatives rejected
-
-- Background job/worker framework: unnecessary for one bounded render operation.
-- Durable render queue or recovery ledger: adds persistence and reconciliation complexity without a demonstrated requirement.
-- Shelling arbitrary command text: unnecessary and would widen the process boundary; Windows uses only fixed validated arguments to resolve the command shim.
-- Continuing `spawnSync` or in-place multi-file writes: retains the verified responsiveness and partial-failure defects.
+- TeX execution remains asynchronous and bounded.
+- Failed rendering cannot create a retained database artifact or corrupt editable document state.
+- Retained artifact directories are complete installations, not in-place mutable caches.
+- The production engine baseline is one pdfLaTeX path rather than a configurable engine matrix.
+- Renderer/preload authority stays typed and path-free while generated source/output remains user-owned and portable.
