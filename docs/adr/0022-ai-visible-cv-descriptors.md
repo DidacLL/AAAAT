@@ -1,6 +1,6 @@
 # ADR 0022 — AI-visible CV descriptors are explicit bounded document metadata
 
-**Status:** Accepted for Issue #196
+**Status:** Superseded — historical evidence only. Current document contracts do not persist generic AI-visible CV descriptor fields; bounded AI document operations use the current purpose-specific contracts instead. for Issue #196
 
 ## Context
 
