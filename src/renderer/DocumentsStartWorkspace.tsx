@@ -3,7 +3,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { DocumentCollections, RenderedCvRecord } from "../shared/document-domain-contracts";
 
 const emptyCollections: DocumentCollections = {
-  templates: [], workingCvs: [], renderedCvs: [], letters: [], applicationPackets: [],
+  templates: [],
+  workingCvs: [],
+  renderedCvs: [],
+  letters: [],
+  renderedLetters: [],
+  applicationPackets: [],
 };
 
 function nextCvTitle(collections: DocumentCollections): string {
@@ -46,7 +51,7 @@ function RenderedCvInspection({
         <div className="button-row">
           <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedCv(document.id)}>Open PDF</button>
           <button type="button" className="compact-secondary" disabled={busy} onClick={() => onDuplicate(document.id)}>Duplicate to edit</button>
-          <button type="button" className="compact-secondary" onClick={() => void exportProject()}>Export project</button>
+          <button type="button" className="compact-secondary" onClick={() => void exportProject()}>Export source project</button>
         </div>
       </div>
       {document.snapshot.sections.length === 0 ? <p className="compact-empty">This rendered CV was produced from a blank composition.</p> : (
@@ -235,9 +240,32 @@ export function DocumentsStartWorkspace({
         {collections.letters.length === 0 ? <p className="document-intent-empty">No letters yet. Application letters will appear here as well as in their application.</p> : <div className="document-intent-list">{collections.letters.map((letter) => <button type="button" key={letter.id} onClick={() => onOpenDocument(letter.id)}><span className="item-kind">Letter</span><strong>{letter.title}</strong><small>{letter.candidatureId ? "Application-owned" : "Standalone"}</small></button>)}</div>}
       </section>
 
+      <section className="document-intent-existing" aria-label="Rendered cover letters">
+        <div className="section-heading"><div><p className="eyebrow">Generated letter snapshots</p><h2>Rendered letters</h2></div><span>{collections.renderedLetters.length}</span></div>
+        {collections.renderedLetters.length === 0 ? <p className="document-intent-empty">No rendered cover-letter PDFs yet.</p> : (
+          <div className="document-intent-list">
+            {collections.renderedLetters.map((rendered) => (
+              <article key={rendered.id} className="document-intent-row">
+                <button type="button" onClick={() => void window.aaaat.documentDomain.openRenderedLetter(rendered.id)}><span className="item-kind">Rendered letter</span><strong>{rendered.title}</strong><small>{rendered.candidatureId ? "Application-owned" : "Standalone"} · Open PDF</small></button>
+                <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.exportRenderedLetter(rendered.id)}>Export source project</button>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="document-intent-existing" aria-label="Application packets">
         <div className="section-heading"><div><p className="eyebrow">Retained application output</p><h2>Application packets</h2></div><span>{collections.applicationPackets.length}</span></div>
-        {collections.applicationPackets.length === 0 ? <p className="document-intent-empty">No application packets yet.</p> : <div className="document-intent-list">{collections.applicationPackets.map((packet) => <button type="button" key={packet.id} onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}><span className="item-kind">Packet</span><strong>{packet.title}</strong><small>Open PDF</small></button>)}</div>}
+        {collections.applicationPackets.length === 0 ? <p className="document-intent-empty">No application packets yet.</p> : (
+          <div className="document-intent-list">
+            {collections.applicationPackets.map((packet) => (
+              <article key={packet.id} className="document-intent-row">
+                <button type="button" onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}><span className="item-kind">Packet</span><strong>{packet.title}</strong><small>Open PDF</small></button>
+                <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.exportPacket(packet.id)}>Export source project</button>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </section>
   );
