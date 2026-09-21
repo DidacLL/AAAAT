@@ -236,6 +236,33 @@ describe("desktop preload boundary", () => {
       if (channel === documentDomainChannels.exportRenderedCv) {
         return { exportedPath: "/tmp/portable-rendered-cv" };
       }
+      if (channel === documentDomainChannels.renderLetter) {
+        return {
+          id: sourceId,
+          coverLetterId: candidatureId,
+          candidatureId: null,
+          title: "Standalone letter",
+          snapshot: {
+            candidatureId: null,
+            title: "Standalone letter",
+            bodyParagraphs: ["Retained body."],
+          },
+          createdAt: "2026-09-21T00:00:00.000Z",
+          hasPdf: true,
+        };
+      }
+      if (
+        channel === documentDomainChannels.openRenderedLetter ||
+        channel === documentDomainChannels.packetOpen
+      ) {
+        return { opened: true };
+      }
+      if (channel === documentDomainChannels.exportRenderedLetter) {
+        return { exportedPath: "/tmp/portable-rendered-letter" };
+      }
+      if (channel === documentDomainChannels.packetExport) {
+        return { exportedPath: "/tmp/portable-packet" };
+      }
       return null;
     });
 
@@ -254,6 +281,20 @@ describe("desktop preload boundary", () => {
     await expect(documents.documentDomain.exportRenderedCv(candidatureId)).resolves.toEqual({
       exportedPath: "/tmp/portable-rendered-cv",
     });
+    await expect(documents.documentDomain.renderLetter(candidatureId)).resolves.toMatchObject({
+      id: sourceId,
+      coverLetterId: candidatureId,
+      hasPdf: true,
+    });
+    await expect(documents.documentDomain.openRenderedLetter(sourceId)).resolves.toEqual({
+      opened: true,
+    });
+    await expect(documents.documentDomain.exportRenderedLetter(sourceId)).resolves.toEqual({
+      exportedPath: "/tmp/portable-rendered-letter",
+    });
+    await expect(documents.documentDomain.exportPacket(sourceId)).resolves.toEqual({
+      exportedPath: "/tmp/portable-packet",
+    });
 
     expect(invoke).toHaveBeenCalledWith(
       candidatureOpportunityResearchAccessChannels.current,
@@ -266,6 +307,10 @@ describe("desktop preload boundary", () => {
     expect(invoke).toHaveBeenCalledWith(workspaceRecoveryChannels.backup);
     expect(invoke).toHaveBeenCalledWith(workspaceRecoveryChannels.restore);
     expect(invoke).toHaveBeenCalledWith(documentDomainChannels.exportRenderedCv, candidatureId);
+    expect(invoke).toHaveBeenCalledWith(documentDomainChannels.renderLetter, candidatureId);
+    expect(invoke).toHaveBeenCalledWith(documentDomainChannels.openRenderedLetter, sourceId);
+    expect(invoke).toHaveBeenCalledWith(documentDomainChannels.exportRenderedLetter, sourceId);
+    expect(invoke).toHaveBeenCalledWith(documentDomainChannels.packetExport, sourceId);
 
     const malformedResearch = createCandidatureOpportunityResearchAccessDesktopApi(
       vi.fn(async () => ({ candidatureId, allowed: "yes" })),
