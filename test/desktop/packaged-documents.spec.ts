@@ -166,7 +166,7 @@ async function startPackagedApp(
 ): Promise<RunningApp> {
   const port = await reservePort();
   const endpoint = `http://127.0.0.1:${port}`;
-  const environment = {
+  const environment: NodeJS.ProcessEnv = {
     ...process.env,
     PATH: `${toolsPath}${path.delimiter}${process.env.PATH ?? ""}`,
   };
