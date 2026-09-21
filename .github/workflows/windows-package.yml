@@ -5,6 +5,19 @@ on:
   push:
     branches:
       - candidate/windows
+  pull_request:
+    paths:
+      - "src/main/document-domain-ipc.ts"
+      - "src/main/document-domain-service.ts"
+      - "src/main/document-latex.ts"
+      - "src/main/latex/**"
+      - "src/main/schema.sql"
+      - "src/preload/document-domain-api.ts"
+      - "src/renderer/DocumentWork.tsx"
+      - "src/renderer/DocumentsStartWorkspace.tsx"
+      - "src/shared/document-domain-contracts.ts"
+      - "test/desktop/packaged-documents.spec.ts"
+      - ".github/workflows/windows-package.yml"
 
 permissions:
   contents: read
