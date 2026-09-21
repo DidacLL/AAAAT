@@ -166,6 +166,7 @@ test("packaged no-AI raw capture and manual completion uses the real renderer pr
 
   try {
     running = await startPackagedApp(isolatedUserData, appData);
+    await running.page.getByRole("button", { name: "Open applications" }).click();
     await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
 
     await running.page.getByRole("button", { name: "New application" }).click();
