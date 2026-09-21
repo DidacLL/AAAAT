@@ -231,6 +231,17 @@ function requireLetter(database: DatabaseSync, id: string): CoverLetterRecord {
   if (!row) throw new DocumentDomainServiceError('The cover letter no longer exists.');
   return toLetter(row);
 }
+function snapshotCoverLetter(letter: CoverLetterRecord): CoverLetterSnapshot {
+  return coverLetterSnapshotSchema.parse({
+    candidatureId: letter.candidatureId,
+    title: letter.title,
+    language: letter.language,
+    recipient: letter.recipient,
+    subject: letter.subject,
+    bodyParagraphs: letter.bodyParagraphs,
+    closing: letter.closing
+  });
+}
 function managedProjectPath(
     rootPath: string, managedRoot: string, id: string, relativePath: string): string {
   const expected = path.resolve(rootPath, managedRoot, id);
@@ -713,6 +724,7 @@ export async function renderWorkingCv(
   const id = randomUUID();
   const relativePath = path.join('rendered-cvs', id);
   const projectPath = path.join(rootPath, relativePath);
+  const stagePath = `${projectPath}.stage-${randomUUID()}`;
   const snapshot = renderedCvSnapshotSchema.parse({
     title: working.title,
     ...(working.language ? {language: working.language} : {}),
@@ -721,8 +733,9 @@ export async function renderWorkingCv(
     sections: working.sections
   });
   try {
-    writeCvLatexProject(projectPath, working);
-    await compileProject(projectPath, timeoutMs);
+    writeCvLatexProject(stagePath, working);
+    await compileProject(stagePath, timeoutMs);
+    renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
     withWorkspaceDatabase(rootPath, (database) => {
       database
@@ -735,6 +748,7 @@ export async function renderWorkingCv(
     return withWorkspaceDatabase(
         rootPath, (database) => toRendered(rootPath, requireRenderedRow(database, id)));
   } catch (error) {
+    rmSync(stagePath, {recursive: true, force: true});
     rmSync(projectPath, {recursive: true, force: true});
     throw error;
   }
@@ -864,6 +878,55 @@ export function removeCoverLetter(rootPath: string, letterId: string): DocumentC
     });
   });
 }
+export async function renderCoverLetter(
+    rootPath: string, coverLetterId: string,
+    timeoutMs = 30000): Promise<RenderedCoverLetterRecord> {
+  const letter =
+      withWorkspaceDatabase(rootPath, (database) => requireLetter(database, coverLetterId));
+  const snapshot = snapshotCoverLetter(letter);
+  const id = randomUUID();
+  const relativePath = path.join('rendered-cover-letters', id);
+  const projectPath = path.join(rootPath, relativePath);
+  const stagePath = `${projectPath}.stage-${randomUUID()}`;
+  try {
+    writeCoverLetterLatexProject(stagePath, snapshot);
+    await compileProject(stagePath, timeoutMs);
+    renameSync(stagePath, projectPath);
+    const createdAt = new Date().toISOString();
+    withWorkspaceDatabase(rootPath, (database) => {
+      database
+          .prepare(
+              `INSERT INTO rendered_cover_letters(id, cover_letter_id, candidature_id, title, language, snapshot_json, project_relative_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+          .run(
+              id, letter.id, letter.candidatureId, letter.title, nullable(letter.language),
+              JSON.stringify(snapshot), relativePath, createdAt);
+    });
+    return withWorkspaceDatabase(
+        rootPath, (database) =>
+          toRenderedLetter(rootPath, requireRenderedLetterRow(database, id)));
+  } catch (error) {
+    rmSync(stagePath, {recursive: true, force: true});
+    rmSync(projectPath, {recursive: true, force: true});
+    throw error;
+  }
+}
+export function renderedCoverLetterPdfPath(
+    rootPath: string, renderedLetterId: string): string {
+  return withWorkspaceDatabase(rootPath, (database) => {
+    const pdf = retainedPdf(
+        renderedLetterProjectPath(rootPath, requireRenderedLetterRow(database, renderedLetterId)));
+    if (!existsSync(pdf))
+      throw new DocumentDomainServiceError('The retained cover-letter PDF is missing.');
+    return pdf;
+  });
+}
+export function exportRenderedCoverLetterProject(
+    rootPath: string, renderedLetterId: string, targetParent: string): string {
+  const row = withWorkspaceDatabase(
+      rootPath, (database) => requireRenderedLetterRow(database, renderedLetterId));
+  return exportPortableProject(
+      renderedLetterProjectPath(rootPath, row), row.title, row.id, targetParent);
+}
 export async function createApplicationPacket(
     rootPath: string, rawInput: ApplicationPacketCreate,
     timeoutMs = 30000): Promise<ApplicationPacketRecord> {
@@ -884,15 +947,7 @@ export async function createApplicationPacket(
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   try {
     mkdirSync(stagePath, {recursive: true});
-    const letterSnapshot = coverLetterSnapshotSchema.parse({
-      candidatureId: letter.candidatureId,
-      title: letter.title,
-      language: letter.language,
-      recipient: letter.recipient,
-      subject: letter.subject,
-      bodyParagraphs: letter.bodyParagraphs,
-      closing: letter.closing
-    });
+    const letterSnapshot = snapshotCoverLetter(letter);
     const letterPath = path.join(stagePath, 'cover-letter');
     writeCoverLetterLatexProject(letterPath, letterSnapshot);
     await compileProject(letterPath, timeoutMs);
@@ -927,4 +982,11 @@ export function applicationPacketPdfPath(rootPath: string, packetId: string): st
       throw new DocumentDomainServiceError('The retained Application packet PDF is missing.');
     return pdf;
   });
+}
+export function exportApplicationPacketProject(
+    rootPath: string, packetId: string, targetParent: string): string {
+  const row = withWorkspaceDatabase(
+      rootPath, (database) => requirePacketRow(database, packetId));
+  return exportPortableProject(
+      packetProjectPath(rootPath, row), row.title, row.id, targetParent);
 }
