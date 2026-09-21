@@ -44,17 +44,24 @@ The current document domain has explicit roles rather than one generic document/
 
 When the user requests application documents while saving an application, AAAAT saves the application first, then creates the requested Working CV and/or application-owned cover letter through normal services. Document creation by itself is deterministic and local. AI parsing/preparation runs only after a separate explicit AI opt-in in the existing product surface; merely having a validated route never authorizes disclosure or AI mutation. AI failure never invalidates retained application or editable local work.
 
-LaTeX is an internal rendering implementation, not the ordinary document-domain model. The rendering path is conceptually:
+LaTeX is an internal rendering implementation, not the ordinary document-domain model. The production boundary is:
 
 ```text
-editable AAAAT document state
-→ generated portable rendering project
-→ internal LaTeX implementation
-→ local latexmk / pdfLaTeX
-→ retained PDF and immutable rendered snapshot
+typed Working CV / cover-letter state
+→ TypeScript document data feeder
+→ stable AAAAT LaTeX2e commands
+→ self-contained project
+→ latexmk -pdf / pdfLaTeX
+→ retained PDF and immutable generated artifact
 ```
 
-Generated portable project/output remains user-owned and exportable. The ordinary model does not require permanent per-document inclusion rules, user-authored LaTeX blueprints, raw source-path ownership, or generic document external-disclosure controls.
+`src/main/document-latex.ts` is the single document-text encoding and data-feeding boundary. It emits content through the small public API in `src/main/latex/aaaat.sty`; CV and letter presentation remains in `src/main/latex/cv.tex` and `src/main/latex/cover-letter.tex`. Application packets keep their own small entrypoint and combine the exact retained contributor outputs rather than becoming an editable third document type.
+
+A Rendered CV stores its immutable Working CV composition snapshot. A rendered cover letter stores an immutable cover-letter snapshot without introducing a generic rendered-document abstraction. Application packets retain the cover-letter snapshot used for the packet and the selected Rendered CV. Rendering is staged and a database artifact record is created only after successful compilation.
+
+Every managed or exported source project contains the AAAAT-owned package/template/data files it needs and uses only project-relative references. Export copies the complete retained project to a user-selected location without moving or mutating the managed original. The renderer receives typed artifact records and privileged open/export intentions, never arbitrary internal source paths.
+
+Generated portable project/output remains user-owned and exportable. The ordinary model does not require permanent per-document inclusion rules, user-authored LaTeX blueprints, raw source-path ownership, generic render providers, or generic document external-disclosure controls.
 
 ## Optional intelligence and external assistants
 
