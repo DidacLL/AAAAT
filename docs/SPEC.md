@@ -44,24 +44,26 @@ The current document domain has explicit roles rather than one generic document/
 
 When the user requests application documents while saving an application, AAAAT saves the application first, then creates the requested Working CV and/or application-owned cover letter through normal services. Document creation by itself is deterministic and local. AI parsing/preparation runs only after a separate explicit AI opt-in in the existing product surface; merely having a validated route never authorizes disclosure or AI mutation. AI failure never invalidates retained application or editable local work.
 
-LaTeX is an internal rendering implementation, not the ordinary document-domain model. The production boundary is:
+LaTeX is an internal rendering implementation, not the ordinary document-domain model. The current implementation proves this provisional production boundary:
 
 ```text
 typed Working CV / cover-letter state
 → TypeScript document data feeder
-→ stable AAAAT LaTeX2e commands
+→ current AAAAT LaTeX source/package facade
 → self-contained project
 → latexmk -pdf / pdfLaTeX
 → retained PDF and immutable generated artifact
 ```
 
-`src/main/document-latex.ts` is the single document-text encoding and data-feeding boundary. It emits content through the small public API in `src/main/latex/aaaat.sty`; CV and letter presentation remains in `src/main/latex/cv.tex` and `src/main/latex/cover-letter.tex`. Application packets keep their own small entrypoint and combine the exact retained contributor outputs rather than becoming an editable third document type.
+`src/main/document-latex.ts` is the current document-text encoding and data-feeding boundary. It emits through the small facade in `src/main/latex/aaaat.sty`; CV and letter presentation currently lives in `src/main/latex/cv.tex` and `src/main/latex/cover-letter.tex`. Application packets keep their own small entrypoint and combine exact retained contributor outputs rather than becoming an editable third document type.
+
+That implementation is retained rendering infrastructure, not the completed PLAN[4] document-package design. ADR 0015 remains accepted technical authority: the intended package uses a LaTeX2e public API with expl3 internals, while editable blueprints and modified package sources remain user-owned. Detailed blueprint, language and font design remains an owner-collaboration boundary.
 
 A Rendered CV stores its immutable Working CV composition snapshot. A rendered cover letter stores an immutable cover-letter snapshot without introducing a generic rendered-document abstraction. Application packets retain the cover-letter snapshot used for the packet and the selected Rendered CV. Rendering is staged and a database artifact record is created only after successful compilation.
 
 Every managed or exported source project contains the AAAAT-owned package/template/data files it needs and uses only project-relative references. Export copies the complete retained project to a user-selected location without moving or mutating the managed original. The renderer receives typed artifact records and privileged open/export intentions, never arbitrary internal source paths.
 
-Generated portable project/output remains user-owned and exportable. The ordinary model does not require permanent per-document inclusion rules, user-authored LaTeX blueprints, raw source-path ownership, generic render providers, or generic document external-disclosure controls.
+Generated portable project/output remains user-owned and exportable. Ordinary document editing does not need to expose raw source paths, generic render-provider concepts or generic external-disclosure controls. Separately, ADR 0015 preserves editable blueprints and modified package sources as user-owned document assets; their final product interaction is unresolved PLAN[4] work rather than a rejected requirement.
 
 ## Optional intelligence and external assistants
 
@@ -77,27 +79,31 @@ named purpose
 → normal application service
 ```
 
-External assistants use meaningful bounded AAAAT capabilities. The carrier/host is not product meaning. The packaged MCP stdio surface is one current carrier and may be used by ChatGPT, Claude, local agents, editor hosts or other compatible environments.
+External assistants use meaningful bounded AAAAT capabilities. The carrier/host is not product meaning.
+
+The packaged MCP stdio surface and the portable application-handoff file are **currently implemented carriers**. They prove bounded local mutation and transport mechanics; they are not, by themselves, accepted evidence of PLAN[2]'s required journeys beginning in real third-party AI environments.
 
 The capability contract must not expose generic corpus browsing, arbitrary durable IDs as mutation handles, database queries, filesystem access, shell/process execution, package-manager authority, scraping or broad local write access. A host's wider OS authority remains the user's separate trust choice.
 
-Meaningful parity is expressed as typed high-level product intentions, not generic CRUD. An external assistant may, for example, create the same offer-derived application document workspace as the desktop without receiving hidden application/document IDs. Setup mutations use the same application services and validation as the desktop and require explicit local authority where appropriate.
+Meaningful parity is expressed as typed high-level product intentions, not generic CRUD. A real external-AI-first journey may need to return analysed/proposed candidature information, retained research Sources, document contributions, selection/tailoring intent or another bounded useful result already produced by that external AI. The contract should carry the minimum useful result for the chosen journey without exposing hidden local IDs or broad workspace authority.
 
-The packaged app exposes the shared bounded local tool entry point. Hosts that can start a local tool may use it without changing AAAAT's domain authority. This does not authorize a generic plugin/provider framework.
+The packaged app may expose a bounded local tool entry point for hosts that can start local tools. Whether MCP, host-native configuration, browser/desktop assistance, a user-owned rendezvous mechanism or another carrier is appropriate is decided from a representative real environment and journey, not from the carrier already implemented. This does not authorize a generic plugin/provider framework.
 
-External AI environments without local-computer access use one versioned portable **application handoff**. The capsule carries only explicit opportunity text plus the requested application-document intention. File selection and JSON handling are transport details: AAAAT validates the entire capsule before mutation and then calls the same deterministic local application-material service used by MCP. The exact Source is retained and requested editable documents are created without invoking configured AAAAT AI; any later AI use is a separate explicit local action. Malformed capsules do not partially mutate the workspace, and no local IDs, paths, credentials or hidden workspace state belong in the portable contract. This does not introduce a localhost service, remote relay, generic import framework or command bus.
+The current versioned **application handoff** for environments without local-computer access is a limited fallback/scaffold: it validates explicit opportunity text plus requested document-output kinds before local mutation. Its safety properties remain useful, but that narrow payload is not accepted as the complete no-local-access product journey. A recovered PLAN[2] journey may extend, replace or complement it so the external AI's useful completed work can cross the boundary.
 
 ## Setup, recovery and local ownership
 
 The local workspace owns data, configuration, generated document projects and retained artifacts. Backup/recovery and configuration import/export remain normal product capabilities.
 
-Setup uses one shared environment model. `installer.ai` projects workspace/local-rendering prerequisites and exposes AAAAT's fixed rendering self-test. `configurator.ai` projects optional AI configuration and validated operation coverage and can perform typed connection save/operation validation/validated default selection. These are normal AAAAT product capabilities, not copy/paste prompt artifacts.
+Setup uses one shared environment model. The current `installer.ai` implementation projects workspace/local-rendering prerequisites and exposes a fixed rendering self-test. The current `configurator.ai` implementation projects optional AI configuration and validated operation coverage and can perform typed connection save/operation validation/validated default selection. Rejecting copy/paste prompts as the primary UX remains valid, but these current typed/status surfaces are only partial setup implementation until representative user environments demonstrate product-level detection/guidance/connection where justified.
 
-Setup status is privacy-minimal and always readable. External mutation authority is separate and denied by default. The current workspace may explicitly allow installer and configurator actions independently; this grants only the documented typed AAAAT operations. No setup capability exposes arbitrary shell commands, package-manager input, filesystem selectors, generic database access, credentials, provider-specific arbitrary options or validation bypasses.
+Setup status is privacy-minimal and always readable. External mutation authority is separate and denied by default. The current workspace may explicitly allow installer and configurator actions independently; this grants only the documented typed AAAAT operations. No setup capability exposes arbitrary shell commands, package-manager input, filesystem selectors, generic database access, credentials, provider-specific arbitrary options or validation bypasses. Raw executable arguments or protocol vocabulary are implementation detail and are not sufficient ordinary-user setup by themselves.
 
 ## Verification
 
 Tests should cover durable user journeys, domain invariants, privacy/security boundaries, data integrity and portable artifacts. They must not freeze rejected navigation labels, clipboard-prompt semantics, host-specific product meaning or other incidental implementation structure.
+
+Evidence is scoped to the boundary actually exercised: AAAAT's own MCP SDK client proves its MCP server, not a third-party-host journey; mocked OpenAI-compatible HTTP proves provider-contract handling, not useful behavior from an actual constrained model; real pdfLaTeX compilation proves rendering/portability mechanics, not the unresolved owner-approved document-package design.
 
 Outcome tests for the raw-offer journey must prove useful persisted document state when bounded AI is available, not merely creation of empty linked records. Packaged-runtime verification must still prove the no-AI path remains complete.
 

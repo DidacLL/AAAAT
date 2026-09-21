@@ -4,47 +4,103 @@ This is the durable sequencing and owner-requirements record for the path to alp
 
 `CURRENT_MISSION.md` describes only the active run. This file preserves later PLANs and owner findings so they are not lost when missions, issues, PRs, or agents change.
 
+## Recovery checkpoint — active and blocking further sequence
+
+A Product Owner-directed re-audit after PLAN[4] found that several earlier completions confused **mechanism proof** with **product capability completion**. Later missions and derived documentation then normalized those mechanisms as if they were the original requirement.
+
+This checkpoint is not a new PLAN number and is not permission for another broad redesign. It restores authority before any further implementation.
+
+Current status:
+
+- **PLAN[0] — integrated UI/domain baseline accepted, but some AI/setup/interoperability foundation claims require recovery.** Preserve the accepted candidature/domain/UI corrections, current-schema authority, local ownership and mutation boundaries. Do not reopen those merely because integration/setup capability was narrowed. Re-audit only the specific foundation claims whose acceptance depended on synthetic/model/host evidence or whose useful interoperability capability was removed.
+- **PLAN[1] — test-basis cleanup retained.** The smaller test basis is useful engineering work. It does not prove real-model or real-third-party-host acceptance, and removal of packaged synthetic AI tests must not be cited as evidence that those product outcomes are complete.
+- **PLAN[2] — REOPENED.** The MCP stdio server and portable application-handoff JSON are implemented carriers, not completion of external-AI-originated user journeys. Acceptance must begin in representative real third-party AI environments, with and without local-computer access, and must carry useful work produced by that external AI rather than reducing the external system to a raw-offer launcher for deterministic AAAAT boilerplate.
+- **PLAN[3] — implementation retained.** The explicit IPC composition, readability work and dependency triage remain useful unless a recovered product requirement directly invalidates a piece. Do not redo PLAN[3] merely because the preceding gate was falsely closed.
+- **PLAN[4] — REOPENED.** Retain the real portable rendering, immutable artifact and cover-letter/packet infrastructure from PR #324. The intended owner-approved document package remains unresolved: LaTeX2e public API, expl3 internals, and user-owned editable blueprints/modified package sources require the owner-paired design phase preserved by ADR 0015. A small macro facade and real pdfLaTeX portability proof are infrastructure, not completion of that design.
+- **PLAN[5] — NOT STARTED and BLOCKED.** Do not perform final UX refinement until the recovered PLAN[2] gate is settled and PLAN[4] is genuinely completed.
+
+The recovery checkpoint exits only when:
+
+1. current owner authority has been traced to the actual implementation for the affected AI/setup/interoperability/document capabilities;
+2. each major affected capability is classified as **implemented and actually demonstrated**, **implemented but only synthetically demonstrated**, **partial/scaffold**, **removed during drift**, **missing**, or **superseded by explicit owner decision**;
+3. derived SPEC/Mission text no longer presents current carriers or scaffolds as the product requirement;
+4. known false claims such as the non-rendering rendering self-test are corrected;
+5. one concrete PLAN[2] acceptance set is defined from representative real user environments without pre-selecting a transport merely because it already exists.
+
+No PLAN[5] work and no new broad feature implementation belongs inside this checkpoint.
+
 ## Sequence to alpha
 
-### PLAN[0] — accepted integrated baseline
+### PLAN[0] — accepted integrated baseline, with bounded recovery notes
 
-Outcome: finish PR #319 as a coherent baseline, resolve first-class defects exposed by owner natural use, then integrate the accepted candidate into `main`.
+The accepted baseline established the current candidature/domain model and owner-reviewed interaction direction:
 
-Current first-class defects:
-
-1. **AI reachability must be truthful.** Configuration/routing or a historical success must not mean current `AI: Ready`. Current lightweight reachability or real-request evidence may establish readiness; a relevant failure must promptly invalidate it. Synthetic capability checks are optional diagnostics, not a usage gate. Reuse existing probe/task/diagnostic state; do not invent polling or a generic health subsystem.
-
-2. **Candidature presentation must be one configurable field surface, with no field-derived identity.** Keep the single Applications surface and no hidden candidature label/identity ranking. Neutral first use must not be blank: enabled fields begin equally included in the primary presentation without semantic privilege, and the user demotes/unfavourites, reorders and resizes them. Presentation size affects the corpus/summary grid, not editor geometry. Corpus values are visually primary; labels and metadata are secondary; retained values must not be replaced by a generic placeholder merely because favourites were not configured. More/advanced reveals the remainder. Raw Source/Tag material may appear only as bounded active-search evidence. Avoid equal-row behavior where one long value sizes unrelated entries.
-
-3. **Affordable light-model usefulness is a PLAN[0] product requirement, with provider/runtime agnosticism and explicit acceptance.** AAAAT must work usefully with resource-constrained models, especially models users can run locally or access cheaply, but no provider, runtime, protocol or model family is the product baseline. The general configured connection is usable without synthetic capability validation; explicit checks remain diagnostics/routing evidence. Requests minimize model burden, deterministic validation stays in AAAAT, and valid partial results survive independently. AI output does not silently create or replace ordinary data: values, field definitions and document changes require an explicit user acceptance/save action.
-
-Preserve completed PLAN[0] foundation corrections:
-
+- one configurable Applications information surface;
+- no field-derived candidature identity;
+- user-controlled favourite/order/presentation;
+- truthful current AI reachability semantics;
+- explicit acceptance before AI output becomes durable data;
+- local/manual/no-AI use remains complete;
 - no arbitrary fixed BrowserWindow minimum;
 - `schema.sql` is the single structural workspace schema authority;
-- ordinary development verification is lightweight and proportional; stronger packaged verification belongs at explicit run boundaries.
+- ordinary development verification is proportional.
 
-Exit: Product Owner accepts the integrated baseline, it is on `main`, and no known first-class integrity contradiction remains.
+Affordable/lightweight AI usefulness remains a product requirement. Existing provider contracts, partial-result salvage and local validation are useful foundations, but mocked OpenAI-compatible HTTP is not sufficient evidence that an actual constrained model satisfies the required journeys.
 
-### PLAN[1] — test basis
+Setup/integration capability removed or narrowed during PR #319 is not automatically obsolete merely because the integrated baseline was accepted. Recover the user journey from higher authority before deciding whether deleted VS Code configuration, CV disclosure/render operations or other prior work should be restored, replaced or remain superseded.
 
-Replace/reduce development-era AI-generated faux guardrails with a smaller, clearer test basis around real user/domain promises. Do not optimize for historical test count, coverage percentage, or implementation freezing. Keep development verification proportional.
+### PLAN[1] — real test basis
 
-### PLAN[2] — external-AI-originated journeys
+Retain the cleanup of development-era AI-generated faux guardrails and the smaller basis around real user/domain promises.
 
-Validate bounded journeys that begin in third-party AI systems, including journeys with local-computer access and without local-computer access. Solve concrete product journeys; do not build a generic provider/plugin/integration framework.
+Do not use passing tests, lower test count or removal of packaged synthetic AI journeys as product-acceptance evidence for PLAN[0]/PLAN[2]. Verification evidence proves only the boundary actually exercised.
 
-### PLAN[3] — architecture and dependency health
+### PLAN[2] — external-AI-originated journeys — REOPENED
 
-Owner-led pass for human-readable, directly modifiable code, pragmatic boundaries, and dependency-health triage. Avoid enterprise architecture, framework abstraction contests, and broad rewrites without concrete value.
+Validate bounded journeys that **begin in real third-party AI systems**, including:
 
-### PLAN[4] — document/LaTeX package and AAAAT integration
+- at least one representative environment with local-computer/tool access; and
+- at least one representative environment without local-computer access.
 
-Owner-led document-package work so CV/cover-letter composition, generation, rendering, portability, and AAAAT integration are coherent and maintainable. This precedes final CV-editor UX refinement because the editor should reflect the document model that survives.
+The product goal is a bounded working channel through an interaction surface the user already has, with setup that hides transport/configuration mechanics where practical.
 
-### PLAN[5] — UX refinement
+MCP, files, clipboard, browser/desktop automation, synchronized rendezvous mechanisms or another carrier may be appropriate for a concrete environment. None is the PLAN outcome by itself.
 
-Refine the already broadly acceptable UI/UX after the document model settles. Preserve the current visual character unless the Product Owner changes it.
+Acceptance must demonstrate the external AI doing useful work before AAAAT receives the result. The contract must be able to carry the useful bounded result of that work where the journey requires it: for example analysed/proposed candidature information, retained research Sources, document contributions or selection/tailoring intent. Do not reduce external-AI-first work to `sourceText + outputs[]` unless the Product Owner explicitly decides that is sufficient for a particular journey.
+
+Do not build a generic provider/plugin/integration framework. Choose representative environments and the smallest concrete channel that proves the product concept.
+
+### PLAN[3] — architecture and dependency health — retained
+
+The completed PLAN[3] code may remain: explicit main-process composition, removal of registration side effects, readability improvements and dependency-health classification are compatible with the product direction.
+
+Revisit only pieces directly affected by recovered PLAN[2]/PLAN[4] requirements. Avoid architecture churn for its own sake.
+
+### PLAN[4] — document/LaTeX package and AAAAT integration — REOPENED
+
+Retain the useful production infrastructure already implemented:
+
+- typed document state and deterministic local rendering;
+- real pdfLaTeX/`latexmk` execution;
+- self-contained portable projects;
+- immutable Rendered CV/letter snapshots;
+- Application packet output;
+- retained/exportable user-owned artifacts;
+- TeX-sensitive text encoding boundary.
+
+Completion still requires the owner-approved document-package design preserved by ADR 0015:
+
+- LaTeX2e public API;
+- expl3 internals;
+- user-owned editable blueprints and modified package sources;
+- owner collaboration on detailed blueprint/language/font design;
+- coherent AAAAT integration around the resulting document model.
+
+Do not rewrite SPEC/ADR language to make the current small `aaaat.sty` facade equal that unresolved design.
+
+### PLAN[5] — UX refinement — blocked
+
+Refine the already broadly acceptable UI/UX only after the recovered PLAN[2] and PLAN[4] product models settle. Preserve the current visual character unless the Product Owner changes it.
 
 #### Candidature field presentation
 
@@ -85,14 +141,21 @@ The structural information model is fixed in PLAN[0]: one configurable field sur
 - Current CV editing is confusing and form-centric: sections/entries appear as unrelated boxes and expose fields irrelevant to the specific item.
 - Redesign around the user's document and document composition, not generic record forms.
 - Sections and entries should read as one coherent CV structure, with concise editing and only relevant controls/fields exposed.
-- Final shape follows PLAN[4] document-model work rather than pre-empting it.
+- Final shape follows genuine PLAN[4] document-model completion rather than pre-empting it.
 
 ## Verification policy
 
 Ordinary development uses fast, focused verification. Stronger packaged/runtime verification belongs at meaningful run boundaries. Cross-OS verification belongs near release/finalization or when a change is explicitly platform-sensitive.
 
+A green test or package run is evidence only for the premise it exercised. Synthetic providers do not prove actual lightweight-model usefulness; AAAAT's own MCP client does not prove a third-party-host journey; real TeX compilation does not by itself prove the intended document-package design.
+
 ## Execution contract
 
-The master orchestrator owns sequence, scope, continuity and acceptance. Fix small, well-bounded corrections directly. Use a bounded specialist only for substantial autonomous work where it materially reduces owner effort; avoid orchestration layers for mechanical fixes.
+The master orchestrator owns sequence, scope, continuity and acceptance.
 
-Prefer one coherent implementation pass and an independent review only at consequential boundaries.
+- Fix small, well-bounded corrections directly.
+- Use a bounded specialist only for substantial autonomous work where it materially reduces owner effort.
+- A run orchestrator may inspect broadly enough to understand one PLAN outcome, but its implementation prompt must remain inside that outcome.
+- Implementation agents must not edit higher-authority/derived requirements to normalize their own implementation.
+- Prefer one coherent specialist pass, continue the same specialist with short deltas, then independently review the actual diff and cross-surface consequences.
+- A specialist never advances the PLAN sequence or declares its own PLAN complete.
