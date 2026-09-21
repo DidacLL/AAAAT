@@ -1,3 +1,7 @@
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import {
   setupAssistantAccessSchema,
   setupAssistantAccessUpdateSchema,
@@ -6,6 +10,7 @@ import {
   type SetupAssistantAccessUpdate,
   type SetupRenderingSelfTestResult,
 } from "../shared/setup-assistant-contracts";
+import { runLatexmk } from "./latex-runner";
 import { getSetupEnvironmentSnapshot } from "./setup-environment-service";
 import { withWorkspaceDatabase } from "./workspace";
 
@@ -69,7 +74,29 @@ export function requireConfiguratorActionsAllowed(rootPath: string): void {
 
 export async function runRenderingSelfTest(rootPath: string): Promise<SetupRenderingSelfTestResult> {
   const snapshot = await getSetupEnvironmentSnapshot(rootPath);
-  return setupRenderingSelfTestResultSchema.parse({
-    passed: snapshot.tex.documentRenderingReady,
-  });
+  if (!snapshot.tex.documentRenderingReady) {
+    throw new Error("Rendering self-test cannot run until latexmk and pdflatex are available.");
+  }
+
+  const projectPath = mkdtempSync(path.join(tmpdir(), "aaaat-rendering-self-test-"));
+  try {
+    writeFileSync(
+      path.join(projectPath, "main.tex"),
+      [
+        "\\documentclass{article}",
+        "\\begin{document}",
+        "AAAAT rendering self-test",
+        "\\end{document}",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await runLatexmk(projectPath);
+    if (!existsSync(path.join(projectPath, "build", "main.pdf"))) {
+      throw new Error("Rendering self-test completed without producing a PDF.");
+    }
+    return setupRenderingSelfTestResultSchema.parse({ passed: true });
+  } finally {
+    rmSync(projectPath, { recursive: true, force: true });
+  }
 }
