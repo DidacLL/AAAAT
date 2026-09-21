@@ -33,7 +33,7 @@ import "./owner-feedback-recovery.css";
 type CandidatureMode = "corpus" | "selected";
 const emptyTag: TagInput = { name: "", definition: "", notes: "", aliases: [] };
 const emptyCollections: DocumentCollections = {
-  templates: [], workingCvs: [], renderedCvs: [], letters: [], applicationPackets: [],
+  templates: [], workingCvs: [], renderedCvs: [], letters: [], renderedLetters: [], applicationPackets: [],
 };
 
 function aliasesFromText(value: string): string[] {
