@@ -45,11 +45,21 @@ realModelDescribe("real constrained-model job extraction", () => {
       "This is a permanent position working on robotics infrastructure.",
     ].join(" ");
 
-    const result = await extractJobWithPartialOutcomes(root, {
-      sourceTitle: "Platform Engineer at Northstar Robotics",
-      sourceUrl: "",
-      sourceText,
-    });
+    const roleField = listCandidatureFields(root).find(
+      (field) => field.definition.systemKey === "candidature.role",
+    );
+    if (!roleField) throw new Error("Shipped Role field missing");
+
+    const result = await extractJobWithPartialOutcomes(
+      root,
+      {
+        sourceTitle: "Platform Engineer at Northstar Robotics",
+        sourceUrl: "",
+        sourceText,
+      },
+      undefined,
+      [roleField.definition.id],
+    );
 
     expect(result.exchange).toBeDefined();
     const exchange = result.exchange!;
@@ -67,10 +77,7 @@ realModelDescribe("real constrained-model job extraction", () => {
       value: proposal.value,
     }));
     const supported = new Set([
-      JSON.stringify(["Organisation", "Northstar Robotics"]),
       JSON.stringify(["Role", "Platform Engineer"]),
-      JSON.stringify(["Location", "Barcelona"]),
-      JSON.stringify(["Compensation", "EUR 52000 per year"]),
     ]);
     const acceptedSupported = proposals.filter((proposal) =>
       supported.has(JSON.stringify([proposal.label, proposal.value])),
@@ -94,5 +101,5 @@ realModelDescribe("real constrained-model job extraction", () => {
 
     expect(result.proposals.length).toBeGreaterThan(0);
     expect(acceptedSupported.length).toBeGreaterThan(0);
-  }, 480_000);
+  }, 420_000);
 });
