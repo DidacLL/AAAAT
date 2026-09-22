@@ -94,5 +94,5 @@ realModelDescribe("real constrained-model job extraction", () => {
 
     expect(result.proposals.length).toBeGreaterThan(0);
     expect(acceptedSupported.length).toBeGreaterThan(0);
-  });
+  }, 120_000);
 });
