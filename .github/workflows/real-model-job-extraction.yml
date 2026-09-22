@@ -1,0 +1,64 @@
+name: Real constrained-model job extraction
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/main/ai-connection-service.ts"
+      - "src/main/ai-prompt-service.ts"
+      - "src/main/ai-provider.ts"
+      - "src/main/robust-job-extraction.ts"
+      - "src/main/candidature-field-service.ts"
+      - "src/main/workspace.ts"
+      - "src/shared/ai-contracts.ts"
+      - "src/shared/ai-proposal-outcomes.ts"
+      - "src/shared/contracts.ts"
+      - "test/real-model-job-extraction.test.ts"
+      - ".github/workflows/real-model-job-extraction.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real-model-job-extraction-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-model-job-extraction:
+    name: Extract with qwen2.5 0.5B
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - name: Pin npm
+        run: |
+          npm install --global npm@11.19.0
+          test "$(npm --version)" = "11.19.0"
+      - run: npm ci
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+      - name: Start Ollama and pull evidence model
+        run: |
+          nohup ollama serve >/tmp/ollama.log 2>&1 &
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == "60" ]]; then
+              cat /tmp/ollama.log
+              exit 1
+            fi
+            sleep 1
+          done
+          ollama pull qwen2.5:0.5b-instruct
+          ollama list
+      - name: Exercise production job_extraction with the real model
+        env:
+          AAAAT_REAL_MODEL: "1"
+        run: timeout --signal=TERM 10m npx vitest run test/real-model-job-extraction.test.ts --reporter=verbose
