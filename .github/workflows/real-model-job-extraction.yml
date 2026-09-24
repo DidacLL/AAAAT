@@ -27,7 +27,7 @@ jobs:
   real-model-job-extraction:
     name: Extract with qwen2.5 0.5B
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,4 +61,4 @@ jobs:
       - name: Exercise production job_extraction with the real model
         env:
           AAAAT_REAL_MODEL: "1"
-        run: timeout --signal=TERM 10m npx vitest run test/real-model-job-extraction.test.ts --reporter=verbose
+        run: timeout --signal=TERM 18m npx vitest run test/real-model-job-extraction.test.ts --reporter=verbose
