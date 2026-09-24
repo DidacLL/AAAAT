@@ -54,28 +54,32 @@ function response(content: unknown): Response {
   );
 }
 
-async function delayedProvider(delayMs: number): Promise<AiConnectionStatus> {
+async function delayedProvider(delayMs: number, headersImmediately = false): Promise<AiConnectionStatus> {
+  const body = JSON.stringify({
+    choices: [
+      {
+        message: {
+          content: JSON.stringify({
+            summary: "Relevant role",
+            relevantEvidence: ["Platform Engineer"],
+            uncertainties: [],
+            questions: [],
+          }),
+        },
+      },
+    ],
+  });
   const server = createServer((_request, outgoing) => {
-    setTimeout(() => {
+    const finish = () => {
       if (outgoing.destroyed) return;
+      if (!headersImmediately) outgoing.writeHead(200, { "content-type": "application/json" });
+      outgoing.end(body);
+    };
+    if (headersImmediately) {
       outgoing.writeHead(200, { "content-type": "application/json" });
-      outgoing.end(
-        JSON.stringify({
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({
-                  summary: "Relevant role",
-                  relevantEvidence: ["Platform Engineer"],
-                  uncertainties: [],
-                  questions: [],
-                }),
-              },
-            },
-          ],
-        }),
-      );
-    }, delayMs);
+      outgoing.flushHeaders();
+    }
+    setTimeout(finish, delayMs);
   });
   servers.push(server);
   server.listen(0, "127.0.0.1");
@@ -165,6 +169,19 @@ describe("OpenAI-compatible provider", () => {
 
   it("reports AAAAT's own timeout when the default Node transport exceeds the configured ceiling", async () => {
     const delayedConnection = await delayedProvider(250);
+    const provider = createOpenAiCompatibleProvider(undefined, 30);
+
+    await expect(provider.reviewOpportunity(delayedConnection, reviewContext)).rejects.toMatchObject({
+      message: expect.stringContaining("AAAAT's 15-minute safety limit"),
+      diagnostic: expect.objectContaining({
+        failureKind: "connection_unreachable",
+        validationError: "The request exceeded AAAAT's provider safety timeout.",
+      }),
+    });
+  });
+
+  it("reports AAAAT's own timeout when the response body exceeds the configured ceiling", async () => {
+    const delayedConnection = await delayedProvider(250, true);
     const provider = createOpenAiCompatibleProvider(undefined, 30);
 
     await expect(provider.reviewOpportunity(delayedConnection, reviewContext)).rejects.toMatchObject({
