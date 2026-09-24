@@ -13,6 +13,7 @@ on:
       - "src/shared/ai-contracts.ts"
       - "src/shared/ai-proposal-outcomes.ts"
       - "src/shared/contracts.ts"
+      - "test/ai-provider.test.ts"
       - "test/real-model-job-extraction.test.ts"
       - ".github/workflows/real-model-job-extraction.yml"
 
@@ -41,6 +42,10 @@ jobs:
           npm install --global npm@11.19.0
           test "$(npm --version)" = "11.19.0"
       - run: npm ci
+      - name: Verify provider timeout isolation regression
+        run: >-
+          npx vitest run test/ai-provider.test.ts --reporter=verbose
+          -t "disables Undici parser timeouts|uses the corrected dispatcher|reports AAAAT's own timeout|keeps provider failures inspectable"
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
       - name: Start Ollama and pull evidence model
