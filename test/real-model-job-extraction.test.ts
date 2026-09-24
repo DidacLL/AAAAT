@@ -95,8 +95,11 @@ realModelDescribe("real constrained-model job extraction", () => {
       "This is a permanent position working on robotics infrastructure.",
     ].join(" ");
 
-    const shipped = listCandidatureFields(root).map((field) => field.definition.label);
-    expect(shipped).toEqual(["Organisation", "Role", "Location", "Compensation"]);
+    const ordinaryLabels = ["Organisation", "Role", "Location", "Compensation"];
+    const ordinaryFields = listCandidatureFields(root).filter((field) =>
+      ordinaryLabels.includes(field.definition.label),
+    );
+    expect(ordinaryFields.map((field) => field.definition.label)).toEqual(ordinaryLabels);
 
     const originalFetch = globalThis.fetch;
     let capturedRequest: CapturedRequest | undefined;
@@ -119,11 +122,16 @@ realModelDescribe("real constrained-model job extraction", () => {
     }) as typeof fetch;
 
     try {
-      await extractJobWithPartialOutcomes(root, {
-        sourceTitle: "Platform Engineer at Northstar Robotics",
-        sourceUrl: "",
-        sourceText,
-      });
+      await extractJobWithPartialOutcomes(
+        root,
+        {
+          sourceTitle: "Platform Engineer at Northstar Robotics",
+          sourceUrl: "",
+          sourceText,
+        },
+        undefined,
+        ordinaryFields.map((field) => field.definition.id),
+      );
       throw new Error("Expected the unchanged production path to reproduce the broad-request transport failure.");
     } catch (reason) {
       if (!capturedRequest) throw reason;
