@@ -131,7 +131,11 @@ describe("OpenAI-compatible provider", () => {
     const symbol = Symbol.for("undici.globalDispatcher.1");
     const scope = globalThis as unknown as Record<PropertyKey, unknown>;
     const original = scope[symbol];
-    const dispatch = vi.fn((_options: Record<string, unknown>, _handler: unknown) => true);
+    const dispatch = vi.fn((options: Record<string, unknown>, handler: unknown) => {
+      void options;
+      void handler;
+      return true;
+    });
     scope[symbol] = { dispatch };
 
     try {
