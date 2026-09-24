@@ -232,6 +232,11 @@ async function requestContent<T>(
   const userPayload = JSON.stringify(context);
   const timeoutSignal = AbortSignal.timeout(requestTimeoutMs);
   const signal = externalSignal ? AbortSignal.any([externalSignal, timeoutSignal]) : timeoutSignal;
+  const timeoutError = (profile: RequestProfile): AiProviderError =>
+    new AiProviderError(
+      "The AI provider did not finish before AAAAT's 15-minute safety limit. The model may still be healthy; retry the task or inspect the local provider if it remains stuck.",
+      diagnostic(connection, operation, instruction, userPayload, "", "The request exceeded AAAAT's provider safety timeout.", "connection_unreachable", outputMode(profile)),
+    );
 
   const attempt = async (profile: RequestProfile): Promise<{ response: Response; raw: string }> => {
     let response: Response;
@@ -247,12 +252,7 @@ async function requestContent<T>(
       response = await fetchImpl(chatCompletionsUrl(connection.endpoint), init);
     } catch (reason) {
       if (externalSignal?.aborted) throw new AiProviderError("AI task cancelled.");
-      if (timeoutSignal.aborted || timeoutFailure(reason)) {
-        throw new AiProviderError(
-          "The AI provider did not finish before AAAAT's 15-minute safety limit. The model may still be healthy; retry the task or inspect the local provider if it remains stuck.",
-          diagnostic(connection, operation, instruction, userPayload, "", "The request exceeded AAAAT's provider safety timeout.", "connection_unreachable", outputMode(profile)),
-        );
-      }
+      if (timeoutSignal.aborted || timeoutFailure(reason)) throw timeoutError(profile);
       throw new AiProviderError(
         "AAAAT could not reach the configured AI provider. Check that the endpoint is running and reachable, then retry.",
         diagnostic(
@@ -272,6 +272,8 @@ async function requestContent<T>(
     try {
       raw = await response.text();
     } catch (reason) {
+      if (externalSignal?.aborted) throw new AiProviderError("AI task cancelled.");
+      if (timeoutSignal.aborted || timeoutFailure(reason)) throw timeoutError(profile);
       throw new AiProviderError(
         "The configured provider returned an unreadable response envelope.",
         diagnostic(connection, operation, instruction, userPayload, "", reason instanceof Error ? reason.message : "The provider response body could not be read.", "provider_envelope_invalid", outputMode(profile)),
