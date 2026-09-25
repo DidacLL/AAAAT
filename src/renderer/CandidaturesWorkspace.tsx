@@ -17,6 +17,7 @@ import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsP
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureInferencePanel } from "./CandidatureInferencePanel";
 import { CandidatureOfferPanel } from "./CandidatureOfferPanel";
+import { CandidatureOpportunityResearchAccessPanel } from "./CandidatureOpportunityResearchAccessPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { createApplicationDocuments } from "./create-application-documents";
@@ -85,7 +86,8 @@ export function CandidaturesWorkspace({
   const tagEditorDirty = tagEditorOpen
     ? JSON.stringify({ ...tagEditorDraft, aliases: aliasesFromText(tagAliasesText) }) !== JSON.stringify(persistedTag ? tagDraft(persistedTag) : emptyTag)
     : false;
-  const hasUnsavedChanges = sourceDirty || tagEditorDirty || fieldDefinitionsDirty || valueEditorDirty.size > 0;
+  const taskContextDirty = fieldDefinitionsDirty || valueEditorDirty.size > 0;
+  const hasUnsavedChanges = sourceDirty || tagEditorDirty || taskContextDirty;
 
   useEffect(() => {
     onDirtyChange?.(hasUnsavedChanges);
@@ -697,6 +699,11 @@ export function CandidaturesWorkspace({
             candidatureId={selected.id}
             onSourcesChanged={() => void handleSourcesChanged()}
             onDirtyChange={setSourceDirty}
+          />
+          <CandidatureOpportunityResearchAccessPanel
+            key={`external-research-${selected.id}`}
+            candidatureId={selected.id}
+            contextDirty={taskContextDirty}
           />
 
           <section className="section-surface" aria-label="Tags">
