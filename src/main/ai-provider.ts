@@ -32,6 +32,37 @@ const providerResponseSchema = z
 
 export const AI_PROVIDER_SAFETY_CEILING_MS = 15 * 60 * 1000;
 
+interface NodeDispatcherLike {
+  dispatch(options: Record<string, unknown>, handler: unknown): boolean;
+}
+
+interface NodeFetchRequestInit extends RequestInit {
+  dispatcher: NodeDispatcherLike;
+}
+
+const NODE_UNDICI_GLOBAL_DISPATCHER = Symbol.for("undici.globalDispatcher.1");
+
+function nodeGlobalDispatcher(): NodeDispatcherLike {
+  const dispatcher = (globalThis as unknown as Record<PropertyKey, unknown>)[NODE_UNDICI_GLOBAL_DISPATCHER];
+  if (!dispatcher || typeof (dispatcher as { dispatch?: unknown }).dispatch !== "function") {
+    throw new Error("Node's HTTP dispatcher is unavailable for the AI provider request.");
+  }
+  return dispatcher as NodeDispatcherLike;
+}
+
+const providerDispatcher: NodeDispatcherLike = Object.freeze({
+  dispatch(options: Record<string, unknown>, handler: unknown): boolean {
+    return nodeGlobalDispatcher().dispatch(
+      {
+        ...options,
+        headersTimeout: 0,
+        bodyTimeout: 0,
+      },
+      handler,
+    );
+  },
+});
+
 function diagnosticSuffix(diagnostic: AiExchangeDiagnostic): string {
   return `${AI_EXCHANGE_DIAGNOSTIC_MARKER}${Buffer.from(
     JSON.stringify(aiExchangeDiagnosticSchema.parse(diagnostic)),
@@ -101,6 +132,14 @@ function chatCompletionsUrl(baseUrl: string): string {
 
 function timeoutFailure(reason: unknown): boolean {
   return reason instanceof DOMException && (reason.name === "TimeoutError" || reason.name === "AbortError");
+}
+
+function errorDescription(reason: unknown): string {
+  if (!(reason instanceof Error)) return "Network request failed before an HTTP response was received.";
+  const error = reason as Error & { code?: unknown; cause?: unknown };
+  const code = typeof error.code === "string" ? ` (${error.code})` : "";
+  const current = `${error.name}${code}: ${error.message}`;
+  return error.cause === undefined ? current : `${current}; caused by ${errorDescription(error.cause)}`;
 }
 
 function endpointForDiagnostic(endpoint: string): string {
@@ -193,25 +232,27 @@ async function requestContent<T>(
   const userPayload = JSON.stringify(context);
   const timeoutSignal = AbortSignal.timeout(requestTimeoutMs);
   const signal = externalSignal ? AbortSignal.any([externalSignal, timeoutSignal]) : timeoutSignal;
+  const timeoutError = (profile: RequestProfile): AiProviderError =>
+    new AiProviderError(
+      "The AI provider did not finish before AAAAT's 15-minute safety limit. The model may still be healthy; retry the task or inspect the local provider if it remains stuck.",
+      diagnostic(connection, operation, instruction, userPayload, "", "The request exceeded AAAAT's provider safety timeout.", "connection_unreachable", outputMode(profile)),
+    );
 
   const attempt = async (profile: RequestProfile): Promise<{ response: Response; raw: string }> => {
     let response: Response;
     try {
-      response = await fetchImpl(chatCompletionsUrl(connection.endpoint), {
+      const init: NodeFetchRequestInit = {
         method: "POST",
         headers: { "content-type": "application/json" },
         redirect: "error",
         signal,
         body: JSON.stringify(requestBody(connection, operation, instruction, userPayload, schema, profile)),
-      });
+        dispatcher: providerDispatcher,
+      };
+      response = await fetchImpl(chatCompletionsUrl(connection.endpoint), init);
     } catch (reason) {
       if (externalSignal?.aborted) throw new AiProviderError("AI task cancelled.");
-      if (timeoutFailure(reason)) {
-        throw new AiProviderError(
-          "The AI provider did not finish before AAAAT's 15-minute safety limit. The model may still be healthy; retry the task or inspect the local provider if it remains stuck.",
-          diagnostic(connection, operation, instruction, userPayload, "", "The request exceeded AAAAT's provider safety timeout.", "connection_unreachable", outputMode(profile)),
-        );
-      }
+      if (timeoutSignal.aborted || timeoutFailure(reason)) throw timeoutError(profile);
       throw new AiProviderError(
         "AAAAT could not reach the configured AI provider. Check that the endpoint is running and reachable, then retry.",
         diagnostic(
@@ -220,7 +261,7 @@ async function requestContent<T>(
           instruction,
           userPayload,
           "",
-          reason instanceof Error ? reason.message : "Network request failed before an HTTP response was received.",
+          errorDescription(reason),
           "connection_unreachable",
           outputMode(profile),
         ),
@@ -231,6 +272,8 @@ async function requestContent<T>(
     try {
       raw = await response.text();
     } catch (reason) {
+      if (externalSignal?.aborted) throw new AiProviderError("AI task cancelled.");
+      if (timeoutSignal.aborted || timeoutFailure(reason)) throw timeoutError(profile);
       throw new AiProviderError(
         "The configured provider returned an unreadable response envelope.",
         diagnostic(connection, operation, instruction, userPayload, "", reason instanceof Error ? reason.message : "The provider response body could not be read.", "provider_envelope_invalid", outputMode(profile)),
