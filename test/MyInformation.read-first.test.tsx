@@ -286,7 +286,7 @@ describe("My information read-first interaction", () => {
     await user.click(within(newEditor).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(addItem).toHaveBeenCalledWith({ kind: "bespoke-practice", title: "Portfolio architecture" }));
 
-    await user.click(screen.getByRole("button", { name: "Principal Researcher" }));
+    await user.click(screen.getByRole("button", { name: /Principal Researcher/ }));
     const baseDetails = await screen.findByRole("region", { name: "Principal Researcher details" });
     const variationsRegion = within(baseDetails).getByLabelText("Saved variations");
     await user.click(within(variationsRegion).getByText("Saved variations"));
@@ -307,7 +307,7 @@ describe("My information read-first interaction", () => {
     });
 
     removeItem.mockRejectedValueOnce(new Error("This information is still referenced by a reusable CV template."));
-    await user.click(screen.getByRole("button", { name: "Principal Researcher" }));
+    await user.click(screen.getByRole("button", { name: /Principal Researcher/ }));
     await user.click(within(await screen.findByRole("region", { name: "Principal Researcher details" })).getByRole("button", { name: "Remove" }));
     expect(confirm).toHaveBeenCalled();
     expect(await screen.findByRole("alert")).toHaveTextContent("still referenced by a reusable CV template");
@@ -331,7 +331,7 @@ describe("My information read-first interaction", () => {
     await user.click(screen.getByRole("button", { name: "Accessibility maintainer" }));
     expect(await screen.findByRole("region", { name: "Accessibility maintainer details" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Principal Researcher" }));
+    await user.click(screen.getByRole("button", { name: /Principal Researcher/ }));
     const baseDetails = await screen.findByRole("region", { name: "Principal Researcher details" });
     const variationsRegion = within(baseDetails).getByLabelText("Saved variations");
     await user.click(within(variationsRegion).getByText("Saved variations"));
