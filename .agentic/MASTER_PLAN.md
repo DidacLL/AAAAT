@@ -8,25 +8,29 @@ This is the durable sequencing and owner-requirements record for the path to alp
 
 This section supersedes older recovery-status statements below where they describe evidence as still missing. The older recovery text remains useful rationale for why mechanism proof is not product acceptance.
 
-Current main after PR #336: `c272615286abbe8fc0274b035cf8449d23bafb6e`.
+Current main after PR #342: `21f45debffdfaad931a1a7c19015950c704ebb3a`.
 
-- **PLAN[0] — integrated UI/domain baseline retained.** Direct AI usefulness is actually demonstrated for one target-scoped constrained-model extraction case by PR #326 (`qwen2.5:0.5b-instruct` via Ollama). The ordinary four-field constrained-model request still timed out at AAAAT’s intended 15-minute ceiling, so do not generalize the one-field evidence to broad extraction usefulness. Setup/integration remains partial.
+- **PLAN[0] — integrated UI/domain baseline retained.** Direct AI usefulness is actually demonstrated for one target-scoped constrained-model extraction case by PR #326 (`qwen2.5:0.5b-instruct` via Ollama). The ordinary four-field constrained-model request still timed out at AAAAT’s intended 15-minute ceiling, so do not generalize the one-field evidence to broad extraction usefulness. Setup/integration remains partial but a bounded audit found no setup item that blocks the sequence.
 - **PLAN[1] — retained.**
-- **PLAN[2] — ACTIVE, product-shape acceptance remains.** The local-computer third-party-host boundary is actually demonstrated through llama.cpp Web UI + Granite 4.1 3B. The no-local boundary is also actually demonstrated through PR #330 + closed Issue #329. Those prove carriers/domain boundaries, not the final UX. Issue #333 now owns the user-facing `Send to my AI` model. PR #335 implemented the candidature editor, shipped editable tasks, Copy/Paste and file alternatives; PR #336 implemented user-created reusable candidature tasks. Both are implemented but only synthetically demonstrated. PR #335 also left the entry point under `More`, preserving a discoverability problem; Issue #338 is the bounded correction/evidence task. Reusable host guidance remains missing. PR #337 was started prematurely and closed unmerged.
+- **PLAN[2] — COMPLETE.** The local-computer third-party-host boundary is actually demonstrated through llama.cpp Web UI + Granite 4.1 3B. The no-local boundary is actually demonstrated through PR #330 + closed Issue #329. PRs #335/#336 implemented the candidature `Send to my AI` editor, shipped editable tasks, Copy/Paste and file alternatives, and user-created reusable tasks. PR #341 made the action directly discoverable on the selected candidature surface. PR #342 added reusable external-host guidance separately from individual task payloads. Issue #333 is closed. These real-host results are durable boundary evidence and are not to be rerun after ordinary UI/refactoring changes unless the external boundary materially changes.
 - **PLAN[3] — retained.**
-- **PLAN[4] — REOPENED, still after PLAN[2].** Production rendering/portable/immutable artifact infrastructure remains real. The owner-approved LaTeX2e public API + expl3 internals + user-owned editable blueprint/package-source design remains unresolved and requires the ADR-0015 owner-paired design phase.
+- **PLAN[4] — ACTIVE DESIGN PHASE.** The post-PLAN[2] setup audit found no sequence blocker. Production rendering/portable/immutable artifact infrastructure remains real. The owner-approved LaTeX2e public API + expl3 internals + user-owned editable blueprint/package-source design remains unresolved and now enters the ADR-0015 owner-paired design phase.
 - **PLAN[5] — NOT STARTED and BLOCKED.**
 
 Current recovery debts that must not be lost:
 
-- host/setup UX is still partial and too technical; a real host proving MCP works does not make raw executable/MCP setup guidance an accepted ordinary-user setup journey;
-- PR #319 removed prior VS Code setup and external CV description/content/render capabilities; neither deletion nor historical existence decides whether they should be restored, replaced or remain superseded;
+- host/setup UX is still partial and too technical; a real host proving MCP works does not make raw executable/MCP setup guidance an accepted ordinary-user setup journey, but clipboard/file `Send to my AI` makes that optional and it does not block PLAN[4];
+- AI connection setup/routing is implemented and has real production-path evidence, while ordinary-user setup polish remains partial and optional;
+- TeX prerequisite detection and the rendering self-test are implemented; document editing remains available without TeX, while real rendering naturally requires it;
+- `installer.ai` and `configurator.ai` remain bounded optional assistance. The rendering self-test is real; configurator ordinary-user usefulness remains partial/synthetic. Neither blocks the sequence;
+- PR #319 removed prior VS Code setup and external CV description/content/render capabilities. VS Code-specific setup is superseded unless a future concrete host journey justifies it; external document operations should only be reconsidered against the settled PLAN[4] document model;
 - the older JSON `applicationHandoff` (`sourceText + outputs`) is a separate mechanism and not the `Send to my AI` product model;
 - OpenAI-compatible remains an implementation adapter, not product/provider authority;
 - scarce Codex/Copilot quotas should not be spent on deterministic harness/setup work when the orchestrator can execute narrow actions directly;
+- the Product Owner is not a transport or routine QA layer; manual real-environment checks are scarce boundary evidence, not a gate to repeat after each implementation increment;
 - the orchestrator must not implement substantial product slices itself: small deterministic corrections are direct; substantial autonomous implementation belongs to a bounded specialist, followed by independent orchestrator review and evidence classification.
 
-Do not advance sequence from carrier proof or synthetic UI tests. Complete #338 evidence, reclassify #333, then choose the smallest separate host-guidance artifact/skill path and only then decide whether another context such as career/document is justified.
+The setup audit is complete: no remaining setup/integration item blocks PLAN[4]. Keep those partial items visible for later refinement instead of creating work merely to eliminate historical mechanism gaps.
 
 ## Recovery checkpoint — origin and rationale
 
@@ -38,6 +42,7 @@ The recovery established these durable rules:
 
 - synthetic/model/carrier tests prove only the boundary they exercise;
 - a real third-party environment is required where the PLAN names one;
+- once a real boundary has been demonstrated, reuse that evidence unless a later change materially alters the boundary; do not make the Product Owner repeat manual acceptance as routine QA;
 - carrier choice follows the user journey rather than defining it;
 - external-AI-first work must be able to retain useful external results, not merely launch deterministic AAAAT work from raw opportunity text;
 - setup is a user journey, not command/protocol vocabulary;
@@ -61,7 +66,7 @@ The accepted baseline established the current candidature/domain model and owner
 
 Affordable/lightweight AI usefulness remains a product requirement. PR #326 now provides real constrained-model evidence for a target-scoped one-field job-extraction journey and proves the existing partial-result salvage/local validation can preserve a useful result while rejecting bad siblings. It does not prove every broad/current-field extraction request is useful: the demonstrated ordinary four-field request produced no model response within AAAAT’s intended 15-minute ceiling.
 
-Setup/integration capability removed or narrowed during PR #319 is not automatically obsolete merely because the integrated baseline was accepted. Recover the user journey from higher authority before deciding whether deleted VS Code configuration, CV disclosure/render operations or other prior work should be restored, replaced or remain superseded.
+Setup/integration capability removed or narrowed during PR #319 is not automatically obsolete merely because the integrated baseline was accepted. Recover the user journey from higher authority before deciding whether deleted host-specific setup, CV disclosure/render operations or other prior work should be restored, replaced or remain superseded.
 
 ### PLAN[1] — real test basis
 
@@ -69,22 +74,21 @@ Retain the cleanup of development-era AI-generated faux guardrails and the small
 
 Do not use passing tests, lower test count or removal of packaged synthetic AI journeys as product-acceptance evidence for PLAN[0]/PLAN[2]. Verification evidence proves only the boundary actually exercised.
 
-### PLAN[2] — external-AI-originated journeys — ACTIVE
+### PLAN[2] — external-AI-originated journeys — COMPLETE
 
-Validate bounded journeys that **begin in real third-party AI systems**, including:
+PLAN[2] required bounded journeys that begin in real third-party AI systems, including one representative environment with local-computer/tool access and one without local-computer access, plus a usable product interaction rather than a carrier-specific scaffold.
 
-- at least one representative environment with local-computer/tool access; and
-- at least one representative environment without local-computer access.
-
-The local-computer requirement is actually demonstrated: llama.cpp Web UI + Granite 4.1 3B originated the journey, read the locally selected candidature through `opportunity_research_context_read`, produced useful application-preparation reasoning, wrote it through `candidature_source_add`, and the returned Source was visible in normal AAAAT UI. llama.cpp/Granite are representative evidence fixtures only.
+The local-computer requirement is actually demonstrated: llama.cpp Web UI + Granite 4.1 3B originated the journey, read the locally selected candidature through bounded AAAAT operations, produced useful application-preparation reasoning, wrote it through the bounded Source mutation, and the returned Source was visible in normal AAAAT UI. llama.cpp/Granite are representative evidence fixtures only.
 
 The no-local requirement is also actually demonstrated through PR #330 and closed Issue #329: AAAAT exported bounded readable task context, an external AI with no access to the local AAAAT computer produced substantive Markdown work, the returned result was imported through the selector-free Source-only mutation, and the result was visible in normal AAAAT UI.
 
-Carrier/domain feasibility does not complete PLAN[2]. The Product Owner superseded the specialized `External opportunity research` surface with Issue #333’s contextual **Send to my AI** interaction. PR #335 implemented the candidature task editor, shipped editable tasks, visible bounded context, Copy task, pasted-result retention and file alternatives. PR #336 implemented reusable user-created candidature tasks. Those are currently synthetic implementation evidence only. Issue #338 must correct the remaining discoverability regression (the only entry point is still under `More`) and demonstrate the new user-facing task concept through both a real local-access host journey and a real no-local journey. Reusable host skill/definition guidance remains a separate #333 acceptance item; PR #337 was closed unmerged because it was started before that evidence/reassessment.
+The Product Owner then superseded the specialized `External opportunity research` product surface with Issue #333’s **Send to my AI** interaction. PR #335 implemented the candidature task editor, shipped fully editable tasks, visible bounded context, Copy task, pasted-result retention and file alternatives. PR #336 added user-created reusable tasks without making saving mandatory. PR #341 moved `Send to my AI` out of `More` so it is directly discoverable. PR #342 added one reusable external-host instruction artifact in AI Settings, with preview/copy/save-once behavior and raw local-tool connection mechanics remaining Advanced. Task payloads therefore stay focused on task + bounded context rather than repeatedly teaching AAAAT mechanics. Issue #333 is closed.
+
+Task instruction remains user-owned and fully editable. Context projection and return-mutation authority remain AAAAT-owned and bounded. Clipboard, files and MCP are carriers, not product meaning. Career/document contexts may reuse the interaction later when a concrete user need justifies it; a second context is not a PLAN[2] completion gate.
+
+The demonstrated local/no-local host journeys are durable boundary evidence. Do not rerun them after ordinary UI, wording, task-template or refactoring changes that do not materially alter context projection, carrier behavior or return mutation. The Product Owner is not the QA transport layer.
 
 MCP, files, clipboard, browser/desktop automation, synchronized rendezvous mechanisms or another carrier may be appropriate for a concrete environment. None is the PLAN outcome by itself.
-
-Acceptance must demonstrate the external AI doing useful work before AAAAT receives the result. The contract must be able to carry the useful bounded result of that work where the journey requires it: for example analysed/proposed candidature information, retained research Sources, document contributions or selection/tailoring intent. Do not reduce external-AI-first work to `sourceText + outputs[]` unless the Product Owner explicitly decides that is sufficient for a particular journey.
 
 Do not build a generic provider/plugin/integration framework. Choose representative environments and the smallest concrete channel that proves the product concept.
 
@@ -92,9 +96,9 @@ Do not build a generic provider/plugin/integration framework. Choose representat
 
 The completed PLAN[3] code may remain: explicit main-process composition, removal of registration side effects, readability work and dependency-health classification are compatible with the product direction.
 
-Revisit only pieces directly affected by recovered PLAN[2]/PLAN[4] requirements. Avoid architecture churn for its own sake.
+Revisit only pieces directly affected by recovered PLAN[4] requirements. Avoid architecture churn for its own sake.
 
-### PLAN[4] — document/LaTeX package and AAAAT integration — REOPENED
+### PLAN[4] — document/LaTeX package and AAAAT integration — ACTIVE DESIGN PHASE
 
 Retain the useful production infrastructure already implemented:
 
@@ -114,11 +118,11 @@ Completion still requires the owner-approved document-package design preserved b
 - owner collaboration on detailed blueprint/language/font design;
 - coherent AAAAT integration around the resulting document model.
 
-Do not rewrite SPEC/ADR language to make the current small `aaaat.sty` facade equal that unresolved design.
+The current mission must first reduce those unresolved points to concrete owner design decisions. Do not rewrite SPEC/ADR language to make the current small `aaaat.sty` facade equal that unresolved design, and do not start a broad package rewrite before the owner-paired design is fixed.
 
 ### PLAN[5] — UX refinement — blocked
 
-Refine the already broadly acceptable UI/UX only after the recovered PLAN[2] and PLAN[4] product models settle. Preserve the current visual character unless the Product Owner changes it.
+Refine the already broadly acceptable UI/UX only after the recovered PLAN[4] product model settles. Preserve the current visual character unless the Product Owner changes it.
 
 #### Candidature field presentation
 
@@ -165,14 +169,14 @@ The structural information model is fixed in PLAN[0]: one configurable field sur
 
 Ordinary development uses fast, focused verification. Stronger packaged/runtime verification belongs at meaningful run boundaries. Cross-OS verification belongs near release/finalization or when a change is explicitly platform-sensitive.
 
-A green test or package run is evidence only for the premise it exercised. Synthetic providers do not prove actual lightweight-model usefulness; AAAAT's own MCP client does not prove a third-party-host journey; real TeX compilation does not by itself prove the intended document-package design.
+A green test or package run is evidence only for the premise it exercised. Synthetic providers do not prove actual lightweight-model usefulness; AAAAT's own MCP client does not prove a third-party-host journey; real TeX compilation does not by itself prove the intended document-package design. Conversely, once a real external boundary has been demonstrated, ordinary changes that do not alter that boundary do not require the Product Owner to manually demonstrate it again.
 
 ## Execution contract
 
 The master orchestrator owns sequence, scope, continuity and acceptance.
 
 - Fix small, well-bounded corrections directly.
-- Do not use the Product Owner as a transport layer for routine engineering or deterministic setup work.
+- Do not use the Product Owner as a transport layer or routine QA layer for engineering/setup work.
 - Use a bounded specialist only for substantial autonomous work where it materially reduces owner effort; scarce Codex/Copilot quota is not for small deterministic tasks.
 - A run orchestrator may inspect broadly enough to understand one PLAN outcome, but its implementation prompt must remain inside that outcome.
 - Implementation agents must not edit higher-authority/derived requirements to normalize their own implementation.
