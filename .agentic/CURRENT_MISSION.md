@@ -1,10 +1,10 @@
-# Current mission — PLAN[5] UX refinement
+# Current mission — PLAN[5] My information refinement
 
 Current explicit Product Owner instruction remains highest authority.
 
-Base main: `59f61743ddf2f57ad0bd03e3df8e824e65051536`.
+Base main: `f4a19c0cb4835fa28af338ace84c60419cf61b1f`.
 
-PLAN[0]/[1]/[3] are retained. PLAN[2] is complete. PLAN[4] is complete. PLAN[5] is now active.
+PLAN[0]/[1]/[3] are retained. PLAN[2] and PLAN[4] are complete. PLAN[5] is active.
 
 ## Execution model
 
@@ -12,71 +12,63 @@ The master orchestrator owns sequencing, scope, repository reading, design recov
 
 Normal substantial implementation is done by one GitHub-capable specialist per coherent bounded slice. Do not use the Product Owner as a prompt courier for read-only/review/planning microsteps.
 
-## PLAN[4] accepted completion
-
-PLAN[4] is complete against ADR 0015 and the Product Owner decisions fixed during the recovery.
-
-Issue #344 / PR #348 established and corrected the real package/rendering boundary:
-
-- `aaaat.sty` exposes a LaTeX2e public API with expl3 internals;
-- TypeScript owns generated document data in `data.tex`;
-- the CV layout paginates long content without intentional truncation;
-- PR #348 real-LaTeX evidence passed the strengthened multipage/content-survival boundary.
-
-Issue #351 / PR #353 established the Blueprint selection/ownership boundary:
-
-- editable/saved CVs remain composition-only and Blueprint-independent;
-- one shared package/data contract supports CV and cover-letter presentation;
-- AAAAT ships one built-in Blueprint and discovers compatible user `.tex` Blueprints from Electron `userData/blueprints`;
-- Blueprint selection is explicit render-time input, not editable CV/template/letter ownership;
-- retained/exported projects keep the exact selected Blueprint, generated data, shared package and PDF/build output;
-- Application packet cover letters reuse the exact Blueprint retained with the selected Rendered CV;
-- PR #353 real-LaTeX portability and Windows packaged-runtime candidate evidence passed.
-
-Issue #355 / PR #358 completed the remaining owner-paired document design:
-
-- CV Template and Working CV sections carry Blueprint-independent `presentationRole: "main" | "secondary"` composition data;
-- Working-CV derivation, save-as-template, Rendered-CV snapshots and duplication preserve the role;
-- the shipped Blueprint maps `secondary` to its narrow region, while another compatible Blueprint can interpret the same semantic role differently;
-- the old order/count-based main/rail split is removed;
-- `data.tex` feeds semantic roles and TypeScript owns no region geometry;
-- document language remains document data and uses the bounded pdfLaTeX/Babel Latin-script set;
-- supported language names, codes and region variants resolve explicitly; unsupported/non-Latin values fail clearly rather than silently becoming English;
-- fonts remain Blueprint-owned; there is no font picker/theme abstraction or alternate-engine matrix.
-
-Acceptance evidence for #355:
-
-- branch Verify #1602 / run `36337507923` passed on exact head `915dc9fccb6435f8f5c9b6bba3a341749b41cdcd`;
-- orchestrator independent real-pdfLaTeX validation produced a mixed-role 4-page 7-section / 37-entry CV with 37/37 markers, 7/7 sections, no `Overfull \\vbox`, and body content on page 1;
-- the orchestrator independently compiled a standalone accented French letter and an alternate stacked Blueprint against the same CV data;
-- PR #358 real-LaTeX portability run `36338236592` passed;
-- PR #358 Windows package candidate run `36338236624` passed, including affected packaged runtime journeys;
-- PR #358 merged as `59f61743ddf2f57ad0bd03e3df8e824e65051536` and closed Issue #355.
-
-Reuse this evidence unless later work materially changes the exercised TeX/rendering, Blueprint contract, or packaged document boundaries.
-
-## Settled document model carried into PLAN[5]
+## Settled PLAN[4] document model
 
 - Editable CVs are saved/reopenable data/composition, not rendered artifacts.
-- CV Templates own reusable composition, including semantic section roles, but do not own presentation.
-- Blueprints own presentation and fonts and are chosen at render time.
-- The shipped Blueprint is the accepted first design; future compatible Blueprints may interpret `secondary` differently.
-- Cover letters use the same Blueprint design contract.
+- CV Templates own reusable composition, including semantic `main` / `secondary` section roles, but do not own presentation.
+- Blueprints own presentation/fonts and are chosen at render time.
+- The shared LaTeX2e/expl3 package/data contract supports both CV and cover-letter presentation.
 - Rendered CVs, rendered letters and Application packets retain exact source projects.
-- pdfLaTeX + Babel is the current engine/language boundary; non-Latin-script support is outside the current scope.
-- Do not reopen PLAN[4] by inventing Blueprint persistence, a marketplace/registry, layout DSL, drag/drop designer, generic theme/font system, image/header asset system, or alternate TeX engines unless a later explicit Product Owner decision requires it.
+- pdfLaTeX + Babel is the current engine/language boundary; non-Latin-script support is outside current scope.
+- Do not reopen PLAN[4] through Blueprint persistence, marketplace/registry work, a layout DSL, generic theme/font system, image/header asset system or alternate TeX engines unless a later explicit Product Owner decision requires it.
 
-## PLAN[5] active boundary
+Accepted PLAN[4] evidence remains recorded in `MASTER_PLAN.md`, SPEC/ADR authority and the merged #348/#353/#358 history. Reuse it unless later work materially changes the exercised rendering boundary.
 
-PLAN[5] refines the already broadly acceptable UI/UX without changing settled product/domain meaning.
+## Accepted PLAN[5] slice — Issue #360 / PR #361
 
-Durable owner findings preserved in `MASTER_PLAN.md` include:
+Working CV editing now satisfies the bounded read-first refinement:
 
-- candidature fields should read as coherent information objects rather than unrelated edit/presentation/AI glyph mechanisms;
-- loaded Home should become a useful local control console rather than mostly a launcher;
-- Tags should become easier to add/retrieve and read as reusable workspace vocabulary/glossary without becoming an ontology;
-- My information should become readable-first rather than form-centric;
-- user-editable AI guidance should be clearly centralized in AI Settings;
-- CV editing should read as one coherent document/composition rather than unrelated generic record boxes and should expose only relevant fields/controls.
+- sections/items read as one ordered semantic CV outline rather than equal-weight record forms;
+- retained content is primary; source/tailoring context is secondary;
+- only the deliberately selected item expands inline for editing;
+- Title remains directly editable while optional subtitle/description/start/end/link fields appear only when retained or deliberately added;
+- clearing optional detail stores it as absent;
+- open/custom `kind` values remain supported without profession/content registries;
+- current / saved-variation / `This CV only` source and ownership semantics remain unchanged;
+- section role/reorder/remove, item reorder/remove, add-section/add-information, template reuse, AI tailoring, Blueprint choice and rendering remain reachable;
+- no schema, persistence, shared-contract, AI-contract, service, LaTeX, Blueprint or render-API boundary changed.
 
-The order of those findings is not an implementation priority by itself. The master orchestrator must inspect current authority and implementation, choose the first coherent PLAN[5] slice, and delegate substantial implementation as one bounded run. Do not bundle all PLAN[5] areas into one redesign.
+Acceptance evidence:
+
+- implementation head `4697d9048f593a8f20b8dd852b478e5dba4f302c` changed only `src/renderer/DocumentWork.tsx`, `src/renderer/documents.css`, and `test/WorkingCvEditor.read-first.test.tsx`;
+- branch Verify #1612 / run `36342411968` passed on that exact head;
+- the orchestrator independently reviewed the renderer state transitions and semantic tests against Issue #360;
+- PR #361's automatically triggered Windows candidate run `36344203631` passed package creation and affected packaged-runtime journeys;
+- PR #361 merged as `f4a19c0cb4835fa28af338ace84c60419cf61b1f` and closed Issue #360.
+
+No real-LaTeX rerun was required because the slice did not alter TeX/rendering behavior.
+
+## Next coherent slice — Issue #362
+
+Implement **My information as one readable professional record** without redesigning the professional-information domain.
+
+The current renderer already has the necessary reusable-item, saved-variation, career-context and AI-disclosure semantics. The remaining UX problem is fragmentation and form-centric editing.
+
+Required bounded outcome:
+
+- preserve the grouped reusable-information overview and make retained content the normal read-first surface;
+- edit only the selected item in context;
+- keep Title and the open-ended semantic group/kind editable, but omit absent optional subtitle/description/date/link fields until deliberately added;
+- keep custom/unanticipated kinds valid; do not create a career ontology or schema engine;
+- make saved variations contextual/secondary to the selected reusable item rather than a competing equal-weight form panel;
+- keep all existing variation content reachable, including dates and URL, while requiring no variation for ordinary use;
+- keep career preferences semantically distinct from factual evidence but visibly part of the same My information experience;
+- make career-preference editing contextual/compact instead of rendering all preference textareas as one administration form;
+- preserve one ordinary AI-use meaning: `AI may use this information`, with one consistent contextual affordance for reusable items and individual career-preference fields;
+- preserve document return context, reference-integrity behavior, dirty/discard boundaries and manual/no-AI completeness.
+
+Prefer renderer-local changes around `ProfileWorkspace.tsx`, `CareerContextPanel.tsx`, the two AI-disclosure controls, `professional-information.css`, minimal parent composition if genuinely necessary, and focused semantic tests.
+
+Do not change schema, services/contracts, document/PLAN[4] behavior, external-AI integration, candidature fields, Tags, Home or Settings in this slice. Do not bundle all PLAN[5] findings together.
+
+Other PLAN[5] owner findings remain durable in `MASTER_PLAN.md` and must not be lost: candidature-field cohesion, loaded Home, Tags, AI-settings guidance, and later cross-surface polish.
