@@ -3,6 +3,10 @@ import { clipboard, dialog, ipcMain, type BrowserWindow } from "electron";
 import { assertTrustedSender, requireWorkspaceRoot } from "./desktop-ipc-context";
 
 import {
+  candidatureAiTaskTemplateDeleteSchema,
+  candidatureAiTaskTemplateSaveSchema,
+  candidatureAiTaskTemplateSchema,
+  candidatureAiTaskTemplatesSchema,
   candidatureOpportunityResearchAccessChannels,
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
@@ -16,10 +20,13 @@ import {
 } from "../shared/candidature-opportunity-research-access-contracts";
 import {
   buildOpportunityResearchPortableTask,
+  deleteCandidatureAiTaskTemplate,
   getCandidatureOpportunityResearchAccess,
   importOpportunityResearchPortableResult,
+  listCandidatureAiTaskTemplates,
   maxOpportunityResearchPortableResultBytes,
   requireSelectedOpportunityResearchContext,
+  saveCandidatureAiTaskTemplate,
   updateCandidatureOpportunityResearchAccess,
 } from "./candidature-opportunity-research-access-service";
 
@@ -55,6 +62,35 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
       requireSelectedOpportunityResearchContext(requireWorkspaceRoot()),
     );
   });
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.taskTemplates, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureAiTaskTemplatesSchema.parse(
+      listCandidatureAiTaskTemplates(requireWorkspaceRoot()),
+    );
+  });
+  ipcMain.handle(
+    candidatureOpportunityResearchAccessChannels.taskTemplateSave,
+    (event, rawInput: unknown) => {
+      assertTrustedSender(event, mainWindow);
+      return candidatureAiTaskTemplateSchema.parse(
+        saveCandidatureAiTaskTemplate(
+          requireWorkspaceRoot(),
+          candidatureAiTaskTemplateSaveSchema.parse(rawInput),
+        ),
+      );
+    },
+  );
+  ipcMain.handle(
+    candidatureOpportunityResearchAccessChannels.taskTemplateDelete,
+    (event, rawId: unknown) => {
+      assertTrustedSender(event, mainWindow);
+      deleteCandidatureAiTaskTemplate(
+        requireWorkspaceRoot(),
+        candidatureAiTaskTemplateDeleteSchema.parse(rawId),
+      );
+      return "deleted";
+    },
+  );
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.copyTask,
     (event, rawInstruction: unknown) => {
