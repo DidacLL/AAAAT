@@ -3,7 +3,12 @@ import {
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
   candidatureOpportunityResearchResultImportResultSchema,
+  candidatureOpportunityResearchResultRetainResultSchema,
+  candidatureOpportunityResearchResultTextSchema,
+  candidatureOpportunityResearchTaskContextSchema,
+  candidatureOpportunityResearchTaskCopyResultSchema,
   candidatureOpportunityResearchTaskExportResultSchema,
+  candidatureOpportunityResearchTaskInstructionSchema,
   type CandidatureOpportunityResearchAccessDesktopApi,
 } from "../shared/candidature-opportunity-research-access-contracts";
 
@@ -32,9 +37,30 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
             candidatureOpportunityResearchAccessUpdateSchema.parse(input),
           ),
         ),
-      exportTask: async () =>
+      taskContext: async () =>
+        candidatureOpportunityResearchTaskContextSchema.parse(
+          await invoke(candidatureOpportunityResearchAccessChannels.taskContext),
+        ),
+      copyTask: async (instruction) =>
+        candidatureOpportunityResearchTaskCopyResultSchema.parse(
+          await invoke(
+            candidatureOpportunityResearchAccessChannels.copyTask,
+            candidatureOpportunityResearchTaskInstructionSchema.parse(instruction),
+          ),
+        ),
+      exportTask: async (instruction) =>
         candidatureOpportunityResearchTaskExportResultSchema.parse(
-          await invoke(candidatureOpportunityResearchAccessChannels.exportTask),
+          await invoke(
+            candidatureOpportunityResearchAccessChannels.exportTask,
+            candidatureOpportunityResearchTaskInstructionSchema.parse(instruction),
+          ),
+        ),
+      retainResult: async (sourceText) =>
+        candidatureOpportunityResearchResultRetainResultSchema.parse(
+          await invoke(
+            candidatureOpportunityResearchAccessChannels.retainResult,
+            candidatureOpportunityResearchResultTextSchema.parse(sourceText),
+          ),
         ),
       importResult: async () =>
         candidatureOpportunityResearchResultImportResultSchema.parse(
